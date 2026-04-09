@@ -45,9 +45,43 @@
 main {
   flex: 1;
   padding: 2.5rem 2rem;
-  max-width: 1300px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Nav tabs */
+.nav-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.nav-tab {
+  background: transparent;
+  border: 1px solid #5a3a1a;
+  color: #9a7040;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  padding: 0.45rem 1.3rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.nav-tab:hover {
+  background: rgba(180, 120, 40, 0.12);
+  border-color: #c4943d;
+  color: #d4a843;
+}
+
+.nav-tab.active {
+  background: rgba(180, 120, 40, 0.2);
+  border-color: #d4a843;
+  color: #d4a843;
+  font-weight: 600;
 }
 
 .section-title {

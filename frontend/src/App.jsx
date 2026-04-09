@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import CollectionPage from "./CollectionPage";
 
 function BookCard({ book }) {
   return (
@@ -24,6 +25,7 @@ function BookCard({ book }) {
 }
 
 function App() {
+  const [tab, setTab] = useState("browse");
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,14 +36,8 @@ function App() {
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         return res.json();
       })
-      .then((data) => {
-        setBooks(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+      .then((data) => { setBooks(data); setLoading(false); })
+      .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
   return (
@@ -49,29 +45,46 @@ function App() {
       <header className="header">
         <h1 className="header-title">✦ LuxGrimoire ✦</h1>
         <p className="header-subtitle">A curated collection of extraordinary books</p>
+        <nav className="nav-tabs">
+          <button
+            className={`nav-tab${tab === "browse" ? " active" : ""}`}
+            onClick={() => setTab("browse")}
+          >
+            📚 Przeglądaj
+          </button>
+          <button
+            className={`nav-tab${tab === "collection" ? " active" : ""}`}
+            onClick={() => setTab("collection")}
+          >
+            📋 Moja kolekcja
+          </button>
+        </nav>
       </header>
 
       <main>
-        {loading ? (
-          <div className="status-container">
-            <div className="spinner" />
-            <span>Loading the collection…</span>
-          </div>
-        ) : error ? (
-          <div className="status-container">
-            <p className="error-text">⚠ Could not load books: {error}</p>
-            <p>Make sure the Spring Boot backend is running on port 8080.</p>
-          </div>
-        ) : (
-          <>
-            <h2 className="section-title">Our Collection</h2>
-            <div className="book-grid">
-              {books.map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
+        {tab === "browse" && (
+          loading ? (
+            <div className="status-container">
+              <div className="spinner" />
+              <span>Loading the collection…</span>
             </div>
-          </>
+          ) : error ? (
+            <div className="status-container">
+              <p className="error-text">⚠ Could not load books: {error}</p>
+              <p>Make sure the Spring Boot backend is running on port 8080.</p>
+            </div>
+          ) : (
+            <>
+              <h2 className="section-title">Our Collection</h2>
+              <div className="book-grid">
+                {books.map((book) => (
+                  <BookCard key={book.id} book={book} />
+                ))}
+              </div>
+            </>
+          )
         )}
+        {tab === "collection" && <CollectionPage />}
       </main>
 
       <footer className="footer">
