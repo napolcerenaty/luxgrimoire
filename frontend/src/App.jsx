@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import CollectionPage from "./CollectionPage";
+import { AuthProvider } from "./AuthContext";
+import UserMenu from "./UserMenu";
 
 function BookCard({ book }) {
   return (
@@ -41,13 +43,17 @@ function App() {
   }, []);
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1 className="header-title">✦ LuxGrimoire ✦</h1>
-        <p className="header-subtitle">A curated collection of extraordinary books</p>
-        <nav className="nav-tabs">
-          <button
-            className={`nav-tab${tab === "browse" ? " active" : ""}`}
+    <AuthProvider>
+      <div className="app">
+        <header className="header">
+          <div className="header-user-area">
+            <UserMenu />
+          </div>
+          <h1 className="header-title">✦ LuxGrimoire ✦</h1>
+          <p className="header-subtitle">A curated collection of extraordinary books</p>
+          <nav className="nav-tabs">
+            <button
+              className={`nav-tab${tab === "browse" ? " active" : ""}`}
             onClick={() => setTab("browse")}
           >
             📚 Przeglądaj
@@ -91,6 +97,7 @@ function App() {
         &copy; {new Date().getFullYear()} LuxGrimoire — All rights reserved
       </footer>
     </div>
+    </AuthProvider>
   );
 }
 

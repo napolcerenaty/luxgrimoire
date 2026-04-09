@@ -1,0 +1,70 @@
+import { createContext, useContext, useState, useEffect } from "react";
+
+const AuthContext = createContext(null);
+
+const API = "http://localhost:8080/api/auth";
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(undefined); // undefined = loading, null = not logged in
+
+  useEffect(() => {
+    fetch(`${API}/me`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setUser(data))
+      .catch(() => setUser(null));
+  }, []);
+
+  const login = async (username, password) => {
+    const r = await fetch(`${API}/login`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Login failed");
+    setUser(data);
+    return data;
+  };
+
+  const logout = async () => {
+    await fetch(`${API}/logout`, { method: "POST", credentials: "include" });
+    setUser(null);
+  };
+
+  const updateProfile = async (firstName, lastName) => {
+    const r = await fetch(`${API}/profile`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName, lastName }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Update failed");
+    setUser(data);
+    return data;
+  };
+
+  const updateSettings = async (timezone) => {
+    const r = await fetch(`${API}/settings`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timezone }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Update failed");
+    setUser(data);
+    return data;
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}

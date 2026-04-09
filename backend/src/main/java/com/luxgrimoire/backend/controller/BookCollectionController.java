@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -13,7 +14,12 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 public class BookCollectionController {
 
-    private static final List<BookEntry> BOOKS = List.of(
+    @GetMapping
+    public List<BookEntry> getCollection() {
+        return BOOKS;
+    }
+
+    private static final List<BookEntry> BOOKS = Arrays.asList(
         new BookEntry("angielski","M. K. Lobb","Seven Faceless Saints","Seven Faceless Saints","1","FairyLoot","Signature",false,false,""),
         new BookEntry("angielski","Lana Ferguson","The Fake Mate","","","FairyLoot","Signature",false,false,""),
         new BookEntry("angielski","S. Jae-Jones","Zhara","Guardians of Dawn","1","Illumicrate","Signature",false,true,""),
@@ -174,8 +180,8 @@ public class BookCollectionController {
         new BookEntry("angielski","Michael R. Miller","Ascendant","Songs of Chaos","1","The Broken Binding","Signature",false,false,""),
         new BookEntry("angielski","Tad Williams","The Dragonbone Chair","Memory, Sorrow, and Thorn","1","The Broken Binding","",false,false,""),
         new BookEntry("angielski","Tad Williams","Stone of Farewell","Memory, Sorrow, and Thorn","2","The Broken Binding","",false,false,""),
-        new BookEntry("angielski","Tad Williams","To Green Angel Tower vol. 1","Memory, Sorrow, and Thorn","3.1","The Broken Binding","",false,false,""),
-        new BookEntry("angielski","Tad Williams","To Green Angel Tower vol. 2","Memory, Sorrow, and Thorn","3.2","The Broken Binding","",false,false,""),
+        new BookEntry("angielski","Tad Williams","To Green Angel Tower, vol. 1","Memory, Sorrow, and Thorn","3.1","The Broken Binding","",false,false,""),
+        new BookEntry("angielski","Tad Williams","To Green Angel Tower, vol. 2","Memory, Sorrow, and Thorn","3.2","The Broken Binding","",false,false,""),
         new BookEntry("angielski","Jennifer L. Armentrout","White Hot Kiss","The Dark Elements","1","FairyLoot","Digital signature",false,false,""),
         new BookEntry("angielski","Jennifer L. Armentrout","Stone Cold Touch","The Dark Elements","2","FairyLoot","Digital signature",false,false,""),
         new BookEntry("angielski","Jennifer L. Armentrout","Every Last Breath","The Dark Elements","3","FairyLoot","Digital signature",false,false,""),
@@ -491,9 +497,4 @@ public class BookCollectionController {
         new BookEntry("angielski","Mara Rutherford","The Poison Season","","","OwlCrate","Signature",false,false,""),
         new BookEntry("angielski","Katherine Quinn","To Kill a Shadow","Mistlands","1","OwlCrate","Signature, author letter, Bonus content",false,false,"")
     );
-
-    @GetMapping
-    public List<BookEntry> getCollection() {
-        return BOOKS;
-    }
 }

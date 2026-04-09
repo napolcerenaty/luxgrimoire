@@ -1,0 +1,312 @@
+/* ═══════════════════════════════════════════
+   User icon button
+═══════════════════════════════════════════ */
+.user-menu-wrapper {
+  position: relative;
+}
+
+.user-icon-btn {
+  background: transparent;
+  border: 1px solid #5a3a1a;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4943d;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.user-icon-btn:hover {
+  background: rgba(180, 120, 40, 0.15);
+  border-color: #d4a843;
+  color: #d4a843;
+}
+
+.user-icon-initials {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #d4a843;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════
+   Dropdown
+═══════════════════════════════════════════ */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #1e120a;
+  border: 1px solid #5a3a1a;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.user-dropdown-header {
+  padding: 0.85rem 1rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dropdown-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  color: #d4a843;
+  font-weight: 600;
+}
+
+.dropdown-username {
+  font-size: 0.75rem;
+  color: #7a5a30;
+}
+
+.dropdown-divider {
+  border: none;
+  border-top: 1px solid #3a2410;
+  margin: 0;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #b89060;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(180, 120, 40, 0.1);
+  color: #d4a843;
+}
+
+.dropdown-item.logout {
+  color: #a05040;
+}
+
+.dropdown-item.logout:hover {
+  background: rgba(160, 60, 40, 0.12);
+  color: #c06050;
+}
+
+/* ═══════════════════════════════════════════
+   Modal backdrop & box
+═══════════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-box {
+  background: #1c1208;
+  border: 1px solid #5a3a1a;
+  border-radius: 8px;
+  padding: 2rem;
+  width: min(420px, 92vw);
+  position: relative;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.18s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.9rem;
+  background: transparent;
+  border: none;
+  color: #7a5a30;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  transition: color 0.15s;
+}
+
+.modal-close:hover { color: #c4943d; }
+
+.modal-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.25rem;
+  color: #d4a843;
+  margin: 0 0 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ═══════════════════════════════════════════
+   Form elements inside modals
+═══════════════════════════════════════════ */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: #9a7040;
+  letter-spacing: 0.03em;
+}
+
+.modal-form input,
+.modal-form select {
+  background: #120c04;
+  border: 1px solid #4a2e10;
+  border-radius: 4px;
+  color: #d4c4a0;
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.modal-form input:focus,
+.modal-form select:focus {
+  border-color: #c4943d;
+}
+
+.modal-form select option,
+.modal-form select optgroup {
+  background: #1c1208;
+}
+
+.modal-btn {
+  background: transparent;
+  border: 1px solid #5a3a1a;
+  color: #c4943d;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  padding: 0.55rem 1.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  align-self: flex-start;
+}
+
+.modal-btn:hover {
+  background: rgba(180, 120, 40, 0.12);
+  border-color: #d4a843;
+  color: #d4a843;
+}
+
+.modal-btn.primary {
+  background: rgba(180, 120, 40, 0.2);
+  border-color: #c4943d;
+}
+
+.modal-btn.primary:hover {
+  background: rgba(180, 120, 40, 0.35);
+  border-color: #d4a843;
+}
+
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.modal-btn-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.modal-error {
+  color: #c05040;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.modal-success {
+  color: #60a860;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Avatar placeholder
+═══════════════════════════════════════════ */
+.avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2d1a08, #3d2410);
+  border: 2px solid #5a3a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+}
+
+.avatar-initials {
+  font-family: 'Cinzel', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #c4943d;
+  letter-spacing: 0.05em;
+}
+
+/* ═══════════════════════════════════════════
+   Profile fields (view mode)
+═══════════════════════════════════════════ */
+.profile-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #2a1a08;
+  padding-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.profile-label {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  color: #7a5a30;
+  flex-shrink: 0;
+}
+
+.profile-value {
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  color: #d4c4a0;
+  text-align: right;
+}
