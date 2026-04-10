@@ -7,7 +7,7 @@ const FILTERS = [
   { key: "authors",       label: "Authors" },
   { key: "artists",       label: "Artists" },
   { key: "subscriptions", label: "Subscriptions" },
-  { key: "companies",     label: "Companies" },
+  { key: "companies",     label: "Book Boxes" },
 ];
 
 function useDebounce(value, delay) {

@@ -190,7 +190,48 @@ function AppInner() {
       </main>
 
       <footer className="footer">
-        &copy; {new Date().getFullYear()} {t("app.footer")}
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <span className="footer-logo">✦ LuxGrimoire ✦</span>
+            <span className="footer-tagline">Your special edition book tracker</span>
+          </div>
+
+          <div className="footer-links">
+            <div className="footer-col">
+              <span className="footer-col-title">Discover</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Browse Editions</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Book Boxes</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Announcements</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Lucky Draw</a>
+            </div>
+
+            <div className="footer-col">
+              <span className="footer-col-title">Account</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>My Collection</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>My Subscriptions</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Profile Settings</a>
+            </div>
+
+            <div className="footer-col">
+              <span className="footer-col-title">Help</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>FAQ</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>How It Works</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Contact</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Report an Issue</a>
+            </div>
+
+            <div className="footer-col">
+              <span className="footer-col-title">Legal</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Privacy Policy</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Terms of Use</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Cookie Policy</a>
+            </div>
+          </div>
+        </div>
+
+        <div className="footer-bottom">
+          &copy; {new Date().getFullYear()} LuxGrimoire — {t("app.footer")}
+        </div>
       </footer>
     </div>
   );
