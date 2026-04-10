@@ -183,9 +183,9 @@ function CalendarSection() {
 }
 
 // ─── BOOK CARD (grid) ────────────────────────────────────────────────────────
-function BookCard({ entry, onRemove, t }) {
+function BookCard({ entry, onRemove, onBookClick, t }) {
   return (
-    <div className="account-book-card">
+    <div className={`account-book-card${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-card-cover">
         {entry.imageUrl
           ? <img src={entry.imageUrl} alt={entry.title} />
@@ -198,15 +198,15 @@ function BookCard({ entry, onRemove, t }) {
         {entry.editionName && <p className="account-book-card-edition">{entry.editionName}</p>}
         {entry.seriesName && <p className="account-book-card-series">{entry.seriesName}</p>}
       </div>
-      <button className="account-book-card-remove" onClick={() => onRemove(entry.id)} title={t("booklist.remove")}>✕</button>
+      <button className="account-book-card-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
     </div>
   );
 }
 
 // ─── BOOK ROW (list) ─────────────────────────────────────────────────────────
-function BookRow({ entry, onRemove, t }) {
+function BookRow({ entry, onRemove, onBookClick, t }) {
   return (
-    <div className="account-book-row">
+    <div className={`account-book-row${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-row-thumb">
         {entry.imageUrl
           ? <img src={entry.imageUrl} alt={entry.title} />
@@ -219,22 +219,28 @@ function BookRow({ entry, onRemove, t }) {
         {entry.editionName && <span className="account-book-row-edition">{entry.editionName}</span>}
         {entry.seriesName && <span className="account-book-row-series">{entry.seriesName}</span>}
       </div>
-      <button className="account-book-row-remove" onClick={() => onRemove(entry.id)} title={t("booklist.remove")}>✕</button>
+      <button className="account-book-row-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
     </div>
   );
 }
 
 // ─── BOOK LIST SECTION (shared for collection / ISO / interested) ─────────────
-function BookListSection({ flag }) {
+function BookListSection({ flag, onBookClick }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [entries,     setEntries]     = useState([]);
   const [bookDetails, setBookDetails] = useState({});
+  const [companies,   setCompanies]   = useState([]);
   const [viewMode,    setViewMode]    = useState("grid");
   const [filterTitle,  setFilterTitle]  = useState("");
   const [filterAuthor, setFilterAuthor] = useState("");
-  const [filterBox,    setFilterBox]    = useState("");
+  const [filterBoxId,  setFilterBoxId]  = useState("");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("http://localhost:8080/api/companies", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -264,19 +270,19 @@ function BookListSection({ flag }) {
     const ed = bd ? (bd.editions || []).find((e) => e.id === entry.editionId) : null;
     return {
       ...entry,
-      title:       bd?.title ?? "",
-      author:      bd?.author ?? "",
-      seriesName:  bd?.seriesName ?? "",
-      editionName: ed?.editionName ?? "",
-      bookBoxName: ed?.bookBoxCompanyCustomName ?? ed?.editionName ?? "",
-      imageUrl:    ed?.imageUrls?.[0] ?? null,
+      title:            bd?.title ?? "",
+      author:           bd?.author ?? "",
+      seriesName:       bd?.seriesName ?? "",
+      editionName:      ed?.editionName ?? "",
+      bookBoxCompanyId: ed?.bookBoxCompanyId ?? null,
+      imageUrl:         ed?.imageUrls?.[0] ?? null,
     };
   });
 
   const filtered = enriched.filter((e) => {
-    if (filterTitle  && !e.title.toLowerCase().includes(filterTitle.toLowerCase()))         return false;
-    if (filterAuthor && !e.author.toLowerCase().includes(filterAuthor.toLowerCase()))        return false;
-    if (filterBox    && !e.bookBoxName.toLowerCase().includes(filterBox.toLowerCase()))      return false;
+    if (filterTitle  && !e.title.toLowerCase().includes(filterTitle.toLowerCase()))  return false;
+    if (filterAuthor && !e.author.toLowerCase().includes(filterAuthor.toLowerCase())) return false;
+    if (filterBoxId  && e.bookBoxCompanyId !== filterBoxId)                           return false;
     return true;
   });
 
@@ -302,7 +308,10 @@ function BookListSection({ flag }) {
       <div className="account-booklist-filters">
         <input className="account-filter-input" placeholder={t("booklist.filterTitle")}  value={filterTitle}  onChange={(e) => setFilterTitle(e.target.value)} />
         <input className="account-filter-input" placeholder={t("booklist.filterAuthor")} value={filterAuthor} onChange={(e) => setFilterAuthor(e.target.value)} />
-        <input className="account-filter-input" placeholder={t("booklist.filterBox")}    value={filterBox}    onChange={(e) => setFilterBox(e.target.value)} />
+        <select className="account-filter-input account-filter-select" value={filterBoxId} onChange={(e) => setFilterBoxId(e.target.value)}>
+          <option value="">{t("booklist.filterBoxAll")}</option>
+          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
 
       {loading ? (
@@ -311,12 +320,99 @@ function BookListSection({ flag }) {
         <p className="user-collection-empty">{t("booklist.empty")}</p>
       ) : viewMode === "grid" ? (
         <div className="account-booklist-grid">
-          {filtered.map((e) => <BookCard key={e.id} entry={e} onRemove={removeBook} t={t} />)}
+          {filtered.map((e) => <BookCard key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} t={t} />)}
         </div>
       ) : (
         <div className="account-booklist-list">
-          {filtered.map((e) => <BookRow key={e.id} entry={e} onRemove={removeBook} t={t} />)}
+          {filtered.map((e) => <BookRow key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} t={t} />)}
         </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Helper: next renewal date from addedAt ───────────────────────────────────
+function nextRenewal(addedAtStr) {
+  if (!addedAtStr) return null;
+  const day = new Date(addedAtStr).getDate();
+  const now  = new Date();
+  const candidate = new Date(now.getFullYear(), now.getMonth(), day);
+  if (candidate > now) return candidate;
+  return new Date(now.getFullYear(), now.getMonth() + 1, day);
+}
+
+// ─── SUBSCRIPTION DETAIL ─────────────────────────────────────────────────────
+function SubDetailView({ entry, company, sub, onBack }) {
+  const { t, lang } = useI18n();
+  const locale = LANG_LOCALE[lang] ?? "en-GB";
+  const renewal = nextRenewal(entry.addedAt);
+  const renewalStr = renewal
+    ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(renewal)
+    : null;
+
+  const logoSrc = sub?.logoUrl || company?.logoUrl;
+
+  return (
+    <section className="account-section">
+      <button className="account-back-site-btn" style={{ alignSelf: "flex-start", marginBottom: "1.25rem" }} onClick={onBack}>
+        ← {t("account.navSubscriptions")}
+      </button>
+
+      <div className="account-sub-detail-header">
+        <div className="account-sub-detail-logo">
+          {logoSrc
+            ? <img src={logoSrc} alt={company?.name} />
+            : <span className="account-sub-logo-placeholder">{company?.name?.[0] ?? "?"}</span>
+          }
+        </div>
+        <div className="account-sub-detail-title-block">
+          <h2 className="account-sub-detail-company">{company?.name}</h2>
+          <p className="account-sub-detail-subname">{sub?.name}</p>
+          {company?.websiteUrl && (
+            <a className="account-sub-detail-website" href={company.websiteUrl} target="_blank" rel="noopener noreferrer">
+              🌐 {company.websiteUrl}
+            </a>
+          )}
+        </div>
+      </div>
+
+      {renewalStr && (
+        <div className="account-sub-detail-renewal">
+          🔄 {t("sub.nextRenewal")}: <strong>{renewalStr}</strong>
+        </div>
+      )}
+
+      <div className="account-sub-detail-meta">
+        {sub?.basePrice && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">{t("sub.price")}</span>
+            <span className="account-sub-meta-value">{sub.basePrice} {sub.currency ?? ""}</span>
+          </div>
+        )}
+        {sub?.type && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">{t("sub.type")}</span>
+            <span className="account-sub-meta-value">{sub.type}</span>
+          </div>
+        )}
+        {sub?.genres?.length > 0 && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">{t("sub.genres")}</span>
+            <div className="account-sub-genres">
+              {sub.genres.map((g) => <span key={g} className="account-sub-genre-tag">{g}</span>)}
+            </div>
+          </div>
+        )}
+        {sub?.shipsInternationally !== undefined && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">{t("sub.international")}</span>
+            <span className="account-sub-meta-value">{sub.shipsInternationally ? "✓" : "✗"}</span>
+          </div>
+        )}
+      </div>
+
+      {company?.description && (
+        <p className="account-sub-detail-desc">{company.description}</p>
       )}
     </section>
   );
@@ -325,9 +421,11 @@ function BookListSection({ flag }) {
 // ─── SUBSCRIPTIONS SECTION ────────────────────────────────────────────────────
 function SubscriptionsSection() {
   const { user } = useAuth();
-  const { t } = useI18n();
-  const [userSubs, setUserSubs]   = useState([]);
-  const [companies, setCompanies] = useState([]);
+  const { t, lang } = useI18n();
+  const locale = LANG_LOCALE[lang] ?? "en-GB";
+  const [userSubs,   setUserSubs]   = useState([]);
+  const [companies,  setCompanies]  = useState([]);
+  const [selected,   setSelected]   = useState(null); // { entry, company, sub }
 
   useEffect(() => {
     if (!user) return;
@@ -337,32 +435,60 @@ function SubscriptionsSection() {
       .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
   }, [user]);
 
+  if (selected) {
+    return <SubDetailView {...selected} onBack={() => setSelected(null)} />;
+  }
+
   const removeSub = async (entryId) => {
     const res = await fetch(`http://localhost:8080/api/user/subscriptions/${entryId}`, { method: "DELETE", credentials: "include" });
     if (res.ok) setUserSubs((prev) => prev.filter((e) => e.id !== entryId));
   };
 
-  const getSubLabel = (entry) => {
-    const co = companies.find((c) => c.id === entry.companyId);
-    if (!co) return entry.subscriptionId;
-    const sub = (co.subscriptions || []).find((s) => s.id === entry.subscriptionId);
-    return sub ? `${co.name} — ${sub.name}` : co.name;
+  const handleClick = (entry) => {
+    const co  = companies.find((c) => c.id === entry.companyId);
+    const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
+    setSelected({ entry, company: co, sub });
   };
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">{t("userCollection.mySubs")}</h2>
+      <h2 className="account-section-title">{t("account.navSubscriptions")}</h2>
       {userSubs.length === 0 ? (
         <p className="user-collection-empty">{t("userCollection.empty")}</p>
       ) : (
-        <ul className="user-collection-list">
-          {userSubs.map((entry) => (
-            <li key={entry.id} className="user-collection-item">
-              <span className="user-collection-item-label">{getSubLabel(entry)}</span>
-              <button className="user-collection-remove-btn" onClick={() => removeSub(entry.id)} title={t("userCollection.remove")}>✕</button>
-            </li>
-          ))}
-        </ul>
+        <div className="account-sub-list">
+          {userSubs.map((entry) => {
+            const co  = companies.find((c) => c.id === entry.companyId);
+            const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
+            const logoSrc = sub?.logoUrl || co?.logoUrl;
+            const renewal = nextRenewal(entry.addedAt);
+            const renewalStr = renewal
+              ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(renewal)
+              : null;
+
+            return (
+              <div key={entry.id} className="account-sub-row" onClick={() => handleClick(entry)}>
+                <div className="account-sub-logo">
+                  {logoSrc
+                    ? <img src={logoSrc} alt={co?.name} />
+                    : <span className="account-sub-logo-placeholder">{co?.name?.[0] ?? "?"}</span>
+                  }
+                </div>
+                <div className="account-sub-info">
+                  <span className="account-sub-company-name">{co?.name ?? entry.companyId}</span>
+                  <span className="account-sub-name">{sub?.name ?? entry.subscriptionId}</span>
+                  {renewalStr && <span className="account-sub-renewal">🔄 {renewalStr}</span>}
+                </div>
+                <button
+                  className="account-sub-remove"
+                  onClick={(e) => { e.stopPropagation(); removeSub(entry.id); }}
+                  title={t("userCollection.remove")}
+                >✕</button>
+                <span className="account-sub-arrow">›</span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
@@ -508,7 +634,7 @@ function SettingsSection() {
 }
 
 // ─── ACCOUNT PAGE (master-detail) ────────────────────────────────────────────
-export default function AccountPage({ onBack, initialSection = "calendar" }) {
+export default function AccountPage({ onBack, initialSection = "calendar", onSectionChange, onBookClick }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [activeSection, setActiveSection]       = useState(initialSection);
@@ -517,14 +643,15 @@ export default function AccountPage({ onBack, initialSection = "calendar" }) {
   const handleNavClick = (key) => {
     setActiveSection(key);
     setMobileSectionOpen(true);
+    onSectionChange?.(key);
   };
 
   const renderSection = () => {
     switch (activeSection) {
       case "calendar":      return <CalendarSection />;
-      case "collection":    return <BookListSection flag="OWNED" />;
-      case "iso":           return <BookListSection flag="ISO" />;
-      case "interested":    return <BookListSection flag="INTERESTED" />;
+      case "collection":    return <BookListSection flag="OWNED"      onBookClick={onBookClick} />;
+      case "iso":           return <BookListSection flag="ISO"        onBookClick={onBookClick} />;
+      case "interested":    return <BookListSection flag="INTERESTED" onBookClick={onBookClick} />;
       case "subscriptions": return <SubscriptionsSection />;
       case "settings":      return <SettingsSection />;
       default:              return null;

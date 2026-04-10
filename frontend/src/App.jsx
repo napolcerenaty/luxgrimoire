@@ -69,6 +69,7 @@ function AppInner() {
   const [selectedArtistId, setSelectedArtistId] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
+  const [accountSection, setAccountSection] = useState("calendar");
 
   const handleBookClick = (bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
   const handleEditBook = (book) => { setEditingBook(book); setEditingEdition(null); setTab("book-edit"); };
@@ -157,7 +158,12 @@ function AppInner() {
           )
         )}
         {tab === "collection" && <CollectionPage onBookClick={handleBookClick} />}
-        {tab === "account"    && <AccountPage onBack={() => setTab("browse")} />}
+        {tab === "account"    && <AccountPage
+            onBack={() => setTab("browse")}
+            initialSection={accountSection}
+            onSectionChange={setAccountSection}
+            onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
+          />}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}
