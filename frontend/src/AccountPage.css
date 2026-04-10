@@ -4,16 +4,16 @@
 .account-page {
   display: flex;
   align-items: flex-start;
-  gap: 2rem;
-  max-width: 1000px;
+  gap: 1rem;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem 1rem 3rem;
+  padding: 1.5rem 0.75rem 3rem;
   min-height: calc(100vh - 180px);
 }
 
 /* ─── Sidebar ──────────────────────────────────────────────────────────────── */
 .account-sidebar {
-  width: 240px;
+  width: 210px;
   flex-shrink: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -351,10 +351,10 @@
   color: var(--accent);
 }
 
-/* 7-column grid */
+/* 7-column grid — minmax(0,1fr) prevents columns from expanding to fit content */
 .account-cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   background: var(--border-dim);
   border: 1px solid var(--border-dim);
@@ -374,10 +374,12 @@
   padding: 0.45rem 0.25rem;
 }
 
-/* Day cells */
+/* Day cells — fixed height, content clips instead of expanding the cell */
 .account-cal-cell {
   background: var(--bg-surface);
-  min-height: 90px;
+  height: 96px;
+  min-width: 0;           /* critical: prevents grid blowout */
+  overflow: hidden;
   padding: 0.35rem 0.4rem 0.4rem;
   display: flex;
   flex-direction: column;
@@ -420,7 +422,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;           /* allow shrink inside flex */
   line-height: 1.3;
+  flex-shrink: 0;
 }
 
 /* Sale chip */
@@ -432,10 +436,13 @@
   cursor: pointer;
   text-align: left;
   width: 100%;
+  min-width: 0;           /* allow shrink inside flex */
   display: flex;
   align-items: flex-start;
   gap: 4px;
+  overflow: hidden;
   transition: background 0.12s;
+  flex-shrink: 0;
 }
 .account-cal-sale:hover {
   background: color-mix(in srgb, var(--ev) 30%, transparent);
@@ -622,7 +629,7 @@
 
   /* Calendar cells smaller on mobile */
   .account-cal-cell {
-    min-height: 56px;
+    height: 60px;
     padding: 0.2rem 0.2rem 0.25rem;
     gap: 0.15rem;
   }
