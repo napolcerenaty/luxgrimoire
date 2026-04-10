@@ -215,3 +215,64 @@
   font-size: 0.95rem;
   margin: 0;
 }
+
+/* ── User collection sections ───────────────────────────────────────── */
+
+.user-collection-card {
+  margin-top: 1.2rem;
+  width: 100%;
+  max-width: 560px;
+}
+
+.user-collection-title {
+  font-size: 1rem;
+  color: #38d4f0;
+  margin: 0 0 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.user-collection-empty {
+  color: #547898;
+  font-size: 0.9rem;
+}
+
+.user-collection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.user-collection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #081828;
+  border: 1px solid #0d2840;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem 0.4rem 0.8rem;
+}
+
+.user-collection-item-label {
+  font-size: 0.9rem;
+  color: #c0e4f4;
+}
+
+.user-collection-remove-btn {
+  background: none;
+  border: none;
+  color: #547898;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.user-collection-remove-btn:hover {
+  color: #cc4444;
+}

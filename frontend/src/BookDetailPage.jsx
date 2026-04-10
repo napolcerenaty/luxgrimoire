@@ -13,6 +13,12 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNe
   const [deleting, setDeleting] = useState(false);
   const [company, setCompany] = useState(null);
 
+  // ── user collection state ──
+  const [ownedBooks, setOwnedBooks] = useState([]);
+  const [addingBook, setAddingBook] = useState(false);
+  const [bookAddedMsg, setBookAddedMsg] = useState("");
+  const [confirmDupe, setConfirmDupe] = useState(null); // { count }
+
   useEffect(() => {
     if (!bookTitle) return;
     setLoading(true);
@@ -37,6 +43,47 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNe
       .then((data) => setCompany(data))
       .catch(() => setCompany(null));
   }, [detail?.bookBoxCompanyId]);
+
+  // load user's owned books
+  useEffect(() => {
+    if (!user) { setOwnedBooks([]); return; }
+    fetch("http://localhost:8080/api/user/books", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setOwnedBooks)
+      .catch(() => setOwnedBooks([]));
+  }, [user]);
+
+  const doAddBook = async () => {
+    if (!detail) return;
+    setAddingBook(true);
+    try {
+      const res = await fetch("http://localhost:8080/api/user/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ bookDetailId: detail.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOwnedBooks((prev) => [...prev, data.entry]);
+        setBookAddedMsg(t("userCollection.bookAdded"));
+        setTimeout(() => setBookAddedMsg(""), 3000);
+      }
+    } finally {
+      setAddingBook(false);
+      setConfirmDupe(null);
+    }
+  };
+
+  const handleAddBook = () => {
+    if (!user || !detail) return;
+    const count = ownedBooks.filter((e) => e.bookDetailId === detail.id).length;
+    if (count > 0) {
+      setConfirmDupe({ count });
+    } else {
+      doAddBook();
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm(t("bookDetail.deleteConfirm"))) return;
@@ -91,9 +138,35 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNe
 
   return (
     <div className="book-detail-page">
+      {/* duplicate confirmation dialog */}
+      {confirmDupe && (
+        <div className="uc-confirm-overlay">
+          <div className="uc-confirm-dialog">
+            <p>{t("userCollection.alreadyOwned", { count: confirmDupe.count })}</p>
+            <div className="uc-confirm-btns">
+              <button className="uc-confirm-yes" onClick={doAddBook} disabled={addingBook}>
+                {t("userCollection.confirmYes")}
+              </button>
+              <button className="uc-confirm-no" onClick={() => setConfirmDupe(null)}>
+                {t("userCollection.confirmNo")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="detail-actions-top">
         <button className="detail-back-btn" onClick={onBack}>{t("back")}</button>
         <div className="detail-actions-right">
+          {user && (
+            <button
+              className="detail-action-btn detail-add-collection-btn"
+              onClick={handleAddBook}
+              disabled={addingBook}
+            >
+              {bookAddedMsg || t("userCollection.addBook")}
+            </button>
+          )}
           {user && (
             <button className="detail-action-btn" onClick={() => onEdit(detail)}>
               {t("bookDetail.editBtn")}

@@ -264,3 +264,74 @@
   text-decoration: underline;
 }
 .detail-company-link:hover { color: #68e0f8; }
+
+/* ── User collection shared styles ─────────────────────────────────────── */
+
+.uc-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.uc-confirm-dialog {
+  background: #0d1f35;
+  border: 1px solid #1a4060;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  max-width: 380px;
+  text-align: center;
+  color: #c0e4f4;
+}
+
+.uc-confirm-dialog p {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.uc-confirm-btns {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+}
+
+.uc-confirm-yes {
+  background: #00b4d0;
+  color: #060d18;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.uc-confirm-yes:hover { background: #38d4f0; }
+
+.uc-confirm-no {
+  background: none;
+  border: 1px solid #347898;
+  color: #90d0e8;
+  border-radius: 6px;
+  padding: 0.45rem 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.uc-confirm-no:hover { border-color: #00b4d0; color: #c0e4f4; }
+
+.detail-add-collection-btn {
+  background: none;
+  border: 1px solid #00b4d0;
+  color: #00b4d0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.detail-add-collection-btn:hover:not(:disabled) {
+  background: #00b4d0;
+  color: #060d18;
+}

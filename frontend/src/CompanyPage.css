@@ -296,3 +296,28 @@
 .company-page-sub-month-book-badge {
   font-size: 0.72rem;
 }
+
+/* ── Subscribe button ────────────────────────────────────────────────── */
+
+.uc-subscribe-btn {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px solid #00b4d0;
+  color: #00b4d0;
+  border-radius: 6px;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.uc-subscribe-btn:hover {
+  background: #00b4d0;
+  color: #060d18;
+}
+
+.uc-subscribe-btn--added {
+  border-color: #38d4f0;
+  color: #38d4f0;
+  cursor: default;
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./CompanyPage.css";
 import { useI18n } from "./i18n";
 
@@ -6,8 +6,47 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const { t } = useI18n();
   const [deleting, setDeleting] = useState(false);
 
+  // ── user subscriptions state ──
+  const [userSubs, setUserSubs] = useState([]);
+  const [subAddedId, setSubAddedId] = useState(null); // subscriptionId that just got added
+  const [confirmSubDupe, setConfirmSubDupe] = useState(null); // { sub, count }
+
   const canManage = user && (user.username === "admin" || company?.managerUsernames?.includes(user.username));
   const canDelete = user && user.username === "admin";
+
+  useEffect(() => {
+    if (!user) { setUserSubs([]); return; }
+    fetch("http://localhost:8080/api/user/subscriptions", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setUserSubs)
+      .catch(() => setUserSubs([]));
+  }, [user]);
+
+  const doAddSub = async (sub) => {
+    const res = await fetch("http://localhost:8080/api/user/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ companyId: company.id, subscriptionId: sub.id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setUserSubs((prev) => [...prev, data.entry]);
+      setSubAddedId(sub.id);
+      setTimeout(() => setSubAddedId(null), 3000);
+    }
+    setConfirmSubDupe(null);
+  };
+
+  const handleSubscribe = (sub) => {
+    if (!user) return;
+    const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === company.id).length;
+    if (count > 0) {
+      setConfirmSubDupe({ sub, count });
+    } else {
+      doAddSub(sub);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm(t("company.deleteConfirm"))) return;
@@ -27,6 +66,22 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   return (
     <div className="company-page">
+      {/* duplicate subscription confirmation */}
+      {confirmSubDupe && (
+        <div className="uc-confirm-overlay">
+          <div className="uc-confirm-dialog">
+            <p>{t("userCollection.alreadySub", { count: confirmSubDupe.count })}</p>
+            <div className="uc-confirm-btns">
+              <button className="uc-confirm-yes" onClick={() => doAddSub(confirmSubDupe.sub)}>
+                {t("userCollection.confirmYes")}
+              </button>
+              <button className="uc-confirm-no" onClick={() => setConfirmSubDupe(null)}>
+                {t("userCollection.confirmNo")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="company-page-actions-top">
         <button className="company-back-btn" onClick={onBack}>{t("back")}</button>
         {canManage && (
@@ -134,6 +189,16 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                         <p className="company-page-sub-price">
                           {subObj.basePrice} {company.defaultCurrency || ""}
                         </p>
+                      )}
+                      {user && subObj.id && (
+                        <button
+                          className={`uc-subscribe-btn${subAddedId === subObj.id ? " uc-subscribe-btn--added" : ""}`}
+                          onClick={() => handleSubscribe(subObj)}
+                        >
+                          {subAddedId === subObj.id
+                            ? t("userCollection.subAdded")
+                            : t("userCollection.subscribe")}
+                        </button>
                       )}
                       {subObj.months && subObj.months.length > 0 && (
                         <div className="company-page-sub-months">
