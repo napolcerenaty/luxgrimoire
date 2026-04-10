@@ -162,6 +162,25 @@ main {
   font-weight: 600;
 }
 
+.new-book-btn {
+  background: transparent;
+  border: 1px solid #c4943d;
+  color: #c4943d;
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.2s, color 0.2s;
+  margin-left: 0.5rem;
+}
+
+.new-book-btn:hover {
+  background: rgba(196, 148, 61, 0.15);
+  color: #e8c070;
+}
+
 .section-title {
   font-family: 'Cinzel', serif;
   font-size: 1.4rem;

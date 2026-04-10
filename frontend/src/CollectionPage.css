@@ -139,6 +139,16 @@
   font-size: 1rem;
 }
 
+.book-title-link {
+  color: #c4943d;
+  cursor: pointer;
+}
+
+.book-title-link:hover {
+  text-decoration: underline;
+  color: #e8c070;
+}
+
 .col-lang { width: 80px; }
 .col-author { width: 160px; }
 .col-title { min-width: 180px; }

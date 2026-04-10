@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import CollectionPage from "./CollectionPage";
 import { AuthProvider } from "./AuthContext";
+import { useAuth } from "./AuthContext";
 import UserMenu from "./UserMenu";
 import ProfilePage from "./ProfilePage";
 import SettingsPage from "./SettingsPage";
 import { I18nProvider, useI18n } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
+import BookDetailPage from "./BookDetailPage";
+import BookDetailEditPage from "./BookDetailEditPage";
 
 function BookCard({ book }) {
   return (
@@ -32,11 +35,19 @@ function BookCard({ book }) {
 
 function AppInner() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [tab, setTab] = useState("browse");
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBookTitle, setSelectedBookTitle] = useState(null);
+  const [editingBook, setEditingBook] = useState(null);
+
+  const handleBookClick = (title) => { setSelectedBookTitle(title); setEditingBook(null); setTab("book-detail"); };
+  const handleEditBook = (book) => { setEditingBook(book); setTab("book-edit"); };
+  const handleNewBook = () => { setEditingBook(null); setTab("book-edit"); };
+  const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setTab("book-detail"); };
 
   useEffect(() => {
     fetch("http://localhost:8080/api/books")
@@ -49,6 +60,7 @@ function AppInner() {
   }, []);
 
   const isUserPage = tab === "profile" || tab === "settings";
+  const isDetailPage = tab === "book-detail" || tab === "book-edit";
 
   const filteredBooks = searchQuery.trim()
     ? books.filter((b) => {
@@ -70,7 +82,7 @@ function AppInner() {
         </div>
         <h1 className="header-title">✦ LuxGrimoire ✦</h1>
         <p className="header-subtitle">{t("app.subtitle")}</p>
-        {!isUserPage && (
+        {!isUserPage && !isDetailPage && (
           <div className="search-bar-wrap">
             <span className="search-icon">⚲</span>
             <input
@@ -85,7 +97,7 @@ function AppInner() {
             )}
           </div>
         )}
-        {!isUserPage && (
+        {!isUserPage && !isDetailPage && (
           <nav className="nav-tabs">
             <button
               className={`nav-tab${tab === "browse" ? " active" : ""}`}
@@ -99,7 +111,10 @@ function AppInner() {
             >
               {t("nav.collection")}
             </button>
-          </nav>
+          {tab === "collection" && user && (
+            <button className="new-book-btn" onClick={handleNewBook}>{t("bookDetail.newBtn")}</button>
+          )}
+        </nav>
         )}
       </header>
 
@@ -130,9 +145,24 @@ function AppInner() {
             </>
           )
         )}
-        {tab === "collection" && <CollectionPage />}
+        {tab === "collection" && <CollectionPage onBookClick={handleBookClick} />}
         {tab === "profile"    && <ProfilePage  onBack={() => setTab("browse")} />}
         {tab === "settings"   && <SettingsPage onBack={() => setTab("browse")} />}
+        {tab === "book-detail" && (
+          <BookDetailPage
+            bookTitle={selectedBookTitle}
+            onBack={() => setTab("collection")}
+            onEdit={handleEditBook}
+            onNavigateNew={handleNewBook}
+          />
+        )}
+        {tab === "book-edit" && (
+          <BookDetailEditPage
+            initialData={editingBook}
+            onSaved={handleBookSaved}
+            onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab("collection"); } }}
+          />
+        )}
       </main>
 
       <footer className="footer">

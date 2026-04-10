@@ -48,7 +48,7 @@ const boolFilterFn = (row, columnId, filterValue) => {
   return String(cellVal) === filterValue;
 };
 
-export default function CollectionPage() {
+export default function CollectionPage({ onBookClick = null }) {
   const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +69,7 @@ export default function CollectionPage() {
   const columns = useMemo(() => [
     { accessorKey: "language", header: t("col.language"), cell: (i) => i.getValue(), filterFn: "includesString" },
     { accessorKey: "author",   header: t("col.author"),   cell: (i) => i.getValue(), filterFn: "includesString" },
-    { accessorKey: "title",    header: t("col.title"),    cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "title",    header: t("col.title"),    cell: (i) => onBookClick ? <span className="book-title-link" onClick={() => onBookClick(i.getValue())}>{i.getValue()}</span> : i.getValue(), filterFn: "includesString" },
     { accessorKey: "series",   header: t("col.series"),   cell: (i) => i.getValue(), filterFn: "includesString" },
     { accessorKey: "volume",   header: t("col.volume"),   cell: (i) => i.getValue(), filterFn: "includesString" },
     { accessorKey: "edition",  header: t("col.edition"),  cell: (i) => i.getValue(), filterFn: "includesString" },
