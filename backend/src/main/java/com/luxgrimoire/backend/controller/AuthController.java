@@ -73,6 +73,7 @@ public class AuthController {
         AppUser user = opt.get();
         if (body.containsKey("firstName")) user.setFirstName(body.get("firstName"));
         if (body.containsKey("lastName"))  user.setLastName(body.get("lastName"));
+        userStore.save(user);
         return ResponseEntity.ok(toDto(user));
     }
 
@@ -90,6 +91,7 @@ public class AuthController {
         }
         AppUser user = opt.get();
         if (body.containsKey("timezone")) user.setTimezone(body.get("timezone"));
+        userStore.save(user);
         return ResponseEntity.ok(toDto(user));
     }
 

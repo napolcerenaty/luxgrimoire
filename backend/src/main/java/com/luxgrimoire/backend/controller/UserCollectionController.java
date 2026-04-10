@@ -1,8 +1,6 @@
 package com.luxgrimoire.backend.controller;
 
-import com.luxgrimoire.backend.model.AppUser;
-import com.luxgrimoire.backend.model.UserBookEntry;
-import com.luxgrimoire.backend.model.UserSubscriptionEntry;
+import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.service.UserStore;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
@@ -11,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/user")
@@ -28,34 +25,30 @@ public class UserCollectionController {
 
     @GetMapping("/books")
     public ResponseEntity<?> getBooks(HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
-        return ResponseEntity.ok(user.getOwnedBooks());
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        return ResponseEntity.ok(userStore.getBooks(username));
     }
 
     @PostMapping("/books")
     public ResponseEntity<?> addBook(@RequestBody Map<String, String> body, HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
         String bookId = body.get("bookId");
         String editionId = body.get("editionId");
         if (editionId == null || editionId.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Missing editionId"));
 
-        long existingCount = user.getOwnedBooks().stream()
-                .filter(e -> editionId.equals(e.getEditionId()))
-                .count();
-
-        UserBookEntry entry = new UserBookEntry(bookId, editionId);
-        user.getOwnedBooks().add(entry);
+        long existingCount = userStore.countBooksByEdition(username, editionId);
+        UserBookEntry entry = userStore.addBook(username, bookId, editionId);
         return ResponseEntity.ok(Map.of("entry", entry, "existingCount", existingCount));
     }
 
     @DeleteMapping("/books/{id}")
     public ResponseEntity<?> removeBook(@PathVariable String id, HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
-        boolean removed = user.getOwnedBooks().removeIf(e -> id.equals(e.getId()));
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        boolean removed = userStore.removeBook(username, id);
         return removed ? ResponseEntity.ok(Map.of("removed", true))
                        : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }
@@ -64,45 +57,38 @@ public class UserCollectionController {
 
     @GetMapping("/subscriptions")
     public ResponseEntity<?> getSubscriptions(HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
-        return ResponseEntity.ok(user.getSubscriptions());
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        return ResponseEntity.ok(userStore.getSubscriptions(username));
     }
 
     @PostMapping("/subscriptions")
     public ResponseEntity<?> addSubscription(@RequestBody Map<String, String> body, HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
         String companyId = body.get("companyId");
         String subscriptionId = body.get("subscriptionId");
         if (companyId == null || subscriptionId == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Missing companyId or subscriptionId"));
 
-        long existingCount = user.getSubscriptions().stream()
-                .filter(e -> subscriptionId.equals(e.getSubscriptionId()) && companyId.equals(e.getCompanyId()))
-                .count();
-
-        UserSubscriptionEntry entry = new UserSubscriptionEntry(companyId, subscriptionId);
-        user.getSubscriptions().add(entry);
+        long existingCount = userStore.countSubscriptions(username, companyId, subscriptionId);
+        UserSubscriptionEntry entry = userStore.addSubscription(username, companyId, subscriptionId);
         return ResponseEntity.ok(Map.of("entry", entry, "existingCount", existingCount));
     }
 
     @DeleteMapping("/subscriptions/{id}")
     public ResponseEntity<?> removeSubscription(@PathVariable String id, HttpSession session) {
-        AppUser user = resolveUser(session);
-        if (user == null) return unauthorized();
-        boolean removed = user.getSubscriptions().removeIf(e -> id.equals(e.getId()));
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        boolean removed = userStore.removeSubscription(username, id);
         return removed ? ResponseEntity.ok(Map.of("removed", true))
                        : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private AppUser resolveUser(HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if (username == null) return null;
-        Optional<AppUser> opt = userStore.findByUsername(username);
-        return opt.orElse(null);
+    private String resolveUsername(HttpSession session) {
+        return (String) session.getAttribute("username");
     }
 
     private ResponseEntity<?> unauthorized() {

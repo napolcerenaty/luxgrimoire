@@ -1,29 +1,31 @@
 package com.luxgrimoire.backend.service;
 
-import com.luxgrimoire.backend.model.BookBoxCompany;
-import com.luxgrimoire.backend.model.Subscription;
+import com.luxgrimoire.backend.model.*;
+import com.luxgrimoire.backend.repository.*;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 @Component
 public class BookBoxCompanyStore {
 
-    // Fixed UUIDs for stable sample data
-    private static final String OWLCRATE_SUB1_ID = "a1b2c3d4-0001-0000-0000-000000000001";
-    private static final String OWLCRATE_SUB2_ID = "a1b2c3d4-0002-0000-0000-000000000002";
-    private static final String FAIRYLOOT_SUB1_ID = "b2c3d4e5-0001-0000-0000-000000000003";
-    private static final String FAIRYLOOT_SUB2_ID = "b2c3d4e5-0002-0000-0000-000000000004";
+    private final BookBoxCompanyRepository companyRepo;
+    private final SubscriptionRepository subscriptionRepo;
 
-    private final ConcurrentHashMap<String, BookBoxCompany> store = new ConcurrentHashMap<>();
+    public BookBoxCompanyStore(BookBoxCompanyRepository companyRepo, SubscriptionRepository subscriptionRepo) {
+        this.companyRepo = companyRepo;
+        this.subscriptionRepo = subscriptionRepo;
+    }
 
-    public BookBoxCompanyStore() {
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void init() {
+        if (companyRepo.count() > 0) return;
+
         BookBoxCompany c1 = new BookBoxCompany();
         c1.setId(UUID.randomUUID().toString());
         c1.setName("OwlCrate");
@@ -32,28 +34,28 @@ public class BookBoxCompanyStore {
         c1.setDescription("OwlCrate is a monthly YA fantasy book box subscription service.");
         c1.setLocation("United States");
         c1.setDefaultCurrency("USD");
+        c1.setManagerUsernames(new ArrayList<>(Arrays.asList("admin")));
+        companyRepo.save(c1);
 
         Subscription oc1 = new Subscription();
-        oc1.setId(OWLCRATE_SUB1_ID);
+        oc1.setCompany(c1);
         oc1.setName("OwlCrate Standard");
         oc1.setType("MONTHLY");
         oc1.setShipsInternationally(true);
         oc1.setBasePrice(new BigDecimal("37.99"));
         oc1.setGenres(new ArrayList<>(Arrays.asList("YA Fantasy", "Fantasy")));
         oc1.setBookishMerch(true);
+        subscriptionRepo.save(oc1);
 
         Subscription oc2 = new Subscription();
-        oc2.setId(OWLCRATE_SUB2_ID);
+        oc2.setCompany(c1);
         oc2.setName("OwlCrate Jr");
         oc2.setType("MONTHLY");
         oc2.setShipsInternationally(true);
         oc2.setBasePrice(new BigDecimal("29.99"));
         oc2.setGenres(new ArrayList<>(Arrays.asList("Middle Grade", "Adventure")));
         oc2.setBookishMerch(true);
-
-        c1.setSubscriptions(new ArrayList<>(Arrays.asList(oc1, oc2)));
-        c1.setManagerUsernames(new ArrayList<>(Arrays.asList("admin")));
-        store.put(c1.getId(), c1);
+        subscriptionRepo.save(oc2);
 
         BookBoxCompany c2 = new BookBoxCompany();
         c2.setId(UUID.randomUUID().toString());
@@ -63,56 +65,71 @@ public class BookBoxCompanyStore {
         c2.setDescription("FairyLoot is a UK-based fantasy book subscription box.");
         c2.setLocation("United Kingdom");
         c2.setDefaultCurrency("GBP");
+        c2.setManagerUsernames(new ArrayList<>(Arrays.asList("admin")));
+        companyRepo.save(c2);
 
         Subscription fl1 = new Subscription();
-        fl1.setId(FAIRYLOOT_SUB1_ID);
+        fl1.setCompany(c2);
         fl1.setName("FairyLoot Adult");
         fl1.setType("MONTHLY");
         fl1.setShipsInternationally(true);
         fl1.setBasePrice(new BigDecimal("32.99"));
         fl1.setGenres(new ArrayList<>(Arrays.asList("Adult Fantasy", "Dark Fantasy")));
         fl1.setBookishMerch(true);
+        subscriptionRepo.save(fl1);
 
         Subscription fl2 = new Subscription();
-        fl2.setId(FAIRYLOOT_SUB2_ID);
+        fl2.setCompany(c2);
         fl2.setName("FairyLoot YA");
         fl2.setType("MONTHLY");
         fl2.setShipsInternationally(true);
         fl2.setBasePrice(new BigDecimal("27.99"));
         fl2.setGenres(new ArrayList<>(Arrays.asList("YA Fantasy", "Romance")));
         fl2.setBookishMerch(true);
-
-        c2.setSubscriptions(new ArrayList<>(Arrays.asList(fl1, fl2)));
-        c2.setManagerUsernames(new ArrayList<>(Arrays.asList("admin")));
-        store.put(c2.getId(), c2);
+        subscriptionRepo.save(fl2);
     }
 
     public List<BookBoxCompany> findAll() {
-        return new ArrayList<>(store.values());
+        return companyRepo.findAll();
     }
 
     public Optional<BookBoxCompany> findById(String id) {
-        return Optional.ofNullable(store.get(id));
+        return companyRepo.findById(id);
     }
 
+    @Transactional
     public BookBoxCompany save(BookBoxCompany c) {
         if (c.getId() == null || c.getId().isBlank()) {
             c.setId(UUID.randomUUID().toString());
         }
-        store.put(c.getId(), c);
-        return c;
+        return companyRepo.save(c);
     }
 
-    public Optional<BookBoxCompany> update(String id, BookBoxCompany c) {
-        if (!store.containsKey(id)) {
-            return Optional.empty();
-        }
-        c.setId(id);
-        store.put(id, c);
-        return Optional.of(c);
+    @Transactional
+    public Optional<BookBoxCompany> update(String id, BookBoxCompany updated) {
+        return companyRepo.findById(id).map(existing -> {
+            existing.setName(updated.getName());
+            existing.setLogoUrl(updated.getLogoUrl());
+            existing.setWebsiteUrl(updated.getWebsiteUrl());
+            existing.setDescription(updated.getDescription());
+            existing.setLocation(updated.getLocation());
+            existing.setDefaultCurrency(updated.getDefaultCurrency());
+            existing.setManagerUsernames(updated.getManagerUsernames() != null ? updated.getManagerUsernames() : new ArrayList<>());
+            existing.getSubscriptions().clear();
+            if (updated.getSubscriptions() != null) {
+                for (Subscription s : updated.getSubscriptions()) {
+                    s.setCompany(existing);
+                    existing.getSubscriptions().add(s);
+                }
+            }
+            return companyRepo.save(existing);
+        });
     }
 
+    @Transactional
     public boolean delete(String id) {
-        return store.remove(id) != null;
+        if (!companyRepo.existsById(id)) return false;
+        companyRepo.deleteById(id);
+        return true;
     }
 }

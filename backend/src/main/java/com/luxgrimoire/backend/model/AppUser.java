@@ -1,16 +1,29 @@
 package com.luxgrimoire.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "app_user")
 public class AppUser {
+    @Id
     private String username;
     private String password;
     private String firstName;
     private String lastName;
     private String timezone;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference("user-books")
     private List<UserBookEntry> ownedBooks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference("user-subscriptions")
     private List<UserSubscriptionEntry> subscriptions = new ArrayList<>();
+
+    public AppUser() {}
 
     public AppUser(String username, String password, String firstName, String lastName, String timezone) {
         this.username = username;

@@ -1,14 +1,25 @@
 package com.luxgrimoire.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.*;
 import java.util.UUID;
 
+@Entity
+@Table(name = "subscription_month")
 public class SubscriptionMonth {
+    @Id
     private String id;
-    private String imageUrl;  // optional
-    private String theme;     // optional
-    private int month;        // 1–12
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subscription_id")
+    @JsonBackReference("subscription-months")
+    private Subscription subscription;
+
+    private String imageUrl;
+    private String theme;
+    private int month;
     private int year;
-    private String bookId;    // optional – set when a book is linked to this month
+    private String bookId;
 
     public SubscriptionMonth() {
         this.id = UUID.randomUUID().toString();
@@ -16,19 +27,16 @@ public class SubscriptionMonth {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-
+    public Subscription getSubscription() { return subscription; }
+    public void setSubscription(Subscription subscription) { this.subscription = subscription; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-
     public String getTheme() { return theme; }
     public void setTheme(String theme) { this.theme = theme; }
-
     public int getMonth() { return month; }
     public void setMonth(int month) { this.month = month; }
-
     public int getYear() { return year; }
     public void setYear(int year) { this.year = year; }
-
     public String getBookId() { return bookId; }
     public void setBookId(String bookId) { this.bookId = bookId; }
 }
