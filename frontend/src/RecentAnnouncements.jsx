@@ -1,14 +1,5 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./RecentAnnouncements.css";
-
-const COMPANY_COLORS = {
-  "OwlCrate":    { bg: "#0e4fa8", text: "#e8f4ff" },
-  "FairyLoot":   { bg: "#7b2cbf", text: "#f3e8ff" },
-  "Illumicrate": { bg: "#0d8a77", text: "#e8fff9" },
-  "LitJoy Crate":{ bg: "#b5203a", text: "#ffe8ec" },
-  "Bookish Box": { bg: "#a0710a", text: "#fff8e8" },
-  "OwlCrate Jr": { bg: "#1a6e3c", text: "#e8fff0" },
-};
 
 const DEMO_ANNOUNCEMENTS = [
   {
@@ -85,6 +76,7 @@ function daysUntil(dateStr) {
 
 export default function RecentAnnouncements() {
   const scrollRef = useRef(null);
+  const [selected, setSelected] = useState(null);
 
   const scroll = (dir) => {
     const el = scrollRef.current;
@@ -94,6 +86,13 @@ export default function RecentAnnouncements() {
     const step = (card ? card.offsetWidth + gap : 280) * 2;
     el.scrollBy({ left: dir * step, behavior: "smooth" });
   };
+
+  // Close modal on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") setSelected(null); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <section className="announcements">
@@ -109,10 +108,16 @@ export default function RecentAnnouncements() {
 
         <div className="announcements-carousel" ref={scrollRef}>
           {DEMO_ANNOUNCEMENTS.map((item) => {
-            const colors = COMPANY_COLORS[item.company] || { bg: "#183858", text: "#38d4f0" };
             const countdown = daysUntil(item.generalSaleDate);
             return (
-              <article key={item.id} className="announcement-card">
+              <article
+                key={item.id}
+                className="announcement-card"
+                onClick={() => setSelected(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && setSelected(item)}
+              >
                 <div className="announcement-img-wrap">
                   <img
                     className="announcement-img"
@@ -122,12 +127,7 @@ export default function RecentAnnouncements() {
                       e.target.src = "https://placehold.co/280x420/071428/38d4f0?text=No+Cover";
                     }}
                   />
-                  <div
-                    className="announcement-ribbon"
-                    style={{ background: colors.bg, color: colors.text }}
-                  >
-                    {item.company}
-                  </div>
+                  <div className="announcement-ribbon">{item.company}</div>
                   {countdown && (
                     <div className="announcement-countdown">{countdown}</div>
                   )}
@@ -149,6 +149,52 @@ export default function RecentAnnouncements() {
           ›
         </button>
       </div>
+
+      {/* Edition detail modal */}
+      {selected && (
+        <div className="ann-modal-overlay" onClick={() => setSelected(null)}>
+          <div className="ann-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="ann-modal-close" onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            <div className="ann-modal-body">
+              <div className="ann-modal-cover-wrap">
+                <img
+                  className="ann-modal-cover"
+                  src={selected.imageUrl}
+                  alt={selected.title}
+                  onError={(e) => { e.target.src = "https://placehold.co/280x420/071428/38d4f0?text=No+Cover"; }}
+                />
+                <div className="ann-modal-ribbon">{selected.company}</div>
+              </div>
+              <div className="ann-modal-info">
+                <p className="ann-modal-edition">{selected.editionName}</p>
+                <h2 className="ann-modal-title">{selected.title}</h2>
+                <div className="ann-modal-divider" />
+                <div className="ann-modal-meta">
+                  <div className="ann-modal-meta-row">
+                    <span className="ann-modal-meta-label">Publisher</span>
+                    <span className="ann-modal-meta-value">{selected.company}</span>
+                  </div>
+                  <div className="ann-modal-meta-row">
+                    <span className="ann-modal-meta-label">On Sale</span>
+                    <span className="ann-modal-meta-value">{formatDate(selected.generalSaleDate)}</span>
+                  </div>
+                  {daysUntil(selected.generalSaleDate) && (
+                    <div className="ann-modal-meta-row">
+                      <span className="ann-modal-meta-label">Countdown</span>
+                      <span className="ann-modal-meta-value ann-modal-countdown">
+                        {daysUntil(selected.generalSaleDate)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="ann-modal-note">
+                  ✦ This is a demo announcement. Once linked to a real edition, full details will appear here.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
