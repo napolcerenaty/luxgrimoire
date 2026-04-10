@@ -57,6 +57,8 @@ const TEST_SALES = [
 const NAV_ITEMS = [
   { key: "calendar",      icon: "📅", labelKey: "account.navCalendar"      },
   { key: "collection",    icon: "📚", labelKey: "account.navCollection"    },
+  { key: "iso",           icon: "🔍", labelKey: "account.navIso"           },
+  { key: "interested",    icon: "⭐", labelKey: "account.navInterested"    },
   { key: "subscriptions", icon: "📮", labelKey: "account.navSubscriptions" },
   { key: "settings",      icon: "⚙️", labelKey: "account.navSettings"      },
 ];
@@ -180,21 +182,73 @@ function CalendarSection() {
   );
 }
 
-// ─── COLLECTION SECTION ───────────────────────────────────────────────────────
-function CollectionSection() {
+// ─── BOOK CARD (grid) ────────────────────────────────────────────────────────
+function BookCard({ entry, onRemove, t }) {
+  return (
+    <div className="account-book-card">
+      <div className="account-book-card-cover">
+        {entry.imageUrl
+          ? <img src={entry.imageUrl} alt={entry.title} />
+          : <div className="account-book-card-cover-placeholder"><span>{entry.title?.[0] ?? "?"}</span></div>
+        }
+      </div>
+      <div className="account-book-card-info">
+        <p className="account-book-card-title">{entry.title || "—"}</p>
+        {entry.author && <p className="account-book-card-author">{entry.author}</p>}
+        {entry.editionName && <p className="account-book-card-edition">{entry.editionName}</p>}
+        {entry.seriesName && <p className="account-book-card-series">{entry.seriesName}</p>}
+      </div>
+      <button className="account-book-card-remove" onClick={() => onRemove(entry.id)} title={t("booklist.remove")}>✕</button>
+    </div>
+  );
+}
+
+// ─── BOOK ROW (list) ─────────────────────────────────────────────────────────
+function BookRow({ entry, onRemove, t }) {
+  return (
+    <div className="account-book-row">
+      <div className="account-book-row-thumb">
+        {entry.imageUrl
+          ? <img src={entry.imageUrl} alt={entry.title} />
+          : <div className="account-book-row-thumb-placeholder" />
+        }
+      </div>
+      <div className="account-book-row-info">
+        <span className="account-book-row-title">{entry.title || "—"}</span>
+        {entry.author && <span className="account-book-row-author">{entry.author}</span>}
+        {entry.editionName && <span className="account-book-row-edition">{entry.editionName}</span>}
+        {entry.seriesName && <span className="account-book-row-series">{entry.seriesName}</span>}
+      </div>
+      <button className="account-book-row-remove" onClick={() => onRemove(entry.id)} title={t("booklist.remove")}>✕</button>
+    </div>
+  );
+}
+
+// ─── BOOK LIST SECTION (shared for collection / ISO / interested) ─────────────
+function BookListSection({ flag }) {
   const { user } = useAuth();
   const { t } = useI18n();
-  const [ownedBooks, setOwnedBooks]   = useState([]);
+  const [entries,     setEntries]     = useState([]);
   const [bookDetails, setBookDetails] = useState({});
+  const [viewMode,    setViewMode]    = useState("grid");
+  const [filterTitle,  setFilterTitle]  = useState("");
+  const [filterAuthor, setFilterAuthor] = useState("");
+  const [filterBox,    setFilterBox]    = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    fetch("http://localhost:8080/api/user/books", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : []).then(setOwnedBooks).catch(() => {});
-  }, [user]);
+    setLoading(true);
+    setEntries([]);
+    setBookDetails({});
+    fetch(`http://localhost:8080/api/user/books?flag=${flag}`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { setEntries(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [user, flag]);
 
   useEffect(() => {
-    const ids = [...new Set(ownedBooks.map((e) => e.editionId).filter(Boolean))];
+    const ids = [...new Set(entries.map((e) => e.editionId).filter(Boolean))];
     ids.forEach((id) => {
       if (bookDetails[id]) return;
       fetch(`http://localhost:8080/api/book-details/edition/${id}`, { credentials: "include" })
@@ -203,34 +257,66 @@ function CollectionSection() {
         .catch(() => {});
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownedBooks]);
+  }, [entries]);
+
+  const enriched = entries.map((entry) => {
+    const bd = bookDetails[entry.editionId];
+    const ed = bd ? (bd.editions || []).find((e) => e.id === entry.editionId) : null;
+    return {
+      ...entry,
+      title:       bd?.title ?? "",
+      author:      bd?.author ?? "",
+      seriesName:  bd?.seriesName ?? "",
+      editionName: ed?.editionName ?? "",
+      bookBoxName: ed?.bookBoxCompanyCustomName ?? ed?.editionName ?? "",
+      imageUrl:    ed?.imageUrls?.[0] ?? null,
+    };
+  });
+
+  const filtered = enriched.filter((e) => {
+    if (filterTitle  && !e.title.toLowerCase().includes(filterTitle.toLowerCase()))         return false;
+    if (filterAuthor && !e.author.toLowerCase().includes(filterAuthor.toLowerCase()))        return false;
+    if (filterBox    && !e.bookBoxName.toLowerCase().includes(filterBox.toLowerCase()))      return false;
+    return true;
+  });
 
   const removeBook = async (entryId) => {
     const res = await fetch(`http://localhost:8080/api/user/books/${entryId}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) setOwnedBooks((prev) => prev.filter((e) => e.id !== entryId));
+    if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== entryId));
   };
+
+  const sectionTitle = flag === "OWNED"       ? t("account.navCollection")
+                     : flag === "ISO"         ? t("account.navIso")
+                     :                          t("account.navInterested");
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">{t("userCollection.myBooks")}</h2>
-      {ownedBooks.length === 0 ? (
-        <p className="user-collection-empty">{t("userCollection.empty")}</p>
+      <div className="account-booklist-header">
+        <h2 className="account-section-title">{sectionTitle}</h2>
+        <div className="account-view-toggle">
+          <button className={`account-view-btn${viewMode === "grid" ? " active" : ""}`} onClick={() => setViewMode("grid")} title={t("booklist.grid")}>⊞</button>
+          <button className={`account-view-btn${viewMode === "list" ? " active" : ""}`} onClick={() => setViewMode("list")} title={t("booklist.list")}>☰</button>
+        </div>
+      </div>
+
+      <div className="account-booklist-filters">
+        <input className="account-filter-input" placeholder={t("booklist.filterTitle")}  value={filterTitle}  onChange={(e) => setFilterTitle(e.target.value)} />
+        <input className="account-filter-input" placeholder={t("booklist.filterAuthor")} value={filterAuthor} onChange={(e) => setFilterAuthor(e.target.value)} />
+        <input className="account-filter-input" placeholder={t("booklist.filterBox")}    value={filterBox}    onChange={(e) => setFilterBox(e.target.value)} />
+      </div>
+
+      {loading ? (
+        <p className="user-collection-empty">{t("booklist.loading")}</p>
+      ) : filtered.length === 0 ? (
+        <p className="user-collection-empty">{t("booklist.empty")}</p>
+      ) : viewMode === "grid" ? (
+        <div className="account-booklist-grid">
+          {filtered.map((e) => <BookCard key={e.id} entry={e} onRemove={removeBook} t={t} />)}
+        </div>
       ) : (
-        <ul className="user-collection-list">
-          {ownedBooks.map((entry) => {
-            const bd = bookDetails[entry.editionId];
-            const ed = bd ? (bd.editions || []).find((e) => e.id === entry.editionId) : null;
-            const label = bd
-              ? `${bd.title}${bd.author ? ` — ${bd.author}` : ""}${ed?.editionName ? ` (${ed.editionName})` : ""}`
-              : (entry.editionId || "?");
-            return (
-              <li key={entry.id} className="user-collection-item">
-                <span className="user-collection-item-label">{label}</span>
-                <button className="user-collection-remove-btn" onClick={() => removeBook(entry.id)} title={t("userCollection.remove")}>✕</button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="account-booklist-list">
+          {filtered.map((e) => <BookRow key={e.id} entry={e} onRemove={removeBook} t={t} />)}
+        </div>
       )}
     </section>
   );
@@ -436,7 +522,9 @@ export default function AccountPage({ onBack, initialSection = "calendar" }) {
   const renderSection = () => {
     switch (activeSection) {
       case "calendar":      return <CalendarSection />;
-      case "collection":    return <CollectionSection />;
+      case "collection":    return <BookListSection flag="OWNED" />;
+      case "iso":           return <BookListSection flag="ISO" />;
+      case "interested":    return <BookListSection flag="INTERESTED" />;
       case "subscriptions": return <SubscriptionsSection />;
       case "settings":      return <SettingsSection />;
       default:              return null;

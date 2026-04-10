@@ -24,10 +24,13 @@ public class UserCollectionController {
     // ── Books ──────────────────────────────────────────────────────────────
 
     @GetMapping("/books")
-    public ResponseEntity<?> getBooks(HttpSession session) {
+    public ResponseEntity<?> getBooks(@RequestParam(required = false) String flag, HttpSession session) {
         String username = resolveUsername(session);
         if (username == null) return unauthorized();
-        return ResponseEntity.ok(userStore.getBooks(username));
+        List<UserBookEntry> books = (flag != null && !flag.isBlank())
+                ? userStore.getBooksByFlag(username, flag.toUpperCase())
+                : userStore.getBooks(username);
+        return ResponseEntity.ok(books);
     }
 
     @PostMapping("/books")
@@ -36,11 +39,12 @@ public class UserCollectionController {
         if (username == null) return unauthorized();
         String bookId = body.get("bookId");
         String editionId = body.get("editionId");
+        String flag = body.get("flag");
         if (editionId == null || editionId.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Missing editionId"));
 
         long existingCount = userStore.countBooksByEdition(username, editionId);
-        UserBookEntry entry = userStore.addBook(username, bookId, editionId);
+        UserBookEntry entry = userStore.addBook(username, bookId, editionId, flag);
         return ResponseEntity.ok(Map.of("entry", entry, "existingCount", existingCount));
     }
 

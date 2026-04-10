@@ -54,15 +54,20 @@ public class UserStore {
         return bookEntryRepo.findByUserUsername(username);
     }
 
+    public List<UserBookEntry> getBooksByFlag(String username, String flag) {
+        return bookEntryRepo.findByUsernameAndFlag(username, flag);
+    }
+
     public long countBooksByEdition(String username, String editionId) {
         return bookEntryRepo.countByUserUsernameAndEditionId(username, editionId);
     }
 
     @Transactional
-    public UserBookEntry addBook(String username, String bookId, String editionId) {
+    public UserBookEntry addBook(String username, String bookId, String editionId, String flag) {
         AppUser user = userRepo.findById(username).orElseThrow();
         UserBookEntry entry = new UserBookEntry(bookId, editionId);
         entry.setUser(user);
+        entry.setFlag(flag != null && !flag.isBlank() ? flag : "OWNED");
         return bookEntryRepo.save(entry);
     }
 

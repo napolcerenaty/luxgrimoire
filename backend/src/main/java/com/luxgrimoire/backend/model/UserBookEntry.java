@@ -20,6 +20,9 @@ public class UserBookEntry {
     private String editionId;
     private Instant addedAt;
 
+    @Column(name = "flag")
+    private String flag = "OWNED";
+
     public UserBookEntry() {}
 
     public UserBookEntry(String bookId, String editionId) {
@@ -39,4 +42,6 @@ public class UserBookEntry {
     public void setEditionId(String editionId) { this.editionId = editionId; }
     public Instant getAddedAt() { return addedAt; }
     public void setAddedAt(Instant addedAt) { this.addedAt = addedAt; }
+    public String getFlag() { return flag; }
+    public void setFlag(String flag) { this.flag = flag; }
 }
