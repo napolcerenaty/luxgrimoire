@@ -28,12 +28,18 @@ const IconFacebook = () => (
     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
   </svg>
 );
+const IconTikTok = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/>
+  </svg>
+);
 
 function SocialLinks({ person }) {
   const links = [
     { key: "website",   href: person.website,   icon: <IconGlobe />,    label: "Website"   },
     { key: "instagram", href: person.instagram ? `https://instagram.com/${person.instagram.replace(/^@/, "")}` : null, icon: <IconInstagram />, label: "Instagram" },
     { key: "twitter",   href: person.twitter   ? `https://x.com/${person.twitter.replace(/^@/, "")}` : null,           icon: <IconX />,         label: "X / Twitter" },
+    { key: "tiktok",    href: person.tiktok    ? `https://tiktok.com/@${person.tiktok.replace(/^@/, "")}` : null,      icon: <IconTikTok />,    label: "TikTok" },
     { key: "facebook",  href: person.facebook,  icon: <IconFacebook />, label: "Facebook"  },
   ].filter((l) => l.href);
   if (!links.length) return null;
@@ -133,6 +139,7 @@ export default function PersonPage({
         website:          p.website       || "",
         instagram:        p.instagram     || "",
         twitter:          p.twitter       || "",
+        tiktok:           p.tiktok        || "",
         facebook:         p.facebook      || "",
       });
       setLoading(false);
@@ -213,6 +220,7 @@ export default function PersonPage({
       website:          person.website       || "",
       instagram:        person.instagram     || "",
       twitter:          person.twitter       || "",
+      tiktok:           person.tiktok        || "",
       facebook:         person.facebook      || "",
     });
   };
@@ -224,7 +232,9 @@ export default function PersonPage({
     <div className="person-page">
       {/* ── Top bar ── */}
       <div className="pe-actions-top">
-        <button className="pe-back-btn" onClick={onBack}>← Back</button>
+        <button className="pe-back-btn" onClick={editing ? cancelEdit : onBack}>
+          {editing ? "← Back to profile" : "← Back"}
+        </button>
         {isAdmin && !editing && (
           <div className="pe-actions-right">
             <button className="pe-action-btn" onClick={() => { setEditing(true); setError(null); }}>Edit</button>
@@ -309,6 +319,12 @@ export default function PersonPage({
                   X / Twitter (@handle)
                   <input className="pe-edit-input" value={form.twitter}
                     onChange={(e) => setForm((f) => ({ ...f, twitter: e.target.value }))}
+                    placeholder="@username" />
+                </label>
+                <label className="pe-edit-label">
+                  TikTok (@handle)
+                  <input className="pe-edit-input" value={form.tiktok || ""}
+                    onChange={(e) => setForm((f) => ({ ...f, tiktok: e.target.value }))}
                     placeholder="@username" />
                 </label>
                 <label className="pe-edit-label">

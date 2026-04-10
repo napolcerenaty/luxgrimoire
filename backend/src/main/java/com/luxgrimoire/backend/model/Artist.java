@@ -14,6 +14,7 @@ public class Artist {
     private String instagram;
     private String twitter;
     private String facebook;
+    private String tiktok;
 
     public Artist() { this.id = UUID.randomUUID().toString(); }
     public String getId() { return id; }
@@ -34,4 +35,6 @@ public class Artist {
     public void setTwitter(String twitter) { this.twitter = twitter; }
     public String getFacebook() { return facebook; }
     public void setFacebook(String facebook) { this.facebook = facebook; }
+    public String getTiktok() { return tiktok; }
+    public void setTiktok(String tiktok) { this.tiktok = tiktok; }
 }

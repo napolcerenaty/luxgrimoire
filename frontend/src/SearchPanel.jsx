@@ -182,7 +182,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
           />
           <button className="search-btn" onClick={handleSearch}>SEARCH</button>
           <button className="lucky-draw-btn" onClick={handleLuckyDraw} title="Lucky draw – random edition">
-            🎲 LUCKY DRAW
+            LUCKY DRAW
           </button>
         </div>
 
