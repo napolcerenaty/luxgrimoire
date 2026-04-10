@@ -7,7 +7,7 @@ export default function ArtistPage({ artistId, onBack, onBookClick }) {
       apiBase="artists"
       secondaryLabel="Specialty"
       secondaryField="specialty"
-      sectionTitle="Editions featuring"
+      sectionTitle="Cover art by"
       onBack={onBack}
       onBookClick={onBookClick}
     />
