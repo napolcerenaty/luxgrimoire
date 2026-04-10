@@ -14,6 +14,7 @@ import CompanyListPage from "./CompanyListPage";
 import CompanyPage from "./CompanyPage";
 import CompanyEditPage from "./CompanyEditPage";
 import SearchPanel from "./SearchPanel";
+import RecentAnnouncements from "./RecentAnnouncements";
 
 function BookCard({ book, onClick }) {
   const coverUrl = book.editions?.[0]?.imageUrls?.[0]
@@ -126,12 +127,17 @@ function AppInner() {
             </div>
           ) : (
             <>
-              <h2 className="section-title">{t("browse.sectionTitle")}</h2>
-              <div className="book-grid">
-                {books.map((book) => (
-                  <BookCard key={book.id} book={book} onClick={handleBookClick} />
-                ))}
-              </div>
+              <RecentAnnouncements />
+              {books.length > 0 && (
+                <>
+                  <h2 className="section-title">{t("browse.sectionTitle")}</h2>
+                  <div className="book-grid">
+                    {books.map((book) => (
+                      <BookCard key={book.id} book={book} onClick={handleBookClick} />
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )
         )}

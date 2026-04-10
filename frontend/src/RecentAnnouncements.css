@@ -1,0 +1,215 @@
+/* ═══════════════════════════════════════════
+   Recent Announcements section
+═══════════════════════════════════════════ */
+.announcements {
+  padding: 2.5rem 0 2rem;
+  border-bottom: 1px solid #0d1f35;
+  margin-bottom: 2.5rem;
+}
+
+.announcements-header {
+  text-align: center;
+  margin-bottom: 1.8rem;
+  padding: 0 2rem;
+}
+
+.announcements-title {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  font-weight: 400;
+  color: #38d4f0;
+  margin: 0 0 0.35rem;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 20px rgba(0, 180, 220, 0.3);
+}
+
+.announcements-subtitle {
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  color: #2a5878;
+  margin: 0;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Carousel wrapper (holds arrows + track) ─── */
+.announcements-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 2rem;
+}
+
+/* ─── Arrow buttons ─── */
+.carousel-arrow {
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  background: rgba(6, 13, 24, 0.8);
+  border: 1px solid #183858;
+  border-radius: 50%;
+  color: #38d4f0;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  z-index: 5;
+  position: relative;
+}
+
+.carousel-arrow:hover {
+  background: rgba(0, 160, 200, 0.18);
+  border-color: #38d4f0;
+  box-shadow: 0 0 12px rgba(0, 180, 220, 0.3);
+}
+
+.carousel-arrow--left { margin-right: 0.75rem; }
+.carousel-arrow--right { margin-left: 0.75rem; }
+
+/* ─── Scrollable track ─── */
+.announcements-carousel {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  flex: 1;
+  padding: 0.5rem 0.25rem 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.announcements-carousel::-webkit-scrollbar {
+  height: 3px;
+}
+.announcements-carousel::-webkit-scrollbar-track {
+  background: #060d18;
+}
+.announcements-carousel::-webkit-scrollbar-thumb {
+  background: #183858;
+  border-radius: 2px;
+}
+
+/* ─── Card ─── */
+.announcement-card {
+  flex-shrink: 0;
+  width: 200px;
+  scroll-snap-align: start;
+  background: linear-gradient(160deg, #0b1828 0%, #07101e 100%);
+  border: 1px solid #183858;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.announcement-card:hover {
+  transform: translateY(-4px);
+  border-color: #2a6080;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 160, 200, 0.12);
+}
+
+/* ─── Image area ─── */
+.announcement-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: #060d18;
+}
+
+.announcement-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.announcement-card:hover .announcement-img {
+  transform: scale(1.04);
+}
+
+/* ─── Company ribbon (top-right tab) ─── */
+.announcement-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0 0 0 5px;
+  white-space: nowrap;
+  box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Countdown badge (bottom-left) ─── */
+.announcement-countdown {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background: rgba(6, 13, 24, 0.85);
+  border: 1px solid rgba(0, 180, 210, 0.4);
+  color: #38d4f0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+}
+
+/* ─── Card info area ─── */
+.announcement-info {
+  padding: 0.75rem 0.85rem 0.9rem;
+}
+
+.announcement-edition {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.78rem;
+  color: #2a6888;
+  margin: 0 0 0.2rem;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.announcement-title-text {
+  font-family: 'Cinzel', serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #d8eaf5;
+  margin: 0 0 0.55rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.announcement-date {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.88rem;
+  color: #4888a4;
+}
+
+.announcement-date-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #2a5070;
+  text-transform: uppercase;
+}
