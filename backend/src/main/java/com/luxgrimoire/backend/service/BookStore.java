@@ -22,6 +22,14 @@ public class BookStore {
         return bookRepo.findAll();
     }
 
+    public List<Book> findAllApproved() {
+        return bookRepo.findByStatus("approved");
+    }
+
+    public List<Book> findAllPending() {
+        return bookRepo.findByStatus("pending");
+    }
+
     public Optional<Book> findById(String bookId) {
         return bookRepo.findById(bookId);
     }
@@ -45,6 +53,7 @@ public class BookStore {
         return bookRepo.findById(id).map(existing -> {
             existing.setTitle(updated.getTitle());
             existing.setAuthor(updated.getAuthor());
+            existing.setAuthorId(updated.getAuthorId());
             existing.setSeriesName(updated.getSeriesName());
             existing.setVolumeNumber(updated.getVolumeNumber());
             return bookRepo.save(existing);

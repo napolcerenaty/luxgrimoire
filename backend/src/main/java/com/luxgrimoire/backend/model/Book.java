@@ -17,6 +17,8 @@ public class Book {
     private String authorId;
     private String seriesName;
     private String volumeNumber;
+    private String status = "approved";
+    private String addedBy;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("book-editions")
@@ -40,4 +42,8 @@ public class Book {
     public void setVolumeNumber(String volumeNumber) { this.volumeNumber = volumeNumber; }
     public List<BookEdition> getEditions() { return editions; }
     public void setEditions(List<BookEdition> editions) { this.editions = editions; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getAddedBy() { return addedBy; }
+    public void setAddedBy(String addedBy) { this.addedBy = addedBy; }
 }

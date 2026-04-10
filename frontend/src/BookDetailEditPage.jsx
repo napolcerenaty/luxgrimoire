@@ -1,11 +1,71 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./BookDetailEditPage.css";
 import { useI18n } from "./i18n";
 
-const MONTH_NUMS = [1,2,3,4,5,6,7,8,9,10,11,12];
+// ── Combobox for authors / artists ────────────────────────────────────────────
+
+function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew }) {
+  const [input, setInput] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => { setInput(value || ""); }, [value]);
+
+  const filtered = input.trim()
+    ? items.filter((a) => a.name.toLowerCase().includes(input.toLowerCase()))
+    : items;
+  const exactMatch = items.some((a) => a.name.toLowerCase() === input.trim().toLowerCase());
+
+  const handleChange = (e) => {
+    setInput(e.target.value);
+    setOpen(true);
+    onSelect(null, e.target.value);
+  };
+
+  const selectItem = (item) => {
+    setInput(item.name);
+    setOpen(false);
+    onSelect(item, item.name);
+  };
+
+  const handleAddNew = () => {
+    setOpen(false);
+    onAddNew(input.trim());
+  };
+
+  return (
+    <div className="combobox" ref={wrapRef}>
+      <input
+        className="edit-input"
+        value={input}
+        onChange={handleChange}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {open && (filtered.length > 0 || (!exactMatch && input.trim())) && (
+        <div className="combobox-dropdown">
+          {filtered.map((a) => (
+            <div key={a.id} className="combobox-option" onMouseDown={() => selectItem(a)}>
+              {a.name}
+            </div>
+          ))}
+          {!exactMatch && input.trim() && (
+            <div className="combobox-option combobox-add" onMouseDown={handleAddNew}>
+              {addingNew ? "Adding..." : `+ Add "${input.trim()}" as new`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function emptyBookForm() {
-  return { title: "", author: "", authorId: "", seriesName: "", volumeNumber: "", _authorSelect: "" };
+  return { title: "", author: "", authorId: "", seriesName: "", volumeNumber: "" };
 }
 
 function toBookForm(book) {
@@ -16,7 +76,6 @@ function toBookForm(book) {
     authorId: book.authorId || "",
     seriesName: book.seriesName || "",
     volumeNumber: book.volumeNumber || "",
-    _authorSelect: book.authorId ? book.authorId : (book.author ? "custom" : ""),
   };
 }
 
@@ -64,7 +123,6 @@ function toEditionForm(edition) {
       artistName: a.artistName || "",
       contribution: a.contribution || "",
       artistId: a.artistId || "",
-      _artistSelect: a.artistId ? a.artistId : (a.artistName ? "custom" : ""),
     })) : [],
     bookBoxCompanyId: edition.bookBoxCompanyId || "",
     bookBoxCompanyCustomName: edition.bookBoxCompanyCustomName || "",
@@ -74,10 +132,11 @@ function toEditionForm(edition) {
   };
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function BookDetailEditPage({ initialData, editingEdition, onSaved, onBack }) {
   const { t } = useI18n();
 
-  // Determine mode
   const isNewBook = initialData === null;
   const isEditBookMeta = initialData && editingEdition === null;
   const isNewEdition = initialData && editingEdition === "new";
@@ -93,153 +152,205 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   const [companies, setCompanies] = useState([]);
   const [authors, setAuthors] = useState([]);
   const [artists, setArtists] = useState([]);
+  const [seriesNames, setSeriesNames] = useState([]);
+  const [contributionTypes, setContributionTypes] = useState([]);
+  const [addingAuthor, setAddingAuthor] = useState(false);
+  const [addingArtistIdx, setAddingArtistIdx] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/companies", { credentials: "include" })
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => setCompanies(data))
-      .catch(() => {});
-    fetch("http://localhost:8080/api/authors", { credentials: "include" })
-      .then((res) => res.ok ? res.json() : [])
-      .then(setAuthors)
-      .catch(() => {});
-    fetch("http://localhost:8080/api/artists", { credentials: "include" })
-      .then((res) => res.ok ? res.json() : [])
-      .then(setArtists)
-      .catch(() => {});
+    const opts = { credentials: "include" };
+    const base = "http://localhost:8080/api";
+    Promise.all([
+      fetch(`${base}/companies`, opts).then((r) => r.ok ? r.json() : []),
+      fetch(`${base}/authors`, opts).then((r) => r.ok ? r.json() : []),
+      fetch(`${base}/artists`, opts).then((r) => r.ok ? r.json() : []),
+      fetch(`${base}/book-details/series-names`, opts).then((r) => r.ok ? r.json() : []),
+      fetch(`${base}/book-details/contributions`, opts).then((r) => r.ok ? r.json() : []),
+    ]).then(([c, au, ar, sn, ct]) => {
+      setCompanies(c);
+      setAuthors(au);
+      setArtists(ar);
+      setSeriesNames(sn);
+      setContributionTypes(ct);
+    }).catch(() => {});
   }, []);
 
-  const setBook = (key, value) => setBookForm((f) => ({ ...f, [key]: value }));
-  const setEd = (key, value) => setEditionForm((f) => ({ ...f, [key]: value }));
+  const setBook = (key, val) => setBookForm((f) => ({ ...f, [key]: val }));
+  const setEd = (key, val) => setEditionForm((f) => ({ ...f, [key]: val }));
 
-  const setImageUrl = (idx, value) => setEditionForm((f) => {
-    const arr = [...f.imageUrls]; arr[idx] = value; return { ...f, imageUrls: arr };
+  // ── Author inline add ────────────────────────────────────────────────────────
+  const handleAuthorSelect = (item, typedText) => {
+    if (item) {
+      setBookForm((f) => ({ ...f, author: item.name, authorId: item.id }));
+    } else {
+      setBookForm((f) => ({ ...f, author: typedText, authorId: "" }));
+    }
+  };
+
+  const handleAddNewAuthor = async (name) => {
+    if (!name) return;
+    setAddingAuthor(true);
+    try {
+      const res = await fetch("http://localhost:8080/api/authors", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const newA = await res.json();
+        setAuthors((prev) => [...prev, newA]);
+        setBookForm((f) => ({ ...f, author: newA.name, authorId: newA.id }));
+      }
+    } finally {
+      setAddingAuthor(false);
+    }
+  };
+
+  // ── Artist inline add ─────────────────────────────────────────────────────────
+  const handleArtistSelect = (idx, item, typedText) => {
+    setEditionForm((f) => {
+      const arr = f.artists.map((a, i) => i === idx ? {
+        ...a,
+        artistName: item ? item.name : typedText,
+        artistId: item ? item.id : "",
+      } : a);
+      return { ...f, artists: arr };
+    });
+  };
+
+  const handleAddNewArtist = async (idx, name) => {
+    if (!name) return;
+    setAddingArtistIdx(idx);
+    try {
+      const res = await fetch("http://localhost:8080/api/artists", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const newA = await res.json();
+        setArtists((prev) => [...prev, newA]);
+        setEditionForm((f) => {
+          const arr = f.artists.map((a, i) => i === idx ? { ...a, artistName: newA.name, artistId: newA.id } : a);
+          return { ...f, artists: arr };
+        });
+      }
+    } finally {
+      setAddingArtistIdx(null);
+    }
+  };
+
+  // ── Image helpers ────────────────────────────────────────────────────────────
+  const setImageUrl = (idx, val) => setEditionForm((f) => {
+    const arr = [...f.imageUrls]; arr[idx] = val; return { ...f, imageUrls: arr };
   });
   const addImageUrl = () => setEditionForm((f) => ({ ...f, imageUrls: [...f.imageUrls, ""] }));
   const removeImageUrl = (idx) => setEditionForm((f) => ({ ...f, imageUrls: f.imageUrls.filter((_, i) => i !== idx) }));
 
-  const setArtist = (idx, key, value) => setEditionForm((f) => {
-    const arr = f.artists.map((a, i) => i === idx ? { ...a, [key]: value } : a);
-    return { ...f, artists: arr };
-  });
-  const addArtist = () => setEditionForm((f) => ({ ...f, artists: [...f.artists, { artistName: "", contribution: "", artistId: "", _artistSelect: "" }] }));
+  // ── Artist row helpers ───────────────────────────────────────────────────────
+  const setArtistField = (idx, key, val) => setEditionForm((f) => ({
+    ...f, artists: f.artists.map((a, i) => i === idx ? { ...a, [key]: val } : a),
+  }));
+  const addArtist = () => setEditionForm((f) => ({ ...f, artists: [...f.artists, { artistName: "", contribution: "", artistId: "" }] }));
   const removeArtist = (idx) => setEditionForm((f) => ({ ...f, artists: f.artists.filter((_, i) => i !== idx) }));
 
-  const buildEditionPayload = () => ({
-    editionName: editionForm.editionName || null,
-    subscriptionName: editionForm.subscriptionName || null,
-    subscriptionId: editionForm.subscriptionId || null,
-    subscriptionMonthId: editionForm.subscriptionMonthId || null,
-    publisher: editionForm.publisher || null,
-    subscriptionMonth: editionForm.subscriptionMonth ? parseInt(editionForm.subscriptionMonth, 10) : null,
-    subscriptionYear: editionForm.subscriptionYear ? parseInt(editionForm.subscriptionYear, 10) : null,
-    firstAccessDate: editionForm.firstAccessDate || null,
-    earlyAccessDate: editionForm.earlyAccessDate || null,
-    generalSaleDate: editionForm.generalSaleDate || null,
-    basePrice: editionForm.basePrice ? parseFloat(editionForm.basePrice) : null,
-    currency: editionForm.currency || null,
-    imageUrls: editionForm.imageUrls.filter((u) => u.trim() !== ""),
-    artists: editionForm.artists.filter((a) => a.artistName.trim() !== "").map((a) => ({
-      artistName: a.artistName,
-      contribution: a.contribution,
-      artistId: a.artistId || null,
-    })),
-    bookBoxCompanyId: editionForm.bookBoxCompanyId || null,
-    bookBoxCompanyCustomName: editionForm.bookBoxCompanyCustomName || null,
-  });
+  // ── Derived values ───────────────────────────────────────────────────────────
+  const months = t("bookDetail.months");
+  const monthsArr = Array.isArray(months) ? months : [];
+
+  const selectedCompany = editionForm._companySelect && editionForm._companySelect !== "custom"
+    ? companies.find((c) => c.id === editionForm._companySelect) || null : null;
+  const companySubs = selectedCompany?.subscriptions ?? [];
+  const selectedSub = editionForm._subscriptionSelect && editionForm._subscriptionSelect !== "custom"
+    ? companySubs.find((s) => s.id === editionForm._subscriptionSelect) || null : null;
+  const subMonths = selectedSub?.months ?? [];
+
+  const monthLocked = !!editionForm._monthSelect;
+
+  const buildEditionPayload = () => {
+    let generalSaleDate = editionForm.generalSaleDate || null;
+    if (monthLocked && editionForm.subscriptionYear && editionForm.subscriptionMonth) {
+      const y = editionForm.subscriptionYear;
+      const m = String(editionForm.subscriptionMonth).padStart(2, "0");
+      generalSaleDate = `${y}-${m}-01`;
+    }
+    return {
+      editionName: editionForm.editionName || null,
+      subscriptionName: editionForm.subscriptionName || null,
+      subscriptionId: editionForm.subscriptionId || null,
+      subscriptionMonthId: editionForm.subscriptionMonthId || null,
+      publisher: editionForm.publisher || null,
+      subscriptionMonth: editionForm.subscriptionMonth ? parseInt(editionForm.subscriptionMonth, 10) : null,
+      subscriptionYear: editionForm.subscriptionYear ? parseInt(editionForm.subscriptionYear, 10) : null,
+      firstAccessDate: monthLocked ? null : (editionForm.firstAccessDate || null),
+      earlyAccessDate: monthLocked ? null : (editionForm.earlyAccessDate || null),
+      generalSaleDate,
+      basePrice: editionForm.basePrice ? parseFloat(editionForm.basePrice) : null,
+      currency: editionForm.currency || null,
+      imageUrls: editionForm.imageUrls.filter((u) => u.trim() !== ""),
+      artists: editionForm.artists.filter((a) => a.artistName.trim() !== "").map((a) => ({
+        artistName: a.artistName, contribution: a.contribution, artistId: a.artistId || null,
+      })),
+      bookBoxCompanyId: editionForm.bookBoxCompanyId || null,
+      bookBoxCompanyCustomName: editionForm.bookBoxCompanyCustomName || null,
+    };
+  };
 
   const editionHasContent = () => {
     const e = editionForm;
-    return e.editionName || e.subscriptionName || e.publisher || e.basePrice || e.generalSaleDate || e.imageUrls.filter(u => u.trim()).length > 0;
+    return e.editionName || e.subscriptionName || e.publisher || e.basePrice || e.generalSaleDate
+      || e.imageUrls.filter((u) => u.trim()).length > 0;
   };
 
+  // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     setSaving(true);
     setError(null);
     try {
+      const base = "http://localhost:8080/api/book-details";
+      const opts = (method, body) => ({
+        method, credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
       if (isNewBook) {
-        // 1. Create book
-        const bookRes = await fetch("http://localhost:8080/api/book-details", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: bookForm.title || null,
-            author: bookForm.author || null,
-            authorId: bookForm.authorId || null,
-            seriesName: bookForm.seriesName || null,
-            volumeNumber: bookForm.volumeNumber || null,
-          }),
-        });
+        const bookRes = await fetch(base, opts("POST", {
+          title: bookForm.title || null, author: bookForm.author || null,
+          authorId: bookForm.authorId || null, seriesName: bookForm.seriesName || null,
+          volumeNumber: bookForm.volumeNumber || null,
+        }));
         if (!bookRes.ok) throw new Error(await bookRes.text() || `HTTP ${bookRes.status}`);
         let book = await bookRes.json();
-        // 2. Optionally add edition
         if (editionHasContent()) {
-          const edRes = await fetch(`http://localhost:8080/api/book-details/${book.id}/editions`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(buildEditionPayload()),
-          });
+          const edRes = await fetch(`${base}/${book.id}/editions`, opts("POST", buildEditionPayload()));
           if (!edRes.ok) throw new Error(await edRes.text() || `HTTP ${edRes.status}`);
           book = await edRes.json();
         }
         onSaved(book);
       } else if (isEditBookMeta) {
-        const res = await fetch(`http://localhost:8080/api/book-details/${initialData.id}`, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: bookForm.title || null,
-            author: bookForm.author || null,
-            authorId: bookForm.authorId || null,
-            seriesName: bookForm.seriesName || null,
-            volumeNumber: bookForm.volumeNumber || null,
-          }),
-        });
+        const res = await fetch(`${base}/${initialData.id}`, opts("PUT", {
+          title: bookForm.title || null, author: bookForm.author || null,
+          authorId: bookForm.authorId || null, seriesName: bookForm.seriesName || null,
+          volumeNumber: bookForm.volumeNumber || null,
+        }));
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-        const updated = await res.json();
-        onSaved(updated);
+        onSaved(await res.json());
       } else if (isNewEdition) {
-        const res = await fetch(`http://localhost:8080/api/book-details/${initialData.id}/editions`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildEditionPayload()),
-        });
+        const res = await fetch(`${base}/${initialData.id}/editions`, opts("POST", buildEditionPayload()));
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-        const book = await res.json();
-        onSaved(book);
+        onSaved(await res.json());
       } else if (isEditEdition) {
-        const res = await fetch(`http://localhost:8080/api/book-details/${initialData.id}/editions/${editingEdition.id}`, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildEditionPayload()),
-        });
+        const res = await fetch(`${base}/${initialData.id}/editions/${editingEdition.id}`, opts("PUT", buildEditionPayload()));
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-        const book = await res.json();
-        onSaved(book);
+        onSaved(await res.json());
       }
     } catch (err) {
       setError(err.message);
       setSaving(false);
     }
   };
-
-  const months = t("bookDetail.months");
-  const monthsArr = Array.isArray(months) ? months : [];
-
-  const selectedCompany = editionForm._companySelect && editionForm._companySelect !== "custom"
-    ? companies.find((c) => c.id === editionForm._companySelect) || null
-    : null;
-  const companySubs = selectedCompany && Array.isArray(selectedCompany.subscriptions) ? selectedCompany.subscriptions : [];
-  const selectedSub = editionForm._subscriptionSelect && editionForm._subscriptionSelect !== "custom"
-    ? companySubs.find((s) => s.id === editionForm._subscriptionSelect) || null
-    : null;
-  const subMonths = selectedSub && Array.isArray(selectedSub.months) ? selectedSub.months : [];
 
   const heading = isNewBook ? t("bookDetail.addDetails")
     : isEditBookMeta ? t("bookDetail.editBookMeta")
@@ -256,6 +367,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       {error && <p className="edit-error">{error}</p>}
 
       <form className="edit-form" onSubmit={handleSubmit}>
+
         {/* Book fields */}
         {showBookForm && (
           <div className="edit-grid">
@@ -263,49 +375,34 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               {t("col.title")}
               <input className="edit-input" value={bookForm.title} onChange={(e) => setBook("title", e.target.value)} />
             </label>
+
             <label className="edit-label">
               {t("col.author")}
-              {authors.length > 0 ? (
-                <>
-                  <select
-                    className="edit-select"
-                    value={bookForm._authorSelect}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "") {
-                        setBookForm((f) => ({ ...f, _authorSelect: "", author: "", authorId: "" }));
-                      } else if (val === "custom") {
-                        setBookForm((f) => ({ ...f, _authorSelect: "custom", authorId: "" }));
-                      } else {
-                        const found = authors.find((a) => a.id === val);
-                        setBookForm((f) => ({ ...f, _authorSelect: val, authorId: val, author: found ? found.name : "" }));
-                      }
-                    }}
-                  >
-                    <option value="">— no author —</option>
-                    {authors.map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                    <option value="custom">Custom / type name</option>
-                  </select>
-                  {(bookForm._authorSelect === "custom" || bookForm._authorSelect === "") && (
-                    <input
-                      className="edit-input"
-                      style={{ marginTop: "0.5rem" }}
-                      value={bookForm.author}
-                      onChange={(e) => setBook("author", e.target.value)}
-                      placeholder="Author name"
-                    />
-                  )}
-                </>
-              ) : (
-                <input className="edit-input" value={bookForm.author} onChange={(e) => setBook("author", e.target.value)} />
-              )}
+              <NameCombobox
+                value={bookForm.author}
+                items={authors}
+                onSelect={handleAuthorSelect}
+                onAddNew={handleAddNewAuthor}
+                placeholder="Author name"
+                addingNew={addingAuthor}
+              />
             </label>
+
             <label className="edit-label">
               {t("bookDetail.series")}
-              <input className="edit-input" value={bookForm.seriesName} onChange={(e) => setBook("seriesName", e.target.value)} />
+              <input
+                className="edit-input"
+                list="series-datalist"
+                value={bookForm.seriesName}
+                onChange={(e) => setBook("seriesName", e.target.value)}
+                placeholder="Series name"
+                autoComplete="off"
+              />
+              <datalist id="series-datalist">
+                {seriesNames.map((s) => <option key={s} value={s} />)}
+              </datalist>
             </label>
+
             <label className="edit-label">
               {t("bookDetail.volume")}
               <input className="edit-input" value={bookForm.volumeNumber} onChange={(e) => setBook("volumeNumber", e.target.value)} />
@@ -324,47 +421,81 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
         {/* Edition fields */}
         {showEditionForm && (
           <>
-            {isNewBook && <h3 className="edit-section-title" style={{ marginTop: "1rem" }}>{t("bookDetail.editions")}</h3>}
+            {isNewBook && (
+              <h3 className="edit-section-title" style={{ marginTop: "1rem" }}>
+                {t("bookDetail.editionDetails")}
+              </h3>
+            )}
+
+            {/* Company / subscription — top of edition */}
             <div className="edit-grid">
               <label className="edit-label edit-label--full">
-                {t("bookDetail.editionName")}
-                <input className="edit-input" value={editionForm.editionName} onChange={(e) => setEd("editionName", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.subscription")}
-                {companySubs.length > 0 ? (
-                  <>
-                    <select
-                      className="edit-select"
-                      value={editionForm._subscriptionSelect}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "") {
-                          setEditionForm((f) => ({ ...f, _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
-                        } else if (val === "custom") {
-                          setEditionForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
-                        } else {
-                          const found = companySubs.find((s) => s.id === val);
-                          setEditionForm((f) => ({ ...f, _subscriptionSelect: val, subscriptionId: val, subscriptionName: found ? found.name : "", _monthSelect: "", subscriptionMonthId: "" }));
-                        }
-                      }}
-                    >
-                      <option value="">{t("company.sub.noSubscription")}</option>
-                      {companySubs.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                      <option value="custom">{t("company.sub.customSubscription")}</option>
-                    </select>
-                    {editionForm._subscriptionSelect === "custom" && (
-                      <input className="edit-input" style={{ marginTop: "0.5rem" }} value={editionForm.subscriptionName} onChange={(e) => setEd("subscriptionName", e.target.value)} placeholder={t("bookDetail.subscription")} />
-                    )}
-                  </>
-                ) : (
-                  <input className="edit-input" value={editionForm.subscriptionName} onChange={(e) => setEd("subscriptionName", e.target.value)} />
+                {t("bookDetail.company")}
+                <select
+                  className="edit-select"
+                  value={editionForm._companySelect}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "custom") {
+                      setEditionForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                    } else {
+                      setEditionForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                    }
+                  }}
+                >
+                  <option value="">{t("company.notSelected")}</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="custom">{t("company.customName")}</option>
+                </select>
+                {editionForm._companySelect === "custom" && (
+                  <input
+                    className="edit-input"
+                    style={{ marginTop: "0.5rem" }}
+                    value={editionForm.bookBoxCompanyCustomName}
+                    onChange={(e) => setEd("bookBoxCompanyCustomName", e.target.value)}
+                    placeholder={t("company.customName")}
+                  />
                 )}
               </label>
+
+              {(companySubs.length > 0 || editionForm._companySelect === "custom") && (
+                <label className="edit-label">
+                  {t("bookDetail.subscription")}
+                  {companySubs.length > 0 ? (
+                    <>
+                      <select
+                        className="edit-select"
+                        value={editionForm._subscriptionSelect}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setEditionForm((f) => ({ ...f, _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                          } else if (val === "custom") {
+                            setEditionForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                          } else {
+                            const found = companySubs.find((s) => s.id === val);
+                            setEditionForm((f) => ({ ...f, _subscriptionSelect: val, subscriptionId: val, subscriptionName: found ? found.name : "", _monthSelect: "", subscriptionMonthId: "" }));
+                          }
+                        }}
+                      >
+                        <option value="">{t("company.sub.noSubscription")}</option>
+                        {companySubs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        <option value="custom">{t("company.sub.customSubscription")}</option>
+                      </select>
+                      {editionForm._subscriptionSelect === "custom" && (
+                        <input className="edit-input" style={{ marginTop: "0.5rem" }} value={editionForm.subscriptionName}
+                          onChange={(e) => setEd("subscriptionName", e.target.value)} placeholder={t("bookDetail.subscription")} />
+                      )}
+                    </>
+                  ) : (
+                    <input className="edit-input" value={editionForm.subscriptionName}
+                      onChange={(e) => setEd("subscriptionName", e.target.value)} />
+                  )}
+                </label>
+              )}
+
               {subMonths.length > 0 && (
-                <label className="edit-label edit-label--full">
+                <label className="edit-label">
                   {t("company.sub.monthSelect")}
                   <select
                     className="edit-select"
@@ -382,141 +513,129 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
                     <option value="">{t("company.sub.noMonth")}</option>
                     {subMonths.map((mo) => {
                       const mName = (monthsArr[mo.month - 1] || mo.month) + " " + mo.year;
-                      const label = mo.theme ? `${mName} \u2014 ${mo.theme}` : mName;
-                      return <option key={mo.id} value={mo.id}>{label}</option>;
+                      return <option key={mo.id} value={mo.id}>{mo.theme ? `${mName} — ${mo.theme}` : mName}</option>;
                     })}
                   </select>
                 </label>
               )}
+            </div>
+
+            {/* Book Box Name + Publisher */}
+            <div className="edit-grid">
+              <label className="edit-label">
+                {t("bookDetail.editionName")}
+                <input className="edit-input" value={editionForm.editionName}
+                  onChange={(e) => setEd("editionName", e.target.value)} placeholder="Box / edition name" />
+              </label>
               <label className="edit-label">
                 {t("bookDetail.publisher")}
-                <input className="edit-input" value={editionForm.publisher} onChange={(e) => setEd("publisher", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.subscriptionDate")} ({monthsArr[0] ? monthsArr[0].slice(0, 3) : "Mon"}...)
-                <div className="edit-month-year">
-                  <select className="edit-select" value={editionForm.subscriptionMonth} onChange={(e) => setEd("subscriptionMonth", e.target.value)}>
-                    <option value="">--</option>
-                    {MONTH_NUMS.map((m) => (
-                      <option key={m} value={m}>{monthsArr[m - 1] || m}</option>
-                    ))}
-                  </select>
-                  <input className="edit-input edit-year" type="number" min="2000" max="2100" placeholder="Year" value={editionForm.subscriptionYear} onChange={(e) => setEd("subscriptionYear", e.target.value)} />
-                </div>
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.firstAccess")}
-                <input className="edit-input" type="date" value={editionForm.firstAccessDate} onChange={(e) => setEd("firstAccessDate", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.earlyAccess")}
-                <input className="edit-input" type="date" value={editionForm.earlyAccessDate} onChange={(e) => setEd("earlyAccessDate", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.generalSale")}
-                <input className="edit-input" type="date" value={editionForm.generalSaleDate} onChange={(e) => setEd("generalSaleDate", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.price")}
-                <input className="edit-input" type="number" step="0.01" min="0" value={editionForm.basePrice} onChange={(e) => setEd("basePrice", e.target.value)} />
-              </label>
-              <label className="edit-label">
-                {t("bookDetail.currency")}
-                <input className="edit-input" value={editionForm.currency} onChange={(e) => setEd("currency", e.target.value)} placeholder="USD" />
+                <input className="edit-input" value={editionForm.publisher}
+                  onChange={(e) => setEd("publisher", e.target.value)} />
               </label>
             </div>
 
+            {/* Free-text subscription month/year (when no company-linked month) */}
+            {(!selectedSub || editionForm._subscriptionSelect === "custom") && (
+              <div className="edit-grid">
+                <label className="edit-label">
+                  {t("bookDetail.subscriptionDate")}
+                  <div className="edit-month-year">
+                    <select className="edit-select" value={editionForm.subscriptionMonth}
+                      onChange={(e) => setEd("subscriptionMonth", e.target.value)}>
+                      <option value="">—</option>
+                      {monthsArr.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
+                    </select>
+                    <input className="edit-input edit-year" type="number" min="2000" max="2100" placeholder="Year"
+                      value={editionForm.subscriptionYear} onChange={(e) => setEd("subscriptionYear", e.target.value)} />
+                  </div>
+                </label>
+              </div>
+            )}
+
+            {/* Dates — hidden when subscription month is locked */}
+            {!monthLocked && (
+              <div className="edit-grid">
+                <label className="edit-label">
+                  {t("bookDetail.firstAccess")}
+                  <input className="edit-input" type="date" value={editionForm.firstAccessDate}
+                    onChange={(e) => setEd("firstAccessDate", e.target.value)} />
+                </label>
+                <label className="edit-label">
+                  {t("bookDetail.earlyAccess")}
+                  <input className="edit-input" type="date" value={editionForm.earlyAccessDate}
+                    onChange={(e) => setEd("earlyAccessDate", e.target.value)} />
+                </label>
+                <label className="edit-label">
+                  {t("bookDetail.generalSale")}
+                  <input className="edit-input" type="date" value={editionForm.generalSaleDate}
+                    onChange={(e) => setEd("generalSaleDate", e.target.value)} />
+                </label>
+              </div>
+            )}
+            {monthLocked && (
+              <p className="edit-date-note">
+                Sale date set to subscription renewal: {monthsArr[(parseInt(editionForm.subscriptionMonth, 10) || 1) - 1]} {editionForm.subscriptionYear}.
+              </p>
+            )}
+
+            {/* Price */}
+            <div className="edit-grid">
+              <label className="edit-label">
+                {t("bookDetail.price")}
+                <input className="edit-input" type="number" step="0.01" min="0" value={editionForm.basePrice}
+                  onChange={(e) => setEd("basePrice", e.target.value)} />
+              </label>
+              <label className="edit-label">
+                {t("bookDetail.currency")}
+                <input className="edit-input" value={editionForm.currency}
+                  onChange={(e) => setEd("currency", e.target.value)} placeholder="USD" />
+              </label>
+            </div>
+
+            {/* Images */}
             <div className="edit-section">
               <h3 className="edit-section-title">{t("bookDetail.images")}</h3>
               {editionForm.imageUrls.map((url, idx) => (
                 <div key={idx} className="edit-dynamic-row">
-                  <input className="edit-input edit-url-input" value={url} onChange={(e) => setImageUrl(idx, e.target.value)} placeholder="https://..." />
+                  <span className="edit-img-label">{idx === 0 ? "Main (cover)" : `Image ${idx + 1}`}</span>
+                  <input className="edit-input edit-url-input" value={url}
+                    onChange={(e) => setImageUrl(idx, e.target.value)} placeholder="https://..." />
                   <button className="edit-remove-btn" type="button" onClick={() => removeImageUrl(idx)}>&#x2715;</button>
                 </div>
               ))}
               <button className="edit-add-btn" type="button" onClick={addImageUrl}>{t("bookDetail.addImage")}</button>
             </div>
 
+            {/* Artists */}
             <div className="edit-section">
               <h3 className="edit-section-title">{t("bookDetail.artists")}</h3>
+              <datalist id="contributions-datalist">
+                {contributionTypes.map((c) => <option key={c} value={c} />)}
+              </datalist>
               {editionForm.artists.map((artist, idx) => (
-                <div key={idx} className="edit-dynamic-row">
-                  {artists.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 }}>
-                      <select
-                        className="edit-select"
-                        value={artist._artistSelect}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "") {
-                            setArtist(idx, "_artistSelect", "");
-                            setArtist(idx, "artistId", "");
-                            setArtist(idx, "artistName", "");
-                          } else if (val === "custom") {
-                            setArtist(idx, "_artistSelect", "custom");
-                            setArtist(idx, "artistId", "");
-                          } else {
-                            const found = artists.find((a) => a.id === val);
-                            setArtist(idx, "_artistSelect", val);
-                            setArtist(idx, "artistId", val);
-                            setArtist(idx, "artistName", found ? found.name : "");
-                          }
-                        }}
-                      >
-                        <option value="">— select artist —</option>
-                        {artists.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                        <option value="custom">Custom / type name</option>
-                      </select>
-                      {(artist._artistSelect === "custom" || artist._artistSelect === "") && (
-                        <input
-                          className="edit-input"
-                          value={artist.artistName}
-                          onChange={(e) => setArtist(idx, "artistName", e.target.value)}
-                          placeholder={t("bookDetail.artistName")}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <input className="edit-input" value={artist.artistName} onChange={(e) => setArtist(idx, "artistName", e.target.value)} placeholder={t("bookDetail.artistName")} />
-                  )}
-                  <input className="edit-input" value={artist.contribution} onChange={(e) => setArtist(idx, "contribution", e.target.value)} placeholder={t("bookDetail.artistRole")} />
+                <div key={idx} className="edit-dynamic-row edit-artist-row">
+                  <div className="edit-artist-name">
+                    <NameCombobox
+                      value={artist.artistName}
+                      items={artists}
+                      onSelect={(item, text) => handleArtistSelect(idx, item, text)}
+                      onAddNew={(name) => handleAddNewArtist(idx, name)}
+                      placeholder={t("bookDetail.artistName")}
+                      addingNew={addingArtistIdx === idx}
+                    />
+                  </div>
+                  <input
+                    className="edit-input edit-contribution"
+                    list="contributions-datalist"
+                    value={artist.contribution}
+                    onChange={(e) => setArtistField(idx, "contribution", e.target.value)}
+                    placeholder={t("bookDetail.artistRole")}
+                    autoComplete="off"
+                  />
                   <button className="edit-remove-btn" type="button" onClick={() => removeArtist(idx)}>&#x2715;</button>
                 </div>
               ))}
               <button className="edit-add-btn" type="button" onClick={addArtist}>{t("bookDetail.addArtist")}</button>
-            </div>
-
-            <div className="edit-section">
-              <h3 className="edit-section-title">{t("bookDetail.company")}</h3>
-              <select
-                className="edit-select"
-                value={editionForm._companySelect}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "custom") {
-                    setEditionForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
-                  } else {
-                    setEditionForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
-                  }
-                }}
-              >
-                <option value="">{t("company.notSelected")}</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-                <option value="custom">{t("company.customName")}</option>
-              </select>
-              {editionForm._companySelect === "custom" && (
-                <input
-                  className="edit-input"
-                  style={{ marginTop: "0.5rem" }}
-                  value={editionForm.bookBoxCompanyCustomName}
-                  onChange={(e) => setEditionForm((f) => ({ ...f, bookBoxCompanyCustomName: e.target.value }))}
-                  placeholder={t("company.customName")}
-                />
-              )}
             </div>
           </>
         )}

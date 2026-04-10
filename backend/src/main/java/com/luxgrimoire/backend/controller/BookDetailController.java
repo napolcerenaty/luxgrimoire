@@ -2,6 +2,8 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.model.BookEdition;
+import com.luxgrimoire.backend.repository.BookEditionRepository;
+import com.luxgrimoire.backend.repository.BookRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.BookStore;
 import jakarta.servlet.http.HttpSession;
@@ -18,15 +20,50 @@ public class BookDetailController {
 
     private final BookStore bookStore;
     private final BookBoxCompanyStore companyStore;
+    private final BookRepository bookRepository;
+    private final BookEditionRepository editionRepository;
 
-    public BookDetailController(BookStore bookStore, BookBoxCompanyStore companyStore) {
+    public BookDetailController(BookStore bookStore, BookBoxCompanyStore companyStore,
+                                BookRepository bookRepository, BookEditionRepository editionRepository) {
         this.bookStore = bookStore;
         this.companyStore = companyStore;
+        this.bookRepository = bookRepository;
+        this.editionRepository = editionRepository;
     }
 
     @GetMapping
-    public List<Book> getAll() {
-        return bookStore.findAll();
+    public List<Book> getAll(HttpSession session) {
+        String username = (String) session.getAttribute("username");
+        if ("admin".equals(username)) return bookStore.findAll();
+        return bookStore.findAllApproved();
+    }
+
+    @GetMapping("/series-names")
+    public List<String> getSeriesNames() {
+        return bookRepository.findDistinctSeriesNames();
+    }
+
+    @GetMapping("/contributions")
+    public List<String> getContributions() {
+        return editionRepository.findDistinctContributions();
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<?> getPendingBooks(HttpSession session) {
+        String username = (String) session.getAttribute("username");
+        if (!"admin".equals(username)) return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(bookStore.findAllPending());
+    }
+
+    @PutMapping("/{bookId}/approve")
+    public ResponseEntity<?> approveBook(@PathVariable String bookId, HttpSession session) {
+        String username = (String) session.getAttribute("username");
+        if (!"admin".equals(username)) return ResponseEntity.status(403).build();
+        return bookStore.findById(bookId).map(book -> {
+            book.setStatus("approved");
+            bookStore.save(book);
+            return ResponseEntity.ok(book);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/by-title")
@@ -59,8 +96,11 @@ public class BookDetailController {
         Book book = new Book();
         book.setTitle(body.get("title"));
         book.setAuthor(body.get("author"));
+        book.setAuthorId(body.get("authorId"));
         book.setSeriesName(body.get("seriesName"));
         book.setVolumeNumber(body.get("volumeNumber"));
+        book.setAddedBy(username);
+        book.setStatus("admin".equals(username) ? "approved" : "pending");
         Book saved = bookStore.save(book);
         return ResponseEntity.ok(saved);
     }

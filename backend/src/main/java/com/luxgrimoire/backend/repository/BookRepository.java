@@ -20,4 +20,9 @@ public interface BookRepository extends JpaRepository<Book, String> {
     List<Book> searchByQuery(@Param("q") String pattern);
 
     long countByAuthorId(String authorId);
+
+    List<Book> findByStatus(String status);
+
+    @Query("SELECT DISTINCT b.seriesName FROM Book b WHERE b.seriesName IS NOT NULL AND b.seriesName <> '' ORDER BY b.seriesName")
+    List<String> findDistinctSeriesNames();
 }
