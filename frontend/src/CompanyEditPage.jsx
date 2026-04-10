@@ -2,6 +2,37 @@ import { useState } from "react";
 import "./CompanyEditPage.css";
 import { useI18n } from "./i18n";
 
+function emptySub() {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    logoUrl: "",
+    basePrice: "",
+    shipsInternationally: true,
+    shippingCountries: [],
+    type: "MONTHLY",
+    genres: [],
+    bookishMerch: false,
+  };
+}
+
+function normalizeSub(sub) {
+  if (typeof sub === "string") {
+    return { id: crypto.randomUUID(), name: sub, logoUrl: "", basePrice: "", shipsInternationally: true, shippingCountries: [], type: "MONTHLY", genres: [], bookishMerch: false };
+  }
+  return {
+    id: sub.id || crypto.randomUUID(),
+    name: sub.name || "",
+    logoUrl: sub.logoUrl || "",
+    basePrice: sub.basePrice != null ? String(sub.basePrice) : "",
+    shipsInternationally: sub.shipsInternationally !== false,
+    shippingCountries: sub.shippingCountries ? [...sub.shippingCountries] : [],
+    type: sub.type || "MONTHLY",
+    genres: sub.genres ? [...sub.genres] : [],
+    bookishMerch: !!sub.bookishMerch,
+  };
+}
+
 function emptyForm() {
   return {
     name: "",
@@ -24,9 +55,97 @@ function toForm(data) {
     description: data.description || "",
     location: data.location || "",
     defaultCurrency: data.defaultCurrency || "",
-    subscriptions: data.subscriptions ? [...data.subscriptions] : [],
+    subscriptions: data.subscriptions ? data.subscriptions.map(normalizeSub) : [],
     managerUsernames: data.managerUsernames ? [...data.managerUsernames] : [],
   };
+}
+
+function SubCard({ sub, idx, t, onChange, onRemove }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const setField = (key, value) => onChange(idx, { ...sub, [key]: value });
+
+  const setCountry = (ci, val) => {
+    const arr = [...sub.shippingCountries];
+    arr[ci] = val;
+    setField("shippingCountries", arr);
+  };
+  const addCountry = () => setField("shippingCountries", [...sub.shippingCountries, ""]);
+  const removeCountry = (ci) => setField("shippingCountries", sub.shippingCountries.filter((_, i) => i !== ci));
+
+  const setGenre = (gi, val) => {
+    const arr = [...sub.genres];
+    arr[gi] = val;
+    setField("genres", arr);
+  };
+  const addGenre = () => setField("genres", [...sub.genres, ""]);
+  const removeGenre = (gi) => setField("genres", sub.genres.filter((_, i) => i !== gi));
+
+  return (
+    <div className="sub-card">
+      <div className="sub-card-header">
+        <button className="sub-card-toggle" type="button" onClick={() => setExpanded((e) => !e)}>
+          <span className="sub-card-name">{sub.name || <em style={{ color: "#547898" }}>{t("company.sub.name")}</em>}</span>
+          <span className="sub-card-chevron">{expanded ? "▲" : "▼"}</span>
+        </button>
+        <button className="company-edit-remove-btn" type="button" onClick={() => onRemove(idx)}>&#x2715;</button>
+      </div>
+      {expanded && (
+        <div className="sub-card-body">
+          <label className="company-edit-label">
+            {t("company.sub.name")} *
+            <input className="company-edit-input" value={sub.name} onChange={(e) => setField("name", e.target.value)} />
+          </label>
+          <label className="company-edit-label">
+            {t("company.sub.logo")}
+            <input className="company-edit-input" value={sub.logoUrl} onChange={(e) => setField("logoUrl", e.target.value)} placeholder="https://..." />
+          </label>
+          <label className="company-edit-label">
+            {t("company.sub.price")}
+            <input className="company-edit-input" type="number" step="0.01" min="0" value={sub.basePrice} onChange={(e) => setField("basePrice", e.target.value)} />
+          </label>
+          <label className="company-edit-label">
+            {t("company.sub.type")}
+            <select className="company-edit-select" value={sub.type} onChange={(e) => setField("type", e.target.value)}>
+              <option value="MONTHLY">{t("company.sub.typeMonthly")}</option>
+              <option value="BI_MONTHLY">{t("company.sub.typeBiMonthly")}</option>
+              <option value="QUARTERLY">{t("company.sub.typeQuarterly")}</option>
+            </select>
+          </label>
+          <label className="company-edit-label company-edit-label--checkbox">
+            <input type="checkbox" checked={sub.shipsInternationally} onChange={(e) => setField("shipsInternationally", e.target.checked)} />
+            {t("company.sub.shipsIntl")}
+          </label>
+          {!sub.shipsInternationally && (
+            <div className="sub-card-sublist">
+              <span className="company-edit-label">{t("company.sub.shippingCountries")}</span>
+              {sub.shippingCountries.map((c, ci) => (
+                <div key={ci} className="company-edit-dynamic-row">
+                  <input className="company-edit-input company-edit-url-input" value={c} onChange={(e) => setCountry(ci, e.target.value)} />
+                  <button className="company-edit-remove-btn" type="button" onClick={() => removeCountry(ci)}>&#x2715;</button>
+                </div>
+              ))}
+              <button className="company-edit-add-btn" type="button" onClick={addCountry}>{t("company.sub.addCountry")}</button>
+            </div>
+          )}
+          <div className="sub-card-sublist">
+            <span className="company-edit-label">{t("company.sub.genres")}</span>
+            {sub.genres.map((g, gi) => (
+              <div key={gi} className="company-edit-dynamic-row">
+                <input className="company-edit-input company-edit-url-input" value={g} onChange={(e) => setGenre(gi, e.target.value)} />
+                <button className="company-edit-remove-btn" type="button" onClick={() => removeGenre(gi)}>&#x2715;</button>
+              </div>
+            ))}
+            <button className="company-edit-add-btn" type="button" onClick={addGenre}>{t("company.sub.addGenre")}</button>
+          </div>
+          <label className="company-edit-label company-edit-label--checkbox">
+            <input type="checkbox" checked={sub.bookishMerch} onChange={(e) => setField("bookishMerch", e.target.checked)} />
+            {t("company.sub.bookishMerch")}
+          </label>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function CompanyEditPage({ initialData, onSaved, onBack, user }) {
@@ -37,12 +156,12 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
-  const setSub = (idx, value) => setForm((f) => {
+  const onSubChange = (idx, updated) => setForm((f) => {
     const arr = [...f.subscriptions];
-    arr[idx] = value;
+    arr[idx] = updated;
     return { ...f, subscriptions: arr };
   });
-  const addSub = () => setForm((f) => ({ ...f, subscriptions: [...f.subscriptions, ""] }));
+  const addSub = () => setForm((f) => ({ ...f, subscriptions: [...f.subscriptions, emptySub()] }));
   const removeSub = (idx) => setForm((f) => ({ ...f, subscriptions: f.subscriptions.filter((_, i) => i !== idx) }));
 
   const setMgr = (idx, value) => setForm((f) => {
@@ -65,7 +184,19 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
       description: form.description || null,
       location: form.location || null,
       defaultCurrency: form.defaultCurrency || null,
-      subscriptions: form.subscriptions.filter((s) => s.trim() !== ""),
+      subscriptions: form.subscriptions
+        .filter((s) => s.name && s.name.trim() !== "")
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          logoUrl: s.logoUrl || null,
+          basePrice: s.basePrice !== "" ? parseFloat(s.basePrice) : null,
+          shipsInternationally: s.shipsInternationally,
+          shippingCountries: s.shippingCountries.filter((c) => c.trim() !== ""),
+          type: s.type,
+          genres: s.genres.filter((g) => g.trim() !== ""),
+          bookishMerch: s.bookishMerch,
+        })),
       managerUsernames: form.managerUsernames,
     };
 
@@ -165,14 +296,7 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
         <div className="company-edit-section">
           <h3 className="company-edit-section-title">{t("company.subscriptions")}</h3>
           {form.subscriptions.map((sub, idx) => (
-            <div key={idx} className="company-edit-dynamic-row">
-              <input
-                className="company-edit-input company-edit-url-input"
-                value={sub}
-                onChange={(e) => setSub(idx, e.target.value)}
-              />
-              <button className="company-edit-remove-btn" type="button" onClick={() => removeSub(idx)}>&#x2715;</button>
-            </div>
+            <SubCard key={sub.id} sub={sub} idx={idx} t={t} onChange={onSubChange} onRemove={removeSub} />
           ))}
           <button className="company-edit-add-btn" type="button" onClick={addSub}>
             {t("company.addSub")}

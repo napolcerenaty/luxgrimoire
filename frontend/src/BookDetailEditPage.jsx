@@ -11,6 +11,7 @@ function emptyForm() {
     seriesName: "",
     volumeNumber: "",
     subscriptionName: "",
+    subscriptionId: "",
     publisher: "",
     subscriptionMonth: "",
     subscriptionYear: "",
@@ -24,6 +25,7 @@ function emptyForm() {
     bookBoxCompanyId: "",
     bookBoxCompanyCustomName: "",
     _companySelect: "",
+    _subscriptionSelect: "",
   };
 }
 
@@ -35,6 +37,7 @@ function toForm(data) {
     seriesName: data.seriesName || "",
     volumeNumber: data.volumeNumber || "",
     subscriptionName: data.subscriptionName || "",
+    subscriptionId: data.subscriptionId || "",
     publisher: data.publisher || "",
     subscriptionMonth: data.subscriptionMonth != null ? String(data.subscriptionMonth) : "",
     subscriptionYear: data.subscriptionYear != null ? String(data.subscriptionYear) : "",
@@ -48,6 +51,7 @@ function toForm(data) {
     bookBoxCompanyId: data.bookBoxCompanyId || "",
     bookBoxCompanyCustomName: data.bookBoxCompanyCustomName || "",
     _companySelect: data.bookBoxCompanyId ? data.bookBoxCompanyId : (data.bookBoxCompanyCustomName ? "custom" : ""),
+    _subscriptionSelect: data.subscriptionId ? data.subscriptionId : (data.subscriptionName ? "custom" : ""),
   };
 }
 
@@ -93,6 +97,7 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
       seriesName: form.seriesName || null,
       volumeNumber: form.volumeNumber || null,
       subscriptionName: form.subscriptionName || null,
+      subscriptionId: form.subscriptionId || null,
       publisher: form.publisher || null,
       subscriptionMonth: form.subscriptionMonth ? parseInt(form.subscriptionMonth, 10) : null,
       subscriptionYear: form.subscriptionYear ? parseInt(form.subscriptionYear, 10) : null,
@@ -135,6 +140,13 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
   const months = t("bookDetail.months");
   const monthsArr = Array.isArray(months) ? months : [];
 
+  const selectedCompany = form._companySelect && form._companySelect !== "custom"
+    ? companies.find((c) => c.id === form._companySelect) || null
+    : null;
+  const companySubs = selectedCompany && Array.isArray(selectedCompany.subscriptions)
+    ? selectedCompany.subscriptions
+    : [];
+
   return (
     <div className="edit-page">
       <div className="edit-header">
@@ -166,7 +178,47 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
           </label>
           <label className="edit-label">
             {t("bookDetail.subscription")}
-            <input className="edit-input" value={form.subscriptionName} onChange={(e) => set("subscriptionName", e.target.value)} />
+            {companySubs.length > 0 ? (
+              <>
+                <select
+                  className="edit-select"
+                  value={form._subscriptionSelect}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setForm((f) => ({ ...f, _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
+                    } else if (val === "custom") {
+                      setForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "" }));
+                    } else {
+                      const found = companySubs.find((s) => s.id === val);
+                      setForm((f) => ({
+                        ...f,
+                        _subscriptionSelect: val,
+                        subscriptionId: val,
+                        subscriptionName: found ? found.name : "",
+                      }));
+                    }
+                  }}
+                >
+                  <option value="">{t("company.sub.noSubscription")}</option>
+                  {companySubs.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                  <option value="custom">{t("company.sub.customSubscription")}</option>
+                </select>
+                {form._subscriptionSelect === "custom" && (
+                  <input
+                    className="edit-input"
+                    style={{ marginTop: "0.5rem" }}
+                    value={form.subscriptionName}
+                    onChange={(e) => set("subscriptionName", e.target.value)}
+                    placeholder={t("bookDetail.subscription")}
+                  />
+                )}
+              </>
+            ) : (
+              <input className="edit-input" value={form.subscriptionName} onChange={(e) => set("subscriptionName", e.target.value)} />
+            )}
           </label>
           <label className="edit-label">
             {t("bookDetail.publisher")}
@@ -260,9 +312,9 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
             onChange={(e) => {
               const val = e.target.value;
               if (val === "custom") {
-                setForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "" }));
+                setForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
               } else {
-                setForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "" }));
+                setForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
               }
             }}
           >

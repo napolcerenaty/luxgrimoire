@@ -228,3 +228,103 @@
   border-color: #00b4d0;
   color: #38d4f0;
 }
+
+/* ── Subscription cards ─────────────────────────────────────────────── */
+
+.sub-card {
+  border: 1px solid #183858;
+  background: #081828;
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+
+.sub-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.1rem 0.5rem 0.1rem 0;
+  gap: 0.5rem;
+}
+
+.sub-card-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  color: #c0e4f4;
+  cursor: pointer;
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.sub-card-toggle:hover {
+  color: #38d4f0;
+}
+
+.sub-card-name {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-card-chevron {
+  color: #4888a4;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.sub-card-body {
+  border-top: 1px solid #183858;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sub-card-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: #060d18;
+  border-radius: 6px;
+  border: 1px solid #0d2840;
+}
+
+.company-edit-select {
+  background: #081828;
+  border: 1px solid #183858;
+  color: #c0e4f4;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.company-edit-select:focus {
+  border-color: #00b4d0;
+}
+
+.company-edit-label--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.company-edit-label--checkbox input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #00b4d0;
+  cursor: pointer;
+}
+

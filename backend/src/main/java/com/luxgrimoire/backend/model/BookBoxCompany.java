@@ -11,7 +11,7 @@ public class BookBoxCompany {
     private String description;
     private String location;
     private String defaultCurrency;
-    private List<String> subscriptions;
+    private List<Subscription> subscriptions;
     private List<String> managerUsernames;
 
     public BookBoxCompany() {
@@ -21,7 +21,7 @@ public class BookBoxCompany {
 
     public BookBoxCompany(String id, String name, String logoUrl, String websiteUrl,
                           String description, String location, String defaultCurrency,
-                          List<String> subscriptions, List<String> managerUsernames) {
+                          List<Subscription> subscriptions, List<String> managerUsernames) {
         this.id = id;
         this.name = name;
         this.logoUrl = logoUrl;
@@ -54,8 +54,8 @@ public class BookBoxCompany {
     public String getDefaultCurrency() { return defaultCurrency; }
     public void setDefaultCurrency(String defaultCurrency) { this.defaultCurrency = defaultCurrency; }
 
-    public List<String> getSubscriptions() { return subscriptions; }
-    public void setSubscriptions(List<String> subscriptions) { this.subscriptions = subscriptions; }
+    public List<Subscription> getSubscriptions() { return subscriptions; }
+    public void setSubscriptions(List<Subscription> subscriptions) { this.subscriptions = subscriptions; }
 
     public List<String> getManagerUsernames() { return managerUsernames; }
     public void setManagerUsernames(List<String> managerUsernames) { this.managerUsernames = managerUsernames; }

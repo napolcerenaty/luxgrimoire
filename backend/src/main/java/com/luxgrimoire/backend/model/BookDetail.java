@@ -23,6 +23,7 @@ public class BookDetail {
     private List<ArtistContribution> artists;
     private String bookBoxCompanyId;
     private String bookBoxCompanyCustomName;
+    private String subscriptionId;
 
     public BookDetail() {
         this.imageUrls = new ArrayList<>();
@@ -105,4 +106,7 @@ public class BookDetail {
 
     public String getBookBoxCompanyCustomName() { return bookBoxCompanyCustomName; }
     public void setBookBoxCompanyCustomName(String bookBoxCompanyCustomName) { this.bookBoxCompanyCustomName = bookBoxCompanyCustomName; }
+
+    public String getSubscriptionId() { return subscriptionId; }
+    public void setSubscriptionId(String subscriptionId) { this.subscriptionId = subscriptionId; }
 }
