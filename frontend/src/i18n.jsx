@@ -73,7 +73,7 @@ const T = {
       login:         "Zaloguj się",
       menuProfile:   "👤 Profil",
       menuSettings:  "⚙️ Ustawienia",
-      menuLogout:    "🚪 Wyloguj",
+      menuLogout:    "Wyloguj",
     },
     profile: {
       title:         "Profil użytkownika",
@@ -254,7 +254,7 @@ const T = {
       login:         "Sign In",
       menuProfile:   "👤 Profile",
       menuSettings:  "⚙️ Settings",
-      menuLogout:    "🚪 Sign Out",
+      menuLogout:    "Sign Out",
     },
     profile: {
       title:         "User Profile",
@@ -435,7 +435,7 @@ const T = {
       login:         "Anmelden",
       menuProfile:   "👤 Profil",
       menuSettings:  "⚙️ Einstellungen",
-      menuLogout:    "🚪 Abmelden",
+      menuLogout:    "Abmelden",
     },
     profile: {
       title:         "Benutzerprofil",
@@ -616,7 +616,7 @@ const T = {
       login:         "Se connecter",
       menuProfile:   "👤 Profil",
       menuSettings:  "⚙️ Paramètres",
-      menuLogout:    "🚪 Déconnexion",
+      menuLogout:    "Déconnexion",
     },
     profile: {
       title:         "Profil utilisateur",
@@ -797,7 +797,7 @@ const T = {
       login:         "Iniciar sesión",
       menuProfile:   "👤 Perfil",
       menuSettings:  "⚙️ Configuración",
-      menuLogout:    "🚪 Cerrar sesión",
+      menuLogout:    "Cerrar sesión",
     },
     profile: {
       title:         "Perfil de usuario",
@@ -969,3 +969,4 @@ export function I18nProvider({ children }) {
 export function useI18n() {
   return useContext(I18nContext);
 }
+

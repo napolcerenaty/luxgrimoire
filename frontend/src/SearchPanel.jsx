@@ -19,7 +19,7 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
-export default function SearchPanel({ books, onBookClick, onCompanyClick, user, onNewBook }) {
+export default function SearchPanel({ books, onBookClick, onCompanyClick, user, onNewBook, onAdd }) {
   const [query, setQuery]         = useState("");
   const [activeFilter, setFilter] = useState("all");
   const [open, setOpen]           = useState(false);
@@ -159,11 +159,6 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
           <button className="lucky-draw-btn" onClick={handleLuckyDraw} title="Lucky draw – random edition">
             🎲 LUCKY DRAW
           </button>
-          {user && onNewBook && (
-            <button className="add-book-btn" onClick={onNewBook} title="Add new book">
-              + ADD BOOK
-            </button>
-          )}
         </div>
 
         {/* Dropdown */}
@@ -172,7 +167,16 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
             {loading && <div className="sr-empty">Searching…</div>}
 
             {!loading && !hasResults && results && (
-              <div className="sr-empty">No results for &ldquo;{query}&rdquo;</div>
+              <div className="sr-empty">
+                Didn&rsquo;t find what you&rsquo;re looking for?{" "}
+                {user && onAdd ? (
+                  <button className="sr-add-link" onClick={() => { setOpen(false); onAdd(activeFilter); }}>
+                    Add it!
+                  </button>
+                ) : (
+                  <span>Add it!</span>
+                )}
+              </div>
             )}
 
             {!loading && results && (

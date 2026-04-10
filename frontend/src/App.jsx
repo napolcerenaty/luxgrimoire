@@ -110,6 +110,10 @@ function AppInner() {
           onCompanyClick={handleCompanyClick}
           user={user}
           onNewBook={handleNewBook}
+          onAdd={(filter) => {
+            if (filter === "companies") { handleNewCompany(); }
+            else { handleNewBook(); }
+          }}
         />
       )}
 

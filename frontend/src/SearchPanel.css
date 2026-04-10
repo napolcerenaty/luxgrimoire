@@ -293,3 +293,22 @@
   font-style: italic;
   font-size: 0.95rem;
 }
+
+.sr-add-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #38d4f0;
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.18s;
+}
+
+.sr-add-link:hover {
+  color: #68e0f8;
+}
