@@ -1,29 +1,49 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./SearchPanel.css";
 
+const FILTERS = [
+  { key: "all",           label: "All" },
+  { key: "books",         label: "Books" },
+  { key: "authors",       label: "Authors" },
+  { key: "artists",       label: "Artists" },
+  { key: "subscriptions", label: "Subscriptions" },
+  { key: "companies",     label: "Companies" },
+];
+
+function useDebounce(value, delay) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
 export default function SearchPanel({ books, onBookClick, onCompanyClick, user, onNewBook }) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [companies, setCompanies] = useState([]);
-  const [authors, setAuthors] = useState([]);
-  const [artists, setArtists] = useState([]);
+  const [query, setQuery]         = useState("");
+  const [activeFilter, setFilter] = useState("all");
+  const [open, setOpen]           = useState(false);
+  const [results, setResults]     = useState(null); // null = not searched yet
+  const [loading, setLoading]     = useState(false);
   const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    fetch("http://localhost:8080/api/companies", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
-      .then(setCompanies)
-      .catch(() => {});
-    fetch("http://localhost:8080/api/authors", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
-      .then(setAuthors)
-      .catch(() => {});
-    fetch("http://localhost:8080/api/artists", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
-      .then(setArtists)
-      .catch(() => {});
-  }, []);
+  const debouncedQuery = useDebounce(query, 300);
 
+  // Fetch results from backend whenever debounced query or filter changes
+  useEffect(() => {
+    if (!debouncedQuery.trim() || debouncedQuery.trim().length < 2) {
+      setResults(null);
+      return;
+    }
+    setLoading(true);
+    const params = new URLSearchParams({ q: debouncedQuery.trim(), filter: activeFilter });
+    fetch(`http://localhost:8080/api/search?${params}`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { setResults(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [debouncedQuery, activeFilter]);
+
+  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
@@ -32,151 +52,29 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const companyMap = {};
-  companies.forEach((c) => { companyMap[c.id] = c; });
-
-  const getResults = () => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    const seen = new Set();
-    const titleMatches = [];
-
-    // Book title / series / edition / subscription name hits
-    books.forEach((book) => {
-      const titleHit = book.title?.toLowerCase().includes(q) || book.seriesName?.toLowerCase().includes(q);
-      const editionHit = book.editions?.some((e) =>
-        e.editionName?.toLowerCase().includes(q) || e.subscriptionName?.toLowerCase().includes(q)
-      );
-      if ((titleHit || editionHit) && !seen.has(book.id)) {
-        seen.add(book.id);
-        titleMatches.push({ type: "book", book });
-      }
-    });
-
-    // Author entity hits
-    const authorMatches = [];
-    const coveredByAuthorEntity = new Set();
-    authors.forEach((author) => {
-      if (author.name?.toLowerCase().includes(q)) {
-        const authorBooks = books.filter((b) =>
-          b.authorId === author.id || b.author?.toLowerCase() === author.name?.toLowerCase()
-        );
-        authorBooks.forEach((b) => coveredByAuthorEntity.add(b.author?.toLowerCase()));
-        authorMatches.push({ type: "author", author, books: authorBooks });
-      }
-    });
-
-    // Author string hits (not linked to entity)
-    const authorGroupMap = {};
-    books.forEach((book) => {
-      if (book.author?.toLowerCase().includes(q) && !seen.has(book.id)) {
-        if (!coveredByAuthorEntity.has(book.author?.toLowerCase())) {
-          if (!authorGroupMap[book.author]) authorGroupMap[book.author] = [];
-          authorGroupMap[book.author].push(book);
-        }
-      }
-    });
-    const authorGroups = Object.entries(authorGroupMap).map(([authorName, bks]) => ({
-      type: "author-group", author: authorName, books: bks,
-    }));
-
-    // Artist entity hits
-    const artistMatches = [];
-    const coveredByArtistEntity = new Set();
-    artists.forEach((artist) => {
-      if (artist.name?.toLowerCase().includes(q)) {
-        const artistBooks = books.filter((b) =>
-          b.editions?.some((e) => e.artists?.some((a) =>
-            a.artistId === artist.id || a.artistName?.toLowerCase() === artist.name?.toLowerCase()
-          ))
-        );
-        artistBooks.forEach((b) => coveredByArtistEntity.add(b.id));
-        artistMatches.push({ type: "artist", artist, books: artistBooks });
-      }
-    });
-
-    // Artist string hits in editions (not linked to entity)
-    const artistGroupMap = {};
-    books.forEach((book) => {
-      if (!coveredByArtistEntity.has(book.id)) {
-        book.editions?.forEach((e) => {
-          e.artists?.forEach((a) => {
-            if (a.artistName?.toLowerCase().includes(q)) {
-              if (!artistGroupMap[a.artistName]) artistGroupMap[a.artistName] = new Set();
-              artistGroupMap[a.artistName].add(book.id);
-            }
-          });
-        });
-      }
-    });
-    const artistGroups = Object.entries(artistGroupMap).map(([artistName, bookIds]) => ({
-      type: "artist-group", artistName,
-      books: books.filter((b) => bookIds.has(b.id)),
-    }));
-
-    // Subscription name hits
-    const subscriptionMatches = [];
-    companies.forEach((company) => {
-      (company.subscriptions || []).forEach((sub) => {
-        if (sub.name?.toLowerCase().includes(q)) {
-          subscriptionMatches.push({ type: "subscription", subscription: sub, company });
-        }
-      });
-    });
-
-    // Company name hits
-    const companyMatches = [];
-    companies.forEach((company) => {
-      if (company.name?.toLowerCase().includes(q)) {
-        companyMatches.push({ type: "company", company });
-      }
-    });
-
-    return [...titleMatches, ...authorMatches, ...authorGroups, ...artistMatches, ...artistGroups, ...subscriptionMatches, ...companyMatches];
-  };
-
-  const getInfoBadge = (book) => {
-    const edition = book.editions?.find((e) => e.bookBoxCompanyId) || book.editions?.[0];
-    if (!edition) return null;
-    if (edition.bookBoxCompanyId && companyMap[edition.bookBoxCompanyId]) {
-      const co = companyMap[edition.bookBoxCompanyId];
-      if (edition.subscriptionId) {
-        const sub = co.subscriptions?.find((s) => s.id === edition.subscriptionId);
-        if (sub) return { name: sub.name, logo: sub.logoUrl || null };
-      }
-      return { name: co.name, logo: co.logoUrl || null };
-    }
-    if (edition.subscriptionName) return { name: edition.subscriptionName, logo: null };
-    return null;
-  };
-
-  const results = getResults();
+  const hasResults = results &&
+    (results.books?.length || results.authors?.length || results.artists?.length ||
+     results.subscriptions?.length || results.companies?.length);
 
   const handleSelect = (bookId) => {
-    setQuery("");
-    setOpen(false);
+    setQuery(""); setOpen(false); setResults(null);
     onBookClick(bookId);
   };
 
-  const handleCompanySelect = (company) => {
-    setQuery("");
-    setOpen(false);
-    if (onCompanyClick) onCompanyClick(company);
+  const handleCompanySelect = (companyId, companyObj) => {
+    setQuery(""); setOpen(false); setResults(null);
+    if (onCompanyClick) onCompanyClick(companyObj || { id: companyId });
   };
 
   const handleSearch = () => {
-    if (results.length === 0) return;
-    const first = results[0];
-    if (first.type === "book") handleSelect(first.book.id);
-    else if (first.type === "author" && first.books.length > 0) handleSelect(first.books[0].id);
-    else if (first.type === "author-group") handleSelect(first.books[0].id);
-    else if (first.type === "artist" && first.books.length > 0) handleSelect(first.books[0].id);
-    else if (first.type === "artist-group") handleSelect(first.books[0].id);
-    else if (first.type === "company") handleCompanySelect(first.company);
+    if (!results) return;
+    if (results.books?.length)         { handleSelect(results.books[0].id); return; }
+    if (results.authors?.length)       { /* open author profile – not yet implemented */ return; }
+    if (results.companies?.length)     { handleCompanySelect(results.companies[0].id, results.companies[0]); return; }
   };
 
   const handleLuckyDraw = () => {
-    const allPairs = books.flatMap((b) =>
+    const allPairs = (books || []).flatMap((b) =>
       (b.editions || []).map((e) => ({ bookId: b.id, editionId: e.id }))
     );
     if (allPairs.length === 0) return;
@@ -189,33 +87,64 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
     if (e.key === "Escape") setOpen(false);
   };
 
-  const renderBookRow = (book, key, onClick) => {
-    const cover = book.editions?.[0]?.imageUrls?.[0];
-    const badge = getInfoBadge(book);
-    return (
-      <button key={key} className="sr-item" onClick={onClick}>
-        <img
-          className="sr-thumb"
-          src={cover || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
-          alt=""
-          onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
-        />
-        <div className="sr-info">
-          <span className="sr-title">{book.title}</span>
-          {badge && (
-            <span className="sr-badge">
-              {badge.logo && <img className="sr-badge-logo" src={badge.logo} alt="" />}
-              {badge.name}
-            </span>
-          )}
-        </div>
-      </button>
-    );
-  };
+  // ── Row renderers ──────────────────────────────────────────────────────
+  const renderBookRow = (item, key) => (
+    <button key={key} className="sr-item" onClick={() => handleSelect(item.id)}>
+      <img
+        className="sr-thumb"
+        src={item.coverUrl || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
+        alt=""
+        onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
+      />
+      <div className="sr-info">
+        <span className="sr-title">{item.title}</span>
+        {(item.subscriptionName || item.companyName) && (
+          <span className="sr-badge">
+            {(item.subscriptionLogoUrl || item.companyLogoUrl) && (
+              <img className="sr-badge-logo" src={item.subscriptionLogoUrl || item.companyLogoUrl} alt="" />
+            )}
+            {item.subscriptionName || item.companyName}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+
+  const renderPersonRow = (item, label, key) => (
+    <div key={key} className="sr-item sr-author-row">
+      <div className="sr-author-avatar">
+        {item.imageUrl
+          ? <img src={item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+          : item.name?.[0]?.toUpperCase()
+        }
+      </div>
+      <div className="sr-info">
+        <span className="sr-title">{item.name}</span>
+        <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
+      </div>
+    </div>
+  );
+
+  const dropdownVisible = open && query.trim().length >= 2;
 
   return (
     <div className="search-panel">
       <div className="search-panel-inner" ref={wrapperRef}>
+
+        {/* Filter chips */}
+        <div className="search-filters">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={`filter-chip${activeFilter === f.key ? " filter-chip--active" : ""}`}
+              onClick={() => { setFilter(f.key); if (query.trim().length >= 2) setOpen(true); }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search row */}
         <div className="search-row">
           <input
             type="text"
@@ -223,7 +152,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
             placeholder="what are you looking for..."
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-            onFocus={() => query && setOpen(true)}
+            onFocus={() => query.trim().length >= 2 && setOpen(true)}
             onKeyDown={handleKeyDown}
           />
           <button className="search-btn" onClick={handleSearch}>SEARCH</button>
@@ -237,132 +166,94 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
           )}
         </div>
 
-        {open && query.trim() && results.length > 0 && (
+        {/* Dropdown */}
+        {dropdownVisible && (
           <div className="search-dropdown">
-            {results.map((item, i) => {
-              if (item.type === "book") {
-                return renderBookRow(item.book, i, () => handleSelect(item.book.id));
-              }
+            {loading && <div className="sr-empty">Searching…</div>}
 
-              if (item.type === "author") {
-                return (
-                  <div key={i} className="sr-group">
-                    <div className="sr-group-label">Author</div>
-                    <div className="sr-item sr-author-row">
-                      <div className="sr-author-avatar">
-                        {item.author.imageUrl
-                          ? <img src={item.author.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-                          : item.author.name?.[0]?.toUpperCase()
+            {!loading && !hasResults && results && (
+              <div className="sr-empty">No results for &ldquo;{query}&rdquo;</div>
+            )}
+
+            {!loading && results && (
+              <>
+                {/* Books */}
+                {results.books?.length > 0 && (
+                  <div className="sr-group">
+                    {activeFilter === "all" && <div className="sr-group-label">Books</div>}
+                    {results.books.map((item, i) => renderBookRow(item, `b${i}`))}
+                  </div>
+                )}
+
+                {/* Authors */}
+                {results.authors?.length > 0 && (
+                  <div className="sr-group">
+                    {activeFilter === "all" && <div className="sr-group-label">Authors</div>}
+                    {results.authors.map((item, i) => renderPersonRow(item, "Author", `au${i}`))}
+                  </div>
+                )}
+
+                {/* Artists */}
+                {results.artists?.length > 0 && (
+                  <div className="sr-group">
+                    {activeFilter === "all" && <div className="sr-group-label">Artists</div>}
+                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`))}
+                  </div>
+                )}
+
+                {/* Subscriptions */}
+                {results.subscriptions?.length > 0 && (
+                  <div className="sr-group">
+                    {activeFilter === "all" && <div className="sr-group-label">Subscriptions</div>}
+                    {results.subscriptions.map((item, i) => (
+                      <button
+                        key={`s${i}`}
+                        className="sr-item"
+                        onClick={() => handleCompanySelect(item.companyId, { id: item.companyId, name: item.companyName, logoUrl: item.companyLogoUrl })}
+                      >
+                        {item.logoUrl
+                          ? <img className="sr-thumb sr-thumb--square" src={item.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                          : <div className="sr-author-avatar">{item.name?.[0]?.toUpperCase()}</div>
                         }
-                      </div>
-                      <div className="sr-info">
-                        <span className="sr-title">{item.author.name}</span>
-                        {item.author.nationality && <span className="sr-badge">{item.author.nationality}</span>}
-                      </div>
-                    </div>
-                    {item.books.map((book, j) => renderBookRow(book, `a${i}-${j}`, () => handleSelect(book.id)))}
+                        <div className="sr-info">
+                          <span className="sr-title">{item.name}</span>
+                          <span className="sr-badge">
+                            {item.companyLogoUrl && <img className="sr-badge-logo" src={item.companyLogoUrl} alt="" />}
+                            {item.companyName}{item.type ? ` · ${item.type}` : ""}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                );
-              }
+                )}
 
-              if (item.type === "author-group") {
-                return (
-                  <div key={i} className="sr-group">
-                    <div className="sr-group-label">Books by {item.author}</div>
-                    {item.books.map((book, j) => renderBookRow(book, `ag${i}-${j}`, () => handleSelect(book.id)))}
-                    <div className="sr-item sr-author-row">
-                      <div className="sr-author-avatar">{item.author?.[0]?.toUpperCase()}</div>
-                      <div className="sr-info">
-                        <span className="sr-title">{item.author}</span>
-                        <span className="sr-badge">Author</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (item.type === "artist") {
-                return (
-                  <div key={i} className="sr-group">
-                    <div className="sr-group-label">Artist</div>
-                    <div className="sr-item sr-author-row">
-                      <div className="sr-author-avatar">
-                        {item.artist.imageUrl
-                          ? <img src={item.artist.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-                          : item.artist.name?.[0]?.toUpperCase()
+                {/* Companies */}
+                {results.companies?.length > 0 && (
+                  <div className="sr-group">
+                    {activeFilter === "all" && <div className="sr-group-label">Companies</div>}
+                    {results.companies.map((item, i) => (
+                      <button
+                        key={`c${i}`}
+                        className="sr-item"
+                        onClick={() => handleCompanySelect(item.id, item)}
+                      >
+                        {item.logoUrl
+                          ? <img className="sr-thumb sr-thumb--square" src={item.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                          : <div className="sr-author-avatar">{item.name?.[0]?.toUpperCase()}</div>
                         }
-                      </div>
-                      <div className="sr-info">
-                        <span className="sr-title">{item.artist.name}</span>
-                        {item.artist.specialty && <span className="sr-badge">{item.artist.specialty}</span>}
-                      </div>
-                    </div>
-                    {item.books.map((book, j) => renderBookRow(book, `art${i}-${j}`, () => handleSelect(book.id)))}
+                        <div className="sr-info">
+                          <span className="sr-title">{item.name}</span>
+                          <span className="sr-badge">Book Box Company{item.location ? ` · ${item.location}` : ""}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                );
-              }
-
-              if (item.type === "artist-group") {
-                return (
-                  <div key={i} className="sr-group">
-                    <div className="sr-group-label">Books with artist {item.artistName}</div>
-                    {item.books.map((book, j) => renderBookRow(book, `artg${i}-${j}`, () => handleSelect(book.id)))}
-                    <div className="sr-item sr-author-row">
-                      <div className="sr-author-avatar">{item.artistName?.[0]?.toUpperCase()}</div>
-                      <div className="sr-info">
-                        <span className="sr-title">{item.artistName}</span>
-                        <span className="sr-badge">Artist</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (item.type === "subscription") {
-                return (
-                  <button key={i} className="sr-item" onClick={() => handleCompanySelect(item.company)}>
-                    {item.subscription.logoUrl
-                      ? <img className="sr-thumb sr-thumb--square" src={item.subscription.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
-                      : <div className="sr-author-avatar">{item.subscription.name?.[0]?.toUpperCase()}</div>
-                    }
-                    <div className="sr-info">
-                      <span className="sr-title">{item.subscription.name}</span>
-                      <span className="sr-badge">
-                        {item.company.logoUrl && <img className="sr-badge-logo" src={item.company.logoUrl} alt="" />}
-                        {item.company.name}
-                      </span>
-                    </div>
-                  </button>
-                );
-              }
-
-              if (item.type === "company") {
-                return (
-                  <button key={i} className="sr-item" onClick={() => handleCompanySelect(item.company)}>
-                    {item.company.logoUrl
-                      ? <img className="sr-thumb sr-thumb--square" src={item.company.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
-                      : <div className="sr-author-avatar">{item.company.name?.[0]?.toUpperCase()}</div>
-                    }
-                    <div className="sr-info">
-                      <span className="sr-title">{item.company.name}</span>
-                      <span className="sr-badge">Book Box Company</span>
-                    </div>
-                  </button>
-                );
-              }
-
-              return null;
-            })}
-          </div>
-        )}
-
-        {open && query.trim() && results.length === 0 && (
-          <div className="search-dropdown">
-            <div className="sr-empty">No results for &ldquo;{query}&rdquo;</div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
-
