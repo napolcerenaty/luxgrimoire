@@ -39,6 +39,12 @@
   color: #38d4f0;
   letter-spacing: 0.1em;
   text-shadow: 0 0 40px rgba(0, 190, 220, 0.4);
+  transition: text-shadow 0.2s, color 0.2s;
+}
+
+.header-title:hover {
+  color: #68e0f8;
+  text-shadow: 0 0 60px rgba(0, 210, 240, 0.65);
 }
 
 .header-subtitle {

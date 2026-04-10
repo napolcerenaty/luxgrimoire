@@ -88,7 +88,12 @@ function AppInner() {
           <LanguagePicker />
           <UserMenu onNavigate={setTab} />
         </div>
-        <h1 className="header-title">✦ LuxGrimoire ✦</h1>
+        <h1
+          className="header-title"
+          style={{ cursor: "pointer" }}
+          onClick={() => { setTab("browse"); setSearchQuery(""); }}
+          title="LuxGrimoire – Strona główna"
+        >✦ LuxGrimoire ✦</h1>
         <p className="header-subtitle">{t("app.subtitle")}</p>
         {!isUserPage && !isDetailPage && (
           <div className="search-bar-wrap">
@@ -119,10 +124,10 @@ function AppInner() {
             >
               {t("nav.collection")}
             </button>
-          {tab === "collection" && user && (
-            <button className="new-book-btn" onClick={handleNewBook}>{t("bookDetail.newBtn")}</button>
-          )}
-        </nav>
+            {user && (
+              <button className="new-book-btn" onClick={handleNewBook}>{t("bookDetail.newBtn")}</button>
+            )}
+          </nav>
         )}
       </header>
 
