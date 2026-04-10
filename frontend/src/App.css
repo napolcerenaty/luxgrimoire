@@ -28,7 +28,7 @@
   margin: 0;
   color: var(--accent);
   letter-spacing: 0.08em;
-  text-shadow: 0 0 30px rgba(0, 190, 220, 0.4);
+  text-shadow: 0 0 30px rgba(0, 140, 190, 0.4);
   cursor: pointer;
   transition: text-shadow 0.2s, color 0.2s;
   position: relative;
@@ -37,7 +37,7 @@
 
 .header-logo:hover {
   color: var(--accent-bright);
-  text-shadow: 0 0 50px rgba(0, 210, 240, 0.65);
+  text-shadow: 0 0 50px rgba(0, 150, 200, 0.60);
 }
 
 .header-controls {
@@ -315,7 +315,7 @@ main {
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.06em;
-  text-shadow: 0 0 16px rgba(0, 180, 210, 0.3);
+  text-shadow: 0 0 16px rgba(0, 130, 180, 0.3);
 }
 
 .footer-tagline {

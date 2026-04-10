@@ -23,13 +23,13 @@
   --text-faint:   #2a6080;
   --text-ghost:   #1e4060;
 
-  --accent:       #38d4f0;
-  --accent2:      #00b4d0;
-  --accent-dim:   #4888a4;
-  --accent-bright:#68e0f8;
-  --accent-glow:  rgba(0,160,200,0.15);
-  --accent-glow2: rgba(0,160,200,0.08);
-  --accent-glow3: rgba(0,160,200,0.12);
+  --accent:       #2a9ec4;
+  --accent2:      #1a82a8;
+  --accent-dim:   #3a7898;
+  --accent-bright:#4ab8d8;
+  --accent-glow:  rgba(0,130,180,0.15);
+  --accent-glow2: rgba(0,110,160,0.08);
+  --accent-glow3: rgba(0,110,160,0.12);
 
   --shadow:       rgba(0,0,0,0.7);
   --shadow-mid:   rgba(0,0,0,0.4);

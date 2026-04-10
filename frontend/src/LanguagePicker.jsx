@@ -36,7 +36,6 @@ export default function LanguagePicker() {
         aria-label="Wybierz język / Select language"
       >
         <FlagIcon countryCode={current.countryCode} size="sm" />
-        <span className="lang-code">{current.code.toUpperCase()}</span>
         <span className="lang-arrow">{open ? "▲" : "▼"}</span>
       </button>
 
