@@ -95,11 +95,51 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
         {company.subscriptions && company.subscriptions.length > 0 && (
           <div className="company-page-section">
             <h3 className="company-page-section-title">{t("company.subscriptions")}</h3>
-            <ul className="company-page-subs-list">
-              {company.subscriptions.map((sub, idx) => (
-                <li key={idx} className="company-page-sub-item">{sub}</li>
-              ))}
-            </ul>
+            <div className="company-page-subs-grid">
+              {company.subscriptions.map((sub, idx) => {
+                const subObj = typeof sub === "string" ? { name: sub } : sub;
+                const typeLabel = subObj.type === "BI_MONTHLY"
+                  ? t("company.sub.typeBiMonthly")
+                  : subObj.type === "QUARTERLY"
+                    ? t("company.sub.typeQuarterly")
+                    : subObj.type === "MONTHLY"
+                      ? t("company.sub.typeMonthly")
+                      : subObj.type || "";
+                return (
+                  <div key={subObj.id || idx} className="company-page-sub-card">
+                    {subObj.logoUrl && (
+                      <img className="company-page-sub-logo" src={subObj.logoUrl} alt={subObj.name}
+                        onError={(e) => { e.target.style.display = "none"; }} />
+                    )}
+                    <div className="company-page-sub-body">
+                      <h4 className="company-page-sub-name">{subObj.name}</h4>
+                      <div className="company-page-sub-meta">
+                        {subObj.type && <span className="company-page-sub-tag">{typeLabel}</span>}
+                        {subObj.bookishMerch && <span className="company-page-sub-tag">📦 Merch</span>}
+                        {subObj.shipsInternationally
+                          ? <span className="company-page-sub-tag">🌍 {t("company.sub.shipsIntl")}</span>
+                          : subObj.shippingCountries && subObj.shippingCountries.length > 0 && (
+                              <span className="company-page-sub-tag">🚚 {subObj.shippingCountries.join(", ")}</span>
+                            )
+                        }
+                      </div>
+                      {subObj.genres && subObj.genres.length > 0 && (
+                        <div className="company-page-sub-genres">
+                          {subObj.genres.map((g, gi) => (
+                            <span key={gi} className="company-page-sub-genre">{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {subObj.basePrice != null && subObj.basePrice !== "" && (
+                        <p className="company-page-sub-price">
+                          {subObj.basePrice} {company.defaultCurrency || ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
