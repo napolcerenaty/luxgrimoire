@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "./i18n";
 import "./SearchPanel.css";
-
-const FILTERS = [
-  { key: "all",           label: "All" },
-  { key: "books",         label: "Books" },
-  { key: "authors",       label: "Authors" },
-  { key: "artists",       label: "Artists" },
-  { key: "subscriptions", label: "Subscriptions" },
-  { key: "companies",     label: "Book Boxes" },
-];
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -20,6 +12,17 @@ function useDebounce(value, delay) {
 }
 
 export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, onArtistClick, user, onNewBook, onAdd }) {
+  const { t } = useI18n();
+
+  const FILTERS = [
+    { key: "all",           label: t("search.filterAll") },
+    { key: "books",         label: t("search.filterBooks") },
+    { key: "authors",       label: t("search.filterAuthors") },
+    { key: "artists",       label: t("search.filterArtists") },
+    { key: "subscriptions", label: t("search.filterSubs") },
+    { key: "companies",     label: t("search.filterCompanies") },
+  ];
+
   const [query, setQuery]         = useState("");
   const [activeFilter, setFilter] = useState("all");
   const [open, setOpen]           = useState(false);
@@ -131,7 +134,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
         </div>
         <div className="sr-info">
           <span className="sr-title">{item.name}</span>
-          <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
+          <span className="sr-badge">{label}{item.bookCount ? ` \u00b7 ${item.bookCount} ${t("search.books")}` : ""}{item.nationality ? ` \u00b7 ${item.nationality}` : ""}{item.specialty ? ` \u00b7 ${item.specialty}` : ""}</span>
         </div>
       </button>
     ) : (
@@ -144,7 +147,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
         </div>
         <div className="sr-info">
           <span className="sr-title">{item.name}</span>
-          <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
+          <span className="sr-badge">{label}{item.bookCount ? ` \u00b7 ${item.bookCount} ${t("search.books")}` : ""}{item.nationality ? ` \u00b7 ${item.nationality}` : ""}{item.specialty ? ` \u00b7 ${item.specialty}` : ""}</span>
         </div>
       </div>
     )
@@ -174,32 +177,32 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
           <input
             type="text"
             className="search-input"
-            placeholder="what are you looking for..."
+            placeholder={t("search.placeholder")}
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => query.trim().length >= 2 && setOpen(true)}
             onKeyDown={handleKeyDown}
           />
-          <button className="search-btn" onClick={handleSearch}>SEARCH</button>
-          <button className="lucky-draw-btn" onClick={handleLuckyDraw} title="Lucky draw – random edition">
-            LUCKY DRAW
+          <button className="search-btn" onClick={handleSearch}>{t("search.searchBtn")}</button>
+          <button className="lucky-draw-btn" onClick={handleLuckyDraw} title={t("search.luckyDrawTitle")}>
+            {t("search.luckyDraw")}
           </button>
         </div>
 
         {/* Dropdown */}
         {dropdownVisible && (
           <div className="search-dropdown">
-            {loading && <div className="sr-empty">Searching…</div>}
+            {loading && <div className="sr-empty">{t("search.searching")}</div>}
 
             {!loading && !hasResults && results && (
               <div className="sr-empty">
-                Didn&rsquo;t find what you&rsquo;re looking for?{" "}
+                {t("search.notFound")}{" "}
                 {user && onAdd ? (
                   <button className="sr-add-link" onClick={() => { setOpen(false); onAdd(activeFilter); }}>
-                    Add it!
+                    {t("search.addIt")}
                   </button>
                 ) : (
-                  <span>Add it!</span>
+                  <span>{t("search.addIt")}</span>
                 )}
               </div>
             )}
@@ -209,7 +212,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                 {/* Books */}
                 {results.books?.length > 0 && (
                   <div className="sr-group">
-                    {activeFilter === "all" && <div className="sr-group-label">Books</div>}
+                    {activeFilter === "all" && <div className="sr-group-label">{t("search.groupBooks")}</div>}
                     {results.books.map((item, i) => renderBookRow(item, `b${i}`))}
                   </div>
                 )}
@@ -217,23 +220,23 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                 {/* Authors */}
                 {results.authors?.length > 0 && (
                   <div className="sr-group">
-                    {activeFilter === "all" && <div className="sr-group-label">Authors</div>}
-                    {results.authors.map((item, i) => renderPersonRow(item, "Author", `au${i}`, () => handleAuthorSelect(item.id)))}
+                    {activeFilter === "all" && <div className="sr-group-label">{t("search.groupAuthors")}</div>}
+                    {results.authors.map((item, i) => renderPersonRow(item, t("search.labelAuthor"), `au${i}`, () => handleAuthorSelect(item.id)))}
                   </div>
                 )}
 
                 {/* Artists */}
                 {results.artists?.length > 0 && (
                   <div className="sr-group">
-                    {activeFilter === "all" && <div className="sr-group-label">Artists</div>}
-                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`, () => handleArtistSelect(item.id)))}
+                    {activeFilter === "all" && <div className="sr-group-label">{t("search.groupArtists")}</div>}
+                    {results.artists.map((item, i) => renderPersonRow(item, t("search.labelArtist"), `ar${i}`, () => handleArtistSelect(item.id)))}
                   </div>
                 )}
 
                 {/* Subscriptions */}
                 {results.subscriptions?.length > 0 && (
                   <div className="sr-group">
-                    {activeFilter === "all" && <div className="sr-group-label">Subscriptions</div>}
+                    {activeFilter === "all" && <div className="sr-group-label">{t("search.groupSubs")}</div>}
                     {results.subscriptions.map((item, i) => (
                       <button
                         key={`s${i}`}
@@ -248,7 +251,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                           <span className="sr-title">{item.name}</span>
                           <span className="sr-badge">
                             {item.companyLogoUrl && <img className="sr-badge-logo" src={item.companyLogoUrl} alt="" />}
-                            {item.companyName}{item.type ? ` · ${item.type}` : ""}
+                            {item.companyName}{item.type ? ` \u00b7 ${item.type}` : ""}
                           </span>
                         </div>
                       </button>
@@ -259,7 +262,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                 {/* Companies */}
                 {results.companies?.length > 0 && (
                   <div className="sr-group">
-                    {activeFilter === "all" && <div className="sr-group-label">Companies</div>}
+                    {activeFilter === "all" && <div className="sr-group-label">{t("search.groupCompanies")}</div>}
                     {results.companies.map((item, i) => (
                       <button
                         key={`c${i}`}
@@ -272,7 +275,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                         }
                         <div className="sr-info">
                           <span className="sr-title">{item.name}</span>
-                          <span className="sr-badge">Book Box Company{item.location ? ` · ${item.location}` : ""}</span>
+                          <span className="sr-badge">{t("search.bookBoxCompany")}{item.location ? ` \u00b7 ${item.location}` : ""}</span>
                         </div>
                       </button>
                     ))}

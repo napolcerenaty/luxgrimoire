@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { useI18n } from "./i18n";
 import "./RecentAnnouncements.css";
 
 const DEMO_ANNOUNCEMENTS = [
@@ -65,16 +66,17 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function daysUntil(dateStr) {
+function daysUntil(dateStr, t) {
   const diff = new Date(dateStr) - new Date();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
   if (days < 0) return null;
-  if (days === 0) return "Today!";
-  if (days === 1) return "Tomorrow";
-  return `in ${days} days`;
+  if (days === 0) return t("announcements.today");
+  if (days === 1) return t("announcements.tomorrow");
+  return t("announcements.inDays", { days });
 }
 
 export default function RecentAnnouncements() {
+  const { t } = useI18n();
   const scrollRef = useRef(null);
   const [selected, setSelected] = useState(null);
 
@@ -97,18 +99,18 @@ export default function RecentAnnouncements() {
   return (
     <section className="announcements">
       <div className="announcements-header">
-        <h2 className="announcements-title">✦ Recent Announcements ✦</h2>
-        <p className="announcements-subtitle">Upcoming special editions — not yet on sale</p>
+        <h2 className="announcements-title">{t("announcements.title")}</h2>
+        <p className="announcements-subtitle">{t("announcements.subtitle")}</p>
       </div>
 
       <div className="announcements-wrapper">
-        <button className="carousel-arrow carousel-arrow--left" onClick={() => scroll(-1)} aria-label="Previous">
+        <button className="carousel-arrow carousel-arrow--left" onClick={() => scroll(-1)} aria-label={t("announcements.prev")}>
           ‹
         </button>
 
         <div className="announcements-carousel" ref={scrollRef}>
           {DEMO_ANNOUNCEMENTS.map((item) => {
-            const countdown = daysUntil(item.generalSaleDate);
+            const countdown = daysUntil(item.generalSaleDate, t);
             return (
               <article
                 key={item.id}
@@ -136,7 +138,7 @@ export default function RecentAnnouncements() {
                   <p className="announcement-edition">{item.editionName}</p>
                   <h3 className="announcement-title-text">{item.title}</h3>
                   <p className="announcement-date">
-                    <span className="announcement-date-label">On sale</span>
+                    <span className="announcement-date-label">{t("announcements.onSale")}</span>
                     {formatDate(item.generalSaleDate)}
                   </p>
                 </div>
@@ -145,7 +147,7 @@ export default function RecentAnnouncements() {
           })}
         </div>
 
-        <button className="carousel-arrow carousel-arrow--right" onClick={() => scroll(1)} aria-label="Next">
+        <button className="carousel-arrow carousel-arrow--right" onClick={() => scroll(1)} aria-label={t("announcements.next")}>
           ›
         </button>
       </div>
@@ -154,7 +156,7 @@ export default function RecentAnnouncements() {
       {selected && (
         <div className="ann-modal-overlay" onClick={() => setSelected(null)}>
           <div className="ann-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="ann-modal-close" onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            <button className="ann-modal-close" onClick={() => setSelected(null)} aria-label={t("announcements.close")}>✕</button>
             <div className="ann-modal-body">
               <div className="ann-modal-cover-wrap">
                 <img
@@ -171,24 +173,24 @@ export default function RecentAnnouncements() {
                 <div className="ann-modal-divider" />
                 <div className="ann-modal-meta">
                   <div className="ann-modal-meta-row">
-                    <span className="ann-modal-meta-label">Publisher</span>
+                    <span className="ann-modal-meta-label">{t("announcements.publisher")}</span>
                     <span className="ann-modal-meta-value">{selected.company}</span>
                   </div>
                   <div className="ann-modal-meta-row">
-                    <span className="ann-modal-meta-label">On Sale</span>
+                    <span className="ann-modal-meta-label">{t("announcements.saleDate")}</span>
                     <span className="ann-modal-meta-value">{formatDate(selected.generalSaleDate)}</span>
                   </div>
-                  {daysUntil(selected.generalSaleDate) && (
+                  {daysUntil(selected.generalSaleDate, t) && (
                     <div className="ann-modal-meta-row">
-                      <span className="ann-modal-meta-label">Countdown</span>
+                      <span className="ann-modal-meta-label">{t("announcements.countdown")}</span>
                       <span className="ann-modal-meta-value ann-modal-countdown">
-                        {daysUntil(selected.generalSaleDate)}
+                        {daysUntil(selected.generalSaleDate, t)}
                       </span>
                     </div>
                   )}
                 </div>
                 <p className="ann-modal-note">
-                  ✦ This is a demo announcement. Once linked to a real edition, full details will appear here.
+                  {t("announcements.demoNote")}
                 </p>
               </div>
             </div>

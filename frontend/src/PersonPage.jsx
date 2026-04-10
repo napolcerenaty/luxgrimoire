@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { useI18n } from "./i18n";
 import "./PersonPage.css";
 
 const PAGE_SIZE = 12;
@@ -98,6 +99,7 @@ export default function PersonPage({
   onBookClick,
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const isAdmin = user?.username === "admin";
 
   const [person, setPerson]     = useState(null);
@@ -184,16 +186,16 @@ export default function PersonPage({
         credentials: "include",
         body: JSON.stringify({ ...person, ...form }),
       });
-      if (!res.ok) { setError("Failed to save."); return; }
+      if (!res.ok) { setError(t("person.failedSave")); return; }
       const saved = await res.json();
       setPerson(saved);
       setEditing(false);
-    } catch { setError("Network error."); }
+    } catch { setError(t("person.networkError")); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete "${person?.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("person.deleteConfirm", { name: person?.name }))) return;
     setDeleting(true); setError(null);
     try {
       const res = await fetch(`http://localhost:8080/api/${apiBase}/${personId}`, {
@@ -201,8 +203,8 @@ export default function PersonPage({
       });
       if (res.ok) { onBack(); return; }
       const data = await res.json().catch(() => ({}));
-      setError(data.error || "Failed to delete.");
-    } catch { setError("Network error."); }
+      setError(data.error || t("person.failedSave"));
+    } catch { setError(t("person.networkError")); }
     finally { setDeleting(false); }
   };
 
@@ -221,34 +223,34 @@ export default function PersonPage({
     });
   };
 
-  if (loading) return <div className="person-page"><div className="pe-loading">Loading…</div></div>;
-  if (!person)  return <div className="person-page"><div className="pe-loading">Not found.</div></div>;
+  if (loading) return <div className="person-page"><div className="pe-loading">{t("person.loading")}</div></div>;
+  if (!person)  return <div className="person-page"><div className="pe-loading">{t("person.notFound")}</div></div>;
 
   return (
     <div className="person-page">
       {/* ── Top bar ── */}
       <div className="pe-actions-top">
         <button className="pe-back-btn" onClick={editing ? cancelEdit : onBack}>
-          {editing ? "← Back to profile" : "← Back"}
+          {editing ? t("person.backToProfile") : t("person.back")}
         </button>
         {isAdmin && !editing && (
           <div className="pe-actions-right">
-            <button className="pe-action-btn" onClick={() => { setEditing(true); setError(null); }}>Edit</button>
+            <button className="pe-action-btn" onClick={() => { setEditing(true); setError(null); }}>{t("person.edit")}</button>
             <button
               className="pe-action-btn pe-delete-btn"
               onClick={handleDelete}
               disabled={deleting}
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? t("person.deleting") : t("person.delete")}
             </button>
           </div>
         )}
         {isAdmin && editing && (
           <div className="pe-actions-right">
             <button className="pe-action-btn" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("person.saving") : t("person.save")}
             </button>
-            <button className="pe-action-btn pe-cancel-btn" onClick={cancelEdit}>Cancel</button>
+            <button className="pe-action-btn pe-cancel-btn" onClick={cancelEdit}>{t("person.cancel")}</button>
           </div>
         )}
       </div>
@@ -265,10 +267,10 @@ export default function PersonPage({
                   onError={(e) => { e.target.style.display = "none"; }} />
               )}
               <label className="pe-edit-label">
-                Photo URL
+                {t("person.photoUrl")}
                 <input className="pe-edit-input" value={form.imageUrl}
                   onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                  placeholder="https://…" />
+                  placeholder={t("person.photoUrlPlaceholder")} />
               </label>
             </div>
           ) : person.imageUrl ? (
@@ -283,46 +285,46 @@ export default function PersonPage({
           {editing ? (
             <>
               <label className="pe-edit-label pe-edit-name-label">
-                Name
+                {t("person.name")}
                 <input className="pe-edit-input pe-edit-name-input" value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
               </label>
               <label className="pe-edit-label">
-                About
+                {t("person.about")}
                 <textarea className="pe-edit-textarea" value={form.bio}
                   onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                  rows={5} placeholder="Short biography…" />
+                  rows={5} placeholder={t("person.bioPlaceholder")} />
               </label>
               <div className="pe-edit-social-grid">
                 <label className="pe-edit-label">
-                  Website
+                  {t("person.website")}
                   <input className="pe-edit-input" value={form.website}
                     onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
-                    placeholder="https://…" />
+                    placeholder={t("person.websitePlaceholder")} />
                 </label>
                 <label className="pe-edit-label">
-                  Instagram (@handle)
+                  {t("person.instagram")}
                   <input className="pe-edit-input" value={form.instagram}
                     onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
-                    placeholder="@username" />
+                    placeholder={t("person.handlePlaceholder")} />
                 </label>
                 <label className="pe-edit-label">
-                  X / Twitter (@handle)
+                  {t("person.twitter")}
                   <input className="pe-edit-input" value={form.twitter}
                     onChange={(e) => setForm((f) => ({ ...f, twitter: e.target.value }))}
-                    placeholder="@username" />
+                    placeholder={t("person.handlePlaceholder")} />
                 </label>
                 <label className="pe-edit-label">
-                  TikTok (@handle)
+                  {t("person.tiktok")}
                   <input className="pe-edit-input" value={form.tiktok || ""}
                     onChange={(e) => setForm((f) => ({ ...f, tiktok: e.target.value }))}
-                    placeholder="@username" />
+                    placeholder={t("person.handlePlaceholder")} />
                 </label>
                 <label className="pe-edit-label">
-                  Facebook (URL)
+                  {t("person.facebook")}
                   <input className="pe-edit-input" value={form.facebook}
                     onChange={(e) => setForm((f) => ({ ...f, facebook: e.target.value }))}
-                    placeholder="https://facebook.com/…" />
+                    placeholder={t("person.facebookPlaceholder")} />
                 </label>
               </div>
             </>
@@ -348,35 +350,35 @@ export default function PersonPage({
           <div className="pe-filters">
             <input
               className="pe-filter-input"
-              placeholder="Filter by book title…"
+              placeholder={t("person.filterByBook")}
               value={filterBook}
               onChange={(e) => setFilterBook(e.target.value)}
             />
             <input
               className="pe-filter-input"
-              placeholder="Filter by box / subscription…"
+              placeholder={t("person.filterByBox")}
               value={filterBox}
               onChange={(e) => setFilterBox(e.target.value)}
             />
             <input
               className="pe-filter-input"
-              placeholder="Filter by series…"
+              placeholder={t("person.filterBySeries")}
               value={filterSeries}
               onChange={(e) => setFilterSeries(e.target.value)}
             />
             {(filterBook || filterBox || filterSeries) && (
               <button className="pe-filter-clear" onClick={() => {
                 setFilterBook(""); setFilterBox(""); setFilterSeries("");
-              }}>✕ Clear</button>
+              }}>{t("person.clearFilters")}</button>
             )}
           </div>
         )}
 
         {filtered.length === 0 && editions.length > 0 && (
-          <p className="pe-no-editions">No editions match your filters.</p>
+          <p className="pe-no-editions">{t("person.noEditionsFilter")}</p>
         )}
         {editions.length === 0 && (
-          <p className="pe-no-editions">No editions found for {person.name} yet.</p>
+          <p className="pe-no-editions">{t("person.noEditions", { name: person.name })}</p>
         )}
 
         {/* Grid */}
