@@ -1,0 +1,234 @@
+/* ═══════════════════════════════════════════
+   Search panel strip
+═══════════════════════════════════════════ */
+.search-panel {
+  background: linear-gradient(180deg, #07101e 0%, #060d18 100%);
+  border-top: 1px solid #0d1f35;
+  border-bottom: 1px solid #0d1f35;
+  padding: 0.85rem 2rem;
+  box-shadow:
+    inset 0 6px 18px rgba(0, 0, 0, 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.search-panel-inner {
+  position: relative;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ─── Input ─── */
+.search-input {
+  flex: 1;
+  background: rgba(6, 13, 24, 0.85);
+  border: 1px solid #183858;
+  border-radius: 4px;
+  color: #78bcd4;
+  padding: 0.55rem 1rem;
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 0;
+}
+
+.search-input:focus {
+  border-color: #38d4f0;
+  box-shadow: 0 0 14px rgba(0, 180, 210, 0.2);
+}
+
+.search-input::placeholder {
+  color: #1e4060;
+  font-style: italic;
+}
+
+/* ─── Buttons ─── */
+.search-btn {
+  background: transparent;
+  border: 1px solid #183858;
+  border-radius: 4px;
+  color: #38d4f0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 0.55rem 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-btn:hover {
+  background: rgba(0, 160, 200, 0.15);
+  border-color: #38d4f0;
+}
+
+.lucky-draw-btn {
+  background: transparent;
+  border: 1px solid #183858;
+  border-radius: 4px;
+  color: #4888a4;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lucky-draw-btn:hover {
+  background: rgba(0, 80, 120, 0.2);
+  border-color: #2080a0;
+  color: #38d4f0;
+}
+
+/* ─── Dropdown ─── */
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #07101e;
+  border: 1px solid #183858;
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.search-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+.search-dropdown::-webkit-scrollbar-track {
+  background: #060d18;
+}
+.search-dropdown::-webkit-scrollbar-thumb {
+  background: #183858;
+  border-radius: 2px;
+}
+
+/* ─── Result item ─── */
+.sr-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #0c1e30;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.sr-item:last-child {
+  border-bottom: none;
+}
+
+.sr-item:hover {
+  background: rgba(0, 160, 200, 0.08);
+}
+
+.sr-thumb {
+  width: 36px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid #183858;
+  flex-shrink: 0;
+}
+
+.sr-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.sr-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.82rem;
+  color: #38d4f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sr-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  color: #4888a4;
+  font-family: 'Crimson Text', serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sr-badge-logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Author group ─── */
+.sr-group {
+  border-bottom: 1px solid #0c1e30;
+}
+
+.sr-group:last-child {
+  border-bottom: none;
+}
+
+.sr-group-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.66rem;
+  color: #2a5070;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.5rem 0.9rem 0.25rem;
+}
+
+.sr-author-row {
+  background: rgba(0, 40, 70, 0.15);
+}
+
+.sr-author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 80, 120, 0.3);
+  border: 1px solid #183858;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: #4888a4;
+  flex-shrink: 0;
+}
+
+/* ─── Empty state ─── */
+.sr-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #2a5070;
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+}

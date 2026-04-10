@@ -13,6 +13,7 @@ import BookDetailEditPage from "./BookDetailEditPage";
 import CompanyListPage from "./CompanyListPage";
 import CompanyPage from "./CompanyPage";
 import CompanyEditPage from "./CompanyEditPage";
+import SearchPanel from "./SearchPanel";
 
 function BookCard({ book, onClick }) {
   const coverUrl = book.editions?.[0]?.imageUrls?.[0]
@@ -54,7 +55,6 @@ function AppInner() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
   const [editingEdition, setEditingEdition] = useState(null);
@@ -88,24 +88,13 @@ function AppInner() {
   const isUserPage = tab === "profile" || tab === "settings";
   const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit";
 
-  const filteredBooks = searchQuery.trim()
-    ? books.filter((b) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          b.title?.toLowerCase().includes(q) ||
-          b.author?.toLowerCase().includes(q) ||
-          b.seriesName?.toLowerCase().includes(q)
-        );
-      })
-    : books;
-
   return (
     <div className="app">
       <header className="header">
         <div className="header-topbar">
           <h1
             className="header-logo"
-            onClick={() => { setTab("browse"); setSearchQuery(""); }}
+            onClick={() => setTab("browse")}
             title="LuxGrimoire – Strona główna"
           >✦ LuxGrimoire ✦</h1>
           <p className="header-tagline">Your SEs tracker</p>
@@ -114,21 +103,6 @@ function AppInner() {
             <UserMenu onNavigate={setTab} />
           </div>
         </div>
-        {!isUserPage && !isDetailPage && (
-          <div className="search-bar-wrap">
-            <span className="search-icon">⚲</span>
-            <input
-              type="text"
-              className="search-bar"
-              placeholder={t("search.placeholder")}
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setTab("browse"); }}
-            />
-            {searchQuery && (
-              <button className="search-clear" onClick={() => setSearchQuery("")} aria-label="Wyczyść">✕</button>
-            )}
-          </div>
-        )}
         {!isUserPage && !isDetailPage && (
           <nav className="nav-tabs">
             <button
@@ -156,6 +130,10 @@ function AppInner() {
         )}
       </header>
 
+      {!isUserPage && !isDetailPage && (
+        <SearchPanel books={books} onBookClick={handleBookClick} />
+      )}
+
       <main>
         {tab === "browse" && (
           loading ? (
@@ -171,15 +149,11 @@ function AppInner() {
           ) : (
             <>
               <h2 className="section-title">{t("browse.sectionTitle")}</h2>
-              {searchQuery.trim() && filteredBooks.length === 0 ? (
-                <p className="search-no-results">{t("search.noResults", { q: searchQuery })}</p>
-              ) : (
-                <div className="book-grid">
-                  {filteredBooks.map((book) => (
-                    <BookCard key={book.id} book={book} onClick={handleBookClick} />
-                  ))}
-                </div>
-              )}
+              <div className="book-grid">
+                {books.map((book) => (
+                  <BookCard key={book.id} book={book} onClick={handleBookClick} />
+                ))}
+              </div>
             </>
           )
         )}

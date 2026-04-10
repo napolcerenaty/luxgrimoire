@@ -47,8 +47,11 @@
   border: 1px solid #183858;
   border-radius: 4px;
   color: #4888a4;
-  font-family: 'Crimson Text', serif;
-  font-size: 0.9rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   padding: 0.3rem 0.75rem;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
