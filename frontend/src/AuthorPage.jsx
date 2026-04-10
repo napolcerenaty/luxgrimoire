@@ -5,8 +5,6 @@ export default function AuthorPage({ authorId, onBack, onBookClick }) {
     <PersonPage
       personId={authorId}
       apiBase="authors"
-      secondaryLabel="Nationality"
-      secondaryField="nationality"
       sectionTitle="Books by"
       onBack={onBack}
       onBookClick={onBookClick}

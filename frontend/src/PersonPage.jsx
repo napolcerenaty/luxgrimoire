@@ -93,9 +93,7 @@ function EditionCard({ item, onBookClick }) {
 export default function PersonPage({
   personId,
   apiBase,           // e.g. "authors" or "artists"
-  secondaryLabel,    // field label: "Nationality" or "Specialty"
-  secondaryField,    // field name: "nationality" or "specialty"
-  sectionTitle,      // e.g. "Editions featuring" (name appended)
+  sectionTitle,      // e.g. "Books by" (name appended)
   onBack,
   onBookClick,
 }) {
@@ -135,7 +133,6 @@ export default function PersonPage({
         name:             p.name          || "",
         bio:              p.bio           || "",
         imageUrl:         p.imageUrl      || "",
-        [secondaryField]: p[secondaryField] || "",
         website:          p.website       || "",
         instagram:        p.instagram     || "",
         twitter:          p.twitter       || "",
@@ -144,7 +141,7 @@ export default function PersonPage({
       });
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [personId, apiBase, secondaryField]);
+  }, [personId, apiBase]);
 
   // IntersectionObserver for infinite scroll
   const observerRef = useRef(null);
@@ -216,7 +213,6 @@ export default function PersonPage({
       name:             person.name          || "",
       bio:              person.bio           || "",
       imageUrl:         person.imageUrl      || "",
-      [secondaryField]: person[secondaryField] || "",
       website:          person.website       || "",
       instagram:        person.instagram     || "",
       twitter:          person.twitter       || "",
@@ -292,12 +288,7 @@ export default function PersonPage({
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
               </label>
               <label className="pe-edit-label">
-                {secondaryLabel}
-                <input className="pe-edit-input" value={form[secondaryField]}
-                  onChange={(e) => setForm((f) => ({ ...f, [secondaryField]: e.target.value }))} />
-              </label>
-              <label className="pe-edit-label">
-                Bio
+                About
                 <textarea className="pe-edit-textarea" value={form.bio}
                   onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                   rows={5} placeholder="Short biography…" />
@@ -338,11 +329,6 @@ export default function PersonPage({
           ) : (
             <>
               <h1 className="pe-name">{person.name}</h1>
-              {person[secondaryField] && (
-                <p className="pe-secondary">
-                  {secondaryField === "nationality" ? "🌍" : "🎨"} {person[secondaryField]}
-                </p>
-              )}
               <SocialLinks person={person} />
               {person.bio && <p className="pe-bio">{person.bio}</p>}
             </>

@@ -9,7 +9,6 @@ public class Artist {
     private String name;
     @Column(columnDefinition = "TEXT") private String bio;
     private String imageUrl;
-    private String specialty;
     private String website;
     private String instagram;
     private String twitter;
@@ -25,9 +24,7 @@ public class Artist {
     public void setBio(String bio) { this.bio = bio; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-    public String getSpecialty() { return specialty; }
-    public void setSpecialty(String specialty) { this.specialty = specialty; }
-    public String getWebsite() { return website; }
+    public String getWebsite(){ return website; }
     public void setWebsite(String website) { this.website = website; }
     public String getInstagram() { return instagram; }
     public void setInstagram(String instagram) { this.instagram = instagram; }
