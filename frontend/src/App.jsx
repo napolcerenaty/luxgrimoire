@@ -223,38 +223,40 @@ function AppInner() {
         <div className="footer-inner">
           <div className="footer-brand">
             <span className="footer-logo">✦ LuxGrimoire ✦</span>
-            <span className="footer-tagline">Your special edition book tracker</span>
+            <span className="footer-tagline">{t("app.tagline")}</span>
           </div>
 
           <div className="footer-links">
             <div className="footer-col">
-              <span className="footer-col-title">Discover</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Browse Editions</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Book Boxes</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Announcements</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Lucky Draw</a>
+              <span className="footer-col-title">{t("footer.discoverTitle")}</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.browseEditions")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.bookBoxes")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.announcements")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.luckyDraw")}</a>
+            </div>
+
+            {user && (
+              <div className="footer-col">
+                <span className="footer-col-title">{t("footer.accountTitle")}</span>
+                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("collection"); }}>{t("footer.myCollection")}</a>
+                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.mySubscriptions")}</a>
+                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("profile"); }}>{t("footer.profileSettings")}</a>
+              </div>
+            )}
+
+            <div className="footer-col">
+              <span className="footer-col-title">{t("footer.helpTitle")}</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.faq")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.howItWorks")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.contact")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.reportIssue")}</a>
             </div>
 
             <div className="footer-col">
-              <span className="footer-col-title">Account</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>My Collection</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>My Subscriptions</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Profile Settings</a>
-            </div>
-
-            <div className="footer-col">
-              <span className="footer-col-title">Help</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>FAQ</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>How It Works</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Contact</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Report an Issue</a>
-            </div>
-
-            <div className="footer-col">
-              <span className="footer-col-title">Legal</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Privacy Policy</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Terms of Use</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>Cookie Policy</a>
+              <span className="footer-col-title">{t("footer.legalTitle")}</span>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.privacyPolicy")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.termsOfUse")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.cookiePolicy")}</a>
             </div>
           </div>
         </div>
