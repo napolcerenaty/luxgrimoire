@@ -307,6 +307,43 @@
 /* Sentinel for IntersectionObserver */
 .pe-sentinel { height: 1px; margin-top: 1rem; }
 
+/* ── Social links ── */
+.pe-social-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.pe-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #183858;
+  background: #0d1f35;
+  color: #7ab0cc;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.pe-social-link:hover {
+  border-color: #00b4d0;
+  color: #38d4f0;
+  background: #071525;
+}
+
+/* ── Edit social grid ── */
+.pe-edit-social-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+@media (max-width: 500px) {
+  .pe-edit-social-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 580px) {
   .pe-profile { flex-direction: column; align-items: center; text-align: center; }

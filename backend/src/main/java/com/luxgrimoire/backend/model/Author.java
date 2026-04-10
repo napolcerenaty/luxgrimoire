@@ -10,6 +10,10 @@ public class Author {
     @Column(columnDefinition = "TEXT") private String bio;
     private String imageUrl;
     private String nationality;
+    private String website;
+    private String instagram;
+    private String twitter;
+    private String facebook;
 
     public Author() { this.id = UUID.randomUUID().toString(); }
     public String getId() { return id; }
@@ -22,4 +26,12 @@ public class Author {
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getNationality() { return nationality; }
     public void setNationality(String nationality) { this.nationality = nationality; }
+    public String getWebsite() { return website; }
+    public void setWebsite(String website) { this.website = website; }
+    public String getInstagram() { return instagram; }
+    public void setInstagram(String instagram) { this.instagram = instagram; }
+    public String getTwitter() { return twitter; }
+    public void setTwitter(String twitter) { this.twitter = twitter; }
+    public String getFacebook() { return facebook; }
+    public void setFacebook(String facebook) { this.facebook = facebook; }
 }

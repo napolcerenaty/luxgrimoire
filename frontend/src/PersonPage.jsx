@@ -1,8 +1,53 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import "./PersonPage.css";
 
 const PAGE_SIZE = 12;
+
+/* ── Social icons (inline SVG) ─────────────────────────── */
+const IconGlobe = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+  </svg>
+);
+const IconInstagram = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+  </svg>
+);
+const IconX = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+  </svg>
+);
+const IconFacebook = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+  </svg>
+);
+
+function SocialLinks({ person }) {
+  const links = [
+    { key: "website",   href: person.website,   icon: <IconGlobe />,    label: "Website"   },
+    { key: "instagram", href: person.instagram ? `https://instagram.com/${person.instagram.replace(/^@/, "")}` : null, icon: <IconInstagram />, label: "Instagram" },
+    { key: "twitter",   href: person.twitter   ? `https://x.com/${person.twitter.replace(/^@/, "")}` : null,           icon: <IconX />,         label: "X / Twitter" },
+    { key: "facebook",  href: person.facebook,  icon: <IconFacebook />, label: "Facebook"  },
+  ].filter((l) => l.href);
+  if (!links.length) return null;
+  return (
+    <div className="pe-social-links">
+      {links.map((l) => (
+        <a key={l.key} href={l.href} target="_blank" rel="noopener noreferrer"
+          className="pe-social-link" title={l.label}>
+          {l.icon}
+        </a>
+      ))}
+    </div>
+  );
+}
 
 /* ── Small edition card ─────────────────────────────────── */
 function EditionCard({ item, onBookClick }) {
@@ -81,10 +126,14 @@ export default function PersonPage({
       setPerson(p);
       setEditions(e || []);
       if (p) setForm({
-        name:          p.name         || "",
-        bio:           p.bio          || "",
-        imageUrl:      p.imageUrl     || "",
+        name:             p.name          || "",
+        bio:              p.bio           || "",
+        imageUrl:         p.imageUrl      || "",
         [secondaryField]: p[secondaryField] || "",
+        website:          p.website       || "",
+        instagram:        p.instagram     || "",
+        twitter:          p.twitter       || "",
+        facebook:         p.facebook      || "",
       });
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -157,10 +206,14 @@ export default function PersonPage({
     setEditing(false);
     setError(null);
     if (person) setForm({
-      name:          person.name         || "",
-      bio:           person.bio          || "",
-      imageUrl:      person.imageUrl     || "",
+      name:             person.name          || "",
+      bio:              person.bio           || "",
+      imageUrl:         person.imageUrl      || "",
       [secondaryField]: person[secondaryField] || "",
+      website:          person.website       || "",
+      instagram:        person.instagram     || "",
+      twitter:          person.twitter       || "",
+      facebook:         person.facebook      || "",
     });
   };
 
@@ -237,8 +290,34 @@ export default function PersonPage({
                 Bio
                 <textarea className="pe-edit-textarea" value={form.bio}
                   onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                  rows={6} placeholder="Short biography…" />
+                  rows={5} placeholder="Short biography…" />
               </label>
+              <div className="pe-edit-social-grid">
+                <label className="pe-edit-label">
+                  Website
+                  <input className="pe-edit-input" value={form.website}
+                    onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                    placeholder="https://…" />
+                </label>
+                <label className="pe-edit-label">
+                  Instagram (@handle)
+                  <input className="pe-edit-input" value={form.instagram}
+                    onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
+                    placeholder="@username" />
+                </label>
+                <label className="pe-edit-label">
+                  X / Twitter (@handle)
+                  <input className="pe-edit-input" value={form.twitter}
+                    onChange={(e) => setForm((f) => ({ ...f, twitter: e.target.value }))}
+                    placeholder="@username" />
+                </label>
+                <label className="pe-edit-label">
+                  Facebook (URL)
+                  <input className="pe-edit-input" value={form.facebook}
+                    onChange={(e) => setForm((f) => ({ ...f, facebook: e.target.value }))}
+                    placeholder="https://facebook.com/…" />
+                </label>
+              </div>
             </>
           ) : (
             <>
@@ -248,6 +327,7 @@ export default function PersonPage({
                   {secondaryField === "nationality" ? "🌍" : "🎨"} {person[secondaryField]}
                 </p>
               )}
+              <SocialLinks person={person} />
               {person.bio && <p className="pe-bio">{person.bio}</p>}
             </>
           )}
