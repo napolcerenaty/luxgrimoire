@@ -215,13 +215,36 @@ main {
   border-radius: 4px;
   overflow: hidden;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.book-card--clickable {
   cursor: pointer;
 }
 
-.book-card:hover {
+.book-card--clickable:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(180, 120, 40, 0.12);
-  border-color: #7a5530;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(180, 120, 40, 0.15);
+  border-color: #c4943d;
+}
+
+.book-card--clickable .book-cover::after {
+  content: '\1F50D  Szczeg\00f3\0142y';
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 8, 2, 0.6);
+  color: #d4a843;
+  font-family: 'Cinzel', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.book-card--clickable:hover .book-cover::after {
+  opacity: 1;
 }
 
 .book-cover {

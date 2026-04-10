@@ -11,9 +11,15 @@ import LanguagePicker from "./LanguagePicker";
 import BookDetailPage from "./BookDetailPage";
 import BookDetailEditPage from "./BookDetailEditPage";
 
-function BookCard({ book }) {
+function BookCard({ book, onClick }) {
   return (
-    <article className="book-card">
+    <article
+      className={`book-card${onClick ? " book-card--clickable" : ""}`}
+      onClick={onClick ? () => onClick(book.title) : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(book.title) : undefined}
+    >
       <div className="book-cover">
         <img
           src={book.imageUrl}
@@ -44,7 +50,9 @@ function AppInner() {
   const [selectedBookTitle, setSelectedBookTitle] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
 
-  const handleBookClick = (title) => { setSelectedBookTitle(title); setEditingBook(null); setTab("book-detail"); };
+  const [prevTab, setPrevTab] = useState("browse");
+
+  const handleBookClick = (title) => { setSelectedBookTitle(title); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
   const handleEditBook = (book) => { setEditingBook(book); setTab("book-edit"); };
   const handleNewBook = () => { setEditingBook(null); setTab("book-edit"); };
   const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setTab("book-detail"); };
@@ -138,7 +146,7 @@ function AppInner() {
               ) : (
                 <div className="book-grid">
                   {filteredBooks.map((book) => (
-                    <BookCard key={book.id} book={book} />
+                    <BookCard key={book.id} book={book} onClick={handleBookClick} />
                   ))}
                 </div>
               )}
@@ -151,7 +159,7 @@ function AppInner() {
         {tab === "book-detail" && (
           <BookDetailPage
             bookTitle={selectedBookTitle}
-            onBack={() => setTab("collection")}
+            onBack={() => setTab(prevTab)}
             onEdit={handleEditBook}
             onNavigateNew={handleNewBook}
           />
@@ -160,7 +168,7 @@ function AppInner() {
           <BookDetailEditPage
             initialData={editingBook}
             onSaved={handleBookSaved}
-            onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab("collection"); } }}
+            onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab(prevTab); } }}
           />
         )}
       </main>
