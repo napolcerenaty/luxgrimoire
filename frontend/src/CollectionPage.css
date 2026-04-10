@@ -3,26 +3,26 @@
   padding: 2rem;
   box-sizing: border-box;
   font-family: 'Crimson Text', serif;
-  color: #e8dcc8;
+  color: #c0e4f4;
 }
 
 .collection-meta {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #a08060;
+  color: #4888a4;
   margin-bottom: 1.5rem;
   font-style: italic;
 }
 
 .collection-meta span {
-  color: #c4943d;
+  color: #00b4d0;
   font-weight: 600;
 }
 
 .collection-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #3a2510;
+  border: 1px solid #0d2840;
   border-radius: 4px;
 }
 
@@ -30,19 +30,19 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
-  background: #0d0a07;
+  background: #050810;
   min-width: 900px;
 }
 
 .collection-table thead {
-  background: linear-gradient(135deg, #1a0f05 0%, #2d1a0a 100%);
+  background: linear-gradient(135deg, #060d18 0%, #0d1f35 100%);
   position: sticky;
   top: 0;
   z-index: 2;
 }
 
 .collection-table th {
-  border-bottom: 2px solid #5a3a1a;
+  border-bottom: 2px solid #183858;
   border-right: 1px solid #2a1a08;
   padding: 0;
   text-align: left;
@@ -60,7 +60,7 @@
   width: 100%;
   background: none;
   border: none;
-  color: #c4943d;
+  color: #00b4d0;
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -71,12 +71,12 @@
 }
 
 .col-header-btn:hover {
-  color: #e8c070;
+  color: #68e0f8;
 }
 
 .sort-arrow {
   font-size: 0.65rem;
-  color: #c4943d;
+  color: #00b4d0;
   opacity: 0.7;
 }
 
@@ -88,9 +88,9 @@
 .col-filter select {
   width: 100%;
   background: #1a1208;
-  border: 1px solid #3a2510;
+  border: 1px solid #0d2840;
   border-radius: 2px;
-  color: #e8dcc8;
+  color: #c0e4f4;
   font-family: 'Crimson Text', serif;
   font-size: 0.82rem;
   padding: 0.2rem 0.4rem;
@@ -100,7 +100,7 @@
 
 .col-filter input:focus,
 .col-filter select:focus {
-  border-color: #c4943d;
+  border-color: #00b4d0;
 }
 
 .col-filter select option {
@@ -108,7 +108,7 @@
 }
 
 .collection-table tbody tr {
-  border-bottom: 1px solid #1c1208;
+  border-bottom: 1px solid #070f1c;
   transition: background 0.15s ease;
 }
 
@@ -118,8 +118,8 @@
 
 .collection-table td {
   padding: 0.55rem 0.75rem;
-  border-right: 1px solid #1c1208;
-  color: #c8b898;
+  border-right: 1px solid #070f1c;
+  color: #90c8e0;
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
   vertical-align: middle;
@@ -140,13 +140,13 @@
 }
 
 .book-title-link {
-  color: #c4943d;
+  color: #00b4d0;
   cursor: pointer;
 }
 
 .book-title-link:hover {
   text-decoration: underline;
-  color: #e8c070;
+  color: #68e0f8;
 }
 
 .col-lang { width: 80px; }

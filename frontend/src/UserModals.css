@@ -7,14 +7,14 @@
 
 .user-icon-btn {
   background: transparent;
-  border: 1px solid #5a3a1a;
+  border: 1px solid #183858;
   border-radius: 50%;
   width: 38px;
   height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c4943d;
+  color: #00b4d0;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
   padding: 0;
@@ -22,9 +22,9 @@
 }
 
 .user-icon-btn:hover {
-  background: rgba(180, 120, 40, 0.15);
-  border-color: #d4a843;
-  color: #d4a843;
+  background: rgba(0, 160, 200, 0.15);
+  border-color: #38d4f0;
+  color: #38d4f0;
 }
 
 .user-icon-initials {
@@ -32,7 +32,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #d4a843;
+  color: #38d4f0;
   line-height: 1;
 }
 
@@ -44,8 +44,8 @@
   top: calc(100% + 8px);
   right: 0;
   min-width: 200px;
-  background: #1e120a;
-  border: 1px solid #5a3a1a;
+  background: #0a1428;
+  border: 1px solid #183858;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
   z-index: 200;
@@ -62,13 +62,13 @@
 .dropdown-name {
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
-  color: #d4a843;
+  color: #38d4f0;
   font-weight: 600;
 }
 
 .dropdown-username {
   font-size: 0.75rem;
-  color: #7a5a30;
+  color: #205080;
 }
 
 .dropdown-divider {
@@ -83,7 +83,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  color: #b89060;
+  color: #5898b0;
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
   padding: 0.65rem 1rem;
@@ -92,17 +92,17 @@
 }
 
 .dropdown-item:hover {
-  background: rgba(180, 120, 40, 0.1);
-  color: #d4a843;
+  background: rgba(0, 160, 200, 0.1);
+  color: #38d4f0;
 }
 
 .dropdown-item.logout {
-  color: #a05040;
+  color: #1a6080;
 }
 
 .dropdown-item.logout:hover {
   background: rgba(160, 60, 40, 0.12);
-  color: #c06050;
+  color: #2080a0;
 }
 
 /* ═══════════════════════════════════════════
@@ -126,8 +126,8 @@
 }
 
 .modal-box {
-  background: #1c1208;
-  border: 1px solid #5a3a1a;
+  background: #070f1c;
+  border: 1px solid #183858;
   border-radius: 8px;
   padding: 2rem;
   width: min(420px, 92vw);
@@ -147,7 +147,7 @@
   right: 0.9rem;
   background: transparent;
   border: none;
-  color: #7a5a30;
+  color: #205080;
   font-size: 1rem;
   cursor: pointer;
   line-height: 1;
@@ -155,12 +155,12 @@
   transition: color 0.15s;
 }
 
-.modal-close:hover { color: #c4943d; }
+.modal-close:hover { color: #00b4d0; }
 
 .modal-title {
   font-family: 'Cinzel', serif;
   font-size: 1.25rem;
-  color: #d4a843;
+  color: #38d4f0;
   margin: 0 0 1.5rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -181,16 +181,16 @@
   gap: 0.4rem;
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
-  color: #9a7040;
+  color: #347898;
   letter-spacing: 0.03em;
 }
 
 .modal-form input,
 .modal-form select {
   background: #120c04;
-  border: 1px solid #4a2e10;
+  border: 1px solid #0a2040;
   border-radius: 4px;
-  color: #d4c4a0;
+  color: #90d0e8;
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
   padding: 0.5rem 0.75rem;
@@ -200,18 +200,18 @@
 
 .modal-form input:focus,
 .modal-form select:focus {
-  border-color: #c4943d;
+  border-color: #00b4d0;
 }
 
 .modal-form select option,
 .modal-form select optgroup {
-  background: #1c1208;
+  background: #070f1c;
 }
 
 .modal-btn {
   background: transparent;
-  border: 1px solid #5a3a1a;
-  color: #c4943d;
+  border: 1px solid #183858;
+  color: #00b4d0;
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
   letter-spacing: 0.05em;
@@ -223,19 +223,19 @@
 }
 
 .modal-btn:hover {
-  background: rgba(180, 120, 40, 0.12);
-  border-color: #d4a843;
-  color: #d4a843;
+  background: rgba(0, 160, 200, 0.12);
+  border-color: #38d4f0;
+  color: #38d4f0;
 }
 
 .modal-btn.primary {
-  background: rgba(180, 120, 40, 0.2);
-  border-color: #c4943d;
+  background: rgba(0, 160, 200, 0.2);
+  border-color: #00b4d0;
 }
 
 .modal-btn.primary:hover {
-  background: rgba(180, 120, 40, 0.35);
-  border-color: #d4a843;
+  background: rgba(0, 160, 200, 0.35);
+  border-color: #38d4f0;
 }
 
 .modal-btn:disabled {
@@ -249,7 +249,7 @@
 }
 
 .modal-error {
-  color: #c05040;
+  color: #1e7898;
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
   margin: 0;
@@ -269,8 +269,8 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d1a08, #3d2410);
-  border: 2px solid #5a3a1a;
+  background: linear-gradient(135deg, #2d1a08, #0c2240);
+  border: 2px solid #183858;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,7 +281,7 @@
   font-family: 'Cinzel', serif;
   font-size: 1.6rem;
   font-weight: 700;
-  color: #c4943d;
+  color: #00b4d0;
   letter-spacing: 0.05em;
 }
 
@@ -300,13 +300,13 @@
 .profile-label {
   font-family: 'Crimson Text', serif;
   font-size: 0.85rem;
-  color: #7a5a30;
+  color: #205080;
   flex-shrink: 0;
 }
 
 .profile-value {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #d4c4a0;
+  color: #90d0e8;
   text-align: right;
 }

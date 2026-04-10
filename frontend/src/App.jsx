@@ -25,7 +25,7 @@ function BookCard({ book, onClick }) {
           src={book.imageUrl}
           alt={`Cover of ${book.title}`}
           onError={(e) => {
-            e.target.src = "https://placehold.co/300x450/1c1208/c4943d?text=No+Cover";
+            e.target.src = "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
           }}
         />
         <span className="book-genre-badge">{book.genre}</span>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import "./BookCarousel.css";
 
-const PLACEHOLDER = "https://placehold.co/400x600/1c1208/c4943d?text=No+Image";
+const PLACEHOLDER = "https://placehold.co/400x600/060d18/00b4d0?text=No+Image";
 
 export default function BookCarousel({ images }) {
   const list = images && images.length > 0 ? images : [PLACEHOLDER];

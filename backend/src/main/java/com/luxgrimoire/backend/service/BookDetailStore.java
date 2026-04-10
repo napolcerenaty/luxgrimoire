@@ -33,8 +33,8 @@ public class BookDetailStore {
         b1.setBasePrice(new BigDecimal("29.99"));
         b1.setCurrency("USD");
         List<String> urls1 = new ArrayList<>();
-        urls1.add("https://placehold.co/400x600/1c1208/c4943d?text=Shadows+Vol1");
-        urls1.add("https://placehold.co/400x600/1c1208/c4943d?text=Interior+Art");
+        urls1.add("https://placehold.co/400x600/060d18/00b4d0?text=Shadows+Vol1");
+        urls1.add("https://placehold.co/400x600/060d18/00b4d0?text=Interior+Art");
         b1.setImageUrls(urls1);
         List<ArtistContribution> artists1 = new ArrayList<>();
         artists1.add(new ArtistContribution("Maria Kovacs", "Cover Art"));
@@ -58,7 +58,7 @@ public class BookDetailStore {
         b2.setBasePrice(new BigDecimal("45.00"));
         b2.setCurrency("EUR");
         List<String> urls2 = new ArrayList<>();
-        urls2.add("https://placehold.co/400x600/1c1208/c4943d?text=Crimson+Codex");
+        urls2.add("https://placehold.co/400x600/060d18/00b4d0?text=Crimson+Codex");
         b2.setImageUrls(urls2);
         List<ArtistContribution> artists2 = new ArrayList<>();
         artists2.add(new ArtistContribution("Luna Sterling", "Full Art Direction"));

@@ -1,7 +1,7 @@
 .book-detail-page {
   padding: 2rem;
   font-family: 'Crimson Text', serif;
-  color: #e8dcc8;
+  color: #c0e4f4;
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -22,8 +22,8 @@
 
 .detail-back-btn {
   background: none;
-  border: 1px solid #5a3a1a;
-  color: #c4943d;
+  border: 1px solid #183858;
+  color: #00b4d0;
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
   padding: 0.4rem 1rem;
@@ -34,14 +34,14 @@
 }
 
 .detail-back-btn:hover {
-  background: #2d1a0a;
-  color: #e8c070;
+  background: #0d1f35;
+  color: #68e0f8;
 }
 
 .detail-action-btn {
-  background: #1c1208;
-  border: 1px solid #c4943d;
-  color: #c4943d;
+  background: #070f1c;
+  border: 1px solid #00b4d0;
+  color: #00b4d0;
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
   padding: 0.4rem 1rem;
@@ -52,8 +52,8 @@
 }
 
 .detail-action-btn:hover:not(:disabled) {
-  background: #2d1a0a;
-  color: #e8c070;
+  background: #0d1f35;
+  color: #68e0f8;
 }
 
 .detail-action-btn:disabled {
@@ -100,7 +100,7 @@
 .detail-title {
   font-family: 'Cinzel', serif;
   font-size: 1.8rem;
-  color: #c4943d;
+  color: #00b4d0;
   margin: 0 0 0.25rem;
   line-height: 1.3;
 }
@@ -108,7 +108,7 @@
 .detail-author {
   font-family: 'Crimson Text', serif;
   font-size: 1.1rem;
-  color: #a08060;
+  color: #4888a4;
   margin: 0;
   font-style: italic;
 }
@@ -117,10 +117,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border: 1px solid #3a2510;
+  border: 1px solid #0d2840;
   border-radius: 4px;
   padding: 1rem 1.25rem;
-  background: #0d0a07;
+  background: #050810;
 }
 
 .detail-field {
@@ -133,7 +133,7 @@
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
-  color: #8a6030;
+  color: #1a6898;
   text-transform: uppercase;
   min-width: 140px;
   flex-shrink: 0;
@@ -142,7 +142,7 @@
 .detail-value {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #d4b880;
+  color: #70c8e0;
 }
 
 .detail-section {
@@ -154,25 +154,25 @@
 .detail-section-title {
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
-  color: #c4943d;
+  color: #00b4d0;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0;
-  border-bottom: 1px solid #3a2510;
+  border-bottom: 1px solid #0d2840;
   padding-bottom: 0.4rem;
 }
 
 .detail-dates-table {
   border-collapse: collapse;
   width: 100%;
-  background: #0d0a07;
-  border: 1px solid #3a2510;
+  background: #050810;
+  border: 1px solid #0d2840;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .detail-dates-table tr {
-  border-bottom: 1px solid #1c1208;
+  border-bottom: 1px solid #070f1c;
 }
 
 .detail-dates-table tr:last-child {
@@ -182,7 +182,7 @@
 .detail-date-label {
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
-  color: #8a6030;
+  color: #1a6898;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.5rem 1rem;
@@ -192,7 +192,7 @@
 .detail-date-value {
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
-  color: #d4b880;
+  color: #70c8e0;
   padding: 0.5rem 1rem;
 }
 
@@ -209,8 +209,8 @@
   display: flex;
   gap: 1rem;
   align-items: center;
-  background: #0d0a07;
-  border: 1px solid #3a2510;
+  background: #050810;
+  border: 1px solid #0d2840;
   border-radius: 4px;
   padding: 0.6rem 1rem;
 }
@@ -218,7 +218,7 @@
 .detail-artist-name {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #d4b880;
+  color: #70c8e0;
   font-weight: 600;
   min-width: 150px;
 }
@@ -226,7 +226,7 @@
 .detail-artist-role {
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
-  color: #8a6030;
+  color: #1a6898;
   font-style: italic;
 }
 
@@ -242,7 +242,7 @@
 .detail-no-details {
   font-family: 'Crimson Text', serif;
   font-size: 1.1rem;
-  color: #a08060;
+  color: #4888a4;
   font-style: italic;
   margin: 0;
 }

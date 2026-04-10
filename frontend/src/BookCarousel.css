@@ -13,8 +13,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  background: #0d0a07;
-  border: 1px solid #5a3a1a;
+  background: #050810;
+  border: 1px solid #183858;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -32,8 +32,8 @@
   top: 50%;
   transform: translateY(-50%);
   background: rgba(28, 18, 8, 0.75);
-  border: 1px solid #5a3a1a;
-  color: #c4943d;
+  border: 1px solid #183858;
+  color: #00b4d0;
   font-size: 2rem;
   line-height: 1;
   width: 2.5rem;
@@ -50,7 +50,7 @@
 
 .carousel-btn:hover:not(:disabled) {
   background: rgba(90, 58, 26, 0.85);
-  color: #e8c070;
+  color: #68e0f8;
 }
 
 .carousel-btn:disabled {
@@ -71,18 +71,18 @@
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  background: #3a2510;
-  border: 1px solid #5a3a1a;
+  background: #0d2840;
+  border: 1px solid #183858;
   cursor: pointer;
   padding: 0;
   transition: background 0.2s;
 }
 
 .carousel-dot.active {
-  background: #c4943d;
-  border-color: #c4943d;
+  background: #00b4d0;
+  border-color: #00b4d0;
 }
 
 .carousel-dot:hover {
-  background: #8a6020;
+  background: #1870a0;
 }

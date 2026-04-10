@@ -10,7 +10,7 @@
 .back-btn {
   background: transparent;
   border: none;
-  color: #9a7040;
+  color: #347898;
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
   cursor: pointer;
@@ -24,7 +24,7 @@
 }
 
 .back-btn:hover {
-  color: #d4a843;
+  color: #38d4f0;
 }
 
 .user-page-card {
@@ -42,8 +42,8 @@
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d1a08, #3d2410);
-  border: 2px solid #5a3a1a;
+  background: linear-gradient(135deg, #2d1a08, #0c2240);
+  border: 2px solid #183858;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +54,7 @@
   font-family: 'Cinzel', serif;
   font-size: 1.8rem;
   font-weight: 700;
-  color: #c4943d;
+  color: #00b4d0;
   letter-spacing: 0.05em;
 }
 
@@ -64,7 +64,7 @@
 .user-page-title {
   font-family: 'Cinzel', serif;
   font-size: 1.4rem;
-  color: #d4a843;
+  color: #38d4f0;
   text-align: center;
   margin: 0 0 0.3rem;
   font-weight: 600;
@@ -74,7 +74,7 @@
 .user-page-username {
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
-  color: #7a5a30;
+  color: #205080;
   text-align: center;
   margin: 0 0 2rem;
 }
@@ -94,16 +94,16 @@
   gap: 0.45rem;
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
-  color: #9a7040;
+  color: #347898;
   letter-spacing: 0.03em;
 }
 
 .user-page-form input,
 .user-page-form select {
   background: #0e0904;
-  border: 1px solid #4a2e10;
+  border: 1px solid #0a2040;
   border-radius: 5px;
-  color: #d4c4a0;
+  color: #90d0e8;
   font-family: 'Crimson Text', serif;
   font-size: 1.05rem;
   padding: 0.55rem 0.85rem;
@@ -115,18 +115,18 @@
 
 .user-page-form input:focus,
 .user-page-form select:focus {
-  border-color: #c4943d;
+  border-color: #00b4d0;
 }
 
 .user-page-form select option,
 .user-page-form select optgroup {
-  background: #1c1208;
+  background: #070f1c;
 }
 
 .field-hint {
   font-family: 'Crimson Text', serif;
   font-size: 0.82rem;
-  color: #5a4020;
+  color: #103858;
   font-style: italic;
 }
 
@@ -145,14 +145,14 @@
 .profile-row-label {
   font-family: 'Crimson Text', serif;
   font-size: 0.88rem;
-  color: #7a5a30;
+  color: #205080;
   flex-shrink: 0;
 }
 
 .profile-row-value {
   font-family: 'Crimson Text', serif;
   font-size: 1.05rem;
-  color: #d4c4a0;
+  color: #90d0e8;
   text-align: right;
 }
 
@@ -161,8 +161,8 @@
 ═══════════════════════════════════════════ */
 .page-btn {
   background: transparent;
-  border: 1px solid #5a3a1a;
-  color: #c4943d;
+  border: 1px solid #183858;
+  color: #00b4d0;
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
   letter-spacing: 0.05em;
@@ -175,13 +175,13 @@
 
 .page-btn:hover {
   background: rgba(180,120,40,0.12);
-  border-color: #d4a843;
-  color: #d4a843;
+  border-color: #38d4f0;
+  color: #38d4f0;
 }
 
 .page-btn.primary {
   background: rgba(180,120,40,0.18);
-  border-color: #c4943d;
+  border-color: #00b4d0;
 }
 
 .page-btn.primary:hover {
@@ -203,7 +203,7 @@
    Messages
 ═══════════════════════════════════════════ */
 .page-error {
-  color: #c05040;
+  color: #1e7898;
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
   margin: 0;
