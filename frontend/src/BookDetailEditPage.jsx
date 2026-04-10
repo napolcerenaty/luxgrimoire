@@ -390,17 +390,14 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
 
             <label className="edit-label">
               {t("bookDetail.series")}
-              <input
-                className="edit-input"
-                list="series-datalist"
+              <NameCombobox
                 value={bookForm.seriesName}
-                onChange={(e) => setBook("seriesName", e.target.value)}
+                items={seriesNames.map((s) => ({ id: s, name: s }))}
+                onSelect={(item, text) => setBook("seriesName", item ? item.name : text)}
+                onAddNew={(name) => setBook("seriesName", name)}
                 placeholder="Series name"
-                autoComplete="off"
+                addingNew={false}
               />
-              <datalist id="series-datalist">
-                {seriesNames.map((s) => <option key={s} value={s} />)}
-              </datalist>
             </label>
 
             <label className="edit-label">
@@ -474,7 +471,15 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
                             setEditionForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
                           } else {
                             const found = companySubs.find((s) => s.id === val);
-                            setEditionForm((f) => ({ ...f, _subscriptionSelect: val, subscriptionId: val, subscriptionName: found ? found.name : "", _monthSelect: "", subscriptionMonthId: "" }));
+                            setEditionForm((f) => ({
+                              ...f,
+                              _subscriptionSelect: val,
+                              subscriptionId: val,
+                              subscriptionName: found ? found.name : "",
+                              _monthSelect: "",
+                              subscriptionMonthId: "",
+                              basePrice: found?.basePrice != null ? String(found.basePrice) : f.basePrice,
+                            }));
                           }
                         }}
                       >
@@ -520,22 +525,17 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               )}
             </div>
 
-            {/* Book Box Name + Publisher */}
+            {/* Publisher */}
             <div className="edit-grid">
-              <label className="edit-label">
-                {t("bookDetail.editionName")}
-                <input className="edit-input" value={editionForm.editionName}
-                  onChange={(e) => setEd("editionName", e.target.value)} placeholder="Box / edition name" />
-              </label>
-              <label className="edit-label">
+              <label className="edit-label edit-label--full">
                 {t("bookDetail.publisher")}
                 <input className="edit-input" value={editionForm.publisher}
                   onChange={(e) => setEd("publisher", e.target.value)} />
               </label>
             </div>
 
-            {/* Free-text subscription month/year (when no company-linked month) */}
-            {(!selectedSub || editionForm._subscriptionSelect === "custom") && (
+            {/* Free-text subscription month/year (when no structured months available) */}
+            {subMonths.length === 0 && (
               <div className="edit-grid">
                 <label className="edit-label">
                   {t("bookDetail.subscriptionDate")}
