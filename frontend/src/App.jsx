@@ -52,15 +52,18 @@ function AppInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookTitle, setSelectedBookTitle] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
+  const [editingEdition, setEditingEdition] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [editingCompany, setEditingCompany] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
 
   const handleBookClick = (title) => { setSelectedBookTitle(title); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
-  const handleEditBook = (book) => { setEditingBook(book); setTab("book-edit"); };
-  const handleNewBook = () => { setEditingBook(null); setTab("book-edit"); };
-  const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setTab("book-detail"); };
+  const handleEditBook = (book) => { setEditingBook(book); setEditingEdition(null); setTab("book-edit"); };
+  const handleEditEdition = (book, edition) => { setEditingBook(book); setEditingEdition(edition); setTab("book-edit"); };
+  const handleNewEdition = (book) => { setEditingBook(book); setEditingEdition("new"); setTab("book-edit"); };
+  const handleNewBook = () => { setEditingBook(null); setEditingEdition(null); setTab("book-edit"); };
+  const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
 
   const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
   const handleNewCompany = () => { setEditingCompany(null); setTab("company-edit"); };
@@ -206,6 +209,8 @@ function AppInner() {
             bookTitle={selectedBookTitle}
             onBack={() => setTab(prevTab)}
             onEdit={handleEditBook}
+            onEditEdition={handleEditEdition}
+            onNewEdition={handleNewEdition}
             onNavigateNew={handleNewBook}
             onCompanyClick={handleCompanyClick}
           />
@@ -213,6 +218,7 @@ function AppInner() {
         {tab === "book-edit" && (
           <BookDetailEditPage
             initialData={editingBook}
+            editingEdition={editingEdition}
             onSaved={handleBookSaved}
             onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab(prevTab); } }}
           />

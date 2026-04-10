@@ -35,12 +35,12 @@ export default function ProfilePage({ onBack }) {
       .catch(() => {});
   }, [user]);
 
-  // fetch book details for display (batch unique ids)
+  // fetch book details for display (batch unique edition ids)
   useEffect(() => {
-    const ids = [...new Set(ownedBooks.map((e) => e.bookDetailId))];
+    const ids = [...new Set(ownedBooks.map((e) => e.editionId).filter(Boolean))];
     ids.forEach((id) => {
       if (bookDetails[id]) return;
-      fetch(`http://localhost:8080/api/book-details/${id}`, { credentials: "include" })
+      fetch(`http://localhost:8080/api/book-details/edition/${id}`, { credentials: "include" })
         .then((r) => r.ok ? r.json() : null)
         .then((d) => { if (d) setBookDetails((prev) => ({ ...prev, [id]: d })); })
         .catch(() => {});
@@ -158,12 +158,14 @@ export default function ProfilePage({ onBack }) {
         ) : (
           <ul className="user-collection-list">
             {ownedBooks.map((entry) => {
-              const bd = bookDetails[entry.bookDetailId];
+              const bookData = bookDetails[entry.editionId];
+              const edition = bookData ? (bookData.editions || []).find((e) => e.id === entry.editionId) : null;
+              const label = bookData
+                ? `${bookData.title}${bookData.author ? ` \u2014 ${bookData.author}` : ""}${edition?.editionName ? ` (${edition.editionName})` : ""}`
+                : (entry.editionId || entry.bookId || "?");
               return (
                 <li key={entry.id} className="user-collection-item">
-                  <span className="user-collection-item-label">
-                    {bd ? `${bd.title}${bd.author ? ` — ${bd.author}` : ""}` : entry.bookDetailId}
-                  </span>
+                  <span className="user-collection-item-label">{label}</span>
                   <button
                     className="user-collection-remove-btn"
                     onClick={() => removeBook(entry.id)}

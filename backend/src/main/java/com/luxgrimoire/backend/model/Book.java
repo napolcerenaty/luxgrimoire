@@ -1,26 +1,37 @@
 package com.luxgrimoire.backend.model;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 public class Book {
-    private Long id;
+    private String id;
     private String title;
     private String author;
-    private String genre;
-    private String imageUrl;
-    private String description;
+    private String seriesName;
+    private String volumeNumber;
+    private List<BookEdition> editions;
 
-    public Book(Long id, String title, String author, String genre, String imageUrl, String description) {
-        this.id = id;
-        this.title = title;
-        this.author = author;
-        this.genre = genre;
-        this.imageUrl = imageUrl;
-        this.description = description;
+    public Book() {
+        this.id = UUID.randomUUID().toString();
+        this.editions = new ArrayList<>();
     }
 
-    public Long getId() { return id; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
     public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
     public String getAuthor() { return author; }
-    public String getGenre() { return genre; }
-    public String getImageUrl() { return imageUrl; }
-    public String getDescription() { return description; }
+    public void setAuthor(String author) { this.author = author; }
+
+    public String getSeriesName() { return seriesName; }
+    public void setSeriesName(String seriesName) { this.seriesName = seriesName; }
+
+    public String getVolumeNumber() { return volumeNumber; }
+    public void setVolumeNumber(String volumeNumber) { this.volumeNumber = volumeNumber; }
+
+    public List<BookEdition> getEditions() { return editions; }
+    public void setEditions(List<BookEdition> editions) { this.editions = editions; }
 }

@@ -37,15 +37,16 @@ public class UserCollectionController {
     public ResponseEntity<?> addBook(@RequestBody Map<String, String> body, HttpSession session) {
         AppUser user = resolveUser(session);
         if (user == null) return unauthorized();
-        String bookDetailId = body.get("bookDetailId");
-        if (bookDetailId == null || bookDetailId.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing bookDetailId"));
+        String bookId = body.get("bookId");
+        String editionId = body.get("editionId");
+        if (editionId == null || editionId.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing editionId"));
 
         long existingCount = user.getOwnedBooks().stream()
-                .filter(e -> bookDetailId.equals(e.getBookDetailId()))
+                .filter(e -> editionId.equals(e.getEditionId()))
                 .count();
 
-        UserBookEntry entry = new UserBookEntry(bookDetailId);
+        UserBookEntry entry = new UserBookEntry(bookId, editionId);
         user.getOwnedBooks().add(entry);
         return ResponseEntity.ok(Map.of("entry", entry, "existingCount", existingCount));
     }

@@ -1,6 +1,6 @@
 package com.luxgrimoire.backend.controller;
 
-import com.luxgrimoire.backend.model.Book;
+import com.luxgrimoire.backend.model.BookListing;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,29 +14,29 @@ import java.util.List;
 public class BookController {
 
     @GetMapping
-    public List<Book> getBooks() {
+    public List<BookListing> getBooks() {
         return List.of(
-            new Book(1L, "The Name of the Wind",
+            new BookListing(1L, "The Name of the Wind",
                 "Patrick Rothfuss", "Fantasy",
                 "https://covers.openlibrary.org/b/id/8234680-L.jpg",
                 "The tale of Kvothe, a legendary figure of magic and music."),
-            new Book(2L, "Mistborn: The Final Empire",
+            new BookListing(2L, "Mistborn: The Final Empire",
                 "Brandon Sanderson", "Fantasy",
                 "https://covers.openlibrary.org/b/id/10527843-L.jpg",
                 "A dark fantasy set in a world of ash and mist."),
-            new Book(3L, "The Lies of Locke Lamora",
+            new BookListing(3L, "The Lies of Locke Lamora",
                 "Scott Lynch", "Fantasy",
                 "https://covers.openlibrary.org/b/id/8236561-L.jpg",
                 "A cunning thief in a city of secrets and sorcery."),
-            new Book(4L, "A Wizard of Earthsea",
+            new BookListing(4L, "A Wizard of Earthsea",
                 "Ursula K. Le Guin", "Fantasy",
                 "https://covers.openlibrary.org/b/id/10519519-L.jpg",
                 "A young wizard's journey of self-discovery."),
-            new Book(5L, "The Shadow of the Wind",
+            new BookListing(5L, "The Shadow of the Wind",
                 "Carlos Ruiz Zafón", "Mystery",
                 "https://covers.openlibrary.org/b/id/8225261-L.jpg",
                 "A boy discovers a mysterious book in post-war Barcelona."),
-            new Book(6L, "Jonathan Strange & Mr Norrell",
+            new BookListing(6L, "Jonathan Strange & Mr Norrell",
                 "Susanna Clarke", "Fantasy",
                 "https://covers.openlibrary.org/b/id/10519870-L.jpg",
                 "Magic returns to England during the Napoleonic Wars.")

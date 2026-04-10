@@ -335,3 +335,11 @@
   background: #00b4d0;
   color: #060d18;
 }
+
+.detail-book-header { margin-bottom: 1.5rem; }
+.detail-editions-list { display: flex; flex-direction: column; gap: 1.5rem; }
+.detail-edition-card { background: #0d1f35; border: 1px solid #183858; border-radius: 12px; padding: 1.2rem 1.5rem; }
+.detail-edition-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+.detail-edition-name { font-size: 1.05rem; font-weight: 600; color: #38d4f0; margin: 0; }
+.detail-edition-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.detail-no-editions { color: #547898; font-style: italic; text-align: center; padding: 2rem 0; }
