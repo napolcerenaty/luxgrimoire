@@ -14,6 +14,7 @@ public class AppUser {
     private String firstName;
     private String lastName;
     private String timezone;
+    private String avatarUrl;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("user-books")
@@ -41,6 +42,8 @@ public class AppUser {
     public void setLastName(String lastName) { this.lastName = lastName; }
     public String getTimezone() { return timezone; }
     public void setTimezone(String timezone) { this.timezone = timezone; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public List<UserBookEntry> getOwnedBooks() { return ownedBooks; }
     public List<UserSubscriptionEntry> getSubscriptions() { return subscriptions; }
 }

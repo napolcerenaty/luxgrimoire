@@ -192,6 +192,120 @@
   overflow-y: auto;
 }
 
+/* ─── Profile display (read-only) ───────────────────────────────────────────── */
+.account-profile-display {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.account-profile-avatar-lg {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--bg-raised), var(--bg-overlay));
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.account-avatar-img,
+.account-avatar-img-lg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.account-avatar-initials-lg {
+  font-family: 'Cinzel', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent2);
+  letter-spacing: 0.05em;
+}
+
+.account-profile-details {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.25rem;
+}
+
+.account-profile-fullname {
+  font-family: 'Cinzel', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin: 0 0 0.2rem;
+}
+
+.account-profile-username {
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  color: var(--text-ghost);
+  margin: 0 0 0.85rem;
+}
+
+/* ─── Avatar editor (settings) ──────────────────────────────────────────────── */
+.account-avatar-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.account-avatar-preview-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--bg-raised), var(--bg-overlay));
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.account-avatar-preview-wrap .account-avatar-img-lg {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.account-avatar-preview-badge {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-family: 'Crimson Text', serif;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.account-avatar-editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.account-section-divider {
+  border: none;
+  border-top: 1px solid var(--border-dim);
+  margin: 1.5rem 0;
+}
+
 /* ─── Mobile ────────────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .account-page {

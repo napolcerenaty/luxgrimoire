@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import "./AccountPage.css";
@@ -44,59 +44,31 @@ const NAV_ITEMS = [
   { key: "settings",      icon: "⚙️", labelKey: "account.navSettings"      },
 ];
 
-// ─── PROFILE SECTION ─────────────────────────────────────────────────────────
+// ─── PROFILE SECTION (read-only display) ─────────────────────────────────────
 function ProfileSection() {
-  const { user, updateProfile } = useAuth();
+  const { user } = useAuth();
   const { t } = useI18n();
-  const [editing, setEditing]     = useState(false);
-  const [firstName, setFirstName] = useState(user?.firstName ?? "");
-  const [lastName, setLastName]   = useState(user?.lastName  ?? "");
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState("");
-  const [saved, setSaved]         = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true); setError("");
-    try {
-      await updateProfile(firstName, lastName);
-      setEditing(false); setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) { setError(err.message); }
-    finally { setSaving(false); }
-  };
-
-  const handleCancel = () => {
-    setFirstName(user?.firstName ?? "");
-    setLastName(user?.lastName   ?? "");
-    setEditing(false); setError("");
-  };
+  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
+  const avatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
 
   return (
     <section className="account-section">
       <h2 className="account-section-title">{t("profile.title")}</h2>
 
-      {editing ? (
-        <div className="user-page-form">
-          <label>{t("profile.firstName")}<input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus /></label>
-          <label>{t("profile.lastName")}<input value={lastName}  onChange={(e) => setLastName(e.target.value)} /></label>
-          {error && <p className="page-error">{error}</p>}
-          <div className="page-btn-row">
-            <button className="page-btn primary" onClick={handleSave} disabled={saving}>
-              {saving ? t("profile.saving") : t("profile.saveBtn")}
-            </button>
-            <button className="page-btn" onClick={handleCancel}>{t("profile.cancel")}</button>
-          </div>
+      <div className="account-profile-display">
+        <div className="account-profile-avatar-lg">
+          {avatarSrc
+            ? <img src={avatarSrc} alt={user?.username} className="account-avatar-img-lg" />
+            : <span className="account-avatar-initials-lg">{initials}</span>
+          }
         </div>
-      ) : (
-        <div className="user-page-form">
-          <div className="profile-row"><span className="profile-row-label">{t("profile.firstName")}</span><span className="profile-row-value">{user?.firstName}</span></div>
-          <div className="profile-row"><span className="profile-row-label">{t("profile.lastName")}</span> <span className="profile-row-value">{user?.lastName}</span></div>
-          <div className="profile-row"><span className="profile-row-label">{t("profile.username")}</span><span className="profile-row-value">@{user?.username}</span></div>
+        <div className="account-profile-details">
+          <p className="account-profile-fullname">{user?.firstName} {user?.lastName}</p>
+          <p className="account-profile-username">@{user?.username}</p>
           <div className="profile-row"><span className="profile-row-label">{t("profile.timezone")}</span><span className="profile-row-value">{user?.timezone}</span></div>
-          {saved && <p className="page-success">{t("profile.saved")}</p>}
-          <button className="page-btn primary" onClick={() => setEditing(true)}>{t("profile.editBtn")}</button>
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -205,12 +177,63 @@ function SubscriptionsSection() {
 
 // ─── SETTINGS SECTION ─────────────────────────────────────────────────────────
 function SettingsSection() {
-  const { user, updateSettings } = useAuth();
+  const { user, updateProfile, uploadAvatar } = useAuth();
   const { t } = useI18n();
-  const [timezone, setTimezone] = useState(user?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
-  const [saved, setSaved]   = useState(false);
+
+  // ── Name / timezone form ──────────────────────────────────────────────────
+  const [firstName, setFirstName] = useState(user?.firstName ?? "");
+  const [lastName,  setLastName]  = useState(user?.lastName  ?? "");
+  const [timezone,  setTimezone]  = useState(user?.timezone  ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [saving,  setSaving]  = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+  const [saved,   setSaved]   = useState(false);
+
+  // ── Avatar upload ──────────────────────────────────────────────────────────
+  const [avatarPreview,   setAvatarPreview]   = useState(null);
+  const [avatarFile,      setAvatarFile]      = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarErr,       setAvatarErr]       = useState("");
+  const [avatarSaved,     setAvatarSaved]     = useState(false);
+  const fileInputRef = useRef(null);
+
+  const currentAvatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
+  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarErr("");
+    setAvatarSaved(false);
+  };
+
+  const handleAvatarSave = async () => {
+    if (!avatarFile) return;
+    setUploadingAvatar(true); setAvatarErr("");
+    try {
+      await uploadAvatar(avatarFile);
+      setAvatarFile(null); setAvatarPreview(null); setAvatarSaved(true);
+      setTimeout(() => setAvatarSaved(false), 3000);
+    } catch (err) { setAvatarErr(err.message); }
+    finally { setUploadingAvatar(false); }
+  };
+
+  const handleAvatarCancel = () => {
+    setAvatarFile(null);
+    if (avatarPreview) { URL.revokeObjectURL(avatarPreview); setAvatarPreview(null); }
+    setAvatarErr("");
+  };
+
+  // ── Save name + timezone ────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true); setSaveErr("");
+    try {
+      await updateProfile(firstName, lastName, timezone);
+      setSaved(true); setTimeout(() => setSaved(false), 3000);
+    } catch (err) { setSaveErr(err.message); }
+    finally { setSaving(false); }
+  };
 
   const gmtOffsets = useMemo(() => {
     const map = {};
@@ -218,24 +241,58 @@ function SettingsSection() {
     return map;
   }, []);
 
-  const handleSave = async () => {
-    setSaving(true); setError("");
-    try {
-      await updateSettings(timezone);
-      setSaved(true); setTimeout(() => setSaved(false), 3000);
-    } catch (err) { setError(err.message); }
-    finally { setSaving(false); }
-  };
-
   const tzLabel = (tz) => {
     const offset = gmtOffsets[tz] ?? "";
     return offset ? `${tz.replace(/_/g, " ")}  (${offset})` : tz.replace(/_/g, " ");
   };
 
+  const displayAvatarSrc = avatarPreview ?? currentAvatarSrc;
+
   return (
     <section className="account-section">
       <h2 className="account-section-title">{t("settings.title")}</h2>
+
+      {/* ── Avatar ── */}
+      <div className="account-avatar-editor">
+        <div className="account-avatar-preview-wrap">
+          {displayAvatarSrc
+            ? <img src={displayAvatarSrc} alt="avatar" className="account-avatar-img-lg" />
+            : <span className="account-avatar-initials-lg">{initials}</span>
+          }
+          {avatarPreview && (
+            <span className="account-avatar-preview-badge">{t("settings.avatarPreview")}</span>
+          )}
+        </div>
+        <div className="account-avatar-editor-actions">
+          <button className="page-btn" onClick={() => fileInputRef.current?.click()}>
+            {t("settings.avatarChange")}
+          </button>
+          {avatarFile && (
+            <>
+              <button className="page-btn primary" onClick={handleAvatarSave} disabled={uploadingAvatar}>
+                {uploadingAvatar ? t("settings.avatarUploading") : t("settings.avatarSave")}
+              </button>
+              <button className="page-btn" onClick={handleAvatarCancel}>{t("profile.cancel")}</button>
+            </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleAvatarChange}
+          />
+          {avatarErr  && <p className="page-error">{avatarErr}</p>}
+          {avatarSaved && <p className="page-success">{t("settings.avatarSaved")}</p>}
+        </div>
+      </div>
+
+      <div className="account-section-divider" />
+
+      {/* ── Name + timezone ── */}
       <div className="user-page-form">
+        <label>{t("profile.firstName")}<input value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
+        <label>{t("profile.lastName")} <input value={lastName}  onChange={(e) => setLastName(e.target.value)} /></label>
         <label>
           {t("settings.timezone")}
           <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
@@ -247,8 +304,8 @@ function SettingsSection() {
           </select>
           <span className="field-hint">{t("settings.browserTz", { tz: Intl.DateTimeFormat().resolvedOptions().timeZone })}</span>
         </label>
-        {error && <p className="page-error">{error}</p>}
-        {saved && <p className="page-success">{t("settings.saved")}</p>}
+        {saveErr && <p className="page-error">{saveErr}</p>}
+        {saved   && <p className="page-success">{t("settings.saved")}</p>}
         <button className="page-btn primary" onClick={handleSave} disabled={saving}>
           {saving ? t("settings.saving") : t("settings.saveBtn")}
         </button>
@@ -280,6 +337,7 @@ export default function AccountPage({ onBack, initialSection = "profile" }) {
   };
 
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
+  const sidebarAvatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
 
   return (
     <div className={`account-page${mobileSectionOpen ? " section-open" : ""}`}>
@@ -288,7 +346,10 @@ export default function AccountPage({ onBack, initialSection = "profile" }) {
       <aside className="account-sidebar">
         <div className="account-user-badge">
           <div className="account-avatar">
-            <span className="account-avatar-initials">{initials}</span>
+            {sidebarAvatarSrc
+              ? <img src={sidebarAvatarSrc} alt={user?.username} className="account-avatar-img" />
+              : <span className="account-avatar-initials">{initials}</span>
+            }
           </div>
           <div className="account-user-text">
             <p className="account-display-name">{user?.firstName} {user?.lastName}</p>

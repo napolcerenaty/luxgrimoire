@@ -32,15 +32,31 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const updateProfile = async (firstName, lastName) => {
+  const updateProfile = async (firstName, lastName, timezone) => {
+    const body = { firstName, lastName };
+    if (timezone !== undefined) body.timezone = timezone;
     const r = await fetch(`${API}/profile`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName }),
+      body: JSON.stringify(body),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "Update failed");
+    setUser(data);
+    return data;
+  };
+
+  const uploadAvatar = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const r = await fetch(`${API}/avatar`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Upload failed");
     setUser(data);
     return data;
   };
@@ -59,7 +75,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings, uploadAvatar }}>
       {children}
     </AuthContext.Provider>
   );
