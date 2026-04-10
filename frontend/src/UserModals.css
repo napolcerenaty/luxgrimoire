@@ -73,7 +73,7 @@
 
 .dropdown-divider {
   border: none;
-  border-top: 1px solid #3a2410;
+  border-top: 1px solid #0c2240;
   margin: 0;
 }
 
@@ -101,7 +101,7 @@
 }
 
 .dropdown-item.logout:hover {
-  background: rgba(160, 60, 40, 0.12);
+  background: rgba(0, 80, 120, 0.12);
   color: #2080a0;
 }
 
@@ -187,7 +187,7 @@
 
 .modal-form input,
 .modal-form select {
-  background: #120c04;
+  background: #080f1c;
   border: 1px solid #0a2040;
   border-radius: 4px;
   color: #90d0e8;
@@ -269,7 +269,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d1a08, #0c2240);
+  background: linear-gradient(135deg, #0a1e38, #0c2240);
   border: 2px solid #183858;
   display: flex;
   align-items: center;
@@ -292,7 +292,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  border-bottom: 1px solid #2a1a08;
+  border-bottom: 1px solid #0e2438;
   padding-bottom: 0.5rem;
   gap: 1rem;
 }

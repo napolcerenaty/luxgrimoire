@@ -28,8 +28,8 @@
 }
 
 .user-page-card {
-  background: #160e06;
-  border: 1px solid #3a2410;
+  background: #080f1c;
+  border: 1px solid #0c2240;
   border-radius: 10px;
   padding: 2.5rem 2rem;
   box-shadow: 0 4px 32px rgba(0,0,0,0.5);
@@ -42,7 +42,7 @@
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d1a08, #0c2240);
+  background: linear-gradient(135deg, #0a1e38, #0c2240);
   border: 2px solid #183858;
   display: flex;
   align-items: center;
@@ -100,7 +100,7 @@
 
 .user-page-form input,
 .user-page-form select {
-  background: #0e0904;
+  background: #060d18;
   border: 1px solid #0a2040;
   border-radius: 5px;
   color: #90d0e8;
@@ -138,7 +138,7 @@
   justify-content: space-between;
   align-items: baseline;
   padding: 0.6rem 0;
-  border-bottom: 1px solid #231508;
+  border-bottom: 1px solid #0a1c30;
   gap: 1rem;
 }
 
@@ -174,18 +174,18 @@
 }
 
 .page-btn:hover {
-  background: rgba(180,120,40,0.12);
+  background: rgba(0,160,200,0.12);
   border-color: #38d4f0;
   color: #38d4f0;
 }
 
 .page-btn.primary {
-  background: rgba(180,120,40,0.18);
+  background: rgba(0,160,200,0.18);
   border-color: #00b4d0;
 }
 
 .page-btn.primary:hover {
-  background: rgba(180,120,40,0.32);
+  background: rgba(0,160,200,0.32);
 }
 
 .page-btn:disabled {

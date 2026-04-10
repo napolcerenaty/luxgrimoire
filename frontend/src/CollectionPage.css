@@ -43,7 +43,7 @@
 
 .collection-table th {
   border-bottom: 2px solid #183858;
-  border-right: 1px solid #2a1a08;
+  border-right: 1px solid #0e2438;
   padding: 0;
   text-align: left;
   white-space: nowrap;
@@ -87,7 +87,7 @@
 .col-filter input,
 .col-filter select {
   width: 100%;
-  background: #1a1208;
+  background: #081828;
   border: 1px solid #0d2840;
   border-radius: 2px;
   color: #c0e4f4;
@@ -104,7 +104,7 @@
 }
 
 .col-filter select option {
-  background: #1a1208;
+  background: #081828;
 }
 
 .collection-table tbody tr {
@@ -113,7 +113,7 @@
 }
 
 .collection-table tbody tr:hover {
-  background: #1a1208;
+  background: #081828;
 }
 
 .collection-table td {
