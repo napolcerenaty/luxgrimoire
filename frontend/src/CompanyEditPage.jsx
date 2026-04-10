@@ -182,20 +182,33 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
         <div className="company-edit-section">
           <h3 className="company-edit-section-title">{t("company.managers")}</h3>
           <p className="company-edit-section-note">{t("company.managersNote")}</p>
-          {form.managerUsernames.map((mgr, idx) => (
-            <div key={idx} className="company-edit-dynamic-row">
-              <input
-                className="company-edit-input company-edit-url-input"
-                value={mgr}
-                placeholder={t("company.managerPlaceholder")}
-                onChange={(e) => setMgr(idx, e.target.value)}
-              />
-              <button className="company-edit-remove-btn" type="button" onClick={() => removeMgr(idx)}>&#x2715;</button>
-            </div>
-          ))}
-          <button className="company-edit-add-btn" type="button" onClick={addMgr}>
-            {t("company.addManager")}
-          </button>
+          {user?.username === "admin" ? (
+            <>
+              {form.managerUsernames.map((mgr, idx) => (
+                <div key={idx} className="company-edit-dynamic-row">
+                  <input
+                    className="company-edit-input company-edit-url-input"
+                    value={mgr}
+                    placeholder={t("company.managerPlaceholder")}
+                    onChange={(e) => setMgr(idx, e.target.value)}
+                  />
+                  <button className="company-edit-remove-btn" type="button" onClick={() => removeMgr(idx)}>&#x2715;</button>
+                </div>
+              ))}
+              <button className="company-edit-add-btn" type="button" onClick={addMgr}>
+                {t("company.addManager")}
+              </button>
+            </>
+          ) : (
+            <ul className="company-edit-managers-readonly">
+              {form.managerUsernames.length === 0
+                ? <li className="company-edit-managers-empty">{t("company.managersEmpty")}</li>
+                : form.managerUsernames.map((mgr, idx) => (
+                    <li key={idx} className="company-edit-manager-item">&#128100; {mgr}</li>
+                  ))
+              }
+            </ul>
+          )}
         </div>
 
         <div className="company-edit-form-actions">

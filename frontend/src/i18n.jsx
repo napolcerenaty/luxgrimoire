@@ -151,6 +151,7 @@ const T = {
       managersNote:      "Admin ma zawsze dost\u0119p. Dodaj nazwy u\u017cytkownik\u00f3w, kt\u00f3rzy mog\u0105 edytowa\u0107 t\u0119 firm\u0119.",
       addManager:        "Dodaj mened\u017cera",
       managerPlaceholder:"Nazwa u\u017cytkownika",
+      managersEmpty:     "Brak dodatkowych mened\u017cer\u00f3w",
     },
     search: {
       placeholder:   "Szukaj tytułu, autora\u2026",
@@ -282,6 +283,7 @@ const T = {
       managersNote:      "Admin always has access. Add usernames of users who can edit this company.",
       addManager:        "Add Manager",
       managerPlaceholder:"Username",
+      managersEmpty:     "No additional managers",
     },
     search: {
       placeholder:   "Search title, author\u2026",
@@ -413,6 +415,7 @@ const T = {
       managersNote:      "Admin hat immer Zugriff. F\u00fcge Benutzernamen hinzu, die dieses Unternehmen bearbeiten d\u00fcrfen.",
       addManager:        "Manager hinzuf\u00fcgen",
       managerPlaceholder:"Benutzername",
+      managersEmpty:     "Keine weiteren Manager",
     },
     search: {
       placeholder:   "Titel, Autor suchen\u2026",
@@ -544,6 +547,7 @@ const T = {
       managersNote:      "L'admin a toujours acc\u00e8s. Ajoutez les noms d'utilisateurs pouvant modifier cette soci\u00e9t\u00e9.",
       addManager:        "Ajouter un gestionnaire",
       managerPlaceholder:"Nom d'utilisateur",
+      managersEmpty:     "Aucun gestionnaire suppl\u00e9mentaire",
     },
     search: {
       placeholder:   "Rechercher titre, auteur\u2026",
@@ -675,6 +679,7 @@ const T = {
       managersNote:      "El admin siempre tiene acceso. A\u00f1ade nombres de usuario que puedan editar esta empresa.",
       addManager:        "A\u00f1adir gestor",
       managerPlaceholder:"Nombre de usuario",
+      managersEmpty:     "Sin gestores adicionales",
     },
     search: {
       placeholder:   "Buscar t\u00edtulo, autor\u2026",
