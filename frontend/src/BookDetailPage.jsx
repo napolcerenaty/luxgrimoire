@@ -4,7 +4,7 @@ import BookCarousel from "./BookCarousel";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 
-export default function BookDetailPage({ bookTitle, onBack, onEdit, onEditEdition, onNewEdition, onNavigateNew, onCompanyClick }) {
+export default function BookDetailPage({ bookId, onBack, onEdit, onEditEdition, onNewEdition, onNavigateNew, onCompanyClick }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [book, setBook] = useState(null);
@@ -21,11 +21,11 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onEditEditio
   const [confirmDupe, setConfirmDupe] = useState(null); // { editionId, count }
 
   useEffect(() => {
-    if (!bookTitle) return;
+    if (!bookId) return;
     setLoading(true);
     setNotFound(false);
     setBook(null);
-    fetch(`http://localhost:8080/api/book-details/by-title?title=${encodeURIComponent(bookTitle)}`, {
+    fetch(`http://localhost:8080/api/book-details/${encodeURIComponent(bookId)}`, {
       credentials: "include",
     })
       .then((res) => {
@@ -35,7 +35,7 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onEditEditio
       })
       .then((data) => { if (data) { setBook(data); setLoading(false); } })
       .catch(() => { setNotFound(true); setLoading(false); });
-  }, [bookTitle]);
+  }, [bookId]);
 
   useEffect(() => {
     fetch("http://localhost:8080/api/companies", { credentials: "include" })

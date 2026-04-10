@@ -15,28 +15,33 @@ import CompanyPage from "./CompanyPage";
 import CompanyEditPage from "./CompanyEditPage";
 
 function BookCard({ book, onClick }) {
+  const coverUrl = book.editions?.[0]?.imageUrls?.[0]
+    || "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
+  const seriesLabel = book.seriesName
+    ? `${book.seriesName}${book.volumeNumber ? ` #${book.volumeNumber}` : ""}`
+    : null;
+
   return (
     <article
       className={`book-card${onClick ? " book-card--clickable" : ""}`}
-      onClick={onClick ? () => onClick(book.title) : undefined}
+      onClick={onClick ? () => onClick(book.id) : undefined}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(book.title) : undefined}
+      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(book.id) : undefined}
     >
       <div className="book-cover">
         <img
-          src={book.imageUrl}
+          src={coverUrl}
           alt={`Cover of ${book.title}`}
           onError={(e) => {
             e.target.src = "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
           }}
         />
-        <span className="book-genre-badge">{book.genre}</span>
+        {seriesLabel && <span className="book-genre-badge">{seriesLabel}</span>}
       </div>
       <div className="book-info">
         <h2 className="book-title">{book.title}</h2>
         <p className="book-author">{book.author}</p>
-        <p className="book-description">{book.description}</p>
       </div>
     </article>
   );
@@ -50,7 +55,7 @@ function AppInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBookTitle, setSelectedBookTitle] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
   const [editingEdition, setEditingEdition] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -58,12 +63,12 @@ function AppInner() {
 
   const [prevTab, setPrevTab] = useState("browse");
 
-  const handleBookClick = (title) => { setSelectedBookTitle(title); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
+  const handleBookClick = (bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
   const handleEditBook = (book) => { setEditingBook(book); setEditingEdition(null); setTab("book-edit"); };
   const handleEditEdition = (book, edition) => { setEditingBook(book); setEditingEdition(edition); setTab("book-edit"); };
   const handleNewEdition = (book) => { setEditingBook(book); setEditingEdition("new"); setTab("book-edit"); };
   const handleNewBook = () => { setEditingBook(null); setEditingEdition(null); setTab("book-edit"); };
-  const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
+  const handleBookSaved = (saved) => { setSelectedBookId(saved.id); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
 
   const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
   const handleNewCompany = () => { setEditingCompany(null); setTab("company-edit"); };
@@ -71,7 +76,7 @@ function AppInner() {
   const handleCompanySaved = (saved) => { setSelectedCompany(saved); setTab("company-detail"); };
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/books")
+    fetch("http://localhost:8080/api/book-details")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         return res.json();
@@ -89,7 +94,7 @@ function AppInner() {
         return (
           b.title?.toLowerCase().includes(q) ||
           b.author?.toLowerCase().includes(q) ||
-          b.description?.toLowerCase().includes(q)
+          b.seriesName?.toLowerCase().includes(q)
         );
       })
     : books;
@@ -206,7 +211,7 @@ function AppInner() {
         )}
         {tab === "book-detail" && (
           <BookDetailPage
-            bookTitle={selectedBookTitle}
+            bookId={selectedBookId}
             onBack={() => setTab(prevTab)}
             onEdit={handleEditBook}
             onEditEdition={handleEditEdition}
