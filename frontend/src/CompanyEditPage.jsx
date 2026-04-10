@@ -2,6 +2,29 @@ import { useState } from "react";
 import "./CompanyEditPage.css";
 import { useI18n } from "./i18n";
 
+function emptyMonth() {
+  return {
+    id: crypto.randomUUID(),
+    imageUrl: "",
+    theme: "",
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    bookId: null,
+  };
+}
+
+function normalizeMonth(m) {
+  if (!m || typeof m !== "object") return emptyMonth();
+  return {
+    id: m.id || crypto.randomUUID(),
+    imageUrl: m.imageUrl || "",
+    theme: m.theme || "",
+    month: m.month || 1,
+    year: m.year || new Date().getFullYear(),
+    bookId: m.bookId || null,
+  };
+}
+
 function emptySub() {
   return {
     id: crypto.randomUUID(),
@@ -13,12 +36,13 @@ function emptySub() {
     type: "MONTHLY",
     genres: [],
     bookishMerch: false,
+    months: [],
   };
 }
 
 function normalizeSub(sub) {
   if (typeof sub === "string") {
-    return { id: crypto.randomUUID(), name: sub, logoUrl: "", basePrice: "", shipsInternationally: true, shippingCountries: [], type: "MONTHLY", genres: [], bookishMerch: false };
+    return { id: crypto.randomUUID(), name: sub, logoUrl: "", basePrice: "", shipsInternationally: true, shippingCountries: [], type: "MONTHLY", genres: [], bookishMerch: false, months: [] };
   }
   return {
     id: sub.id || crypto.randomUUID(),
@@ -30,6 +54,7 @@ function normalizeSub(sub) {
     type: sub.type || "MONTHLY",
     genres: sub.genres ? [...sub.genres] : [],
     bookishMerch: !!sub.bookishMerch,
+    months: sub.months ? sub.months.map(normalizeMonth) : [],
   };
 }
 
@@ -142,6 +167,61 @@ function SubCard({ sub, idx, t, onChange, onRemove }) {
             <input type="checkbox" checked={sub.bookishMerch} onChange={(e) => setField("bookishMerch", e.target.checked)} />
             {t("company.sub.bookishMerch")}
           </label>
+
+          <div className="sub-card-sublist sub-months-section">
+            <span className="company-edit-label">{t("company.sub.months")}</span>
+            {(sub.months || []).map((mo, mi) => (
+              <div key={mo.id || mi} className="sub-month-row">
+                <div className="sub-month-fields">
+                  <select
+                    className="company-edit-select sub-month-select"
+                    value={mo.month}
+                    onChange={(e) => {
+                      const arr = [...sub.months]; arr[mi] = { ...arr[mi], month: Number(e.target.value) };
+                      setField("months", arr);
+                    }}
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                      <option key={n} value={n}>{t("bookDetail.months")[n - 1] || n}</option>
+                    ))}
+                  </select>
+                  <input
+                    className="company-edit-input sub-month-year"
+                    type="number" min="2000" max="2100"
+                    value={mo.year}
+                    onChange={(e) => {
+                      const arr = [...sub.months]; arr[mi] = { ...arr[mi], year: Number(e.target.value) };
+                      setField("months", arr);
+                    }}
+                  />
+                  <input
+                    className="company-edit-input sub-month-theme"
+                    value={mo.theme}
+                    placeholder={t("company.sub.monthTheme")}
+                    onChange={(e) => {
+                      const arr = [...sub.months]; arr[mi] = { ...arr[mi], theme: e.target.value };
+                      setField("months", arr);
+                    }}
+                  />
+                  <input
+                    className="company-edit-input sub-month-image"
+                    value={mo.imageUrl}
+                    placeholder={t("company.sub.monthImage")}
+                    onChange={(e) => {
+                      const arr = [...sub.months]; arr[mi] = { ...arr[mi], imageUrl: e.target.value };
+                      setField("months", arr);
+                    }}
+                  />
+                </div>
+                <button className="company-edit-remove-btn" type="button" onClick={() => {
+                  setField("months", sub.months.filter((_, i) => i !== mi));
+                }}>&#x2715;</button>
+              </div>
+            ))}
+            <button className="company-edit-add-btn" type="button" onClick={() =>
+              setField("months", [...(sub.months || []), emptyMonth()])
+            }>{t("company.sub.addMonth")}</button>
+          </div>
         </div>
       )}
     </div>

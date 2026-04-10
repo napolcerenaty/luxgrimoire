@@ -12,6 +12,7 @@ function emptyForm() {
     volumeNumber: "",
     subscriptionName: "",
     subscriptionId: "",
+    subscriptionMonthId: "",
     publisher: "",
     subscriptionMonth: "",
     subscriptionYear: "",
@@ -38,6 +39,7 @@ function toForm(data) {
     volumeNumber: data.volumeNumber || "",
     subscriptionName: data.subscriptionName || "",
     subscriptionId: data.subscriptionId || "",
+    subscriptionMonthId: data.subscriptionMonthId || "",
     publisher: data.publisher || "",
     subscriptionMonth: data.subscriptionMonth != null ? String(data.subscriptionMonth) : "",
     subscriptionYear: data.subscriptionYear != null ? String(data.subscriptionYear) : "",
@@ -52,6 +54,7 @@ function toForm(data) {
     bookBoxCompanyCustomName: data.bookBoxCompanyCustomName || "",
     _companySelect: data.bookBoxCompanyId ? data.bookBoxCompanyId : (data.bookBoxCompanyCustomName ? "custom" : ""),
     _subscriptionSelect: data.subscriptionId ? data.subscriptionId : (data.subscriptionName ? "custom" : ""),
+    _monthSelect: data.subscriptionMonthId || "",
   };
 }
 
@@ -98,6 +101,7 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
       volumeNumber: form.volumeNumber || null,
       subscriptionName: form.subscriptionName || null,
       subscriptionId: form.subscriptionId || null,
+      subscriptionMonthId: form.subscriptionMonthId || null,
       publisher: form.publisher || null,
       subscriptionMonth: form.subscriptionMonth ? parseInt(form.subscriptionMonth, 10) : null,
       subscriptionYear: form.subscriptionYear ? parseInt(form.subscriptionYear, 10) : null,
@@ -146,6 +150,10 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
   const companySubs = selectedCompany && Array.isArray(selectedCompany.subscriptions)
     ? selectedCompany.subscriptions
     : [];
+  const selectedSub = form._subscriptionSelect && form._subscriptionSelect !== "custom"
+    ? companySubs.find((s) => s.id === form._subscriptionSelect) || null
+    : null;
+  const subMonths = selectedSub && Array.isArray(selectedSub.months) ? selectedSub.months : [];
 
   return (
     <div className="edit-page">
@@ -186,9 +194,9 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "") {
-                      setForm((f) => ({ ...f, _subscriptionSelect: "", subscriptionId: "", subscriptionName: "" }));
+                      setForm((f) => ({ ...f, _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
                     } else if (val === "custom") {
-                      setForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "" }));
+                      setForm((f) => ({ ...f, _subscriptionSelect: "custom", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
                     } else {
                       const found = companySubs.find((s) => s.id === val);
                       setForm((f) => ({
@@ -196,6 +204,8 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
                         _subscriptionSelect: val,
                         subscriptionId: val,
                         subscriptionName: found ? found.name : "",
+                        _monthSelect: "",
+                        subscriptionMonthId: "",
                       }));
                     }
                   }}
@@ -220,6 +230,37 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
               <input className="edit-input" value={form.subscriptionName} onChange={(e) => set("subscriptionName", e.target.value)} />
             )}
           </label>
+          {subMonths.length > 0 && (
+            <label className="edit-label edit-label--full">
+              {t("company.sub.monthSelect")}
+              <select
+                className="edit-select"
+                value={form._monthSelect}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setForm((f) => ({ ...f, _monthSelect: "", subscriptionMonthId: "", subscriptionMonth: "", subscriptionYear: "" }));
+                  } else {
+                    const mo = subMonths.find((m) => m.id === val);
+                    setForm((f) => ({
+                      ...f,
+                      _monthSelect: val,
+                      subscriptionMonthId: val,
+                      subscriptionMonth: mo ? String(mo.month) : f.subscriptionMonth,
+                      subscriptionYear: mo ? String(mo.year) : f.subscriptionYear,
+                    }));
+                  }
+                }}
+              >
+                <option value="">{t("company.sub.noMonth")}</option>
+                {subMonths.map((mo) => {
+                  const mName = (monthsArr[mo.month - 1] || mo.month) + " " + mo.year;
+                  const label = mo.theme ? `${mName} — ${mo.theme}` : mName;
+                  return <option key={mo.id} value={mo.id}>{label}</option>;
+                })}
+              </select>
+            </label>
+          )}
           <label className="edit-label">
             {t("bookDetail.publisher")}
             <input className="edit-input" value={form.publisher} onChange={(e) => set("publisher", e.target.value)} />

@@ -135,6 +135,29 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                           {subObj.basePrice} {company.defaultCurrency || ""}
                         </p>
                       )}
+                      {subObj.months && subObj.months.length > 0 && (
+                        <div className="company-page-sub-months">
+                          <span className="company-page-sub-months-title">{t("company.sub.months")}</span>
+                          <div className="company-page-sub-months-list">
+                            {subObj.months.map((mo, mi) => {
+                              const mName = (Array.isArray(t("bookDetail.months")) ? t("bookDetail.months")[mo.month - 1] : mo.month) + " " + mo.year;
+                              return (
+                                <div key={mo.id || mi} className={`company-page-sub-month${mo.bookId ? " has-book" : ""}`}>
+                                  {mo.imageUrl && (
+                                    <img className="company-page-sub-month-img" src={mo.imageUrl} alt={mo.theme || mName}
+                                      onError={(e) => { e.target.style.display = "none"; }} />
+                                  )}
+                                  <div className="company-page-sub-month-info">
+                                    <span className="company-page-sub-month-date">{mName}</span>
+                                    {mo.theme && <span className="company-page-sub-month-theme">{mo.theme}</span>}
+                                    {mo.bookId && <span className="company-page-sub-month-book-badge">📖</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

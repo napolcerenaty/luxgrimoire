@@ -15,11 +15,13 @@ public class Subscription {
     private String type;
     private List<String> genres;
     private boolean bookishMerch;
+    private List<SubscriptionMonth> months;
 
     public Subscription() {
         this.id = UUID.randomUUID().toString();
         this.shippingCountries = new ArrayList<>();
         this.genres = new ArrayList<>();
+        this.months = new ArrayList<>();
     }
 
     public String getId() { return id; }
@@ -52,4 +54,9 @@ public class Subscription {
 
     public boolean isBookishMerch() { return bookishMerch; }
     public void setBookishMerch(boolean bookishMerch) { this.bookishMerch = bookishMerch; }
+
+    public List<SubscriptionMonth> getMonths() { return months; }
+    public void setMonths(List<SubscriptionMonth> months) {
+        this.months = months != null ? months : new ArrayList<>();
+    }
 }

@@ -1,6 +1,9 @@
 package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.BookDetail;
+import com.luxgrimoire.backend.model.Subscription;
+import com.luxgrimoire.backend.model.SubscriptionMonth;
+import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.BookDetailStore;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +17,11 @@ import java.util.List;
 public class BookDetailController {
 
     private final BookDetailStore store;
+    private final BookBoxCompanyStore companyStore;
 
-    public BookDetailController(BookDetailStore store) {
+    public BookDetailController(BookDetailStore store, BookBoxCompanyStore companyStore) {
         this.store = store;
+        this.companyStore = companyStore;
     }
 
     @GetMapping
@@ -45,6 +50,7 @@ public class BookDetailController {
             return ResponseEntity.status(401).build();
         }
         BookDetail saved = store.save(detail);
+        linkBookToMonth(saved);
         return ResponseEntity.ok(saved);
     }
 
@@ -54,8 +60,15 @@ public class BookDetailController {
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
+        // Clear old month link if subscriptionMonthId changed
+        store.findById(id).ifPresent(old -> {
+            if (old.getSubscriptionMonthId() != null
+                    && !old.getSubscriptionMonthId().equals(detail.getSubscriptionMonthId())) {
+                unlinkBookFromMonth(old.getSubscriptionMonthId());
+            }
+        });
         return store.update(id, detail)
-                .map(ResponseEntity::ok)
+                .map(updated -> { linkBookToMonth(updated); return ResponseEntity.ok(updated); })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -65,10 +78,41 @@ public class BookDetailController {
         if (!"admin".equals(username)) {
             return ResponseEntity.status(403).build();
         }
+        store.findById(id).ifPresent(book -> {
+            if (book.getSubscriptionMonthId() != null) {
+                unlinkBookFromMonth(book.getSubscriptionMonthId());
+            }
+        });
         boolean removed = store.delete(id);
         if (!removed) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    /** Set month.bookId = book.id when book is linked to a subscription month. */
+    private void linkBookToMonth(BookDetail book) {
+        if (book.getSubscriptionMonthId() == null || book.getBookBoxCompanyId() == null) return;
+        companyStore.findById(book.getBookBoxCompanyId()).ifPresent(company ->
+            company.getSubscriptions().stream()
+                .filter(s -> book.getSubscriptionId() != null && book.getSubscriptionId().equals(s.getId()))
+                .findFirst()
+                .ifPresent(sub -> sub.getMonths().stream()
+                    .filter(m -> book.getSubscriptionMonthId().equals(m.getId()))
+                    .findFirst()
+                    .ifPresent(m -> m.setBookId(book.getId())))
+        );
+    }
+
+    /** Clear month.bookId when a book is unlinked from a subscription month. */
+    private void unlinkBookFromMonth(String monthId) {
+        companyStore.findAll().forEach(company ->
+            company.getSubscriptions().forEach(sub ->
+                sub.getMonths().stream()
+                    .filter(m -> monthId.equals(m.getId()))
+                    .findFirst()
+                    .ifPresent(m -> m.setBookId(null))
+            )
+        );
     }
 }

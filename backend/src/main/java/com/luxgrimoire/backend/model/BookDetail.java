@@ -24,6 +24,7 @@ public class BookDetail {
     private String bookBoxCompanyId;
     private String bookBoxCompanyCustomName;
     private String subscriptionId;
+    private String subscriptionMonthId;
 
     public BookDetail() {
         this.imageUrls = new ArrayList<>();
@@ -109,4 +110,7 @@ public class BookDetail {
 
     public String getSubscriptionId() { return subscriptionId; }
     public void setSubscriptionId(String subscriptionId) { this.subscriptionId = subscriptionId; }
+
+    public String getSubscriptionMonthId() { return subscriptionMonthId; }
+    public void setSubscriptionMonthId(String subscriptionMonthId) { this.subscriptionMonthId = subscriptionMonthId; }
 }

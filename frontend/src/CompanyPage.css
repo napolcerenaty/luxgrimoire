@@ -229,3 +229,70 @@
   font-weight: 600;
   margin: 0;
 }
+
+/* ── Subscription months ─────────────────────────────────────────────── */
+
+.company-page-sub-months {
+  margin-top: 0.6rem;
+  border-top: 1px solid #0d2840;
+  padding-top: 0.5rem;
+}
+
+.company-page-sub-months-title {
+  font-size: 0.8rem;
+  color: #547898;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.company-page-sub-months-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.company-page-sub-month {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #060d18;
+  border: 1px solid #0d2840;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem 0.3rem 0.4rem;
+}
+
+.company-page-sub-month.has-book {
+  border-color: #1a4060;
+}
+
+.company-page-sub-month-img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.company-page-sub-month-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.company-page-sub-month-date {
+  font-size: 0.82rem;
+  color: #c0e4f4;
+  font-weight: 600;
+}
+
+.company-page-sub-month-theme {
+  font-size: 0.76rem;
+  color: #90d0e8;
+  font-style: italic;
+}
+
+.company-page-sub-month-book-badge {
+  font-size: 0.72rem;
+}

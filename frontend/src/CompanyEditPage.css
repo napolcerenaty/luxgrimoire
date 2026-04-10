@@ -328,3 +328,49 @@
   cursor: pointer;
 }
 
+
+/* ── Subscription months ────────────────────────────────────────────── */
+
+.sub-months-section {
+  margin-top: 0.8rem;
+  border-top: 1px solid #0d2840;
+  padding-top: 0.6rem;
+}
+
+.sub-month-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+  background: #060d18;
+  border: 1px solid #0d2840;
+  border-radius: 6px;
+  padding: 0.5rem 0.5rem 0.5rem 0.7rem;
+}
+
+.sub-month-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.sub-month-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.sub-month-year {
+  width: 75px;
+  flex-shrink: 0;
+}
+
+.sub-month-theme {
+  flex: 1;
+  min-width: 120px;
+}
+
+.sub-month-image {
+  flex: 2;
+  min-width: 150px;
+}
