@@ -5,6 +5,8 @@ import { AuthProvider } from "./AuthContext";
 import UserMenu from "./UserMenu";
 import ProfilePage from "./ProfilePage";
 import SettingsPage from "./SettingsPage";
+import { I18nProvider, useI18n } from "./i18n";
+import LanguagePicker from "./LanguagePicker";
 
 function BookCard({ book }) {
   return (
@@ -28,7 +30,8 @@ function BookCard({ book }) {
   );
 }
 
-function App() {
+function AppInner() {
+  const { t } = useI18n();
   const [tab, setTab] = useState("browse");
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,65 +50,74 @@ function App() {
   const isUserPage = tab === "profile" || tab === "settings";
 
   return (
-    <AuthProvider>
-      <div className="app">
-        <header className="header">
-          <div className="header-user-area">
-            <UserMenu onNavigate={setTab} />
-          </div>
-          <h1 className="header-title">✦ LuxGrimoire ✦</h1>
-          <p className="header-subtitle">A curated collection of extraordinary books</p>
-          {!isUserPage && (
-            <nav className="nav-tabs">
-              <button
-                className={`nav-tab${tab === "browse" ? " active" : ""}`}
-                onClick={() => setTab("browse")}
-              >
-                📚 Przeglądaj
-              </button>
-              <button
-                className={`nav-tab${tab === "collection" ? " active" : ""}`}
-                onClick={() => setTab("collection")}
-              >
-                📋 Moja kolekcja
-              </button>
-            </nav>
-          )}
-        </header>
+    <div className="app">
+      <header className="header">
+        <div className="header-user-area">
+          <LanguagePicker />
+          <UserMenu onNavigate={setTab} />
+        </div>
+        <h1 className="header-title">✦ LuxGrimoire ✦</h1>
+        <p className="header-subtitle">{t("app.subtitle")}</p>
+        {!isUserPage && (
+          <nav className="nav-tabs">
+            <button
+              className={`nav-tab${tab === "browse" ? " active" : ""}`}
+              onClick={() => setTab("browse")}
+            >
+              {t("nav.browse")}
+            </button>
+            <button
+              className={`nav-tab${tab === "collection" ? " active" : ""}`}
+              onClick={() => setTab("collection")}
+            >
+              {t("nav.collection")}
+            </button>
+          </nav>
+        )}
+      </header>
 
-        <main>
-          {tab === "browse" && (
-            loading ? (
-              <div className="status-container">
-                <div className="spinner" />
-                <span>Loading the collection…</span>
+      <main>
+        {tab === "browse" && (
+          loading ? (
+            <div className="status-container">
+              <div className="spinner" />
+              <span>{t("browse.loading")}</span>
+            </div>
+          ) : error ? (
+            <div className="status-container">
+              <p className="error-text">{t("browse.error", { msg: error })}</p>
+              <p>{t("browse.errorHint")}</p>
+            </div>
+          ) : (
+            <>
+              <h2 className="section-title">{t("browse.sectionTitle")}</h2>
+              <div className="book-grid">
+                {books.map((book) => (
+                  <BookCard key={book.id} book={book} />
+                ))}
               </div>
-            ) : error ? (
-              <div className="status-container">
-                <p className="error-text">⚠ Could not load books: {error}</p>
-                <p>Make sure the Spring Boot backend is running on port 8080.</p>
-              </div>
-            ) : (
-              <>
-                <h2 className="section-title">Our Collection</h2>
-                <div className="book-grid">
-                  {books.map((book) => (
-                    <BookCard key={book.id} book={book} />
-                  ))}
-                </div>
-              </>
-            )
-          )}
-          {tab === "collection" && <CollectionPage />}
-          {tab === "profile"    && <ProfilePage  onBack={() => setTab("browse")} />}
-          {tab === "settings"   && <SettingsPage onBack={() => setTab("browse")} />}
-        </main>
+            </>
+          )
+        )}
+        {tab === "collection" && <CollectionPage />}
+        {tab === "profile"    && <ProfilePage  onBack={() => setTab("browse")} />}
+        {tab === "settings"   && <SettingsPage onBack={() => setTab("browse")} />}
+      </main>
 
-        <footer className="footer">
-          &copy; {new Date().getFullYear()} LuxGrimoire — All rights reserved
-        </footer>
-      </div>
-    </AuthProvider>
+      <footer className="footer">
+        &copy; {new Date().getFullYear()} {t("app.footer")}
+      </footer>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <I18nProvider>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
+    </I18nProvider>
   );
 }
 

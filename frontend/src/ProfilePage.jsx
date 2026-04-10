@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "./AuthContext";
+import { useI18n } from "./i18n";
 import "./UserPages.css";
 
 export default function ProfilePage({ onBack }) {
   const { user, updateProfile } = useAuth();
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName]   = useState(user?.lastName  ?? "");
@@ -35,7 +37,7 @@ export default function ProfilePage({ onBack }) {
 
   return (
     <div className="user-page">
-      <button className="back-btn" onClick={onBack}>← Wróć</button>
+      <button className="back-btn" onClick={onBack}>{t("back")}</button>
 
       <div className="user-page-card">
         <div className="page-avatar">
@@ -45,48 +47,48 @@ export default function ProfilePage({ onBack }) {
           </span>
         </div>
 
-        <h2 className="user-page-title">Profil użytkownika</h2>
+        <h2 className="user-page-title">{t("profile.title")}</h2>
         <p className="user-page-username">@{user?.username}</p>
 
         {editing ? (
           <div className="user-page-form">
             <label>
-              Imię
+              {t("profile.firstName")}
               <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
             </label>
             <label>
-              Nazwisko
+              {t("profile.lastName")}
               <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </label>
             {error && <p className="page-error">{error}</p>}
             <div className="page-btn-row">
               <button className="page-btn primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Zapisywanie…" : "Zapisz zmiany"}
+                {saving ? t("profile.saving") : t("profile.saveBtn")}
               </button>
-              <button className="page-btn" onClick={handleCancel}>Anuluj</button>
+              <button className="page-btn" onClick={handleCancel}>{t("profile.cancel")}</button>
             </div>
           </div>
         ) : (
           <div className="user-page-form">
             <div className="profile-row">
-              <span className="profile-row-label">Imię</span>
+              <span className="profile-row-label">{t("profile.firstName")}</span>
               <span className="profile-row-value">{user?.firstName}</span>
             </div>
             <div className="profile-row">
-              <span className="profile-row-label">Nazwisko</span>
+              <span className="profile-row-label">{t("profile.lastName")}</span>
               <span className="profile-row-value">{user?.lastName}</span>
             </div>
             <div className="profile-row">
-              <span className="profile-row-label">Użytkownik</span>
+              <span className="profile-row-label">{t("profile.username")}</span>
               <span className="profile-row-value">{user?.username}</span>
             </div>
             <div className="profile-row">
-              <span className="profile-row-label">Strefa czasowa</span>
+              <span className="profile-row-label">{t("profile.timezone")}</span>
               <span className="profile-row-value">{user?.timezone}</span>
             </div>
-            {saved && <p className="page-success">✓ Zmiany zostały zapisane</p>}
+            {saved && <p className="page-success">{t("profile.saved")}</p>}
             <button className="page-btn primary" onClick={() => setEditing(true)}>
-              ✎ Edytuj profil
+              {t("profile.editBtn")}
             </button>
           </div>
         )}

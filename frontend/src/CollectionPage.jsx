@@ -7,6 +7,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import "./CollectionPage.css";
+import { useI18n } from "./i18n";
 
 function BoolCell({ value }) {
   return value ? (
@@ -16,27 +17,27 @@ function BoolCell({ value }) {
   );
 }
 
-function BoolFilter({ column }) {
+function BoolFilter({ column, t }) {
   const val = column.getFilterValue() ?? "";
   return (
     <div className="col-filter">
       <select value={val} onChange={(e) => column.setFilterValue(e.target.value || undefined)}>
-        <option value="">All</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
+        <option value="">{t("col.all")}</option>
+        <option value="true">{t("col.yes")}</option>
+        <option value="false">{t("col.no")}</option>
       </select>
     </div>
   );
 }
 
-function TextFilter({ column }) {
+function TextFilter({ column, t }) {
   const val = column.getFilterValue() ?? "";
   return (
     <div className="col-filter">
       <input
         value={val}
         onChange={(e) => column.setFilterValue(e.target.value || undefined)}
-        placeholder="Filter…"
+        placeholder={t("col.filterHint")}
       />
     </div>
   );
@@ -48,6 +49,7 @@ const boolFilterFn = (row, columnId, filterValue) => {
 };
 
 export default function CollectionPage() {
+  const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,67 +67,18 @@ export default function CollectionPage() {
   }, []);
 
   const columns = useMemo(() => [
-    {
-      accessorKey: "language",
-      header: "Language",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "author",
-      header: "Author",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "title",
-      header: "Title",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "series",
-      header: "Series",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "volume",
-      header: "Vol.",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "edition",
-      header: "Edition",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "features",
-      header: "Features",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-    {
-      accessorKey: "read",
-      header: "Read",
-      cell: (info) => <BoolCell value={info.getValue()} />,
-      filterFn: boolFilterFn,
-    },
-    {
-      accessorKey: "forSale",
-      header: "For Sale",
-      cell: (info) => <BoolCell value={info.getValue()} />,
-      filterFn: boolFilterFn,
-    },
-    {
-      accessorKey: "notes",
-      header: "Notes",
-      cell: (info) => info.getValue(),
-      filterFn: "includesString",
-    },
-  ], []);
+    { accessorKey: "language", header: t("col.language"), cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "author",   header: t("col.author"),   cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "title",    header: t("col.title"),    cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "series",   header: t("col.series"),   cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "volume",   header: t("col.volume"),   cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "edition",  header: t("col.edition"),  cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "features", header: t("col.features"), cell: (i) => i.getValue(), filterFn: "includesString" },
+    { accessorKey: "read",    header: t("col.read"),    cell: (i) => <BoolCell value={i.getValue()} />, filterFn: boolFilterFn },
+    { accessorKey: "forSale", header: t("col.forSale"), cell: (i) => <BoolCell value={i.getValue()} />, filterFn: boolFilterFn },
+    { accessorKey: "notes",    header: t("col.notes"),    cell: (i) => i.getValue(), filterFn: "includesString" },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t]);
 
   const table = useReactTable({
     data,
@@ -143,12 +96,13 @@ export default function CollectionPage() {
   if (loading) return (
     <div className="status-container">
       <div className="spinner" />
-      <span>Loading collection…</span>
+      <span>{t("col.loading")}</span>
     </div>
   );
   if (error) return (
     <div className="status-container">
-      <p className="error-text">⚠ Could not load collection: {error}</p>
+      <p className="error-text">{t("col.error", { msg: error })}</p>
+      <p>{t("col.errorHint")}</p>
     </div>
   );
 
@@ -157,7 +111,7 @@ export default function CollectionPage() {
   return (
     <div className="collection-page">
       <p className="collection-meta">
-        Showing <span>{filteredCount}</span> of <span>{data.length}</span> entries
+        {t("col.showing", { filtered: filteredCount, total: data.length })}
       </p>
       <div className="collection-table-wrapper">
         <table className="collection-table">
@@ -168,7 +122,7 @@ export default function CollectionPage() {
                   const isBool = boolCols.has(header.column.id);
                   const sorted = header.column.getIsSorted();
                   return (
-                    <th key={header.id} className={`col-${header.column.id.toLowerCase().replace("forsale","forsale")}`}>
+                    <th key={header.id} className={`col-${header.column.id.toLowerCase()}`}>
                       <button
                         className="col-header-btn"
                         onClick={header.column.getToggleSortingHandler()}
@@ -178,8 +132,8 @@ export default function CollectionPage() {
                         {sorted === "desc" && <span className="sort-arrow">▼</span>}
                       </button>
                       {isBool
-                        ? <BoolFilter column={header.column} />
-                        : <TextFilter column={header.column} />
+                        ? <BoolFilter column={header.column} t={t} />
+                        : <TextFilter column={header.column} t={t} />
                       }
                     </th>
                   );

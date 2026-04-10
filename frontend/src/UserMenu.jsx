@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { useI18n } from "./i18n";
 import LoginModal from "./LoginModal";
 import "./UserModals.css";
 
 export default function UserMenu({ onNavigate }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const menuRef = useRef(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
@@ -31,8 +32,8 @@ export default function UserMenu({ onNavigate }) {
       <button
         className="user-icon-btn"
         onClick={() => user ? setOpen((v) => !v) : setShowLogin(true)}
-        title={user ? `${user.firstName} ${user.lastName}` : "Zaloguj się"}
-        aria-label={user ? "Menu użytkownika" : "Zaloguj się"}
+        title={user ? `${user.firstName} ${user.lastName}` : t("user.loginTooltip")}
+        aria-label={user ? t("user.menuTooltip") : t("user.loginTooltip")}
       >
         {user ? (
           <span className="user-icon-initials">
@@ -53,10 +54,10 @@ export default function UserMenu({ onNavigate }) {
             <span className="dropdown-username">@{user.username}</span>
           </div>
           <hr className="dropdown-divider" />
-          <button className="dropdown-item" onClick={() => navigate("profile")}>👤 Profil</button>
-          <button className="dropdown-item" onClick={() => navigate("settings")}>⚙️ Ustawienia</button>
+          <button className="dropdown-item" onClick={() => navigate("profile")}>{t("user.menuProfile")}</button>
+          <button className="dropdown-item" onClick={() => navigate("settings")}>{t("user.menuSettings")}</button>
           <hr className="dropdown-divider" />
-          <button className="dropdown-item logout" onClick={handleLogout}>🚪 Wyloguj</button>
+          <button className="dropdown-item logout" onClick={handleLogout}>{t("user.menuLogout")}</button>
         </div>
       )}
 

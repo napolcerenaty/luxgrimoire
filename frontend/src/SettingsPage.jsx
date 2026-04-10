@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "./AuthContext";
+import { useI18n } from "./i18n";
 import "./UserPages.css";
 
 const TIMEZONE_GROUPS = [
@@ -40,6 +41,7 @@ function getGmtOffset(tz) {
 
 export default function SettingsPage({ onBack }) {
   const { user, updateSettings } = useAuth();
+  const { t } = useI18n();
   const [timezone, setTimezone] = useState(
     user?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   );
@@ -47,7 +49,6 @@ export default function SettingsPage({ onBack }) {
   const [error, setError]   = useState("");
   const [saved, setSaved]   = useState(false);
 
-  // Compute GMT offsets once on mount (expensive but only runs once)
   const gmtOffsets = useMemo(() => {
     const map = {};
     TIMEZONE_GROUPS.forEach(({ zones }) =>
@@ -78,14 +79,14 @@ export default function SettingsPage({ onBack }) {
 
   return (
     <div className="user-page">
-      <button className="back-btn" onClick={onBack}>← Wróć</button>
+      <button className="back-btn" onClick={onBack}>{t("back")}</button>
 
       <div className="user-page-card">
-        <h2 className="user-page-title">Ustawienia</h2>
+        <h2 className="user-page-title">{t("settings.title")}</h2>
 
         <div className="user-page-form">
           <label>
-            Strefa czasowa
+            {t("settings.timezone")}
             <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
               {TIMEZONE_GROUPS.map(({ group, zones }) => (
                 <optgroup key={group} label={group}>
@@ -96,15 +97,15 @@ export default function SettingsPage({ onBack }) {
               ))}
             </select>
             <span className="field-hint">
-              Wykryta strefa przeglądarki: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+              {t("settings.browserTz", { tz: Intl.DateTimeFormat().resolvedOptions().timeZone })}
             </span>
           </label>
 
           {error && <p className="page-error">{error}</p>}
-          {saved && <p className="page-success">✓ Ustawienia zostały zapisane</p>}
+          {saved && <p className="page-success">{t("settings.saved")}</p>}
 
           <button className="page-btn primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Zapisywanie…" : "Zapisz ustawienia"}
+            {saving ? t("settings.saving") : t("settings.saveBtn")}
           </button>
         </div>
       </div>
