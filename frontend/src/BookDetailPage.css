@@ -252,3 +252,15 @@
   justify-content: center;
   padding: 3rem;
 }
+
+.detail-company-link {
+  background: none;
+  border: none;
+  color: #00b4d0;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+.detail-company-link:hover { color: #68e0f8; }

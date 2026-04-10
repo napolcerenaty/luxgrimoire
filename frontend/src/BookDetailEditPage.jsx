@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./BookDetailEditPage.css";
 import { useI18n } from "./i18n";
 
@@ -21,6 +21,9 @@ function emptyForm() {
     currency: "",
     imageUrls: [],
     artists: [],
+    bookBoxCompanyId: "",
+    bookBoxCompanyCustomName: "",
+    _companySelect: "",
   };
 }
 
@@ -42,6 +45,9 @@ function toForm(data) {
     currency: data.currency || "",
     imageUrls: data.imageUrls ? [...data.imageUrls] : [],
     artists: data.artists ? data.artists.map((a) => ({ artistName: a.artistName || "", contribution: a.contribution || "" })) : [],
+    bookBoxCompanyId: data.bookBoxCompanyId || "",
+    bookBoxCompanyCustomName: data.bookBoxCompanyCustomName || "",
+    _companySelect: data.bookBoxCompanyId ? data.bookBoxCompanyId : (data.bookBoxCompanyCustomName ? "custom" : ""),
   };
 }
 
@@ -50,6 +56,14 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
   const [form, setForm] = useState(() => toForm(initialData));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:8080/api/companies", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setCompanies(data))
+      .catch(() => {});
+  }, []);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -89,6 +103,8 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
       currency: form.currency || null,
       imageUrls: form.imageUrls.filter((u) => u.trim() !== ""),
       artists: form.artists.filter((a) => a.artistName.trim() !== ""),
+      bookBoxCompanyId: form.bookBoxCompanyId || null,
+      bookBoxCompanyCustomName: form.bookBoxCompanyCustomName || null,
     };
 
     const isEdit = initialData && initialData.id;
@@ -234,6 +250,37 @@ export default function BookDetailEditPage({ initialData, onSaved, onBack }) {
             </div>
           ))}
           <button className="edit-add-btn" type="button" onClick={addArtist}>{t("bookDetail.addArtist")}</button>
+        </div>
+
+        <div className="edit-section">
+          <h3 className="edit-section-title">{t("bookDetail.company")}</h3>
+          <select
+            className="edit-select"
+            value={form._companySelect}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "custom") {
+                setForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "" }));
+              } else {
+                setForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "" }));
+              }
+            }}
+          >
+            <option value="">{t("company.notSelected")}</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+            <option value="custom">{t("company.customName")}</option>
+          </select>
+          {form._companySelect === "custom" && (
+            <input
+              className="edit-input"
+              style={{ marginTop: "0.5rem" }}
+              value={form.bookBoxCompanyCustomName}
+              onChange={(e) => setForm((f) => ({ ...f, bookBoxCompanyCustomName: e.target.value }))}
+              placeholder={t("company.customName")}
+            />
+          )}
         </div>
 
         <div className="edit-form-actions">

@@ -21,6 +21,8 @@ public class BookDetail {
     private String currency;
     private List<String> imageUrls;
     private List<ArtistContribution> artists;
+    private String bookBoxCompanyId;
+    private String bookBoxCompanyCustomName;
 
     public BookDetail() {
         this.imageUrls = new ArrayList<>();
@@ -97,4 +99,10 @@ public class BookDetail {
 
     public List<ArtistContribution> getArtists() { return artists; }
     public void setArtists(List<ArtistContribution> artists) { this.artists = artists; }
+
+    public String getBookBoxCompanyId() { return bookBoxCompanyId; }
+    public void setBookBoxCompanyId(String bookBoxCompanyId) { this.bookBoxCompanyId = bookBoxCompanyId; }
+
+    public String getBookBoxCompanyCustomName() { return bookBoxCompanyCustomName; }
+    public void setBookBoxCompanyCustomName(String bookBoxCompanyCustomName) { this.bookBoxCompanyCustomName = bookBoxCompanyCustomName; }
 }

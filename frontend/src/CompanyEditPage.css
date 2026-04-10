@@ -1,0 +1,204 @@
+.company-edit-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.company-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.8rem;
+}
+
+.company-edit-back-btn {
+  background: none;
+  border: 1px solid #183858;
+  color: #90d0e8;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.company-edit-back-btn:hover {
+  border-color: #00b4d0;
+  color: #38d4f0;
+}
+
+.company-edit-heading {
+  font-size: 1.4rem;
+  color: #38d4f0;
+  margin: 0;
+}
+
+.company-edit-error {
+  color: #cc4444;
+  background: rgba(204, 68, 68, 0.1);
+  border: 1px solid #cc4444;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.company-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.company-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .company-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-edit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #90c8e0;
+  font-size: 0.9rem;
+}
+
+.company-edit-label--full {
+  grid-column: 1 / -1;
+}
+
+.company-edit-input {
+  background: #081828;
+  border: 1px solid #183858;
+  color: #c0e4f4;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.company-edit-input:focus {
+  border-color: #00b4d0;
+}
+
+.company-edit-textarea {
+  background: #081828;
+  border: 1px solid #183858;
+  color: #c0e4f4;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.company-edit-textarea:focus {
+  border-color: #00b4d0;
+}
+
+.company-edit-section {
+  background: #0d1f35;
+  border: 1px solid #183858;
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+}
+
+.company-edit-section-title {
+  font-size: 1rem;
+  color: #38d4f0;
+  margin: 0 0 0.8rem 0;
+}
+
+.company-edit-dynamic-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.company-edit-url-input {
+  flex: 1;
+}
+
+.company-edit-remove-btn {
+  background: none;
+  border: 1px solid #cc4444;
+  color: #cc4444;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.company-edit-remove-btn:hover {
+  background: #cc4444;
+  color: #fff;
+}
+
+.company-edit-add-btn {
+  background: none;
+  border: 1px dashed #347898;
+  color: #4888a4;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-top: 0.3rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.company-edit-add-btn:hover {
+  border-color: #00b4d0;
+  color: #38d4f0;
+}
+
+.company-edit-form-actions {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.company-edit-submit-btn {
+  background: #00b4d0;
+  color: #060d18;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.company-edit-submit-btn:hover:not(:disabled) {
+  background: #38d4f0;
+}
+
+.company-edit-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.company-edit-cancel-btn {
+  background: none;
+  border: 1px solid #183858;
+  color: #90d0e8;
+  border-radius: 6px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.company-edit-cancel-btn:hover:not(:disabled) {
+  border-color: #00b4d0;
+  color: #38d4f0;
+}

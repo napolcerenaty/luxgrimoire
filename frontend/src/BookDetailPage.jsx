@@ -4,13 +4,14 @@ import BookCarousel from "./BookCarousel";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 
-export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNew }) {
+export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNew, onCompanyClick }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [detail, setDetail] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [company, setCompany] = useState(null);
 
   useEffect(() => {
     if (!bookTitle) return;
@@ -28,6 +29,14 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNe
       .then((data) => { if (data) { setDetail(data); setLoading(false); } })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [bookTitle]);
+
+  useEffect(() => {
+    if (!detail?.bookBoxCompanyId) { setCompany(null); return; }
+    fetch(`http://localhost:8080/api/companies/${detail.bookBoxCompanyId}`, { credentials: "include" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setCompany(data))
+      .catch(() => setCompany(null));
+  }, [detail?.bookBoxCompanyId]);
 
   const handleDelete = async () => {
     if (!window.confirm(t("bookDetail.deleteConfirm"))) return;
@@ -143,6 +152,23 @@ export default function BookDetailPage({ bookTitle, onBack, onEdit, onNavigateNe
                 <span className="detail-label">{t("bookDetail.price")}</span>
                 <span className="detail-value">
                   {detail.basePrice} {detail.currency}
+                </span>
+              </div>
+            )}
+            {(company || detail.bookBoxCompanyCustomName) && (
+              <div className="detail-field">
+                <span className="detail-label">{t("bookDetail.company")}</span>
+                <span className="detail-value">
+                  {company ? (
+                    <button
+                      className="detail-company-link"
+                      onClick={() => onCompanyClick && onCompanyClick(company)}
+                    >
+                      {company.name}
+                    </button>
+                  ) : (
+                    detail.bookBoxCompanyCustomName
+                  )}
                 </span>
               </div>
             )}

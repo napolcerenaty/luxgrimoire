@@ -10,6 +10,9 @@ import { I18nProvider, useI18n } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
 import BookDetailPage from "./BookDetailPage";
 import BookDetailEditPage from "./BookDetailEditPage";
+import CompanyListPage from "./CompanyListPage";
+import CompanyPage from "./CompanyPage";
+import CompanyEditPage from "./CompanyEditPage";
 
 function BookCard({ book, onClick }) {
   return (
@@ -49,6 +52,8 @@ function AppInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookTitle, setSelectedBookTitle] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [editingCompany, setEditingCompany] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
 
@@ -56,6 +61,11 @@ function AppInner() {
   const handleEditBook = (book) => { setEditingBook(book); setTab("book-edit"); };
   const handleNewBook = () => { setEditingBook(null); setTab("book-edit"); };
   const handleBookSaved = (saved) => { setSelectedBookTitle(saved.title); setEditingBook(null); setTab("book-detail"); };
+
+  const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
+  const handleNewCompany = () => { setEditingCompany(null); setTab("company-edit"); };
+  const handleEditCompany = (company) => { setEditingCompany(company); setTab("company-edit"); };
+  const handleCompanySaved = (saved) => { setSelectedCompany(saved); setTab("company-detail"); };
 
   useEffect(() => {
     fetch("http://localhost:8080/api/books")
@@ -68,7 +78,7 @@ function AppInner() {
   }, []);
 
   const isUserPage = tab === "profile" || tab === "settings";
-  const isDetailPage = tab === "book-detail" || tab === "book-edit";
+  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit";
 
   const filteredBooks = searchQuery.trim()
     ? books.filter((b) => {
@@ -124,6 +134,12 @@ function AppInner() {
             >
               {t("nav.collection")}
             </button>
+            <button
+              className={`nav-tab${tab === "company-list" ? " active" : ""}`}
+              onClick={() => setTab("company-list")}
+            >
+              {t("nav.companies")}
+            </button>
             {user && (
               <button className="new-book-btn" onClick={handleNewBook}>{t("bookDetail.newBtn")}</button>
             )}
@@ -161,12 +177,37 @@ function AppInner() {
         {tab === "collection" && <CollectionPage onBookClick={handleBookClick} />}
         {tab === "profile"    && <ProfilePage  onBack={() => setTab("browse")} />}
         {tab === "settings"   && <SettingsPage onBack={() => setTab("browse")} />}
+        {tab === "company-list" && (
+          <CompanyListPage
+            onCompanyClick={handleCompanyClick}
+            onNewCompany={handleNewCompany}
+            user={user}
+          />
+        )}
+        {tab === "company-detail" && (
+          <CompanyPage
+            company={selectedCompany}
+            onBack={() => setTab("company-list")}
+            onEdit={handleEditCompany}
+            onDelete={() => setTab("company-list")}
+            user={user}
+          />
+        )}
+        {tab === "company-edit" && (
+          <CompanyEditPage
+            initialData={editingCompany}
+            onSaved={handleCompanySaved}
+            onBack={() => setTab(editingCompany ? "company-detail" : "company-list")}
+            user={user}
+          />
+        )}
         {tab === "book-detail" && (
           <BookDetailPage
             bookTitle={selectedBookTitle}
             onBack={() => setTab(prevTab)}
             onEdit={handleEditBook}
             onNavigateNew={handleNewBook}
+            onCompanyClick={handleCompanyClick}
           />
         )}
         {tab === "book-edit" && (
