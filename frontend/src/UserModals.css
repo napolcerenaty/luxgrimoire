@@ -3,6 +3,9 @@
 ═══════════════════════════════════════════ */
 .user-menu-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .user-icon-btn {
@@ -37,72 +40,25 @@
 }
 
 /* ═══════════════════════════════════════════
-   Dropdown
+   Inline logout button
 ═══════════════════════════════════════════ */
-.user-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 200px;
-  background: #0a1428;
-  border: 1px solid #183858;
-  border-radius: 6px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  z-index: 200;
-  overflow: hidden;
-}
-
-.user-dropdown-header {
-  padding: 0.85rem 1rem 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.dropdown-name {
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  color: #38d4f0;
-  font-weight: 600;
-}
-
-.dropdown-username {
-  font-size: 0.75rem;
-  color: #205080;
-}
-
-.dropdown-divider {
-  border: none;
-  border-top: 1px solid #0c2240;
-  margin: 0;
-}
-
-.dropdown-item {
-  display: block;
-  width: 100%;
-  text-align: left;
+.user-logout-btn {
   background: transparent;
-  border: none;
-  color: #5898b0;
+  border: 1px solid #183858;
+  border-radius: 4px;
+  color: #4888a4;
   font-family: 'Crimson Text', serif;
-  font-size: 0.95rem;
-  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.75rem;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  white-space: nowrap;
 }
 
-.dropdown-item:hover {
-  background: rgba(0, 160, 200, 0.1);
+.user-logout-btn:hover {
+  background: rgba(0, 80, 120, 0.2);
+  border-color: #2080a0;
   color: #38d4f0;
-}
-
-.dropdown-item.logout {
-  color: #1a6080;
-}
-
-.dropdown-item.logout:hover {
-  background: rgba(0, 80, 120, 0.12);
-  color: #2080a0;
 }
 
 /* ═══════════════════════════════════════════

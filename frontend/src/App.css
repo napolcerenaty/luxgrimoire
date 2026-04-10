@@ -8,8 +8,7 @@
 .header {
   background: linear-gradient(135deg, #060d18 0%, #0d1f35 50%, #060d18 100%);
   border-bottom: 1px solid #183858;
-  padding: 2rem 2rem 1.5rem;
-  text-align: center;
+  padding: 0 2rem 1.2rem;
   position: relative;
 }
 
@@ -21,39 +20,50 @@
   pointer-events: none;
 }
 
-.header-user-area {
-  position: absolute;
-  top: 1rem;
-  right: 1.2rem;
-  z-index: 10;
+.header-topbar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.9rem 0;
+  position: relative;
+  z-index: 1;
 }
 
-.header-title {
+.header-logo {
   font-family: 'Cinzel', serif;
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
   font-weight: 700;
-  margin: 0 0 0.5rem;
+  margin: 0;
   color: #38d4f0;
-  letter-spacing: 0.1em;
-  text-shadow: 0 0 40px rgba(0, 190, 220, 0.4);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 30px rgba(0, 190, 220, 0.4);
+  cursor: pointer;
   transition: text-shadow 0.2s, color 0.2s;
+  flex-shrink: 0;
 }
 
-.header-title:hover {
+.header-logo:hover {
   color: #68e0f8;
-  text-shadow: 0 0 60px rgba(0, 210, 240, 0.65);
+  text-shadow: 0 0 50px rgba(0, 210, 240, 0.65);
 }
 
-.header-subtitle {
+.header-tagline {
   font-family: 'Crimson Text', serif;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #4888a4;
   margin: 0;
   font-style: italic;
   letter-spacing: 0.05em;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 /* Main */

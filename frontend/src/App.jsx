@@ -102,17 +102,18 @@ function AppInner() {
   return (
     <div className="app">
       <header className="header">
-        <div className="header-user-area">
-          <LanguagePicker />
-          <UserMenu onNavigate={setTab} />
+        <div className="header-topbar">
+          <h1
+            className="header-logo"
+            onClick={() => { setTab("browse"); setSearchQuery(""); }}
+            title="LuxGrimoire – Strona główna"
+          >✦ LuxGrimoire ✦</h1>
+          <p className="header-tagline">Your SEs tracker</p>
+          <div className="header-controls">
+            <LanguagePicker />
+            <UserMenu onNavigate={setTab} />
+          </div>
         </div>
-        <h1
-          className="header-title"
-          style={{ cursor: "pointer" }}
-          onClick={() => { setTab("browse"); setSearchQuery(""); }}
-          title="LuxGrimoire – Strona główna"
-        >✦ LuxGrimoire ✦</h1>
-        <p className="header-subtitle">{t("app.subtitle")}</p>
         {!isUserPage && !isDetailPage && (
           <div className="search-bar-wrap">
             <span className="search-icon">⚲</span>
