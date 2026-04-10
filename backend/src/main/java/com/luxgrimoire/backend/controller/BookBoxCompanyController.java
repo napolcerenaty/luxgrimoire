@@ -73,12 +73,12 @@ public class BookBoxCompanyController {
         if (username == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        if (!"admin".equals(username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         Optional<BookBoxCompany> existing = store.findById(id);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
-        }
-        if (!isAdminOrManager(username, existing.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         store.delete(id);
         return ResponseEntity.noContent().build();

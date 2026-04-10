@@ -114,7 +114,14 @@
 .company-edit-section-title {
   font-size: 1rem;
   color: #38d4f0;
+  margin: 0 0 0.5rem 0;
+}
+
+.company-edit-section-note {
+  font-size: 0.83rem;
+  color: #90d0e8;
   margin: 0 0 0.8rem 0;
+  font-style: italic;
 }
 
 .company-edit-dynamic-row {

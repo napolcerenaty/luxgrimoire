@@ -45,6 +45,14 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
   const addSub = () => setForm((f) => ({ ...f, subscriptions: [...f.subscriptions, ""] }));
   const removeSub = (idx) => setForm((f) => ({ ...f, subscriptions: f.subscriptions.filter((_, i) => i !== idx) }));
 
+  const setMgr = (idx, value) => setForm((f) => {
+    const arr = [...f.managerUsernames];
+    arr[idx] = value;
+    return { ...f, managerUsernames: arr };
+  });
+  const addMgr = () => setForm((f) => ({ ...f, managerUsernames: [...f.managerUsernames, ""] }));
+  const removeMgr = (idx) => setForm((f) => ({ ...f, managerUsernames: f.managerUsernames.filter((_, i) => i !== idx) }));
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -168,6 +176,25 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
           ))}
           <button className="company-edit-add-btn" type="button" onClick={addSub}>
             {t("company.addSub")}
+          </button>
+        </div>
+
+        <div className="company-edit-section">
+          <h3 className="company-edit-section-title">{t("company.managers")}</h3>
+          <p className="company-edit-section-note">{t("company.managersNote")}</p>
+          {form.managerUsernames.map((mgr, idx) => (
+            <div key={idx} className="company-edit-dynamic-row">
+              <input
+                className="company-edit-input company-edit-url-input"
+                value={mgr}
+                placeholder={t("company.managerPlaceholder")}
+                onChange={(e) => setMgr(idx, e.target.value)}
+              />
+              <button className="company-edit-remove-btn" type="button" onClick={() => removeMgr(idx)}>&#x2715;</button>
+            </div>
+          ))}
+          <button className="company-edit-add-btn" type="button" onClick={addMgr}>
+            {t("company.addManager")}
           </button>
         </div>
 

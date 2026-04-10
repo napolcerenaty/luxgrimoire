@@ -7,6 +7,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const [deleting, setDeleting] = useState(false);
 
   const canManage = user && (user.username === "admin" || company?.managerUsernames?.includes(user.username));
+  const canDelete = user && user.username === "admin";
 
   const handleDelete = async () => {
     if (!window.confirm(t("company.deleteConfirm"))) return;
@@ -33,13 +34,15 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
             <button className="company-action-btn" onClick={() => onEdit(company)}>
               {t("company.editBtn")}
             </button>
-            <button
-              className="company-action-btn company-delete-btn"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {t("company.deleteBtn")}
-            </button>
+            {canDelete && (
+              <button
+                className="company-action-btn company-delete-btn"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {t("company.deleteBtn")}
+              </button>
+            )}
           </div>
         )}
       </div>
