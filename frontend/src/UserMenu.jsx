@@ -18,7 +18,7 @@ export default function UserMenu({ onNavigate }) {
     <div className="user-menu-wrapper">
       <button
         className="user-icon-btn"
-        onClick={() => user ? onNavigate("profile") : setShowLogin(true)}
+        onClick={() => user ? onNavigate("account") : setShowLogin(true)}
         title={user ? `${user.firstName} ${user.lastName}` : t("user.loginTooltip")}
         aria-label={user ? t("user.menuTooltip") : t("user.loginTooltip")}
       >

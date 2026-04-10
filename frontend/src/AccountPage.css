@@ -1,0 +1,251 @@
+/* ═══════════════════════════════════════════
+   Account Page — master-detail layout
+═══════════════════════════════════════════ */
+.account-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+  min-height: calc(100vh - 180px);
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────────────────────── */
+.account-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* User badge at top of sidebar */
+.account-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.25rem 1rem 1rem;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bg-raised), var(--bg-overlay));
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.account-avatar-initials {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent2);
+  letter-spacing: 0.05em;
+}
+
+.account-user-text {
+  min-width: 0;
+}
+
+.account-display-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  color: var(--text-bright);
+  margin: 0 0 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-username {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.82rem;
+  color: var(--text-ghost);
+  margin: 0;
+}
+
+/* Nav items */
+.account-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  flex: 1;
+}
+
+.account-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--text-mid);
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.account-nav-item:hover {
+  background: var(--accent-glow2);
+  color: var(--accent);
+}
+
+.account-nav-item.active {
+  border-left-color: var(--accent);
+  background: var(--accent-glow2);
+  color: var(--accent);
+}
+
+.account-nav-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  width: 1.4rem;
+  text-align: center;
+}
+
+.account-nav-label {
+  flex: 1;
+}
+
+.account-nav-arrow {
+  font-size: 1.1rem;
+  color: var(--text-ghost);
+  transition: color 0.15s;
+}
+
+.account-nav-item:hover .account-nav-arrow,
+.account-nav-item.active .account-nav-arrow {
+  color: var(--accent);
+}
+
+/* Back to site button at bottom of sidebar */
+.account-back-site-btn {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-dim);
+  color: var(--text-ghost);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.88rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.account-back-site-btn:hover {
+  color: var(--accent);
+}
+
+/* ─── Content area ─────────────────────────────────────────────────────────── */
+.account-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Back button only shown on mobile */
+.account-mobile-back-btn {
+  display: none;
+}
+
+/* ─── Section ──────────────────────────────────────────────────────────────── */
+.account-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem 1.75rem;
+}
+
+.account-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin: 0 0 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+/* Reuse UserPages.css form/row/button classes inside account-section */
+.account-section .user-page-form {
+  max-width: 480px;
+}
+
+.account-section .user-collection-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* ─── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .account-page {
+    flex-direction: column;
+    gap: 0;
+    padding: 1rem 0.75rem 2rem;
+  }
+
+  .account-sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  /* Content hidden by default on mobile; shown when section-open */
+  .account-content {
+    display: none;
+    width: 100%;
+  }
+
+  .account-page.section-open .account-sidebar {
+    display: none;
+  }
+
+  .account-page.section-open .account-content {
+    display: block;
+  }
+
+  /* Show the back-to-menu button on mobile */
+  .account-mobile-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    color: var(--text-ghost);
+    font-family: 'Crimson Text', serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0 0 1rem;
+    letter-spacing: 0.02em;
+    transition: color 0.15s;
+  }
+
+  .account-mobile-back-btn:hover {
+    color: var(--accent);
+  }
+
+  /* On mobile, hide the arrow in nav (it becomes a full-width tap) */
+  .account-nav-item {
+    padding: 0.9rem 1rem;
+    font-size: 1.05rem;
+  }
+
+  .account-section {
+    padding: 1.5rem 1rem;
+  }
+}

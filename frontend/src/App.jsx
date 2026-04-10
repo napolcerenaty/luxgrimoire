@@ -4,8 +4,7 @@ import CollectionPage from "./CollectionPage";
 import { AuthProvider } from "./AuthContext";
 import { useAuth } from "./AuthContext";
 import UserMenu from "./UserMenu";
-import ProfilePage from "./ProfilePage";
-import SettingsPage from "./SettingsPage";
+import AccountPage from "./AccountPage";
 import { I18nProvider, useI18n } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
 import { ThemeProvider } from "./ThemeContext";
@@ -95,7 +94,7 @@ function AppInner() {
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
-  const isUserPage = tab === "profile" || tab === "settings";
+  const isUserPage = tab === "account";
   const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail";
 
   return (
@@ -158,8 +157,7 @@ function AppInner() {
           )
         )}
         {tab === "collection" && <CollectionPage onBookClick={handleBookClick} />}
-        {tab === "profile"    && <ProfilePage  onBack={() => setTab("browse")} />}
-        {tab === "settings"   && <SettingsPage onBack={() => setTab("browse")} />}
+        {tab === "account"    && <AccountPage onBack={() => setTab("browse")} />}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}
@@ -240,7 +238,7 @@ function AppInner() {
                 <span className="footer-col-title">{t("footer.accountTitle")}</span>
                 <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("collection"); }}>{t("footer.myCollection")}</a>
                 <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.mySubscriptions")}</a>
-                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("profile"); }}>{t("footer.profileSettings")}</a>
+                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("account"); }}>{t("footer.profileSettings")}</a>
               </div>
             )}
 
