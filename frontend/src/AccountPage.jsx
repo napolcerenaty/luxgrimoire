@@ -36,39 +36,146 @@ function getGmtOffset(tz) {
   } catch { return ""; }
 }
 
+// ─── Language → Intl locale ────────────────────────────────────────────────────
+const LANG_LOCALE = { pl: "pl-PL", en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES" };
+
+// ─── Test calendar data ────────────────────────────────────────────────────────
+const TEST_RENEWALS = [
+  { id: "r1", day: 5,  label: "FairyLoot • Romantasy",  hue: "255,62%,55%" },
+  { id: "r2", day: 12, label: "OwlCrate • YA Box",       hue: "199,91%,36%" },
+  { id: "r3", day: 20, label: "Illumicrate • Fantasy",   hue: "38,80%,40%"  },
+];
+
+const TEST_SALES = [
+  { id: "s1", day: 8,  title: "A Court of Thorns and Roses", box: "FairyLoot",   edition: "Deluxe Collector's Edition",        time: "13:00 UTC", author: "Sarah J. Maas",   hue: "255,62%,55%" },
+  { id: "s2", day: 15, title: "Fourth Wing",                 box: "OwlCrate",    edition: "Special Edition",                  time: "16:00 UTC", author: "Rebecca Yarros",  hue: "199,91%,36%" },
+  { id: "s3", day: 23, title: "House of Salt and Sorrows",   box: "FairyLoot",   edition: "FairyLoot Exclusive Edition",       time: "12:00 UTC", author: "Erin A. Craig",   hue: "350,80%,46%" },
+  { id: "s4", day: 28, title: "Crescent City",               box: "Illumicrate", edition: "Collector's Edition",               time: "14:00 UTC", author: "Sarah J. Maas",   hue: "38,80%,40%"  },
+];
+
 // ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { key: "profile",       icon: "👤", labelKey: "account.navProfile"       },
+  { key: "calendar",      icon: "📅", labelKey: "account.navCalendar"      },
   { key: "collection",    icon: "📚", labelKey: "account.navCollection"    },
   { key: "subscriptions", icon: "📮", labelKey: "account.navSubscriptions" },
   { key: "settings",      icon: "⚙️", labelKey: "account.navSettings"      },
 ];
 
-// ─── PROFILE SECTION (read-only display) ─────────────────────────────────────
-function ProfileSection() {
-  const { user } = useAuth();
-  const { t } = useI18n();
+// ─── CALENDAR SECTION ────────────────────────────────────────────────────────
+function CalendarSection() {
+  const { t, lang } = useI18n();
+  const locale = LANG_LOCALE[lang] ?? "en-GB";
+  const today  = new Date();
 
-  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
-  const avatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
+  const [viewDate,     setViewDate]     = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedSale, setSelectedSale] = useState(null);
+
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  // Mon–Sun day names via Intl (2024-01-01 = Monday)
+  const dayNames = useMemo(() =>
+    Array.from({ length: 7 }, (_, i) =>
+      new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, i + 1))
+    ), [locale]);
+
+  const monthHeading = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(viewDate);
+
+  // 42-cell grid, Mon-based week
+  const cells = useMemo(() => {
+    const firstDow    = new Date(year, month, 1).getDay();
+    const startPad    = (firstDow + 6) % 7;           // Mon=0 … Sun=6
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrev  = new Date(year, month,     0).getDate();
+    const arr = [];
+    for (let i = startPad - 1; i >= 0; i--) arr.push({ day: daysInPrev - i, current: false });
+    for (let d = 1; d <= daysInMonth; d++)  arr.push({ day: d,              current: true  });
+    let nd = 1;
+    while (arr.length < 42) arr.push({ day: nd++, current: false });
+    return arr;
+  }, [year, month]);
+
+  const renewalsForDay = (day) => TEST_RENEWALS.filter(r => r.day === day);
+  const salesForDay    = (day) => TEST_SALES.filter(s => s.day === day);
+  const isToday        = (day) =>
+    day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
   return (
-    <section className="account-section">
-      <h2 className="account-section-title">{t("profile.title")}</h2>
+    <section className="account-section account-calendar-section">
 
-      <div className="account-profile-display">
-        <div className="account-profile-avatar-lg">
-          {avatarSrc
-            ? <img src={avatarSrc} alt={user?.username} className="account-avatar-img-lg" />
-            : <span className="account-avatar-initials-lg">{initials}</span>
-          }
-        </div>
-        <div className="account-profile-details">
-          <p className="account-profile-fullname">{user?.firstName} {user?.lastName}</p>
-          <p className="account-profile-username">@{user?.username}</p>
-          <div className="profile-row"><span className="profile-row-label">{t("profile.timezone")}</span><span className="profile-row-value">{user?.timezone}</span></div>
-        </div>
+      {/* ── Month navigation ── */}
+      <div className="account-cal-header">
+        <button className="account-cal-nav-btn" onClick={prevMonth} aria-label="previous month">‹</button>
+        <h2 className="account-cal-title">{monthHeading}</h2>
+        <button className="account-cal-nav-btn" onClick={nextMonth} aria-label="next month">›</button>
       </div>
+
+      {/* ── Day-name row + grid ── */}
+      <div className="account-cal-grid">
+        {dayNames.map(dn => (
+          <div key={dn} className="account-cal-day-header">{dn}</div>
+        ))}
+
+        {cells.map((cell, idx) => (
+          <div
+            key={idx}
+            className={[
+              "account-cal-cell",
+              !cell.current          ? "other-month" : "",
+              cell.current && isToday(cell.day) ? "today" : "",
+            ].filter(Boolean).join(" ")}
+          >
+            <span className="account-cal-day-num">{cell.day}</span>
+
+            {cell.current && renewalsForDay(cell.day).map(r => (
+              <div
+                key={r.id}
+                className="account-cal-renewal"
+                style={{ "--ev": `hsl(${r.hue})`, "--ev-bg": `hsla(${r.hue},.18)` }}
+                title={r.label}
+              >
+                🔄 {r.label}
+              </div>
+            ))}
+
+            {cell.current && salesForDay(cell.day).map(s => (
+              <button
+                key={s.id}
+                className="account-cal-sale"
+                style={{ "--ev": `hsl(${s.hue})`, "--ev-bg": `hsla(${s.hue},.18)` }}
+                onClick={() => setSelectedSale(s)}
+                title={s.title}
+              >
+                <span className="account-cal-sale-dot" />
+                <span className="account-cal-sale-inner">
+                  <span className="account-cal-sale-time">{s.time}</span>
+                  <span className="account-cal-sale-title">{s.title}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Sale detail popup ── */}
+      {selectedSale && (
+        <div className="account-cal-overlay" onClick={() => setSelectedSale(null)}>
+          <div className="account-cal-popup" onClick={e => e.stopPropagation()}>
+            <div className="account-cal-popup-bar" style={{ background: `hsl(${selectedSale.hue})` }} />
+            <button className="account-cal-popup-close" onClick={() => setSelectedSale(null)}>✕</button>
+            <div className="account-cal-popup-body">
+              <p  className="account-cal-popup-box">{selectedSale.box}</p>
+              <h3 className="account-cal-popup-title">{selectedSale.title}</h3>
+              <p  className="account-cal-popup-author">{selectedSale.author}</p>
+              <p  className="account-cal-popup-edition">{selectedSale.edition}</p>
+              <p  className="account-cal-popup-time">🕐 {selectedSale.time}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -315,7 +422,7 @@ function SettingsSection() {
 }
 
 // ─── ACCOUNT PAGE (master-detail) ────────────────────────────────────────────
-export default function AccountPage({ onBack, initialSection = "profile" }) {
+export default function AccountPage({ onBack, initialSection = "calendar" }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [activeSection, setActiveSection]       = useState(initialSection);
@@ -328,7 +435,7 @@ export default function AccountPage({ onBack, initialSection = "profile" }) {
 
   const renderSection = () => {
     switch (activeSection) {
-      case "profile":       return <ProfileSection />;
+      case "calendar":      return <CalendarSection />;
       case "collection":    return <CollectionSection />;
       case "subscriptions": return <SubscriptionsSection />;
       case "settings":      return <SettingsSection />;
