@@ -13,7 +13,9 @@ import BookDetailEditPage from "./BookDetailEditPage";
 import CompanyListPage from "./CompanyListPage";
 import CompanyPage from "./CompanyPage";
 import CompanyEditPage from "./CompanyEditPage";
+import AuthorPage from "./AuthorPage";
 import SearchPanel from "./SearchPanel";
+
 import RecentAnnouncements from "./RecentAnnouncements";
 
 function BookCard({ book, onClick }) {
@@ -61,6 +63,7 @@ function AppInner() {
   const [editingEdition, setEditingEdition] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [editingCompany, setEditingCompany] = useState(null);
+  const [selectedAuthorId, setSelectedAuthorId] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
 
@@ -72,6 +75,7 @@ function AppInner() {
   const handleBookSaved = (saved) => { setSelectedBookId(saved.id); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
 
   const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
+  const handleAuthorClick = (authorId) => { setSelectedAuthorId(authorId); setPrevTab(tab); setTab("author-detail"); };
   const handleNewCompany = () => { setEditingCompany(null); setTab("company-edit"); };
   const handleEditCompany = (company) => { setEditingCompany(company); setTab("company-edit"); };
   const handleCompanySaved = (saved) => { setSelectedCompany(saved); setTab("company-detail"); };
@@ -87,7 +91,7 @@ function AppInner() {
   }, []);
 
   const isUserPage = tab === "profile" || tab === "settings";
-  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit";
+  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail";
 
   return (
     <div className="app">
@@ -108,6 +112,7 @@ function AppInner() {
           books={books}
           onBookClick={handleBookClick}
           onCompanyClick={handleCompanyClick}
+          onAuthorClick={handleAuthorClick}
           user={user}
           onNewBook={handleNewBook}
           onAdd={(filter) => {
@@ -189,6 +194,13 @@ function AppInner() {
             editingEdition={editingEdition}
             onSaved={handleBookSaved}
             onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab(prevTab); } }}
+          />
+        )}
+        {tab === "author-detail" && (
+          <AuthorPage
+            authorId={selectedAuthorId}
+            onBack={() => setTab(prevTab)}
+            onBookClick={handleBookClick}
           />
         )}
       </main>

@@ -19,7 +19,7 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
-export default function SearchPanel({ books, onBookClick, onCompanyClick, user, onNewBook, onAdd }) {
+export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, user, onNewBook, onAdd }) {
   const [query, setQuery]         = useState("");
   const [activeFilter, setFilter] = useState("all");
   const [open, setOpen]           = useState(false);
@@ -66,10 +66,15 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
     if (onCompanyClick) onCompanyClick(companyObj || { id: companyId });
   };
 
+  const handleAuthorSelect = (authorId) => {
+    setQuery(""); setOpen(false); setResults(null);
+    if (onAuthorClick) onAuthorClick(authorId);
+  };
+
   const handleSearch = () => {
     if (!results) return;
     if (results.books?.length)         { handleSelect(results.books[0].id); return; }
-    if (results.authors?.length)       { /* open author profile – not yet implemented */ return; }
+    if (results.authors?.length)       { handleAuthorSelect(results.authors[0].id); return; }
     if (results.companies?.length)     { handleCompanySelect(results.companies[0].id, results.companies[0]); return; }
   };
 
@@ -110,19 +115,34 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
     </button>
   );
 
-  const renderPersonRow = (item, label, key) => (
-    <div key={key} className="sr-item sr-author-row">
-      <div className="sr-author-avatar">
-        {item.imageUrl
-          ? <img src={item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-          : item.name?.[0]?.toUpperCase()
-        }
+  const renderPersonRow = (item, label, key, onClick) => (
+    onClick ? (
+      <button key={key} className="sr-item sr-author-row" onClick={onClick}>
+        <div className="sr-author-avatar">
+          {item.imageUrl
+            ? <img src={item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+            : item.name?.[0]?.toUpperCase()
+          }
+        </div>
+        <div className="sr-info">
+          <span className="sr-title">{item.name}</span>
+          <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
+        </div>
+      </button>
+    ) : (
+      <div key={key} className="sr-item sr-author-row">
+        <div className="sr-author-avatar">
+          {item.imageUrl
+            ? <img src={item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+            : item.name?.[0]?.toUpperCase()
+          }
+        </div>
+        <div className="sr-info">
+          <span className="sr-title">{item.name}</span>
+          <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
+        </div>
       </div>
-      <div className="sr-info">
-        <span className="sr-title">{item.name}</span>
-        <span className="sr-badge">{label}{item.bookCount ? ` · ${item.bookCount} books` : ""}{item.nationality ? ` · ${item.nationality}` : ""}{item.specialty ? ` · ${item.specialty}` : ""}</span>
-      </div>
-    </div>
+    )
   );
 
   const dropdownVisible = open && query.trim().length >= 2;
@@ -193,7 +213,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
                 {results.authors?.length > 0 && (
                   <div className="sr-group">
                     {activeFilter === "all" && <div className="sr-group-label">Authors</div>}
-                    {results.authors.map((item, i) => renderPersonRow(item, "Author", `au${i}`))}
+                    {results.authors.map((item, i) => renderPersonRow(item, "Author", `au${i}`, () => handleAuthorSelect(item.id)))}
                   </div>
                 )}
 
@@ -201,7 +221,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, user, 
                 {results.artists?.length > 0 && (
                   <div className="sr-group">
                     {activeFilter === "all" && <div className="sr-group-label">Artists</div>}
-                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`))}
+                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`, null))}
                   </div>
                 )}
 

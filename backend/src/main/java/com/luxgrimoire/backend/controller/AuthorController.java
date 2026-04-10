@@ -1,6 +1,8 @@
 package com.luxgrimoire.backend.controller;
 import com.luxgrimoire.backend.model.Author;
+import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.repository.AuthorRepository;
+import com.luxgrimoire.backend.repository.BookRepository;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,11 +14,19 @@ import java.util.UUID;
 @CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class AuthorController {
     private final AuthorRepository repo;
-    public AuthorController(AuthorRepository repo) { this.repo = repo; }
+    private final BookRepository bookRepo;
+    public AuthorController(AuthorRepository repo, BookRepository bookRepo) {
+        this.repo = repo;
+        this.bookRepo = bookRepo;
+    }
 
     @GetMapping public List<Author> getAll() { return repo.findAll(); }
     @GetMapping("/{id}") public ResponseEntity<Author> getById(@PathVariable String id) {
         return repo.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+    @GetMapping("/{id}/books") public ResponseEntity<List<Book>> getBooks(@PathVariable String id) {
+        if (!repo.existsById(id)) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(bookRepo.findByAuthorIdAndStatus(id, "approved"));
     }
     @PostMapping public ResponseEntity<?> create(@RequestBody Author body, HttpSession session) {
         String username = (String) session.getAttribute("username");
@@ -26,7 +36,7 @@ public class AuthorController {
     }
     @PutMapping("/{id}") public ResponseEntity<?> update(@PathVariable String id, @RequestBody Author body, HttpSession session) {
         String username = (String) session.getAttribute("username");
-        if (username == null || username.isBlank()) return ResponseEntity.status(401).build();
+        if (!"admin".equals(username)) return ResponseEntity.status(403).build();
         if (!repo.existsById(id)) return ResponseEntity.notFound().build();
         body.setId(id);
         return ResponseEntity.ok(repo.save(body));
