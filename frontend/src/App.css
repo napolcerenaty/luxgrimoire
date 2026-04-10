@@ -8,7 +8,8 @@
 .header {
   background: linear-gradient(135deg, #060d18 0%, #0d1f35 50%, #060d18 100%);
   border-bottom: 1px solid #183858;
-  padding: 0 2rem 1.2rem;
+  padding: 2rem 2rem 1.5rem;
+  text-align: center;
   position: relative;
 }
 
@@ -20,18 +21,9 @@
   pointer-events: none;
 }
 
-.header-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.9rem 0;
-  position: relative;
-  z-index: 1;
-}
-
 .header-logo {
   font-family: 'Cinzel', serif;
-  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 700;
   margin: 0;
   color: #38d4f0;
@@ -39,7 +31,8 @@
   text-shadow: 0 0 30px rgba(0, 190, 220, 0.4);
   cursor: pointer;
   transition: text-shadow 0.2s, color 0.2s;
-  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .header-logo:hover {
@@ -47,23 +40,14 @@
   text-shadow: 0 0 50px rgba(0, 210, 240, 0.65);
 }
 
-.header-tagline {
-  font-family: 'Crimson Text', serif;
-  font-size: 1rem;
-  color: #4888a4;
-  margin: 0;
-  font-style: italic;
-  letter-spacing: 0.05em;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 .header-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1.2rem;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0;
 }
 
 /* Main */
@@ -75,7 +59,7 @@ main {
   width: 100%;
 }
 
-/* Nav tabs */
+/* Nav tabs (kept for possible reuse) */
 .nav-tabs {
   display: flex;
   justify-content: center;

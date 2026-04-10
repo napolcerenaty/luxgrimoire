@@ -1,16 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import "./SearchPanel.css";
 
-export default function SearchPanel({ books, onBookClick }) {
+export default function SearchPanel({ books, onBookClick, onCompanyClick, user, onNewBook }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const [authors, setAuthors] = useState([]);
+  const [artists, setArtists] = useState([]);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
     fetch("http://localhost:8080/api/companies", { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
       .then(setCompanies)
+      .catch(() => {});
+    fetch("http://localhost:8080/api/authors", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setAuthors)
+      .catch(() => {});
+    fetch("http://localhost:8080/api/artists", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setArtists)
       .catch(() => {});
   }, []);
 
@@ -28,33 +38,101 @@ export default function SearchPanel({ books, onBookClick }) {
   const getResults = () => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
+    const seen = new Set();
     const titleMatches = [];
-    const authorMap = {};
 
+    // Book title / series / edition / subscription name hits
     books.forEach((book) => {
       const titleHit = book.title?.toLowerCase().includes(q) || book.seriesName?.toLowerCase().includes(q);
-      const authorHit = book.author?.toLowerCase().includes(q);
-      const artistHit = book.editions?.some((e) =>
-        e.artists?.some((a) => a.name?.toLowerCase().includes(q))
-      );
       const editionHit = book.editions?.some((e) =>
         e.editionName?.toLowerCase().includes(q) || e.subscriptionName?.toLowerCase().includes(q)
       );
-
-      if (titleHit || editionHit) {
+      if ((titleHit || editionHit) && !seen.has(book.id)) {
+        seen.add(book.id);
         titleMatches.push({ type: "book", book });
-      } else if (authorHit || artistHit) {
-        const person = book.author || "Unknown";
-        if (!authorMap[person]) authorMap[person] = [];
-        authorMap[person].push(book);
       }
     });
 
-    const authorGroups = Object.entries(authorMap).map(([author, bks]) => ({
-      type: "author-group", author, books: bks,
+    // Author entity hits
+    const authorMatches = [];
+    const coveredByAuthorEntity = new Set();
+    authors.forEach((author) => {
+      if (author.name?.toLowerCase().includes(q)) {
+        const authorBooks = books.filter((b) =>
+          b.authorId === author.id || b.author?.toLowerCase() === author.name?.toLowerCase()
+        );
+        authorBooks.forEach((b) => coveredByAuthorEntity.add(b.author?.toLowerCase()));
+        authorMatches.push({ type: "author", author, books: authorBooks });
+      }
+    });
+
+    // Author string hits (not linked to entity)
+    const authorGroupMap = {};
+    books.forEach((book) => {
+      if (book.author?.toLowerCase().includes(q) && !seen.has(book.id)) {
+        if (!coveredByAuthorEntity.has(book.author?.toLowerCase())) {
+          if (!authorGroupMap[book.author]) authorGroupMap[book.author] = [];
+          authorGroupMap[book.author].push(book);
+        }
+      }
+    });
+    const authorGroups = Object.entries(authorGroupMap).map(([authorName, bks]) => ({
+      type: "author-group", author: authorName, books: bks,
     }));
 
-    return [...titleMatches, ...authorGroups];
+    // Artist entity hits
+    const artistMatches = [];
+    const coveredByArtistEntity = new Set();
+    artists.forEach((artist) => {
+      if (artist.name?.toLowerCase().includes(q)) {
+        const artistBooks = books.filter((b) =>
+          b.editions?.some((e) => e.artists?.some((a) =>
+            a.artistId === artist.id || a.artistName?.toLowerCase() === artist.name?.toLowerCase()
+          ))
+        );
+        artistBooks.forEach((b) => coveredByArtistEntity.add(b.id));
+        artistMatches.push({ type: "artist", artist, books: artistBooks });
+      }
+    });
+
+    // Artist string hits in editions (not linked to entity)
+    const artistGroupMap = {};
+    books.forEach((book) => {
+      if (!coveredByArtistEntity.has(book.id)) {
+        book.editions?.forEach((e) => {
+          e.artists?.forEach((a) => {
+            if (a.artistName?.toLowerCase().includes(q)) {
+              if (!artistGroupMap[a.artistName]) artistGroupMap[a.artistName] = new Set();
+              artistGroupMap[a.artistName].add(book.id);
+            }
+          });
+        });
+      }
+    });
+    const artistGroups = Object.entries(artistGroupMap).map(([artistName, bookIds]) => ({
+      type: "artist-group", artistName,
+      books: books.filter((b) => bookIds.has(b.id)),
+    }));
+
+    // Subscription name hits
+    const subscriptionMatches = [];
+    companies.forEach((company) => {
+      (company.subscriptions || []).forEach((sub) => {
+        if (sub.name?.toLowerCase().includes(q)) {
+          subscriptionMatches.push({ type: "subscription", subscription: sub, company });
+        }
+      });
+    });
+
+    // Company name hits
+    const companyMatches = [];
+    companies.forEach((company) => {
+      if (company.name?.toLowerCase().includes(q)) {
+        companyMatches.push({ type: "company", company });
+      }
+    });
+
+    return [...titleMatches, ...authorMatches, ...authorGroups, ...artistMatches, ...artistGroups, ...subscriptionMatches, ...companyMatches];
   };
 
   const getInfoBadge = (book) => {
@@ -80,11 +158,21 @@ export default function SearchPanel({ books, onBookClick }) {
     onBookClick(bookId);
   };
 
+  const handleCompanySelect = (company) => {
+    setQuery("");
+    setOpen(false);
+    if (onCompanyClick) onCompanyClick(company);
+  };
+
   const handleSearch = () => {
     if (results.length === 0) return;
     const first = results[0];
     if (first.type === "book") handleSelect(first.book.id);
+    else if (first.type === "author" && first.books.length > 0) handleSelect(first.books[0].id);
     else if (first.type === "author-group") handleSelect(first.books[0].id);
+    else if (first.type === "artist" && first.books.length > 0) handleSelect(first.books[0].id);
+    else if (first.type === "artist-group") handleSelect(first.books[0].id);
+    else if (first.type === "company") handleCompanySelect(first.company);
   };
 
   const handleLuckyDraw = () => {
@@ -99,6 +187,30 @@ export default function SearchPanel({ books, onBookClick }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSearch();
     if (e.key === "Escape") setOpen(false);
+  };
+
+  const renderBookRow = (book, key, onClick) => {
+    const cover = book.editions?.[0]?.imageUrls?.[0];
+    const badge = getInfoBadge(book);
+    return (
+      <button key={key} className="sr-item" onClick={onClick}>
+        <img
+          className="sr-thumb"
+          src={cover || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
+          alt=""
+          onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
+        />
+        <div className="sr-info">
+          <span className="sr-title">{book.title}</span>
+          {badge && (
+            <span className="sr-badge">
+              {badge.logo && <img className="sr-badge-logo" src={badge.logo} alt="" />}
+              {badge.name}
+            </span>
+          )}
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -118,32 +230,38 @@ export default function SearchPanel({ books, onBookClick }) {
           <button className="lucky-draw-btn" onClick={handleLuckyDraw} title="Lucky draw – random edition">
             🎲 LUCKY DRAW
           </button>
+          {user && onNewBook && (
+            <button className="add-book-btn" onClick={onNewBook} title="Add new book">
+              + ADD BOOK
+            </button>
+          )}
         </div>
 
         {open && query.trim() && results.length > 0 && (
           <div className="search-dropdown">
             {results.map((item, i) => {
               if (item.type === "book") {
-                const cover = item.book.editions?.[0]?.imageUrls?.[0];
-                const badge = getInfoBadge(item.book);
+                return renderBookRow(item.book, i, () => handleSelect(item.book.id));
+              }
+
+              if (item.type === "author") {
                 return (
-                  <button key={i} className="sr-item" onClick={() => handleSelect(item.book.id)}>
-                    <img
-                      className="sr-thumb"
-                      src={cover || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
-                      alt=""
-                      onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
-                    />
-                    <div className="sr-info">
-                      <span className="sr-title">{item.book.title}</span>
-                      {badge && (
-                        <span className="sr-badge">
-                          {badge.logo && <img className="sr-badge-logo" src={badge.logo} alt="" />}
-                          {badge.name}
-                        </span>
-                      )}
+                  <div key={i} className="sr-group">
+                    <div className="sr-group-label">Author</div>
+                    <div className="sr-item sr-author-row">
+                      <div className="sr-author-avatar">
+                        {item.author.imageUrl
+                          ? <img src={item.author.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                          : item.author.name?.[0]?.toUpperCase()
+                        }
+                      </div>
+                      <div className="sr-info">
+                        <span className="sr-title">{item.author.name}</span>
+                        {item.author.nationality && <span className="sr-badge">{item.author.nationality}</span>}
+                      </div>
                     </div>
-                  </button>
+                    {item.books.map((book, j) => renderBookRow(book, `a${i}-${j}`, () => handleSelect(book.id)))}
+                  </div>
                 );
               }
 
@@ -151,39 +269,88 @@ export default function SearchPanel({ books, onBookClick }) {
                 return (
                   <div key={i} className="sr-group">
                     <div className="sr-group-label">Books by {item.author}</div>
-                    {item.books.map((book, j) => {
-                      const cover = book.editions?.[0]?.imageUrls?.[0];
-                      const badge = getInfoBadge(book);
-                      return (
-                        <button key={j} className="sr-item" onClick={() => handleSelect(book.id)}>
-                          <img
-                            className="sr-thumb"
-                            src={cover || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
-                            alt=""
-                            onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
-                          />
-                          <div className="sr-info">
-                            <span className="sr-title">{book.title}</span>
-                            {badge && (
-                              <span className="sr-badge">
-                                {badge.logo && <img className="sr-badge-logo" src={badge.logo} alt="" />}
-                                {badge.name}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                    <button className="sr-item sr-author-row" onClick={() => setOpen(false)}>
+                    {item.books.map((book, j) => renderBookRow(book, `ag${i}-${j}`, () => handleSelect(book.id)))}
+                    <div className="sr-item sr-author-row">
                       <div className="sr-author-avatar">{item.author?.[0]?.toUpperCase()}</div>
                       <div className="sr-info">
                         <span className="sr-title">{item.author}</span>
                         <span className="sr-badge">Author</span>
                       </div>
-                    </button>
+                    </div>
                   </div>
                 );
               }
+
+              if (item.type === "artist") {
+                return (
+                  <div key={i} className="sr-group">
+                    <div className="sr-group-label">Artist</div>
+                    <div className="sr-item sr-author-row">
+                      <div className="sr-author-avatar">
+                        {item.artist.imageUrl
+                          ? <img src={item.artist.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                          : item.artist.name?.[0]?.toUpperCase()
+                        }
+                      </div>
+                      <div className="sr-info">
+                        <span className="sr-title">{item.artist.name}</span>
+                        {item.artist.specialty && <span className="sr-badge">{item.artist.specialty}</span>}
+                      </div>
+                    </div>
+                    {item.books.map((book, j) => renderBookRow(book, `art${i}-${j}`, () => handleSelect(book.id)))}
+                  </div>
+                );
+              }
+
+              if (item.type === "artist-group") {
+                return (
+                  <div key={i} className="sr-group">
+                    <div className="sr-group-label">Books with artist {item.artistName}</div>
+                    {item.books.map((book, j) => renderBookRow(book, `artg${i}-${j}`, () => handleSelect(book.id)))}
+                    <div className="sr-item sr-author-row">
+                      <div className="sr-author-avatar">{item.artistName?.[0]?.toUpperCase()}</div>
+                      <div className="sr-info">
+                        <span className="sr-title">{item.artistName}</span>
+                        <span className="sr-badge">Artist</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.type === "subscription") {
+                return (
+                  <button key={i} className="sr-item" onClick={() => handleCompanySelect(item.company)}>
+                    {item.subscription.logoUrl
+                      ? <img className="sr-thumb sr-thumb--square" src={item.subscription.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                      : <div className="sr-author-avatar">{item.subscription.name?.[0]?.toUpperCase()}</div>
+                    }
+                    <div className="sr-info">
+                      <span className="sr-title">{item.subscription.name}</span>
+                      <span className="sr-badge">
+                        {item.company.logoUrl && <img className="sr-badge-logo" src={item.company.logoUrl} alt="" />}
+                        {item.company.name}
+                      </span>
+                    </div>
+                  </button>
+                );
+              }
+
+              if (item.type === "company") {
+                return (
+                  <button key={i} className="sr-item" onClick={() => handleCompanySelect(item.company)}>
+                    {item.company.logoUrl
+                      ? <img className="sr-thumb sr-thumb--square" src={item.company.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                      : <div className="sr-author-avatar">{item.company.name?.[0]?.toUpperCase()}</div>
+                    }
+                    <div className="sr-info">
+                      <span className="sr-title">{item.company.name}</span>
+                      <span className="sr-badge">Book Box Company</span>
+                    </div>
+                  </button>
+                );
+              }
+
               return null;
             })}
           </div>
@@ -198,3 +365,4 @@ export default function SearchPanel({ books, onBookClick }) {
     </div>
   );
 }
+

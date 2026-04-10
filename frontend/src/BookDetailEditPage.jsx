@@ -5,7 +5,7 @@ import { useI18n } from "./i18n";
 const MONTH_NUMS = [1,2,3,4,5,6,7,8,9,10,11,12];
 
 function emptyBookForm() {
-  return { title: "", author: "", seriesName: "", volumeNumber: "" };
+  return { title: "", author: "", authorId: "", seriesName: "", volumeNumber: "", _authorSelect: "" };
 }
 
 function toBookForm(book) {
@@ -13,8 +13,10 @@ function toBookForm(book) {
   return {
     title: book.title || "",
     author: book.author || "",
+    authorId: book.authorId || "",
     seriesName: book.seriesName || "",
     volumeNumber: book.volumeNumber || "",
+    _authorSelect: book.authorId ? book.authorId : (book.author ? "custom" : ""),
   };
 }
 
@@ -58,7 +60,12 @@ function toEditionForm(edition) {
     basePrice: edition.basePrice != null ? String(edition.basePrice) : "",
     currency: edition.currency || "",
     imageUrls: edition.imageUrls ? [...edition.imageUrls] : [],
-    artists: edition.artists ? edition.artists.map((a) => ({ artistName: a.artistName || "", contribution: a.contribution || "" })) : [],
+    artists: edition.artists ? edition.artists.map((a) => ({
+      artistName: a.artistName || "",
+      contribution: a.contribution || "",
+      artistId: a.artistId || "",
+      _artistSelect: a.artistId ? a.artistId : (a.artistName ? "custom" : ""),
+    })) : [],
     bookBoxCompanyId: edition.bookBoxCompanyId || "",
     bookBoxCompanyCustomName: edition.bookBoxCompanyCustomName || "",
     _companySelect: edition.bookBoxCompanyId ? edition.bookBoxCompanyId : (edition.bookBoxCompanyCustomName ? "custom" : ""),
@@ -84,11 +91,21 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
+  const [authors, setAuthors] = useState([]);
+  const [artists, setArtists] = useState([]);
 
   useEffect(() => {
     fetch("http://localhost:8080/api/companies", { credentials: "include" })
       .then((res) => res.ok ? res.json() : [])
       .then((data) => setCompanies(data))
+      .catch(() => {});
+    fetch("http://localhost:8080/api/authors", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setAuthors)
+      .catch(() => {});
+    fetch("http://localhost:8080/api/artists", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setArtists)
       .catch(() => {});
   }, []);
 
@@ -105,7 +122,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
     const arr = f.artists.map((a, i) => i === idx ? { ...a, [key]: value } : a);
     return { ...f, artists: arr };
   });
-  const addArtist = () => setEditionForm((f) => ({ ...f, artists: [...f.artists, { artistName: "", contribution: "" }] }));
+  const addArtist = () => setEditionForm((f) => ({ ...f, artists: [...f.artists, { artistName: "", contribution: "", artistId: "", _artistSelect: "" }] }));
   const removeArtist = (idx) => setEditionForm((f) => ({ ...f, artists: f.artists.filter((_, i) => i !== idx) }));
 
   const buildEditionPayload = () => ({
@@ -122,7 +139,11 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
     basePrice: editionForm.basePrice ? parseFloat(editionForm.basePrice) : null,
     currency: editionForm.currency || null,
     imageUrls: editionForm.imageUrls.filter((u) => u.trim() !== ""),
-    artists: editionForm.artists.filter((a) => a.artistName.trim() !== ""),
+    artists: editionForm.artists.filter((a) => a.artistName.trim() !== "").map((a) => ({
+      artistName: a.artistName,
+      contribution: a.contribution,
+      artistId: a.artistId || null,
+    })),
     bookBoxCompanyId: editionForm.bookBoxCompanyId || null,
     bookBoxCompanyCustomName: editionForm.bookBoxCompanyCustomName || null,
   });
@@ -146,6 +167,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
           body: JSON.stringify({
             title: bookForm.title || null,
             author: bookForm.author || null,
+            authorId: bookForm.authorId || null,
             seriesName: bookForm.seriesName || null,
             volumeNumber: bookForm.volumeNumber || null,
           }),
@@ -172,6 +194,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
           body: JSON.stringify({
             title: bookForm.title || null,
             author: bookForm.author || null,
+            authorId: bookForm.authorId || null,
             seriesName: bookForm.seriesName || null,
             volumeNumber: bookForm.volumeNumber || null,
           }),
@@ -242,7 +265,42 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
             </label>
             <label className="edit-label">
               {t("col.author")}
-              <input className="edit-input" value={bookForm.author} onChange={(e) => setBook("author", e.target.value)} />
+              {authors.length > 0 ? (
+                <>
+                  <select
+                    className="edit-select"
+                    value={bookForm._authorSelect}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setBookForm((f) => ({ ...f, _authorSelect: "", author: "", authorId: "" }));
+                      } else if (val === "custom") {
+                        setBookForm((f) => ({ ...f, _authorSelect: "custom", authorId: "" }));
+                      } else {
+                        const found = authors.find((a) => a.id === val);
+                        setBookForm((f) => ({ ...f, _authorSelect: val, authorId: val, author: found ? found.name : "" }));
+                      }
+                    }}
+                  >
+                    <option value="">— no author —</option>
+                    {authors.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                    <option value="custom">Custom / type name</option>
+                  </select>
+                  {(bookForm._authorSelect === "custom" || bookForm._authorSelect === "") && (
+                    <input
+                      className="edit-input"
+                      style={{ marginTop: "0.5rem" }}
+                      value={bookForm.author}
+                      onChange={(e) => setBook("author", e.target.value)}
+                      placeholder="Author name"
+                    />
+                  )}
+                </>
+              ) : (
+                <input className="edit-input" value={bookForm.author} onChange={(e) => setBook("author", e.target.value)} />
+              )}
             </label>
             <label className="edit-label">
               {t("bookDetail.series")}
@@ -383,7 +441,46 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               <h3 className="edit-section-title">{t("bookDetail.artists")}</h3>
               {editionForm.artists.map((artist, idx) => (
                 <div key={idx} className="edit-dynamic-row">
-                  <input className="edit-input" value={artist.artistName} onChange={(e) => setArtist(idx, "artistName", e.target.value)} placeholder={t("bookDetail.artistName")} />
+                  {artists.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 }}>
+                      <select
+                        className="edit-select"
+                        value={artist._artistSelect}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setArtist(idx, "_artistSelect", "");
+                            setArtist(idx, "artistId", "");
+                            setArtist(idx, "artistName", "");
+                          } else if (val === "custom") {
+                            setArtist(idx, "_artistSelect", "custom");
+                            setArtist(idx, "artistId", "");
+                          } else {
+                            const found = artists.find((a) => a.id === val);
+                            setArtist(idx, "_artistSelect", val);
+                            setArtist(idx, "artistId", val);
+                            setArtist(idx, "artistName", found ? found.name : "");
+                          }
+                        }}
+                      >
+                        <option value="">— select artist —</option>
+                        {artists.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                        <option value="custom">Custom / type name</option>
+                      </select>
+                      {(artist._artistSelect === "custom" || artist._artistSelect === "") && (
+                        <input
+                          className="edit-input"
+                          value={artist.artistName}
+                          onChange={(e) => setArtist(idx, "artistName", e.target.value)}
+                          placeholder={t("bookDetail.artistName")}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <input className="edit-input" value={artist.artistName} onChange={(e) => setArtist(idx, "artistName", e.target.value)} placeholder={t("bookDetail.artistName")} />
+                  )}
                   <input className="edit-input" value={artist.contribution} onChange={(e) => setArtist(idx, "contribution", e.target.value)} placeholder={t("bookDetail.artistRole")} />
                   <button className="edit-remove-btn" type="button" onClick={() => removeArtist(idx)}>&#x2715;</button>
                 </div>

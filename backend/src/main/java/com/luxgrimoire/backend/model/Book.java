@@ -14,6 +14,7 @@ public class Book {
 
     private String title;
     private String author;
+    private String authorId;
     private String seriesName;
     private String volumeNumber;
 
@@ -31,6 +32,8 @@ public class Book {
     public void setTitle(String title) { this.title = title; }
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
+    public String getAuthorId() { return authorId; }
+    public void setAuthorId(String authorId) { this.authorId = authorId; }
     public String getSeriesName() { return seriesName; }
     public void setSeriesName(String seriesName) { this.seriesName = seriesName; }
     public String getVolumeNumber() { return volumeNumber; }

@@ -91,47 +91,25 @@ function AppInner() {
   return (
     <div className="app">
       <header className="header">
-        <div className="header-topbar">
-          <h1
-            className="header-logo"
-            onClick={() => setTab("browse")}
-            title="LuxGrimoire – Strona główna"
-          >✦ LuxGrimoire ✦</h1>
-          <p className="header-tagline">Your SEs tracker</p>
-          <div className="header-controls">
-            <LanguagePicker />
-            <UserMenu onNavigate={setTab} />
-          </div>
+        <div className="header-controls">
+          <LanguagePicker />
+          <UserMenu onNavigate={setTab} />
         </div>
-        {!isUserPage && !isDetailPage && (
-          <nav className="nav-tabs">
-            <button
-              className={`nav-tab${tab === "browse" ? " active" : ""}`}
-              onClick={() => setTab("browse")}
-            >
-              {t("nav.browse")}
-            </button>
-            <button
-              className={`nav-tab${tab === "collection" ? " active" : ""}`}
-              onClick={() => setTab("collection")}
-            >
-              {t("nav.collection")}
-            </button>
-            <button
-              className={`nav-tab${tab === "company-list" ? " active" : ""}`}
-              onClick={() => setTab("company-list")}
-            >
-              {t("nav.companies")}
-            </button>
-            {user && (
-              <button className="new-book-btn" onClick={handleNewBook}>{t("bookDetail.newBtn")}</button>
-            )}
-          </nav>
-        )}
+        <h1
+          className="header-logo"
+          onClick={() => setTab("browse")}
+          title="LuxGrimoire – Strona główna"
+        >✦ LuxGrimoire ✦</h1>
       </header>
 
       {!isUserPage && !isDetailPage && (
-        <SearchPanel books={books} onBookClick={handleBookClick} />
+        <SearchPanel
+          books={books}
+          onBookClick={handleBookClick}
+          onCompanyClick={handleCompanyClick}
+          user={user}
+          onNewBook={handleNewBook}
+        />
       )}
 
       <main>
