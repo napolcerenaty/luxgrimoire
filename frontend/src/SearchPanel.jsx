@@ -19,7 +19,7 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
-export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, user, onNewBook, onAdd }) {
+export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, onArtistClick, user, onNewBook, onAdd }) {
   const [query, setQuery]         = useState("");
   const [activeFilter, setFilter] = useState("all");
   const [open, setOpen]           = useState(false);
@@ -64,6 +64,11 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
   const handleCompanySelect = (companyId, companyObj) => {
     setQuery(""); setOpen(false); setResults(null);
     if (onCompanyClick) onCompanyClick(companyObj || { id: companyId });
+  };
+
+  const handleArtistSelect = (artistId) => {
+    setQuery(""); setOpen(false); setResults(null);
+    if (onArtistClick) onArtistClick(artistId);
   };
 
   const handleAuthorSelect = (authorId) => {
@@ -221,7 +226,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                 {results.artists?.length > 0 && (
                   <div className="sr-group">
                     {activeFilter === "all" && <div className="sr-group-label">Artists</div>}
-                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`, null))}
+                    {results.artists.map((item, i) => renderPersonRow(item, "Artist", `ar${i}`, () => handleArtistSelect(item.id)))}
                   </div>
                 )}
 
