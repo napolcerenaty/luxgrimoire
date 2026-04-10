@@ -1,4 +1,4 @@
-.company-edit-page {
+﻿.company-edit-page {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem 1rem;
@@ -13,8 +13,8 @@
 
 .company-edit-back-btn {
   background: none;
-  border: 1px solid #183858;
-  color: #90d0e8;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 6px;
   padding: 0.4rem 1rem;
   font-size: 0.92rem;
@@ -23,13 +23,13 @@
 }
 
 .company-edit-back-btn:hover {
-  border-color: #00b4d0;
-  color: #38d4f0;
+  border-color: var(--accent2);
+  color: var(--accent);
 }
 
 .company-edit-heading {
   font-size: 1.4rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0;
 }
 
@@ -74,8 +74,8 @@
 
 .company-edit-input {
   background: #081828;
-  border: 1px solid #183858;
-  color: #c0e4f4;
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.95rem;
@@ -84,13 +84,13 @@
 }
 
 .company-edit-input:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .company-edit-textarea {
   background: #081828;
-  border: 1px solid #183858;
-  color: #c0e4f4;
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.95rem;
@@ -101,25 +101,25 @@
 }
 
 .company-edit-textarea:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .company-edit-section {
-  background: #0d1f35;
-  border: 1px solid #183858;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem 1.2rem;
 }
 
 .company-edit-section-title {
   font-size: 1rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0 0 0.5rem 0;
 }
 
 .company-edit-section-note {
   font-size: 0.83rem;
-  color: #90d0e8;
+  color: var(--text-dim);
   margin: 0 0 0.8rem 0;
   font-style: italic;
 }
@@ -132,13 +132,13 @@
 
 .company-edit-manager-item {
   padding: 0.4rem 0.6rem;
-  color: #c0e4f4;
+  color: var(--text);
   font-size: 0.92rem;
-  border-bottom: 1px solid #183858;
+  border-bottom: 1px solid var(--border);
 }
 
 .company-edit-managers-empty {
-  color: #90d0e8;
+  color: var(--text-dim);
   font-style: italic;
   font-size: 0.88rem;
 }
@@ -173,7 +173,7 @@
 .company-edit-add-btn {
   background: none;
   border: 1px dashed #347898;
-  color: #4888a4;
+  color: var(--accent-dim);
   border-radius: 6px;
   padding: 0.4rem 0.9rem;
   font-size: 0.88rem;
@@ -183,8 +183,8 @@
 }
 
 .company-edit-add-btn:hover {
-  border-color: #00b4d0;
-  color: #38d4f0;
+  border-color: var(--accent2);
+  color: var(--accent);
 }
 
 .company-edit-form-actions {
@@ -193,8 +193,8 @@
 }
 
 .company-edit-submit-btn {
-  background: #00b4d0;
-  color: #060d18;
+  background: var(--accent2);
+  color: var(--bg-header);
   border: none;
   border-radius: 6px;
   padding: 0.55rem 1.6rem;
@@ -205,7 +205,7 @@
 }
 
 .company-edit-submit-btn:hover:not(:disabled) {
-  background: #38d4f0;
+  background: var(--accent);
 }
 
 .company-edit-submit-btn:disabled {
@@ -215,8 +215,8 @@
 
 .company-edit-cancel-btn {
   background: none;
-  border: 1px solid #183858;
-  color: #90d0e8;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 6px;
   padding: 0.55rem 1.2rem;
   font-size: 0.95rem;
@@ -225,14 +225,14 @@
 }
 
 .company-edit-cancel-btn:hover:not(:disabled) {
-  border-color: #00b4d0;
-  color: #38d4f0;
+  border-color: var(--accent2);
+  color: var(--accent);
 }
 
 /* ── Subscription cards ─────────────────────────────────────────────── */
 
 .sub-card {
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   background: #081828;
   border-radius: 8px;
   margin-bottom: 0.6rem;
@@ -254,7 +254,7 @@
   justify-content: space-between;
   background: none;
   border: none;
-  color: #c0e4f4;
+  color: var(--text);
   cursor: pointer;
   padding: 0.55rem 0.75rem;
   text-align: left;
@@ -263,7 +263,7 @@
 }
 
 .sub-card-toggle:hover {
-  color: #38d4f0;
+  color: var(--accent);
 }
 
 .sub-card-name {
@@ -276,13 +276,13 @@
 }
 
 .sub-card-chevron {
-  color: #4888a4;
+  color: var(--accent-dim);
   font-size: 0.8rem;
   flex-shrink: 0;
 }
 
 .sub-card-body {
-  border-top: 1px solid #183858;
+  border-top: 1px solid var(--border);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -294,15 +294,15 @@
   flex-direction: column;
   gap: 0.4rem;
   padding: 0.5rem;
-  background: #060d18;
+  background: var(--bg-header);
   border-radius: 6px;
-  border: 1px solid #0d2840;
+  border: 1px solid var(--border-dim);
 }
 
 .company-edit-select {
   background: #081828;
-  border: 1px solid #183858;
-  color: #c0e4f4;
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.95rem;
@@ -311,7 +311,7 @@
 }
 
 .company-edit-select:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .company-edit-label--checkbox {
@@ -324,7 +324,7 @@
 .company-edit-label--checkbox input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
-  accent-color: #00b4d0;
+  accent-color: var(--accent2);
   cursor: pointer;
 }
 
@@ -333,7 +333,7 @@
 
 .sub-months-section {
   margin-top: 0.8rem;
-  border-top: 1px solid #0d2840;
+  border-top: 1px solid var(--border-dim);
   padding-top: 0.6rem;
 }
 
@@ -342,8 +342,8 @@
   align-items: flex-start;
   gap: 0.4rem;
   margin-bottom: 0.5rem;
-  background: #060d18;
-  border: 1px solid #0d2840;
+  background: var(--bg-header);
+  border: 1px solid var(--border-dim);
   border-radius: 6px;
   padding: 0.5rem 0.5rem 0.5rem 0.7rem;
 }

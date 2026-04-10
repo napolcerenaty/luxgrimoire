@@ -8,6 +8,8 @@ import ProfilePage from "./ProfilePage";
 import SettingsPage from "./SettingsPage";
 import { I18nProvider, useI18n } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
+import { ThemeProvider } from "./ThemeContext";
+import ThemePicker from "./ThemePicker";
 import BookDetailPage from "./BookDetailPage";
 import BookDetailEditPage from "./BookDetailEditPage";
 import CompanyListPage from "./CompanyListPage";
@@ -100,6 +102,7 @@ function AppInner() {
     <div className="app">
       <header className="header">
         <div className="header-controls">
+          <ThemePicker />
           <LanguagePicker />
           <UserMenu onNavigate={setTab} />
         </div>
@@ -266,11 +269,13 @@ function AppInner() {
 
 function App() {
   return (
-    <I18nProvider>
+    <ThemeProvider>
       <AuthProvider>
-        <AppInner />
+        <I18nProvider>
+          <AppInner />
+        </I18nProvider>
       </AuthProvider>
-    </I18nProvider>
+    </ThemeProvider>
   );
 }
 

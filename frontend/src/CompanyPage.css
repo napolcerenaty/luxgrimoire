@@ -1,4 +1,4 @@
-.company-page {
+﻿.company-page {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem 1rem;
@@ -14,8 +14,8 @@
 
 .company-back-btn {
   background: none;
-  border: 1px solid #183858;
-  color: #90d0e8;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 6px;
   padding: 0.4rem 1rem;
   font-size: 0.92rem;
@@ -24,8 +24,8 @@
 }
 
 .company-back-btn:hover {
-  border-color: #00b4d0;
-  color: #38d4f0;
+  border-color: var(--accent2);
+  color: var(--accent);
 }
 
 .company-page-actions-right {
@@ -34,9 +34,9 @@
 }
 
 .company-action-btn {
-  background: #0d1f35;
-  border: 1px solid #183858;
-  color: #90d0e8;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 6px;
   padding: 0.4rem 1rem;
   font-size: 0.88rem;
@@ -45,8 +45,8 @@
 }
 
 .company-action-btn:hover {
-  border-color: #00b4d0;
-  color: #38d4f0;
+  border-color: var(--accent2);
+  color: var(--accent);
 }
 
 .company-delete-btn {
@@ -60,8 +60,8 @@
 }
 
 .company-page-content {
-  background: #0d1f35;
-  border: 1px solid #183858;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 2rem;
 }
@@ -77,13 +77,13 @@
   max-height: 110px;
   object-fit: contain;
   border-radius: 6px;
-  background: #070f1c;
+  background: var(--bg-surface);
   padding: 0.5rem;
 }
 
 .company-page-name {
   font-size: 2rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0 0 0.6rem 0;
   text-align: center;
 }
@@ -91,7 +91,7 @@
 .company-page-website {
   display: block;
   text-align: center;
-  color: #00b4d0;
+  color: var(--accent2);
   text-decoration: none;
   font-size: 0.95rem;
   margin-bottom: 1.2rem;
@@ -99,7 +99,7 @@
 }
 
 .company-page-website:hover {
-  color: #68e0f8;
+  color: var(--accent-bright);
   text-decoration: underline;
 }
 
@@ -124,7 +124,7 @@
   flex-direction: column;
   align-items: center;
   background: #081828;
-  border: 1px solid #0d2840;
+  border: 1px solid var(--border-dim);
   border-radius: 8px;
   padding: 0.6rem 1.2rem;
   min-width: 120px;
@@ -132,7 +132,7 @@
 
 .company-page-label {
   font-size: 0.78rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 0.2rem;
@@ -140,7 +140,7 @@
 
 .company-page-value {
   font-size: 1rem;
-  color: #c0e4f4;
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -150,9 +150,9 @@
 
 .company-page-section-title {
   font-size: 1rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin-bottom: 0.7rem;
-  border-bottom: 1px solid #0d2840;
+  border-bottom: 1px solid var(--border-dim);
   padding-bottom: 0.3rem;
 }
 
@@ -164,7 +164,7 @@
 
 .company-page-sub-card {
   background: #081828;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1rem 1.2rem;
   display: flex;
@@ -189,7 +189,7 @@
 
 .company-page-sub-name {
   font-size: 1rem;
-  color: #c0e4f4;
+  color: var(--text);
   margin: 0;
 }
 
@@ -200,9 +200,9 @@
 }
 
 .company-page-sub-tag {
-  background: #0d1f35;
-  border: 1px solid #0d2840;
-  color: #00b4d0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  color: var(--accent2);
   border-radius: 14px;
   padding: 0.15rem 0.65rem;
   font-size: 0.8rem;
@@ -215,16 +215,16 @@
 }
 
 .company-page-sub-genre {
-  background: #060d18;
-  border: 1px solid #183858;
-  color: #90d0e8;
+  background: var(--bg-header);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   border-radius: 12px;
   padding: 0.1rem 0.55rem;
   font-size: 0.78rem;
 }
 
 .company-page-sub-price {
-  color: #38d4f0;
+  color: var(--accent);
   font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
@@ -234,7 +234,7 @@
 
 .company-page-sub-months {
   margin-top: 0.6rem;
-  border-top: 1px solid #0d2840;
+  border-top: 1px solid var(--border-dim);
   padding-top: 0.5rem;
 }
 
@@ -257,8 +257,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #060d18;
-  border: 1px solid #0d2840;
+  background: var(--bg-header);
+  border: 1px solid var(--border-dim);
   border-radius: 6px;
   padding: 0.3rem 0.7rem 0.3rem 0.4rem;
 }
@@ -283,13 +283,13 @@
 
 .company-page-sub-month-date {
   font-size: 0.82rem;
-  color: #c0e4f4;
+  color: var(--text);
   font-weight: 600;
 }
 
 .company-page-sub-month-theme {
   font-size: 0.76rem;
-  color: #90d0e8;
+  color: var(--text-dim);
   font-style: italic;
 }
 
@@ -302,8 +302,8 @@
 .uc-subscribe-btn {
   margin-top: 0.5rem;
   background: none;
-  border: 1px solid #00b4d0;
-  color: #00b4d0;
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
   border-radius: 6px;
   padding: 0.3rem 0.9rem;
   font-size: 0.85rem;
@@ -312,12 +312,12 @@
 }
 
 .uc-subscribe-btn:hover {
-  background: #00b4d0;
-  color: #060d18;
+  background: var(--accent2);
+  color: var(--bg-header);
 }
 
 .uc-subscribe-btn--added {
-  border-color: #38d4f0;
-  color: #38d4f0;
+  border-color: var(--accent);
+  color: var(--accent);
   cursor: default;
 }

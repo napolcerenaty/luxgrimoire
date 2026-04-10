@@ -1,9 +1,9 @@
-/* ═══════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════
    Recent Announcements section
 ═══════════════════════════════════════════ */
 .announcements {
   padding: 2.5rem 0 2rem;
-  border-bottom: 1px solid #0d1f35;
+  border-bottom: 1px solid var(--bg-raised);
   margin-bottom: 2.5rem;
 }
 
@@ -17,7 +17,7 @@
   font-family: 'Cinzel', serif;
   font-size: clamp(1.1rem, 2.5vw, 1.6rem);
   font-weight: 400;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0 0 0.35rem;
   letter-spacing: 0.1em;
   text-shadow: 0 0 20px rgba(0, 180, 220, 0.3);
@@ -26,7 +26,7 @@
 .announcements-subtitle {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #2a5878;
+  color: var(--text-ghost);
   margin: 0;
   font-style: italic;
   letter-spacing: 0.04em;
@@ -47,9 +47,9 @@
   width: 2.4rem;
   height: 2.4rem;
   background: rgba(6, 13, 24, 0.8);
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 50%;
-  color: #38d4f0;
+  color: var(--accent);
   font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
@@ -63,7 +63,7 @@
 
 .carousel-arrow:hover {
   background: rgba(0, 160, 200, 0.18);
-  border-color: #38d4f0;
+  border-color: var(--accent);
   box-shadow: 0 0 12px rgba(0, 180, 220, 0.3);
 }
 
@@ -86,10 +86,10 @@
   height: 3px;
 }
 .announcements-carousel::-webkit-scrollbar-track {
-  background: #060d18;
+  background: var(--bg-header);
 }
 .announcements-carousel::-webkit-scrollbar-thumb {
-  background: #183858;
+  background: var(--border);
   border-radius: 2px;
 }
 
@@ -98,8 +98,8 @@
   flex-shrink: 0;
   width: 200px;
   scroll-snap-align: start;
-  background: linear-gradient(160deg, #0b1828 0%, #07101e 100%);
-  border: 1px solid #183858;
+  background: var(--grad-ann-card);
+  border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
@@ -108,8 +108,8 @@
 
 .announcement-card:hover {
   transform: translateY(-4px);
-  border-color: #2a6080;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 160, 200, 0.12);
+  border-color: var(--text-faint);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px var(--accent-glow3);
 }
 
 /* ─── Image area ─── */
@@ -118,7 +118,7 @@
   width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  background: #060d18;
+  background: var(--bg-header);
 }
 
 .announcement-img {
@@ -146,8 +146,8 @@
   padding: 0.3rem 0.6rem;
   border-radius: 0 0 0 5px;
   white-space: nowrap;
-  background: rgba(6, 20, 40, 0.92);
-  color: #38d4f0;
+  background: var(--ribbon-bg);
+  color: var(--accent);
   border-left: 2px solid rgba(0, 180, 210, 0.5);
   border-bottom: 2px solid rgba(0, 180, 210, 0.5);
   backdrop-filter: blur(4px);
@@ -159,9 +159,9 @@
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
-  background: rgba(6, 13, 24, 0.85);
+  background: var(--bg-input);
   border: 1px solid rgba(0, 180, 210, 0.4);
-  color: #38d4f0;
+  color: var(--accent);
   font-family: 'Cinzel', serif;
   font-size: 0.6rem;
   font-weight: 600;
@@ -179,7 +179,7 @@
 .announcement-edition {
   font-family: 'Crimson Text', serif;
   font-size: 0.78rem;
-  color: #2a6888;
+  color: var(--text-faint);
   margin: 0 0 0.2rem;
   font-style: italic;
   white-space: nowrap;
@@ -191,7 +191,7 @@
   font-family: 'Cinzel', serif;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #d8eaf5;
+  color: var(--text-bright);
   margin: 0 0 0.55rem;
   line-height: 1.35;
   display: -webkit-box;
@@ -207,7 +207,7 @@
   margin: 0;
   font-family: 'Crimson Text', serif;
   font-size: 0.88rem;
-  color: #4888a4;
+  color: var(--accent-dim);
 }
 
 .announcement-date-label {
@@ -215,7 +215,7 @@
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #2a5070;
+  color: var(--text-ghost);
   text-transform: uppercase;
 }
 
@@ -225,7 +225,7 @@
 .ann-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(3, 8, 16, 0.88);
+  background: var(--overlay-bg);
   backdrop-filter: blur(6px);
   z-index: 500;
   display: flex;
@@ -241,12 +241,12 @@
 }
 
 .ann-modal {
-  background: linear-gradient(145deg, #0b1828 0%, #070f1c 100%);
-  border: 1px solid #1e4060;
+  background: var(--grad-modal);
+  border: 1px solid var(--text-ghost);
   border-radius: 10px;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.9),
-    0 0 40px rgba(0, 160, 200, 0.08);
+    0 0 40px var(--accent-glow2);
   max-width: 680px;
   width: 100%;
   position: relative;
@@ -264,9 +264,9 @@
   top: 0.85rem;
   right: 0.9rem;
   background: transparent;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 50%;
-  color: #2a6080;
+  color: var(--text-faint);
   width: 2rem;
   height: 2rem;
   display: flex;
@@ -279,8 +279,8 @@
 }
 
 .ann-modal-close:hover {
-  color: #38d4f0;
-  border-color: #38d4f0;
+  color: var(--accent);
+  border-color: var(--accent);
   background: rgba(0, 160, 200, 0.1);
 }
 
@@ -315,8 +315,8 @@
   text-transform: uppercase;
   padding: 0.3rem 0.65rem;
   border-radius: 0 0 0 5px;
-  background: rgba(6, 20, 40, 0.92);
-  color: #38d4f0;
+  background: var(--ribbon-bg);
+  color: var(--accent);
   border-left: 2px solid rgba(0, 180, 210, 0.5);
   border-bottom: 2px solid rgba(0, 180, 210, 0.5);
   backdrop-filter: blur(4px);
@@ -333,7 +333,7 @@
 .ann-modal-edition {
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
-  color: #2a7090;
+  color: var(--text-faint);
   font-style: italic;
   margin: 0 0 0.4rem;
   letter-spacing: 0.02em;
@@ -343,7 +343,7 @@
   font-family: 'Cinzel', serif;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #d8eaf5;
+  color: var(--text-bright);
   margin: 0 0 1.2rem;
   line-height: 1.4;
   padding-right: 2rem;
@@ -351,7 +351,7 @@
 
 .ann-modal-divider {
   height: 1px;
-  background: linear-gradient(to right, #1e4060, transparent);
+  background: linear-gradient(to right, var(--text-ghost), transparent);
   margin-bottom: 1.2rem;
 }
 
@@ -374,27 +374,27 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #2a5070;
+  color: var(--text-ghost);
 }
 
 .ann-modal-meta-value {
   font-family: 'Crimson Text', serif;
   font-size: 1.05rem;
-  color: #78bcd4;
+  color: var(--text-mid);
 }
 
 .ann-modal-countdown {
-  color: #38d4f0;
+  color: var(--accent);
   font-weight: 600;
 }
 
 .ann-modal-note {
   font-family: 'Crimson Text', serif;
   font-size: 0.82rem;
-  color: #1e4060;
+  color: var(--text-ghost);
   font-style: italic;
   margin: 1.5rem 0 0;
-  border-top: 1px solid #0d1f35;
+  border-top: 1px solid var(--bg-raised);
   padding-top: 0.9rem;
   line-height: 1.5;
 }

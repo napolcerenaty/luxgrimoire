@@ -1,14 +1,14 @@
-/* ═══════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════
    Search panel strip
 ═══════════════════════════════════════════ */
 .search-panel {
-  background: linear-gradient(180deg, #07101e 0%, #060d18 100%);
-  border-top: 1px solid #0d1f35;
-  border-bottom: 1px solid #0d1f35;
+  background: var(--grad-panel);
+  border-top: 1px solid var(--bg-raised);
+  border-bottom: 1px solid var(--bg-raised);
   padding: 0.75rem 2rem 1.1rem;
   box-shadow:
     inset 0 6px 18px rgba(0, 0, 0, 0.55),
-    0 4px 16px rgba(0, 0, 0, 0.4);
+    0 4px 16px var(--shadow-mid);
 }
 
 .search-panel-inner {
@@ -33,23 +33,23 @@
   text-transform: uppercase;
   padding: 0.28rem 0.75rem;
   border-radius: 20px;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   background: transparent;
-  color: #2a6080;
+  color: var(--text-faint);
   cursor: pointer;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
 }
 
 .filter-chip:hover {
-  color: #38d4f0;
-  border-color: #38d4f0;
-  background: rgba(0, 160, 200, 0.08);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow2);
 }
 
 .filter-chip--active {
-  color: #38d4f0;
-  border-color: #38d4f0;
-  background: rgba(0, 160, 200, 0.12);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow3);
 }
 
 .search-row {
@@ -61,10 +61,10 @@
 /* ─── Input ─── */
 .search-input {
   flex: 1;
-  background: rgba(6, 13, 24, 0.85);
-  border: 1px solid #183858;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  color: #78bcd4;
+  color: var(--text-mid);
   padding: 0.75rem 1.2rem;
   font-family: 'Crimson Text', serif;
   font-size: 1.15rem;
@@ -74,21 +74,21 @@
 }
 
 .search-input:focus {
-  border-color: #38d4f0;
+  border-color: var(--accent);
   box-shadow: 0 0 14px rgba(0, 180, 210, 0.2);
 }
 
 .search-input::placeholder {
-  color: #1e4060;
+  color: var(--text-ghost);
   font-style: italic;
 }
 
 /* ─── Buttons ─── */
 .search-btn {
   background: transparent;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  color: #38d4f0;
+  color: var(--accent);
   font-family: 'Cinzel', serif;
   font-size: 0.78rem;
   font-weight: 600;
@@ -101,15 +101,15 @@
 }
 
 .search-btn:hover {
-  background: rgba(0, 160, 200, 0.15);
-  border-color: #38d4f0;
+  background: var(--accent-glow);
+  border-color: var(--accent);
 }
 
 .lucky-draw-btn {
   background: transparent;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  color: #4888a4;
+  color: var(--accent-dim);
   font-family: 'Cinzel', serif;
   font-size: 0.78rem;
   font-weight: 600;
@@ -124,14 +124,14 @@
 .lucky-draw-btn:hover {
   background: rgba(0, 80, 120, 0.2);
   border-color: #2080a0;
-  color: #38d4f0;
+  color: var(--accent);
 }
 
 .add-book-btn {
   background: transparent;
-  border: 1px solid #00b4d0;
+  border: 1px solid var(--accent2);
   border-radius: 4px;
-  color: #00b4d0;
+  color: var(--accent2);
   font-family: 'Cinzel', serif;
   font-size: 0.78rem;
   font-weight: 600;
@@ -145,8 +145,8 @@
 
 .add-book-btn:hover {
   background: rgba(0, 170, 210, 0.15);
-  color: #68e0f8;
-  border-color: #68e0f8;
+  color: var(--accent-bright);
+  border-color: var(--accent-bright);
 }
 
 /* ─── Dropdown ─── */
@@ -155,8 +155,8 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: #07101e;
-  border: 1px solid #183858;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
   z-index: 200;
@@ -168,10 +168,10 @@
   width: 4px;
 }
 .search-dropdown::-webkit-scrollbar-track {
-  background: #060d18;
+  background: var(--bg-header);
 }
 .search-dropdown::-webkit-scrollbar-thumb {
-  background: #183858;
+  background: var(--border);
   border-radius: 2px;
 }
 
@@ -183,7 +183,7 @@
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #0c1e30;
+  border-bottom: 1px solid var(--border-faint);
   padding: 0.55rem 0.9rem;
   cursor: pointer;
   text-align: left;
@@ -195,7 +195,7 @@
 }
 
 .sr-item:hover {
-  background: rgba(0, 160, 200, 0.08);
+  background: var(--accent-glow2);
 }
 
 .sr-thumb {
@@ -203,7 +203,7 @@
   height: 54px;
   object-fit: cover;
   border-radius: 2px;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -221,7 +221,7 @@
 .sr-title {
   font-family: 'Cinzel', serif;
   font-size: 0.82rem;
-  color: #38d4f0;
+  color: var(--accent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -232,7 +232,7 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.76rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   font-family: 'Crimson Text', serif;
   white-space: nowrap;
   overflow: hidden;
@@ -249,7 +249,7 @@
 
 /* ─── Author group ─── */
 .sr-group {
-  border-bottom: 1px solid #0c1e30;
+  border-bottom: 1px solid var(--border-faint);
 }
 
 .sr-group:last-child {
@@ -259,7 +259,7 @@
 .sr-group-label {
   font-family: 'Cinzel', serif;
   font-size: 0.66rem;
-  color: #2a5070;
+  color: var(--text-ghost);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 0.5rem 0.9rem 0.25rem;
@@ -274,13 +274,13 @@
   height: 36px;
   border-radius: 50%;
   background: rgba(0, 80, 120, 0.3);
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Cinzel', serif;
   font-size: 0.9rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   flex-shrink: 0;
 }
 
@@ -288,7 +288,7 @@
 .sr-empty {
   padding: 1rem;
   text-align: center;
-  color: #2a5070;
+  color: var(--text-ghost);
   font-family: 'Crimson Text', serif;
   font-style: italic;
   font-size: 0.95rem;
@@ -298,7 +298,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #38d4f0;
+  color: var(--accent);
   font-family: 'Crimson Text', serif;
   font-style: italic;
   font-size: 0.95rem;
@@ -310,5 +310,5 @@
 }
 
 .sr-add-link:hover {
-  color: #68e0f8;
+  color: var(--accent-bright);
 }

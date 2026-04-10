@@ -1,8 +1,8 @@
-﻿.lang-picker {
+.theme-picker {
   position: relative;
 }
 
-.lang-btn {
+.theme-btn {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -17,49 +17,21 @@
   white-space: nowrap;
 }
 
-.lang-btn:hover {
+.theme-btn:hover {
   background: var(--accent-glow);
   border-color: var(--accent);
 }
 
-/* flag-icons sizing overrides */
-.flag-icon {
-  border-radius: 2px;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
-}
-
-.flag-icon--sm {
-  width: 1.2em;
-  height: 0.9em;
-  font-size: 1rem;
-}
-
-.flag-icon--md {
-  width: 1.35em;
-  height: 1em;
-  font-size: 1rem;
-}
-
-.lang-code {
-  font-family: 'Cinzel', serif;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--accent2);
-}
-
-.lang-arrow {
+.theme-arrow {
   font-size: 0.55rem;
   color: var(--text-ghost);
 }
 
-/* Dropdown */
-.lang-dropdown {
+.theme-dropdown {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 170px;
+  min-width: 130px;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -68,7 +40,7 @@
   overflow: hidden;
 }
 
-.lang-option {
+.theme-option {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -76,7 +48,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  color: #5898b0;
+  color: var(--text-muted);
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;
   padding: 0.6rem 1rem;
@@ -84,21 +56,21 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.lang-option:hover {
-  background: rgba(0, 160, 200, 0.1);
+.theme-option:hover {
+  background: var(--accent-glow2);
   color: var(--accent);
 }
 
-.lang-option.active {
+.theme-option.active {
   color: var(--accent);
   background: var(--accent-glow2);
 }
 
-.lang-option-label {
+.theme-option-label {
   flex: 1;
 }
 
-.lang-check {
+.theme-check {
   color: var(--accent2);
   font-size: 0.8rem;
 }

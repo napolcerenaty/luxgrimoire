@@ -1,4 +1,4 @@
-.carousel-wrapper {
+﻿.carousel-wrapper {
   max-width: 400px;
   margin: 0 auto;
   display: flex;
@@ -13,8 +13,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  background: #050810;
-  border: 1px solid #183858;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -32,8 +32,8 @@
   top: 50%;
   transform: translateY(-50%);
   background: rgba(28, 18, 8, 0.75);
-  border: 1px solid #183858;
-  color: #00b4d0;
+  border: 1px solid var(--border);
+  color: var(--accent2);
   font-size: 2rem;
   line-height: 1;
   width: 2.5rem;
@@ -50,7 +50,7 @@
 
 .carousel-btn:hover:not(:disabled) {
   background: rgba(90, 58, 26, 0.85);
-  color: #68e0f8;
+  color: var(--accent-bright);
 }
 
 .carousel-btn:disabled {
@@ -71,16 +71,16 @@
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  background: #0d2840;
-  border: 1px solid #183858;
+  background: var(--border-dim);
+  border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
   transition: background 0.2s;
 }
 
 .carousel-dot.active {
-  background: #00b4d0;
-  border-color: #00b4d0;
+  background: var(--accent2);
+  border-color: var(--accent2);
 }
 
 .carousel-dot:hover {

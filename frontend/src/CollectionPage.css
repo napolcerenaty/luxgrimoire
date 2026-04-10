@@ -1,28 +1,28 @@
-.collection-page {
+﻿.collection-page {
   width: 100%;
   padding: 2rem;
   box-sizing: border-box;
   font-family: 'Crimson Text', serif;
-  color: #c0e4f4;
+  color: var(--text);
 }
 
 .collection-meta {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   margin-bottom: 1.5rem;
   font-style: italic;
 }
 
 .collection-meta span {
-  color: #00b4d0;
+  color: var(--accent2);
   font-weight: 600;
 }
 
 .collection-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #0d2840;
+  border: 1px solid var(--border-dim);
   border-radius: 4px;
 }
 
@@ -30,19 +30,19 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
-  background: #050810;
+  background: var(--bg);
   min-width: 900px;
 }
 
 .collection-table thead {
-  background: linear-gradient(135deg, #060d18 0%, #0d1f35 100%);
+  background: var(--grad-header);
   position: sticky;
   top: 0;
   z-index: 2;
 }
 
 .collection-table th {
-  border-bottom: 2px solid #183858;
+  border-bottom: 2px solid var(--border);
   border-right: 1px solid #0e2438;
   padding: 0;
   text-align: left;
@@ -60,7 +60,7 @@
   width: 100%;
   background: none;
   border: none;
-  color: #00b4d0;
+  color: var(--accent2);
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -71,12 +71,12 @@
 }
 
 .col-header-btn:hover {
-  color: #68e0f8;
+  color: var(--accent-bright);
 }
 
 .sort-arrow {
   font-size: 0.65rem;
-  color: #00b4d0;
+  color: var(--accent2);
   opacity: 0.7;
 }
 
@@ -88,9 +88,9 @@
 .col-filter select {
   width: 100%;
   background: #081828;
-  border: 1px solid #0d2840;
+  border: 1px solid var(--border-dim);
   border-radius: 2px;
-  color: #c0e4f4;
+  color: var(--text);
   font-family: 'Crimson Text', serif;
   font-size: 0.82rem;
   padding: 0.2rem 0.4rem;
@@ -100,7 +100,7 @@
 
 .col-filter input:focus,
 .col-filter select:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .col-filter select option {
@@ -108,7 +108,7 @@
 }
 
 .collection-table tbody tr {
-  border-bottom: 1px solid #070f1c;
+  border-bottom: 1px solid var(--bg-surface);
   transition: background 0.15s ease;
 }
 
@@ -118,7 +118,7 @@
 
 .collection-table td {
   padding: 0.55rem 0.75rem;
-  border-right: 1px solid #070f1c;
+  border-right: 1px solid var(--bg-surface);
   color: #90c8e0;
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
@@ -140,13 +140,13 @@
 }
 
 .book-title-link {
-  color: #00b4d0;
+  color: var(--accent2);
   cursor: pointer;
 }
 
 .book-title-link:hover {
   text-decoration: underline;
-  color: #68e0f8;
+  color: var(--accent-bright);
 }
 
 .col-lang { width: 80px; }

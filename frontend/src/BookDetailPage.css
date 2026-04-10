@@ -1,7 +1,7 @@
-.book-detail-page {
+﻿.book-detail-page {
   padding: 2rem;
   font-family: 'Crimson Text', serif;
-  color: #c0e4f4;
+  color: var(--text);
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -22,8 +22,8 @@
 
 .detail-back-btn {
   background: none;
-  border: 1px solid #183858;
-  color: #00b4d0;
+  border: 1px solid var(--border);
+  color: var(--accent2);
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
   padding: 0.4rem 1rem;
@@ -34,14 +34,14 @@
 }
 
 .detail-back-btn:hover {
-  background: #0d1f35;
-  color: #68e0f8;
+  background: var(--bg-raised);
+  color: var(--accent-bright);
 }
 
 .detail-action-btn {
-  background: #070f1c;
-  border: 1px solid #00b4d0;
-  color: #00b4d0;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
   padding: 0.4rem 1rem;
@@ -52,8 +52,8 @@
 }
 
 .detail-action-btn:hover:not(:disabled) {
-  background: #0d1f35;
-  color: #68e0f8;
+  background: var(--bg-raised);
+  color: var(--accent-bright);
 }
 
 .detail-action-btn:disabled {
@@ -100,7 +100,7 @@
 .detail-title {
   font-family: 'Cinzel', serif;
   font-size: 1.8rem;
-  color: #00b4d0;
+  color: var(--accent2);
   margin: 0 0 0.25rem;
   line-height: 1.3;
 }
@@ -108,7 +108,7 @@
 .detail-author {
   font-family: 'Crimson Text', serif;
   font-size: 1.1rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   margin: 0;
   font-style: italic;
 }
@@ -117,10 +117,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border: 1px solid #0d2840;
+  border: 1px solid var(--border-dim);
   border-radius: 4px;
   padding: 1rem 1.25rem;
-  background: #050810;
+  background: var(--bg);
 }
 
 .detail-field {
@@ -133,7 +133,7 @@
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
-  color: #1a6898;
+  color: var(--text-faint);
   text-transform: uppercase;
   min-width: 140px;
   flex-shrink: 0;
@@ -154,25 +154,25 @@
 .detail-section-title {
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
-  color: #00b4d0;
+  color: var(--accent2);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0;
-  border-bottom: 1px solid #0d2840;
+  border-bottom: 1px solid var(--border-dim);
   padding-bottom: 0.4rem;
 }
 
 .detail-dates-table {
   border-collapse: collapse;
   width: 100%;
-  background: #050810;
-  border: 1px solid #0d2840;
+  background: var(--bg);
+  border: 1px solid var(--border-dim);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .detail-dates-table tr {
-  border-bottom: 1px solid #070f1c;
+  border-bottom: 1px solid var(--bg-surface);
 }
 
 .detail-dates-table tr:last-child {
@@ -182,7 +182,7 @@
 .detail-date-label {
   font-family: 'Cinzel', serif;
   font-size: 0.7rem;
-  color: #1a6898;
+  color: var(--text-faint);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.5rem 1rem;
@@ -209,8 +209,8 @@
   display: flex;
   gap: 1rem;
   align-items: center;
-  background: #050810;
-  border: 1px solid #0d2840;
+  background: var(--bg);
+  border: 1px solid var(--border-dim);
   border-radius: 4px;
   padding: 0.6rem 1rem;
 }
@@ -226,7 +226,7 @@
 .detail-artist-role {
   font-family: 'Crimson Text', serif;
   font-size: 0.9rem;
-  color: #1a6898;
+  color: var(--text-faint);
   font-style: italic;
 }
 
@@ -242,7 +242,7 @@
 .detail-no-details {
   font-family: 'Crimson Text', serif;
   font-size: 1.1rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   font-style: italic;
   margin: 0;
 }
@@ -256,14 +256,14 @@
 .detail-company-link {
   background: none;
   border: none;
-  color: #00b4d0;
+  color: var(--accent2);
   cursor: pointer;
   font-size: inherit;
   font-family: inherit;
   padding: 0;
   text-decoration: underline;
 }
-.detail-company-link:hover { color: #68e0f8; }
+.detail-company-link:hover { color: var(--accent-bright); }
 
 /* ── User collection shared styles ─────────────────────────────────────── */
 
@@ -278,13 +278,13 @@
 }
 
 .uc-confirm-dialog {
-  background: #0d1f35;
+  background: var(--bg-raised);
   border: 1px solid #1a4060;
   border-radius: 12px;
   padding: 1.5rem 2rem;
   max-width: 380px;
   text-align: center;
-  color: #c0e4f4;
+  color: var(--text);
 }
 
 .uc-confirm-dialog p {
@@ -300,8 +300,8 @@
 }
 
 .uc-confirm-yes {
-  background: #00b4d0;
-  color: #060d18;
+  background: var(--accent2);
+  color: var(--bg-header);
   border: none;
   border-radius: 6px;
   padding: 0.45rem 1.2rem;
@@ -310,36 +310,36 @@
   transition: background 0.15s;
 }
 
-.uc-confirm-yes:hover { background: #38d4f0; }
+.uc-confirm-yes:hover { background: var(--accent); }
 
 .uc-confirm-no {
   background: none;
   border: 1px solid #347898;
-  color: #90d0e8;
+  color: var(--text-dim);
   border-radius: 6px;
   padding: 0.45rem 1.2rem;
   cursor: pointer;
   transition: border-color 0.15s;
 }
 
-.uc-confirm-no:hover { border-color: #00b4d0; color: #c0e4f4; }
+.uc-confirm-no:hover { border-color: var(--accent2); color: var(--text); }
 
 .detail-add-collection-btn {
   background: none;
-  border: 1px solid #00b4d0;
-  color: #00b4d0;
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
   transition: background 0.15s, color 0.15s;
 }
 
 .detail-add-collection-btn:hover:not(:disabled) {
-  background: #00b4d0;
-  color: #060d18;
+  background: var(--accent2);
+  color: var(--bg-header);
 }
 
 .detail-book-header { margin-bottom: 1.5rem; }
 .detail-editions-list { display: flex; flex-direction: column; gap: 1.5rem; }
-.detail-edition-card { background: #0d1f35; border: 1px solid #183858; border-radius: 12px; padding: 1.2rem 1.5rem; }
+.detail-edition-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.5rem; }
 .detail-edition-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
-.detail-edition-name { font-size: 1.05rem; font-weight: 600; color: #38d4f0; margin: 0; }
+.detail-edition-name { font-size: 1.05rem; font-weight: 600; color: var(--accent); margin: 0; }
 .detail-edition-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .detail-no-editions { color: #547898; font-style: italic; text-align: center; padding: 2rem 0; }

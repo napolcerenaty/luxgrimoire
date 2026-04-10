@@ -1,4 +1,4 @@
-.company-list-page {
+﻿.company-list-page {
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem 1rem;
@@ -14,13 +14,13 @@
 
 .company-list-title {
   font-size: 1.6rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0;
 }
 
 .company-new-btn {
-  background: #00b4d0;
-  color: #060d18;
+  background: var(--accent2);
+  color: var(--bg-header);
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1.2rem;
@@ -31,7 +31,7 @@
 }
 
 .company-new-btn:hover {
-  background: #38d4f0;
+  background: var(--accent);
 }
 
 .company-error {
@@ -41,7 +41,7 @@
 }
 
 .company-empty {
-  color: #4888a4;
+  color: var(--accent-dim);
   text-align: center;
   padding: 2rem;
 }
@@ -53,8 +53,8 @@
 }
 
 .company-card {
-  background: #0d1f35;
-  border: 1px solid #183858;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
@@ -65,19 +65,19 @@
 
 .company-card:hover,
 .company-card:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
   transform: translateY(-3px);
   outline: none;
 }
 
 .company-card-logo {
-  background: #070f1c;
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.2rem;
   min-height: 90px;
-  border-bottom: 1px solid #0d2840;
+  border-bottom: 1px solid var(--border-dim);
 }
 
 .company-card-logo img {
@@ -96,18 +96,18 @@
 
 .company-card-name {
   font-size: 1.05rem;
-  color: #c0e4f4;
+  color: var(--text);
   margin: 0 0 0.2rem 0;
 }
 
 .company-card-meta {
   font-size: 0.85rem;
-  color: #4888a4;
+  color: var(--accent-dim);
   margin: 0;
 }
 
 .company-card-subs {
   font-size: 0.82rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0.3rem 0 0;
 }

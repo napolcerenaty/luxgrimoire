@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════
    User icon button
 ═══════════════════════════════════════════ */
 .user-menu-wrapper {
@@ -10,14 +10,14 @@
 
 .user-icon-btn {
   background: transparent;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 50%;
   width: 38px;
   height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #00b4d0;
+  color: var(--accent2);
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
   padding: 0;
@@ -25,9 +25,9 @@
 }
 
 .user-icon-btn:hover {
-  background: rgba(0, 160, 200, 0.15);
-  border-color: #38d4f0;
-  color: #38d4f0;
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .user-icon-initials {
@@ -35,7 +35,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #38d4f0;
+  color: var(--accent);
   line-height: 1;
 }
 
@@ -44,9 +44,9 @@
 ═══════════════════════════════════════════ */
 .user-logout-btn {
   background: transparent;
-  border: 1px solid #183858;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  color: #4888a4;
+  color: var(--accent-dim);
   font-family: 'Cinzel', serif;
   font-size: 0.72rem;
   font-weight: 600;
@@ -61,7 +61,7 @@
 .user-logout-btn:hover {
   background: rgba(0, 80, 120, 0.2);
   border-color: #2080a0;
-  color: #38d4f0;
+  color: var(--accent);
 }
 
 /* ═══════════════════════════════════════════
@@ -70,7 +70,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--shadow);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,8 +85,8 @@
 }
 
 .modal-box {
-  background: #070f1c;
-  border: 1px solid #183858;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 2rem;
   width: min(420px, 92vw);
@@ -106,7 +106,7 @@
   right: 0.9rem;
   background: transparent;
   border: none;
-  color: #205080;
+  color: var(--text-ghost);
   font-size: 1rem;
   cursor: pointer;
   line-height: 1;
@@ -114,12 +114,12 @@
   transition: color 0.15s;
 }
 
-.modal-close:hover { color: #00b4d0; }
+.modal-close:hover { color: var(--accent2); }
 
 .modal-title {
   font-family: 'Cinzel', serif;
   font-size: 1.25rem;
-  color: #38d4f0;
+  color: var(--accent);
   margin: 0 0 1.5rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -149,7 +149,7 @@
   background: #080f1c;
   border: 1px solid #0a2040;
   border-radius: 4px;
-  color: #90d0e8;
+  color: var(--text-dim);
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
   padding: 0.5rem 0.75rem;
@@ -159,18 +159,18 @@
 
 .modal-form input:focus,
 .modal-form select:focus {
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .modal-form select option,
 .modal-form select optgroup {
-  background: #070f1c;
+  background: var(--bg-surface);
 }
 
 .modal-btn {
   background: transparent;
-  border: 1px solid #183858;
-  color: #00b4d0;
+  border: 1px solid var(--border);
+  color: var(--accent2);
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
   letter-spacing: 0.05em;
@@ -182,19 +182,19 @@
 }
 
 .modal-btn:hover {
-  background: rgba(0, 160, 200, 0.12);
-  border-color: #38d4f0;
-  color: #38d4f0;
+  background: var(--accent-glow3);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .modal-btn.primary {
   background: rgba(0, 160, 200, 0.2);
-  border-color: #00b4d0;
+  border-color: var(--accent2);
 }
 
 .modal-btn.primary:hover {
   background: rgba(0, 160, 200, 0.35);
-  border-color: #38d4f0;
+  border-color: var(--accent);
 }
 
 .modal-btn:disabled {
@@ -229,7 +229,7 @@
   height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, #0a1e38, #0c2240);
-  border: 2px solid #183858;
+  border: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,7 +240,7 @@
   font-family: 'Cinzel', serif;
   font-size: 1.6rem;
   font-weight: 700;
-  color: #00b4d0;
+  color: var(--accent2);
   letter-spacing: 0.05em;
 }
 
@@ -259,13 +259,13 @@
 .profile-label {
   font-family: 'Crimson Text', serif;
   font-size: 0.85rem;
-  color: #205080;
+  color: var(--text-ghost);
   flex-shrink: 0;
 }
 
 .profile-value {
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
-  color: #90d0e8;
+  color: var(--text-dim);
   text-align: right;
 }
