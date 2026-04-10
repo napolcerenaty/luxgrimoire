@@ -36,6 +36,7 @@ function AppInner() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:8080/api/books")
@@ -49,6 +50,17 @@ function AppInner() {
 
   const isUserPage = tab === "profile" || tab === "settings";
 
+  const filteredBooks = searchQuery.trim()
+    ? books.filter((b) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          b.title?.toLowerCase().includes(q) ||
+          b.author?.toLowerCase().includes(q) ||
+          b.description?.toLowerCase().includes(q)
+        );
+      })
+    : books;
+
   return (
     <div className="app">
       <header className="header">
@@ -58,6 +70,21 @@ function AppInner() {
         </div>
         <h1 className="header-title">✦ LuxGrimoire ✦</h1>
         <p className="header-subtitle">{t("app.subtitle")}</p>
+        {!isUserPage && (
+          <div className="search-bar-wrap">
+            <span className="search-icon">⚲</span>
+            <input
+              type="text"
+              className="search-bar"
+              placeholder={t("search.placeholder")}
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setTab("browse"); }}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery("")} aria-label="Wyczyść">✕</button>
+            )}
+          </div>
+        )}
         {!isUserPage && (
           <nav className="nav-tabs">
             <button
@@ -91,11 +118,15 @@ function AppInner() {
           ) : (
             <>
               <h2 className="section-title">{t("browse.sectionTitle")}</h2>
-              <div className="book-grid">
-                {books.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
+              {searchQuery.trim() && filteredBooks.length === 0 ? (
+                <p className="search-no-results">{t("search.noResults", { q: searchQuery })}</p>
+              ) : (
+                <div className="book-grid">
+                  {filteredBooks.map((book) => (
+                    <BookCard key={book.id} book={book} />
+                  ))}
+                </div>
+              )}
             </>
           )
         )}

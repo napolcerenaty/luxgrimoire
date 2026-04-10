@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { LANGUAGES, useI18n } from "./i18n";
+import "flag-icons/css/flag-icons.min.css";
 import "./LanguagePicker.css";
+
+function FlagIcon({ countryCode, size = "md" }) {
+  return (
+    <span
+      className={`fi fi-${countryCode} flag-icon flag-icon--${size}`}
+      aria-hidden="true"
+    />
+  );
+}
 
 export default function LanguagePicker() {
   const { lang, setLang } = useI18n();
@@ -25,7 +35,7 @@ export default function LanguagePicker() {
         title={current.label}
         aria-label="Wybierz język / Select language"
       >
-        <span className="lang-flag">{current.flag}</span>
+        <FlagIcon countryCode={current.countryCode} size="sm" />
         <span className="lang-code">{current.code.toUpperCase()}</span>
         <span className="lang-arrow">{open ? "▲" : "▼"}</span>
       </button>
@@ -38,7 +48,7 @@ export default function LanguagePicker() {
               className={`lang-option${l.code === lang ? " active" : ""}`}
               onClick={() => { setLang(l.code); setOpen(false); }}
             >
-              <span className="lang-flag">{l.flag}</span>
+              <FlagIcon countryCode={l.countryCode} size="md" />
               <span className="lang-option-label">{l.label}</span>
               {l.code === lang && <span className="lang-check">✓</span>}
             </button>

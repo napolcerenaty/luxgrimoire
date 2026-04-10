@@ -2,11 +2,11 @@ import { createContext, useContext, useState, useCallback } from "react";
 
 // ─── Supported languages ──────────────────────────────────────────────────────
 export const LANGUAGES = [
-  { code: "pl", label: "Polski",    flag: "🇵🇱" },
-  { code: "en", label: "English",   flag: "🇬🇧" },
-  { code: "de", label: "Deutsch",   flag: "🇩🇪" },
-  { code: "fr", label: "Français",  flag: "🇫🇷" },
-  { code: "es", label: "Español",   flag: "🇪🇸" },
+  { code: "pl", label: "Polski",   flag: "🇵🇱", countryCode: "pl" },
+  { code: "en", label: "English",  flag: "🇬🇧", countryCode: "gb" },
+  { code: "de", label: "Deutsch",  flag: "🇩🇪", countryCode: "de" },
+  { code: "fr", label: "Français", flag: "🇫🇷", countryCode: "fr" },
+  { code: "es", label: "Español",  flag: "🇪🇸", countryCode: "es" },
 ];
 
 const SUPPORTED = LANGUAGES.map((l) => l.code);
@@ -95,6 +95,10 @@ const T = {
       saved:         "✓ Ustawienia zostały zapisane",
     },
     back:            "← Wróć",
+    search: {
+      placeholder:   "Szukaj tytułu, autora\u2026",
+      noResults:     "Brak wynik\u00f3w dla \u201e{q}\u201c",
+    },
   },
 
   en: {
@@ -165,6 +169,10 @@ const T = {
       saved:         "✓ Settings saved",
     },
     back:            "← Back",
+    search: {
+      placeholder:   "Search title, author\u2026",
+      noResults:     "No results for \u201c{q}\u201d",
+    },
   },
 
   de: {
@@ -235,6 +243,10 @@ const T = {
       saved:         "✓ Einstellungen gespeichert",
     },
     back:            "← Zurück",
+    search: {
+      placeholder:   "Titel, Autor suchen\u2026",
+      noResults:     "Keine Ergebnisse f\u00fcr \u201e{q}\u201c",
+    },
   },
 
   fr: {
@@ -305,6 +317,10 @@ const T = {
       saved:         "✓ Paramètres enregistrés",
     },
     back:            "← Retour",
+    search: {
+      placeholder:   "Rechercher titre, auteur\u2026",
+      noResults:     "Aucun r\u00e9sultat pour \u00ab\u00a0{q}\u00a0\u00bb",
+    },
   },
 
   es: {
@@ -375,6 +391,10 @@ const T = {
       saved:         "✓ Configuración guardada",
     },
     back:            "← Volver",
+    search: {
+      placeholder:   "Buscar t\u00edtulo, autor\u2026",
+      noResults:     "Sin resultados para \u00ab{q}\u00bb",
+    },
   },
 };
 
