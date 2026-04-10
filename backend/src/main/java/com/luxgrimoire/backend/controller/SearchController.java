@@ -112,7 +112,6 @@ public class SearchController {
                 item.put("id", author.getId());
                 item.put("name", author.getName());
                 item.put("imageUrl", author.getImageUrl());
-                item.put("nationality", author.getNationality());
                 item.put("bio", author.getBio());
                 item.put("bookCount", bookRepository.countByAuthorId(author.getId()));
                 authorResults.add(item);
@@ -131,7 +130,6 @@ public class SearchController {
                 item.put("id", artist.getId());
                 item.put("name", artist.getName());
                 item.put("imageUrl", artist.getImageUrl());
-                item.put("specialty", artist.getSpecialty());
                 item.put("bio", artist.getBio());
                 artistResults.add(item);
             }
