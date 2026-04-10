@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════
+   User page layout
+═══════════════════════════════════════════ */
+.user-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.back-btn {
+  background: transparent;
+  border: none;
+  color: #9a7040;
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+  margin-bottom: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.back-btn:hover {
+  color: #d4a843;
+}
+
+.user-page-card {
+  background: #160e06;
+  border: 1px solid #3a2410;
+  border-radius: 10px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+}
+
+/* ═══════════════════════════════════════════
+   Avatar
+═══════════════════════════════════════════ */
+.page-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2d1a08, #3d2410);
+  border: 2px solid #5a3a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.4rem;
+}
+
+.page-avatar-initials {
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #c4943d;
+  letter-spacing: 0.05em;
+}
+
+/* ═══════════════════════════════════════════
+   Titles
+═══════════════════════════════════════════ */
+.user-page-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.4rem;
+  color: #d4a843;
+  text-align: center;
+  margin: 0 0 0.3rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.user-page-username {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: #7a5a30;
+  text-align: center;
+  margin: 0 0 2rem;
+}
+
+/* ═══════════════════════════════════════════
+   Form
+═══════════════════════════════════════════ */
+.user-page-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.user-page-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: #9a7040;
+  letter-spacing: 0.03em;
+}
+
+.user-page-form input,
+.user-page-form select {
+  background: #0e0904;
+  border: 1px solid #4a2e10;
+  border-radius: 5px;
+  color: #d4c4a0;
+  font-family: 'Crimson Text', serif;
+  font-size: 1.05rem;
+  padding: 0.55rem 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user-page-form input:focus,
+.user-page-form select:focus {
+  border-color: #c4943d;
+}
+
+.user-page-form select option,
+.user-page-form select optgroup {
+  background: #1c1208;
+}
+
+.field-hint {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.82rem;
+  color: #5a4020;
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════
+   Profile rows (view mode)
+═══════════════════════════════════════════ */
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #231508;
+  gap: 1rem;
+}
+
+.profile-row-label {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.88rem;
+  color: #7a5a30;
+  flex-shrink: 0;
+}
+
+.profile-row-value {
+  font-family: 'Crimson Text', serif;
+  font-size: 1.05rem;
+  color: #d4c4a0;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════
+   Buttons
+═══════════════════════════════════════════ */
+.page-btn {
+  background: transparent;
+  border: 1px solid #5a3a1a;
+  color: #c4943d;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 1.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  align-self: flex-start;
+}
+
+.page-btn:hover {
+  background: rgba(180,120,40,0.12);
+  border-color: #d4a843;
+  color: #d4a843;
+}
+
+.page-btn.primary {
+  background: rgba(180,120,40,0.18);
+  border-color: #c4943d;
+}
+
+.page-btn.primary:hover {
+  background: rgba(180,120,40,0.32);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.page-btn-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════
+   Messages
+═══════════════════════════════════════════ */
+.page-error {
+  color: #c05040;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.page-success {
+  color: #60a860;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  margin: 0;
+}

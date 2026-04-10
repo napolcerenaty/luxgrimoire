@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import LoginModal from "./LoginModal";
-import ProfileModal from "./ProfileModal";
-import SettingsModal from "./SettingsModal";
 import "./UserModals.css";
 
-export default function UserMenu() {
+export default function UserMenu({ onNavigate }) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const [modal, setModal] = useState(null); // "login" | "profile" | "settings"
+  const [showLogin, setShowLogin] = useState(false);
   const menuRef = useRef(null);
 
   // Close dropdown on outside click
@@ -20,25 +18,26 @@ export default function UserMenu() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const openModal = (name) => { setOpen(false); setModal(name); };
+  const navigate = (page) => { setOpen(false); onNavigate(page); };
 
   const handleLogout = async () => {
     setOpen(false);
     await logout();
+    onNavigate("browse");
   };
 
   return (
     <div className="user-menu-wrapper" ref={menuRef}>
       <button
         className="user-icon-btn"
-        onClick={() => user ? setOpen((v) => !v) : setModal("login")}
+        onClick={() => user ? setOpen((v) => !v) : setShowLogin(true)}
         title={user ? `${user.firstName} ${user.lastName}` : "Zaloguj się"}
         aria-label={user ? "Menu użytkownika" : "Zaloguj się"}
       >
         {user ? (
           <span className="user-icon-initials">
             {(user.firstName?.[0] ?? "?").toUpperCase()}
-            {(user.lastName?.[0] ?? "").toUpperCase()}
+            {(user.lastName?.[0]  ?? "").toUpperCase()}
           </span>
         ) : (
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
@@ -54,16 +53,14 @@ export default function UserMenu() {
             <span className="dropdown-username">@{user.username}</span>
           </div>
           <hr className="dropdown-divider" />
-          <button className="dropdown-item" onClick={() => openModal("profile")}>👤 Profil</button>
-          <button className="dropdown-item" onClick={() => openModal("settings")}>⚙️ Ustawienia</button>
+          <button className="dropdown-item" onClick={() => navigate("profile")}>👤 Profil</button>
+          <button className="dropdown-item" onClick={() => navigate("settings")}>⚙️ Ustawienia</button>
           <hr className="dropdown-divider" />
           <button className="dropdown-item logout" onClick={handleLogout}>🚪 Wyloguj</button>
         </div>
       )}
 
-      {modal === "login"    && <LoginModal    onClose={() => setModal(null)} />}
-      {modal === "profile"  && <ProfileModal  onClose={() => setModal(null)} />}
-      {modal === "settings" && <SettingsModal onClose={() => setModal(null)} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   );
 }
