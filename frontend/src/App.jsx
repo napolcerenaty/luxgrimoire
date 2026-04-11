@@ -180,13 +180,6 @@ function AppInner() {
   return (
     <div className="app">
       <header className="header">
-        <img
-          src="/logo.svg"
-          alt="LuxGrimoire"
-          className="header-logo-img"
-          onClick={() => setTab("browse")}
-          title="LuxGrimoire – Strona główna"
-        />
         <div className="header-controls">
           <ThemePicker />
           <LanguagePicker />
