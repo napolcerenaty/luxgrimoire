@@ -1,5 +1,8 @@
 package com.luxgrimoire.backend.controller;
 
+import com.luxgrimoire.backend.model.AppUser;
+import com.luxgrimoire.backend.repository.AppUserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,6 +23,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserCollectionControllerIT {
 
     @Autowired MockMvc mockMvc;
+    @Autowired AppUserRepository userRepository;
+
+    @BeforeEach
+    void ensureTestUsers() {
+        if (!userRepository.existsById("testuser")) {
+            userRepository.save(new AppUser(
+                "testuser", "testpass", "Test", "User", null,
+                "testuser@example.com", "user"));
+        }
+    }
 
     // ── GET /api/user/books ────────────────────────────────────────────────────
 
@@ -32,7 +45,7 @@ class UserCollectionControllerIT {
     @Test
     void getBooks_authenticated_returnsArray() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(get("/api/user/books").session(session))
                 .andExpect(status().isOk())
@@ -42,7 +55,7 @@ class UserCollectionControllerIT {
     @Test
     void getBooks_withIsoFlag_returnsArray() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(get("/api/user/books?flag=ISO").session(session))
                 .andExpect(status().isOk())
@@ -52,7 +65,7 @@ class UserCollectionControllerIT {
     @Test
     void getBooks_withInterestedFlag_returnsArray() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(get("/api/user/books?flag=INTERESTED").session(session))
                 .andExpect(status().isOk())
@@ -72,7 +85,7 @@ class UserCollectionControllerIT {
     @Test
     void addBook_missingEditionId_returns400() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(post("/api/user/books").session(session)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +96,7 @@ class UserCollectionControllerIT {
     @Test
     void addBook_withOwnedFlag_createsOwnedEntry() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(post("/api/user/books").session(session)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,7 +108,7 @@ class UserCollectionControllerIT {
     @Test
     void addBook_withIsoFlag_createsIsoEntry() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(post("/api/user/books").session(session)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -107,7 +120,7 @@ class UserCollectionControllerIT {
     @Test
     void addBook_withInterestedFlag_createsInterestedEntry() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(post("/api/user/books").session(session)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -127,7 +140,7 @@ class UserCollectionControllerIT {
     @Test
     void deleteBook_nonExistentEntry_returns404() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(delete("/api/user/books/nonexistent-id").session(session))
                 .andExpect(status().isNotFound());
@@ -136,7 +149,7 @@ class UserCollectionControllerIT {
     @Test
     void addBook_thenDelete_removesEntry() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         // Add a book
         String addResponse = mockMvc.perform(post("/api/user/books").session(session)
@@ -157,7 +170,7 @@ class UserCollectionControllerIT {
     @Test
     void deleteBook_entryBelongingToOtherUser_returns404() throws Exception {
         MockHttpSession sessionUser1 = new MockHttpSession();
-        sessionUser1.setAttribute("username", "user1");
+        sessionUser1.setAttribute("username", "napolcerenaty");
 
         // Add a book as user1
         String addResponse = mockMvc.perform(post("/api/user/books").session(sessionUser1)
@@ -170,9 +183,10 @@ class UserCollectionControllerIT {
 
         // Try to delete as admin (different user)
         MockHttpSession sessionAdmin = new MockHttpSession();
-        sessionAdmin.setAttribute("username", "admin");
+        sessionAdmin.setAttribute("username", "testuser");
 
         mockMvc.perform(delete("/api/user/books/" + entryId).session(sessionAdmin))
                 .andExpect(status().isNotFound());
     }
 }
+

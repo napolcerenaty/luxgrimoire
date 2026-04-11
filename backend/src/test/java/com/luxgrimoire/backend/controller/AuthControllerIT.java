@@ -27,29 +27,29 @@ class AuthControllerIT {
     // ── POST /api/auth/login ───────────────────────────────────────────────────
 
     @Test
-    void login_validAdminCredentials_returns200() throws Exception {
+    void login_validAdminByEmailCredentials_returns200() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"admin\",\"password\":\"admin\"}"))
+                        .content("{\"email\":\"napolcerenaty@gmail.com\",\"password\":\"napolcerenaty\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("admin"))
-                .andExpect(jsonPath("$.firstName").value("Admin"));
+                .andExpect(jsonPath("$.username").value("napolcerenaty"))
+                .andExpect(jsonPath("$.firstName").value("Renata"));
     }
 
     @Test
-    void login_validUser1Credentials_returns200() throws Exception {
+    void login_validAdminByUsernameCredentials_returns200() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"user1\",\"password\":\"user1\"}"))
+                        .content("{\"username\":\"napolcerenaty\",\"password\":\"napolcerenaty\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("user1"));
+                .andExpect(jsonPath("$.username").value("napolcerenaty"));
     }
 
     @Test
     void login_invalidPassword_returns401() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
+                        .content("{\"email\":\"napolcerenaty@gmail.com\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -65,7 +65,7 @@ class AuthControllerIT {
     void login_missingPassword_returns400() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"admin\"}"))
+                        .content("{\"email\":\"napolcerenaty@gmail.com\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -78,24 +78,25 @@ class AuthControllerIT {
     }
 
     @Test
-    void me_authenticatedAsUser1_returnsUser1Data() throws Exception {
+    void me_authenticatedAsNapolcerenaty_returnsUserData() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "user1");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(get("/api/auth/me").session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("user1"))
+                .andExpect(jsonPath("$.username").value("napolcerenaty"))
                 .andExpect(jsonPath("$.firstName").exists());
     }
 
     @Test
-    void me_authenticatedAsAdmin_returnsAdminData() throws Exception {
+    void me_authenticatedReturnsRoleAndEmail() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "admin");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(get("/api/auth/me").session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("admin"));
+                .andExpect(jsonPath("$.role").value("admin"))
+                .andExpect(jsonPath("$.email").value("napolcerenaty@gmail.com"));
     }
 
     // ── POST /api/auth/logout ──────────────────────────────────────────────────
@@ -103,7 +104,7 @@ class AuthControllerIT {
     @Test
     void logout_authenticated_returns200() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "admin");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(post("/api/auth/logout").session(session))
                 .andExpect(status().isOk());
@@ -122,12 +123,12 @@ class AuthControllerIT {
     @Test
     void updateProfile_authenticated_updatesFirstName() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("username", "admin");
+        session.setAttribute("username", "napolcerenaty");
 
         mockMvc.perform(put("/api/auth/profile").session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"firstName\":\"UpdatedAdmin\",\"lastName\":\"User\"}"))
+                        .content("{\"firstName\":\"Renata\",\"lastName\":\"Foremny\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.firstName").value("UpdatedAdmin"));
+                .andExpect(jsonPath("$.firstName").value("Renata"));
     }
 }
