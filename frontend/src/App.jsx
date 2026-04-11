@@ -19,6 +19,7 @@ import ArtistPage from "./ArtistPage";
 import SearchPanel from "./SearchPanel";
 import RecentAnnouncements from "./RecentAnnouncements";
 import AdminPage from "./AdminPage";
+import NotificationsPage from "./NotificationsPage";
 import NotificationBell from "./NotificationBell";
 import { API } from "./api";
 
@@ -175,14 +176,14 @@ function AppInner() {
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
-  const isUserPage = tab === "account" || tab === "admin";
+  const isUserPage = tab === "account" || tab === "admin" || tab === "notifications";
   const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail" || tab === "series-books";
 
   return (
     <div className="app">
       <header className="header">
         <div className="header-controls">
-          {user && <NotificationBell />}
+          {user && <NotificationBell onOpenPage={() => setTab("notifications")} />}
           <ThemePicker />
           <LanguagePicker />
           <UserMenu onNavigate={setTab} />
@@ -246,6 +247,7 @@ function AppInner() {
             onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
           />}
         {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
+        {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} />}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}
