@@ -52,13 +52,13 @@ export default function NotificationBell({ onOpenPage, refreshKey = 0 }) {
     setOpen((o) => !o);
   };
 
-  const handleItemClick = (n) => {
-    // Mark as read then go to full page
+  const handleItemClick = async (n) => {
+    setOpen(false);
     if (!n.readAt) {
-      fetch(API.NOTIFICATION_READ(n.id), { method: "POST", credentials: "include" });
+      // Await mark-read so page loads with up-to-date server state
+      await fetch(API.NOTIFICATION_READ(n.id), { method: "POST", credentials: "include" });
       setCount((c) => Math.max(0, c - 1));
     }
-    setOpen(false);
     onOpenPage();
   };
 

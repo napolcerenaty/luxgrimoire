@@ -36,20 +36,23 @@ export default function NotificationsPage({ onBack, onRead }) {
   }, []);
 
   const markRead = (id) => {
+    const isUnread = !notifications.find(n => n.id === id)?.readAt;
     setExpanded(e => (e === id ? null : id));
-    setNotifications(prev => {
-      const already = prev.find(n => n.id === id)?.readAt;
-      if (already) return prev;
-      fetch(API.NOTIFICATION_READ(id), { method: "POST", credentials: "include" });
-      if (onRead) onRead();
-      return prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n);
-    });
+    if (isUnread) {
+      // Optimistic local update immediately
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)
+      );
+      // Refresh bell count AFTER server confirms mark-read
+      fetch(API.NOTIFICATION_READ(id), { method: "POST", credentials: "include" })
+        .then(() => { if (onRead) onRead(); });
+    }
   };
 
   const markAllRead = () => {
-    fetch(API.NOTIFICATIONS_READ_ALL, { method: "POST", credentials: "include" });
     setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
-    if (onRead) onRead();
+    fetch(API.NOTIFICATIONS_READ_ALL, { method: "POST", credentials: "include" })
+      .then(() => { if (onRead) onRead(); });
   };
 
   const unreadCount = notifications.filter(n => !n.readAt).length;
