@@ -445,7 +445,220 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
   );
 }
 
-// ─── CompanyFormPage ──────────────────────────────────────────────────────────
+function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSaved }) {
+  const subToForm = s => ({
+    name:                 s.name || "",
+    type:                 s.type || "MONTHLY",
+    basePrice:            s.basePrice != null ? String(s.basePrice) : "",
+    renewalDay:           s.renewalDay != null ? String(s.renewalDay) : "",
+    renewalDayUserSet:    !!s.renewalDayUserSet,
+    isCombo:              !!s.isCombo,
+    comboComponentIds:    s.comboComponentIds ?? [],
+    shipsInternationally: s.shipsInternationally !== false,
+    bookishMerch:         !!s.bookishMerch,
+    genresList:           s.genres ?? [],
+    description:          s.description || "",
+    skipPolicyType:       s.skipPolicyType || "UNLIMITED",
+    skipResetType:        s.skipResetType  || "SUBSCRIPTION_START",
+    skipCount:            s.skipCount != null ? String(s.skipCount) : "",
+    maxConsecutiveSkips:  s.maxConsecutiveSkips != null ? String(s.maxConsecutiveSkips) : "",
+    skipPolicyNotes:      s.skipPolicyNotes || "",
+    prepayOptions:        (s.prepayOptions ?? []).map(o => ({
+      months: String(o.months), price: String(o.price), label: o.label || ""
+    })),
+  });
+
+  const [form, setForm]               = useState(() => subToForm(sub));
+  const [logoFile, setLogoFile]       = useState(null);
+  const [logoPreview, setLogoPreview] = useState(
+    sub.logoUrl ? (sub.logoUrl.startsWith("http") ? sub.logoUrl : `${API.BASE}${sub.logoUrl}`) : null
+  );
+  const [allGenres, setAllGenres]     = useState([]);
+  const [saving, setSaving]           = useState(false);
+
+  useEffect(() => {
+    fetch(API.ADMIN_SUBSCRIPTION_GENRES, { credentials: "include" })
+      .then(r => r.ok ? r.json() : []).then(setAllGenres).catch(() => {});
+  }, []);
+
+  const set    = field => e  => setForm(prev => ({ ...prev, [field]: e.target.value }));
+  const toggle = field => () => setForm(prev => ({ ...prev, [field]: !prev[field] }));
+
+  const handleLogoChange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const toggleComponent = id =>
+    setForm(prev => ({
+      ...prev,
+      comboComponentIds: prev.comboComponentIds.includes(id)
+        ? prev.comboComponentIds.filter(x => x !== id)
+        : [...prev.comboComponentIds, id],
+    }));
+
+  const handleSave = async e => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    const body = {
+      name:                 form.name.trim(),
+      type:                 form.type,
+      basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
+      renewalDay:           (!form.renewalDayUserSet && form.renewalDay) ? parseInt(form.renewalDay) : null,
+      renewalDayUserSet:    form.renewalDayUserSet,
+      isCombo:              form.isCombo,
+      comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
+      shipsInternationally: form.shipsInternationally,
+      bookishMerch:         form.bookishMerch,
+      genres:               form.genresList,
+      description:          form.description || null,
+      skipPolicyType:       form.skipPolicyType,
+      skipResetType:        form.skipPolicyType === "LIMITED" ? form.skipResetType : null,
+      skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
+      maxConsecutiveSkips:  form.skipPolicyType === "LIMITED" && form.maxConsecutiveSkips ? parseInt(form.maxConsecutiveSkips) : null,
+      skipPolicyNotes:      form.skipPolicyNotes || null,
+      prepayOptions:        form.prepayOptions
+        .filter(o => o.months && o.price)
+        .map(o => ({ months: parseInt(o.months), price: parseFloat(o.price), label: o.label || null })),
+    };
+    await fetch(API.ADMIN_SUB_UPDATE(companyId, sub.id), {
+      method: "PUT", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (logoFile) {
+      const fd = new FormData();
+      fd.append("file", logoFile);
+      await fetch(API.ADMIN_SUB_LOGO(companyId, sub.id), {
+        method: "POST", credentials: "include", body: fd,
+      });
+    }
+    setSaving(false);
+    onSaved();
+  };
+
+  const nonComboCandidates = siblingSubs.filter(s => !s.isCombo && s.id !== sub.id);
+
+  return (
+    <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="admin-modal-box" style={{ maxWidth: 700, maxHeight: "90vh", overflowY: "auto" }}>
+        <div className="admin-modal-header">
+          <h3>Edytuj subskrypcję</h3>
+          <button className="admin-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSave} style={{ padding: "0 1.25rem 1.25rem" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginBottom: "0.5rem" }}>
+            <label className="admin-form-check" style={{ fontSize: "0.97rem" }}>
+              <input type="checkbox" checked={form.isCombo} onChange={toggle("isCombo")} />
+              <strong>Subskrypcja Combo</strong>
+            </label>
+          </div>
+
+          {form.isCombo && nonComboCandidates.length > 0 && (
+            <div className="admin-skip-policy" style={{ marginBottom: "0.75rem" }}>
+              <div className="admin-form-label" style={{ marginBottom: "0.4rem" }}>
+                Składowe combo ({form.comboComponentIds.length} wybrano)
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                {nonComboCandidates.map(s => (
+                  <label key={s.id} className="admin-form-check">
+                    <input type="checkbox"
+                      checked={form.comboComponentIds.includes(s.id)}
+                      onChange={() => toggleComponent(s.id)} />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 2, minWidth: 180 }}>
+              <label className="admin-form-label">Nazwa *</label>
+              <input className="admin-form-input" value={form.name} onChange={set("name")} required />
+            </div>
+            {!form.isCombo && (
+              <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
+                <label className="admin-form-label">Typ</label>
+                <select className="admin-form-select" value={form.type} onChange={set("type")}>
+                  {SUB_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+              <label className="admin-form-label">Cena bazowa</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
+              <label className="admin-form-label">Dzień odnowy</label>
+              {form.renewalDayUserSet ? (
+                <span style={{ fontSize: "0.85rem", color: "var(--text-ghost)", padding: "0.35rem 0" }}>
+                  Ustawia użytkownik
+                </span>
+              ) : (
+                <input type="number" min="1" max="31" className="admin-form-input"
+                  value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–31" />
+              )}
+              <label className="admin-form-check" style={{ marginTop: "0.3rem", fontSize: "0.82rem" }}>
+                <input type="checkbox" checked={form.renewalDayUserSet}
+                  onChange={() => setForm(prev => ({ ...prev, renewalDayUserSet: !prev.renewalDayUserSet, renewalDay: "" }))} />
+                Ustawi użytkownik
+              </label>
+            </div>
+          </div>
+
+          {!form.isCombo && (
+            <>
+              <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.25rem" }}>
+                <label className="admin-form-check">
+                  <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
+                  Wysyłka int'l
+                </label>
+                <label className="admin-form-check">
+                  <input type="checkbox" checked={form.bookishMerch} onChange={toggle("bookishMerch")} />
+                  Merch
+                </label>
+              </div>
+              <GenreTagPicker
+                selected={form.genresList}
+                allGenres={allGenres}
+                onChange={genres => setForm(prev => ({ ...prev, genresList: genres }))} />
+            </>
+          )}
+
+          <div className="admin-form-row">
+            <label className="admin-form-label">Opis subskrypcji</label>
+            <textarea className="admin-form-textarea" rows={3}
+              value={form.description} onChange={set("description")}
+              placeholder="Krótki opis subskrypcji widoczny dla użytkowników…" />
+          </div>
+
+          <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
+
+          <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
+
+          <PrepayOptionsEditor
+            value={form.prepayOptions}
+            onChange={opts => setForm(prev => ({ ...prev, prepayOptions: opts }))} />
+
+          <div className="admin-form-btns" style={{ marginTop: "0.75rem" }}>
+            <button type="button" className="admin-btn admin-btn--ghost" onClick={onClose}>Anuluj</button>
+            <button type="submit" className="admin-btn admin-btn--primary" disabled={saving}>
+              {saving ? "Zapisywanie…" : "Zapisz zmiany"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
 function CompanyFormPage({ company, onSaved, onBack }) {
   const isEdit = Boolean(company);
   const [form, setForm] = useState({
@@ -460,6 +673,7 @@ function CompanyFormPage({ company, onSaved, onBack }) {
   const [existingSubs,  setExistingSubs]  = useState(isEdit ? (company.subscriptions || []) : []);
   const [pendingSubs,   setPendingSubs]   = useState([]);
   const [showSubForm,   setShowSubForm]   = useState(false);
+  const [editingSub,    setEditingSub]    = useState(null);
   const [submitting,    setSubmitting]    = useState(false);
 
   const set = field => e => setForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -636,7 +850,9 @@ function CompanyFormPage({ company, onSaved, onBack }) {
                             ? `Limited (${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"}, ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? `, max ${sub.maxConsecutiveSkips} z rzędu` : ""})`
                             : "Nielimitowana"}
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <button type="button" className="admin-action-btn"
+                            onClick={() => setEditingSub(sub)} title="Edytuj">✎</button>
                           <button type="button" className="admin-action-btn admin-action-btn--danger"
                             onClick={() => handleDeleteExistingSub(sub)}>🗑</button>
                         </td>
@@ -688,15 +904,41 @@ function CompanyFormPage({ company, onSaved, onBack }) {
           </button>
         </div>
       </form>
+
+      {editingSub && (
+        <SubscriptionEditModal
+          sub={editingSub}
+          companyId={company.id}
+          siblingSubs={existingSubs}
+          onClose={() => setEditingSub(null)}
+          onSaved={() => {
+            fetch(API.ADMIN_COMPANY_SUBS_LIST(company.id), { credentials: "include" })
+              .then(r => r.json())
+              .then(subs => { setExistingSubs(Array.isArray(subs) ? subs : []); setEditingSub(null); })
+              .catch(() => setEditingSub(null));
+          }}
+        />
+      )}
     </section>
   );
 }
 
 // ─── Company Detail View ──────────────────────────────────────────────────────
-function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
+function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }) {
+  const [company, setCompany] = useState(initialCompany);
+  const [selectedSub, setSelectedSub] = useState(null);
+  const [editingSub,  setEditingSub]  = useState(null);
+
   const logo = company.logoUrl
     ? (company.logoUrl.startsWith("http") ? company.logoUrl : `${API.BASE}${company.logoUrl}`)
     : null;
+
+  const reloadCompany = () => {
+    fetch(API.ADMIN_COMPANY(company.id), { credentials: "include" })
+      .then(r => r.json())
+      .then(data => { setCompany(data); setEditingSub(null); })
+      .catch(() => setEditingSub(null));
+  };
 
   return (
     <div className="admin-company-detail">
@@ -731,38 +973,86 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Dzień odnowy</th><th>Skip Policy</th></tr>
+                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Dzień odnowy</th><th>Skip Policy</th><th></th></tr>
               </thead>
               <tbody>
                 {company.subscriptions.map(sub => (
-                  <tr key={sub.id}>
-                    <td>
-                      <strong>{sub.name}</strong>
-                      {sub.isCombo && <span className="admin-combo-badge" style={{ marginLeft: "0.5rem" }}>COMBO</span>}
-                      {sub.isCombo && sub.comboComponentIds?.length > 0 && (
-                        <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginTop: "0.2rem" }}>
-                          {sub.comboComponentIds
-                            .map(cid => company.subscriptions.find(s => s.id === cid)?.name)
-                            .filter(Boolean)
-                            .join(" + ")}
-                        </div>
-                      )}
-                    </td>
-                    <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
-                    <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
-                    <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
-                    <td>
-                      {sub.skipPolicyType === "LIMITED"
-                        ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
-                        : "Nielimitowana"}
-                      {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={sub.id}
+                      className={`admin-table-row-clickable${selectedSub?.id === sub.id ? " admin-table-row-selected" : ""}`}
+                      onClick={() => setSelectedSub(prev => prev?.id === sub.id ? null : sub)}>
+                      <td>
+                        <strong>{sub.name}</strong>
+                        {sub.isCombo && <span className="admin-combo-badge" style={{ marginLeft: "0.5rem" }}>COMBO</span>}
+                        {sub.isCombo && sub.comboComponentIds?.length > 0 && (
+                          <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginTop: "0.2rem" }}>
+                            {sub.comboComponentIds
+                              .map(cid => company.subscriptions.find(s => s.id === cid)?.name)
+                              .filter(Boolean)
+                              .join(" + ")}
+                          </div>
+                        )}
+                      </td>
+                      <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
+                      <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
+                      <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
+                      <td>
+                        {sub.skipPolicyType === "LIMITED"
+                          ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
+                          : "Nielimitowana"}
+                        {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
+                      </td>
+                      <td>
+                        <button className="admin-action-btn" title="Edytuj"
+                          onClick={e => { e.stopPropagation(); setEditingSub(sub); }}>✎</button>
+                      </td>
+                    </tr>
+                    {selectedSub?.id === sub.id && (
+                      <tr key={`${sub.id}-detail`} className="admin-table-detail-row">
+                        <td colSpan={6}>
+                          <div className="admin-sub-detail-panel">
+                            {sub.logoUrl && (
+                              <img
+                                src={sub.logoUrl.startsWith("http") ? sub.logoUrl : `${API.BASE}${sub.logoUrl}`}
+                                alt="" className="admin-sub-detail-logo"
+                                onError={e => { e.target.style.display = "none"; }} />
+                            )}
+                            <div className="admin-sub-detail-body">
+                              {sub.description && <p className="admin-sub-detail-desc">{sub.description}</p>}
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem" }}>
+                                {sub.genres?.map(g => <span key={g} className="admin-genre-tag">{g}</span>)}
+                              </div>
+                              {sub.prepayOptions?.length > 0 && (
+                                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                  <strong>Prepay:</strong>{" "}
+                                  {sub.prepayOptions.map(o => `${o.months}m = ${o.price}${o.label ? ` (${o.label})` : ""}`).join(", ")}
+                                </div>
+                              )}
+                              <div style={{ marginTop: "0.6rem" }}>
+                                <button className="admin-btn admin-btn--secondary admin-btn--sm"
+                                  onClick={() => setEditingSub(sub)}>✎ Edytuj subskrypcję</button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      )}
+
+      {editingSub && (
+        <SubscriptionEditModal
+          sub={editingSub}
+          companyId={company.id}
+          siblingSubs={company.subscriptions}
+          onClose={() => setEditingSub(null)}
+          onSaved={reloadCompany}
+        />
       )}
     </div>
   );

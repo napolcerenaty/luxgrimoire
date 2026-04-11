@@ -918,3 +918,79 @@
   background: var(--bg-overlay);
   color: var(--text-bright);
 }
+
+/* ── Clickable table rows ── */
+.admin-table-row-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.admin-table-row-clickable:hover { background: var(--bg-overlay); }
+.admin-table-row-selected { background: var(--bg-overlay) !important; }
+
+/* ── Subscription detail panel (inline expand) ── */
+.admin-sub-detail-panel {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.admin-sub-detail-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+.admin-sub-detail-body { flex: 1; }
+.admin-sub-detail-desc {
+  font-family: 'Crimson Text', serif;
+  color: var(--text-mid);
+  font-size: 0.97rem;
+  margin: 0 0 0.5rem;
+}
+
+/* ── Subscription edit modal ── */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(3px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.admin-modal-box {
+  background: var(--bg-card, var(--bg-raised));
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+}
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+.admin-modal-header h3 {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 1.05rem;
+  color: var(--text-bright);
+}
+.admin-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--text-ghost);
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+.admin-modal-close:hover { color: var(--text-bright); }
+
