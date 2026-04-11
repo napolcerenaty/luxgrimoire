@@ -133,6 +133,7 @@ function AppInner() {
 
   const [prevTab, setPrevTab] = useState("browse");
   const [accountSection, setAccountSection] = useState("calendar");
+  const [notifRefreshKey, setNotifRefreshKey] = useState(0);
 
   // Hash-based navigation: /#admin opens admin panel if user is admin
   useEffect(() => {
@@ -183,7 +184,7 @@ function AppInner() {
     <div className="app">
       <header className="header">
         <div className="header-controls">
-          {user && <NotificationBell onOpenPage={() => setTab("notifications")} />}
+          {user && <NotificationBell onOpenPage={() => setTab("notifications")} refreshKey={notifRefreshKey} />}
           <ThemePicker />
           <LanguagePicker />
           <UserMenu onNavigate={setTab} />
@@ -247,7 +248,7 @@ function AppInner() {
             onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
           />}
         {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
-        {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} />}
+        {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} onRead={() => setNotifRefreshKey(k => k + 1)} />}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}

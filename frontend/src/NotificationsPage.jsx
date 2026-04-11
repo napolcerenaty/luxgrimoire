@@ -3,7 +3,7 @@ import { API } from "./api";
 import "./NotificationsPage.css";
 
 const TYPE_META = {
-  INFO:         { icon: "✦", label: "Informacja",   cls: "notif-type--info"   },
+  INFO:         { icon: "✶", label: "Informacja",   cls: "notif-type--info"   },
   ANNOUNCEMENT: { icon: "✶", label: "Ogłoszenie",   cls: "notif-type--ann"    },
   WARNING:      { icon: "◈", label: "Ostrzeżenie",  cls: "notif-type--warn"   },
 };
@@ -23,7 +23,7 @@ function relativeTime(dateStr) {
   return date.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function NotificationsPage({ onBack }) {
+export default function NotificationsPage({ onBack, onRead }) {
   const [notifications, setNotifications] = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [expanded,      setExpanded]      = useState(null);
@@ -41,6 +41,7 @@ export default function NotificationsPage({ onBack }) {
       const already = prev.find(n => n.id === id)?.readAt;
       if (already) return prev;
       fetch(API.NOTIFICATION_READ(id), { method: "POST", credentials: "include" });
+      if (onRead) onRead();
       return prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n);
     });
   };
@@ -48,6 +49,7 @@ export default function NotificationsPage({ onBack }) {
   const markAllRead = () => {
     fetch(API.NOTIFICATIONS_READ_ALL, { method: "POST", credentials: "include" });
     setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
+    if (onRead) onRead();
   };
 
   const unreadCount = notifications.filter(n => !n.readAt).length;
@@ -56,7 +58,7 @@ export default function NotificationsPage({ onBack }) {
     <div className="notif-page">
       <div className="notif-page-header">
         <button className="notif-page-back" onClick={onBack}>← Wróć</button>
-        <h1 className="notif-page-title">✦ Powiadomienia</h1>
+        <h1 className="notif-page-title">✶ Powiadomienia</h1>
         {unreadCount > 0 && (
           <button className="notif-page-mark-all" onClick={markAllRead}>
             Oznacz wszystkie jako przeczytane ({unreadCount})
@@ -70,7 +72,7 @@ export default function NotificationsPage({ onBack }) {
         </div>
       ) : notifications.length === 0 ? (
         <div className="notif-page-empty">
-          <span className="notif-page-empty-icon">✦</span>
+          <span className="notif-page-empty-icon">✶</span>
           <p>Brak powiadomień</p>
         </div>
       ) : (

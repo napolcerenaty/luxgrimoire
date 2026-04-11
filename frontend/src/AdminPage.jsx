@@ -1604,6 +1604,7 @@ function NotificationsAdminSection() {
   const [sent, setSent] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const loadHistory = () => {
     fetch(API.ADMIN_NOTIFICATIONS, { credentials: "include" })
@@ -1719,12 +1720,29 @@ function NotificationsAdminSection() {
             </thead>
             <tbody>
               {history.map(n => (
-                <tr key={n.id}>
+                <tr
+                  key={n.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setExpandedRow(r => r === n.id ? null : n.id)}
+                >
                   <td>
                     <strong>{n.title}</strong>
-                    <div style={{fontSize:"0.8rem",color:"var(--text-mid)"}}>
-                      {n.message && n.message.length > 80 ? n.message.slice(0, 80) + "…" : n.message}
+                    <div style={{
+                      fontSize: "0.8rem",
+                      color: "var(--text-mid)",
+                      marginTop: "0.2rem",
+                      whiteSpace: expandedRow === n.id ? "pre-wrap" : "normal",
+                      maxWidth: "400px",
+                    }}>
+                      {expandedRow === n.id
+                        ? n.message
+                        : (n.message && n.message.length > 80 ? n.message.slice(0, 80) + "…" : n.message)}
                     </div>
+                    {n.message && n.message.length > 80 && (
+                      <div style={{ fontSize: "0.72rem", color: "var(--accent)", marginTop: "0.15rem" }}>
+                        {expandedRow === n.id ? "▲ Zwiń" : "▼ Rozwiń"}
+                      </div>
+                    )}
                   </td>
                   <td>{TYPE_LABELS[n.type] || n.type}</td>
                   <td>{n.targetRoles?.split(",").map(r => ROLE_LABELS[r] || r).join(", ")}</td>

@@ -3,7 +3,7 @@ import { API } from "./api";
 import "./NotificationBell.css";
 
 const TYPE_META = {
-  INFO:         { icon: "✦", cls: "notif-chip--info" },
+  INFO:         { icon: "✶", cls: "notif-chip--info" },
   ANNOUNCEMENT: { icon: "✶", cls: "notif-chip--ann"  },
   WARNING:      { icon: "◈", cls: "notif-chip--warn" },
 };
@@ -23,7 +23,7 @@ function relativeTime(dateStr) {
   return date.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
 }
 
-export default function NotificationBell({ onOpenPage }) {
+export default function NotificationBell({ onOpenPage, refreshKey = 0 }) {
   const [count, setCount]                 = useState(0);
   const [open, setOpen]                   = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -45,7 +45,7 @@ export default function NotificationBell({ onOpenPage }) {
     fetchCount();
     const interval = setInterval(fetchCount, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshKey]);
 
   const handleOpen = () => {
     if (!open) fetchNotifs();
@@ -93,10 +93,9 @@ export default function NotificationBell({ onOpenPage }) {
       >
         {/* SVG bell styled to match site */}
         <svg className="notif-bell-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 3C12 3 8 5 8 11V17H16V11C16 5 12 3 12 3Z" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M7 17H17" strokeLinecap="round"/>
-          <path d="M10 17C10 18.1046 10.8954 19 12 19C13.1046 19 14 18.1046 14 17"/>
-          <path d="M12 3V2" strokeLinecap="round"/>
+          <path d="M5.5 17.5H18.5C18.5 17.5 17 15.5 17 10.5C17 7.186 14.761 4.5 12 4.5C9.239 4.5 7 7.186 7 10.5C7 15.5 5.5 17.5 5.5 17.5Z" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M10 17.5C10 18.6046 10.8954 19.5 12 19.5C13.1046 19.5 14 18.6046 14 17.5"/>
+          <line x1="12" y1="2" x2="12" y2="4.5" strokeLinecap="round"/>
         </svg>
         {count > 0 && (
           <span className="notif-bell-badge">{count > 99 ? "99+" : count}</span>
@@ -122,7 +121,7 @@ export default function NotificationBell({ onOpenPage }) {
           <div className="notif-list">
             {notifications.length === 0 ? (
               <div className="notif-empty">
-                <span className="notif-empty-icon">✦</span>
+                <span className="notif-empty-icon">✶</span>
                 Brak powiadomień
               </div>
             ) : (
