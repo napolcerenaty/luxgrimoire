@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
+import { API } from "./api";
 import "./AccountPage.css";
 import "./UserPages.css";
 
@@ -238,7 +239,7 @@ function BookListSection({ flag, onBookClick }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/companies", { credentials: "include" })
+    fetch(API.COMPANIES, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
   }, []);
 
@@ -247,7 +248,7 @@ function BookListSection({ flag, onBookClick }) {
     setLoading(true);
     setEntries([]);
     setBookDetails({});
-    fetch(`http://localhost:8080/api/user/books?flag=${flag}`, { credentials: "include" })
+    fetch(`${API.USER_BOOKS}?flag=${flag}`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
       .then((data) => { setEntries(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -257,13 +258,12 @@ function BookListSection({ flag, onBookClick }) {
     const ids = [...new Set(entries.map((e) => e.editionId).filter(Boolean))];
     ids.forEach((id) => {
       if (bookDetails[id]) return;
-      fetch(`http://localhost:8080/api/book-details/edition/${id}`, { credentials: "include" })
+      fetch(API.BOOK_BY_EDITION(id), { credentials: "include" })
         .then((r) => r.ok ? r.json() : null)
         .then((d) => { if (d) setBookDetails((prev) => ({ ...prev, [id]: d })); })
         .catch(() => {});
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries]);
+  }, [entries]); // bookDetails intentionally omitted to avoid refetch loop
 
   const enriched = entries.map((entry) => {
     const bd = bookDetails[entry.editionId];
@@ -287,7 +287,7 @@ function BookListSection({ flag, onBookClick }) {
   });
 
   const removeBook = async (entryId) => {
-    const res = await fetch(`http://localhost:8080/api/user/books/${entryId}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(API.USER_BOOK(entryId), { method: "DELETE", credentials: "include" });
     if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== entryId));
   };
 
@@ -429,9 +429,9 @@ function SubscriptionsSection() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("http://localhost:8080/api/user/subscriptions", { credentials: "include" })
+    fetch(API.USER_SUBSCRIPTIONS, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setUserSubs).catch(() => {});
-    fetch("http://localhost:8080/api/companies", { credentials: "include" })
+    fetch(API.COMPANIES, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
   }, [user]);
 
@@ -440,7 +440,7 @@ function SubscriptionsSection() {
   }
 
   const removeSub = async (entryId) => {
-    const res = await fetch(`http://localhost:8080/api/user/subscriptions/${entryId}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(API.USER_SUBSCRIPTION(entryId), { method: "DELETE", credentials: "include" });
     if (res.ok) setUserSubs((prev) => prev.filter((e) => e.id !== entryId));
   };
 
@@ -515,7 +515,7 @@ function SettingsSection() {
   const [avatarSaved,     setAvatarSaved]     = useState(false);
   const fileInputRef = useRef(null);
 
-  const currentAvatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
+  const currentAvatarSrc = user?.avatarUrl ? `${API.BASE}${user.avatarUrl}` : null;
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
 
   const handleAvatarChange = (e) => {
@@ -659,7 +659,7 @@ export default function AccountPage({ onBack, initialSection = "calendar", onSec
   };
 
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
-  const sidebarAvatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
+  const sidebarAvatarSrc = user?.avatarUrl ? `${API.BASE}${user.avatarUrl}` : null;
 
   return (
     <div className={`account-page${mobileSectionOpen ? " section-open" : ""}`}>

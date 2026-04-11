@@ -11,8 +11,8 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const [subAddedId, setSubAddedId] = useState(null); // subscriptionId that just got added
   const [confirmSubDupe, setConfirmSubDupe] = useState(null); // { sub, count }
 
-  const canManage = user && (user.username === "admin" || company?.managerUsernames?.includes(user.username));
-  const canDelete = user && user.username === "admin";
+  const canManage = user && (user.role === "admin" || company?.managerUsernames?.includes(user.username));
+  const canDelete = user && user.role === "admin";
 
   useEffect(() => {
     if (!user) { setUserSubs([]); return; }

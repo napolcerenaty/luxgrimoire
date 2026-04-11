@@ -100,7 +100,7 @@ export default function PersonPage({
 }) {
   const { user } = useAuth();
   const { t } = useI18n();
-  const isAdmin = user?.username === "admin";
+  const isAdmin = user?.role === "admin";
 
   const [person, setPerson]     = useState(null);
   const [editions, setEditions] = useState([]);

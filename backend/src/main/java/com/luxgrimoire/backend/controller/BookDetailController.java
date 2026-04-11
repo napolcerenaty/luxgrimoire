@@ -1,66 +1,85 @@
 package com.luxgrimoire.backend.controller;
 
+import com.luxgrimoire.backend.dto.BookDetailResponse;
+import com.luxgrimoire.backend.dto.BookSummaryDto;
+import com.luxgrimoire.backend.dto.CreateBookRequest;
+import com.luxgrimoire.backend.dto.PageResponse;
 import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.model.BookEdition;
-import com.luxgrimoire.backend.repository.BookEditionRepository;
-import com.luxgrimoire.backend.repository.BookRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.BookStore;
+import com.luxgrimoire.backend.service.FileStorageService;
+import com.luxgrimoire.backend.util.AppConstants;
+import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/book-details")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class BookDetailController {
 
     private final BookStore bookStore;
-    private final BookBoxCompanyStore companyStore;
-    private final BookRepository bookRepository;
-    private final BookEditionRepository editionRepository;
+    private final FileStorageService fileStorageService;
 
     public BookDetailController(BookStore bookStore, BookBoxCompanyStore companyStore,
-                                BookRepository bookRepository, BookEditionRepository editionRepository) {
+                                FileStorageService fileStorageService) {
         this.bookStore = bookStore;
-        this.companyStore = companyStore;
-        this.bookRepository = bookRepository;
-        this.editionRepository = editionRepository;
+        this.fileStorageService = fileStorageService;
+    }
+
+    @PostMapping("/images")
+    public ResponseEntity<?> uploadBookImage(@RequestParam("file") MultipartFile file, HttpSession session) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            String url = fileStorageService.storeBookImage(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to upload image"));
+        }
     }
 
     @GetMapping
-    public List<Book> getAll(HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if ("admin".equals(username)) return bookStore.findAll();
-        return bookStore.findAllApproved();
+    public PageResponse<BookSummaryDto> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "24") int size,
+            HttpSession session) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        if (AuthHelper.isAdmin(session)) return bookStore.findAllPaged(page, size);
+        return bookStore.findAllApprovedPaged(page, size);
     }
 
     @GetMapping("/series-names")
     public List<String> getSeriesNames() {
-        return bookRepository.findDistinctSeriesNames();
+        return bookStore.findDistinctSeriesNames();
     }
 
     @GetMapping("/contributions")
     public List<String> getContributions() {
-        return editionRepository.findDistinctContributions();
+        return bookStore.findDistinctContributions();
     }
 
     @GetMapping("/pending")
     public ResponseEntity<?> getPendingBooks(HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if (!"admin".equals(username)) return ResponseEntity.status(403).build();
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        if (!AuthHelper.isAdmin(session)) return ResponseEntity.status(403).build();
         return ResponseEntity.ok(bookStore.findAllPending());
     }
 
     @PutMapping("/{bookId}/approve")
     public ResponseEntity<?> approveBook(@PathVariable String bookId, HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if (!"admin".equals(username)) return ResponseEntity.status(403).build();
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        if (!AuthHelper.isAdmin(session)) return ResponseEntity.status(403).build();
         return bookStore.findById(bookId).map(book -> {
-            book.setStatus("approved");
+            book.setStatus(AppConstants.STATUS_APPROVED);
             bookStore.save(book);
             return ResponseEntity.ok(book);
         }).orElse(ResponseEntity.notFound().build());
@@ -81,33 +100,45 @@ public class BookDetailController {
     }
 
     @GetMapping("/{bookId}")
-    public ResponseEntity<Book> getById(@PathVariable String bookId) {
-        return bookStore.findById(bookId)
+    public ResponseEntity<BookDetailResponse> getById(@PathVariable String bookId, HttpSession session) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        boolean includePending = AuthHelper.isAdmin(session);
+        return bookStore.findDetailById(bookId, includePending)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{bookId}/series-books")
+    public ResponseEntity<?> getSeriesBooks(@PathVariable String bookId, HttpSession session) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        boolean includePending = AuthHelper.isAdmin(session);
+        return bookStore.findSeriesBooksByBookId(bookId, includePending)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
-    public ResponseEntity<?> createBook(@RequestBody Map<String, String> body, HttpSession session) {
-        String username = (String) session.getAttribute("username");
+    public ResponseEntity<?> createBook(@RequestBody CreateBookRequest body, HttpSession session) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
         Book book = new Book();
-        book.setTitle(body.get("title"));
-        book.setAuthor(body.get("author"));
-        book.setAuthorId(body.get("authorId"));
-        book.setSeriesName(body.get("seriesName"));
-        book.setVolumeNumber(body.get("volumeNumber"));
+        book.setTitle(body.getTitle());
+        book.setAuthor(body.getAuthor());
+        book.setAuthorId(body.getAuthorId());
+        book.setSeriesName(body.getSeriesName());
+        book.setVolumeNumber(body.getVolumeNumber());
         book.setAddedBy(username);
-        book.setStatus("admin".equals(username) ? "approved" : "pending");
+        book.setStatus(AuthHelper.isAdmin(session)
+                ? AppConstants.STATUS_APPROVED : AppConstants.STATUS_PENDING);
         Book saved = bookStore.save(book);
         return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{bookId}")
     public ResponseEntity<?> updateBook(@PathVariable String bookId, @RequestBody Book body, HttpSession session) {
-        String username = (String) session.getAttribute("username");
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
@@ -118,14 +149,14 @@ public class BookDetailController {
 
     @DeleteMapping("/{bookId}")
     public ResponseEntity<?> deleteBook(@PathVariable String bookId, HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if (!"admin".equals(username)) {
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
+        if (!AuthHelper.isAdmin(session)) {
             return ResponseEntity.status(403).build();
         }
-        bookStore.findById(bookId).ifPresent(book ->
+        bookStore.findByIdWithEditions(bookId).ifPresent(book ->
             book.getEditions().forEach(edition -> {
                 if (edition.getSubscriptionMonthId() != null) {
-                    unlinkBookFromMonth(edition.getSubscriptionMonthId());
+                    bookStore.unlinkBookFromMonth(edition.getSubscriptionMonthId());
                 }
             })
         );
@@ -136,13 +167,13 @@ public class BookDetailController {
 
     @PostMapping("/{bookId}/editions")
     public ResponseEntity<?> addEdition(@PathVariable String bookId, @RequestBody BookEdition edition, HttpSession session) {
-        String username = (String) session.getAttribute("username");
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
         return bookStore.addEdition(bookId, edition)
                 .map(saved -> {
-                    linkEditionToMonth(bookId, saved);
+                    bookStore.linkEditionToMonth(saved);
                     return bookStore.findById(bookId)
                             .<ResponseEntity<?>>map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
@@ -153,22 +184,21 @@ public class BookDetailController {
     @PutMapping("/{bookId}/editions/{editionId}")
     public ResponseEntity<?> updateEdition(@PathVariable String bookId, @PathVariable String editionId,
                                             @RequestBody BookEdition edition, HttpSession session) {
-        String username = (String) session.getAttribute("username");
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
-        // Unlink old month if changed
-        bookStore.findById(bookId).flatMap(b ->
+        bookStore.findByIdWithEditions(bookId).flatMap(b ->
             b.getEditions().stream().filter(e -> editionId.equals(e.getId())).findFirst()
         ).ifPresent(old -> {
             if (old.getSubscriptionMonthId() != null
                     && !old.getSubscriptionMonthId().equals(edition.getSubscriptionMonthId())) {
-                unlinkBookFromMonth(old.getSubscriptionMonthId());
+                bookStore.unlinkBookFromMonth(old.getSubscriptionMonthId());
             }
         });
         return bookStore.updateEdition(bookId, editionId, edition)
                 .map(updated -> {
-                    linkEditionToMonth(bookId, updated);
+                    bookStore.linkEditionToMonth(updated);
                     return bookStore.findById(bookId)
                             .<ResponseEntity<?>>map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
@@ -179,44 +209,21 @@ public class BookDetailController {
     @DeleteMapping("/{bookId}/editions/{editionId}")
     public ResponseEntity<?> deleteEdition(@PathVariable String bookId, @PathVariable String editionId,
                                             HttpSession session) {
-        String username = (String) session.getAttribute("username");
-        if (!"admin".equals(username)) {
+        String username = AuthHelper.getUsername(session);
+        if (!AuthHelper.isAdmin(session)) {
             return ResponseEntity.status(403).build();
         }
-        bookStore.findById(bookId).flatMap(b ->
+        bookStore.findByIdWithEditions(bookId).flatMap(b ->
             b.getEditions().stream().filter(e -> editionId.equals(e.getId())).findFirst()
         ).ifPresent(edition -> {
             if (edition.getSubscriptionMonthId() != null) {
-                unlinkBookFromMonth(edition.getSubscriptionMonthId());
+                bookStore.unlinkBookFromMonth(edition.getSubscriptionMonthId());
             }
         });
         boolean removed = bookStore.deleteEdition(bookId, editionId);
         if (!removed) return ResponseEntity.notFound().build();
         return ResponseEntity.ok().build();
     }
-
-    private void linkEditionToMonth(String bookId, BookEdition edition) {
-        if (edition.getSubscriptionMonthId() == null || edition.getBookBoxCompanyId() == null) return;
-        companyStore.findById(edition.getBookBoxCompanyId()).ifPresent(company ->
-            company.getSubscriptions().stream()
-                .filter(s -> edition.getSubscriptionId() != null && edition.getSubscriptionId().equals(s.getId()))
-                .findFirst()
-                .ifPresent(sub -> sub.getMonths().stream()
-                    .filter(m -> edition.getSubscriptionMonthId().equals(m.getId()))
-                    .findFirst()
-                    .ifPresent(m -> m.setBookId(edition.getId())))
-        );
-    }
-
-    private void unlinkBookFromMonth(String monthId) {
-        companyStore.findAll().forEach(company ->
-            company.getSubscriptions().forEach(sub ->
-                sub.getMonths().stream()
-                    .filter(m -> monthId.equals(m.getId()))
-                    .findFirst()
-                    .ifPresent(m -> m.setBookId(null))
-            )
-        );
-    }
 }
+
 

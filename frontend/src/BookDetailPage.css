@@ -264,6 +264,17 @@
   text-decoration: underline;
 }
 .detail-company-link:hover { color: var(--accent-bright); }
+.detail-series-link {
+  background: none;
+  border: none;
+  color: var(--accent2);
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+.detail-series-link:hover { color: var(--accent-bright); }
 
 /* ── User collection shared styles ─────────────────────────────────────── */
 
@@ -343,3 +354,8 @@
 .detail-edition-name { font-size: 1.05rem; font-weight: 600; color: var(--accent); margin: 0; }
 .detail-edition-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .detail-no-editions { color: #547898; font-style: italic; text-align: center; padding: 2rem 0; }
+@media (max-width: 768px) {
+  .detail-edition-header {
+    flex-direction: column;
+  }
+}

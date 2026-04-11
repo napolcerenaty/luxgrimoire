@@ -2,23 +2,37 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequestMapping("/api/search")
 public class SearchController {
 
-    @Autowired private BookRepository bookRepository;
-    @Autowired private AuthorRepository authorRepository;
-    @Autowired private ArtistRepository artistRepository;
-    @Autowired private SubscriptionRepository subscriptionRepository;
-    @Autowired private BookBoxCompanyRepository companyRepository;
+    private static final int RESULTS_LIMIT = 20;
+
+    private final BookRepository bookRepository;
+    private final AuthorRepository authorRepository;
+    private final ArtistRepository artistRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final BookBoxCompanyRepository companyRepository;
+
+    public SearchController(BookRepository bookRepository, AuthorRepository authorRepository,
+                            ArtistRepository artistRepository, SubscriptionRepository subscriptionRepository,
+                            BookBoxCompanyRepository companyRepository) {
+        this.bookRepository = bookRepository;
+        this.authorRepository = authorRepository;
+        this.artistRepository = artistRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.companyRepository = companyRepository;
+    }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public Map<String, Object> search(
             @RequestParam(required = false, defaultValue = "") String q,
             @RequestParam(required = false, defaultValue = "all") String filter) {
@@ -39,11 +53,21 @@ public class SearchController {
 
         // ── Books ──────────────────────────────────────────────────────────
         if (all || "books".equals(filter)) {
-            List<Book> books = bookRepository.searchByQuery(pattern);
+            List<Book> books = bookRepository.searchByQuery(pattern).stream()
+                    .limit(RESULTS_LIMIT)
+                    .toList();
 
-            // Build company lookup map once
-            Map<String, BookBoxCompany> companyMap = new HashMap<>();
-            companyRepository.findAll().forEach(c -> companyMap.put(c.getId(), c));
+            // Collect only the companyIds that appear in results — no findAll()
+            Set<String> companyIds = books.stream()
+                    .flatMap(b -> b.getEditions().stream())
+                    .map(BookEdition::getBookBoxCompanyId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            Map<String, BookBoxCompany> companyMap = companyIds.isEmpty()
+                    ? Collections.emptyMap()
+                    : companyRepository.findAllById(companyIds).stream()
+                            .collect(Collectors.toMap(BookBoxCompany::getId, c -> c));
 
             List<Map<String, Object>> bookResults = new ArrayList<>();
             for (Book book : books) {
@@ -53,20 +77,13 @@ public class SearchController {
                 item.put("author", book.getAuthor());
                 item.put("authorId", book.getAuthorId());
                 item.put("seriesName", book.getSeriesName());
+                item.put("coverUrl", book.getCoverUrl());
 
-                String coverUrl = null;
                 String companyId = null;
                 String companyName = null;
                 String companyLogoUrl = null;
-                String subscriptionName = null;
-                String subscriptionLogoUrl = null;
 
                 for (BookEdition edition : book.getEditions()) {
-                    if (coverUrl == null
-                            && edition.getImageUrls() != null
-                            && !edition.getImageUrls().isEmpty()) {
-                        coverUrl = edition.getImageUrls().get(0);
-                    }
                     if (companyId == null && edition.getBookBoxCompanyId() != null) {
                         companyId = edition.getBookBoxCompanyId();
                         BookBoxCompany company = companyMap.get(companyId);
@@ -85,14 +102,13 @@ public class SearchController {
                                         });
                             }
                         }
+                        break;
                     }
-                    if (coverUrl != null && companyId != null) break;
                 }
 
                 item.putIfAbsent("subscriptionId", null);
-                item.putIfAbsent("subscriptionName", subscriptionName);
-                item.putIfAbsent("subscriptionLogoUrl", subscriptionLogoUrl);
-                item.put("coverUrl", coverUrl);
+                item.putIfAbsent("subscriptionName", null);
+                item.putIfAbsent("subscriptionLogoUrl", null);
                 item.put("companyId", companyId);
                 item.put("companyName", companyName);
                 item.put("companyLogoUrl", companyLogoUrl);
@@ -105,7 +121,8 @@ public class SearchController {
 
         // ── Authors ────────────────────────────────────────────────────────
         if (all || "authors".equals(filter)) {
-            List<Author> authors = authorRepository.findByNameContainingIgnoreCase(q.trim());
+            List<Author> authors = authorRepository
+                    .findByNameContainingIgnoreCase(q.trim(), PageRequest.of(0, RESULTS_LIMIT));
             List<Map<String, Object>> authorResults = new ArrayList<>();
             for (Author author : authors) {
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -113,7 +130,7 @@ public class SearchController {
                 item.put("name", author.getName());
                 item.put("imageUrl", author.getImageUrl());
                 item.put("bio", author.getBio());
-                item.put("bookCount", bookRepository.countByAuthorId(author.getId()));
+                item.put("bookCount", bookRepository.countApprovedByAuthorId(author.getId()));
                 authorResults.add(item);
             }
             result.put("authors", authorResults);
@@ -123,7 +140,8 @@ public class SearchController {
 
         // ── Artists ────────────────────────────────────────────────────────
         if (all || "artists".equals(filter)) {
-            List<Artist> artists = artistRepository.findByNameContainingIgnoreCase(q.trim());
+            List<Artist> artists = artistRepository
+                    .findByNameContainingIgnoreCase(q.trim(), PageRequest.of(0, RESULTS_LIMIT));
             List<Map<String, Object>> artistResults = new ArrayList<>();
             for (Artist artist : artists) {
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -140,7 +158,8 @@ public class SearchController {
 
         // ── Subscriptions ──────────────────────────────────────────────────
         if (all || "subscriptions".equals(filter)) {
-            List<Subscription> subscriptions = subscriptionRepository.searchByNamePattern(pattern);
+            List<Subscription> subscriptions = subscriptionRepository
+                    .searchByNamePattern(pattern, PageRequest.of(0, RESULTS_LIMIT));
             List<Map<String, Object>> subResults = new ArrayList<>();
             for (Subscription sub : subscriptions) {
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -163,7 +182,8 @@ public class SearchController {
 
         // ── Companies ──────────────────────────────────────────────────────
         if (all || "companies".equals(filter)) {
-            List<BookBoxCompany> companies = companyRepository.findByNameContainingIgnoreCase(q.trim());
+            List<BookBoxCompany> companies = companyRepository
+                    .findByNameContainingIgnoreCase(q.trim(), PageRequest.of(0, RESULTS_LIMIT));
             List<Map<String, Object>> companyResults = new ArrayList<>();
             for (BookBoxCompany company : companies) {
                 Map<String, Object> item = new LinkedHashMap<>();

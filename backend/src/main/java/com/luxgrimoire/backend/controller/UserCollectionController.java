@@ -2,6 +2,7 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.service.UserStore;
+import com.luxgrimoire.backend.util.AppConstants;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class UserCollectionController {
 
     private final UserStore userStore;
@@ -92,7 +92,7 @@ public class UserCollectionController {
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private String resolveUsername(HttpSession session) {
-        return (String) session.getAttribute("username");
+        return (String) session.getAttribute(AppConstants.SESSION_USERNAME);
     }
 
     private ResponseEntity<?> unauthorized() {

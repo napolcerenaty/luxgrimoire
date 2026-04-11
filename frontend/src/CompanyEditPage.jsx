@@ -386,7 +386,7 @@ export default function CompanyEditPage({ initialData, onSaved, onBack, user }) 
         <div className="company-edit-section">
           <h3 className="company-edit-section-title">{t("company.managers")}</h3>
           <p className="company-edit-section-note">{t("company.managersNote")}</p>
-          {user?.username === "admin" ? (
+          {user?.role === "admin" ? (
             <>
               {form.managerUsernames.map((mgr, idx) => (
                 <div key={idx} className="company-edit-dynamic-row">

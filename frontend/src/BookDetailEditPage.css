@@ -338,10 +338,111 @@
 /* ── Book info header ────────────────────────────────────────────────────── */
 
 .edit-book-info {
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  background: var(--bg);
+}
+
+.edit-book-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem 1.25rem;
+}
+
+.edit-book-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
   font-family: 'Crimson Text', serif;
-  font-size: 1.05rem;
   color: #70c8e0;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border-dim);
+}
+
+.edit-book-info-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Image upload grid ───────────────────────────────────────────────────── */
+
+.edit-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.edit-image-card {
+  position: relative;
+  width: 110px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-raised);
+}
+
+.edit-image-thumb {
+  width: 110px;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.edit-image-cover-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--accent2);
+  color: var(--bg);
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  padding: 0.15rem 0.45rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.edit-image-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.edit-image-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
+
+.edit-image-btn:hover:not(:disabled) {
+  color: var(--accent-bright);
+  border-color: var(--accent2);
+}
+
+.edit-image-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.edit-image-btn--remove {
+  color: #cc4444;
+}
+
+.edit-image-btn--remove:hover:not(:disabled) {
+  color: #ff6666;
+  border-color: #cc4444;
 }
 

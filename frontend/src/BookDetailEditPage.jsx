@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./BookDetailEditPage.css";
 import { useI18n } from "./i18n";
+import { API } from "./api";
 
 // ── Combobox for authors / artists ────────────────────────────────────────────
 
@@ -241,11 +242,50 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   };
 
   // ── Image helpers ────────────────────────────────────────────────────────────
-  const setImageUrl = (idx, val) => setEditionForm((f) => {
-    const arr = [...f.imageUrls]; arr[idx] = val; return { ...f, imageUrls: arr };
+  const fileInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const moveImageUp = (idx) => setEditionForm((f) => {
+    if (idx === 0) return f;
+    const arr = [...f.imageUrls];
+    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+    return { ...f, imageUrls: arr };
   });
-  const addImageUrl = () => setEditionForm((f) => ({ ...f, imageUrls: [...f.imageUrls, ""] }));
-  const removeImageUrl = (idx) => setEditionForm((f) => ({ ...f, imageUrls: f.imageUrls.filter((_, i) => i !== idx) }));
+
+  const moveImageDown = (idx) => setEditionForm((f) => {
+    if (idx === f.imageUrls.length - 1) return f;
+    const arr = [...f.imageUrls];
+    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+    return { ...f, imageUrls: arr };
+  });
+
+  const removeImageUrl = (idx) => setEditionForm((f) => ({
+    ...f, imageUrls: f.imageUrls.filter((_, i) => i !== idx),
+  }));
+
+  const handleImageFilePicked = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(API.BOOK_IMAGE_UPLOAD, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const data = await res.json();
+      setEditionForm((f) => ({ ...f, imageUrls: [...f.imageUrls, data.url] }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // ── Artist row helpers ───────────────────────────────────────────────────────
   const setArtistField = (idx, key, val) => setEditionForm((f) => ({
@@ -410,8 +450,29 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
         {/* Book read-only header when editing edition */}
         {!showBookForm && initialData && (
           <div className="edit-book-info">
-            <strong>{initialData.title}</strong>
-            {initialData.author && <span> &mdash; {initialData.author}</span>}
+            <h3 className="edit-section-title">{t("bookDetail.bookMeta")}</h3>
+            <div className="edit-book-info-grid">
+              <div className="edit-book-info-item">
+                <span className="edit-book-info-label">{t("col.title")}</span>
+                <strong>{initialData.title}</strong>
+              </div>
+              {initialData.author && (
+                <div className="edit-book-info-item">
+                  <span className="edit-book-info-label">{t("col.author")}</span>
+                  <span>{initialData.author}</span>
+                </div>
+              )}
+              {initialData.seriesName && (
+                <div className="edit-book-info-item">
+                  <span className="edit-book-info-label">{t("bookDetail.series")}</span>
+                  <span>{initialData.seriesName}</span>
+                </div>
+              )}
+              <div className="edit-book-info-item">
+                <span className="edit-book-info-label">{t("bookDetail.seriesPosition")}</span>
+                <span>{initialData.volumeNumber || t("bookDetail.standalone")}</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -595,15 +656,54 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
             {/* Images */}
             <div className="edit-section">
               <h3 className="edit-section-title">{t("bookDetail.images")}</h3>
-              {editionForm.imageUrls.map((url, idx) => (
-                <div key={idx} className="edit-dynamic-row">
-                  <span className="edit-img-label">{idx === 0 ? "Main (cover)" : `Image ${idx + 1}`}</span>
-                  <input className="edit-input edit-url-input" value={url}
-                    onChange={(e) => setImageUrl(idx, e.target.value)} placeholder="https://..." />
-                  <button className="edit-remove-btn" type="button" onClick={() => removeImageUrl(idx)}>&#x2715;</button>
+              {editionForm.imageUrls.length > 0 && (
+                <div className="edit-image-grid">
+                  {editionForm.imageUrls.map((url, idx) => (
+                    <div key={idx} className="edit-image-card">
+                      {idx === 0 && (
+                        <span className="edit-image-cover-badge">{t("bookDetail.cover")}</span>
+                      )}
+                      <img
+                        className="edit-image-thumb"
+                        src={url.startsWith("/uploads") ? `${API.BASE}${url}` : url}
+                        alt={idx === 0 ? t("bookDetail.cover") : `${idx + 1}`}
+                      />
+                      <div className="edit-image-actions">
+                        <button
+                          type="button" className="edit-image-btn"
+                          onClick={() => moveImageUp(idx)} disabled={idx === 0}
+                          title="↑"
+                        >↑</button>
+                        <button
+                          type="button" className="edit-image-btn edit-image-btn--remove"
+                          onClick={() => removeImageUrl(idx)}
+                        >✕</button>
+                        <button
+                          type="button" className="edit-image-btn"
+                          onClick={() => moveImageDown(idx)}
+                          disabled={idx === editionForm.imageUrls.length - 1}
+                          title="↓"
+                        >↓</button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <button className="edit-add-btn" type="button" onClick={addImageUrl}>{t("bookDetail.addImage")}</button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleImageFilePicked}
+              />
+              <button
+                className="edit-add-btn"
+                type="button"
+                onClick={() => fileInputRef.current.click()}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? t("bookDetail.uploadingImage") : t("bookDetail.addImage")}
+              </button>
             </div>
 
             {/* Artists */}
