@@ -333,7 +333,8 @@ function BookListSection({ flag, onBookClick }) {
 
 // ─── Helper: next renewal date ────────────────────────────────────────────────
 function nextRenewal(entry, sub) {
-  const renewalDay = sub?.renewalDay;
+  // entry.renewalDay takes precedence (user-set), falls back to sub.renewalDay
+  const renewalDay = entry?.renewalDay ?? sub?.renewalDay;
   if (!renewalDay) return null;
 
   const type = sub?.type || 'MONTHLY';

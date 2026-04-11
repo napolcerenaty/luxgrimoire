@@ -222,6 +222,7 @@ public class AdminController {
         if (body.containsKey("skipPolicyNotes"))    sub.setSkipPolicyNotes((String) body.get("skipPolicyNotes"));
         // combo
         if (body.get("isCombo") instanceof Boolean b) sub.setCombo(b);
+        if (body.get("renewalDayUserSet") instanceof Boolean b) sub.setRenewalDayUserSet(b);
         Object renewalDay = body.get("renewalDay");
         if (renewalDay != null) {
             try { sub.setRenewalDay(Integer.valueOf(renewalDay.toString())); } catch (NumberFormatException ignored) {}

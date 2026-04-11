@@ -159,6 +159,7 @@ function SkipPolicyEditor({ value, onChange }) {
 // ─── SubscriptionInlineForm ───────────────────────────────────────────────────
 const EMPTY_SUB = {
   name: "", type: "MONTHLY", basePrice: "", renewalDay: "",
+  renewalDayUserSet: false,
   isCombo: false, comboComponentIds: [],
   shipsInternationally: true, bookishMerch: false, genres: "",
   skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
@@ -200,7 +201,8 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       type:                 form.type,
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
       estimatedShipping:    form.estimatedShipping ? parseFloat(form.estimatedShipping) : null,
-      renewalDay:           form.renewalDay ? parseInt(form.renewalDay) : null,
+      renewalDay:           (!form.renewalDayUserSet && form.renewalDay) ? parseInt(form.renewalDay) : null,
+      renewalDayUserSet:    form.renewalDayUserSet,
       isCombo:              form.isCombo,
       comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
@@ -274,10 +276,21 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
             <input type="number" step="0.01" min="0" className="admin-form-input"
               value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
           </div>
-          <div className="admin-form-row" style={{ flex: 1, minWidth: 100 }}>
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
             <label className="admin-form-label">Dzień odnowy</label>
-            <input type="number" min="1" max="28" className="admin-form-input"
-              value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–28" />
+            {form.renewalDayUserSet ? (
+              <span style={{ fontSize: "0.85rem", color: "var(--text-ghost)", padding: "0.35rem 0" }}>
+                Ustawia użytkownik
+              </span>
+            ) : (
+              <input type="number" min="1" max="28" className="admin-form-input"
+                value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–28" />
+            )}
+            <label className="admin-form-check" style={{ marginTop: "0.3rem", fontSize: "0.82rem" }}>
+              <input type="checkbox" checked={form.renewalDayUserSet}
+                onChange={() => setForm(prev => ({ ...prev, renewalDayUserSet: !prev.renewalDayUserSet, renewalDay: "" }))} />
+              Ustawi użytkownik
+            </label>
           </div>
         </div>
 
@@ -618,7 +631,7 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
                     </td>
                     <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
                     <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
-                    <td>{sub.renewalDay ?? "—"}</td>
+                    <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
                     <td>
                       {sub.skipPolicyType === "LIMITED"
                         ? `Limited · reset: ${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`

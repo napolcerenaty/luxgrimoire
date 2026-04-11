@@ -50,10 +50,14 @@ public class Subscription {
     @Column(name = "skip_policy_notes", columnDefinition = "TEXT")
     private String skipPolicyNotes;
 
+    @Column(name = "is_combo")
     private boolean isCombo = false;
 
     @Column(name = "renewal_day")
     private Integer renewalDay;
+
+    @Column(name = "renewal_day_user_set")
+    private boolean renewalDayUserSet = false;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -129,6 +133,8 @@ public class Subscription {
     public void setCombo(boolean combo) { isCombo = combo; }
     public Integer getRenewalDay() { return renewalDay; }
     public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
+    public boolean isRenewalDayUserSet() { return renewalDayUserSet; }
+    public void setRenewalDayUserSet(boolean renewalDayUserSet) { this.renewalDayUserSet = renewalDayUserSet; }
     public List<Subscription> getComboComponents() { return comboComponents; }
     public void setComboComponents(List<Subscription> comboComponents) { this.comboComponents = comboComponents != null ? comboComponents : new ArrayList<>(); }
 }

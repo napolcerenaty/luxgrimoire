@@ -138,6 +138,9 @@ public class UserStore {
             if (body.get("taxesAndFees") instanceof Number tf) {
                 entry.setTaxesAndFees(new BigDecimal(tf.toString()));
             }
+            if (body.get("renewalDay") instanceof Number rd) {
+                entry.setRenewalDay(rd.intValue());
+            }
         }
         return subEntryRepo.save(entry);
     }

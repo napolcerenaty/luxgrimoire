@@ -14,7 +14,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   // subscribe form state
   const today = new Date().toISOString().slice(0, 10);
-  const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "" });
+  const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "" });
 
   const canManage = user && (user.role === "admin" || company?.managerUsernames?.includes(user.username));
   const canDelete = user && user.role === "admin";
@@ -35,6 +35,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       shippingCost: formData.shippingCost !== "" ? parseFloat(formData.shippingCost) : null,
       taxesAndFees: formData.taxesAndFees !== "" ? parseFloat(formData.taxesAndFees) : null,
       startingMonth: formData.startingMonth !== "" ? parseInt(formData.startingMonth) : null,
+      renewalDay:    formData.renewalDay    !== "" ? parseInt(formData.renewalDay)    : null,
     };
     const res = await fetch("http://localhost:8080/api/user/subscriptions", {
       method: "POST",
@@ -55,7 +56,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const handleSubscribe = (sub) => {
     if (!user) return;
     const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === company.id).length;
-    const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "" };
+    const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "" };
     setSubForm(resetForm);
     setSubscribeModal({ sub, isDupe: count > 0, count });
   };
@@ -78,6 +79,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   const needsStartingMonth = subscribeModal?.sub &&
     (subscribeModal.sub.type === "BI_MONTHLY" || subscribeModal.sub.type === "QUARTERLY");
+  const needsRenewalDay = subscribeModal?.sub?.renewalDayUserSet === true;
 
   return (
     <div className="company-page">
@@ -140,6 +142,21 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                       <option key={i + 1} value={i + 1}>{i + 1}</option>
                     ))}
                   </select>
+                </label>
+              )}
+              {needsRenewalDay && (
+                <label style={{ fontSize: "0.9rem" }}>
+                  Dzień odnowy (1–28)
+                  <input
+                    type="number"
+                    min="1"
+                    max="28"
+                    className="admin-form-input"
+                    style={{ display: "block", marginTop: "0.25rem" }}
+                    value={subForm.renewalDay}
+                    onChange={(e) => setSubForm((f) => ({ ...f, renewalDay: e.target.value }))}
+                    placeholder="np. 15"
+                  />
                 </label>
               )}
             </div>

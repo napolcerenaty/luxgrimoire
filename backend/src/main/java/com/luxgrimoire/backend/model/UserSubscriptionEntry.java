@@ -35,7 +35,11 @@ public class UserSubscriptionEntry {
     @Column(name = "taxes_and_fees", precision = 10, scale = 2)
     private BigDecimal taxesAndFees;
 
+    @Column(name = "active")
     private boolean active = true;
+
+    @Column(name = "renewal_day")
+    private Integer renewalDay;
 
     public UserSubscriptionEntry() {}
 
@@ -66,4 +70,6 @@ public class UserSubscriptionEntry {
     public void setTaxesAndFees(BigDecimal taxesAndFees) { this.taxesAndFees = taxesAndFees; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public Integer getRenewalDay() { return renewalDay; }
+    public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
 }
