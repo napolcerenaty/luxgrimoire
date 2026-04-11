@@ -40,6 +40,23 @@
   text-shadow: 0 0 50px rgba(0, 150, 200, 0.60);
 }
 
+.header-logo-img {
+  position: absolute;
+  top: 50%;
+  left: 1.4rem;
+  transform: translateY(-50%);
+  height: 68px;
+  width: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 0 8px rgba(0, 160, 210, 0.35));
+  transition: filter 0.25s, transform 0.25s;
+  z-index: 10;
+}
+.header-logo-img:hover {
+  filter: drop-shadow(0 0 18px rgba(0, 180, 230, 0.6));
+  transform: translateY(-50%) scale(1.06);
+}
+
 .header-controls {
   position: absolute;
   top: 1rem;
