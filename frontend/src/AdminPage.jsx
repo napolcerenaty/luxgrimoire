@@ -158,7 +158,7 @@ function SkipPolicyEditor({ value, onChange }) {
 
 // ─── SubscriptionInlineForm ───────────────────────────────────────────────────
 const EMPTY_SUB = {
-  name: "", type: "MONTHLY", basePrice: "", estimatedShipping: "",
+  name: "", type: "MONTHLY", basePrice: "", renewalDay: "",
   isCombo: false, comboComponentIds: [],
   shipsInternationally: true, bookishMerch: false, genres: "",
   skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
@@ -200,6 +200,7 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       type:                 form.type,
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
       estimatedShipping:    form.estimatedShipping ? parseFloat(form.estimatedShipping) : null,
+      renewalDay:           form.renewalDay ? parseInt(form.renewalDay) : null,
       isCombo:              form.isCombo,
       comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
@@ -273,10 +274,10 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
             <input type="number" step="0.01" min="0" className="admin-form-input"
               value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
           </div>
-          <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
-            <label className="admin-form-label">Wysyłka (szac.)</label>
-            <input type="number" step="0.01" min="0" className="admin-form-input"
-              value={form.estimatedShipping} onChange={set("estimatedShipping")} placeholder="0.00" />
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 100 }}>
+            <label className="admin-form-label">Dzień odnowy</label>
+            <input type="number" min="1" max="28" className="admin-form-input"
+              value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–28" />
           </div>
         </div>
 
@@ -598,7 +599,7 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Wysyłka</th><th>Skip Policy</th></tr>
+                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Dzień odnowy</th><th>Skip Policy</th></tr>
               </thead>
               <tbody>
                 {company.subscriptions.map(sub => (
@@ -617,7 +618,7 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
                     </td>
                     <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
                     <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
-                    <td>{sub.estimatedShipping != null ? `${sub.estimatedShipping} ${company.defaultCurrency || ""}` : "—"}</td>
+                    <td>{sub.renewalDay ?? "—"}</td>
                     <td>
                       {sub.skipPolicyType === "LIMITED"
                         ? `Limited · reset: ${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`

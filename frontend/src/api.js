@@ -42,6 +42,7 @@ export const API = {
   USER_BOOK: (id)        => `${API_BASE}/api/user/books/${id}`,
   USER_SUBSCRIPTIONS:       `${API_BASE}/api/user/subscriptions`,
   USER_SUBSCRIPTION: (id)=> `${API_BASE}/api/user/subscriptions/${id}`,
+  USER_SUBSCRIPTION_COST_HISTORY: (id) => `${API_BASE}/api/user/subscriptions/${id}/cost-history`,
 
   // Search
   SEARCH: `${API_BASE}/api/search`,

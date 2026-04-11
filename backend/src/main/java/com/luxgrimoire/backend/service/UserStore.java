@@ -7,7 +7,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -16,13 +18,16 @@ public class UserStore {
     private final AppUserRepository userRepo;
     private final UserBookEntryRepository bookEntryRepo;
     private final UserSubscriptionEntryRepository subEntryRepo;
+    private final UserSubscriptionCostChangeRepository costChangeRepo;
 
     public UserStore(AppUserRepository userRepo,
                      UserBookEntryRepository bookEntryRepo,
-                     UserSubscriptionEntryRepository subEntryRepo) {
+                     UserSubscriptionEntryRepository subEntryRepo,
+                     UserSubscriptionCostChangeRepository costChangeRepo) {
         this.userRepo = userRepo;
         this.bookEntryRepo = bookEntryRepo;
         this.subEntryRepo = subEntryRepo;
+        this.costChangeRepo = costChangeRepo;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -116,10 +121,24 @@ public class UserStore {
     }
 
     @Transactional
-    public UserSubscriptionEntry addSubscription(String username, String companyId, String subscriptionId) {
+    public UserSubscriptionEntry addSubscription(String username, String companyId, String subscriptionId, Map<String, Object> body) {
         AppUser user = userRepo.findById(username).orElseThrow();
         UserSubscriptionEntry entry = new UserSubscriptionEntry(companyId, subscriptionId);
         entry.setUser(user);
+        if (body != null) {
+            if (body.get("startDate") instanceof String sd && !sd.isBlank()) {
+                entry.setStartDate(sd);
+            }
+            if (body.get("startingMonth") instanceof Number sm) {
+                entry.setStartingMonth(sm.intValue());
+            }
+            if (body.get("shippingCost") instanceof Number sc) {
+                entry.setShippingCost(new BigDecimal(sc.toString()));
+            }
+            if (body.get("taxesAndFees") instanceof Number tf) {
+                entry.setTaxesAndFees(new BigDecimal(tf.toString()));
+            }
+        }
         return subEntryRepo.save(entry);
     }
 
@@ -130,4 +149,34 @@ public class UserStore {
                 .map(e -> { subEntryRepo.delete(e); return true; })
                 .orElse(false);
     }
+
+    @Transactional
+    public UserSubscriptionEntry updateSubscriptionCosts(String username, String entryId,
+            BigDecimal shippingCost, BigDecimal taxesAndFees,
+            int effectiveFromMonth, int effectiveFromYear) {
+        UserSubscriptionEntry entry = subEntryRepo.findById(entryId)
+                .filter(e -> e.getUser() != null && username.equals(e.getUser().getUsername()))
+                .orElseThrow();
+
+        UserSubscriptionCostChange change = new UserSubscriptionCostChange();
+        change.setEntry(entry);
+        change.setEffectiveFromMonth(effectiveFromMonth);
+        change.setEffectiveFromYear(effectiveFromYear);
+        change.setShippingCost(shippingCost);
+        change.setTaxesAndFees(taxesAndFees);
+        costChangeRepo.save(change);
+
+        entry.setShippingCost(shippingCost);
+        entry.setTaxesAndFees(taxesAndFees);
+        return subEntryRepo.save(entry);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSubscriptionCostChange> getCostChanges(String username, String entryId) {
+        subEntryRepo.findById(entryId)
+                .filter(e -> e.getUser() != null && username.equals(e.getUser().getUsername()))
+                .orElseThrow();
+        return costChangeRepo.findByEntryIdOrderByEffectiveFromYearAscEffectiveFromMonthAsc(entryId);
+    }
 }
+

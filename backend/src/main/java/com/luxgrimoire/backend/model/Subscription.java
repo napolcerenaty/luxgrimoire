@@ -52,8 +52,8 @@ public class Subscription {
 
     private boolean isCombo = false;
 
-    @Column(name = "estimated_shipping")
-    private BigDecimal estimatedShipping;
+    @Column(name = "renewal_day")
+    private Integer renewalDay;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -127,8 +127,8 @@ public class Subscription {
     public void setSkipPolicyNotes(String skipPolicyNotes) { this.skipPolicyNotes = skipPolicyNotes; }
     public boolean isCombo() { return isCombo; }
     public void setCombo(boolean combo) { isCombo = combo; }
-    public BigDecimal getEstimatedShipping() { return estimatedShipping; }
-    public void setEstimatedShipping(BigDecimal estimatedShipping) { this.estimatedShipping = estimatedShipping; }
+    public Integer getRenewalDay() { return renewalDay; }
+    public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
     public List<Subscription> getComboComponents() { return comboComponents; }
     public void setComboComponents(List<Subscription> comboComponents) { this.comboComponents = comboComponents != null ? comboComponents : new ArrayList<>(); }
 }

@@ -2,6 +2,7 @@ package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -22,6 +23,20 @@ public class UserSubscriptionEntry {
     private String subscriptionId;
     private Instant addedAt;
 
+    @Column(name = "start_date")
+    private String startDate;
+
+    @Column(name = "starting_month")
+    private Integer startingMonth;
+
+    @Column(name = "shipping_cost", precision = 10, scale = 2)
+    private BigDecimal shippingCost;
+
+    @Column(name = "taxes_and_fees", precision = 10, scale = 2)
+    private BigDecimal taxesAndFees;
+
+    private boolean active = true;
+
     public UserSubscriptionEntry() {}
 
     public UserSubscriptionEntry(String companyId, String subscriptionId) {
@@ -41,4 +56,14 @@ public class UserSubscriptionEntry {
     public void setSubscriptionId(String subscriptionId) { this.subscriptionId = subscriptionId; }
     public Instant getAddedAt() { return addedAt; }
     public void setAddedAt(Instant addedAt) { this.addedAt = addedAt; }
+    public String getStartDate() { return startDate; }
+    public void setStartDate(String startDate) { this.startDate = startDate; }
+    public Integer getStartingMonth() { return startingMonth; }
+    public void setStartingMonth(Integer startingMonth) { this.startingMonth = startingMonth; }
+    public BigDecimal getShippingCost() { return shippingCost; }
+    public void setShippingCost(BigDecimal shippingCost) { this.shippingCost = shippingCost; }
+    public BigDecimal getTaxesAndFees() { return taxesAndFees; }
+    public void setTaxesAndFees(BigDecimal taxesAndFees) { this.taxesAndFees = taxesAndFees; }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 }

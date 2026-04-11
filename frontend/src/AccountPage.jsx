@@ -331,26 +331,87 @@ function BookListSection({ flag, onBookClick }) {
   );
 }
 
-// ─── Helper: next renewal date from addedAt ───────────────────────────────────
-function nextRenewal(addedAtStr) {
-  if (!addedAtStr) return null;
-  const day = new Date(addedAtStr).getDate();
-  const now  = new Date();
-  const candidate = new Date(now.getFullYear(), now.getMonth(), day);
-  if (candidate > now) return candidate;
-  return new Date(now.getFullYear(), now.getMonth() + 1, day);
+// ─── Helper: next renewal date ────────────────────────────────────────────────
+function nextRenewal(entry, sub) {
+  const renewalDay = sub?.renewalDay;
+  if (!renewalDay) return null;
+
+  const type = sub?.type || 'MONTHLY';
+  const startingMonth = entry?.startingMonth ?? 1;
+  const now = new Date();
+
+  if (type === 'MONTHLY') {
+    const candidate = new Date(now.getFullYear(), now.getMonth(), renewalDay);
+    if (candidate > now) return candidate;
+    return new Date(now.getFullYear(), now.getMonth() + 1, renewalDay);
+  }
+
+  const step = type === 'BI_MONTHLY' ? 2 : 3;
+  const startMonthIdx = (startingMonth - 1) % step;
+  for (let i = 0; i < 24; i++) {
+    const candidateMonth = now.getMonth() + i;
+    const year = now.getFullYear() + Math.floor(candidateMonth / 12);
+    const month = candidateMonth % 12;
+    if (((month - startMonthIdx) % step + step) % step === 0) {
+      const candidate = new Date(year, month, renewalDay);
+      if (candidate > now) return candidate;
+    }
+  }
+  return null;
 }
 
 // ─── SUBSCRIPTION DETAIL ─────────────────────────────────────────────────────
-function SubDetailView({ entry, company, sub, onBack }) {
+function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
   const { t, lang } = useI18n();
   const locale = LANG_LOCALE[lang] ?? "en-GB";
-  const renewal = nextRenewal(entry.addedAt);
+  const [entry, setEntry] = useState(initialEntry);
+  const [costHistory, setCostHistory] = useState([]);
+  const [editingCosts, setEditingCosts] = useState(false);
+  const now = new Date();
+  const [costForm, setCostForm] = useState({
+    effectiveFromMonth: now.getMonth() + 1,
+    effectiveFromYear: now.getFullYear(),
+    shippingCost: "",
+    taxesAndFees: "",
+  });
+
+  useEffect(() => {
+    fetch(API.USER_SUBSCRIPTION_COST_HISTORY(entry.id), { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setCostHistory)
+      .catch(() => {});
+  }, [entry.id]);
+
+  const renewal = nextRenewal(entry, sub);
   const renewalStr = renewal
     ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(renewal)
     : null;
 
   const logoSrc = sub?.logoUrl || company?.logoUrl;
+
+  const handleSaveCosts = async () => {
+    const body = {
+      shippingCost: costForm.shippingCost !== "" ? parseFloat(costForm.shippingCost) : null,
+      taxesAndFees: costForm.taxesAndFees !== "" ? parseFloat(costForm.taxesAndFees) : null,
+      effectiveFromMonth: parseInt(costForm.effectiveFromMonth),
+      effectiveFromYear: parseInt(costForm.effectiveFromYear),
+    };
+    const res = await fetch(API.USER_SUBSCRIPTION(entry.id), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setEntry(updated);
+      setEditingCosts(false);
+      fetch(API.USER_SUBSCRIPTION_COST_HISTORY(entry.id), { credentials: "include" })
+        .then((r) => r.ok ? r.json() : [])
+        .then(setCostHistory)
+        .catch(() => {});
+    }
+  };
 
   return (
     <section className="account-section">
@@ -395,6 +456,24 @@ function SubDetailView({ entry, company, sub, onBack }) {
             <span className="account-sub-meta-value">{sub.type}</span>
           </div>
         )}
+        {sub?.renewalDay && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">Dzień odnowy</span>
+            <span className="account-sub-meta-value">{sub.renewalDay}</span>
+          </div>
+        )}
+        {entry.shippingCost != null && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">Wysyłka</span>
+            <span className="account-sub-meta-value">{entry.shippingCost}</span>
+          </div>
+        )}
+        {entry.taxesAndFees != null && (
+          <div className="account-sub-meta-row">
+            <span className="account-sub-meta-label">Podatki/opłaty</span>
+            <span className="account-sub-meta-value">{entry.taxesAndFees}</span>
+          </div>
+        )}
         {sub?.genres?.length > 0 && (
           <div className="account-sub-meta-row">
             <span className="account-sub-meta-label">{t("sub.genres")}</span>
@@ -410,6 +489,84 @@ function SubDetailView({ entry, company, sub, onBack }) {
           </div>
         )}
       </div>
+
+      {/* Edit costs */}
+      {!editingCosts ? (
+        <button className="page-btn" style={{ marginTop: "1rem" }} onClick={() => setEditingCosts(true)}>
+          Edytuj koszty
+        </button>
+      ) : (
+        <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: 360 }}>
+          <h4 style={{ margin: 0 }}>Edytuj koszty</h4>
+          <label style={{ fontSize: "0.9rem" }}>
+            Miesiąc obowiązywania
+            <select
+              className="admin-form-select"
+              style={{ display: "block", marginTop: "0.25rem" }}
+              value={costForm.effectiveFromMonth}
+              onChange={(e) => setCostForm((f) => ({ ...f, effectiveFromMonth: e.target.value }))}
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>{i + 1}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ fontSize: "0.9rem" }}>
+            Rok obowiązywania
+            <input
+              type="number"
+              className="admin-form-input"
+              style={{ display: "block", marginTop: "0.25rem" }}
+              value={costForm.effectiveFromYear}
+              onChange={(e) => setCostForm((f) => ({ ...f, effectiveFromYear: e.target.value }))}
+            />
+          </label>
+          <label style={{ fontSize: "0.9rem" }}>
+            Koszt wysyłki
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="admin-form-input"
+              style={{ display: "block", marginTop: "0.25rem" }}
+              value={costForm.shippingCost}
+              onChange={(e) => setCostForm((f) => ({ ...f, shippingCost: e.target.value }))}
+              placeholder="0.00"
+            />
+          </label>
+          <label style={{ fontSize: "0.9rem" }}>
+            Podatki/opłaty
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="admin-form-input"
+              style={{ display: "block", marginTop: "0.25rem" }}
+              value={costForm.taxesAndFees}
+              onChange={(e) => setCostForm((f) => ({ ...f, taxesAndFees: e.target.value }))}
+              placeholder="0.00"
+            />
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="page-btn primary" onClick={handleSaveCosts}>Zapisz</button>
+            <button className="page-btn" onClick={() => setEditingCosts(false)}>Anuluj</button>
+          </div>
+        </div>
+      )}
+
+      {/* Cost history */}
+      {costHistory.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h4 style={{ marginBottom: "0.5rem" }}>Historia kosztów</h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+            {costHistory.map((ch) => (
+              <li key={ch.id} style={{ fontSize: "0.9rem" }}>
+                Od {ch.effectiveFromMonth}/{ch.effectiveFromYear}: Wysyłka {ch.shippingCost ?? "—"}, Podatki {ch.taxesAndFees ?? "—"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {company?.description && (
         <p className="account-sub-detail-desc">{company.description}</p>
@@ -461,7 +618,7 @@ function SubscriptionsSection() {
             const co  = companies.find((c) => c.id === entry.companyId);
             const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
             const logoSrc = sub?.logoUrl || co?.logoUrl;
-            const renewal = nextRenewal(entry.addedAt);
+            const renewal = nextRenewal(entry, sub);
             const renewalStr = renewal
               ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(renewal)
               : null;

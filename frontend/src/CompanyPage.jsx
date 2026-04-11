@@ -10,6 +10,11 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const [userSubs, setUserSubs] = useState([]);
   const [subAddedId, setSubAddedId] = useState(null); // subscriptionId that just got added
   const [confirmSubDupe, setConfirmSubDupe] = useState(null); // { sub, count }
+  const [subscribeModal, setSubscribeModal] = useState(null); // { sub, isDupe }
+
+  // subscribe form state
+  const today = new Date().toISOString().slice(0, 10);
+  const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "" });
 
   const canManage = user && (user.role === "admin" || company?.managerUsernames?.includes(user.username));
   const canDelete = user && user.role === "admin";
@@ -22,12 +27,20 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       .catch(() => setUserSubs([]));
   }, [user]);
 
-  const doAddSub = async (sub) => {
+  const doAddSub = async (sub, formData) => {
+    const body = {
+      companyId: company.id,
+      subscriptionId: sub.id,
+      startDate: formData.startDate || null,
+      shippingCost: formData.shippingCost !== "" ? parseFloat(formData.shippingCost) : null,
+      taxesAndFees: formData.taxesAndFees !== "" ? parseFloat(formData.taxesAndFees) : null,
+      startingMonth: formData.startingMonth !== "" ? parseInt(formData.startingMonth) : null,
+    };
     const res = await fetch("http://localhost:8080/api/user/subscriptions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ companyId: company.id, subscriptionId: sub.id }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       const data = await res.json();
@@ -35,17 +48,16 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       setSubAddedId(sub.id);
       setTimeout(() => setSubAddedId(null), 3000);
     }
+    setSubscribeModal(null);
     setConfirmSubDupe(null);
   };
 
   const handleSubscribe = (sub) => {
     if (!user) return;
     const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === company.id).length;
-    if (count > 0) {
-      setConfirmSubDupe({ sub, count });
-    } else {
-      doAddSub(sub);
-    }
+    const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "" };
+    setSubForm(resetForm);
+    setSubscribeModal({ sub, isDupe: count > 0, count });
   };
 
   const handleDelete = async () => {
@@ -64,18 +76,78 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   if (!company) return null;
 
+  const needsStartingMonth = subscribeModal?.sub &&
+    (subscribeModal.sub.type === "BI_MONTHLY" || subscribeModal.sub.type === "QUARTERLY");
+
   return (
     <div className="company-page">
-      {/* duplicate subscription confirmation */}
-      {confirmSubDupe && (
+      {/* subscribe modal */}
+      {subscribeModal && (
         <div className="uc-confirm-overlay">
           <div className="uc-confirm-dialog">
-            <p>{t("userCollection.alreadySub", { count: confirmSubDupe.count })}</p>
+            {subscribeModal.isDupe && (
+              <p>{t("userCollection.alreadySub", { count: subscribeModal.count })}</p>
+            )}
+            <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{subscribeModal.sub.name}</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              <label style={{ fontSize: "0.9rem" }}>
+                Data startu
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  style={{ display: "block", marginTop: "0.25rem" }}
+                  value={subForm.startDate}
+                  onChange={(e) => setSubForm((f) => ({ ...f, startDate: e.target.value }))}
+                />
+              </label>
+              <label style={{ fontSize: "0.9rem" }}>
+                Koszt wysyłki (opcjonalnie)
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="admin-form-input"
+                  style={{ display: "block", marginTop: "0.25rem" }}
+                  value={subForm.shippingCost}
+                  onChange={(e) => setSubForm((f) => ({ ...f, shippingCost: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </label>
+              <label style={{ fontSize: "0.9rem" }}>
+                Podatki/opłaty (opcjonalnie)
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="admin-form-input"
+                  style={{ display: "block", marginTop: "0.25rem" }}
+                  value={subForm.taxesAndFees}
+                  onChange={(e) => setSubForm((f) => ({ ...f, taxesAndFees: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </label>
+              {needsStartingMonth && (
+                <label style={{ fontSize: "0.9rem" }}>
+                  Miesiąc startowy
+                  <select
+                    className="admin-form-select"
+                    style={{ display: "block", marginTop: "0.25rem" }}
+                    value={subForm.startingMonth}
+                    onChange={(e) => setSubForm((f) => ({ ...f, startingMonth: e.target.value }))}
+                  >
+                    <option value="">— wybierz —</option>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
             <div className="uc-confirm-btns">
-              <button className="uc-confirm-yes" onClick={() => doAddSub(confirmSubDupe.sub)}>
+              <button className="uc-confirm-yes" onClick={() => doAddSub(subscribeModal.sub, subForm)}>
                 {t("userCollection.confirmYes")}
               </button>
-              <button className="uc-confirm-no" onClick={() => setConfirmSubDupe(null)}>
+              <button className="uc-confirm-no" onClick={() => setSubscribeModal(null)}>
                 {t("userCollection.confirmNo")}
               </button>
             </div>

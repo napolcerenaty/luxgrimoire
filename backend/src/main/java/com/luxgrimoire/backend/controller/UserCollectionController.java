@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -72,16 +73,18 @@ public class UserCollectionController {
     }
 
     @PostMapping("/subscriptions")
-    public ResponseEntity<?> addSubscription(@RequestBody Map<String, String> body, HttpSession session) {
+    public ResponseEntity<?> addSubscription(@RequestBody Map<String, Object> body, HttpSession session) {
         String username = resolveUsername(session);
         if (username == null) return unauthorized();
-        String companyId = body.get("companyId");
-        String subscriptionId = body.get("subscriptionId");
-        if (companyId == null || subscriptionId == null)
+        Object companyIdObj = body.get("companyId");
+        Object subscriptionIdObj = body.get("subscriptionId");
+        if (companyIdObj == null || subscriptionIdObj == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Missing companyId or subscriptionId"));
+        String companyId = companyIdObj.toString();
+        String subscriptionId = subscriptionIdObj.toString();
 
         long existingCount = userStore.countSubscriptions(username, companyId, subscriptionId);
-        UserSubscriptionEntry entry = userStore.addSubscription(username, companyId, subscriptionId);
+        UserSubscriptionEntry entry = userStore.addSubscription(username, companyId, subscriptionId, body);
         return ResponseEntity.ok(Map.of("entry", entry, "existingCount", existingCount));
     }
 
@@ -96,6 +99,39 @@ public class UserCollectionController {
                        : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }
 
+    @PutMapping("/subscriptions/{id}")
+    public ResponseEntity<?> updateSubscriptionCosts(@PathVariable String id,
+            @RequestBody Map<String, Object> body, HttpSession session) {
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        try {
+            BigDecimal shippingCost = body.get("shippingCost") instanceof Number n
+                    ? new BigDecimal(n.toString()) : null;
+            BigDecimal taxesAndFees = body.get("taxesAndFees") instanceof Number n
+                    ? new BigDecimal(n.toString()) : null;
+            int effectiveFromMonth = body.get("effectiveFromMonth") instanceof Number n
+                    ? n.intValue() : 1;
+            int effectiveFromYear = body.get("effectiveFromYear") instanceof Number n
+                    ? n.intValue() : java.time.LocalDate.now().getYear();
+            UserSubscriptionEntry entry = userStore.updateSubscriptionCosts(
+                    username, id, shippingCost, taxesAndFees, effectiveFromMonth, effectiveFromYear);
+            return ResponseEntity.ok(entry);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+        }
+    }
+
+    @GetMapping("/subscriptions/{id}/cost-history")
+    public ResponseEntity<?> getCostHistory(@PathVariable String id, HttpSession session) {
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        try {
+            return ResponseEntity.ok(userStore.getCostChanges(username, id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+        }
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private String resolveUsername(HttpSession session) {
@@ -106,3 +142,4 @@ public class UserCollectionController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
     }
 }
+

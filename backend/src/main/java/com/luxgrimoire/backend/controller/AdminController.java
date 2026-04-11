@@ -222,9 +222,9 @@ public class AdminController {
         if (body.containsKey("skipPolicyNotes"))    sub.setSkipPolicyNotes((String) body.get("skipPolicyNotes"));
         // combo
         if (body.get("isCombo") instanceof Boolean b) sub.setCombo(b);
-        Object estimatedShipping = body.get("estimatedShipping");
-        if (estimatedShipping != null) {
-            try { sub.setEstimatedShipping(new java.math.BigDecimal(estimatedShipping.toString())); } catch (NumberFormatException ignored) {}
+        Object renewalDay = body.get("renewalDay");
+        if (renewalDay != null) {
+            try { sub.setRenewalDay(Integer.valueOf(renewalDay.toString())); } catch (NumberFormatException ignored) {}
         }
         @SuppressWarnings("unchecked") List<String> componentIds = (List<String>) body.get("comboComponentIds");
         if (componentIds != null) {
