@@ -3,13 +3,16 @@ package com.luxgrimoire.backend.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "subscription")
+@Table(name = "subscription", indexes = {
+    @Index(name = "idx_subscription_company_id", columnList = "company_id")
+})
 public class Subscription {
     @Id
     private String id;
@@ -38,6 +41,7 @@ public class Subscription {
 
     @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("subscription-months")
+    @BatchSize(size = 100)
     private List<SubscriptionMonth> months = new ArrayList<>();
 
     public Subscription() {

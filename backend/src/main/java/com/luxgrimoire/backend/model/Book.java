@@ -1,5 +1,6 @@
 package com.luxgrimoire.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.ArrayList;
@@ -7,7 +8,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "book")
+@Table(name = "book", indexes = {
+    @Index(name = "idx_book_status",           columnList = "status"),
+    @Index(name = "idx_book_author_id",        columnList = "authorId"),
+    @Index(name = "idx_book_author_status",    columnList = "authorId,status"),
+    @Index(name = "idx_book_series_name",      columnList = "seriesName")
+})
 public class Book {
     @Id
     private String id;
@@ -19,9 +25,11 @@ public class Book {
     private String volumeNumber;
     private String status = "approved";
     private String addedBy;
+    private String coverUrl;
 
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference("book-editions")
+    @JsonIgnore
     private List<BookEdition> editions = new ArrayList<>();
 
     public Book() {
@@ -46,4 +54,6 @@ public class Book {
     public void setStatus(String status) { this.status = status; }
     public String getAddedBy() { return addedBy; }
     public void setAddedBy(String addedBy) { this.addedBy = addedBy; }
+    public String getCoverUrl() { return coverUrl; }
+    public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
 }

@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "subscription_month")
+@Table(name = "subscription_month", indexes = {
+    @Index(name = "idx_sub_month_subscription_id", columnList = "subscription_id")
+})
 public class SubscriptionMonth {
     @Id
     private String id;

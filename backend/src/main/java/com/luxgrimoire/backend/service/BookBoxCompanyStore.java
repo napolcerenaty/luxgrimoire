@@ -4,13 +4,13 @@ import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.*;
 
-@Component
+@Service
 public class BookBoxCompanyStore {
 
     private final BookBoxCompanyRepository companyRepo;
@@ -89,10 +89,12 @@ public class BookBoxCompanyStore {
         subscriptionRepo.save(fl2);
     }
 
+    @Transactional(readOnly = true)
     public List<BookBoxCompany> findAll() {
         return companyRepo.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Optional<BookBoxCompany> findById(String id) {
         return companyRepo.findById(id);
     }

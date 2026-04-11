@@ -2,13 +2,16 @@ package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "book_edition")
+@Table(name = "book_edition", indexes = {
+    @Index(name = "idx_book_edition_book_id", columnList = "book_id")
+})
 public class BookEdition {
     @Id
     private String id;
@@ -37,10 +40,12 @@ public class BookEdition {
     @CollectionTable(name = "book_edition_image", joinColumns = @JoinColumn(name = "edition_id"))
     @Column(name = "image_url")
     @OrderColumn(name = "sort_order")
+    @BatchSize(size = 50)
     private List<String> imageUrls = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "book_edition_artist", joinColumns = @JoinColumn(name = "edition_id"))
+    @BatchSize(size = 50)
     private List<ArtistContribution> artists = new ArrayList<>();
 
     public BookEdition() {

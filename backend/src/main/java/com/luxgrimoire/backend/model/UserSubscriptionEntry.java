@@ -6,7 +6,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_subscription_entry")
+@Table(name = "user_subscription_entry", indexes = {
+    @Index(name = "idx_use_username", columnList = "username")
+})
 public class UserSubscriptionEntry {
     @Id
     private String id;

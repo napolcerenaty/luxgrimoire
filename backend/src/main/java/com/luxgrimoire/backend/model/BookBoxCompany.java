@@ -2,11 +2,14 @@ package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "book_box_company")
+@Table(name = "book_box_company", indexes = {
+    @Index(name = "idx_company_name", columnList = "name")
+})
 public class BookBoxCompany {
     @Id
     private String id;
@@ -20,6 +23,7 @@ public class BookBoxCompany {
 
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("company-subscriptions")
+    @BatchSize(size = 30)
     private List<Subscription> subscriptions = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.EAGER)

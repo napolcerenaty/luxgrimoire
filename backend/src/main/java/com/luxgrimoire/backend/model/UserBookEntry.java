@@ -6,7 +6,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_book_entry")
+@Table(name = "user_book_entry", indexes = {
+    @Index(name = "idx_ube_username",       columnList = "username"),
+    @Index(name = "idx_ube_edition_id",     columnList = "editionId"),
+    @Index(name = "idx_ube_username_flag",  columnList = "username,flag")
+})
 public class UserBookEntry {
     @Id
     private String id;
