@@ -4,13 +4,13 @@ import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
-@Component
+@Service
 public class UserStore {
 
     private final AppUserRepository userRepo;
@@ -28,13 +28,25 @@ public class UserStore {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void init() {
-        if (userRepo.count() > 0) return;
-        userRepo.save(new AppUser("admin", "admin", "Admin", "User", "Europe/Warsaw"));
-        userRepo.save(new AppUser("user1", "user1", "Jan", "Kowalski", "Europe/Warsaw"));
+        userRepo.findById("admin").ifPresent(userRepo::delete);
+        userRepo.findById("user1").ifPresent(userRepo::delete);
+        if (!userRepo.existsById("napolcerenaty")) {
+            userRepo.save(new AppUser(
+                "napolcerenaty", "napolcerenaty",
+                "Renata", "Foremny", "Europe/Warsaw",
+                "napolcerenaty@gmail.com", "admin"
+            ));
+        }
     }
 
+    @Transactional(readOnly = true)
     public Optional<AppUser> findByUsername(String username) {
         return userRepo.findById(username);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AppUser> findByEmail(String email) {
+        return userRepo.findByEmail(email);
     }
 
     @Transactional
@@ -42,22 +54,34 @@ public class UserStore {
         return userRepo.save(user);
     }
 
-    public boolean authenticate(String username, String password) {
-        return findByUsername(username)
-                .map(u -> u.getPassword().equals(password))
-                .orElse(false);
+    @Transactional(readOnly = true)
+    public boolean authenticate(String loginId, String password) {
+        Optional<AppUser> user = loginId.contains("@")
+            ? userRepo.findByEmail(loginId)
+            : userRepo.findById(loginId);
+        return user.map(u -> u.getPassword().equals(password)).orElse(false);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AppUser> findByLoginId(String loginId) {
+        return loginId.contains("@")
+            ? userRepo.findByEmail(loginId)
+            : userRepo.findById(loginId);
     }
 
     // ── Book collection ────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<UserBookEntry> getBooks(String username) {
         return bookEntryRepo.findByUserUsername(username);
     }
 
+    @Transactional(readOnly = true)
     public List<UserBookEntry> getBooksByFlag(String username, String flag) {
         return bookEntryRepo.findByUsernameAndFlag(username, flag);
     }
 
+    @Transactional(readOnly = true)
     public long countBooksByEdition(String username, String editionId) {
         return bookEntryRepo.countByUserUsernameAndEditionId(username, editionId);
     }
@@ -81,10 +105,12 @@ public class UserStore {
 
     // ── Subscription collection ────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<UserSubscriptionEntry> getSubscriptions(String username) {
         return subEntryRepo.findByUserUsername(username);
     }
 
+    @Transactional(readOnly = true)
     public long countSubscriptions(String username, String companyId, String subscriptionId) {
         return subEntryRepo.countByUserUsernameAndSubscriptionIdAndCompanyId(username, subscriptionId, companyId);
     }

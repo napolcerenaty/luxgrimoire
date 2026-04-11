@@ -6,7 +6,7 @@ import "./UserModals.css";
 export default function LoginModal({ onClose }) {
   const { login } = useAuth();
   const { t } = useI18n();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function LoginModal({ onClose }) {
     setError("");
     setLoading(true);
     try {
-      await login(username, password);
+      await login(email, password);
       onClose();
     } catch (err) {
       setError(err.message);
@@ -32,8 +32,8 @@ export default function LoginModal({ onClose }) {
         <h2 className="modal-title">{t("user.loginTitle")}</h2>
         <form onSubmit={handleSubmit} className="modal-form">
           <label>
-            {t("user.username")}
-            <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
+            {t("user.email")}
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus autoComplete="email" />
           </label>
           <label>
             {t("user.password")}
