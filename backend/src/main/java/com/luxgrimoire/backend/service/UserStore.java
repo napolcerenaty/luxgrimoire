@@ -77,6 +77,19 @@ public class UserStore {
             : userRepo.findById(loginId);
     }
 
+    @Transactional
+    public AppUser register(String username, String email, String password,
+                            String firstName, String lastName) {
+        if (userRepo.existsById(username)) {
+            throw new IllegalArgumentException("Username already taken");
+        }
+        if (userRepo.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+        AppUser user = new AppUser(username, password, firstName, lastName, "Europe/Warsaw", email, "user");
+        return userRepo.save(user);
+    }
+
     // ── Book collection ────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)

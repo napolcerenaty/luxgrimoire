@@ -7,6 +7,7 @@ export const API = {
   AUTH_LOGIN:   `${API_BASE}/api/auth/login`,
   AUTH_LOGOUT:  `${API_BASE}/api/auth/logout`,
   AUTH_ME:      `${API_BASE}/api/auth/me`,
+  AUTH_REGISTER:`${API_BASE}/api/auth/register`,
   AUTH_PROFILE: `${API_BASE}/api/auth/profile`,
   AUTH_SETTINGS:`${API_BASE}/api/auth/settings`,
   AUTH_AVATAR:  `${API_BASE}/api/auth/avatar`,

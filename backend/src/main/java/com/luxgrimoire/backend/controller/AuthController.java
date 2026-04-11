@@ -27,6 +27,32 @@ public class AuthController {
         this.fileStorageService = fileStorageService;
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody Map<String, String> body, HttpSession session) {
+        String username  = body.get("username");
+        String email     = body.get("email");
+        String password  = body.get("password");
+        String firstName = body.getOrDefault("firstName", "");
+        String lastName  = body.getOrDefault("lastName", "");
+
+        if (username == null || username.isBlank())  return ResponseEntity.badRequest().body(Map.of("error", "Username is required"));
+        if (email == null || !email.contains("@"))   return ResponseEntity.badRequest().body(Map.of("error", "Valid email is required"));
+        if (password == null || password.length() < 6) return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 6 characters"));
+
+        // Sanitise username: lowercase, only letters/digits/underscores/hyphens
+        String sanitised = username.trim().toLowerCase().replaceAll("[^a-z0-9_\\-]", "");
+        if (sanitised.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "Username contains no valid characters"));
+
+        try {
+            AppUser user = userStore.register(sanitised, email.trim().toLowerCase(), password, firstName, lastName);
+            session.setAttribute(AppConstants.SESSION_USERNAME, user.getUsername());
+            session.setAttribute(AppConstants.SESSION_ROLE, user.getRole());
+            return ResponseEntity.ok(toDto(user));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body, HttpSession session) {
         String loginId = body.getOrDefault("email", body.get(AppConstants.SESSION_USERNAME));
