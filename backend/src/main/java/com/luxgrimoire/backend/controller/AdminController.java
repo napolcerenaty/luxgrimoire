@@ -1,8 +1,10 @@
 package com.luxgrimoire.backend.controller;
 
+import com.luxgrimoire.backend.dto.AdminNotificationDto;
 import com.luxgrimoire.backend.model.BookBoxCompany;
 import com.luxgrimoire.backend.model.DataRequest;
 import com.luxgrimoire.backend.model.ErrorReport;
+import com.luxgrimoire.backend.model.Notification;
 import com.luxgrimoire.backend.model.Subscription;
 import com.luxgrimoire.backend.model.SubscriptionPrepayOption;
 import com.luxgrimoire.backend.repository.AppUserRepository;
@@ -11,9 +13,11 @@ import com.luxgrimoire.backend.repository.DeletionLogRepository;
 import com.luxgrimoire.backend.repository.ErrorReportRepository;
 import com.luxgrimoire.backend.repository.SubscriptionRepository;
 import com.luxgrimoire.backend.repository.SubscriptionPrepayOptionRepository;
+import com.luxgrimoire.backend.repository.UserNotificationRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.service.FileStorageService;
+import com.luxgrimoire.backend.service.NotificationService;
 import org.springframework.web.multipart.MultipartFile;
 import com.luxgrimoire.backend.model.AppUser;
 import com.luxgrimoire.backend.util.AuthHelper;
@@ -27,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +50,8 @@ public class AdminController {
     private final DeletionLogRepository    deletionLogRepo;
     private final DeletionLogService       deletionLogService;
     private final FileStorageService       fileStorageService;
+    private final NotificationService      notificationService;
+    private final UserNotificationRepository userNotificationRepo;
 
     public AdminController(AppUserRepository userRepo,
                            ErrorReportRepository reportRepo,
@@ -54,16 +61,20 @@ public class AdminController {
                            SubscriptionPrepayOptionRepository prepayOptionRepo,
                            DeletionLogRepository deletionLogRepo,
                            DeletionLogService deletionLogService,
-                           FileStorageService fileStorageService) {
-        this.userRepo           = userRepo;
-        this.reportRepo         = reportRepo;
-        this.dataRequestRepo    = dataRequestRepo;
-        this.companyStore       = companyStore;
-        this.subscriptionRepo   = subscriptionRepo;
-        this.prepayOptionRepo   = prepayOptionRepo;
-        this.deletionLogRepo    = deletionLogRepo;
-        this.deletionLogService = deletionLogService;
-        this.fileStorageService = fileStorageService;
+                           FileStorageService fileStorageService,
+                           NotificationService notificationService,
+                           UserNotificationRepository userNotificationRepo) {
+        this.userRepo              = userRepo;
+        this.reportRepo            = reportRepo;
+        this.dataRequestRepo       = dataRequestRepo;
+        this.companyStore          = companyStore;
+        this.subscriptionRepo      = subscriptionRepo;
+        this.prepayOptionRepo      = prepayOptionRepo;
+        this.deletionLogRepo       = deletionLogRepo;
+        this.deletionLogService    = deletionLogService;
+        this.fileStorageService    = fileStorageService;
+        this.notificationService   = notificationService;
+        this.userNotificationRepo  = userNotificationRepo;
     }
 
     // ── Guard helpers ─────────────────────────────────────────────────────────
@@ -496,5 +507,48 @@ public class AdminController {
                 "totalElements", result.getTotalElements(),
                 "totalPages",    result.getTotalPages()
         ));
+    }
+    // ── Notifications ─────────────────────────────────────────────────────────
+
+    @PostMapping("/notifications")
+    public ResponseEntity<?> sendNotification(@RequestBody Map<String, Object> body, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        String title = (String) body.get("title");
+        String message = (String) body.get("message");
+        String type = (String) body.getOrDefault("type", "INFO");
+        @SuppressWarnings("unchecked")
+        List<String> targetRoles = (List<String>) body.getOrDefault("targetRoles", List.of("user"));
+
+        if (title == null || title.isBlank() || message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "title and message are required"));
+        }
+
+        String createdBy = AuthHelper.getUsername(session);
+        Notification n = notificationService.send(title, message, type, targetRoles, createdBy);
+        return ResponseEntity.ok(n);
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<?> getAdminNotifications(HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        List<AdminNotificationDto> dtos = notificationService.getAllAdmin().stream()
+                .map(n -> {
+                    AdminNotificationDto dto = new AdminNotificationDto();
+                    dto.setId(n.getId());
+                    dto.setTitle(n.getTitle());
+                    dto.setMessage(n.getMessage());
+                    dto.setType(n.getType());
+                    dto.setTargetRoles(n.getTargetRoles());
+                    dto.setCreatedAt(n.getCreatedAt());
+                    dto.setCreatedBy(n.getCreatedBy());
+                    dto.setRecipientCount(userNotificationRepo.countByNotificationId(n.getId()));
+                    return dto;
+                })
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 }

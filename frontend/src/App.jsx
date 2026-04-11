@@ -19,6 +19,7 @@ import ArtistPage from "./ArtistPage";
 import SearchPanel from "./SearchPanel";
 import RecentAnnouncements from "./RecentAnnouncements";
 import AdminPage from "./AdminPage";
+import NotificationBell from "./NotificationBell";
 import { API } from "./api";
 
 function BookCard({ book, onClick }) {
@@ -181,6 +182,7 @@ function AppInner() {
     <div className="app">
       <header className="header">
         <div className="header-controls">
+          {user && <NotificationBell />}
           <ThemePicker />
           <LanguagePicker />
           <UserMenu onNavigate={setTab} />

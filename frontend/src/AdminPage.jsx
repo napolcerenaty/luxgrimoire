@@ -12,6 +12,7 @@ function getNavItems(t) {
     { key: "users",         icon: "👥", label: t("admin.navUsers")        },
     { key: "reports",       icon: "🐛", label: t("admin.navReports")      },
     { key: "data-requests", icon: "📋", label: t("admin.navDataRequests") },
+    { key: "notifications", icon: "🔔", label: t("admin.navNotifications") },
   ];
 }
 
@@ -1594,6 +1595,153 @@ function DataRequestsSection() {
   );
 }
 
+// ─── NOTIFICATIONS ADMIN SECTION ─────────────────────────────────────────────
+function NotificationsAdminSection() {
+  const [form, setForm] = useState({
+    title: "", message: "", type: "INFO", targetRoles: ["user"]
+  });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  const loadHistory = () => {
+    fetch(API.ADMIN_NOTIFICATIONS, { credentials: "include" })
+      .then(r => r.json())
+      .then(d => { setHistory(Array.isArray(d) ? d : []); setLoadingHistory(false); })
+      .catch(() => setLoadingHistory(false));
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const toggleRole = (role) => {
+    setForm(f => ({
+      ...f,
+      targetRoles: f.targetRoles.includes(role)
+        ? f.targetRoles.filter(r => r !== role)
+        : [...f.targetRoles, role]
+    }));
+  };
+
+  const handleSend = () => {
+    if (!form.title.trim() || !form.message.trim() || form.targetRoles.length === 0) {
+      setSent({ ok: false, msg: "Wypełnij tytuł, treść i wybierz co najmniej jedną rolę." });
+      return;
+    }
+    setSending(true);
+    setSent(null);
+    fetch(API.ADMIN_NOTIFICATIONS, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(() => {
+        setSent({ ok: true, msg: "Powiadomienie wysłane!" });
+        setForm({ title: "", message: "", type: "INFO", targetRoles: ["user"] });
+        loadHistory();
+      })
+      .catch(() => setSent({ ok: false, msg: "Błąd podczas wysyłania." }))
+      .finally(() => setSending(false));
+  };
+
+  const TYPE_LABELS = { INFO: "ℹ️ Info", ANNOUNCEMENT: "📢 Ogłoszenie", WARNING: "⚠️ Ostrzeżenie" };
+  const ROLE_LABELS = { user: "Użytkownik", moderator: "Moderator", admin: "Admin" };
+
+  return (
+    <div className="admin-notif-section">
+      <div className="admin-notif-compose">
+        <h2 className="admin-section-title">Wyślij powiadomienie</h2>
+        <div className="admin-notif-form">
+          <div className="admin-form-field">
+            <label>Tytuł</label>
+            <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))}
+              placeholder="Tytuł powiadomienia" className="admin-input" maxLength={120} />
+          </div>
+          <div className="admin-form-field">
+            <label>Treść</label>
+            <textarea value={form.message} onChange={e => setForm(f => ({...f, message: e.target.value}))}
+              placeholder="Treść powiadomienia..." className="admin-textarea" rows={4} />
+          </div>
+          <div className="admin-form-row">
+            <div className="admin-form-field">
+              <label>Typ</label>
+              <div className="admin-notif-type-btns">
+                {Object.entries(TYPE_LABELS).map(([val, lbl]) => (
+                  <button key={val}
+                    className={`admin-type-btn${form.type === val ? " admin-type-btn--active" : ""}`}
+                    onClick={() => setForm(f => ({...f, type: val}))}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="admin-form-field">
+              <label>Role odbiorców</label>
+              <div className="admin-notif-roles">
+                {Object.entries(ROLE_LABELS).map(([val, lbl]) => (
+                  <label key={val} className="admin-role-checkbox">
+                    <input type="checkbox" checked={form.targetRoles.includes(val)} onChange={() => toggleRole(val)} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          {sent && (
+            <div className={`admin-notif-feedback${sent.ok ? " admin-notif-feedback--ok" : " admin-notif-feedback--err"}`}>
+              {sent.msg}
+            </div>
+          )}
+          <button className="admin-btn admin-btn--primary" onClick={handleSend} disabled={sending}>
+            {sending ? "Wysyłanie…" : "📤 Wyślij powiadomienie"}
+          </button>
+        </div>
+      </div>
+
+      <div className="admin-notif-history">
+        <h3 className="admin-subs-title">Historia wysłanych</h3>
+        {loadingHistory ? (
+          <div className="admin-loading">Ładowanie…</div>
+        ) : history.length === 0 ? (
+          <div className="admin-empty">Brak wysłanych powiadomień.</div>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Tytuł</th>
+                <th>Typ</th>
+                <th>Role</th>
+                <th>Wysłano</th>
+                <th>Odbiorcy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map(n => (
+                <tr key={n.id}>
+                  <td>
+                    <strong>{n.title}</strong>
+                    <div style={{fontSize:"0.8rem",color:"var(--text-mid)"}}>
+                      {n.message && n.message.length > 80 ? n.message.slice(0, 80) + "…" : n.message}
+                    </div>
+                  </td>
+                  <td>{TYPE_LABELS[n.type] || n.type}</td>
+                  <td>{n.targetRoles?.split(",").map(r => ROLE_LABELS[r] || r).join(", ")}</td>
+                  <td style={{fontSize:"0.8rem",color:"var(--text-mid)"}}>
+                    {n.createdAt ? new Date(n.createdAt).toLocaleString("pl-PL") : "—"}
+                  </td>
+                  <td style={{textAlign:"center"}}>{n.recipientCount ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
 export default function AdminPage({ onBack, initialSection = "companies" }) {
   const { user } = useAuth();
@@ -1621,6 +1769,7 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
       case "users":         return <UsersSection />;
       case "reports":       return <ReportsSection />;
       case "data-requests": return <DataRequestsSection />;
+      case "notifications": return <NotificationsAdminSection />;
       default:              return null;
     }
   };
