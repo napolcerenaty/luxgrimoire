@@ -1,0 +1,365 @@
+/* ═══════════════════════════════════════════
+   Admin Page — master-detail (mirrors AccountPage)
+═══════════════════════════════════════════ */
+
+/* Reuses all .account-* classes from AccountPage.css.
+   This file only adds admin-specific overrides. */
+
+.admin-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 0.75rem 3rem;
+  min-height: calc(100vh - 180px);
+}
+
+/* ── Sidebar badge override: accent2 tint for admin ── */
+.admin-sidebar .account-avatar {
+  background: linear-gradient(135deg, var(--bg-raised), hsla(var(--accent2-hsl, 0,70%,55%), 0.18));
+  border-color: var(--accent2, #e05);
+}
+
+.admin-sidebar .account-avatar-initials {
+  color: var(--accent2, #e05);
+}
+
+.admin-sidebar .account-display-name::after {
+  content: " ✦ admin";
+  font-size: 0.7rem;
+  color: var(--accent2, #e05);
+  letter-spacing: 0.04em;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+/* ── Content ── */
+.admin-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Table ── */
+.admin-table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.97rem;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 2px solid var(--border);
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  color: var(--text-ghost);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border-dim);
+  color: var(--text-mid);
+  vertical-align: middle;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr:hover td {
+  background: var(--bg-raised);
+}
+
+/* ── Role badge ── */
+.admin-role-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.04em;
+}
+
+.admin-role-badge.admin {
+  background: hsla(0,70%,55%,0.15);
+  color: #e05566;
+  border: 1px solid hsla(0,70%,55%,0.3);
+}
+
+.admin-role-badge.user {
+  background: var(--accent-glow2);
+  color: var(--accent);
+  border: 1px solid var(--border-dim);
+}
+
+/* ── Status badge ── */
+.admin-status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.03em;
+}
+
+.admin-status-badge.open,
+.admin-status-badge.pending {
+  background: hsla(38,80%,40%,0.15);
+  color: #c97d00;
+  border: 1px solid hsla(38,80%,40%,0.3);
+}
+
+.admin-status-badge.in_progress,
+.admin-status-badge.processing {
+  background: hsla(199,91%,36%,0.15);
+  color: #0088bb;
+  border: 1px solid hsla(199,91%,36%,0.3);
+}
+
+.admin-status-badge.resolved,
+.admin-status-badge.completed {
+  background: hsla(145,60%,35%,0.15);
+  color: #2a9a5a;
+  border: 1px solid hsla(145,60%,35%,0.3);
+}
+
+.admin-status-badge.dismissed,
+.admin-status-badge.rejected {
+  background: var(--bg-raised);
+  color: var(--text-ghost);
+  border: 1px solid var(--border-dim);
+}
+
+/* ── Pagination ── */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.admin-pagination button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.92rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-pagination button:hover:not(:disabled) {
+  background: var(--accent-glow2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.admin-pagination button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.admin-pagination .current-page {
+  font-family: 'Cinzel', serif;
+  font-size: 0.82rem;
+  color: var(--text-ghost);
+  letter-spacing: 0.05em;
+  padding: 0 0.4rem;
+}
+
+/* ── Search bar ── */
+.admin-search-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.admin-search-row input {
+  flex: 1;
+  max-width: 320px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.97rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 7px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.admin-search-row input:focus {
+  border-color: var(--accent);
+}
+
+.admin-search-row button {
+  background: var(--accent-glow2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  padding: 0.45rem 1rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-search-row button:hover {
+  background: var(--accent);
+  color: var(--bg-base);
+}
+
+/* ── Status filter select ── */
+.admin-filter-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-filter-row select {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 7px;
+  cursor: pointer;
+  outline: none;
+}
+
+/* ── Inline status update ── */
+.admin-action-btn {
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  color: var(--text-ghost);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.admin-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow2);
+}
+
+/* ── Company card grid ── */
+.admin-company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.admin-company-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-company-card-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--bg-overlay);
+}
+
+.admin-company-card-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-overlay);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: var(--text-ghost);
+}
+
+.admin-company-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.admin-company-meta {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  color: var(--text-ghost);
+  margin: 0;
+}
+
+/* ── Empty state ── */
+.admin-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-ghost);
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  font-style: italic;
+}
+
+/* ── Row detail (expandable note) ── */
+.admin-note-input {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  color: var(--text-bright);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+}
+
+.admin-note-input:focus { border-color: var(--accent); }
+
+/* ── Expandable row ── */
+.admin-table-detail-row td {
+  background: var(--bg-overlay) !important;
+  padding: 0.75rem 1.25rem 1rem;
+}
+
+/* ── Mobile ── */
+@media (max-width: 680px) {
+  .admin-page {
+    flex-direction: column;
+  }
+
+  .admin-page .account-sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  .admin-content {
+    width: 100%;
+  }
+}

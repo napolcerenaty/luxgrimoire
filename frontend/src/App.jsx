@@ -17,11 +17,13 @@ import CompanyEditPage from "./CompanyEditPage";
 import AuthorPage from "./AuthorPage";
 import ArtistPage from "./ArtistPage";
 import SearchPanel from "./SearchPanel";
-
 import RecentAnnouncements from "./RecentAnnouncements";
+import AdminPage from "./AdminPage";
+import { API } from "./api";
 
 function BookCard({ book, onClick }) {
-  const coverUrl = book.editions?.[0]?.imageUrls?.[0]
+  const coverUrl = book.coverUrl
+    || book.editions?.[0]?.imageUrls?.[0]
     || "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
   const seriesLabel = book.seriesName
     ? `${book.seriesName}${book.volumeNumber ? ` #${book.volumeNumber}` : ""}`
@@ -53,6 +55,64 @@ function BookCard({ book, onClick }) {
   );
 }
 
+function SeriesBooksPage({ sourceBookId, onBack, onBookClick }) {
+  const { t } = useI18n();
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!sourceBookId) return;
+    setLoading(true);
+    setError(null);
+    fetch(API.BOOK_SERIES_BOOKS(sourceBookId), { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setBooks(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [sourceBookId]);
+
+  const seriesName = books[0]?.seriesName;
+
+  return (
+    <div className="series-books-page">
+      <div className="detail-actions-top">
+        <button className="detail-back-btn" onClick={onBack}>{t("back")}</button>
+      </div>
+
+      {loading ? (
+        <div className="status-container">
+          <div className="spinner" />
+          <span>{t("browse.loading")}</span>
+        </div>
+      ) : error ? (
+        <div className="status-container">
+          <p className="error-text">{t("browse.error", { msg: error })}</p>
+        </div>
+      ) : (
+        <>
+          <h2 className="section-title">{seriesName || t("bookDetail.seriesBooksTitle")}</h2>
+          {books.length > 0 ? (
+            <div className="book-grid">
+              {books.map((book) => <BookCard key={book.id} book={book} onClick={onBookClick} />)}
+            </div>
+          ) : (
+            <p className="search-no-results">{t("bookDetail.noSeriesBooks")}</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function AppInner() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -67,16 +127,35 @@ function AppInner() {
   const [editingCompany, setEditingCompany] = useState(null);
   const [selectedAuthorId, setSelectedAuthorId] = useState(null);
   const [selectedArtistId, setSelectedArtistId] = useState(null);
+  const [selectedSeriesBookId, setSelectedSeriesBookId] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
   const [accountSection, setAccountSection] = useState("calendar");
 
-  const handleBookClick = (bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab(tab); setTab("book-detail"); };
+  // Hash-based navigation: /#admin opens admin panel if user is admin
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === "#admin") {
+        setTab("admin");
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
+  const handleBookClick = (bookId) => {
+    setSelectedBookId(bookId);
+    setEditingBook(null);
+    if (tab !== "book-detail") setPrevTab(tab);
+    setTab("book-detail");
+  };
   const handleEditBook = (book) => { setEditingBook(book); setEditingEdition(null); setTab("book-edit"); };
   const handleEditEdition = (book, edition) => { setEditingBook(book); setEditingEdition(edition); setTab("book-edit"); };
   const handleNewEdition = (book) => { setEditingBook(book); setEditingEdition("new"); setTab("book-edit"); };
   const handleNewBook = () => { setEditingBook(null); setEditingEdition(null); setTab("book-edit"); };
   const handleBookSaved = (saved) => { setSelectedBookId(saved.id); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
+  const handleSeriesClick = (bookId) => { setSelectedSeriesBookId(bookId); setPrevTab(tab); setTab("series-books"); };
 
   const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
   const handleAuthorClick = (authorId) => { setSelectedAuthorId(authorId); setPrevTab(tab); setTab("author-detail"); };
@@ -86,17 +165,17 @@ function AppInner() {
   const handleCompanySaved = (saved) => { setSelectedCompany(saved); setTab("company-detail"); };
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/book-details")
+    fetch(API.BOOKS + "?page=0&size=100")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         return res.json();
       })
-      .then((data) => { setBooks(data); setLoading(false); })
+      .then((data) => { setBooks(data.content ?? data); setLoading(false); })
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
-  const isUserPage = tab === "account";
-  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail";
+  const isUserPage = tab === "account" || tab === "admin";
+  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail" || tab === "series-books";
 
   return (
     <div className="app">
@@ -164,6 +243,7 @@ function AppInner() {
             onSectionChange={setAccountSection}
             onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
           />}
+        {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}
@@ -188,15 +268,23 @@ function AppInner() {
             user={user}
           />
         )}
-        {tab === "book-detail" && (
-          <BookDetailPage
-            bookId={selectedBookId}
+         {tab === "book-detail" && (
+           <BookDetailPage
+             bookId={selectedBookId}
+             onBack={() => setTab(prevTab)}
+             onEdit={handleEditBook}
+             onEditEdition={handleEditEdition}
+             onNewEdition={handleNewEdition}
+             onNavigateNew={handleNewBook}
+             onCompanyClick={handleCompanyClick}
+             onSeriesClick={handleSeriesClick}
+            />
+          )}
+        {tab === "series-books" && (
+          <SeriesBooksPage
+            sourceBookId={selectedSeriesBookId}
             onBack={() => setTab(prevTab)}
-            onEdit={handleEditBook}
-            onEditEdition={handleEditEdition}
-            onNewEdition={handleNewEdition}
-            onNavigateNew={handleNewBook}
-            onCompanyClick={handleCompanyClick}
+            onBookClick={handleBookClick}
           />
         )}
         {tab === "book-edit" && (
@@ -204,7 +292,14 @@ function AppInner() {
             initialData={editingBook}
             editingEdition={editingEdition}
             onSaved={handleBookSaved}
-            onBack={() => { if (editingBook) { setTab("book-detail"); } else { setTab(prevTab); } }}
+            onBack={() => {
+              if (editingBook) {
+                setSelectedBookId(editingBook.id);
+                setTab("book-detail");
+              } else {
+                setTab(prevTab);
+              }
+            }}
           />
         )}
         {tab === "author-detail" && (
