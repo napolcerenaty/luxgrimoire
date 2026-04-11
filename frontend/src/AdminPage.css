@@ -606,7 +606,7 @@
 .admin-form-label {
   font-family: 'Cinzel', serif;
   font-size: 0.72rem;
-  color: var(--text-ghost);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -625,6 +625,12 @@
   transition: border-color 0.15s;
   width: 100%;
   box-sizing: border-box;
+}
+
+.admin-form-input::placeholder,
+.admin-form-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
 .admin-form-input:focus,
@@ -839,4 +845,76 @@
   border-radius: 20px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+/* ── GenreTagPicker ── */
+.admin-genre-picker-wrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  background: var(--bg-input);
+  min-height: 2.2rem;
+}
+
+.admin-genre-tag {
+  background: var(--accent-glow3);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-bright);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.admin-genre-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--accent-dim);
+  line-height: 1;
+}
+
+.admin-genre-tag button:hover { color: var(--accent-bright); }
+
+.admin-genre-picker-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--text-bright);
+  font-family: 'Crimson Text', serif;
+}
+
+.admin-genre-picker-input::placeholder { color: var(--text-muted); opacity: 0.8; }
+
+.admin-genre-suggestions {
+  position: relative;
+  z-index: 10;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 0.2rem;
+  overflow: hidden;
+}
+
+.admin-genre-suggestion-item {
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  font-family: 'Crimson Text', serif;
+}
+
+.admin-genre-suggestion-item:hover {
+  background: var(--bg-overlay);
+  color: var(--text-bright);
 }

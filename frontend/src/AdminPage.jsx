@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import { useI18n } from "./i18n";
 import { API } from "./api";
 import "./AccountPage.css";
 import "./AdminPage.css";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { key: "companies",     icon: "📦", label: "Book Boxy"          },
-  { key: "users",         icon: "👥", label: "Użytkownicy"        },
-  { key: "reports",       icon: "🐛", label: "Zgłoszenia błędów"  },
-  { key: "data-requests", icon: "📋", label: "Requesty danych"    },
-];
+function getNavItems(t) {
+  return [
+    { key: "companies",     icon: "📦", label: t("admin.navBookBoxes")    },
+    { key: "users",         icon: "👥", label: t("admin.navUsers")        },
+    { key: "reports",       icon: "🐛", label: t("admin.navReports")      },
+    { key: "data-requests", icon: "📋", label: t("admin.navDataRequests") },
+  ];
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function StatusBadge({ value }) {
@@ -116,23 +119,15 @@ function GenreTagPicker({ selected = [], onChange, allGenres = [] }) {
   return (
     <div className="admin-form-row">
       <label className="admin-form-label">Gatunki</label>
-      <div style={{
-        border: "1px solid var(--border-color)", borderRadius: "6px",
-        padding: "0.3rem 0.5rem", display: "flex", flexWrap: "wrap", gap: "0.35rem",
-        background: "var(--bg-input, #fff)", minHeight: "2.2rem"
-      }}>
+      <div className="admin-genre-picker-wrap">
         {selected.map(g => (
-          <span key={g} style={{
-            background: "var(--accent-soft, #e8f0fe)", borderRadius: "4px",
-            padding: "0.1rem 0.4rem", fontSize: "0.88rem", display: "inline-flex", alignItems: "center", gap: "0.3rem"
-          }}>
+          <span key={g} className="admin-genre-tag">
             {g}
-            <button type="button" onClick={() => remove(g)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "0.8rem" }}>✕</button>
+            <button type="button" onClick={() => remove(g)}>✕</button>
           </span>
         ))}
         <input
-          style={{ border: "none", outline: "none", flex: 1, minWidth: 120, fontSize: "0.9rem", background: "transparent" }}
+          className="admin-genre-picker-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKey}
@@ -140,16 +135,10 @@ function GenreTagPicker({ selected = [], onChange, allGenres = [] }) {
         />
       </div>
       {input && suggestions.length > 0 && (
-        <div style={{
-          position: "relative", zIndex: 10,
-          background: "var(--bg-card, #fff)", border: "1px solid var(--border-color)",
-          borderRadius: "6px", marginTop: "0.2rem", overflow: "hidden"
-        }}>
+        <div className="admin-genre-suggestions">
           {suggestions.map(g => (
-            <div key={g} onMouseDown={e => { e.preventDefault(); add(g); }}
-              style={{ padding: "0.35rem 0.6rem", cursor: "pointer", fontSize: "0.9rem" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--hover-bg, #f5f5f5)"}
-              onMouseLeave={e => e.currentTarget.style.background = ""}>
+            <div key={g} className="admin-genre-suggestion-item"
+              onMouseDown={e => { e.preventDefault(); add(g); }}>
               {g}
             </div>
           ))}
@@ -781,6 +770,7 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
 
 // ─── SECTION: Book Boxy ───────────────────────────────────────────────────────
 function CompaniesSection() {
+  const { t } = useI18n();
   const [view,       setView]       = useState("list"); // "list" | "form" | "detail"
   const [companies,  setCompanies]  = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -799,7 +789,7 @@ function CompaniesSection() {
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
   const handleDeleteCompany = async (company) => {
-    if (!window.confirm(`Usunąć "${company.name}"? Tej operacji nie można cofnąć.`)) return;
+    if (!window.confirm(t("admin.confirmDelete").replace("{name}", company.name))) return;
     await fetch(API.ADMIN_COMPANY(company.id), { method: "DELETE", credentials: "include" });
     setView("list");
     fetchCompanies();
@@ -813,35 +803,35 @@ function CompaniesSection() {
   if (view === "list") return (
     <section className="account-section">
       <div className="admin-section-header">
-        <h2 className="account-section-title">📦 Book Boxy</h2>
+        <h2 className="account-section-title">📦 {t("admin.navBookBoxes")}</h2>
         <button className="admin-btn admin-btn--primary admin-btn--sm"
           onClick={() => { setSelected(null); setView("form"); }}>
-          + Dodaj Book Box
+          {t("admin.addBookBox")}
         </button>
       </div>
 
       <div className="admin-search-row" style={{ marginBottom: "1rem" }}>
-        <input placeholder="Szukaj po nazwie…" value={searchInput}
+        <input placeholder={t("admin.searchName")} value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") setSearch(searchInput.trim()); }} />
-        <button onClick={() => setSearch(searchInput.trim())}>Szukaj</button>
-        {search && <button onClick={() => { setSearch(""); setSearchInput(""); }}>✕ Wyczyść</button>}
+        <button onClick={() => setSearch(searchInput.trim())}>{t("admin.search")}</button>
+        {search && <button onClick={() => { setSearch(""); setSearchInput(""); }}>{t("admin.clearSearch")}</button>}
       </div>
 
       {loading ? (
         <div className="status-container"><div className="spinner" /></div>
       ) : filtered.length === 0 ? (
-        <p className="admin-empty">{search ? "Brak wyników." : "Brak book boxów w bazie."}</p>
+        <p className="admin-empty">{search ? t("admin.noResults") : t("admin.noBookBoxes")}</p>
       ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th style={{ width: 44 }}></th>
-                <th>Nazwa</th>
-                <th>Kraj</th>
-                <th>Waluta</th>
-                <th>Subskrypcje</th>
+                <th>{t("admin.colName")}</th>
+                <th>{t("admin.colCountry")}</th>
+                <th>{t("admin.colCurrency")}</th>
+                <th>{t("admin.colSubscriptions")}</th>
                 <th style={{ width: 80 }}></th>
               </tr>
             </thead>
@@ -902,6 +892,7 @@ function CompaniesSection() {
 
 // ─── SECTION: Użytkownicy ────────────────────────────────────────────────────
 function UsersSection() {
+  const { t } = useI18n();
   const [emailQuery, setEmailQuery] = useState("");
   const [inputVal,   setInputVal]   = useState("");
   const [page,       setPage]       = useState(0);
@@ -933,24 +924,24 @@ function UsersSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">👥 Użytkownicy</h2>
+      <h2 className="account-section-title">👥 {t("admin.navUsers")}</h2>
 
       <div className="admin-search-row">
         <input
           type="email"
-          placeholder="Szukaj po e-mailu…"
+          placeholder={t("admin.searchEmail")}
           value={inputVal}
           onChange={e => setInputVal(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleSearch()}
         />
-        <button onClick={handleSearch}>Szukaj</button>
-        {emailQuery && <button onClick={handleClear}>✕ Wyczyść</button>}
+        <button onClick={handleSearch}>{t("admin.search")}</button>
+        {emailQuery && <button onClick={handleClear}>{t("admin.clearSearch")}</button>}
       </div>
 
       {loading ? (
         <div className="status-container"><div className="spinner" /></div>
       ) : !data ? null : data.content?.length === 0 ? (
-        <p className="admin-empty">Brak użytkowników spełniających kryteria.</p>
+        <p className="admin-empty">{t("admin.noUsers")}</p>
       ) : (
         <>
           <p style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginBottom: "0.5rem", fontFamily: "'Crimson Text', serif" }}>
@@ -960,10 +951,10 @@ function UsersSection() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Nick</th>
+                  <th>{t("admin.colUsername")}</th>
                   <th>Imię i Nazwisko</th>
-                  <th>E-mail</th>
-                  <th>Rola</th>
+                  <th>{t("admin.colEmail")}</th>
+                  <th>{t("admin.colRole")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -995,6 +986,7 @@ function UsersSection() {
 const REPORT_STATUSES = ["open", "in_progress", "resolved", "dismissed"];
 
 function ReportsSection() {
+  const { t } = useI18n();
   const [statusFilter, setStatusFilter] = useState("");
   const [page,         setPage]         = useState(0);
   const [data,         setData]         = useState(null);
@@ -1035,11 +1027,11 @@ function ReportsSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">🐛 Zgłoszenia błędów</h2>
+      <h2 className="account-section-title">🐛 {t("admin.reports")}</h2>
 
       <div className="admin-filter-row">
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
-          <option value="">— Wszystkie statusy —</option>
+          <option value="">— {t("admin.filterAll")} —</option>
           {REPORT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
@@ -1047,7 +1039,7 @@ function ReportsSection() {
       {loading ? (
         <div className="status-container"><div className="spinner" /></div>
       ) : !data ? null : data.content?.length === 0 ? (
-        <p className="admin-empty">Brak zgłoszeń.</p>
+        <p className="admin-empty">{t("admin.noReports")}</p>
       ) : (
         <>
           <div className="admin-table-wrap">
@@ -1118,6 +1110,7 @@ const REQUEST_TYPES    = ["export", "deletion", "correction", "other"];
 const REQUEST_STATUSES = ["pending", "processing", "completed", "rejected"];
 
 function DataRequestsSection() {
+  const { t } = useI18n();
   const [statusFilter, setStatusFilter] = useState("");
   const [page,         setPage]         = useState(0);
   const [data,         setData]         = useState(null);
@@ -1158,11 +1151,11 @@ function DataRequestsSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">📋 Requesty danych</h2>
+      <h2 className="account-section-title">📋 {t("admin.dataRequests")}</h2>
 
       <div className="admin-filter-row">
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
-          <option value="">— Wszystkie statusy —</option>
+          <option value="">— {t("admin.filterAll")} —</option>
           {REQUEST_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
@@ -1170,7 +1163,7 @@ function DataRequestsSection() {
       {loading ? (
         <div className="status-container"><div className="spinner" /></div>
       ) : !data ? null : data.content?.length === 0 ? (
-        <p className="admin-empty">Brak requestów.</p>
+        <p className="admin-empty">{t("admin.noDataRequests")}</p>
       ) : (
         <>
           <div className="admin-table-wrap">
@@ -1237,20 +1230,23 @@ function DataRequestsSection() {
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
 export default function AdminPage({ onBack, initialSection = "companies" }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [activeSection, setActiveSection] = useState(initialSection);
 
   if (!user || user.role !== "admin") {
     return (
       <div className="status-container" style={{ padding: "4rem 1rem", textAlign: "center" }}>
         <p style={{ fontFamily: "'Cinzel', serif", color: "var(--text-ghost)", fontSize: "1.1rem" }}>
-          Brak dostępu. Ta sekcja jest dostępna tylko dla administratorów.
+          {t("admin.noAccess")}
         </p>
         <button className="page-btn primary" style={{ marginTop: "1.5rem" }} onClick={onBack}>
-          ← Wróć do strony
+          {t("admin.backToSite")}
         </button>
       </div>
     );
   }
+
+  const navItems = getNavItems(t);
 
   const renderSection = () => {
     switch (activeSection) {
@@ -1284,7 +1280,7 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
         </div>
 
         <nav className="account-nav">
-          {NAV_ITEMS.map(({ key, icon, label }) => (
+          {navItems.map(({ key, icon, label }) => (
             <button
               key={key}
               className={`account-nav-item${activeSection === key ? " active" : ""}`}
@@ -1298,7 +1294,7 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
         </nav>
 
         <button className="account-back-site-btn" onClick={onBack}>
-          ← Wróć do strony
+          {t("admin.backToSite")}
         </button>
       </aside>
 

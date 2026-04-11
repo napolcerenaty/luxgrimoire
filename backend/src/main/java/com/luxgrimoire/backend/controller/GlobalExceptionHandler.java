@@ -24,6 +24,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGeneric(Exception ex) {
+        System.err.println("[GLOBAL ERROR] " + ex.getClass().getName() + ": " + ex.getMessage());
+        if (ex.getCause() != null) System.err.println("[CAUSED BY] " + ex.getCause().getClass().getName() + ": " + ex.getCause().getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "An unexpected error occurred."));
     }

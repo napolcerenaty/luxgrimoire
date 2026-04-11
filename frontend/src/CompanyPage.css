@@ -215,9 +215,9 @@
 }
 
 .company-page-sub-genre {
-  background: var(--bg-header);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
+  background: var(--accent-glow3);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-bright);
   border-radius: 12px;
   padding: 0.1rem 0.55rem;
   font-size: 0.78rem;

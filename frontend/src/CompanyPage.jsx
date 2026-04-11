@@ -328,7 +328,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                         </div>
                       )}
                       {subObj.description && (
-                        <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", margin: "0.4rem 0 0", lineHeight: 1.5 }}>
+                        <p style={{ fontSize: "0.9rem", color: "var(--text-ghost)", margin: "0.4rem 0 0", lineHeight: 1.5 }}>
                           {subObj.description}
                         </p>
                       )}
