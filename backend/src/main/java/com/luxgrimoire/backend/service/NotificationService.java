@@ -57,13 +57,13 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markRead(Long notifId, String username) {
-        userNotificationRepository.findByNotificationIdAndUserUsername(notifId, username)
+    public void markRead(Long userNotifId, String username) {
+        userNotificationRepository.findById(userNotifId)
+            .filter(un -> un.getUserUsername().equals(username))
+            .filter(un -> un.getReadAt() == null)
             .ifPresent(un -> {
-                if (un.getReadAt() == null) {
-                    un.setReadAt(LocalDateTime.now());
-                    userNotificationRepository.save(un);
-                }
+                un.setReadAt(LocalDateTime.now());
+                userNotificationRepository.save(un);
             });
     }
 
