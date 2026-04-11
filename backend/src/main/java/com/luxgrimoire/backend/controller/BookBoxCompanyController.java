@@ -2,6 +2,7 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.BookBoxCompany;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
@@ -17,9 +18,11 @@ import java.util.Optional;
 public class BookBoxCompanyController {
 
     private final BookBoxCompanyStore store;
+    private final DeletionLogService  deletionLogService;
 
-    public BookBoxCompanyController(BookBoxCompanyStore store) {
-        this.store = store;
+    public BookBoxCompanyController(BookBoxCompanyStore store, DeletionLogService deletionLogService) {
+        this.store             = store;
+        this.deletionLogService = deletionLogService;
     }
 
     @GetMapping
@@ -81,6 +84,8 @@ public class BookBoxCompanyController {
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        deletionLogService.log(username, "BookBoxCompany", id,
+                "Deleted company: \"" + existing.get().getName() + "\"");
         store.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -8,6 +8,7 @@ import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.model.BookEdition;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.BookStore;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.service.FileStorageService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
@@ -24,13 +25,16 @@ import java.util.Map;
 @RequestMapping("/api/book-details")
 public class BookDetailController {
 
-    private final BookStore bookStore;
-    private final FileStorageService fileStorageService;
+    private final BookStore           bookStore;
+    private final FileStorageService  fileStorageService;
+    private final DeletionLogService  deletionLogService;
 
     public BookDetailController(BookStore bookStore, BookBoxCompanyStore companyStore,
-                                FileStorageService fileStorageService) {
-        this.bookStore = bookStore;
+                                FileStorageService fileStorageService,
+                                DeletionLogService deletionLogService) {
+        this.bookStore          = bookStore;
         this.fileStorageService = fileStorageService;
+        this.deletionLogService = deletionLogService;
     }
 
     @PostMapping("/images")
@@ -149,17 +153,19 @@ public class BookDetailController {
 
     @DeleteMapping("/{bookId}")
     public ResponseEntity<?> deleteBook(@PathVariable String bookId, HttpSession session) {
-        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (!AuthHelper.isAdmin(session)) {
             return ResponseEntity.status(403).build();
         }
-        bookStore.findByIdWithEditions(bookId).ifPresent(book ->
-            book.getEditions().forEach(edition -> {
-                if (edition.getSubscriptionMonthId() != null) {
-                    bookStore.unlinkBookFromMonth(edition.getSubscriptionMonthId());
-                }
-            })
-        );
+        var bookOpt = bookStore.findByIdWithEditions(bookId);
+        if (bookOpt.isEmpty()) return ResponseEntity.notFound().build();
+        var book = bookOpt.get();
+        book.getEditions().forEach(edition -> {
+            if (edition.getSubscriptionMonthId() != null) {
+                bookStore.unlinkBookFromMonth(edition.getSubscriptionMonthId());
+            }
+        });
+        deletionLogService.log(AuthHelper.getUsername(session), "Book", bookId,
+                "Deleted book: \"" + book.getTitle() + "\" by " + book.getAuthor());
         boolean removed = bookStore.deleteBook(bookId);
         if (!removed) return ResponseEntity.notFound().build();
         return ResponseEntity.ok().build();
@@ -220,6 +226,8 @@ public class BookDetailController {
                 bookStore.unlinkBookFromMonth(edition.getSubscriptionMonthId());
             }
         });
+        deletionLogService.log(username, "BookEdition", editionId,
+                "Deleted edition: " + editionId + " from book: " + bookId);
         boolean removed = bookStore.deleteEdition(bookId, editionId);
         if (!removed) return ResponseEntity.notFound().build();
         return ResponseEntity.ok().build();

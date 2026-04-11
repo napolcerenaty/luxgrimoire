@@ -1,12 +1,17 @@
 package com.luxgrimoire.backend.controller;
 
-import com.luxgrimoire.backend.model.AppUser;
+import com.luxgrimoire.backend.model.BookBoxCompany;
 import com.luxgrimoire.backend.model.DataRequest;
 import com.luxgrimoire.backend.model.ErrorReport;
+import com.luxgrimoire.backend.model.Subscription;
 import com.luxgrimoire.backend.repository.AppUserRepository;
 import com.luxgrimoire.backend.repository.DataRequestRepository;
+import com.luxgrimoire.backend.repository.DeletionLogRepository;
 import com.luxgrimoire.backend.repository.ErrorReportRepository;
+import com.luxgrimoire.backend.repository.SubscriptionRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
+import com.luxgrimoire.backend.service.DeletionLogService;
+import com.luxgrimoire.backend.model.AppUser;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.data.domain.Page;
@@ -17,38 +22,45 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
 
-    private final AppUserRepository userRepo;
-    private final ErrorReportRepository reportRepo;
-    private final DataRequestRepository dataRequestRepo;
-    private final BookBoxCompanyStore companyStore;
+    private final AppUserRepository        userRepo;
+    private final ErrorReportRepository    reportRepo;
+    private final DataRequestRepository    dataRequestRepo;
+    private final BookBoxCompanyStore      companyStore;
+    private final SubscriptionRepository   subscriptionRepo;
+    private final DeletionLogRepository    deletionLogRepo;
+    private final DeletionLogService       deletionLogService;
 
     public AdminController(AppUserRepository userRepo,
                            ErrorReportRepository reportRepo,
                            DataRequestRepository dataRequestRepo,
-                           BookBoxCompanyStore companyStore) {
-        this.userRepo = userRepo;
-        this.reportRepo = reportRepo;
-        this.dataRequestRepo = dataRequestRepo;
-        this.companyStore = companyStore;
+                           BookBoxCompanyStore companyStore,
+                           SubscriptionRepository subscriptionRepo,
+                           DeletionLogRepository deletionLogRepo,
+                           DeletionLogService deletionLogService) {
+        this.userRepo           = userRepo;
+        this.reportRepo         = reportRepo;
+        this.dataRequestRepo    = dataRequestRepo;
+        this.companyStore       = companyStore;
+        this.subscriptionRepo   = subscriptionRepo;
+        this.deletionLogRepo    = deletionLogRepo;
+        this.deletionLogService = deletionLogService;
     }
 
-    // ── Guard helper ──────────────────────────────────────────────────────────
+    // ── Guard helpers ─────────────────────────────────────────────────────────
 
-    private ResponseEntity<?> forbidden() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Forbidden"));
-    }
-
-    private ResponseEntity<?> unauthorized() {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
-    }
+    private ResponseEntity<?> forbidden()     { return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Forbidden")); }
+    private ResponseEntity<?> unauthorized()  { return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated")); }
+    private ResponseEntity<Object> notFound()      { return ResponseEntity.notFound().build(); }
 
     // ── Users ─────────────────────────────────────────────────────────────────
 
@@ -91,13 +103,137 @@ public class AdminController {
         ));
     }
 
-    // ── Companies (proxy to existing store) ──────────────────────────────────
+    // ── Companies ─────────────────────────────────────────────────────────────
 
     @GetMapping("/companies")
     public ResponseEntity<?> getCompanies(HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
         if (!AuthHelper.isAdmin(session))    return forbidden();
         return ResponseEntity.ok(companyStore.findAll());
+    }
+
+    @GetMapping("/companies/{id}")
+    public ResponseEntity<?> getCompany(@PathVariable String id, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return companyStore.findById(id)
+                .map(c -> ResponseEntity.ok((Object) c))
+                .orElse(notFound());
+    }
+
+    @PostMapping("/companies")
+    @Transactional
+    public ResponseEntity<?> createCompany(@RequestBody Map<String, Object> body, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        String name = (String) body.get("name");
+        if (name == null || name.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "name is required"));
+
+        BookBoxCompany company = new BookBoxCompany();
+        company.setId(UUID.randomUUID().toString());
+        company.setName(name.trim());
+        company.setLogoUrl((String) body.get("logoUrl"));
+        company.setWebsiteUrl((String) body.get("websiteUrl"));
+        company.setDescription((String) body.get("description"));
+        company.setLocation((String) body.get("location"));
+        company.setDefaultCurrency((String) body.get("defaultCurrency"));
+
+        String username = AuthHelper.getUsername(session);
+        if (username != null) company.getManagerUsernames().add(username);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(companyStore.save(company));
+    }
+
+    @PutMapping("/companies/{id}")
+    @Transactional
+    public ResponseEntity<?> updateCompany(@PathVariable String id,
+                                           @RequestBody Map<String, Object> body,
+                                           HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        return companyStore.updateMetadata(id,
+                (String) body.get("name"),
+                (String) body.get("logoUrl"),
+                (String) body.get("websiteUrl"),
+                (String) body.get("description"),
+                (String) body.get("location"),
+                (String) body.get("defaultCurrency"))
+                .map(c -> ResponseEntity.ok((Object) c))
+                .orElse(notFound());
+    }
+
+    @DeleteMapping("/companies/{id}")
+    @Transactional
+    public ResponseEntity<?> deleteCompany(@PathVariable String id, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        return companyStore.findById(id).map(company -> {
+            deletionLogService.log(
+                    AuthHelper.getUsername(session), "BookBoxCompany", id,
+                    "Deleted company: \"" + company.getName() + "\"");
+            companyStore.delete(id);
+            return ResponseEntity.noContent().<Void>build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Subscriptions (admin) ─────────────────────────────────────────────────
+
+    @PostMapping("/companies/{id}/subscriptions")
+    @Transactional
+    public ResponseEntity<?> addSubscription(@PathVariable String id,
+                                             @RequestBody Map<String, Object> body,
+                                             HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        if (companyStore.findById(id).isEmpty()) return notFound();
+
+        Subscription sub = new Subscription();
+        sub.setName((String) body.get("name"));
+        sub.setType((String) body.get("type"));
+        sub.setLogoUrl((String) body.get("logoUrl"));
+
+        Object basePrice = body.get("basePrice");
+        if (basePrice != null) {
+            try { sub.setBasePrice(new BigDecimal(basePrice.toString())); } catch (NumberFormatException ignored) {}
+        }
+        Object shipsIntl = body.get("shipsInternationally");
+        if (shipsIntl instanceof Boolean b) sub.setShipsInternationally(b);
+
+        Object bookishMerch = body.get("bookishMerch");
+        if (bookishMerch instanceof Boolean b) sub.setBookishMerch(b);
+
+        @SuppressWarnings("unchecked")
+        List<String> genres = (List<String>) body.get("genres");
+        if (genres != null) sub.setGenres(genres);
+
+        @SuppressWarnings("unchecked")
+        List<String> countries = (List<String>) body.get("shippingCountries");
+        if (countries != null) sub.setShippingCountries(countries);
+
+        Subscription saved = companyStore.addSubscription(id, sub);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @DeleteMapping("/companies/{companyId}/subscriptions/{subId}")
+    @Transactional
+    public ResponseEntity<?> deleteSubscription(@PathVariable String companyId,
+                                                @PathVariable String subId,
+                                                HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        return subscriptionRepo.findById(subId).map(sub -> {
+            deletionLogService.log(
+                    AuthHelper.getUsername(session), "Subscription", subId,
+                    "Deleted subscription: \"" + sub.getName()
+                            + "\" (companyId=" + companyId + ")");
+            companyStore.deleteSubscription(subId);
+            return ResponseEntity.noContent().<Void>build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // ── Error Reports ─────────────────────────────────────────────────────────
@@ -128,10 +264,7 @@ public class AdminController {
     }
 
     @PostMapping("/reports")
-    public ResponseEntity<?> submitReport(
-            @RequestBody Map<String, String> body,
-            HttpSession session) {
-
+    public ResponseEntity<?> submitReport(@RequestBody Map<String, String> body, HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
 
         String title = body.get("title");
@@ -147,11 +280,9 @@ public class AdminController {
     }
 
     @PutMapping("/reports/{id}/status")
-    public ResponseEntity<?> updateReportStatus(
-            @PathVariable String id,
-            @RequestBody Map<String, String> body,
-            HttpSession session) {
-
+    public ResponseEntity<?> updateReportStatus(@PathVariable String id,
+                                                @RequestBody Map<String, String> body,
+                                                HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
         if (!AuthHelper.isAdmin(session))    return forbidden();
 
@@ -190,10 +321,7 @@ public class AdminController {
     }
 
     @PostMapping("/data-requests")
-    public ResponseEntity<?> submitDataRequest(
-            @RequestBody Map<String, String> body,
-            HttpSession session) {
-
+    public ResponseEntity<?> submitDataRequest(@RequestBody Map<String, String> body, HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
 
         String type = body.get("type");
@@ -208,11 +336,9 @@ public class AdminController {
     }
 
     @PutMapping("/data-requests/{id}/status")
-    public ResponseEntity<?> updateDataRequestStatus(
-            @PathVariable String id,
-            @RequestBody Map<String, String> body,
-            HttpSession session) {
-
+    public ResponseEntity<?> updateDataRequestStatus(@PathVariable String id,
+                                                     @RequestBody Map<String, String> body,
+                                                     HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
         if (!AuthHelper.isAdmin(session))    return forbidden();
 
@@ -221,5 +347,30 @@ public class AdminController {
             if (body.containsKey("adminNote")) req.setAdminNote(body.get("adminNote"));
             return ResponseEntity.ok(dataRequestRepo.save(req));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Deletion Logs ─────────────────────────────────────────────────────────
+
+    @GetMapping("/deletion-logs")
+    public ResponseEntity<?> getDeletionLogs(
+            @RequestParam(defaultValue = "0")   int page,
+            @RequestParam(defaultValue = "50")  int size,
+            @RequestParam(required = false)     String entityType,
+            HttpSession session) {
+
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, 200));
+        var result = (entityType != null && !entityType.isBlank())
+                ? deletionLogRepo.findByEntityTypeOrderByPerformedAtDesc(entityType, pageable)
+                : deletionLogRepo.findAllByOrderByPerformedAtDesc(pageable);
+
+        return ResponseEntity.ok(Map.of(
+                "content",       result.getContent(),
+                "page",          result.getNumber(),
+                "totalElements", result.getTotalElements(),
+                "totalPages",    result.getTotalPages()
+        ));
     }
 }

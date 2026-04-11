@@ -3,6 +3,7 @@ package com.luxgrimoire.backend.controller;
 import com.luxgrimoire.backend.dto.EditionSummary;
 import com.luxgrimoire.backend.model.Author;
 import com.luxgrimoire.backend.service.AuthorService;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
@@ -16,10 +17,12 @@ import java.util.Map;
 @RequestMapping("/api/authors")
 public class AuthorController {
 
-    private final AuthorService authorService;
+    private final AuthorService      authorService;
+    private final DeletionLogService deletionLogService;
 
-    public AuthorController(AuthorService authorService) {
-        this.authorService = authorService;
+    public AuthorController(AuthorService authorService, DeletionLogService deletionLogService) {
+        this.authorService      = authorService;
+        this.deletionLogService = deletionLogService;
     }
 
     @GetMapping
@@ -65,6 +68,7 @@ public class AuthorController {
                     .body(Map.of("error", "Cannot delete author with " + bookCount + " book(s) linked. Reassign books first."));
         }
         authorService.delete(id);
+        deletionLogService.log(username, "Author", id, "Deleted author id=" + id);
         return ResponseEntity.ok().build();
     }
 }

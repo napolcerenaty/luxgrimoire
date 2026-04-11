@@ -3,6 +3,7 @@ package com.luxgrimoire.backend.controller;
 import com.luxgrimoire.backend.dto.EditionSummary;
 import com.luxgrimoire.backend.model.Artist;
 import com.luxgrimoire.backend.service.ArtistService;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
@@ -16,10 +17,12 @@ import java.util.Map;
 @RequestMapping("/api/artists")
 public class ArtistController {
 
-    private final ArtistService artistService;
+    private final ArtistService      artistService;
+    private final DeletionLogService deletionLogService;
 
-    public ArtistController(ArtistService artistService) {
-        this.artistService = artistService;
+    public ArtistController(ArtistService artistService, DeletionLogService deletionLogService) {
+        this.artistService      = artistService;
+        this.deletionLogService = deletionLogService;
     }
 
     @GetMapping
@@ -65,6 +68,7 @@ public class ArtistController {
                     .body(Map.of("error", "Cannot delete artist linked to " + editionCount + " edition(s). Remove artist from editions first."));
         }
         artistService.delete(id);
+        deletionLogService.log(username, "Artist", id, "Deleted artist id=" + id);
         return ResponseEntity.ok().build();
     }
 }

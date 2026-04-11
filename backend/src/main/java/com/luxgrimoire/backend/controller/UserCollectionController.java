@@ -1,6 +1,7 @@
 package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.*;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.service.UserStore;
 import com.luxgrimoire.backend.util.AppConstants;
 import jakarta.servlet.http.HttpSession;
@@ -15,10 +16,12 @@ import java.util.Map;
 @RequestMapping("/api/user")
 public class UserCollectionController {
 
-    private final UserStore userStore;
+    private final UserStore         userStore;
+    private final DeletionLogService deletionLogService;
 
-    public UserCollectionController(UserStore userStore) {
-        this.userStore = userStore;
+    public UserCollectionController(UserStore userStore, DeletionLogService deletionLogService) {
+        this.userStore          = userStore;
+        this.deletionLogService = deletionLogService;
     }
 
     // ── Books ──────────────────────────────────────────────────────────────
@@ -53,6 +56,8 @@ public class UserCollectionController {
         String username = resolveUsername(session);
         if (username == null) return unauthorized();
         boolean removed = userStore.removeBook(username, id);
+        if (removed) deletionLogService.log(username, "UserBookEntry", id,
+                "User @" + username + " removed book entry " + id);
         return removed ? ResponseEntity.ok(Map.of("removed", true))
                        : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }
@@ -85,6 +90,8 @@ public class UserCollectionController {
         String username = resolveUsername(session);
         if (username == null) return unauthorized();
         boolean removed = userStore.removeSubscription(username, id);
+        if (removed) deletionLogService.log(username, "UserSubscriptionEntry", id,
+                "User @" + username + " removed subscription entry " + id);
         return removed ? ResponseEntity.ok(Map.of("removed", true))
                        : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }

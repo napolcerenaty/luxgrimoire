@@ -2,6 +2,7 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.EditionComment;
 import com.luxgrimoire.backend.repository.EditionCommentRepository;
+import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
@@ -18,9 +19,11 @@ import java.util.Map;
 public class CommentController {
 
     private final EditionCommentRepository commentRepo;
+    private final DeletionLogService       deletionLogService;
 
-    public CommentController(EditionCommentRepository commentRepo) {
-        this.commentRepo = commentRepo;
+    public CommentController(EditionCommentRepository commentRepo, DeletionLogService deletionLogService) {
+        this.commentRepo        = commentRepo;
+        this.deletionLogService = deletionLogService;
     }
 
     @GetMapping
@@ -59,7 +62,13 @@ public class CommentController {
         return commentRepo.findById(commentId)
                 .filter(c -> c.getEditionId().equals(editionId)
                         && (c.getAuthorUsername().equals(username) || AuthHelper.isAdmin(session)))
-                .map(c -> { commentRepo.delete(c); return ResponseEntity.ok().<Void>build(); })
+                .map(c -> {
+                    deletionLogService.log(username, "EditionComment", commentId,
+                            "Deleted comment by @" + c.getAuthorUsername()
+                                    + " on edition " + editionId);
+                    commentRepo.delete(c);
+                    return ResponseEntity.ok().<Void>build();
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 }

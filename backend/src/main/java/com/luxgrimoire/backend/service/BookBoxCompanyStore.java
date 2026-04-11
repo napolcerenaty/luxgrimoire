@@ -134,4 +134,35 @@ public class BookBoxCompanyStore {
         companyRepo.deleteById(id);
         return true;
     }
+
+    /** Update only scalar metadata fields; subscriptions are managed separately. */
+    @Transactional
+    public Optional<BookBoxCompany> updateMetadata(String id, String name, String logoUrl,
+                                                   String websiteUrl, String description,
+                                                   String location, String defaultCurrency) {
+        return companyRepo.findById(id).map(existing -> {
+            if (name != null)            existing.setName(name);
+            if (logoUrl != null)         existing.setLogoUrl(logoUrl);
+            if (websiteUrl != null)      existing.setWebsiteUrl(websiteUrl);
+            if (description != null)     existing.setDescription(description);
+            if (location != null)        existing.setLocation(location);
+            if (defaultCurrency != null) existing.setDefaultCurrency(defaultCurrency);
+            return companyRepo.save(existing);
+        });
+    }
+
+    @Transactional
+    public Subscription addSubscription(String companyId, Subscription sub) {
+        BookBoxCompany company = companyRepo.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found: " + companyId));
+        sub.setCompany(company);
+        return subscriptionRepo.save(sub);
+    }
+
+    @Transactional
+    public boolean deleteSubscription(String subscriptionId) {
+        if (!subscriptionRepo.existsById(subscriptionId)) return false;
+        subscriptionRepo.deleteById(subscriptionId);
+        return true;
+    }
 }

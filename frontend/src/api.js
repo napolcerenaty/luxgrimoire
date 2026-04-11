@@ -64,8 +64,12 @@ export const API = {
   // Admin
   ADMIN_USERS:          `${API_BASE}/api/admin/users`,
   ADMIN_COMPANIES:      `${API_BASE}/api/admin/companies`,
+  ADMIN_COMPANY: (id) => `${API_BASE}/api/admin/companies/${id}`,
+  ADMIN_COMPANY_SUBS: (id) => `${API_BASE}/api/admin/companies/${id}/subscriptions`,
+  ADMIN_COMPANY_SUB: (companyId, subId) => `${API_BASE}/api/admin/companies/${companyId}/subscriptions/${subId}`,
   ADMIN_REPORTS:        `${API_BASE}/api/admin/reports`,
   ADMIN_REPORT: (id) => `${API_BASE}/api/admin/reports/${id}/status`,
   ADMIN_DATA_REQUESTS:        `${API_BASE}/api/admin/data-requests`,
   ADMIN_DATA_REQUEST: (id) => `${API_BASE}/api/admin/data-requests/${id}/status`,
+  ADMIN_DELETION_LOGS:  `${API_BASE}/api/admin/deletion-logs`,
 };
