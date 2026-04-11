@@ -50,6 +50,9 @@ public class Subscription {
     @Column(name = "skip_policy_notes", columnDefinition = "TEXT")
     private String skipPolicyNotes;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "is_combo")
     private boolean isCombo = false;
 
@@ -134,6 +137,8 @@ public class Subscription {
     public void setMaxConsecutiveSkips(Integer maxConsecutiveSkips) { this.maxConsecutiveSkips = maxConsecutiveSkips; }
     public String getSkipPolicyNotes() { return skipPolicyNotes; }
     public void setSkipPolicyNotes(String skipPolicyNotes) { this.skipPolicyNotes = skipPolicyNotes; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
     public boolean isCombo() { return isCombo; }
     public void setCombo(boolean combo) { isCombo = combo; }
     public Integer getRenewalDay() { return renewalDay; }

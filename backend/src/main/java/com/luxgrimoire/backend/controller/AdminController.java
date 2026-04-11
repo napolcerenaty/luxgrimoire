@@ -122,6 +122,14 @@ public class AdminController {
         return ResponseEntity.ok(companyStore.findAll());
     }
 
+    @GetMapping("/subscription-genres")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getAllGenres(HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return ResponseEntity.ok(subscriptionRepo.findAllDistinctGenres());
+    }
+
     @GetMapping("/companies/{id}/subscriptions")
     @Transactional(readOnly = true)
     public ResponseEntity<?> listCompanySubscriptions(@PathVariable String id, HttpSession session) {
@@ -220,6 +228,7 @@ public class AdminController {
         if (body.containsKey("skipPolicyType"))     sub.setSkipPolicyType((String) body.get("skipPolicyType"));
         if (body.containsKey("skipResetType"))      sub.setSkipResetType((String) body.get("skipResetType"));
         if (body.containsKey("skipResetDate"))      sub.setSkipResetDate((String) body.get("skipResetDate"));
+        if (body.containsKey("description"))        sub.setDescription((String) body.get("description"));
         Object skipCount = body.get("skipCount");
         if (skipCount != null) { try { sub.setSkipCount(Integer.valueOf(skipCount.toString())); } catch (NumberFormatException ignored) {} }
         Object maxConsec = body.get("maxConsecutiveSkips");

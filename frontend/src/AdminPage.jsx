@@ -87,9 +87,81 @@ function ImageUpload({ label, currentUrl, onChange }) {
 }
 
 // ─── SkipPolicyEditor ─────────────────────────────────────────────────────────
+// ─── GenreTagPicker ───────────────────────────────────────────────────────────
+function GenreTagPicker({ selected = [], onChange, allGenres = [] }) {
+  const [input, setInput] = useState("");
+
+  const suggestions = allGenres
+    .filter(g => !selected.includes(g) && g.toLowerCase().includes(input.toLowerCase()))
+    .slice(0, 8);
+
+  const add = genre => {
+    const trimmed = genre.trim();
+    if (trimmed && !selected.includes(trimmed)) onChange([...selected, trimmed]);
+    setInput("");
+  };
+
+  const remove = genre => onChange(selected.filter(g => g !== genre));
+
+  const handleKey = e => {
+    if ((e.key === "Enter" || e.key === ",") && input.trim()) {
+      e.preventDefault();
+      add(input);
+    }
+    if (e.key === "Backspace" && !input && selected.length > 0) {
+      remove(selected[selected.length - 1]);
+    }
+  };
+
+  return (
+    <div className="admin-form-row">
+      <label className="admin-form-label">Gatunki</label>
+      <div style={{
+        border: "1px solid var(--border-color)", borderRadius: "6px",
+        padding: "0.3rem 0.5rem", display: "flex", flexWrap: "wrap", gap: "0.35rem",
+        background: "var(--bg-input, #fff)", minHeight: "2.2rem"
+      }}>
+        {selected.map(g => (
+          <span key={g} style={{
+            background: "var(--accent-soft, #e8f0fe)", borderRadius: "4px",
+            padding: "0.1rem 0.4rem", fontSize: "0.88rem", display: "inline-flex", alignItems: "center", gap: "0.3rem"
+          }}>
+            {g}
+            <button type="button" onClick={() => remove(g)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "0.8rem" }}>✕</button>
+          </span>
+        ))}
+        <input
+          style={{ border: "none", outline: "none", flex: 1, minWidth: 120, fontSize: "0.9rem", background: "transparent" }}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder={selected.length === 0 ? "Fantasy, YA… (Enter lub przecinek)" : ""}
+        />
+      </div>
+      {input && suggestions.length > 0 && (
+        <div style={{
+          position: "relative", zIndex: 10,
+          background: "var(--bg-card, #fff)", border: "1px solid var(--border-color)",
+          borderRadius: "6px", marginTop: "0.2rem", overflow: "hidden"
+        }}>
+          {suggestions.map(g => (
+            <div key={g} onMouseDown={e => { e.preventDefault(); add(g); }}
+              style={{ padding: "0.35rem 0.6rem", cursor: "pointer", fontSize: "0.9rem" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--hover-bg, #f5f5f5)"}
+              onMouseLeave={e => e.currentTarget.style.background = ""}>
+              {g}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SkipPolicyEditor ─────────────────────────────────────────────────────────
 function SkipPolicyEditor({ value, onChange }) {
   const isLimited  = value.skipPolicyType === "LIMITED";
-  const isDateReset = value.skipResetType  === "DATE";
   const set = field => e => onChange({ ...value, [field]: e.target.value });
 
   return (
@@ -110,26 +182,21 @@ function SkipPolicyEditor({ value, onChange }) {
 
       {isLimited && (
         <>
-          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+          <div style={{ marginTop: "0.6rem", marginBottom: "0.3rem", fontSize: "0.88rem", color: "var(--text-ghost)" }}>
+            Reset skipów:
+          </div>
+          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             <label className="admin-form-check">
-              <input type="radio" checked={!isDateReset}
-                onChange={() => onChange({ ...value, skipResetType: "MONTHLY" })} />
-              Reset miesięczny
+              <input type="radio" checked={value.skipResetType !== "CALENDAR_YEAR"}
+                onChange={() => onChange({ ...value, skipResetType: "SUBSCRIPTION_START" })} />
+              Od miesiąca startu subskrypcji
             </label>
             <label className="admin-form-check">
-              <input type="radio" checked={isDateReset}
-                onChange={() => onChange({ ...value, skipResetType: "DATE" })} />
-              Konkretna data resetu
+              <input type="radio" checked={value.skipResetType === "CALENDAR_YEAR"}
+                onChange={() => onChange({ ...value, skipResetType: "CALENDAR_YEAR" })} />
+              Rok kalendarzowy (od stycznia)
             </label>
           </div>
-
-          {isDateReset && (
-            <div className="admin-form-row" style={{ marginTop: "0.5rem" }}>
-              <label className="admin-form-label">Data resetu</label>
-              <input type="date" className="admin-form-input" style={{ maxWidth: 180 }}
-                value={value.skipResetDate || ""} onChange={set("skipResetDate")} />
-            </div>
-          )}
 
           <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
             <div className="admin-form-row" style={{ flex: 1 }}>
@@ -161,9 +228,10 @@ const EMPTY_SUB = {
   name: "", type: "MONTHLY", basePrice: "", renewalDay: "",
   renewalDayUserSet: false,
   isCombo: false, comboComponentIds: [],
-  shipsInternationally: true, bookishMerch: false, genres: "",
-  skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
-  skipResetDate: "", skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
+  shipsInternationally: true, bookishMerch: false, genresList: [],
+  description: "",
+  skipPolicyType: "UNLIMITED", skipResetType: "SUBSCRIPTION_START",
+  skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
   prepayOptions: [],
 };
 
@@ -211,6 +279,14 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
   const [form, setForm]               = useState(EMPTY_SUB);
   const [logoFile, setLogoFile]       = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [allGenres, setAllGenres]     = useState([]);
+
+  useEffect(() => {
+    fetch(API.ADMIN_SUBSCRIPTION_GENRES, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setAllGenres)
+      .catch(() => {});
+  }, []);
 
   const set    = field => e  => setForm(prev => ({ ...prev, [field]: e.target.value }));
   const toggle = field => () => setForm(prev => ({ ...prev, [field]: !prev[field] }));
@@ -247,10 +323,10 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
       bookishMerch:         form.bookishMerch,
-      genres:               form.genres.split(",").map(g => g.trim()).filter(Boolean),
+      genres:               form.genresList,
+      description:          form.description || null,
       skipPolicyType:       form.skipPolicyType,
       skipResetType:        form.skipPolicyType === "LIMITED" ? form.skipResetType : null,
-      skipResetDate:        form.skipPolicyType === "LIMITED" && form.skipResetType === "DATE" ? form.skipResetDate : null,
       skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
       maxConsecutiveSkips:  form.skipPolicyType === "LIMITED" && form.maxConsecutiveSkips ? parseInt(form.maxConsecutiveSkips) : null,
       skipPolicyNotes:      form.skipPolicyNotes || null,
@@ -338,12 +414,8 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
         </div>
 
         {!form.isCombo && (
-          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <div className="admin-form-row" style={{ flex: 1 }}>
-              <label className="admin-form-label">Gatunki (przecinek)</label>
-              <input className="admin-form-input" value={form.genres} onChange={set("genres")} placeholder="Fantasy, YA…" />
-            </div>
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center", paddingTop: "1.3rem" }}>
+          <>
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.25rem" }}>
               <label className="admin-form-check">
                 <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
                 Wysyłka int'l
@@ -353,8 +425,19 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
                 Merch
               </label>
             </div>
-          </div>
+            <GenreTagPicker
+              selected={form.genresList}
+              allGenres={allGenres}
+              onChange={genres => setForm(prev => ({ ...prev, genresList: genres }))} />
+          </>
         )}
+
+        <div className="admin-form-row">
+          <label className="admin-form-label">Opis subskrypcji</label>
+          <textarea className="admin-form-textarea" rows={3}
+            value={form.description} onChange={set("description")}
+            placeholder="Krótki opis subskrypcji widoczny dla użytkowników…" />
+        </div>
 
         <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
 
@@ -561,7 +644,7 @@ function CompanyFormPage({ company, onSaved, onBack }) {
                         <td>{sub.basePrice != null ? sub.basePrice : "—"}</td>
                         <td>
                           {sub.skipPolicyType === "LIMITED"
-                            ? `Limited (${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"}, ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? `, max ${sub.maxConsecutiveSkips} z rzędu` : ""})`
+                            ? `Limited (${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"}, ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? `, max ${sub.maxConsecutiveSkips} z rzędu` : ""})`
                             : "Nielimitowana"}
                         </td>
                         <td>
@@ -681,7 +764,7 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
                     <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
                     <td>
                       {sub.skipPolicyType === "LIMITED"
-                        ? `Limited · reset: ${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
+                        ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
                         : "Nielimitowana"}
                       {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
                     </td>

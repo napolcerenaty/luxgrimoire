@@ -79,4 +79,5 @@ export const API = {
   ADMIN_DATA_REQUESTS:        `${API_BASE}/api/admin/data-requests`,
   ADMIN_DATA_REQUEST: (id) => `${API_BASE}/api/admin/data-requests/${id}/status`,
   ADMIN_DELETION_LOGS:  `${API_BASE}/api/admin/deletion-logs`,
+  ADMIN_SUBSCRIPTION_GENRES: `${API_BASE}/api/admin/subscription-genres`,
 };

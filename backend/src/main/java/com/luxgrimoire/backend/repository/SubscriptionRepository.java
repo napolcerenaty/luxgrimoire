@@ -16,4 +16,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
 
     @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.company WHERE LOWER(s.name) LIKE :q")
     List<Subscription> searchByNamePattern(@Param("q") String pattern, Pageable pageable);
+
+    @Query("SELECT DISTINCT g FROM Subscription s JOIN s.genres g ORDER BY g")
+    List<String> findAllDistinctGenres();
 }
