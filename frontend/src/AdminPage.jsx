@@ -34,152 +34,468 @@ function Pagination({ page, totalPages, onPage }) {
   );
 }
 
-// ─── Company Form Modal ───────────────────────────────────────────────────────
-function CompanyFormModal({ company, onSave, onClose, submitting }) {
-  const isEdit = Boolean(company);
-  const [form, setForm] = useState({
-    name:            company?.name            || "",
-    logoUrl:         company?.logoUrl         || "",
-    websiteUrl:      company?.websiteUrl      || "",
-    description:     company?.description     || "",
-    location:        company?.location        || "",
-    defaultCurrency: company?.defaultCurrency || "",
-  });
+// ─── Data: Countries & Currencies ────────────────────────────────────────────
+const COUNTRIES = [
+  { code: "PL", name: "Polska" }, { code: "US", name: "USA" }, { code: "GB", name: "Wielka Brytania" },
+  { code: "DE", name: "Niemcy" }, { code: "FR", name: "Francja" }, { code: "ES", name: "Hiszpania" },
+  { code: "IT", name: "Włochy" }, { code: "NL", name: "Holandia" }, { code: "SE", name: "Szwecja" },
+  { code: "NO", name: "Norwegia" }, { code: "DK", name: "Dania" }, { code: "FI", name: "Finlandia" },
+  { code: "CZ", name: "Czechy" }, { code: "SK", name: "Słowacja" }, { code: "HU", name: "Węgry" },
+  { code: "RO", name: "Rumunia" }, { code: "AT", name: "Austria" }, { code: "BE", name: "Belgia" },
+  { code: "CH", name: "Szwajcaria" }, { code: "PT", name: "Portugalia" }, { code: "IE", name: "Irlandia" },
+  { code: "CA", name: "Kanada" }, { code: "AU", name: "Australia" }, { code: "NZ", name: "Nowa Zelandia" },
+  { code: "JP", name: "Japonia" }, { code: "KR", name: "Korea Pd." }, { code: "CN", name: "Chiny" },
+  { code: "IN", name: "Indie" }, { code: "BR", name: "Brazylia" }, { code: "ZA", name: "RPA" },
+];
 
-  const set = field => e => setForm(prev => ({ ...prev, [field]: e.target.value }));
+const CURRENCIES = [
+  { code: "PLN", name: "Złoty polski (PLN)" }, { code: "USD", name: "Dolar amerykański (USD)" },
+  { code: "EUR", name: "Euro (EUR)" }, { code: "GBP", name: "Funt brytyjski (GBP)" },
+  { code: "SEK", name: "Korona szwedzka (SEK)" }, { code: "NOK", name: "Korona norweska (NOK)" },
+  { code: "DKK", name: "Korona duńska (DKK)" }, { code: "CZK", name: "Korona czeska (CZK)" },
+  { code: "HUF", name: "Forint węgierski (HUF)" }, { code: "CHF", name: "Frank szwajcarski (CHF)" },
+  { code: "CAD", name: "Dolar kanadyjski (CAD)" }, { code: "AUD", name: "Dolar australijski (AUD)" },
+  { code: "JPY", name: "Jen japoński (JPY)" }, { code: "RON", name: "Lej rumuński (RON)" },
+];
 
-  const handleSubmit = e => {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    onSave(form);
-  };
+const SUB_TYPES = [
+  { value: "MONTHLY",    label: "Miesięczna (MONTHLY)" },
+  { value: "BI_MONTHLY", label: "Co dwa miesiące (BI_MONTHLY)" },
+  { value: "QUARTERLY",  label: "Kwartalna (QUARTERLY)" },
+];
 
+// ─── ImageUpload ──────────────────────────────────────────────────────────────
+function ImageUpload({ label, currentUrl, onChange }) {
+  const preview = currentUrl
+    ? (currentUrl.startsWith("http") || currentUrl.startsWith("blob:") ? currentUrl : `${API.BASE}${currentUrl}`)
+    : null;
   return (
-    <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()}>
-        <div className="admin-modal-header">
-          <h3 className="admin-modal-title">{isEdit ? "Edytuj Book Box" : "Nowy Book Box"}</h3>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <form className="admin-form" onSubmit={handleSubmit}>
-          <div className="admin-form-row">
-            <label className="admin-form-label">Nazwa *</label>
-            <input className="admin-form-input" value={form.name} onChange={set("name")} required />
-          </div>
-          <div className="admin-form-row">
-            <label className="admin-form-label">URL logo</label>
-            <input className="admin-form-input" value={form.logoUrl} onChange={set("logoUrl")} placeholder="https://…" />
-          </div>
-          <div className="admin-form-row">
-            <label className="admin-form-label">Strona WWW</label>
-            <input className="admin-form-input" value={form.websiteUrl} onChange={set("websiteUrl")} placeholder="https://…" />
-          </div>
-          <div className="admin-form-row">
-            <label className="admin-form-label">Opis</label>
-            <textarea className="admin-form-textarea" value={form.description} onChange={set("description")} rows={3} />
-          </div>
-          <div className="admin-form-row">
-            <label className="admin-form-label">Lokalizacja</label>
-            <input className="admin-form-input" value={form.location} onChange={set("location")} placeholder="Poland" />
-          </div>
-          <div className="admin-form-row">
-            <label className="admin-form-label">Waluta</label>
-            <input className="admin-form-input" value={form.defaultCurrency} onChange={set("defaultCurrency")} placeholder="PLN" style={{ maxWidth: 120 }} />
-          </div>
-          <div className="admin-form-btns">
-            <button type="button" className="admin-btn admin-btn--ghost" onClick={onClose}>Anuluj</button>
-            <button type="submit" className="admin-btn admin-btn--primary" disabled={submitting}>
-              {submitting ? "Zapisywanie…" : isEdit ? "Zapisz zmiany" : "Utwórz"}
-            </button>
-          </div>
-        </form>
+    <div className="admin-form-row">
+      <label className="admin-form-label">{label}</label>
+      <div className="admin-image-upload">
+        {preview && (
+          <img src={preview} alt="" className="admin-image-preview"
+            onError={e => { e.target.style.display = "none"; }} />
+        )}
+        <label className="admin-image-upload-btn">
+          {preview ? "Zmień zdjęcie" : "Wybierz zdjęcie"}
+          <input type="file" accept="image/*" hidden onChange={onChange} />
+        </label>
       </div>
     </div>
   );
 }
 
-// ─── Subscription Form Modal ──────────────────────────────────────────────────
-function SubscriptionFormModal({ onSave, onClose, submitting }) {
-  const [form, setForm] = useState({
-    name:                 "",
-    type:                 "MONTHLY",
-    basePrice:            "",
-    shipsInternationally: true,
-    bookishMerch:         false,
-    genres:               "",
-  });
+// ─── SkipPolicyEditor ─────────────────────────────────────────────────────────
+function SkipPolicyEditor({ value, onChange }) {
+  const isLimited  = value.skipPolicyType === "LIMITED";
+  const isDateReset = value.skipResetType  === "DATE";
+  const set = field => e => onChange({ ...value, [field]: e.target.value });
+
+  return (
+    <div className="admin-skip-policy">
+      <div className="admin-form-label" style={{ marginBottom: "0.4rem" }}>Skip Policy</div>
+      <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+        <label className="admin-form-check">
+          <input type="radio" checked={!isLimited}
+            onChange={() => onChange({ ...value, skipPolicyType: "UNLIMITED" })} />
+          Nielimitowana
+        </label>
+        <label className="admin-form-check">
+          <input type="radio" checked={isLimited}
+            onChange={() => onChange({ ...value, skipPolicyType: "LIMITED" })} />
+          Limitowana
+        </label>
+      </div>
+
+      {isLimited && (
+        <>
+          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+            <label className="admin-form-check">
+              <input type="radio" checked={!isDateReset}
+                onChange={() => onChange({ ...value, skipResetType: "MONTHLY" })} />
+              Reset miesięczny
+            </label>
+            <label className="admin-form-check">
+              <input type="radio" checked={isDateReset}
+                onChange={() => onChange({ ...value, skipResetType: "DATE" })} />
+              Konkretna data resetu
+            </label>
+          </div>
+
+          {isDateReset && (
+            <div className="admin-form-row" style={{ marginTop: "0.5rem" }}>
+              <label className="admin-form-label">Data resetu</label>
+              <input type="date" className="admin-form-input" style={{ maxWidth: 180 }}
+                value={value.skipResetDate || ""} onChange={set("skipResetDate")} />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 1 }}>
+              <label className="admin-form-label">Ilość skipów</label>
+              <input type="number" min="0" className="admin-form-input"
+                value={value.skipCount ?? ""} onChange={set("skipCount")} />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1 }}>
+              <label className="admin-form-label">Maks. ciąg skipów</label>
+              <input type="number" min="0" className="admin-form-input"
+                value={value.maxConsecutiveSkips ?? ""} onChange={set("maxConsecutiveSkips")} />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="admin-form-row" style={{ marginTop: "0.5rem" }}>
+        <label className="admin-form-label">Dodatkowe informacje</label>
+        <textarea className="admin-form-textarea" rows={2}
+          value={value.skipPolicyNotes || ""} onChange={set("skipPolicyNotes")}
+          placeholder="Dodatkowe warunki, wyjątki…" />
+      </div>
+    </div>
+  );
+}
+
+// ─── SubscriptionInlineForm ───────────────────────────────────────────────────
+const EMPTY_SUB = {
+  name: "", type: "MONTHLY", basePrice: "", shipsInternationally: true,
+  bookishMerch: false, genres: "",
+  skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
+  skipResetDate: "", skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
+};
+
+function SubscriptionInlineForm({ onAdd, onCancel }) {
+  const [form, setForm]           = useState(EMPTY_SUB);
+  const [logoFile, setLogoFile]   = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   const set    = field => e   => setForm(prev => ({ ...prev, [field]: e.target.value }));
   const toggle = field => ()  => setForm(prev => ({ ...prev, [field]: !prev[field] }));
 
-  const handleSubmit = e => {
+  const handleLogoChange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleAdd = e => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onSave({
+    onAdd({
       name:                 form.name.trim(),
       type:                 form.type,
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
       shipsInternationally: form.shipsInternationally,
       bookishMerch:         form.bookishMerch,
       genres:               form.genres.split(",").map(g => g.trim()).filter(Boolean),
+      skipPolicyType:       form.skipPolicyType,
+      skipResetType:        form.skipPolicyType === "LIMITED" ? form.skipResetType : null,
+      skipResetDate:        form.skipPolicyType === "LIMITED" && form.skipResetType === "DATE" ? form.skipResetDate : null,
+      skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
+      maxConsecutiveSkips:  form.skipPolicyType === "LIMITED" && form.maxConsecutiveSkips ? parseInt(form.maxConsecutiveSkips) : null,
+      skipPolicyNotes:      form.skipPolicyNotes || null,
+      _logoFile:            logoFile,
+      _logoPreview:         logoPreview,
     });
   };
 
   return (
-    <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()}>
-        <div className="admin-modal-header">
-          <h3 className="admin-modal-title">Nowa subskrypcja</h3>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <form className="admin-form" onSubmit={handleSubmit}>
-          <div className="admin-form-row">
+    <div className="admin-sub-inline-form">
+      <form onSubmit={handleAdd}>
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="admin-form-row" style={{ flex: 2, minWidth: 180 }}>
             <label className="admin-form-label">Nazwa *</label>
             <input className="admin-form-input" value={form.name} onChange={set("name")} required />
           </div>
-          <div className="admin-form-row">
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
             <label className="admin-form-label">Typ</label>
             <select className="admin-form-select" value={form.type} onChange={set("type")}>
-              <option value="MONTHLY">Miesięczna (MONTHLY)</option>
-              <option value="BI_MONTHLY">Co dwa miesiące (BI_MONTHLY)</option>
-              <option value="QUARTERLY">Kwartalna (QUARTERLY)</option>
+              {SUB_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
-          <div className="admin-form-row">
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
             <label className="admin-form-label">Cena bazowa</label>
-            <input className="admin-form-input" type="number" step="0.01" min="0"
-              value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" style={{ maxWidth: 140 }} />
+            <input type="number" step="0.01" min="0" className="admin-form-input"
+              value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
           </div>
-          <div className="admin-form-row">
+        </div>
+
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="admin-form-row" style={{ flex: 1 }}>
             <label className="admin-form-label">Gatunki (przecinek)</label>
-            <input className="admin-form-input" value={form.genres} onChange={set("genres")} placeholder="Fantasy, YA, Horror" />
+            <input className="admin-form-input" value={form.genres} onChange={set("genres")} placeholder="Fantasy, YA…" />
           </div>
-          <div className="admin-form-row admin-form-row--check">
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center", paddingTop: "1.3rem" }}>
             <label className="admin-form-check">
               <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
-              Wysyłka międzynarodowa
+              Wysyłka int'l
             </label>
-          </div>
-          <div className="admin-form-row admin-form-row--check">
             <label className="admin-form-check">
               <input type="checkbox" checked={form.bookishMerch} onChange={toggle("bookishMerch")} />
-              Bookish merch
+              Merch
             </label>
           </div>
-          <div className="admin-form-btns">
-            <button type="button" className="admin-btn admin-btn--ghost" onClick={onClose}>Anuluj</button>
-            <button type="submit" className="admin-btn admin-btn--primary" disabled={submitting}>
-              {submitting ? "Dodawanie…" : "Dodaj subskrypcję"}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+
+        <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
+
+        <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
+
+        <div className="admin-form-btns" style={{ marginTop: "0.75rem" }}>
+          <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onCancel}>Anuluj</button>
+          <button type="submit" className="admin-btn admin-btn--primary admin-btn--sm">+ Dodaj subskrypcję</button>
+        </div>
+      </form>
     </div>
   );
 }
 
+// ─── CompanyFormPage ──────────────────────────────────────────────────────────
+function CompanyFormPage({ company, onSaved, onBack }) {
+  const isEdit = Boolean(company);
+  const [form, setForm] = useState({
+    name:            company?.name            || "",
+    websiteUrl:      company?.websiteUrl      || "",
+    description:     company?.description     || "",
+    location:        company?.location        || "",
+    defaultCurrency: company?.defaultCurrency || "",
+  });
+  const [logoFile,    setLogoFile]    = useState(null);
+  const [logoPreview, setLogoPreview] = useState(company?.logoUrl || null);
+  const [existingSubs,  setExistingSubs]  = useState(isEdit ? (company.subscriptions || []) : []);
+  const [pendingSubs,   setPendingSubs]   = useState([]);
+  const [showSubForm,   setShowSubForm]   = useState(false);
+  const [submitting,    setSubmitting]    = useState(false);
+
+  const set = field => e => setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const handleLogoChange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleAddPendingSub = sub => {
+    setPendingSubs(prev => [...prev, { ...sub, _tempId: Date.now() }]);
+    setShowSubForm(false);
+  };
+
+  const handleRemovePendingSub = tempId => setPendingSubs(prev => prev.filter(s => s._tempId !== tempId));
+
+  const handleDeleteExistingSub = async sub => {
+    if (!window.confirm(`Usunąć subskrypcję "${sub.name}"?`)) return;
+    await fetch(API.ADMIN_COMPANY_SUB(company.id, sub.id), { method: "DELETE", credentials: "include" });
+    setExistingSubs(prev => prev.filter(s => s.id !== sub.id));
+  };
+
+  const handleSave = async e => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSubmitting(true);
+    try {
+      const method = isEdit ? "PUT" : "POST";
+      const url    = isEdit ? API.ADMIN_COMPANY(company.id) : API.ADMIN_COMPANIES;
+      const r = await fetch(url, {
+        method, credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!r.ok) return;
+      const saved = await r.json();
+      const cid = saved.id;
+
+      if (logoFile) {
+        const fd = new FormData();
+        fd.append("file", logoFile);
+        await fetch(API.ADMIN_COMPANY_LOGO(cid), { method: "POST", credentials: "include", body: fd });
+      }
+
+      for (const sub of pendingSubs) {
+        const { _tempId, _logoFile, _logoPreview, ...subData } = sub;
+        const sr = await fetch(API.ADMIN_COMPANY_SUBS(cid), {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subData),
+        });
+        if (sr.ok && _logoFile) {
+          const subSaved = await sr.json();
+          const sfd = new FormData();
+          sfd.append("file", _logoFile);
+          await fetch(API.ADMIN_SUB_LOGO(cid, subSaved.id), { method: "POST", credentials: "include", body: sfd });
+        }
+      }
+
+      onSaved(saved);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const logoDisplayUrl = logoPreview
+    ? (logoPreview.startsWith("http") || logoPreview.startsWith("blob:") ? logoPreview : `${API.BASE}${logoPreview}`)
+    : null;
+
+  return (
+    <section className="account-section">
+      <div className="admin-section-header" style={{ marginBottom: "1.5rem" }}>
+        <button type="button" className="admin-btn admin-btn--ghost" onClick={onBack}>← Lista</button>
+        <h2 className="account-section-title" style={{ margin: 0 }}>
+          {isEdit ? `Edycja: ${company.name}` : "Nowy Book Box"}
+        </h2>
+      </div>
+
+      <form onSubmit={handleSave} className="admin-form-page">
+
+        {/* ── Logo ── */}
+        <div className="admin-form-row">
+          <label className="admin-form-label">Logo</label>
+          <div className="admin-image-upload">
+            {logoDisplayUrl && (
+              <img src={logoDisplayUrl} alt="" className="admin-image-preview"
+                onError={e => { e.target.style.display = "none"; }} />
+            )}
+            <label className="admin-image-upload-btn">
+              {logoDisplayUrl ? "Zmień logo" : "Wybierz logo"}
+              <input type="file" accept="image/*" hidden onChange={handleLogoChange} />
+            </label>
+          </div>
+        </div>
+
+        {/* ── Scalar fields ── */}
+        <div className="admin-form-row">
+          <label className="admin-form-label">Nazwa *</label>
+          <input className="admin-form-input" value={form.name} onChange={set("name")} required style={{ maxWidth: 420 }} />
+        </div>
+
+        <div className="admin-form-row">
+          <label className="admin-form-label">Strona WWW</label>
+          <input className="admin-form-input" value={form.websiteUrl} onChange={set("websiteUrl")}
+            placeholder="https://…" style={{ maxWidth: 420 }} />
+        </div>
+
+        <div className="admin-form-row">
+          <label className="admin-form-label">Opis</label>
+          <textarea className="admin-form-textarea" value={form.description} onChange={set("description")} rows={3} />
+        </div>
+
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 200 }}>
+            <label className="admin-form-label">Kraj</label>
+            <select className="admin-form-select" value={form.location} onChange={set("location")}>
+              <option value="">— wybierz kraj —</option>
+              {COUNTRIES.map(c => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 200 }}>
+            <label className="admin-form-label">Waluta</label>
+            <select className="admin-form-select" value={form.defaultCurrency} onChange={set("defaultCurrency")}>
+              <option value="">— wybierz walutę —</option>
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ── Subscriptions ── */}
+        <div className="admin-subs-section" style={{ marginTop: "1.5rem" }}>
+          <div className="admin-section-header">
+            <h3 className="admin-subs-title">
+              Subskrypcje ({existingSubs.length + pendingSubs.length})
+            </h3>
+            {!showSubForm && (
+              <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm"
+                onClick={() => setShowSubForm(true)}>
+                + Dodaj subskrypcję
+              </button>
+            )}
+          </div>
+
+          {/* Existing subscriptions (edit mode) */}
+          {existingSubs.length > 0 && (
+            <div className="admin-table-wrap" style={{ marginBottom: "0.75rem" }}>
+              <table className="admin-table">
+                <thead>
+                  <tr><th>Logo</th><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Skip Policy</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {existingSubs.map(sub => {
+                    const subLogo = sub.logoUrl
+                      ? (sub.logoUrl.startsWith("http") ? sub.logoUrl : `${API.BASE}${sub.logoUrl}`)
+                      : null;
+                    return (
+                      <tr key={sub.id}>
+                        <td>
+                          {subLogo
+                            ? <img src={subLogo} alt="" className="admin-company-list-logo" onError={e => { e.target.style.display="none"; }} />
+                            : <span className="admin-company-list-logo-ph">📦</span>}
+                        </td>
+                        <td><strong>{sub.name}</strong></td>
+                        <td>{sub.type || "—"}</td>
+                        <td>{sub.basePrice != null ? sub.basePrice : "—"}</td>
+                        <td>
+                          {sub.skipPolicyType === "LIMITED"
+                            ? `Limited (${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"}, ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? `, max ${sub.maxConsecutiveSkips} z rzędu` : ""})`
+                            : "Nielimitowana"}
+                        </td>
+                        <td>
+                          <button type="button" className="admin-action-btn admin-action-btn--danger"
+                            onClick={() => handleDeleteExistingSub(sub)}>🗑</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pending new subscriptions */}
+          {pendingSubs.length > 0 && (
+            <div className="admin-sub-pending-list">
+              {pendingSubs.map(sub => (
+                <div key={sub._tempId} className="admin-sub-pending-row">
+                  {sub._logoPreview && (
+                    <img src={sub._logoPreview} alt="" className="admin-company-list-logo" />
+                  )}
+                  <span className="admin-company-list-name">{sub.name}</span>
+                  <span className="admin-chip">{sub.type}</span>
+                  {sub.basePrice != null && <span className="admin-chip">{sub.basePrice}</span>}
+                  <span className="admin-chip">{sub.skipPolicyType === "LIMITED" ? "Limitowana" : "Unlimited"}</span>
+                  <button type="button" className="admin-action-btn admin-action-btn--danger"
+                    onClick={() => handleRemovePendingSub(sub._tempId)}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Inline sub form */}
+          {showSubForm && (
+            <SubscriptionInlineForm
+              onAdd={handleAddPendingSub}
+              onCancel={() => setShowSubForm(false)}
+            />
+          )}
+        </div>
+
+        {/* ── Save / Cancel ── */}
+        <div className="admin-form-btns" style={{ marginTop: "2rem" }}>
+          <button type="button" className="admin-btn admin-btn--ghost" onClick={onBack}>Anuluj</button>
+          <button type="submit" className="admin-btn admin-btn--primary" disabled={submitting}>
+            {submitting ? "Zapisywanie…" : isEdit ? "Zapisz zmiany" : "Utwórz Book Box"}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 // ─── Company Detail View ──────────────────────────────────────────────────────
-function CompanyDetailView({ company, onBack, onEdit, onDelete, onAddSub, onDeleteSub }) {
+function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
   const logo = company.logoUrl
     ? (company.logoUrl.startsWith("http") ? company.logoUrl : `${API.BASE}${company.logoUrl}`)
     : null;
@@ -211,26 +527,13 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete, onAddSub, onDele
         </div>
       </div>
 
-      <div className="admin-subs-section">
-        <div className="admin-section-header">
-          <h3 className="admin-subs-title">Subskrypcje ({company.subscriptions?.length ?? 0})</h3>
-          <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={onAddSub}>
-            + Dodaj subskrypcję
-          </button>
-        </div>
-
-        {company.subscriptions?.length > 0 ? (
+      {company.subscriptions?.length > 0 && (
+        <div className="admin-subs-section">
+          <h3 className="admin-subs-title">Subskrypcje ({company.subscriptions.length})</h3>
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr>
-                  <th>Nazwa</th>
-                  <th>Typ</th>
-                  <th>Cena</th>
-                  <th>Merch</th>
-                  <th>Gatunki</th>
-                  <th></th>
-                </tr>
+                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Skip Policy</th></tr>
               </thead>
               <tbody>
                 {company.subscriptions.map(sub => (
@@ -238,34 +541,31 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete, onAddSub, onDele
                     <td><strong>{sub.name}</strong></td>
                     <td>{sub.type || "—"}</td>
                     <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
-                    <td>{sub.bookishMerch ? "✓" : "—"}</td>
-                    <td>{sub.genres?.join(", ") || "—"}</td>
                     <td>
-                      <button className="admin-action-btn admin-action-btn--danger" title="Usuń subskrypcję"
-                        onClick={() => onDeleteSub(sub)}>🗑</button>
+                      {sub.skipPolicyType === "LIMITED"
+                        ? `Limited · reset: ${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
+                        : "Nielimitowana"}
+                      {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        ) : (
-          <p className="admin-empty">Brak subskrypcji dla tego book boxa.</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── SECTION: Book Boxy ───────────────────────────────────────────────────────
 function CompaniesSection() {
-  const [companies,        setCompanies]        = useState([]);
-  const [loading,          setLoading]          = useState(true);
-  const [selectedCompany,  setSelectedCompany]  = useState(null);
-  const [showCompanyForm,  setShowCompanyForm]  = useState(false);
-  const [editingCompany,   setEditingCompany]   = useState(null);
-  const [showSubForm,      setShowSubForm]      = useState(false);
-  const [submitting,       setSubmitting]       = useState(false);
+  const [view,       setView]       = useState("list"); // "list" | "form" | "detail"
+  const [companies,  setCompanies]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [selected,   setSelected]   = useState(null);   // company for detail/edit
+  const [search,     setSearch]     = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const fetchCompanies = useCallback(() => {
     setLoading(true);
@@ -275,171 +575,106 @@ function CompaniesSection() {
       .catch(() => setLoading(false));
   }, []);
 
-  const refreshCompany = useCallback((id) => {
-    fetch(API.ADMIN_COMPANY(id), { credentials: "include" })
-      .then(r => r.json())
-      .then(c => setSelectedCompany(c))
-      .catch(() => {});
-  }, []);
-
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
-
-  // ── Actions ────────────────────────────────────────────────────────────────
-
-  const handleOpenDetail = (company) => setSelectedCompany(company);
-
-  const handleBackToList = () => {
-    setSelectedCompany(null);
-    fetchCompanies();
-  };
-
-  const handleEditCompany = (company) => {
-    setEditingCompany(company);
-    setShowCompanyForm(true);
-  };
 
   const handleDeleteCompany = async (company) => {
     if (!window.confirm(`Usunąć "${company.name}"? Tej operacji nie można cofnąć.`)) return;
     await fetch(API.ADMIN_COMPANY(company.id), { method: "DELETE", credentials: "include" });
-    setSelectedCompany(null);
+    setView("list");
     fetchCompanies();
   };
 
-  const handleSaveCompany = async (formData) => {
-    setSubmitting(true);
-    try {
-      const method = editingCompany ? "PUT" : "POST";
-      const url    = editingCompany ? API.ADMIN_COMPANY(editingCompany.id) : API.ADMIN_COMPANIES;
-      const r = await fetch(url, {
-        method, credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (r.ok) {
-        setShowCompanyForm(false);
-        setEditingCompany(null);
-        if (selectedCompany && editingCompany?.id === selectedCompany.id) {
-          refreshCompany(selectedCompany.id);
-        } else {
-          fetchCompanies();
-        }
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const filtered = companies.filter(c =>
+    !search || c.name.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const handleAddSubscription = async (formData) => {
-    setSubmitting(true);
-    try {
-      const r = await fetch(API.ADMIN_COMPANY_SUBS(selectedCompany.id), {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (r.ok) {
-        setShowSubForm(false);
-        refreshCompany(selectedCompany.id);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // ── list view ────────────────────────────────────────────────────────────────
+  if (view === "list") return (
+    <section className="account-section">
+      <div className="admin-section-header">
+        <h2 className="account-section-title">📦 Book Boxy</h2>
+        <button className="admin-btn admin-btn--primary admin-btn--sm"
+          onClick={() => { setSelected(null); setView("form"); }}>
+          + Dodaj Book Box
+        </button>
+      </div>
 
-  const handleDeleteSubscription = async (sub) => {
-    if (!window.confirm(`Usunąć subskrypcję "${sub.name}"?`)) return;
-    await fetch(API.ADMIN_COMPANY_SUB(selectedCompany.id, sub.id), { method: "DELETE", credentials: "include" });
-    refreshCompany(selectedCompany.id);
-  };
+      <div className="admin-search-row" style={{ marginBottom: "1rem" }}>
+        <input placeholder="Szukaj po nazwie…" value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") setSearch(searchInput.trim()); }} />
+        <button onClick={() => setSearch(searchInput.trim())}>Szukaj</button>
+        {search && <button onClick={() => { setSearch(""); setSearchInput(""); }}>✕ Wyczyść</button>}
+      </div>
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+      {loading ? (
+        <div className="status-container"><div className="spinner" /></div>
+      ) : filtered.length === 0 ? (
+        <p className="admin-empty">{search ? "Brak wyników." : "Brak book boxów w bazie."}</p>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th style={{ width: 44 }}></th>
+                <th>Nazwa</th>
+                <th>Kraj</th>
+                <th>Waluta</th>
+                <th>Subskrypcje</th>
+                <th style={{ width: 80 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <tr key={c.id} className="admin-company-row"
+                    onClick={() => { setSelected(c); setView("detail"); }}
+                    title="Kliknij aby zobaczyć szczegóły">
+                  <td>
+                    {c.logoUrl
+                      ? <img src={c.logoUrl.startsWith("http") ? c.logoUrl : `${API.BASE}${c.logoUrl}`}
+                          alt="" className="admin-company-list-logo"
+                          onError={e => { e.target.style.display = "none"; }} />
+                      : <span className="admin-company-list-logo-ph">📦</span>}
+                  </td>
+                  <td className="admin-company-list-name">{c.name}</td>
+                  <td>{c.location || "—"}</td>
+                  <td>{c.defaultCurrency || "—"}</td>
+                  <td>{c.subscriptions?.length ?? 0}</td>
+                  <td onClick={e => e.stopPropagation()}>
+                    <div style={{ display: "flex", gap: "0.35rem" }}>
+                      <button className="admin-action-btn" title="Edytuj"
+                        onClick={() => { setSelected(c); setView("form"); }}>✎</button>
+                      <button className="admin-action-btn admin-action-btn--danger" title="Usuń"
+                        onClick={() => handleDeleteCompany(c)}>🗑</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 
+  // ── form view ────────────────────────────────────────────────────────────────
+  if (view === "form") return (
+    <CompanyFormPage
+      company={selected}
+      onSaved={() => { fetchCompanies(); setView("list"); }}
+      onBack={() => setView(selected ? "detail" : "list")}
+    />
+  );
+
+  // ── detail view ──────────────────────────────────────────────────────────────
   return (
     <section className="account-section">
-      {selectedCompany ? (
-        <CompanyDetailView
-          company={selectedCompany}
-          onBack={handleBackToList}
-          onEdit={handleEditCompany}
-          onDelete={handleDeleteCompany}
-          onAddSub={() => setShowSubForm(true)}
-          onDeleteSub={handleDeleteSubscription}
-        />
-      ) : (
-        <>
-          <div className="admin-section-header">
-            <h2 className="account-section-title">📦 Book Boxy</h2>
-            <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={() => { setEditingCompany(null); setShowCompanyForm(true); }}>
-              + Dodaj Book Box
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="status-container"><div className="spinner" /></div>
-          ) : companies.length === 0 ? (
-            <p className="admin-empty">Brak book boxów w bazie.</p>
-          ) : (
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 44 }}></th>
-                    <th>Nazwa</th>
-                    <th>Lokalizacja</th>
-                    <th>Subskrypcje</th>
-                    <th style={{ width: 80 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {companies.map(c => (
-                    <tr key={c.id} className="admin-company-row"
-                        onClick={() => handleOpenDetail(c)}
-                        title="Kliknij aby zobaczyć szczegóły">
-                      <td>
-                        {c.logoUrl
-                          ? <img
-                              src={c.logoUrl.startsWith("http") ? c.logoUrl : `${API.BASE}${c.logoUrl}`}
-                              alt="" className="admin-company-list-logo"
-                              onError={e => { e.target.style.display = "none"; }} />
-                          : <span className="admin-company-list-logo-ph">📦</span>
-                        }
-                      </td>
-                      <td className="admin-company-list-name">{c.name}</td>
-                      <td>{c.location || "—"}</td>
-                      <td>{c.subscriptions?.length ?? 0}</td>
-                      <td onClick={e => e.stopPropagation()}>
-                        <div style={{ display: "flex", gap: "0.35rem" }}>
-                          <button className="admin-action-btn" title="Edytuj"
-                            onClick={() => handleEditCompany(c)}>✎</button>
-                          <button className="admin-action-btn admin-action-btn--danger" title="Usuń"
-                            onClick={() => handleDeleteCompany(c)}>🗑</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
-
-      {showCompanyForm && (
-        <CompanyFormModal
-          company={editingCompany}
-          onSave={handleSaveCompany}
-          onClose={() => { setShowCompanyForm(false); setEditingCompany(null); }}
-          submitting={submitting}
-        />
-      )}
-
-      {showSubForm && (
-        <SubscriptionFormModal
-          onSave={handleAddSubscription}
-          onClose={() => setShowSubForm(false)}
-          submitting={submitting}
-        />
-      )}
+      <CompanyDetailView
+        company={selected}
+        onBack={() => { setView("list"); fetchCompanies(); }}
+        onEdit={(c) => { setSelected(c); setView("form"); }}
+        onDelete={handleDeleteCompany}
+      />
     </section>
   );
 }

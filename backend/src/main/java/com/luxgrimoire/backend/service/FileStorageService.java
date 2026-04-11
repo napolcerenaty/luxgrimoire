@@ -46,6 +46,19 @@ public class FileStorageService {
         return "/uploads/avatars/" + filename;
     }
 
+    public String storeLogo(String folder, String entityId, MultipartFile file) throws IOException {
+        String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "logo";
+        String ext = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf('.')) : ".jpg";
+        String filename = entityId + ext;
+
+        Path dir = Paths.get(uploadDir, "logos", folder);
+        Files.createDirectories(dir);
+        Path dest = dir.resolve(filename);
+        Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+
+        return "/uploads/logos/" + folder + "/" + filename;
+    }
+
     public void deleteIfExists(String avatarUrl) {
         if (avatarUrl == null || avatarUrl.isBlank()) return;
         try {

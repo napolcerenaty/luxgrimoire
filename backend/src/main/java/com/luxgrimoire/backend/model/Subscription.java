@@ -29,6 +29,24 @@ public class Subscription {
     private String type;
     private boolean bookishMerch;
 
+    @Column(name = "skip_policy_type")
+    private String skipPolicyType = "UNLIMITED";
+
+    @Column(name = "skip_reset_type")
+    private String skipResetType;
+
+    @Column(name = "skip_reset_date")
+    private String skipResetDate;
+
+    @Column(name = "skip_count")
+    private Integer skipCount;
+
+    @Column(name = "max_consecutive_skips")
+    private Integer maxConsecutiveSkips;
+
+    @Column(name = "skip_policy_notes", columnDefinition = "TEXT")
+    private String skipPolicyNotes;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "subscription_shipping_country", joinColumns = @JoinColumn(name = "subscription_id"))
     @Column(name = "country")
@@ -70,4 +88,16 @@ public class Subscription {
     public void setBookishMerch(boolean bookishMerch) { this.bookishMerch = bookishMerch; }
     public List<SubscriptionMonth> getMonths() { return months; }
     public void setMonths(List<SubscriptionMonth> months) { this.months = months != null ? months : new ArrayList<>(); }
+    public String getSkipPolicyType() { return skipPolicyType; }
+    public void setSkipPolicyType(String skipPolicyType) { this.skipPolicyType = skipPolicyType != null ? skipPolicyType : "UNLIMITED"; }
+    public String getSkipResetType() { return skipResetType; }
+    public void setSkipResetType(String skipResetType) { this.skipResetType = skipResetType; }
+    public String getSkipResetDate() { return skipResetDate; }
+    public void setSkipResetDate(String skipResetDate) { this.skipResetDate = skipResetDate; }
+    public Integer getSkipCount() { return skipCount; }
+    public void setSkipCount(Integer skipCount) { this.skipCount = skipCount; }
+    public Integer getMaxConsecutiveSkips() { return maxConsecutiveSkips; }
+    public void setMaxConsecutiveSkips(Integer maxConsecutiveSkips) { this.maxConsecutiveSkips = maxConsecutiveSkips; }
+    public String getSkipPolicyNotes() { return skipPolicyNotes; }
+    public void setSkipPolicyNotes(String skipPolicyNotes) { this.skipPolicyNotes = skipPolicyNotes; }
 }

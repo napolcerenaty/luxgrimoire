@@ -11,6 +11,8 @@ import com.luxgrimoire.backend.repository.ErrorReportRepository;
 import com.luxgrimoire.backend.repository.SubscriptionRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.DeletionLogService;
+import com.luxgrimoire.backend.service.FileStorageService;
+import org.springframework.web.multipart.MultipartFile;
 import com.luxgrimoire.backend.model.AppUser;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
@@ -39,6 +41,7 @@ public class AdminController {
     private final SubscriptionRepository   subscriptionRepo;
     private final DeletionLogRepository    deletionLogRepo;
     private final DeletionLogService       deletionLogService;
+    private final FileStorageService       fileStorageService;
 
     public AdminController(AppUserRepository userRepo,
                            ErrorReportRepository reportRepo,
@@ -46,7 +49,8 @@ public class AdminController {
                            BookBoxCompanyStore companyStore,
                            SubscriptionRepository subscriptionRepo,
                            DeletionLogRepository deletionLogRepo,
-                           DeletionLogService deletionLogService) {
+                           DeletionLogService deletionLogService,
+                           FileStorageService fileStorageService) {
         this.userRepo           = userRepo;
         this.reportRepo         = reportRepo;
         this.dataRequestRepo    = dataRequestRepo;
@@ -54,6 +58,7 @@ public class AdminController {
         this.subscriptionRepo   = subscriptionRepo;
         this.deletionLogRepo    = deletionLogRepo;
         this.deletionLogService = deletionLogService;
+        this.fileStorageService = fileStorageService;
     }
 
     // ── Guard helpers ─────────────────────────────────────────────────────────
@@ -180,6 +185,33 @@ public class AdminController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // ─── applySubBody ─────────────────────────────────────────────────────────
+
+    private void applySubBody(Subscription sub, Map<String, Object> body) {
+        if (body.containsKey("name"))        sub.setName((String) body.get("name"));
+        if (body.containsKey("type"))        sub.setType((String) body.get("type"));
+        if (body.containsKey("logoUrl"))     sub.setLogoUrl((String) body.get("logoUrl"));
+        Object basePrice = body.get("basePrice");
+        if (basePrice != null) {
+            try { sub.setBasePrice(new java.math.BigDecimal(basePrice.toString())); } catch (NumberFormatException ignored) {}
+        }
+        if (body.get("shipsInternationally") instanceof Boolean b) sub.setShipsInternationally(b);
+        if (body.get("bookishMerch") instanceof Boolean b)         sub.setBookishMerch(b);
+        @SuppressWarnings("unchecked") List<String> genres    = (List<String>) body.get("genres");
+        if (genres    != null) sub.setGenres(genres);
+        @SuppressWarnings("unchecked") List<String> countries = (List<String>) body.get("shippingCountries");
+        if (countries != null) sub.setShippingCountries(countries);
+        // skip policy
+        if (body.containsKey("skipPolicyType"))     sub.setSkipPolicyType((String) body.get("skipPolicyType"));
+        if (body.containsKey("skipResetType"))      sub.setSkipResetType((String) body.get("skipResetType"));
+        if (body.containsKey("skipResetDate"))      sub.setSkipResetDate((String) body.get("skipResetDate"));
+        Object skipCount = body.get("skipCount");
+        if (skipCount != null) { try { sub.setSkipCount(Integer.valueOf(skipCount.toString())); } catch (NumberFormatException ignored) {} }
+        Object maxConsec = body.get("maxConsecutiveSkips");
+        if (maxConsec != null) { try { sub.setMaxConsecutiveSkips(Integer.valueOf(maxConsec.toString())); } catch (NumberFormatException ignored) {} }
+        if (body.containsKey("skipPolicyNotes"))    sub.setSkipPolicyNotes((String) body.get("skipPolicyNotes"));
+    }
+
     // ── Subscriptions (admin) ─────────────────────────────────────────────────
 
     @PostMapping("/companies/{id}/subscriptions")
@@ -192,27 +224,7 @@ public class AdminController {
         if (companyStore.findById(id).isEmpty()) return notFound();
 
         Subscription sub = new Subscription();
-        sub.setName((String) body.get("name"));
-        sub.setType((String) body.get("type"));
-        sub.setLogoUrl((String) body.get("logoUrl"));
-
-        Object basePrice = body.get("basePrice");
-        if (basePrice != null) {
-            try { sub.setBasePrice(new BigDecimal(basePrice.toString())); } catch (NumberFormatException ignored) {}
-        }
-        Object shipsIntl = body.get("shipsInternationally");
-        if (shipsIntl instanceof Boolean b) sub.setShipsInternationally(b);
-
-        Object bookishMerch = body.get("bookishMerch");
-        if (bookishMerch instanceof Boolean b) sub.setBookishMerch(b);
-
-        @SuppressWarnings("unchecked")
-        List<String> genres = (List<String>) body.get("genres");
-        if (genres != null) sub.setGenres(genres);
-
-        @SuppressWarnings("unchecked")
-        List<String> countries = (List<String>) body.get("shippingCountries");
-        if (countries != null) sub.setShippingCountries(countries);
+        applySubBody(sub, body);
 
         Subscription saved = companyStore.addSubscription(id, sub);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -234,6 +246,59 @@ public class AdminController {
             companyStore.deleteSubscription(subId);
             return ResponseEntity.noContent().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/companies/{companyId}/subscriptions/{subId}")
+    @Transactional
+    public ResponseEntity<?> updateSubscription(@PathVariable String companyId,
+                                                @PathVariable String subId,
+                                                @RequestBody Map<String, Object> body,
+                                                HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return subscriptionRepo.findById(subId).map(sub -> {
+            applySubBody(sub, body);
+            return ResponseEntity.ok((Object) subscriptionRepo.save(sub));
+        }).orElse(notFound());
+    }
+
+    @PostMapping(value = "/companies/{id}/logo", consumes = "multipart/form-data")
+    @Transactional
+    public ResponseEntity<?> uploadCompanyLogo(@PathVariable String id,
+                                               @RequestParam("file") MultipartFile file,
+                                               HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return companyStore.findById(id).map(company -> {
+            try {
+                String url = fileStorageService.storeLogo("companies", id, file);
+                company.setLogoUrl(url);
+                companyStore.save(company);
+                return ResponseEntity.ok((Object) Map.of("logoUrl", url));
+            } catch (java.io.IOException e) {
+                return ResponseEntity.status(500).<Object>body(Map.of("error", "Upload failed"));
+            }
+        }).orElse(notFound());
+    }
+
+    @PostMapping(value = "/companies/{companyId}/subscriptions/{subId}/logo", consumes = "multipart/form-data")
+    @Transactional
+    public ResponseEntity<?> uploadSubscriptionLogo(@PathVariable String companyId,
+                                                    @PathVariable String subId,
+                                                    @RequestParam("file") MultipartFile file,
+                                                    HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return subscriptionRepo.findById(subId).map(sub -> {
+            try {
+                String url = fileStorageService.storeLogo("subscriptions", subId, file);
+                sub.setLogoUrl(url);
+                subscriptionRepo.save(sub);
+                return ResponseEntity.ok((Object) Map.of("logoUrl", url));
+            } catch (java.io.IOException e) {
+                return ResponseEntity.status(500).<Object>body(Map.of("error", "Upload failed"));
+            }
+        }).orElse(notFound());
     }
 
     // ── Error Reports ─────────────────────────────────────────────────────────
