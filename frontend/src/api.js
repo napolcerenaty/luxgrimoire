@@ -43,6 +43,8 @@ export const API = {
   USER_SUBSCRIPTIONS:       `${API_BASE}/api/user/subscriptions`,
   USER_SUBSCRIPTION: (id)=> `${API_BASE}/api/user/subscriptions/${id}`,
   USER_SUBSCRIPTION_COST_HISTORY: (id) => `${API_BASE}/api/user/subscriptions/${id}/cost-history`,
+  USER_SUB_BILLING_PERIODS: (id) => `${API_BASE}/api/user/subscriptions/${id}/billing-periods`,
+  USER_SUB_BILLING_PERIOD: (entryId, periodId) => `${API_BASE}/api/user/subscriptions/${entryId}/billing-periods/${periodId}`,
 
   // Search
   SEARCH: `${API_BASE}/api/search`,

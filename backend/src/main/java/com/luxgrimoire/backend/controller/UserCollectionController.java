@@ -132,6 +132,44 @@ public class UserCollectionController {
         }
     }
 
+    // ── Billing periods ────────────────────────────────────────────────────
+
+    @GetMapping("/subscriptions/{id}/billing-periods")
+    public ResponseEntity<?> getBillingPeriods(@PathVariable String id, HttpSession session) {
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        try {
+            return ResponseEntity.ok(userStore.getBillingPeriods(username, id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+        }
+    }
+
+    @PostMapping("/subscriptions/{id}/billing-periods")
+    public ResponseEntity<?> addBillingPeriod(@PathVariable String id,
+            @RequestBody Map<String, Object> body, HttpSession session) {
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        try {
+            UserSubBillingPeriod period = userStore.addBillingPeriod(username, id, body);
+            return ResponseEntity.status(HttpStatus.CREATED).body(period);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+        }
+    }
+
+    @DeleteMapping("/subscriptions/{entryId}/billing-periods/{periodId}")
+    public ResponseEntity<?> deleteBillingPeriod(@PathVariable String entryId,
+            @PathVariable String periodId, HttpSession session) {
+        String username = resolveUsername(session);
+        if (username == null) return unauthorized();
+        boolean removed = userStore.deleteBillingPeriod(username, entryId, periodId);
+        if (removed) deletionLogService.log(username, "UserSubBillingPeriod", periodId,
+                "User @" + username + " removed billing period " + periodId + " from entry " + entryId);
+        return removed ? ResponseEntity.ok(Map.of("removed", true))
+                       : ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private String resolveUsername(HttpSession session) {

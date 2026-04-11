@@ -91,6 +91,11 @@ public class Subscription {
     @BatchSize(size = 100)
     private List<SubscriptionMonth> months = new ArrayList<>();
 
+    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference("subscription-prepay-options")
+    @BatchSize(size = 20)
+    private List<SubscriptionPrepayOption> prepayOptions = new ArrayList<>();
+
     public Subscription() {
         this.id = UUID.randomUUID().toString();
     }
@@ -137,4 +142,6 @@ public class Subscription {
     public void setRenewalDayUserSet(boolean renewalDayUserSet) { this.renewalDayUserSet = renewalDayUserSet; }
     public List<Subscription> getComboComponents() { return comboComponents; }
     public void setComboComponents(List<Subscription> comboComponents) { this.comboComponents = comboComponents != null ? comboComponents : new ArrayList<>(); }
+    public List<SubscriptionPrepayOption> getPrepayOptions() { return prepayOptions; }
+    public void setPrepayOptions(List<SubscriptionPrepayOption> prepayOptions) { this.prepayOptions = prepayOptions != null ? prepayOptions : new ArrayList<>(); }
 }

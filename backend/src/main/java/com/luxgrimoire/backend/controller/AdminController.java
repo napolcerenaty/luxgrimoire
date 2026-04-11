@@ -4,11 +4,13 @@ import com.luxgrimoire.backend.model.BookBoxCompany;
 import com.luxgrimoire.backend.model.DataRequest;
 import com.luxgrimoire.backend.model.ErrorReport;
 import com.luxgrimoire.backend.model.Subscription;
+import com.luxgrimoire.backend.model.SubscriptionPrepayOption;
 import com.luxgrimoire.backend.repository.AppUserRepository;
 import com.luxgrimoire.backend.repository.DataRequestRepository;
 import com.luxgrimoire.backend.repository.DeletionLogRepository;
 import com.luxgrimoire.backend.repository.ErrorReportRepository;
 import com.luxgrimoire.backend.repository.SubscriptionRepository;
+import com.luxgrimoire.backend.repository.SubscriptionPrepayOptionRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.DeletionLogService;
 import com.luxgrimoire.backend.service.FileStorageService;
@@ -39,6 +41,7 @@ public class AdminController {
     private final DataRequestRepository    dataRequestRepo;
     private final BookBoxCompanyStore      companyStore;
     private final SubscriptionRepository   subscriptionRepo;
+    private final SubscriptionPrepayOptionRepository prepayOptionRepo;
     private final DeletionLogRepository    deletionLogRepo;
     private final DeletionLogService       deletionLogService;
     private final FileStorageService       fileStorageService;
@@ -48,6 +51,7 @@ public class AdminController {
                            DataRequestRepository dataRequestRepo,
                            BookBoxCompanyStore companyStore,
                            SubscriptionRepository subscriptionRepo,
+                           SubscriptionPrepayOptionRepository prepayOptionRepo,
                            DeletionLogRepository deletionLogRepo,
                            DeletionLogService deletionLogService,
                            FileStorageService fileStorageService) {
@@ -56,6 +60,7 @@ public class AdminController {
         this.dataRequestRepo    = dataRequestRepo;
         this.companyStore       = companyStore;
         this.subscriptionRepo   = subscriptionRepo;
+        this.prepayOptionRepo   = prepayOptionRepo;
         this.deletionLogRepo    = deletionLogRepo;
         this.deletionLogService = deletionLogService;
         this.fileStorageService = fileStorageService;
@@ -236,6 +241,24 @@ public class AdminController {
                     .filter(s -> !s.isCombo())
                     .toList();
             sub.setComboComponents(new java.util.ArrayList<>(components));
+        }
+        // prepay options
+        @SuppressWarnings("unchecked") List<Map<String, Object>> prepayList =
+                (List<Map<String, Object>>) body.get("prepayOptions");
+        if (prepayList != null) {
+            sub.getPrepayOptions().clear();
+            for (Map<String, Object> opt : prepayList) {
+                SubscriptionPrepayOption option = new SubscriptionPrepayOption();
+                option.setSubscription(sub);
+                if (opt.get("months") != null) {
+                    try { option.setMonths(Integer.parseInt(opt.get("months").toString())); } catch (NumberFormatException ignored) {}
+                }
+                if (opt.get("price") != null) {
+                    try { option.setPrice(new java.math.BigDecimal(opt.get("price").toString())); } catch (NumberFormatException ignored) {}
+                }
+                if (opt.get("label") instanceof String lbl) option.setLabel(lbl);
+                sub.getPrepayOptions().add(option);
+            }
         }
     }
 

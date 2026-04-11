@@ -164,7 +164,48 @@ const EMPTY_SUB = {
   shipsInternationally: true, bookishMerch: false, genres: "",
   skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
   skipResetDate: "", skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
+  prepayOptions: [],
 };
+
+const EMPTY_PREPAY = { months: "", price: "", label: "" };
+
+function PrepayOptionsEditor({ value = [], onChange }) {
+  const add = () => onChange([...value, { ...EMPTY_PREPAY }]);
+  const remove = i => onChange(value.filter((_, idx) => idx !== i));
+  const update = (i, field, val) => onChange(value.map((o, idx) => idx === i ? { ...o, [field]: val } : o));
+  return (
+    <div className="admin-skip-policy" style={{ marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+        <span className="admin-form-label" style={{ margin: 0 }}>Opcje płatności z góry</span>
+        <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={add}>+ Dodaj opcję</button>
+      </div>
+      {value.length === 0 && (
+        <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-ghost)" }}>Brak opcji — tylko płatność miesięczna</p>
+      )}
+      {value.map((opt, i) => (
+        <div key={i} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "flex-end", marginBottom: "0.5rem" }}>
+          <div className="admin-form-row" style={{ minWidth: 70 }}>
+            <label className="admin-form-label">Miesięcy</label>
+            <input type="number" min="2" max="24" className="admin-form-input"
+              value={opt.months} onChange={e => update(i, "months", e.target.value)} placeholder="np. 6" />
+          </div>
+          <div className="admin-form-row" style={{ minWidth: 90 }}>
+            <label className="admin-form-label">Cena łączna</label>
+            <input type="number" step="0.01" min="0" className="admin-form-input"
+              value={opt.price} onChange={e => update(i, "price", e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+            <label className="admin-form-label">Etykieta (opcja)</label>
+            <input className="admin-form-input"
+              value={opt.label} onChange={e => update(i, "label", e.target.value)} placeholder="np. Pół roku" />
+          </div>
+          <button type="button" className="admin-btn admin-btn--danger admin-btn--sm"
+            style={{ marginBottom: "0.2rem" }} onClick={() => remove(i)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
   const [form, setForm]               = useState(EMPTY_SUB);
@@ -200,7 +241,6 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       name:                 form.name.trim(),
       type:                 form.type,
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
-      estimatedShipping:    form.estimatedShipping ? parseFloat(form.estimatedShipping) : null,
       renewalDay:           (!form.renewalDayUserSet && form.renewalDay) ? parseInt(form.renewalDay) : null,
       renewalDayUserSet:    form.renewalDayUserSet,
       isCombo:              form.isCombo,
@@ -214,6 +254,9 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
       maxConsecutiveSkips:  form.skipPolicyType === "LIMITED" && form.maxConsecutiveSkips ? parseInt(form.maxConsecutiveSkips) : null,
       skipPolicyNotes:      form.skipPolicyNotes || null,
+      prepayOptions:        form.prepayOptions
+        .filter(o => o.months && o.price)
+        .map(o => ({ months: parseInt(o.months), price: parseFloat(o.price), label: o.label || null })),
       _logoFile:            logoFile,
       _logoPreview:         logoPreview,
     });
@@ -316,6 +359,10 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
         <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
 
         <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
+
+        <PrepayOptionsEditor
+          value={form.prepayOptions}
+          onChange={opts => setForm(prev => ({ ...prev, prepayOptions: opts }))} />
 
         <div className="admin-form-btns" style={{ marginTop: "0.75rem" }}>
           <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onCancel}>Anuluj</button>

@@ -1,9 +1,13 @@
 package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +45,11 @@ public class UserSubscriptionEntry {
     @Column(name = "renewal_day")
     private Integer renewalDay;
 
+    @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference("entry-billing-periods")
+    @BatchSize(size = 50)
+    private List<UserSubBillingPeriod> billingPeriods = new ArrayList<>();
+
     public UserSubscriptionEntry() {}
 
     public UserSubscriptionEntry(String companyId, String subscriptionId) {
@@ -72,4 +81,6 @@ public class UserSubscriptionEntry {
     public void setActive(boolean active) { this.active = active; }
     public Integer getRenewalDay() { return renewalDay; }
     public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
+    public List<UserSubBillingPeriod> getBillingPeriods() { return billingPeriods; }
+    public void setBillingPeriods(List<UserSubBillingPeriod> billingPeriods) { this.billingPeriods = billingPeriods != null ? billingPeriods : new ArrayList<>(); }
 }

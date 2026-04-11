@@ -19,15 +19,18 @@ public class UserStore {
     private final UserBookEntryRepository bookEntryRepo;
     private final UserSubscriptionEntryRepository subEntryRepo;
     private final UserSubscriptionCostChangeRepository costChangeRepo;
+    private final UserSubBillingPeriodRepository billingPeriodRepo;
 
     public UserStore(AppUserRepository userRepo,
                      UserBookEntryRepository bookEntryRepo,
                      UserSubscriptionEntryRepository subEntryRepo,
-                     UserSubscriptionCostChangeRepository costChangeRepo) {
+                     UserSubscriptionCostChangeRepository costChangeRepo,
+                     UserSubBillingPeriodRepository billingPeriodRepo) {
         this.userRepo = userRepo;
         this.bookEntryRepo = bookEntryRepo;
         this.subEntryRepo = subEntryRepo;
         this.costChangeRepo = costChangeRepo;
+        this.billingPeriodRepo = billingPeriodRepo;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -142,7 +145,13 @@ public class UserStore {
                 entry.setRenewalDay(rd.intValue());
             }
         }
-        return subEntryRepo.save(entry);
+        UserSubscriptionEntry saved = subEntryRepo.save(entry);
+        // Record first billing period if provided
+        if (body != null && body.get("billingPeriod") instanceof Map<?,?> bpRaw) {
+            @SuppressWarnings("unchecked") Map<String, Object> bp = (Map<String, Object>) bpRaw;
+            addBillingPeriodToEntry(saved, bp);
+        }
+        return saved;
     }
 
     @Transactional
@@ -180,6 +189,46 @@ public class UserStore {
                 .filter(e -> e.getUser() != null && username.equals(e.getUser().getUsername()))
                 .orElseThrow();
         return costChangeRepo.findByEntryIdOrderByEffectiveFromYearAscEffectiveFromMonthAsc(entryId);
+    }
+
+    // ── Billing periods ────────────────────────────────────────────────────
+
+    @Transactional
+    public UserSubBillingPeriod addBillingPeriod(String username, String entryId, Map<String, Object> body) {
+        UserSubscriptionEntry entry = subEntryRepo.findById(entryId)
+                .filter(e -> e.getUser() != null && username.equals(e.getUser().getUsername()))
+                .orElseThrow();
+        return addBillingPeriodToEntry(entry, body);
+    }
+
+    private UserSubBillingPeriod addBillingPeriodToEntry(UserSubscriptionEntry entry, Map<String, Object> body) {
+        UserSubBillingPeriod period = new UserSubBillingPeriod();
+        period.setEntry(entry);
+        if (body.get("billedAt") instanceof String ba) period.setBilledAt(ba);
+        if (body.get("amountPaid") instanceof Number ap) period.setAmountPaid(new BigDecimal(ap.toString()));
+        if (body.get("monthsCovered") instanceof Number mc) period.setMonthsCovered(mc.intValue());
+        if (body.get("coveredFromMonth") instanceof Number cfm) period.setCoveredFromMonth(cfm.intValue());
+        if (body.get("coveredFromYear") instanceof Number cfy) period.setCoveredFromYear(cfy.intValue());
+        if (body.get("prepayOptionId") instanceof String poi) period.setPrepayOptionId(poi);
+        if (body.get("notes") instanceof String n) period.setNotes(n);
+        return billingPeriodRepo.save(period);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSubBillingPeriod> getBillingPeriods(String username, String entryId) {
+        subEntryRepo.findById(entryId)
+                .filter(e -> e.getUser() != null && username.equals(e.getUser().getUsername()))
+                .orElseThrow();
+        return billingPeriodRepo.findByEntryIdOrderByCoveredFromYearAscCoveredFromMonthAsc(entryId);
+    }
+
+    @Transactional
+    public boolean deleteBillingPeriod(String username, String entryId, String periodId) {
+        return billingPeriodRepo.findById(periodId)
+                .filter(p -> p.getEntry() != null && entryId.equals(p.getEntry().getId())
+                        && p.getEntry().getUser() != null && username.equals(p.getEntry().getUser().getUsername()))
+                .map(p -> { billingPeriodRepo.delete(p); return true; })
+                .orElse(false);
     }
 }
 

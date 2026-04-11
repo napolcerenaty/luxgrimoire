@@ -367,7 +367,9 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
   const locale = LANG_LOCALE[lang] ?? "en-GB";
   const [entry, setEntry] = useState(initialEntry);
   const [costHistory, setCostHistory] = useState([]);
+  const [billingPeriods, setBillingPeriods] = useState([]);
   const [editingCosts, setEditingCosts] = useState(false);
+  const [addingBillingPeriod, setAddingBillingPeriod] = useState(false);
   const now = new Date();
   const [costForm, setCostForm] = useState({
     effectiveFromMonth: now.getMonth() + 1,
@@ -375,12 +377,29 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
     shippingCost: "",
     taxesAndFees: "",
   });
+  const [bpForm, setBpForm] = useState({
+    billedAt: new Date().toISOString().slice(0, 10),
+    amountPaid: "",
+    monthsCovered: "1",
+    coveredFromMonth: String(now.getMonth() + 1),
+    coveredFromYear: String(now.getFullYear()),
+    prepayOptionId: "",
+    notes: "",
+  });
+
+  const loadBillingPeriods = () => {
+    fetch(API.USER_SUB_BILLING_PERIODS(entry.id), { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setBillingPeriods)
+      .catch(() => {});
+  };
 
   useEffect(() => {
     fetch(API.USER_SUBSCRIPTION_COST_HISTORY(entry.id), { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
       .then(setCostHistory)
       .catch(() => {});
+    loadBillingPeriods();
   }, [entry.id]);
 
   const renewal = nextRenewal(entry, sub);
@@ -568,6 +587,123 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
           </ul>
         </div>
       )}
+
+      {/* Billing periods */}
+      <div style={{ marginTop: "1.75rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <h4 style={{ margin: 0 }}>Okresy rozliczeniowe</h4>
+          <button className="page-btn primary" style={{ fontSize: "0.85rem" }}
+            onClick={() => setAddingBillingPeriod(true)}>+ Dodaj</button>
+        </div>
+        {billingPeriods.length === 0 && !addingBillingPeriod && (
+          <p style={{ fontSize: "0.9rem", color: "var(--text-ghost)" }}>Brak zapisanych okresów rozliczeniowych.</p>
+        )}
+        {billingPeriods.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+            {billingPeriods.map((bp) => {
+              const amortized = bp.monthsCovered > 1
+                ? ` (${(bp.amountPaid / bp.monthsCovered).toFixed(2)}/mies.)`
+                : "";
+              return (
+                <li key={bp.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem" }}>
+                  <span>
+                    {bp.coveredFromMonth}/{bp.coveredFromYear}
+                    {bp.monthsCovered > 1 ? ` – ${bp.monthsCovered} mies.` : ""}
+                    {" — "}<strong>{bp.amountPaid}</strong>{amortized}
+                    {bp.billedAt ? ` · płatność: ${bp.billedAt}` : ""}
+                    {bp.notes ? ` · ${bp.notes}` : ""}
+                  </span>
+                  <button className="page-btn" style={{ fontSize: "0.78rem", padding: "0.1rem 0.4rem" }}
+                    onClick={async () => {
+                      const res = await fetch(API.USER_SUB_BILLING_PERIOD(entry.id, bp.id), { method: "DELETE", credentials: "include" });
+                      if (res.ok) loadBillingPeriods();
+                    }}>✕</button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {addingBillingPeriod && (
+          <div style={{ marginTop: "0.75rem", padding: "0.75rem", background: "var(--bg-subtle)", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {/* Prepay option shortcuts */}
+            {sub?.prepayOptions && sub.prepayOptions.length > 0 && (
+              <div>
+                <div style={{ fontSize: "0.85rem", fontWeight: 500, marginBottom: "0.3rem" }}>Szybki wybór opcji z góry:</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  <button type="button" className="page-btn"
+                    style={{ fontSize: "0.82rem" }}
+                    onClick={() => setBpForm(f => ({ ...f, monthsCovered: "1", amountPaid: String(sub.basePrice ?? ""), prepayOptionId: "" }))}>
+                    Miesięczna ({sub.basePrice})
+                  </button>
+                  {sub.prepayOptions.map(opt => (
+                    <button key={opt.id} type="button" className="page-btn"
+                      style={{ fontSize: "0.82rem" }}
+                      onClick={() => setBpForm(f => ({ ...f, monthsCovered: String(opt.months), amountPaid: String(opt.price), prepayOptionId: opt.id }))}>
+                      {opt.label || `${opt.months} mies.`} ({opt.price})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <label style={{ fontSize: "0.88rem" }}>
+                Data płatności
+                <input type="date" className="admin-form-input" style={{ display: "block" }}
+                  value={bpForm.billedAt} onChange={e => setBpForm(f => ({ ...f, billedAt: e.target.value }))} />
+              </label>
+              <label style={{ fontSize: "0.88rem" }}>
+                Kwota
+                <input type="number" step="0.01" min="0" className="admin-form-input" style={{ display: "block" }}
+                  value={bpForm.amountPaid} onChange={e => setBpForm(f => ({ ...f, amountPaid: e.target.value }))} placeholder="0.00" />
+              </label>
+              <label style={{ fontSize: "0.88rem" }}>
+                Mies. pokrytych
+                <input type="number" min="1" max="24" className="admin-form-input" style={{ display: "block" }}
+                  value={bpForm.monthsCovered} onChange={e => setBpForm(f => ({ ...f, monthsCovered: e.target.value }))} />
+              </label>
+              <label style={{ fontSize: "0.88rem" }}>
+                Od miesiąca
+                <input type="number" min="1" max="12" className="admin-form-input" style={{ display: "block" }}
+                  value={bpForm.coveredFromMonth} onChange={e => setBpForm(f => ({ ...f, coveredFromMonth: e.target.value }))} />
+              </label>
+              <label style={{ fontSize: "0.88rem" }}>
+                Od roku
+                <input type="number" min="2020" max="2099" className="admin-form-input" style={{ display: "block" }}
+                  value={bpForm.coveredFromYear} onChange={e => setBpForm(f => ({ ...f, coveredFromYear: e.target.value }))} />
+              </label>
+            </div>
+            <label style={{ fontSize: "0.88rem" }}>
+              Notatka (opcjonalnie)
+              <input className="admin-form-input" style={{ display: "block" }}
+                value={bpForm.notes} onChange={e => setBpForm(f => ({ ...f, notes: e.target.value }))} />
+            </label>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button className="page-btn primary" onClick={async () => {
+                const body = {
+                  billedAt: bpForm.billedAt,
+                  amountPaid: bpForm.amountPaid !== "" ? parseFloat(bpForm.amountPaid) : null,
+                  monthsCovered: parseInt(bpForm.monthsCovered) || 1,
+                  coveredFromMonth: parseInt(bpForm.coveredFromMonth),
+                  coveredFromYear: parseInt(bpForm.coveredFromYear),
+                  prepayOptionId: bpForm.prepayOptionId || null,
+                  notes: bpForm.notes || null,
+                };
+                const res = await fetch(API.USER_SUB_BILLING_PERIODS(entry.id), {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify(body),
+                });
+                if (res.ok) {
+                  loadBillingPeriods();
+                  setAddingBillingPeriod(false);
+                }
+              }}>Zapisz</button>
+              <button className="page-btn" onClick={() => setAddingBillingPeriod(false)}>Anuluj</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {company?.description && (
         <p className="account-sub-detail-desc">{company.description}</p>

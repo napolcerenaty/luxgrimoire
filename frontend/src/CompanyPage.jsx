@@ -14,7 +14,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   // subscribe form state
   const today = new Date().toISOString().slice(0, 10);
-  const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "" });
+  const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "", prepayOptionId: null });
 
   const canManage = user && (user.role === "admin" || company?.managerUsernames?.includes(user.username));
   const canDelete = user && user.role === "admin";
@@ -28,6 +28,38 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   }, [user]);
 
   const doAddSub = async (sub, formData) => {
+    const now = new Date();
+    // Determine billing period data
+    let billingPeriod = null;
+    if (formData.prepayOptionId && sub.prepayOptions) {
+      const opt = sub.prepayOptions.find(o => o.id === formData.prepayOptionId);
+      if (opt) {
+        const startDate = formData.startDate || today;
+        const [year, month] = startDate.split("-").map(Number);
+        billingPeriod = {
+          billedAt: startDate,
+          amountPaid: opt.price,
+          monthsCovered: opt.months,
+          coveredFromMonth: month,
+          coveredFromYear: year,
+          prepayOptionId: opt.id,
+        };
+      }
+    } else {
+      // Regular monthly billing period
+      const startDate = formData.startDate || today;
+      const [year, month] = startDate.split("-").map(Number);
+      const basePrice = sub.basePrice;
+      if (basePrice) {
+        billingPeriod = {
+          billedAt: startDate,
+          amountPaid: basePrice,
+          monthsCovered: 1,
+          coveredFromMonth: month,
+          coveredFromYear: year,
+        };
+      }
+    }
     const body = {
       companyId: company.id,
       subscriptionId: sub.id,
@@ -36,6 +68,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       taxesAndFees: formData.taxesAndFees !== "" ? parseFloat(formData.taxesAndFees) : null,
       startingMonth: formData.startingMonth !== "" ? parseInt(formData.startingMonth) : null,
       renewalDay:    formData.renewalDay    !== "" ? parseInt(formData.renewalDay)    : null,
+      ...(billingPeriod ? { billingPeriod } : {}),
     };
     const res = await fetch("http://localhost:8080/api/user/subscriptions", {
       method: "POST",
@@ -56,7 +89,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const handleSubscribe = (sub) => {
     if (!user) return;
     const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === company.id).length;
-    const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "" };
+    const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "", prepayOptionId: null };
     setSubForm(resetForm);
     setSubscribeModal({ sub, isDupe: count > 0, count });
   };
@@ -158,6 +191,26 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                     placeholder="np. 15"
                   />
                 </label>
+              )}
+              {/* Prepay options */}
+              {subscribeModal.sub.prepayOptions && subscribeModal.sub.prepayOptions.length > 0 && (
+                <div style={{ fontSize: "0.9rem" }}>
+                  <div style={{ marginBottom: "0.3rem", fontWeight: 500 }}>Opcja płatności</div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                    <input type="radio" name="prepayOption" value=""
+                      checked={!subForm.prepayOptionId}
+                      onChange={() => setSubForm(f => ({ ...f, prepayOptionId: null }))} />
+                    Płatność miesięczna ({subscribeModal.sub.basePrice ?? "—"})
+                  </label>
+                  {subscribeModal.sub.prepayOptions.map(opt => (
+                    <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                      <input type="radio" name="prepayOption" value={opt.id}
+                        checked={subForm.prepayOptionId === opt.id}
+                        onChange={() => setSubForm(f => ({ ...f, prepayOptionId: opt.id }))} />
+                      {opt.label || `${opt.months} mies.`} — {opt.price} ({((opt.price / opt.months)).toFixed(2)}/mies.)
+                    </label>
+                  ))}
+                </div>
               )}
             </div>
             <div className="uc-confirm-btns">
