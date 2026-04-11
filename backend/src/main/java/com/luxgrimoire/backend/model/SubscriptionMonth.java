@@ -2,6 +2,7 @@ package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -23,6 +24,9 @@ public class SubscriptionMonth {
     private int year;
     private String bookId;
 
+    @Column(name = "actual_shipping")
+    private BigDecimal actualShipping;
+
     public SubscriptionMonth() {
         this.id = UUID.randomUUID().toString();
     }
@@ -41,4 +45,6 @@ public class SubscriptionMonth {
     public void setYear(int year) { this.year = year; }
     public String getBookId() { return bookId; }
     public void setBookId(String bookId) { this.bookId = bookId; }
+    public BigDecimal getActualShipping() { return actualShipping; }
+    public void setActualShipping(BigDecimal actualShipping) { this.actualShipping = actualShipping; }
 }

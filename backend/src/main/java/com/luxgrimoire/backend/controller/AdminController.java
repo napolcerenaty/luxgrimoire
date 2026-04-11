@@ -117,6 +117,16 @@ public class AdminController {
         return ResponseEntity.ok(companyStore.findAll());
     }
 
+    @GetMapping("/companies/{id}/subscriptions")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> listCompanySubscriptions(@PathVariable String id, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return companyStore.findById(id)
+                .map(c -> ResponseEntity.ok((Object) c.getSubscriptions()))
+                .orElse(notFound());
+    }
+
     @GetMapping("/companies/{id}")
     public ResponseEntity<?> getCompany(@PathVariable String id, HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
@@ -210,6 +220,22 @@ public class AdminController {
         Object maxConsec = body.get("maxConsecutiveSkips");
         if (maxConsec != null) { try { sub.setMaxConsecutiveSkips(Integer.valueOf(maxConsec.toString())); } catch (NumberFormatException ignored) {} }
         if (body.containsKey("skipPolicyNotes"))    sub.setSkipPolicyNotes((String) body.get("skipPolicyNotes"));
+        // combo
+        if (body.get("isCombo") instanceof Boolean b) sub.setCombo(b);
+        Object estimatedShipping = body.get("estimatedShipping");
+        if (estimatedShipping != null) {
+            try { sub.setEstimatedShipping(new java.math.BigDecimal(estimatedShipping.toString())); } catch (NumberFormatException ignored) {}
+        }
+        @SuppressWarnings("unchecked") List<String> componentIds = (List<String>) body.get("comboComponentIds");
+        if (componentIds != null) {
+            List<com.luxgrimoire.backend.model.Subscription> components = componentIds.stream()
+                    .map(subscriptionRepo::findById)
+                    .filter(java.util.Optional::isPresent)
+                    .map(java.util.Optional::get)
+                    .filter(s -> !s.isCombo())
+                    .toList();
+            sub.setComboComponents(new java.util.ArrayList<>(components));
+        }
     }
 
     // ── Subscriptions (admin) ─────────────────────────────────────────────────

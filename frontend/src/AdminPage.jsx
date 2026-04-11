@@ -158,19 +158,20 @@ function SkipPolicyEditor({ value, onChange }) {
 
 // ─── SubscriptionInlineForm ───────────────────────────────────────────────────
 const EMPTY_SUB = {
-  name: "", type: "MONTHLY", basePrice: "", shipsInternationally: true,
-  bookishMerch: false, genres: "",
+  name: "", type: "MONTHLY", basePrice: "", estimatedShipping: "",
+  isCombo: false, comboComponentIds: [],
+  shipsInternationally: true, bookishMerch: false, genres: "",
   skipPolicyType: "UNLIMITED", skipResetType: "MONTHLY",
   skipResetDate: "", skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
 };
 
-function SubscriptionInlineForm({ onAdd, onCancel }) {
-  const [form, setForm]           = useState(EMPTY_SUB);
-  const [logoFile, setLogoFile]   = useState(null);
+function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
+  const [form, setForm]               = useState(EMPTY_SUB);
+  const [logoFile, setLogoFile]       = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
 
-  const set    = field => e   => setForm(prev => ({ ...prev, [field]: e.target.value }));
-  const toggle = field => ()  => setForm(prev => ({ ...prev, [field]: !prev[field] }));
+  const set    = field => e  => setForm(prev => ({ ...prev, [field]: e.target.value }));
+  const toggle = field => () => setForm(prev => ({ ...prev, [field]: !prev[field] }));
 
   const handleLogoChange = e => {
     const file = e.target.files[0];
@@ -179,13 +180,28 @@ function SubscriptionInlineForm({ onAdd, onCancel }) {
     setLogoPreview(URL.createObjectURL(file));
   };
 
+  const toggleComponent = id =>
+    setForm(prev => ({
+      ...prev,
+      comboComponentIds: prev.comboComponentIds.includes(id)
+        ? prev.comboComponentIds.filter(x => x !== id)
+        : [...prev.comboComponentIds, id],
+    }));
+
   const handleAdd = e => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (form.isCombo && form.comboComponentIds.length < 2) {
+      alert("Subskrypcja combo musi zawierać co najmniej 2 składowe.");
+      return;
+    }
     onAdd({
       name:                 form.name.trim(),
       type:                 form.type,
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
+      estimatedShipping:    form.estimatedShipping ? parseFloat(form.estimatedShipping) : null,
+      isCombo:              form.isCombo,
+      comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
       bookishMerch:         form.bookishMerch,
       genres:               form.genres.split(",").map(g => g.trim()).filter(Boolean),
@@ -200,43 +216,88 @@ function SubscriptionInlineForm({ onAdd, onCancel }) {
     });
   };
 
+  const nonComboCandidates = availableComponents.filter(s => !s.isCombo && !s._tempId);
+
   return (
     <div className="admin-sub-inline-form">
       <form onSubmit={handleAdd}>
+
+        {/* Combo toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginBottom: "0.5rem" }}>
+          <label className="admin-form-check" style={{ fontSize: "0.97rem" }}>
+            <input type="checkbox" checked={form.isCombo} onChange={toggle("isCombo")} />
+            <strong>Subskrypcja Combo</strong>
+          </label>
+        </div>
+
+        {/* Combo component selector */}
+        {form.isCombo && (
+          <div className="admin-skip-policy" style={{ marginBottom: "0.75rem" }}>
+            <div className="admin-form-label" style={{ marginBottom: "0.4rem" }}>
+              Składowe combo ({form.comboComponentIds.length} wybrano)
+            </div>
+            {nonComboCandidates.length === 0 ? (
+              <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-ghost)" }}>
+                Brak dostępnych subskrypcji do łączenia. Zapisz najpierw subskrypcje bazowe.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                {nonComboCandidates.map(s => (
+                  <label key={s.id} className="admin-form-check">
+                    <input type="checkbox"
+                      checked={form.comboComponentIds.includes(s.id)}
+                      onChange={() => toggleComponent(s.id)} />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <div className="admin-form-row" style={{ flex: 2, minWidth: 180 }}>
             <label className="admin-form-label">Nazwa *</label>
             <input className="admin-form-input" value={form.name} onChange={set("name")} required />
           </div>
-          <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
-            <label className="admin-form-label">Typ</label>
-            <select className="admin-form-select" value={form.type} onChange={set("type")}>
-              {SUB_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+          {!form.isCombo && (
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
+              <label className="admin-form-label">Typ</label>
+              <select className="admin-form-select" value={form.type} onChange={set("type")}>
+                {SUB_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+          )}
           <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
             <label className="admin-form-label">Cena bazowa</label>
             <input type="number" step="0.01" min="0" className="admin-form-input"
               value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
           </div>
+          <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+            <label className="admin-form-label">Wysyłka (szac.)</label>
+            <input type="number" step="0.01" min="0" className="admin-form-input"
+              value={form.estimatedShipping} onChange={set("estimatedShipping")} placeholder="0.00" />
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          <div className="admin-form-row" style={{ flex: 1 }}>
-            <label className="admin-form-label">Gatunki (przecinek)</label>
-            <input className="admin-form-input" value={form.genres} onChange={set("genres")} placeholder="Fantasy, YA…" />
+        {!form.isCombo && (
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 1 }}>
+              <label className="admin-form-label">Gatunki (przecinek)</label>
+              <input className="admin-form-input" value={form.genres} onChange={set("genres")} placeholder="Fantasy, YA…" />
+            </div>
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center", paddingTop: "1.3rem" }}>
+              <label className="admin-form-check">
+                <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
+                Wysyłka int'l
+              </label>
+              <label className="admin-form-check">
+                <input type="checkbox" checked={form.bookishMerch} onChange={toggle("bookishMerch")} />
+                Merch
+              </label>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center", paddingTop: "1.3rem" }}>
-            <label className="admin-form-check">
-              <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
-              Wysyłka int'l
-            </label>
-            <label className="admin-form-check">
-              <input type="checkbox" checked={form.bookishMerch} onChange={toggle("bookishMerch")} />
-              Merch
-            </label>
-          </div>
-        </div>
+        )}
 
         <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
 
@@ -478,6 +539,10 @@ function CompanyFormPage({ company, onSaved, onBack }) {
             <SubscriptionInlineForm
               onAdd={handleAddPendingSub}
               onCancel={() => setShowSubForm(false)}
+              availableComponents={[
+                ...existingSubs.filter(s => !s.isCombo),
+                ...pendingSubs.filter(s => !s.isCombo),
+              ]}
             />
           )}
         </div>
@@ -533,14 +598,26 @@ function CompanyDetailView({ company, onBack, onEdit, onDelete }) {
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Skip Policy</th></tr>
+                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Wysyłka</th><th>Skip Policy</th></tr>
               </thead>
               <tbody>
                 {company.subscriptions.map(sub => (
                   <tr key={sub.id}>
-                    <td><strong>{sub.name}</strong></td>
-                    <td>{sub.type || "—"}</td>
+                    <td>
+                      <strong>{sub.name}</strong>
+                      {sub.isCombo && <span className="admin-combo-badge" style={{ marginLeft: "0.5rem" }}>COMBO</span>}
+                      {sub.isCombo && sub.comboComponentIds?.length > 0 && (
+                        <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginTop: "0.2rem" }}>
+                          {sub.comboComponentIds
+                            .map(cid => company.subscriptions.find(s => s.id === cid)?.name)
+                            .filter(Boolean)
+                            .join(" + ")}
+                        </div>
+                      )}
+                    </td>
+                    <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
                     <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
+                    <td>{sub.estimatedShipping != null ? `${sub.estimatedShipping} ${company.defaultCurrency || ""}` : "—"}</td>
                     <td>
                       {sub.skipPolicyType === "LIMITED"
                         ? `Limited · reset: ${sub.skipResetType === "DATE" ? sub.skipResetDate : "miesięcznie"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`

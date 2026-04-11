@@ -801,3 +801,42 @@
     width: 100%;
   }
 }
+
+/* ── Combo picker ── */
+.admin-combo-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-combo-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.admin-combo-picker-item:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-bg, rgba(var(--accent-rgb, 180 130 80) / 0.08));
+}
+
+.admin-combo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.73rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}

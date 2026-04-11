@@ -70,6 +70,7 @@ export const API = {
   ADMIN_COMPANY_LOGO: (id) => `${API_BASE}/api/admin/companies/${id}/logo`,
   ADMIN_SUB_LOGO: (companyId, subId) => `${API_BASE}/api/admin/companies/${companyId}/subscriptions/${subId}/logo`,
   ADMIN_SUB_UPDATE: (companyId, subId) => `${API_BASE}/api/admin/companies/${companyId}/subscriptions/${subId}`,
+  ADMIN_COMPANY_SUBS_LIST: (id) => `${API_BASE}/api/admin/companies/${id}/subscriptions`,
   ADMIN_REPORTS:        `${API_BASE}/api/admin/reports`,
   ADMIN_REPORT: (id) => `${API_BASE}/api/admin/reports/${id}/status`,
   ADMIN_DATA_REQUESTS:        `${API_BASE}/api/admin/data-requests`,

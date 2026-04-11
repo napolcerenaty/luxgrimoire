@@ -1,13 +1,16 @@
 package com.luxgrimoire.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "subscription", indexes = {
@@ -46,6 +49,28 @@ public class Subscription {
 
     @Column(name = "skip_policy_notes", columnDefinition = "TEXT")
     private String skipPolicyNotes;
+
+    private boolean isCombo = false;
+
+    @Column(name = "estimated_shipping")
+    private BigDecimal estimatedShipping;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "subscription_combo_component",
+        joinColumns = @JoinColumn(name = "combo_id"),
+        inverseJoinColumns = @JoinColumn(name = "component_id")
+    )
+    @JsonIgnore
+    private List<Subscription> comboComponents = new ArrayList<>();
+
+    @Transient
+    @JsonProperty("comboComponentIds")
+    public List<String> getComboComponentIds() {
+        return comboComponents != null
+            ? comboComponents.stream().map(Subscription::getId).toList()
+            : List.of();
+    }
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "subscription_shipping_country", joinColumns = @JoinColumn(name = "subscription_id"))
@@ -100,4 +125,10 @@ public class Subscription {
     public void setMaxConsecutiveSkips(Integer maxConsecutiveSkips) { this.maxConsecutiveSkips = maxConsecutiveSkips; }
     public String getSkipPolicyNotes() { return skipPolicyNotes; }
     public void setSkipPolicyNotes(String skipPolicyNotes) { this.skipPolicyNotes = skipPolicyNotes; }
+    public boolean isCombo() { return isCombo; }
+    public void setCombo(boolean combo) { isCombo = combo; }
+    public BigDecimal getEstimatedShipping() { return estimatedShipping; }
+    public void setEstimatedShipping(BigDecimal estimatedShipping) { this.estimatedShipping = estimatedShipping; }
+    public List<Subscription> getComboComponents() { return comboComponents; }
+    public void setComboComponents(List<Subscription> comboComponents) { this.comboComponents = comboComponents != null ? comboComponents : new ArrayList<>(); }
 }
