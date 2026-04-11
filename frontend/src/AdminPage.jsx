@@ -67,6 +67,15 @@ const SUB_TYPES = [
   { value: "QUARTERLY",  label: "Kwartalna (QUARTERLY)" },
 ];
 
+const SOCIAL_PLATFORMS = [
+  { key: "instagram", label: "Instagram",  icon: "📷", placeholder: "https://instagram.com/…" },
+  { key: "threads",   label: "Threads",    icon: "🧵", placeholder: "https://threads.net/…"   },
+  { key: "tiktok",    label: "TikTok",     icon: "🎵", placeholder: "https://tiktok.com/…"    },
+  { key: "facebook",  label: "Facebook",   icon: "📘", placeholder: "https://facebook.com/…"  },
+  { key: "x",         label: "X",          icon: "✕",  placeholder: "https://x.com/…"         },
+  { key: "bluesky",   label: "Bluesky",    icon: "🦋", placeholder: "https://bsky.app/…"       },
+];
+
 // ─── ImageUpload ──────────────────────────────────────────────────────────────
 function ImageUpload({ label, currentUrl, onChange }) {
   const preview = currentUrl
@@ -446,7 +455,8 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
 }
 
 function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSaved }) {
-  const subToForm = s => ({
+  const isCreate = !sub?.id;
+  const subToForm = s => s ? ({
     name:                 s.name || "",
     type:                 s.type || "MONTHLY",
     basePrice:            s.basePrice != null ? String(s.basePrice) : "",
@@ -466,12 +476,18 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     prepayOptions:        (s.prepayOptions ?? []).map(o => ({
       months: String(o.months), price: String(o.price), label: o.label || ""
     })),
-  });
+  }) : {
+    name: "", type: "MONTHLY", basePrice: "", renewalDay: "", renewalDayUserSet: false,
+    isCombo: false, comboComponentIds: [], shipsInternationally: true, bookishMerch: false,
+    genresList: [], description: "", skipPolicyType: "UNLIMITED",
+    skipResetType: "SUBSCRIPTION_START", skipCount: "", maxConsecutiveSkips: "",
+    skipPolicyNotes: "", prepayOptions: [],
+  };
 
   const [form, setForm]               = useState(() => subToForm(sub));
   const [logoFile, setLogoFile]       = useState(null);
   const [logoPreview, setLogoPreview] = useState(
-    sub.logoUrl ? (sub.logoUrl.startsWith("http") ? sub.logoUrl : `${API.BASE}${sub.logoUrl}`) : null
+    sub?.logoUrl ? (sub.logoUrl.startsWith("http") ? sub.logoUrl : `${API.BASE}${sub.logoUrl}`) : null
   );
   const [allGenres, setAllGenres]     = useState([]);
   const [saving, setSaving]           = useState(false);
@@ -524,15 +540,25 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
         .filter(o => o.months && o.price)
         .map(o => ({ months: parseInt(o.months), price: parseFloat(o.price), label: o.label || null })),
     };
-    await fetch(API.ADMIN_SUB_UPDATE(companyId, sub.id), {
-      method: "PUT", credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (logoFile) {
+    let savedId = sub?.id;
+    if (isCreate) {
+      const r = await fetch(API.ADMIN_COMPANY_SUBS(companyId), {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) { const saved = await r.json(); savedId = saved.id; }
+    } else {
+      await fetch(API.ADMIN_SUB_UPDATE(companyId, sub.id), {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
+    if (logoFile && savedId) {
       const fd = new FormData();
       fd.append("file", logoFile);
-      await fetch(API.ADMIN_SUB_LOGO(companyId, sub.id), {
+      await fetch(API.ADMIN_SUB_LOGO(companyId, savedId), {
         method: "POST", credentials: "include", body: fd,
       });
     }
@@ -540,13 +566,13 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     onSaved();
   };
 
-  const nonComboCandidates = siblingSubs.filter(s => !s.isCombo && s.id !== sub.id);
+  const nonComboCandidates = siblingSubs.filter(s => !s.isCombo && s.id !== sub?.id);
 
   return (
     <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="admin-modal-box" style={{ maxWidth: 700, maxHeight: "90vh", overflowY: "auto" }}>
         <div className="admin-modal-header">
-          <h3>Edytuj subskrypcję</h3>
+          <h3>{isCreate ? "+ Nowa subskrypcja" : "Edytuj subskrypcję"}</h3>
           <button className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSave} style={{ padding: "0 1.25rem 1.25rem" }}>
@@ -667,6 +693,12 @@ function CompanyFormPage({ company, onSaved, onBack }) {
     description:     company?.description     || "",
     location:        company?.location        || "",
     defaultCurrency: company?.defaultCurrency || "",
+    instagram:       company?.instagram       || "",
+    threads:         company?.threads         || "",
+    tiktok:          company?.tiktok          || "",
+    facebook:        company?.facebook        || "",
+    x:               company?.x               || "",
+    bluesky:         company?.bluesky         || "",
   });
   const [logoFile,    setLogoFile]    = useState(null);
   const [logoPreview, setLogoPreview] = useState(company?.logoUrl || null);
@@ -781,6 +813,20 @@ function CompanyFormPage({ company, onSaved, onBack }) {
           <label className="admin-form-label">Strona WWW</label>
           <input className="admin-form-input" value={form.websiteUrl} onChange={set("websiteUrl")}
             placeholder="https://…" style={{ maxWidth: 420 }} />
+        </div>
+
+        {/* ── Social media ── */}
+        <div className="admin-form-row">
+          <label className="admin-form-label">Media społecznościowe</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.5rem" }}>
+            {SOCIAL_PLATFORMS.map(p => (
+              <div key={p.key} style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                <span style={{ fontSize: "1rem", minWidth: 22, textAlign: "center", color: "var(--text-mid)" }}>{p.icon}</span>
+                <input className="admin-form-input" value={form[p.key]} onChange={set(p.key)}
+                  placeholder={p.placeholder} style={{ flex: 1 }} />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="admin-form-row">
@@ -928,6 +974,7 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
   const [company, setCompany] = useState(initialCompany);
   const [selectedSub, setSelectedSub] = useState(null);
   const [editingSub,  setEditingSub]  = useState(null);
+  const [addingSub,   setAddingSub]   = useState(false);
 
   const logo = company.logoUrl
     ? (company.logoUrl.startsWith("http") ? company.logoUrl : `${API.BASE}${company.logoUrl}`)
@@ -936,8 +983,8 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
   const reloadCompany = () => {
     fetch(API.ADMIN_COMPANY(company.id), { credentials: "include" })
       .then(r => r.json())
-      .then(data => { setCompany(data); setEditingSub(null); })
-      .catch(() => setEditingSub(null));
+      .then(data => { setCompany(data); setEditingSub(null); setAddingSub(false); })
+      .catch(() => { setEditingSub(null); setAddingSub(false); });
   };
 
   return (
@@ -960,6 +1007,16 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
             🌐 {company.websiteUrl}
           </a>
         )}
+        {SOCIAL_PLATFORMS.some(p => company[p.key]) && (
+          <div className="admin-social-links">
+            {SOCIAL_PLATFORMS.filter(p => company[p.key]).map(p => (
+              <a key={p.key} href={company[p.key]} target="_blank" rel="noopener noreferrer"
+                className="admin-social-link" title={p.label}>
+                <span className="admin-social-icon">{p.icon}</span> {p.label}
+              </a>
+            ))}
+          </div>
+        )}
         {company.description && <p className="admin-company-desc">{company.description}</p>}
         <div className="admin-company-chips">
           {company.location        && <span className="admin-chip">📍 {company.location}</span>}
@@ -967,9 +1024,20 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
         </div>
       </div>
 
-      {company.subscriptions?.length > 0 && (
-        <div className="admin-subs-section">
-          <h3 className="admin-subs-title">Subskrypcje ({company.subscriptions.length})</h3>
+      <div className="admin-subs-section">
+        <div className="admin-section-header">
+          <h3 className="admin-subs-title">
+            Subskrypcje ({company.subscriptions?.length ?? 0})
+          </h3>
+          {!addingSub && !editingSub && (
+            <button className="admin-btn admin-btn--secondary admin-btn--sm"
+              onClick={() => setAddingSub(true)}>
+              + Dodaj subskrypcję
+            </button>
+          )}
+        </div>
+
+        {company.subscriptions?.length > 0 && (
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
@@ -1042,8 +1110,8 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {editingSub && (
         <SubscriptionEditModal
@@ -1051,6 +1119,15 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
           companyId={company.id}
           siblingSubs={company.subscriptions}
           onClose={() => setEditingSub(null)}
+          onSaved={reloadCompany}
+        />
+      )}
+      {addingSub && (
+        <SubscriptionEditModal
+          sub={null}
+          companyId={company.id}
+          siblingSubs={company.subscriptions ?? []}
+          onClose={() => setAddingSub(false)}
           onSaved={reloadCompany}
         />
       )}

@@ -270,6 +270,25 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
           </a>
         )}
 
+        {/* Social media links */}
+        {["instagram","threads","tiktok","facebook","x","bluesky"].some(k => company[k]) && (
+          <div className="company-page-social-links">
+            {[
+              { key: "instagram", label: "Instagram", icon: "📷" },
+              { key: "threads",   label: "Threads",   icon: "🧵" },
+              { key: "tiktok",    label: "TikTok",    icon: "🎵" },
+              { key: "facebook",  label: "Facebook",  icon: "📘" },
+              { key: "x",         label: "X",         icon: "✕"  },
+              { key: "bluesky",   label: "Bluesky",   icon: "🦋" },
+            ].filter(p => company[p.key]).map(p => (
+              <a key={p.key} href={company[p.key]} target="_blank" rel="noopener noreferrer"
+                className="company-page-social-link" title={p.label}>
+                <span>{p.icon}</span> {p.label}
+              </a>
+            ))}
+          </div>
+        )}
+
         {company.description && (
           <p className="company-page-description">{company.description}</p>
         )}

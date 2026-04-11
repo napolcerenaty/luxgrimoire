@@ -489,6 +489,31 @@
 
 .admin-company-website:hover { text-decoration: underline; }
 
+/* Social links */
+.admin-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.2rem;
+}
+.admin-social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  border: 1px solid var(--border-dim);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  text-decoration: none;
+  background: var(--bg-raised);
+  transition: border-color 0.18s, color 0.18s;
+}
+.admin-social-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
 .admin-company-desc {
   font-family: 'Crimson Text', serif;
   font-size: 0.97rem;

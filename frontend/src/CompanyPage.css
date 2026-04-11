@@ -103,6 +103,34 @@
   text-decoration: underline;
 }
 
+/* Social media links */
+.company-page-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0.2rem;
+}
+.company-page-social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.75rem;
+  border: 1px solid var(--border-dim);
+  border-radius: 20px;
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  text-decoration: none;
+  background: var(--bg-raised);
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.company-page-social-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+  background: var(--bg-overlay);
+  text-decoration: none;
+}
+
 .company-page-description {
   color: #90c8e0;
   font-size: 0.97rem;

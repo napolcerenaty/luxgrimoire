@@ -20,6 +20,12 @@ public class BookBoxCompany {
     private String description;
     private String location;
     private String defaultCurrency;
+    private String instagram;
+    private String threads;
+    private String tiktok;
+    private String facebook;
+    private String x;
+    private String bluesky;
 
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("company-subscriptions")
@@ -61,6 +67,18 @@ public class BookBoxCompany {
     public void setLocation(String location) { this.location = location; }
     public String getDefaultCurrency() { return defaultCurrency; }
     public void setDefaultCurrency(String defaultCurrency) { this.defaultCurrency = defaultCurrency; }
+    public String getInstagram() { return instagram; }
+    public void setInstagram(String instagram) { this.instagram = instagram; }
+    public String getThreads() { return threads; }
+    public void setThreads(String threads) { this.threads = threads; }
+    public String getTiktok() { return tiktok; }
+    public void setTiktok(String tiktok) { this.tiktok = tiktok; }
+    public String getFacebook() { return facebook; }
+    public void setFacebook(String facebook) { this.facebook = facebook; }
+    public String getX() { return x; }
+    public void setX(String x) { this.x = x; }
+    public String getBluesky() { return bluesky; }
+    public void setBluesky(String bluesky) { this.bluesky = bluesky; }
     public List<Subscription> getSubscriptions() { return subscriptions; }
     public void setSubscriptions(List<Subscription> subscriptions) { this.subscriptions = subscriptions != null ? subscriptions : new ArrayList<>(); }
     public List<String> getManagerUsernames() { return managerUsernames; }
