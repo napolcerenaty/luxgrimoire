@@ -146,11 +146,11 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
               )}
               {needsRenewalDay && (
                 <label style={{ fontSize: "0.9rem" }}>
-                  Dzień odnowy (1–28)
+                  Dzień odnowy (1–31)
                   <input
                     type="number"
                     min="1"
-                    max="28"
+                    max="31"
                     className="admin-form-input"
                     style={{ display: "block", marginTop: "0.25rem" }}
                     value={subForm.renewalDay}

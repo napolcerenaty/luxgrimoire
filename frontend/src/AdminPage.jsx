@@ -283,8 +283,8 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
                 Ustawia użytkownik
               </span>
             ) : (
-              <input type="number" min="1" max="28" className="admin-form-input"
-                value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–28" />
+              <input type="number" min="1" max="31" className="admin-form-input"
+                value={form.renewalDay} onChange={set("renewalDay")} placeholder="1–31" />
             )}
             <label className="admin-form-check" style={{ marginTop: "0.3rem", fontSize: "0.82rem" }}>
               <input type="checkbox" checked={form.renewalDayUserSet}
