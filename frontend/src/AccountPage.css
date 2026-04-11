@@ -718,6 +718,22 @@
   border-color: var(--accent);
 }
 
+.account-filter-clear {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.6rem;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.account-filter-clear:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ─── Grid view ────────────────────────────────────────────────────────────── */
 .account-booklist-grid {
   display: grid;

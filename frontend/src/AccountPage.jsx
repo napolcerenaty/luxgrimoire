@@ -717,9 +717,10 @@ function SubscriptionsSection() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const locale = LANG_LOCALE[lang] ?? "en-GB";
-  const [userSubs,   setUserSubs]   = useState([]);
-  const [companies,  setCompanies]  = useState([]);
-  const [selected,   setSelected]   = useState(null); // { entry, company, sub }
+  const [userSubs,    setUserSubs]    = useState([]);
+  const [companies,   setCompanies]   = useState([]);
+  const [selected,    setSelected]    = useState(null); // { entry, company, sub }
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -744,14 +745,48 @@ function SubscriptionsSection() {
     setSelected({ entry, company: co, sub });
   };
 
+  const q = filterQuery.trim().toLowerCase();
+  const filtered = q
+    ? userSubs.filter((entry) => {
+        const co  = companies.find((c) => c.id === entry.companyId);
+        const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
+        return (
+          (sub?.name  ?? "").toLowerCase().includes(q) ||
+          (co?.name   ?? "").toLowerCase().includes(q)
+        );
+      })
+    : userSubs;
+
   return (
     <section className="account-section">
       <h2 className="account-section-title">{t("account.navSubscriptions")}</h2>
+
+      {userSubs.length > 0 && (
+        <div className="account-booklist-filters" style={{ marginBottom: "1rem" }}>
+          <input
+            className="account-filter-input"
+            type="text"
+            placeholder="Filtruj po nazwie subskrypcji lub book boxa…"
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+          />
+          {q && (
+            <button
+              className="account-filter-clear"
+              onClick={() => setFilterQuery("")}
+              title="Wyczyść filtr"
+            >✕</button>
+          )}
+        </div>
+      )}
+
       {userSubs.length === 0 ? (
         <p className="user-collection-empty">{t("userCollection.empty")}</p>
+      ) : filtered.length === 0 ? (
+        <p className="user-collection-empty">Brak wyników dla „{filterQuery}"</p>
       ) : (
         <div className="account-sub-list">
-          {userSubs.map((entry) => {
+          {filtered.map((entry) => {
             const co  = companies.find((c) => c.id === entry.companyId);
             const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
             const logoSrc = sub?.logoUrl || co?.logoUrl;
