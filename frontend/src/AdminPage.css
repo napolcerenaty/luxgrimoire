@@ -26,7 +26,7 @@
 }
 
 .admin-sidebar .account-display-name::after {
-  content: " ✦ admin";
+  content: " ✶ admin";
   font-size: 0.7rem;
   color: var(--accent2, #e05);
   letter-spacing: 0.04em;

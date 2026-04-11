@@ -189,7 +189,7 @@ function AppInner() {
           className="header-logo"
           onClick={() => setTab("browse")}
           title="LuxGrimoire – Strona główna"
-        >✦ LuxGrimoire ✦</h1>
+        >✶ LuxGrimoire ✶</h1>
       </header>
 
       {!isUserPage && !isDetailPage && (
@@ -321,7 +321,7 @@ function AppInner() {
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <span className="footer-logo">✦ LuxGrimoire ✦</span>
+            <span className="footer-logo">✶ LuxGrimoire ✶</span>
             <span className="footer-tagline">{t("app.tagline")}</span>
           </div>
 
