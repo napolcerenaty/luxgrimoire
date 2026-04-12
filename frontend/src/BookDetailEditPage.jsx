@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import "./BookDetailEditPage.css";
 import { useI18n } from "./i18n";
 import { API } from "./api";
+import { BOOK_LANGUAGES } from "./bookLanguages";
 
 // ── Combobox for authors / artists ────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ function emptyEditionForm() {
     subscriptionId: "",
     subscriptionMonthId: "",
     publisher: "",
+    language: "",
     subscriptionMonth: "",
     subscriptionYear: "",
     firstAccessDate: "",
@@ -112,6 +114,7 @@ function toEditionForm(edition) {
     subscriptionId: edition.subscriptionId || "",
     subscriptionMonthId: edition.subscriptionMonthId || "",
     publisher: edition.publisher || "",
+    language: edition.language || "",
     subscriptionMonth: edition.subscriptionMonth != null ? String(edition.subscriptionMonth) : "",
     subscriptionYear: edition.subscriptionYear != null ? String(edition.subscriptionYear) : "",
     firstAccessDate: edition.firstAccessDate || "",
@@ -320,6 +323,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       subscriptionId: editionForm.subscriptionId || null,
       subscriptionMonthId: editionForm.subscriptionMonthId || null,
       publisher: editionForm.publisher || null,
+      language: editionForm.language || null,
       subscriptionMonth: editionForm.subscriptionMonth ? parseInt(editionForm.subscriptionMonth, 10) : null,
       subscriptionYear: editionForm.subscriptionYear ? parseInt(editionForm.subscriptionYear, 10) : null,
       firstAccessDate: monthLocked ? null : (editionForm.firstAccessDate || null),
@@ -586,12 +590,22 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               )}
             </div>
 
-            {/* Publisher */}
+            {/* Publisher + Language */}
             <div className="edit-grid">
-              <label className="edit-label edit-label--full">
+              <label className="edit-label">
                 {t("bookDetail.publisher")}
                 <input className="edit-input" value={editionForm.publisher}
                   onChange={(e) => setEd("publisher", e.target.value)} />
+              </label>
+              <label className="edit-label">
+                {t("bookDetail.language")}
+                <select className="edit-select" value={editionForm.language}
+                  onChange={(e) => setEd("language", e.target.value)}>
+                  <option value="">—</option>
+                  {BOOK_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>{l.label}</option>
+                  ))}
+                </select>
               </label>
             </div>
 

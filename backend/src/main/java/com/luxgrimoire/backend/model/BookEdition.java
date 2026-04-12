@@ -24,6 +24,7 @@ public class BookEdition {
     private String editionName;
     private String subscriptionName;
     private String publisher;
+    private String language;
     private Integer subscriptionMonth;
     private Integer subscriptionYear;
     private String firstAccessDate;
@@ -62,6 +63,8 @@ public class BookEdition {
     public void setSubscriptionName(String subscriptionName) { this.subscriptionName = subscriptionName; }
     public String getPublisher() { return publisher; }
     public void setPublisher(String publisher) { this.publisher = publisher; }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
     public Integer getSubscriptionMonth() { return subscriptionMonth; }
     public void setSubscriptionMonth(Integer subscriptionMonth) { this.subscriptionMonth = subscriptionMonth; }
     public Integer getSubscriptionYear() { return subscriptionYear; }

@@ -3,6 +3,7 @@ import "./BookDetailPage.css";
 import BookCarousel from "./BookCarousel";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
+import { getLanguageLabel } from "./bookLanguages";
 
 export default function BookDetailPage({
   bookId,
@@ -193,6 +194,12 @@ export default function BookDetailPage({
             <div className="detail-field">
               <span className="detail-label">{t("bookDetail.publisher")}</span>
               <span className="detail-value">{edition.publisher}</span>
+            </div>
+          )}
+          {edition.language && (
+            <div className="detail-field">
+              <span className="detail-label">{t("bookDetail.language")}</span>
+              <span className="detail-value">{getLanguageLabel(edition.language)}</span>
             </div>
           )}
           {subDate && (
