@@ -33,11 +33,17 @@ public class MessageService {
         if (!userRepository.existsById(other)) {
             throw new IllegalArgumentException("User not found: " + other);
         }
+        if (me.equals(other)) {
+            throw new IllegalArgumentException("Cannot start conversation with yourself");
+        }
         return conversationRepository.findBetween(me, other).orElseGet(() -> {
+            // Always store usernames in consistent lexicographic order to avoid duplicates
+            String user1 = me.compareTo(other) <= 0 ? me : other;
+            String user2 = me.compareTo(other) <= 0 ? other : me;
             Conversation c = new Conversation();
             c.setId(UUID.randomUUID().toString());
-            c.setUser1Username(me);
-            c.setUser2Username(other);
+            c.setUser1Username(user1);
+            c.setUser2Username(user2);
             c.setCreatedAt(LocalDateTime.now());
             return conversationRepository.save(c);
         });
