@@ -137,6 +137,7 @@ function AppInner() {
   const [prevTab, setPrevTab] = useState("browse");
   const [accountSection, setAccountSection] = useState("calendar");
   const [notifRefreshKey, setNotifRefreshKey] = useState(0);
+  const [msgRefreshKey, setMsgRefreshKey] = useState(0);
 
   // Hash-based navigation: /#admin opens admin panel if user is admin
   useEffect(() => {
@@ -190,7 +191,7 @@ function AppInner() {
           {user && <NotificationBell onOpenPage={() => setTab("notifications")} refreshKey={notifRefreshKey} />}
           <ThemePicker />
           <LanguagePicker />
-          <UserMenu onNavigate={setTab} />
+          <UserMenu onNavigate={setTab} msgRefreshKey={msgRefreshKey} />
         </div>
         <h1
           className="header-logo"
@@ -261,9 +262,10 @@ function AppInner() {
         )}
         {tab === "messages" && (
           <MessagesPage
-            onBack={() => { setMessageTargetUser(null); setTab("browse"); }}
+            onBack={() => { setMessageTargetUser(null); setMsgRefreshKey(k => k + 1); setTab("browse"); }}
             initialUsername={messageTargetUser}
             currentUsername={user?.username}
+            onRead={() => setMsgRefreshKey(k => k + 1)}
           />
         )}
         {tab === "company-list" && (

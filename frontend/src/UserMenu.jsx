@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import LoginModal from "./LoginModal";
+import { API } from "./api";
 import "./UserModals.css";
 
-export default function UserMenu({ onNavigate }) {
+export default function UserMenu({ onNavigate, msgRefreshKey = 0 }) {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const [showLogin, setShowLogin] = useState(false);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
+
+  useEffect(() => {
+    if (!user) { setUnreadMsgs(0); return; }
+    const fetchCount = () =>
+      fetch(API.MESSAGES_UNREAD_COUNT, { credentials: "include" })
+        .then(r => r.ok ? r.json() : { count: 0 })
+        .then(d => setUnreadMsgs(d.count ?? 0))
+        .catch(() => {});
+    fetchCount();
+    const iv = setInterval(fetchCount, 15000);
+    return () => clearInterval(iv);
+  }, [user, msgRefreshKey]);
 
   const handleLogout = async () => {
     await logout();
@@ -33,10 +47,16 @@ export default function UserMenu({ onNavigate }) {
             onClick={() => onNavigate("messages")}
             title={t("messages.title")}
             aria-label={t("messages.title")}
+            style={{ position: "relative" }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
               <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
             </svg>
+            {unreadMsgs > 0 && (
+              <span className="notif-bell-badge" style={{ top: "-4px", right: "-4px" }}>
+                {unreadMsgs > 99 ? "99+" : unreadMsgs}
+              </span>
+            )}
           </button>
         </>
       )}

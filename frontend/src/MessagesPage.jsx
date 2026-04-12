@@ -26,7 +26,7 @@ function formatTime(isoStr) {
   return d.toLocaleDateString([], { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function MessagesPage({ onBack, initialUsername, currentUsername }) {
+export default function MessagesPage({ onBack, initialUsername, currentUsername, onRead }) {
   const { t } = useI18n();
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
@@ -35,7 +35,21 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername 
   const [sending, setSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const messagesEndRef = useRef(null);
+  const threadRef = useRef(null);
   const pollRef = useRef(null);
+  const justSentRef = useRef(false);
+
+  const isNearBottom = () => {
+    const el = threadRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  const scrollToBottom = (force = false) => {
+    if (force || isNearBottom()) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const loadConversations = useCallback(() => {
     return fetch(API.CONVERSATIONS, { credentials: "include" })
@@ -43,16 +57,23 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername 
       .then(data => { setConversations(data); setLoadingConvs(false); return data; });
   }, []);
 
-  const loadMessages = useCallback((convId) => {
+  const loadMessages = useCallback((convId, forceScroll = false) => {
     if (!convId) return;
     fetch(API.CONVERSATION_MESSAGES(convId), { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         setMessages(data);
-        // Mark as read
-        fetch(API.CONVERSATION_READ(convId), { method: "PUT", credentials: "include" });
+        fetch(API.CONVERSATION_READ(convId), { method: "PUT", credentials: "include" })
+          .then(() => onRead?.());
+        if (justSentRef.current || forceScroll) {
+          justSentRef.current = false;
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        } else {
+          scrollToBottom(false);
+        }
       });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRead]);
 
   // Start conversation with a specific user (when coming from FriendsPage)
   useEffect(() => {
@@ -74,10 +95,10 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername 
   // Load messages when active conv changes
   useEffect(() => {
     if (!activeConvId) return;
-    loadMessages(activeConvId);
+    loadMessages(activeConvId, true); // force scroll on first open
     clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      loadMessages(activeConvId);
+      loadMessages(activeConvId, false);
       loadConversations();
     }, POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
@@ -85,12 +106,15 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername 
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (justSentRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   const sendMessage = () => {
     if (!draft.trim() || !activeConvId || sending) return;
     setSending(true);
+    justSentRef.current = true;
     fetch(API.CONVERSATION_SEND(activeConvId), {
       method: "POST",
       credentials: "include",
@@ -176,7 +200,7 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername 
                   </span>
                 </div>
               </div>
-              <div className="thread-messages">
+              <div className="thread-messages" ref={threadRef}>
                 {messages.length === 0 && (
                   <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: "0.85rem", padding: "2rem 0" }}>
                     {t("messages.noMessages")}
