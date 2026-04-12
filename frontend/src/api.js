@@ -83,9 +83,12 @@ export const API = {
   ADMIN_SUBSCRIPTION_GENRES: `${API_BASE}/api/admin/subscription-genres`,
 
   // Notifications
-  NOTIFICATIONS:              `${API_BASE}/api/notifications`,
-  NOTIFICATIONS_UNREAD_COUNT: `${API_BASE}/api/notifications/unread-count`,
-  NOTIFICATION_READ: (id)  => `${API_BASE}/api/notifications/${id}/read`,
-  NOTIFICATIONS_READ_ALL:     `${API_BASE}/api/notifications/read-all`,
-  ADMIN_NOTIFICATIONS:        `${API_BASE}/api/admin/notifications`,
+  NOTIFICATIONS:                `${API_BASE}/api/notifications`,
+  NOTIFICATIONS_UNREAD_COUNT:   `${API_BASE}/api/notifications/unread-count`,
+  NOTIFICATION_READ:   (id) => `${API_BASE}/api/notifications/${id}/read`,
+  NOTIFICATIONS_READ_ALL:       `${API_BASE}/api/notifications/read-all`,
+  NOTIFICATIONS_READ_BATCH:     `${API_BASE}/api/notifications/read-batch`,
+  NOTIFICATION_DELETE: (id) => `${API_BASE}/api/notifications/${id}`,
+  NOTIFICATIONS_DELETE_BATCH:   `${API_BASE}/api/notifications/batch`,
+  ADMIN_NOTIFICATIONS:          `${API_BASE}/api/admin/notifications`,
 };

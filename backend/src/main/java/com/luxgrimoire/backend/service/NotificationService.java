@@ -75,6 +75,32 @@ public class NotificationService {
         userNotificationRepository.saveAll(unread);
     }
 
+    @Transactional
+    public void markReadBatch(List<Long> ids, String username) {
+        List<UserNotification> uns = userNotificationRepository.findByIdInAndUserUsername(ids, username);
+        LocalDateTime now = LocalDateTime.now();
+        uns.stream().filter(un -> un.getReadAt() == null).forEach(un -> un.setReadAt(now));
+        userNotificationRepository.saveAll(uns);
+    }
+
+    @Transactional
+    public void deleteOne(Long id, String username) {
+        userNotificationRepository.findById(id)
+            .filter(un -> un.getUserUsername().equals(username))
+            .ifPresent(userNotificationRepository::delete);
+    }
+
+    @Transactional
+    public void deleteBatch(List<Long> ids, String username) {
+        List<UserNotification> uns = userNotificationRepository.findByIdInAndUserUsername(ids, username);
+        userNotificationRepository.deleteAllInBatch(uns);
+    }
+
+    @Transactional
+    public void deleteAllForUser(String username) {
+        userNotificationRepository.deleteAllByUserUsernameQuery(username);
+    }
+
     @Transactional(readOnly = true)
     public long unreadCount(String username) {
         return userNotificationRepository.countByUserUsernameAndReadAtIsNull(username);

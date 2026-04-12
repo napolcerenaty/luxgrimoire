@@ -37,6 +37,13 @@
   text-shadow: 0 0 20px rgba(0,140,190,0.3);
 }
 
+.notif-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .notif-page-mark-all {
   background: transparent;
   border: 1px solid var(--border-dim);
@@ -51,6 +58,139 @@
 }
 .notif-page-mark-all:hover {
   background: var(--accent-glow);
+  border-color: var(--accent);
+}
+
+.notif-page-delete-all {
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+.notif-page-delete-all:hover {
+  background: rgba(200, 60, 60, 0.08);
+  border-color: rgba(200, 60, 60, 0.5);
+  color: #e05555;
+}
+
+/* Selection bar */
+.notif-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 0.65rem 1.1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 12px rgba(42,158,196,0.1);
+}
+
+.notif-selection-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.notif-selection-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.notif-sel-btn {
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  border-radius: 16px;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.notif-sel-btn--read {
+  color: var(--accent);
+}
+.notif-sel-btn--read:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+}
+.notif-sel-btn--delete {
+  color: #e05555;
+}
+.notif-sel-btn--delete:hover {
+  background: rgba(200, 60, 60, 0.08);
+  border-color: rgba(200, 60, 60, 0.5);
+}
+.notif-sel-btn--clear {
+  color: var(--text-muted);
+}
+.notif-sel-btn--clear:hover {
+  border-color: var(--border);
+  color: var(--text-mid);
+}
+
+/* Select-all row */
+.notif-list-controls {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  padding: 0 0.25rem;
+}
+
+.notif-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+.notif-select-all-label:hover { color: var(--text-mid); }
+
+/* Checkbox */
+.notif-card-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1.5px solid var(--border-dim);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+.notif-card-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.notif-card-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 4px;
+  height: 8px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+.notif-card-checkbox:hover {
   border-color: var(--accent);
 }
 
@@ -86,7 +226,7 @@
 /* Card */
 .notif-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   gap: 1rem;
   align-items: flex-start;
   padding: 1.1rem 1.25rem;
@@ -109,6 +249,11 @@
 .notif-card--unread:hover {
   border-color: var(--accent);
   box-shadow: 0 4px 20px rgba(42,158,196,0.12);
+}
+.notif-card--selected {
+  border-color: var(--accent) !important;
+  background: var(--bg-raised) !important;
+  box-shadow: 0 0 0 2px rgba(42,158,196,0.15);
 }
 
 /* Type badge */
@@ -211,6 +356,16 @@
   font-style: italic;
 }
 
+/* Unread dot + delete button column */
+.notif-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 /* Unread dot */
 .notif-card-dot {
   width: 9px;
@@ -219,6 +374,26 @@
   background: var(--accent);
   box-shadow: 0 0 6px rgba(42,158,196,0.6);
   flex-shrink: 0;
-  margin-top: 4px;
-  align-self: flex-start;
+}
+
+/* Per-card delete button */
+.notif-card-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.notif-card:hover .notif-card-delete-btn,
+.notif-card--selected .notif-card-delete-btn {
+  opacity: 1;
+}
+.notif-card-delete-btn:hover {
+  color: #e05555;
+  background: rgba(200, 60, 60, 0.1);
 }

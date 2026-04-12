@@ -56,6 +56,38 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
+    @PostMapping("/read-batch")
+    public ResponseEntity<?> markReadBatch(@RequestBody Map<String, List<Long>> body, HttpSession session) {
+        String username = AuthHelper.getUsername(session);
+        if (username == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        notificationService.markReadBatch(body.getOrDefault("ids", List.of()), username);
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteOne(@PathVariable Long id, HttpSession session) {
+        String username = AuthHelper.getUsername(session);
+        if (username == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        notificationService.deleteOne(id, username);
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<Long>> body, HttpSession session) {
+        String username = AuthHelper.getUsername(session);
+        if (username == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        notificationService.deleteBatch(body.getOrDefault("ids", List.of()), username);
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<?> deleteAll(HttpSession session) {
+        String username = AuthHelper.getUsername(session);
+        if (username == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        notificationService.deleteAllForUser(username);
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
     private UserNotificationDto toDto(UserNotification un) {
         UserNotificationDto dto = new UserNotificationDto();
         dto.setId(un.getId());
