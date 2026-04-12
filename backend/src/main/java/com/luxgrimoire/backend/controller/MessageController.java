@@ -77,6 +77,8 @@ public class MessageController {
         try {
             Conversation c = messageService.startOrGetConversation(me, username);
             return ResponseEntity.ok(Map.of("conversationId", c.getId()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage(), "code", "MESSAGING_PRIVATE"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

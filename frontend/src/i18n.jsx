@@ -133,6 +133,9 @@ const T = {
       privacyTitle:    "Prywatność",
       libraryPublic:   "Pokaż moją bibliotekę znajomym",
       libraryPublicHint:"Gdy włączone, znajomi mogą przeglądać Twoją kolekcję książek",
+      messagingPrivate: "Wiadomości tylko od znajomych",
+      messagingPrivateHint: "Gdy włączone, tylko Twoi znajomi mogą wysyłać Ci wiadomości",
+      messagingBlockedError: "Ten użytkownik przyjmuje wiadomości tylko od znajomych. Dodaj go do znajomych, aby napisać wiadomość.",
     },
     account: {
       title:              "Konto",
@@ -541,6 +544,9 @@ const T = {
       privacyTitle:    "Privacy",
       libraryPublic:   "Show my library to friends",
       libraryPublicHint:"When enabled, friends can browse your book collection",
+      messagingPrivate: "Messages from friends only",
+      messagingPrivateHint: "When enabled, only your friends can send you messages",
+      messagingBlockedError: "This user only accepts messages from friends. Add them as a friend first.",
     },
     account: {
       title:              "Account",
@@ -949,6 +955,9 @@ const T = {
       privacyTitle:    "Datenschutz",
       libraryPublic:   "Meine Bibliothek für Freunde sichtbar machen",
       libraryPublicHint:"Wenn aktiviert, können Freunde deine Büchersammlung durchsuchen",
+      messagingPrivate: "Nachrichten nur von Freunden",
+      messagingPrivateHint: "Wenn aktiviert, können nur deine Freunde dir Nachrichten senden",
+      messagingBlockedError: "Dieser Benutzer akzeptiert Nachrichten nur von Freunden. Füge ihn zuerst als Freund hinzu.",
     },
     account: {
       title:              "Konto",
@@ -1357,6 +1366,9 @@ const T = {
       privacyTitle:    "Confidentialité",
       libraryPublic:   "Montrer ma bibliothèque à mes amis",
       libraryPublicHint:"Quand activé, vos amis peuvent parcourir votre collection de livres",
+      messagingPrivate: "Messages uniquement des amis",
+      messagingPrivateHint: "Quand activé, seuls vos amis peuvent vous envoyer des messages",
+      messagingBlockedError: "Cet utilisateur accepte uniquement les messages de ses amis. Ajoutez-le en ami d'abord.",
     },
     account: {
       title:              "Compte",
@@ -1765,6 +1777,9 @@ const T = {
       privacyTitle:    "Privacidad",
       libraryPublic:   "Mostrar mi biblioteca a mis amigos",
       libraryPublicHint:"Cuando est\u00e1 activado, tus amigos pueden ver tu colecci\u00f3n de libros",
+      messagingPrivate: "Mensajes solo de amigos",
+      messagingPrivateHint: "Cuando est\u00e1 activado, solo tus amigos pueden enviarte mensajes",
+      messagingBlockedError: "Este usuario solo acepta mensajes de amigos. A\u00f1\u00e1delo como amigo primero.",
     },
     account: {
       title:              "Cuenta",

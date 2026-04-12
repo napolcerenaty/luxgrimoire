@@ -846,17 +846,19 @@ function SettingsSection() {
 
   // ── Privacy ────────────────────────────────────────────────────────────────
   const [libraryPublic, setLibraryPublic] = useState(user?.libraryPublic ?? false);
+  const [messagingPrivate, setMessagingPrivate] = useState(user?.messagingPrivate ?? false);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacySaved,  setPrivacySaved]  = useState(false);
 
-  const handlePrivacyChange = async (val) => {
-    setLibraryPublic(val);
+  const handlePrivacyChange = async (changes) => {
+    if (changes.libraryPublic !== undefined) setLibraryPublic(changes.libraryPublic);
+    if (changes.messagingPrivate !== undefined) setMessagingPrivate(changes.messagingPrivate);
     setPrivacySaving(true);
     fetch(API.USER_PRIVACY, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ libraryPublic: val }),
+      body: JSON.stringify(changes),
     }).then(() => {
       setPrivacySaved(true);
       setTimeout(() => setPrivacySaved(false), 2500);
@@ -987,13 +989,26 @@ function SettingsSection() {
           <input
             type="checkbox"
             checked={libraryPublic}
-            onChange={e => handlePrivacyChange(e.target.checked)}
+            onChange={e => handlePrivacyChange({ libraryPublic: e.target.checked })}
             disabled={privacySaving}
             style={{ width: 16, height: 16, cursor: "pointer" }}
           />
           <span>{t("settings.libraryPublic")}</span>
         </label>
         <span className="field-hint" style={{ marginTop: "0.25rem" }}>{t("settings.libraryPublicHint")}</span>
+
+        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", marginTop: "0.75rem" }}>
+          <input
+            type="checkbox"
+            checked={messagingPrivate}
+            onChange={e => handlePrivacyChange({ messagingPrivate: e.target.checked })}
+            disabled={privacySaving}
+            style={{ width: 16, height: 16, cursor: "pointer" }}
+          />
+          <span>{t("settings.messagingPrivate")}</span>
+        </label>
+        <span className="field-hint" style={{ marginTop: "0.25rem" }}>{t("settings.messagingPrivateHint")}</span>
+
         {privacySaved && <p className="page-success" style={{ marginTop: "0.5rem" }}>{t("settings.saved")}</p>}
       </div>
     </section>

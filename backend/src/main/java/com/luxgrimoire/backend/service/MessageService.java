@@ -5,6 +5,7 @@ import com.luxgrimoire.backend.model.ConversationMember;
 import com.luxgrimoire.backend.model.Message;
 import com.luxgrimoire.backend.repository.AppUserRepository;
 import com.luxgrimoire.backend.repository.ConversationMemberRepository;
+import com.luxgrimoire.backend.repository.FriendRequestRepository;
 import com.luxgrimoire.backend.repository.ConversationRepository;
 import com.luxgrimoire.backend.repository.MessageRepository;
 import org.springframework.stereotype.Service;
@@ -22,27 +23,32 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final AppUserRepository userRepository;
     private final ConversationMemberRepository memberRepository;
+    private final FriendRequestRepository friendRequestRepository;
 
     public MessageService(ConversationRepository conversationRepository,
                           MessageRepository messageRepository,
                           AppUserRepository userRepository,
-                          ConversationMemberRepository memberRepository) {
+                          ConversationMemberRepository memberRepository,
+                          FriendRequestRepository friendRequestRepository) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
+        this.friendRequestRepository = friendRequestRepository;
     }
 
     @Transactional
     public Conversation startOrGetConversation(String me, String other) {
-        if (!userRepository.existsById(other)) {
-            throw new IllegalArgumentException("User not found: " + other);
-        }
+        var otherUser = userRepository.findById(other)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + other));
         if (me.equals(other)) {
             throw new IllegalArgumentException("Cannot start conversation with yourself");
         }
+        // Privacy check: if target has messagingPrivate=true, only friends can message
+        if (otherUser.isMessagingPrivate() && !friendRequestRepository.areFriends(me, other)) {
+            throw new SecurityException("This user only accepts messages from friends");
+        }
         return conversationRepository.findBetween(me, other).orElseGet(() -> {
-            // Always store usernames in consistent lexicographic order to avoid duplicates
             String user1 = me.compareTo(other) <= 0 ? me : other;
             String user2 = me.compareTo(other) <= 0 ? other : me;
             Conversation c = new Conversation();

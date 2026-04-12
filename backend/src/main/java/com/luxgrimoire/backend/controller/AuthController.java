@@ -160,7 +160,9 @@ public class AuthController {
                 u.getTimezone(),
                 u.getAvatarUrl() != null ? u.getAvatarUrl() : "",
                 u.getEmail() != null ? u.getEmail() : "",
-                u.getRole() != null ? u.getRole() : "user"
+                u.getRole() != null ? u.getRole() : "user",
+                u.isLibraryPublic(),
+                u.isMessagingPrivate()
         );
     }
 }

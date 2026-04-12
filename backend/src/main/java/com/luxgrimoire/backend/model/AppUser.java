@@ -22,6 +22,7 @@ public class AppUser {
     private String email;
     private String role = "user";
     private boolean libraryPublic = false;
+    private boolean messagingPrivate = false;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference("user-books")
@@ -69,6 +70,8 @@ public class AppUser {
     public void setRole(String role) { this.role = role; }
     public boolean isLibraryPublic() { return libraryPublic; }
     public void setLibraryPublic(boolean libraryPublic) { this.libraryPublic = libraryPublic; }
+    public boolean isMessagingPrivate() { return messagingPrivate; }
+    public void setMessagingPrivate(boolean messagingPrivate) { this.messagingPrivate = messagingPrivate; }
     public List<UserBookEntry> getOwnedBooks() { return ownedBooks; }
     public List<UserSubscriptionEntry> getSubscriptions() { return subscriptions; }
 }

@@ -51,6 +51,7 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const [friendsList, setFriendsList] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [msgBlockedError, setMsgBlockedError] = useState("");
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
   const pollRef = useRef(null);
@@ -174,8 +175,16 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   };
 
   const startConvWithUser = (username) => {
+    setMsgBlockedError("");
     fetch(API.CONVERSATION_START(username), { method: "POST", credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
+      .then(async r => {
+        const data = await r.json();
+        if (r.status === 403 && data?.code === "MESSAGING_PRIVATE") {
+          setMsgBlockedError(t("settings.messagingBlockedError"));
+          return null;
+        }
+        return r.ok ? data : null;
+      })
       .then(data => {
         if (data?.conversationId) {
           setNewMsgSearch("");
@@ -285,6 +294,9 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                   </div>
                 ))}
               </div>
+              {msgBlockedError && (
+                <div className="thread-new-msg-blocked">{msgBlockedError}</div>
+              )}
             </div>
           ) : (
             <>

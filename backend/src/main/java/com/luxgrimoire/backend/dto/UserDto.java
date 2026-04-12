@@ -7,5 +7,7 @@ public record UserDto(
         String timezone,
         String avatarUrl,
         String email,
-        String role
+        String role,
+        boolean libraryPublic,
+        boolean messagingPrivate
 ) {}

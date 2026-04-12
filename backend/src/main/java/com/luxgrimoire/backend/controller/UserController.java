@@ -57,8 +57,11 @@ public class UserController {
         userRepository.findById(me).ifPresent(u -> {
             if (body.containsKey("libraryPublic")) {
                 u.setLibraryPublic(body.get("libraryPublic"));
-                userRepository.save(u);
             }
+            if (body.containsKey("messagingPrivate")) {
+                u.setMessagingPrivate(body.get("messagingPrivate"));
+            }
+            userRepository.save(u);
         });
         return ResponseEntity.ok().build();
     }
