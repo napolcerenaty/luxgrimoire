@@ -34,9 +34,13 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
+  const [newMsgSearch, setNewMsgSearch] = useState("");
+  const [newMsgResults, setNewMsgResults] = useState([]);
+  const [newMsgSearching, setNewMsgSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
   const pollRef = useRef(null);
+  const newMsgDebounce = useRef(null);
 
   const loadConversations = useCallback(() => {
     return fetch(API.CONVERSATIONS, { credentials: "include" })
@@ -109,6 +113,30 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
     }
   };
 
+  const handleNewMsgSearch = (q) => {
+    setNewMsgSearch(q);
+    clearTimeout(newMsgDebounce.current);
+    if (q.trim().length < 2) { setNewMsgResults([]); return; }
+    setNewMsgSearching(true);
+    newMsgDebounce.current = setTimeout(() => {
+      fetch(`${API.USER_SEARCH}?q=${encodeURIComponent(q.trim())}`, { credentials: "include" })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { setNewMsgResults(data); setNewMsgSearching(false); });
+    }, 350);
+  };
+
+  const startConvWithUser = (username) => {
+    fetch(API.CONVERSATION_START(username), { method: "POST", credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.conversationId) {
+          setNewMsgSearch("");
+          setNewMsgResults([]);
+          loadConversations().then(() => setActiveConvId(data.conversationId));
+        }
+      });
+  };
+
   const activeConv = conversations.find(c => c.id === activeConvId);
 
   return (
@@ -161,7 +189,34 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
         {/* Thread */}
         <div className="messages-thread">
           {!activeConvId ? (
-            <div className="thread-empty">{t("messages.selectConversation")}</div>
+            <div className="thread-new-msg">
+              <div className="thread-new-msg-title">Nowa wiadomość</div>
+              <div className="thread-new-msg-hint">Wyszukaj użytkownika, aby rozpocząć rozmowę</div>
+              <div className="thread-new-msg-search">
+                <input
+                  type="text"
+                  placeholder="Szukaj po nazwie użytkownika..."
+                  value={newMsgSearch}
+                  onChange={e => handleNewMsgSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {newMsgSearching && <div className="thread-new-msg-loading">Szukam...</div>}
+              {!newMsgSearching && newMsgSearch.trim().length >= 2 && newMsgResults.length === 0 && (
+                <div className="thread-new-msg-loading">Brak wyników</div>
+              )}
+              <div className="thread-new-msg-results">
+                {newMsgResults.map(u => (
+                  <div key={u.username} className="thread-new-msg-user" onClick={() => startConvWithUser(u.username)}>
+                    <AvatarOrPlaceholder url={u.avatarUrl} name={u.firstName || u.username} size={36} />
+                    <div className="thread-new-msg-user-info">
+                      <div className="thread-new-msg-user-name">{u.firstName} {u.lastName}</div>
+                      <div className="thread-new-msg-user-username">@{u.username}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <>
               <div className="thread-header">
