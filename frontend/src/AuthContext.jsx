@@ -73,8 +73,21 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const updatePrivacy = async (changes) => {
+    const r = await fetch(API.USER_PRIVACY, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Update failed");
+    setUser(data);
+    return data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings, uploadAvatar }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings, uploadAvatar, updatePrivacy }}>
       {children}
     </AuthContext.Provider>
   );

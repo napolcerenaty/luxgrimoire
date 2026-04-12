@@ -825,7 +825,7 @@ function SubscriptionsSection() {
 
 // ─── SETTINGS SECTION ─────────────────────────────────────────────────────────
 function SettingsSection() {
-  const { user, updateProfile, uploadAvatar } = useAuth();
+  const { user, updateProfile, uploadAvatar, updatePrivacy } = useAuth();
   const { t } = useI18n();
 
   // ── Name / timezone form ──────────────────────────────────────────────────
@@ -854,15 +854,13 @@ function SettingsSection() {
     if (changes.libraryPublic !== undefined) setLibraryPublic(changes.libraryPublic);
     if (changes.messagingPrivate !== undefined) setMessagingPrivate(changes.messagingPrivate);
     setPrivacySaving(true);
-    fetch(API.USER_PRIVACY, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(changes),
-    }).then(() => {
+    try {
+      await updatePrivacy(changes);
       setPrivacySaved(true);
       setTimeout(() => setPrivacySaved(false), 2500);
-    }).finally(() => setPrivacySaving(false));
+    } finally {
+      setPrivacySaving(false);
+    }
   };
 
   const currentAvatarSrc = user?.avatarUrl ? `${API.BASE}${user.avatarUrl}` : null;

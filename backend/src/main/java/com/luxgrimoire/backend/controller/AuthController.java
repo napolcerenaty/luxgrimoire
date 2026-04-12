@@ -152,7 +152,7 @@ public class AuthController {
         }
     }
 
-    private UserDto toDto(AppUser u) {
+    UserDto toDto(AppUser u) {
         return new UserDto(
                 u.getUsername(),
                 u.getFirstName(),

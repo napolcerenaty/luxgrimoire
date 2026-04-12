@@ -15,9 +15,11 @@ import java.util.Map;
 public class UserController {
 
     private final AppUserRepository userRepository;
+    private final AuthController authController;
 
-    public UserController(AppUserRepository userRepository) {
+    public UserController(AppUserRepository userRepository, AuthController authController) {
         this.userRepository = userRepository;
+        this.authController = authController;
     }
 
     @GetMapping("/search")
@@ -54,7 +56,7 @@ public class UserController {
     public ResponseEntity<?> updatePrivacy(@RequestBody Map<String, Boolean> body, HttpSession session) {
         String me = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (me == null) return ResponseEntity.status(401).build();
-        userRepository.findById(me).ifPresent(u -> {
+        return userRepository.findById(me).map(u -> {
             if (body.containsKey("libraryPublic")) {
                 u.setLibraryPublic(body.get("libraryPublic"));
             }
@@ -62,7 +64,7 @@ public class UserController {
                 u.setMessagingPrivate(body.get("messagingPrivate"));
             }
             userRepository.save(u);
-        });
-        return ResponseEntity.ok().build();
+            return ResponseEntity.ok(authController.toDto(u));
+        }).orElse(ResponseEntity.status(404).build());
     }
 }
