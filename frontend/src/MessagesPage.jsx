@@ -37,6 +37,8 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const [newMsgSearch, setNewMsgSearch] = useState("");
   const [newMsgResults, setNewMsgResults] = useState([]);
   const [newMsgSearching, setNewMsgSearching] = useState(false);
+  const [newMsgScope, setNewMsgScope] = useState("friends"); // "friends" | "all"
+  const [friends, setFriends] = useState([]);
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
   const pollRef = useRef(null);
@@ -113,16 +115,58 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
     }
   };
 
+  // Load friends list for "friends only" scope
+  useEffect(() => {
+    fetch(API.FRIENDS, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setFriends(data));
+  }, []);
+
   const handleNewMsgSearch = (q) => {
     setNewMsgSearch(q);
     clearTimeout(newMsgDebounce.current);
-    if (q.trim().length < 2) { setNewMsgResults([]); return; }
+    setNewMsgResults([]);
+    if (newMsgScope === "friends") {
+      // Filter locally from already-loaded friends
+      const filtered = friends.filter(f => {
+        const full = `${f.firstName || ""} ${f.lastName || ""} ${f.username}`.toLowerCase();
+        return full.includes(q.toLowerCase());
+      });
+      setNewMsgResults(filtered);
+      return;
+    }
+    if (q.trim().length < 2) { return; }
     setNewMsgSearching(true);
     newMsgDebounce.current = setTimeout(() => {
       fetch(`${API.USER_SEARCH}?q=${encodeURIComponent(q.trim())}`, { credentials: "include" })
         .then(r => r.ok ? r.json() : [])
         .then(data => { setNewMsgResults(data); setNewMsgSearching(false); });
     }, 350);
+  };
+
+  // When scope changes, re-run search with current query
+  const handleScopeChange = (scope) => {
+    setNewMsgScope(scope);
+    setNewMsgResults([]);
+    setNewMsgSearching(false);
+    clearTimeout(newMsgDebounce.current);
+    if (scope === "friends") {
+      const q = newMsgSearch;
+      const filtered = friends.filter(f => {
+        const full = `${f.firstName || ""} ${f.lastName || ""} ${f.username}`.toLowerCase();
+        return q ? full.includes(q.toLowerCase()) : true;
+      });
+      setNewMsgResults(filtered);
+    } else {
+      if (newMsgSearch.trim().length >= 2) {
+        setNewMsgSearching(true);
+        newMsgDebounce.current = setTimeout(() => {
+          fetch(`${API.USER_SEARCH}?q=${encodeURIComponent(newMsgSearch.trim())}`, { credentials: "include" })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => { setNewMsgResults(data); setNewMsgSearching(false); });
+        }, 350);
+      }
+    }
   };
 
   const startConvWithUser = (username) => {
@@ -191,22 +235,39 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
           {!activeConvId ? (
             <div className="thread-new-msg">
               <div className="thread-new-msg-title">Nowa wiadomość</div>
-              <div className="thread-new-msg-hint">Wyszukaj użytkownika, aby rozpocząć rozmowę</div>
+              {/* Scope tabs */}
+              <div className="thread-new-msg-tabs">
+                <button
+                  className={`thread-new-msg-tab${newMsgScope === "friends" ? " thread-new-msg-tab--active" : ""}`}
+                  onClick={() => handleScopeChange("friends")}
+                >
+                  👥 Znajomi
+                </button>
+                <button
+                  className={`thread-new-msg-tab${newMsgScope === "all" ? " thread-new-msg-tab--active" : ""}`}
+                  onClick={() => handleScopeChange("all")}
+                >
+                  🔍 Wszyscy użytkownicy
+                </button>
+              </div>
               <div className="thread-new-msg-search">
                 <input
                   type="text"
-                  placeholder="Szukaj po nazwie użytkownika..."
+                  placeholder={newMsgScope === "friends" ? "Filtruj znajomych..." : "Szukaj po nazwie lub loginie (min. 2 znaki)..."}
                   value={newMsgSearch}
                   onChange={e => handleNewMsgSearch(e.target.value)}
                   autoFocus
                 />
               </div>
               {newMsgSearching && <div className="thread-new-msg-loading">Szukam...</div>}
-              {!newMsgSearching && newMsgSearch.trim().length >= 2 && newMsgResults.length === 0 && (
+              {!newMsgSearching && newMsgScope === "all" && newMsgSearch.trim().length >= 2 && newMsgResults.length === 0 && (
                 <div className="thread-new-msg-loading">Brak wyników</div>
               )}
+              {!newMsgSearching && newMsgScope === "friends" && friends.length === 0 && (
+                <div className="thread-new-msg-loading">Nie masz jeszcze żadnych znajomych</div>
+              )}
               <div className="thread-new-msg-results">
-                {newMsgResults.map(u => (
+                {(newMsgScope === "friends" ? (newMsgSearch ? newMsgResults : friends) : newMsgResults).map(u => (
                   <div key={u.username} className="thread-new-msg-user" onClick={() => startConvWithUser(u.username)}>
                     <AvatarOrPlaceholder url={u.avatarUrl} name={u.firstName || u.username} size={36} />
                     <div className="thread-new-msg-user-info">

@@ -30,6 +30,8 @@ public class FriendController {
             "username", u.getUsername(),
             "firstName", u.getFirstName() != null ? u.getFirstName() : "",
             "lastName", u.getLastName() != null ? u.getLastName() : "",
+            "avatarUrl", u.getAvatarUrl() != null ? u.getAvatarUrl() : ""
+        )).toList());
             "avatarUrl", u.getAvatarUrl() != null ? u.getAvatarUrl() : "",
             "libraryPublic", u.isLibraryPublic()
         )).toList());
