@@ -1111,6 +1111,45 @@
 .admin-notif-feedback { padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.88rem; font-family: 'Crimson Text', serif; }
 .admin-notif-feedback--ok { background: rgba(0,180,100,0.12); color: #4caf82; border: 1px solid rgba(0,180,100,0.25); }
 .admin-notif-feedback--err { background: rgba(220,50,50,0.12); color: #e57373; border: 1px solid rgba(220,50,50,0.25); }
+
+/* Retention panel */
+.admin-notif-retention {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.admin-retention-desc {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: var(--text-mid);
+  margin: 0;
+  line-height: 1.5;
+}
+.admin-retention-presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.admin-retention-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.admin-retention-input {
+  width: 100px;
+  text-align: center;
+}
+.admin-retention-unit {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
 .admin-notif-history {
   background: var(--bg-raised);
   border: 1px solid var(--border-dim);

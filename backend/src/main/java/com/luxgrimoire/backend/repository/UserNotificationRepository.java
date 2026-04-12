@@ -20,4 +20,8 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @Modifying
     @Query("DELETE FROM UserNotification un WHERE un.userUsername = :username")
     void deleteAllByUserUsernameQuery(@Param("username") String username);
+
+    @Modifying
+    @Query("DELETE FROM UserNotification un WHERE un.notification.createdAt < :cutoff")
+    int deleteByNotificationCreatedAtBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
 }

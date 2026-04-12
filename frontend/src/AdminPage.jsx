@@ -1606,6 +1606,41 @@ function NotificationsAdminSection() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [expandedRow, setExpandedRow] = useState(null);
 
+  // Retention settings
+  const [retentionDays, setRetentionDays]     = useState(180);
+  const [retentionInput, setRetentionInput]   = useState("180");
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [retentionMsg, setRetentionMsg]       = useState(null);
+
+  useEffect(() => {
+    fetch(API.ADMIN_NOTIF_RETENTION, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.days) { setRetentionDays(d.days); setRetentionInput(String(d.days)); } })
+      .catch(() => {});
+  }, []);
+
+  const saveRetention = () => {
+    const days = parseInt(retentionInput, 10);
+    if (isNaN(days) || days < 7 || days > 3650) {
+      setRetentionMsg({ ok: false, msg: "Wartość musi być między 7 a 3650 dni." });
+      return;
+    }
+    setRetentionSaving(true);
+    setRetentionMsg(null);
+    fetch(API.ADMIN_NOTIF_RETENTION, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { setRetentionDays(d.days); setRetentionMsg({ ok: true, msg: "Zapisano." }); })
+      .catch(() => setRetentionMsg({ ok: false, msg: "Błąd zapisu." }))
+      .finally(() => setRetentionSaving(false));
+  };
+
+  const PRESETS = [30, 90, 180, 365, 730];
+
   const loadHistory = () => {
     fetch(API.ADMIN_NOTIFICATIONS, { credentials: "include" })
       .then(r => r.json())
@@ -1699,6 +1734,44 @@ function NotificationsAdminSection() {
             {sending ? "Wysyłanie…" : "📤 Wyślij powiadomienie"}
           </button>
         </div>
+      </div>
+
+      <div className="admin-notif-retention">
+        <h3 className="admin-subs-title">Retencja powiadomień</h3>
+        <p className="admin-retention-desc">
+          Powiadomienia użytkowników starsze niż podana liczba dni są automatycznie usuwane codziennie o 03:00.
+          Aktualnie: <strong>{retentionDays} dni</strong> (~{Math.round(retentionDays / 30)} mies.).
+        </p>
+        <div className="admin-retention-presets">
+          {PRESETS.map(p => (
+            <button
+              key={p}
+              className={`admin-type-btn${parseInt(retentionInput, 10) === p ? " admin-type-btn--active" : ""}`}
+              onClick={() => setRetentionInput(String(p))}
+            >
+              {p} dni
+            </button>
+          ))}
+        </div>
+        <div className="admin-retention-row">
+          <input
+            type="number"
+            className="admin-input admin-retention-input"
+            min={7}
+            max={3650}
+            value={retentionInput}
+            onChange={e => setRetentionInput(e.target.value)}
+          />
+          <span className="admin-retention-unit">dni</span>
+          <button className="admin-btn admin-btn--primary" onClick={saveRetention} disabled={retentionSaving}>
+            {retentionSaving ? "Zapisywanie…" : "Zapisz"}
+          </button>
+        </div>
+        {retentionMsg && (
+          <div className={`admin-notif-feedback${retentionMsg.ok ? " admin-notif-feedback--ok" : " admin-notif-feedback--err"}`}>
+            {retentionMsg.msg}
+          </div>
+        )}
       </div>
 
       <div className="admin-notif-history">

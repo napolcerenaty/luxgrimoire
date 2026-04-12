@@ -52,6 +52,7 @@ public class AdminController {
     private final FileStorageService       fileStorageService;
     private final NotificationService      notificationService;
     private final UserNotificationRepository userNotificationRepo;
+    private final com.luxgrimoire.backend.service.AppSettingService appSettingService;
 
     public AdminController(AppUserRepository userRepo,
                            ErrorReportRepository reportRepo,
@@ -63,7 +64,8 @@ public class AdminController {
                            DeletionLogService deletionLogService,
                            FileStorageService fileStorageService,
                            NotificationService notificationService,
-                           UserNotificationRepository userNotificationRepo) {
+                           UserNotificationRepository userNotificationRepo,
+                           com.luxgrimoire.backend.service.AppSettingService appSettingService) {
         this.userRepo              = userRepo;
         this.reportRepo            = reportRepo;
         this.dataRequestRepo       = dataRequestRepo;
@@ -75,6 +77,7 @@ public class AdminController {
         this.fileStorageService    = fileStorageService;
         this.notificationService   = notificationService;
         this.userNotificationRepo  = userNotificationRepo;
+        this.appSettingService     = appSettingService;
     }
 
     // ── Guard helpers ─────────────────────────────────────────────────────────
@@ -550,5 +553,26 @@ public class AdminController {
                 })
                 .toList();
         return ResponseEntity.ok(dtos);
+    }
+
+    // ── Notification retention settings ──────────────────────────────────────
+
+    @GetMapping("/settings/notification-retention")
+    public ResponseEntity<?> getNotifRetention(HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        int days = appSettingService.getInt("notification.retention.days", 180);
+        return ResponseEntity.ok(Map.of("days", days));
+    }
+
+    @PutMapping("/settings/notification-retention")
+    public ResponseEntity<?> setNotifRetention(@RequestBody Map<String, Integer> body, HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        int days = body.getOrDefault("days", 180);
+        if (days < 7 || days > 3650)
+            return ResponseEntity.badRequest().body(Map.of("error", "Retencja musi być między 7 a 3650 dni."));
+        appSettingService.set("notification.retention.days", String.valueOf(days));
+        return ResponseEntity.ok(Map.of("ok", true, "days", days));
     }
 }
