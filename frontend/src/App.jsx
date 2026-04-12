@@ -251,7 +251,7 @@ function AppInner() {
             onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
           />}
         {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
-        {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} onRead={() => setNotifRefreshKey(k => k + 1)} />}
+        {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} onRead={() => setNotifRefreshKey(k => k + 1)} onNavigate={(target) => setTab(target)} />}
         {tab === "friends" && (
           <FriendsPage
             onBack={() => setTab("browse")}

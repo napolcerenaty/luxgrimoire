@@ -297,9 +297,15 @@
   border-color: rgba(255,180,50,0.25);
   color: #d4a835;
 }
-[data-theme="light"] .notif-type--info  { color: var(--accent);  background: rgba(0,110,138,0.07); }
-[data-theme="light"] .notif-type--ann   { color: #7040cc;         background: rgba(112,64,204,0.07); }
-[data-theme="light"] .notif-type--warn  { color: #b07010;         background: rgba(176,112,16,0.07); }
+.notif-type--friend {
+  background: rgba(60,180,100,0.08);
+  border-color: rgba(60,180,100,0.25);
+  color: #3cb464;
+}
+[data-theme="light"] .notif-type--info   { color: var(--accent);  background: rgba(0,110,138,0.07); }
+[data-theme="light"] .notif-type--ann    { color: #7040cc;         background: rgba(112,64,204,0.07); }
+[data-theme="light"] .notif-type--warn   { color: #b07010;         background: rgba(176,112,16,0.07); }
+[data-theme="light"] .notif-type--friend { color: #1a8040;         background: rgba(26,128,64,0.07); }
 
 /* Body */
 .notif-card-body { flex: 1; min-width: 0; }

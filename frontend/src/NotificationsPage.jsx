@@ -3,9 +3,12 @@ import { API } from "./api";
 import "./NotificationsPage.css";
 
 const TYPE_META = {
-  INFO:         { icon: "✶", label: "Informacja",   cls: "notif-type--info"   },
-  ANNOUNCEMENT: { icon: "✶", label: "Ogłoszenie",   cls: "notif-type--ann"    },
-  WARNING:      { icon: "◈", label: "Ostrzeżenie",  cls: "notif-type--warn"   },
+  INFO:            { icon: "✶", label: "Informacja",   cls: "notif-type--info"   },
+  ANNOUNCEMENT:    { icon: "✶", label: "Ogłoszenie",   cls: "notif-type--ann"    },
+  WARNING:         { icon: "◈", label: "Ostrzeżenie",  cls: "notif-type--warn"   },
+  FRIEND_REQUEST:  { icon: "👤", label: "Znajomi",      cls: "notif-type--friend" },
+  FRIEND_ACCEPTED: { icon: "👤", label: "Znajomi",      cls: "notif-type--friend" },
+  FRIEND_REJECTED: { icon: "👤", label: "Znajomi",      cls: "notif-type--friend" },
 };
 
 function relativeTime(dateStr) {
@@ -23,7 +26,7 @@ function relativeTime(dateStr) {
   return date.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function NotificationsPage({ onBack, onRead }) {
+export default function NotificationsPage({ onBack, onRead, onNavigate }) {
   const [notifications, setNotifications] = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [expanded,      setExpanded]      = useState(null);
@@ -186,7 +189,10 @@ export default function NotificationsPage({ onBack, onRead }) {
                 <article
                   key={n.id}
                   className={`notif-card${!n.readAt ? " notif-card--unread" : ""}${isOpen ? " notif-card--open" : ""}${isChecked ? " notif-card--selected" : ""}`}
-                  onClick={() => markRead(n.id)}
+                  onClick={() => {
+                    markRead(n.id);
+                    if (n.type?.startsWith("FRIEND_") && onNavigate) onNavigate("friends");
+                  }}
                 >
                   <input
                     type="checkbox"
