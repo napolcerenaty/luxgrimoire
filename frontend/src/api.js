@@ -103,6 +103,8 @@ export const API = {
   CONVERSATION_MESSAGES:(id)  => `${API_BASE}/api/messages/conversations/${id}/messages`,
   CONVERSATION_SEND: (id)     => `${API_BASE}/api/messages/conversations/${id}/messages`,
   CONVERSATION_READ: (id)     => `${API_BASE}/api/messages/conversations/${id}/read`,
+  CONVERSATION_CREATE_GROUP:    `${API_BASE}/api/messages/conversations/group`,
+  CONVERSATION_MEMBERS: (id) => `${API_BASE}/api/messages/conversations/${id}/members`,
   MESSAGES_UNREAD_COUNT:        `${API_BASE}/api/messages/unread-count`,
   UPLOAD_IMAGE:                 `${API_BASE}/api/upload/image`,
 

@@ -157,6 +157,14 @@
   color: var(--color-text-primary);
   line-height: 1.5;
 }
+.composer-editor-inner.is-editor-empty > p:first-child::before {
+  content: "Napisz coś...";
+  color: var(--color-text-secondary);
+  opacity: 0.65;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
 .composer-editor-inner p {
   margin: 0;
 }

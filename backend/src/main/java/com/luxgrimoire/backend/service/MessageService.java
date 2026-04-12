@@ -1,8 +1,10 @@
 package com.luxgrimoire.backend.service;
 
 import com.luxgrimoire.backend.model.Conversation;
+import com.luxgrimoire.backend.model.ConversationMember;
 import com.luxgrimoire.backend.model.Message;
 import com.luxgrimoire.backend.repository.AppUserRepository;
+import com.luxgrimoire.backend.repository.ConversationMemberRepository;
 import com.luxgrimoire.backend.repository.ConversationRepository;
 import com.luxgrimoire.backend.repository.MessageRepository;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,16 @@ public class MessageService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final AppUserRepository userRepository;
+    private final ConversationMemberRepository memberRepository;
 
     public MessageService(ConversationRepository conversationRepository,
                           MessageRepository messageRepository,
-                          AppUserRepository userRepository) {
+                          AppUserRepository userRepository,
+                          ConversationMemberRepository memberRepository) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
+        this.memberRepository = memberRepository;
     }
 
     @Transactional
@@ -58,9 +63,10 @@ public class MessageService {
     public List<Message> getMessages(String conversationId, String username) {
         Conversation c = conversationRepository.findById(conversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
-        if (!c.getUser1Username().equals(username) && !c.getUser2Username().equals(username)) {
-            throw new IllegalArgumentException("Not authorized");
-        }
+        boolean allowed = c.isGroup()
+            ? memberRepository.existsByConversationIdAndUsername(conversationId, username)
+            : (username.equals(c.getUser1Username()) || username.equals(c.getUser2Username()));
+        if (!allowed) throw new IllegalArgumentException("Not authorized");
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
     }
 
@@ -68,9 +74,10 @@ public class MessageService {
     public Message sendMessage(String conversationId, String senderUsername, String content, String imageUrl) {
         Conversation c = conversationRepository.findById(conversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
-        if (!c.getUser1Username().equals(senderUsername) && !c.getUser2Username().equals(senderUsername)) {
-            throw new IllegalArgumentException("Not authorized");
-        }
+        boolean allowed = c.isGroup()
+            ? memberRepository.existsByConversationIdAndUsername(conversationId, senderUsername)
+            : (senderUsername.equals(c.getUser1Username()) || senderUsername.equals(c.getUser2Username()));
+        if (!allowed) throw new IllegalArgumentException("Not authorized");
         boolean hasContent = content != null && !content.isBlank();
         boolean hasImage = imageUrl != null && !imageUrl.isBlank();
         if (!hasContent && !hasImage) {
@@ -91,6 +98,54 @@ public class MessageService {
     }
 
     @Transactional
+    public Conversation createGroupConversation(String creatorUsername, String groupName, List<String> memberUsernames) {
+        Conversation c = new Conversation();
+        c.setId(UUID.randomUUID().toString());
+        c.setGroup(true);
+        c.setGroupName(groupName != null && !groupName.isBlank() ? groupName.trim() : "Grupa");
+        c.setCreatedAt(LocalDateTime.now());
+        c = conversationRepository.save(c);
+
+        addMember(c.getId(), creatorUsername);
+        for (String m : memberUsernames) {
+            if (!m.equals(creatorUsername) && userRepository.existsById(m)) {
+                addMember(c.getId(), m);
+            }
+        }
+        return c;
+    }
+
+    @Transactional
+    public void addGroupMember(String conversationId, String requesterUsername, String newMemberUsername) {
+        Conversation c = conversationRepository.findById(conversationId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        if (!c.isGroup()) throw new IllegalArgumentException("Not a group conversation");
+        if (!memberRepository.existsByConversationIdAndUsername(conversationId, requesterUsername)) {
+            throw new IllegalArgumentException("Not a member of this group");
+        }
+        if (!userRepository.existsById(newMemberUsername)) {
+            throw new IllegalArgumentException("User not found");
+        }
+        addMember(conversationId, newMemberUsername);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getGroupMemberUsernames(String conversationId) {
+        return memberRepository.findByConversationId(conversationId)
+            .stream().map(ConversationMember::getUsername).toList();
+    }
+
+    private void addMember(String convId, String username) {
+        if (!memberRepository.existsByConversationIdAndUsername(convId, username)) {
+            ConversationMember m = new ConversationMember();
+            m.setConversationId(convId);
+            m.setUsername(username);
+            m.setJoinedAt(LocalDateTime.now());
+            memberRepository.save(m);
+        }
+    }
+
+    @Transactional
     public void markRead(String conversationId, String username) {
         messageRepository.markConversationRead(conversationId, username, LocalDateTime.now());
     }
@@ -105,3 +160,4 @@ public class MessageService {
         return messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversationId);
     }
 }
+

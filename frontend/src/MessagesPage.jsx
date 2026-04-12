@@ -44,6 +44,13 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const [newMsgSearching, setNewMsgSearching] = useState(false);
   const [newMsgScope, setNewMsgScope] = useState("friends"); // "friends" | "all"
   const [friends, setFriends] = useState([]);
+  // Group chat state
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [friendsList, setFriendsList] = useState([]);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [showAddMember, setShowAddMember] = useState(false);
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
   const pollRef = useRef(null);
@@ -101,6 +108,23 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
       .then(r => r.ok ? r.json() : [])
       .then(data => setFriends(data));
   }, []);
+
+  // Load friendsList when create group or add member panels open
+  useEffect(() => {
+    if (!showCreateGroup && !showAddMember) return;
+    fetch(API.FRIENDS, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setFriendsList);
+  }, [showCreateGroup, showAddMember]);
+
+  // Load group members when active group conversation changes
+  const activeConv = conversations.find(c => c.id === activeConvId);
+  useEffect(() => {
+    if (!activeConvId || !activeConv?.isGroup) { setGroupMembers([]); return; }
+    fetch(API.CONVERSATION_MEMBERS(activeConvId), { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setGroupMembers);
+  }, [activeConvId, activeConv?.isGroup]);
 
   const handleNewMsgSearch = (q) => {
     setNewMsgSearch(q);
@@ -161,8 +185,6 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
       });
   };
 
-  const activeConv = conversations.find(c => c.id === activeConvId);
-
   return (
     <div>
       <div className="messages-page-back">
@@ -173,6 +195,9 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
         <div className="messages-sidebar">
           <div className="messages-sidebar-header">
             <h3>{t("messages.title")}</h3>
+            <button className="msg-new-group-btn" onClick={() => setShowCreateGroup(true)} title="Nowa grupa">
+              👥+
+            </button>
           </div>
           <div className="messages-sidebar-list">
             {loadingConvs && <div style={{ padding: "1rem", color: "var(--color-text-secondary)", fontSize: "0.85rem" }}>Ładowanie...</div>}
@@ -189,11 +214,14 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                   className={`conv-item${activeConvId === conv.id ? " conv-item--active" : ""}${hasUnread ? " conv-item--unread" : ""}`}
                   onClick={() => setActiveConvId(conv.id)}
                 >
-                  <AvatarOrPlaceholder url={conv.otherAvatarUrl} name={conv.otherFirstName || conv.otherUsername} />
+                  {conv.isGroup
+                    ? <div className="conv-avatar-placeholder conv-avatar-group" style={{ width: 40, height: 40, fontSize: 16 }}>👥</div>
+                    : <AvatarOrPlaceholder url={conv.otherAvatarUrl} name={conv.otherFirstName || conv.otherUsername} />}
                   <div className="conv-info">
                     <div className={`conv-name${hasUnread ? " conv-name--unread" : ""}`}>
-                      {conv.otherFirstName || conv.otherUsername}
-                      {conv.otherLastName ? " " + conv.otherLastName : ""}
+                      {conv.isGroup
+                        ? (conv.groupName || "Grupa")
+                        : (conv.otherFirstName ? conv.otherFirstName + (conv.otherLastName ? " " + conv.otherLastName : "") : conv.otherUsername)}
                     </div>
                     {conv.lastMessage && (
                       <div className={`conv-last-msg${hasUnread ? " conv-last-msg--unread" : ""}`}>
@@ -260,20 +288,30 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
             </div>
           ) : (
             <>
-              <div className="thread-header">
-                <AvatarOrPlaceholder
-                  url={activeConv?.otherAvatarUrl}
-                  name={activeConv?.otherFirstName || activeConv?.otherUsername}
-                  size={36}
-                />
-                <div className="thread-header-name">
-                  {activeConv?.otherFirstName || activeConv?.otherUsername}
-                  {activeConv?.otherLastName ? " " + activeConv.otherLastName : ""}
-                  <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", fontSize: "0.8rem", marginLeft: "0.4rem" }}>
-                    @{activeConv?.otherUsername}
-                  </span>
+              {activeConv?.isGroup ? (
+                <div className="thread-header-group">
+                  <div className="thread-header-group-info">
+                    <span className="thread-header-group-name">{activeConv.groupName || "Grupa"}</span>
+                    <span className="thread-header-group-count">{activeConv.memberCount} uczestników</span>
+                  </div>
+                  <button className="thread-add-member-btn" onClick={() => setShowAddMember(true)}>+ Dodaj osobę</button>
                 </div>
-              </div>
+              ) : (
+                <div className="thread-header">
+                  <AvatarOrPlaceholder
+                    url={activeConv?.otherAvatarUrl}
+                    name={activeConv?.otherFirstName || activeConv?.otherUsername}
+                    size={36}
+                  />
+                  <div className="thread-header-name">
+                    {activeConv?.otherFirstName || activeConv?.otherUsername}
+                    {activeConv?.otherLastName ? " " + activeConv.otherLastName : ""}
+                    <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", fontSize: "0.8rem", marginLeft: "0.4rem" }}>
+                      @{activeConv?.otherUsername}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className="thread-messages" ref={threadRef}>
                 {messages.length === 0 && (
                   <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: "0.85rem", padding: "2rem 0" }}>
@@ -321,6 +359,116 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
           )}
         </div>
       </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <div className="modal-overlay" onClick={() => setShowCreateGroup(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">Nowa grupa</div>
+            <input
+              className="modal-input"
+              type="text"
+              placeholder="Nazwa grupy..."
+              value={groupName}
+              onChange={e => setGroupName(e.target.value)}
+              autoFocus
+            />
+            <div className="modal-section-label">Wybierz znajomych:</div>
+            <div className="modal-friend-list">
+              {friendsList.map(f => (
+                <label key={f.username} className="modal-friend-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedFriends.includes(f.username)}
+                    onChange={e => {
+                      if (e.target.checked) setSelectedFriends(p => [...p, f.username]);
+                      else setSelectedFriends(p => p.filter(u => u !== f.username));
+                    }}
+                  />
+                  <span>{f.firstName} {f.lastName} (@{f.username})</span>
+                </label>
+              ))}
+              {friendsList.length === 0 && <div className="modal-empty">Brak znajomych</div>}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => { setShowCreateGroup(false); setGroupName(""); setSelectedFriends([]); }}>Anuluj</button>
+              <button
+                className="btn-primary"
+                disabled={!groupName.trim() || selectedFriends.length === 0}
+                onClick={() => {
+                  fetch(API.CONVERSATION_CREATE_GROUP, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ groupName: groupName.trim(), members: selectedFriends }),
+                  }).then(r => r.ok ? r.json() : null).then(data => {
+                    if (data?.conversationId) {
+                      setShowCreateGroup(false);
+                      setGroupName("");
+                      setSelectedFriends([]);
+                      loadConversations().then(() => setActiveConvId(data.conversationId));
+                    }
+                  });
+                }}
+              >
+                Utwórz grupę
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMember && (
+        <div className="modal-overlay" onClick={() => { setShowAddMember(false); setSelectedFriends([]); }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">Dodaj do grupy</div>
+            <div className="modal-friend-list">
+              {friendsList.filter(f => !groupMembers.find(m => m.username === f.username)).map(f => (
+                <label key={f.username} className="modal-friend-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedFriends.includes(f.username)}
+                    onChange={e => {
+                      if (e.target.checked) setSelectedFriends(p => [...p, f.username]);
+                      else setSelectedFriends(p => p.filter(u => u !== f.username));
+                    }}
+                  />
+                  <span>{f.firstName} {f.lastName} (@{f.username})</span>
+                </label>
+              ))}
+              {friendsList.filter(f => !groupMembers.find(m => m.username === f.username)).length === 0 && (
+                <div className="modal-empty">Wszyscy znajomi są już w grupie</div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => { setShowAddMember(false); setSelectedFriends([]); }}>Anuluj</button>
+              <button
+                className="btn-primary"
+                disabled={selectedFriends.length === 0}
+                onClick={() => {
+                  Promise.all(selectedFriends.map(u =>
+                    fetch(API.CONVERSATION_MEMBERS(activeConvId), {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ username: u }),
+                    })
+                  )).then(() => {
+                    setShowAddMember(false);
+                    setSelectedFriends([]);
+                    fetch(API.CONVERSATION_MEMBERS(activeConvId), { credentials: "include" })
+                      .then(r => r.ok ? r.json() : []).then(setGroupMembers);
+                    loadConversations();
+                  });
+                }}
+              >
+                Dodaj ({selectedFriends.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

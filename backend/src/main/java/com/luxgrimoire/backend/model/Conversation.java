@@ -13,11 +13,17 @@ public class Conversation {
     @Id
     private String id;
 
-    @Column(name = "user1_username", nullable = false)
+    @Column(name = "user1_username")
     private String user1Username;
 
-    @Column(name = "user2_username", nullable = false)
+    @Column(name = "user2_username")
     private String user2Username;
+
+    @Column(name = "is_group", nullable = false)
+    private boolean group = false;
+
+    @Column(name = "group_name")
+    private String groupName;
 
     private LocalDateTime createdAt;
     private LocalDateTime lastMessageAt;
@@ -28,6 +34,10 @@ public class Conversation {
     public void setUser1Username(String user1Username) { this.user1Username = user1Username; }
     public String getUser2Username() { return user2Username; }
     public void setUser2Username(String user2Username) { this.user2Username = user2Username; }
+    public boolean isGroup() { return group; }
+    public void setGroup(boolean group) { this.group = group; }
+    public String getGroupName() { return groupName; }
+    public void setGroupName(String groupName) { this.groupName = groupName; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getLastMessageAt() { return lastMessageAt; }
