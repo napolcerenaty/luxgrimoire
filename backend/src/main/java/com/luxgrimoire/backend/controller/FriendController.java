@@ -32,9 +32,6 @@ public class FriendController {
             "lastName", u.getLastName() != null ? u.getLastName() : "",
             "avatarUrl", u.getAvatarUrl() != null ? u.getAvatarUrl() : ""
         )).toList());
-            "avatarUrl", u.getAvatarUrl() != null ? u.getAvatarUrl() : "",
-            "libraryPublic", u.isLibraryPublic()
-        )).toList());
     }
 
     @GetMapping("/requests/pending")

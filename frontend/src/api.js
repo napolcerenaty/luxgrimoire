@@ -104,6 +104,7 @@ export const API = {
   CONVERSATION_SEND: (id)     => `${API_BASE}/api/messages/conversations/${id}/messages`,
   CONVERSATION_READ: (id)     => `${API_BASE}/api/messages/conversations/${id}/read`,
   MESSAGES_UNREAD_COUNT:        `${API_BASE}/api/messages/unread-count`,
+  UPLOAD_IMAGE:                 `${API_BASE}/api/upload/image`,
 
   // Notifications
   NOTIFICATIONS:                `${API_BASE}/api/notifications`,

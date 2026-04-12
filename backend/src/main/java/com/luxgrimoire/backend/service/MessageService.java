@@ -65,20 +65,23 @@ public class MessageService {
     }
 
     @Transactional
-    public Message sendMessage(String conversationId, String senderUsername, String content) {
+    public Message sendMessage(String conversationId, String senderUsername, String content, String imageUrl) {
         Conversation c = conversationRepository.findById(conversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
         if (!c.getUser1Username().equals(senderUsername) && !c.getUser2Username().equals(senderUsername)) {
             throw new IllegalArgumentException("Not authorized");
         }
-        if (content == null || content.isBlank()) {
+        boolean hasContent = content != null && !content.isBlank();
+        boolean hasImage = imageUrl != null && !imageUrl.isBlank();
+        if (!hasContent && !hasImage) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
         Message m = new Message();
         m.setId(UUID.randomUUID().toString());
         m.setConversationId(conversationId);
         m.setSenderUsername(senderUsername);
-        m.setContent(content.trim());
+        m.setContent(hasContent ? content.trim() : "");
+        m.setImageUrl(imageUrl);
         m.setCreatedAt(LocalDateTime.now());
         m = messageRepository.save(m);
 

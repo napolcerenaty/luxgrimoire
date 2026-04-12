@@ -2,8 +2,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import "./MessagesPage.css";
 import { API } from "./api";
 import { useI18n } from "./i18n";
+import DOMPurify from "dompurify";
+import MessageComposer from "./MessageComposer";
 
 const POLL_INTERVAL = 5000;
+
+function stripHtml(html) {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+}
 
 function AvatarOrPlaceholder({ url, name, size = 40 }) {
   if (url) {
@@ -31,8 +38,6 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [newMsgSearch, setNewMsgSearch] = useState("");
   const [newMsgResults, setNewMsgResults] = useState([]);
@@ -89,31 +94,6 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
     }, POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
   }, [activeConvId, loadMessages, loadConversations]);
-
-  const sendMessage = () => {
-    if (!draft.trim() || !activeConvId || sending) return;
-    setSending(true);
-    fetch(API.CONVERSATION_SEND(activeConvId), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: draft.trim() }),
-    }).then(r => r.ok ? r.json() : null).then(msg => {
-      if (msg) {
-        setMessages(prev => [...prev, msg]);
-        setDraft("");
-        loadConversations();
-      }
-      setSending(false);
-    }).catch(() => setSending(false));
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
 
   // Load friends list for "friends only" scope
   useEffect(() => {
@@ -217,7 +197,7 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                     </div>
                     {conv.lastMessage && (
                       <div className={`conv-last-msg${hasUnread ? " conv-last-msg--unread" : ""}`}>
-                        {conv.lastMessageSender === currentUsername ? "Ty: " : ""}{conv.lastMessage}
+                        {conv.lastMessageSender === currentUsername ? "Ty: " : ""}{stripHtml(conv.lastMessage)}
                       </div>
                     )}
                   </div>
@@ -305,7 +285,15 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                   return (
                     <div key={msg.id} className={`msg-bubble-wrap${mine ? " msg-bubble-wrap--mine" : " msg-bubble-wrap--theirs"}`}>
                       <div className={`msg-bubble${mine ? " msg-bubble--mine" : " msg-bubble--theirs"}`}>
-                        {msg.content}
+                        {msg.content && <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="attachment"
+                            className="msg-bubble-image"
+                            onClick={() => window.open(msg.imageUrl, "_blank")}
+                          />
+                        )}
                       </div>
                       <div className="msg-time">{formatTime(msg.createdAt)}</div>
                     </div>
@@ -313,18 +301,22 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                 })}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="thread-input-area">
-                <textarea
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={t("messages.inputPlaceholder")}
-                  rows={1}
-                />
-                <button className="btn-send" onClick={sendMessage} disabled={!draft.trim() || sending}>
-                  {t("messages.send")}
-                </button>
-              </div>
+              <MessageComposer
+                onSend={({ content, imageUrl }) => {
+                  if ((!content || content === "<p></p>") && !imageUrl) return;
+                  fetch(API.CONVERSATION_SEND(activeConvId), {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: content || "", imageUrl: imageUrl || null }),
+                  }).then(r => r.ok ? r.json() : null).then(msg => {
+                    if (msg) {
+                      setMessages(prev => [...prev, msg]);
+                      loadConversations();
+                    }
+                  });
+                }}
+              />
             </>
           )}
         </div>

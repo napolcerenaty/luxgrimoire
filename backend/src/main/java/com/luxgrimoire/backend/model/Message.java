@@ -25,7 +25,10 @@ public class Message {
     private LocalDateTime createdAt;
     private LocalDateTime readAt;
 
-    public String getId() { return id; }
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
+
+    public String getId(){ return id; }
     public void setId(String id) { this.id = id; }
     public String getConversationId() { return conversationId; }
     public void setConversationId(String conversationId) { this.conversationId = conversationId; }
@@ -37,4 +40,6 @@ public class Message {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getReadAt() { return readAt; }
     public void setReadAt(LocalDateTime readAt) { this.readAt = readAt; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }

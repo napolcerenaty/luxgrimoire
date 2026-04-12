@@ -43,7 +43,7 @@ public class MessageController {
             item.put("otherFirstName", otherUser.map(u -> u.getFirstName() != null ? u.getFirstName() : "").orElse(""));
             item.put("otherLastName", otherUser.map(u -> u.getLastName() != null ? u.getLastName() : "").orElse(""));
             item.put("otherAvatarUrl", otherUser.map(u -> u.getAvatarUrl() != null ? u.getAvatarUrl() : "").orElse(""));
-            item.put("lastMessage", lastMsg != null ? lastMsg.getContent() : null);
+            item.put("lastMessage", lastMsg != null ? stripHtml(lastMsg.getContent()) : null);
             item.put("lastMessageAt", lastMsg != null ? lastMsg.getCreatedAt() : c.getLastMessageAt());
             item.put("lastMessageSender", lastMsg != null ? lastMsg.getSenderUsername() : null);
             item.put("unreadCount", messageRepository.countUnreadForConversation(c.getId(), me));
@@ -82,9 +82,10 @@ public class MessageController {
                                           HttpSession session) {
         String me = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         if (me == null) return ResponseEntity.status(401).build();
-        String content = body.get("content");
+        String content = body.getOrDefault("content", "");
+        String imageUrl = body.get("imageUrl");
         try {
-            Message m = messageService.sendMessage(conversationId, me, content);
+            Message m = messageService.sendMessage(conversationId, me, content, imageUrl);
             return ResponseEntity.ok(m);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -105,5 +106,10 @@ public class MessageController {
         if (me == null) return ResponseEntity.status(401).build();
         long count = messageService.countUnread(me);
         return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    private String stripHtml(String html) {
+        if (html == null) return null;
+        return html.replaceAll("<[^>]+>", "").replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&nbsp;", " ").trim();
     }
 }
