@@ -3,6 +3,7 @@ package com.luxgrimoire.backend.controller;
 import com.luxgrimoire.backend.model.Conversation;
 import com.luxgrimoire.backend.model.Message;
 import com.luxgrimoire.backend.repository.AppUserRepository;
+import com.luxgrimoire.backend.repository.MessageRepository;
 import com.luxgrimoire.backend.service.MessageService;
 import com.luxgrimoire.backend.util.AppConstants;
 import jakarta.servlet.http.HttpSession;
@@ -19,10 +20,12 @@ public class MessageController {
 
     private final MessageService messageService;
     private final AppUserRepository userRepository;
+    private final MessageRepository messageRepository;
 
-    public MessageController(MessageService messageService, AppUserRepository userRepository) {
+    public MessageController(MessageService messageService, AppUserRepository userRepository, MessageRepository messageRepository) {
         this.messageService = messageService;
         this.userRepository = userRepository;
+        this.messageRepository = messageRepository;
     }
 
     @GetMapping("/conversations")
@@ -43,6 +46,7 @@ public class MessageController {
             item.put("lastMessage", lastMsg != null ? lastMsg.getContent() : null);
             item.put("lastMessageAt", lastMsg != null ? lastMsg.getCreatedAt() : c.getLastMessageAt());
             item.put("lastMessageSender", lastMsg != null ? lastMsg.getSenderUsername() : null);
+            item.put("unreadCount", messageRepository.countUnreadForConversation(c.getId(), me));
             return item;
         }).toList();
         return ResponseEntity.ok(result);

@@ -86,17 +86,22 @@ export default function FriendsPage({ onBack, onMessage, onViewProfile }) {
 
   const renderSearchAction = (user) => {
     const status = statusMap[user.username] || "NONE";
-    if (status === "FRIENDS") return <span className="btn-friend-pending">{t("friends.alreadyFriends")}</span>;
-    if (status === "PENDING_SENT") return <span className="btn-friend-pending">{t("friends.requestSent")}</span>;
-    if (status === "PENDING_RECEIVED") return (
+    return (
       <>
-        <button className="btn-friend-accept" onClick={() => {
-          const req = pendingIn.find(r => r.senderUsername === user.username);
-          if (req) acceptRequest(req.id, user.username);
-        }}>{t("friends.accept")}</button>
+        <button className="btn-friend-message" onClick={() => onMessage?.(user.username)} title="Wyślij wiadomość">✉</button>
+        {status === "FRIENDS"
+          ? <span className="btn-friend-pending">{t("friends.alreadyFriends")}</span>
+          : status === "PENDING_SENT"
+          ? <span className="btn-friend-pending">{t("friends.requestSent")}</span>
+          : status === "PENDING_RECEIVED"
+          ? <button className="btn-friend-accept" onClick={() => {
+              const req = pendingIn.find(r => r.senderUsername === user.username);
+              if (req) acceptRequest(req.id, user.username);
+            }}>{t("friends.accept")}</button>
+          : <button className="btn-friend-add" onClick={() => sendRequest(user.username)}>{t("friends.addFriend")}</button>
+        }
       </>
     );
-    return <button className="btn-friend-add" onClick={() => sendRequest(user.username)}>{t("friends.addFriend")}</button>;
   };
 
   const renderUser = (user, actions) => (

@@ -37,19 +37,6 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
   const pollRef = useRef(null);
-  const justSentRef = useRef(false);
-
-  const isNearBottom = () => {
-    const el = threadRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  };
-
-  const scrollToBottom = (force = false) => {
-    if (force || isNearBottom()) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   const loadConversations = useCallback(() => {
     return fetch(API.CONVERSATIONS, { credentials: "include" })
@@ -57,7 +44,7 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
       .then(data => { setConversations(data); setLoadingConvs(false); return data; });
   }, []);
 
-  const loadMessages = useCallback((convId, forceScroll = false) => {
+  const loadMessages = useCallback((convId) => {
     if (!convId) return;
     fetch(API.CONVERSATION_MESSAGES(convId), { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
@@ -65,14 +52,7 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
         setMessages(data);
         fetch(API.CONVERSATION_READ(convId), { method: "PUT", credentials: "include" })
           .then(() => onRead?.());
-        if (justSentRef.current || forceScroll) {
-          justSentRef.current = false;
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-        } else {
-          scrollToBottom(false);
-        }
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRead]);
 
   // Start conversation with a specific user (when coming from FriendsPage)
@@ -95,26 +75,18 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
   // Load messages when active conv changes
   useEffect(() => {
     if (!activeConvId) return;
-    loadMessages(activeConvId, true); // force scroll on first open
+    loadMessages(activeConvId);
     clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      loadMessages(activeConvId, false);
+      loadMessages(activeConvId);
       loadConversations();
     }, POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
   }, [activeConvId, loadMessages, loadConversations]);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (justSentRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
   const sendMessage = () => {
     if (!draft.trim() || !activeConvId || sending) return;
     setSending(true);
-    justSentRef.current = true;
     fetch(API.CONVERSATION_SEND(activeConvId), {
       method: "POST",
       credentials: "include",
@@ -157,26 +129,32 @@ export default function MessagesPage({ onBack, initialUsername, currentUsername,
                 {t("messages.noConversations")}
               </div>
             )}
-            {conversations.map(conv => (
-              <div
-                key={conv.id}
-                className={`conv-item${activeConvId === conv.id ? " conv-item--active" : ""}`}
-                onClick={() => setActiveConvId(conv.id)}
-              >
-                <AvatarOrPlaceholder url={conv.otherAvatarUrl} name={conv.otherFirstName || conv.otherUsername} />
-                <div className="conv-info">
-                  <div className="conv-name">
-                    {conv.otherFirstName || conv.otherUsername}
-                    {conv.otherLastName ? " " + conv.otherLastName : ""}
-                  </div>
-                  {conv.lastMessage && (
-                    <div className="conv-last-msg">
-                      {conv.lastMessageSender === currentUsername ? "Ty: " : ""}{conv.lastMessage}
+            {conversations.map(conv => {
+              const hasUnread = conv.unreadCount > 0;
+              return (
+                <div
+                  key={conv.id}
+                  className={`conv-item${activeConvId === conv.id ? " conv-item--active" : ""}${hasUnread ? " conv-item--unread" : ""}`}
+                  onClick={() => setActiveConvId(conv.id)}
+                >
+                  <AvatarOrPlaceholder url={conv.otherAvatarUrl} name={conv.otherFirstName || conv.otherUsername} />
+                  <div className="conv-info">
+                    <div className={`conv-name${hasUnread ? " conv-name--unread" : ""}`}>
+                      {conv.otherFirstName || conv.otherUsername}
+                      {conv.otherLastName ? " " + conv.otherLastName : ""}
                     </div>
+                    {conv.lastMessage && (
+                      <div className={`conv-last-msg${hasUnread ? " conv-last-msg--unread" : ""}`}>
+                        {conv.lastMessageSender === currentUsername ? "Ty: " : ""}{conv.lastMessage}
+                      </div>
+                    )}
+                  </div>
+                  {hasUnread && (
+                    <span className="conv-unread-badge">{conv.unreadCount > 99 ? "99+" : conv.unreadCount}</span>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
