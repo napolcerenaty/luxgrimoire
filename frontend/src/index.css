@@ -89,7 +89,6 @@
   --grad-modal:  linear-gradient(145deg, #e8f2f8 0%, #daeaf5 100%);
   --grad-ann-card: linear-gradient(160deg, #eaf4fa 0%, #daeaf5 100%);
 }
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;

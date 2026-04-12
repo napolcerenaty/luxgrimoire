@@ -844,6 +844,25 @@ function SettingsSection() {
   const [avatarSaved,     setAvatarSaved]     = useState(false);
   const fileInputRef = useRef(null);
 
+  // ── Privacy ────────────────────────────────────────────────────────────────
+  const [libraryPublic, setLibraryPublic] = useState(user?.libraryPublic ?? false);
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [privacySaved,  setPrivacySaved]  = useState(false);
+
+  const handlePrivacyChange = async (val) => {
+    setLibraryPublic(val);
+    setPrivacySaving(true);
+    fetch(API.USER_PRIVACY, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ libraryPublic: val }),
+    }).then(() => {
+      setPrivacySaved(true);
+      setTimeout(() => setPrivacySaved(false), 2500);
+    }).finally(() => setPrivacySaving(false));
+  };
+
   const currentAvatarSrc = user?.avatarUrl ? `${API.BASE}${user.avatarUrl}` : null;
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
 
@@ -957,6 +976,25 @@ function SettingsSection() {
         <button className="page-btn primary" onClick={handleSave} disabled={saving}>
           {saving ? t("settings.saving") : t("settings.saveBtn")}
         </button>
+      </div>
+
+      <div className="account-section-divider" />
+
+      {/* ── Privacy ── */}
+      <div className="user-page-form">
+        <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>{t("settings.privacyTitle")}</h3>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={libraryPublic}
+            onChange={e => handlePrivacyChange(e.target.checked)}
+            disabled={privacySaving}
+            style={{ width: 16, height: 16, cursor: "pointer" }}
+          />
+          <span>{t("settings.libraryPublic")}</span>
+        </label>
+        <span className="field-hint" style={{ marginTop: "0.25rem" }}>{t("settings.libraryPublicHint")}</span>
+        {privacySaved && <p className="page-success" style={{ marginTop: "0.5rem" }}>{t("settings.saved")}</p>}
       </div>
     </section>
   );

@@ -21,6 +21,8 @@ import RecentAnnouncements from "./RecentAnnouncements";
 import AdminPage from "./AdminPage";
 import NotificationsPage from "./NotificationsPage";
 import NotificationBell from "./NotificationBell";
+import FriendsPage from "./FriendsPage";
+import MessagesPage from "./MessagesPage";
 import { API } from "./api";
 
 function BookCard({ book, onClick }) {
@@ -130,6 +132,7 @@ function AppInner() {
   const [selectedAuthorId, setSelectedAuthorId] = useState(null);
   const [selectedArtistId, setSelectedArtistId] = useState(null);
   const [selectedSeriesBookId, setSelectedSeriesBookId] = useState(null);
+  const [messageTargetUser, setMessageTargetUser] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
   const [accountSection, setAccountSection] = useState("calendar");
@@ -177,7 +180,7 @@ function AppInner() {
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
-  const isUserPage = tab === "account" || tab === "admin" || tab === "notifications";
+  const isUserPage = tab === "account" || tab === "admin" || tab === "notifications" || tab === "friends" || tab === "messages";
   const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail" || tab === "series-books";
 
   return (
@@ -249,6 +252,20 @@ function AppInner() {
           />}
         {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
         {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} onRead={() => setNotifRefreshKey(k => k + 1)} />}
+        {tab === "friends" && (
+          <FriendsPage
+            onBack={() => setTab("browse")}
+            onMessage={(username) => { setMessageTargetUser(username); setTab("messages"); }}
+            onViewProfile={(username) => { /* future: user profile page */ }}
+          />
+        )}
+        {tab === "messages" && (
+          <MessagesPage
+            onBack={() => { setMessageTargetUser(null); setTab("browse"); }}
+            initialUsername={messageTargetUser}
+            currentUsername={user?.username}
+          />
+        )}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}

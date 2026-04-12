@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class NotificationService {
@@ -49,6 +50,25 @@ public class NotificationService {
             }
         }
         return n;
+    }
+
+    @Transactional
+    public void sendToUser(String targetUsername, String title, String message, String type, String createdBy) {
+        Optional<AppUser> userOpt = userRepository.findById(targetUsername);
+        if (userOpt.isEmpty()) return;
+        Notification n = new Notification();
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setType(type);
+        n.setTargetRoles("user");
+        n.setCreatedAt(LocalDateTime.now());
+        n.setCreatedBy(createdBy);
+        n = notificationRepository.save(n);
+        UserNotification un = new UserNotification();
+        un.setNotification(n);
+        un.setUserUsername(targetUsername);
+        un.setReadAt(null);
+        userNotificationRepository.save(un);
     }
 
     @Transactional(readOnly = true)

@@ -1,0 +1,207 @@
+.friends-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.friends-page-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.friends-page-header h2 {
+  flex: 1;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* User Search */
+.friends-search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.friends-search-bar input {
+  flex: 1;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+.friends-search-bar input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.friends-search-results {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+/* Sections */
+.friends-section {
+  margin-bottom: 2rem;
+}
+.friends-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* User Card */
+.friend-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.friend-card:last-child {
+  border-bottom: none;
+}
+.friend-card:hover {
+  background: var(--color-hover, rgba(255,255,255,0.04));
+}
+
+.friend-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface-2, #1a2035);
+  flex-shrink: 0;
+}
+.friend-avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.friend-info {
+  flex: 1;
+  min-width: 0;
+}
+.friend-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+.friend-username {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.friend-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-friend-add {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-accent);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-friend-add:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+.btn-friend-pending {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  cursor: default;
+}
+.btn-friend-accept {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-friend-accept:hover { opacity: 0.85; }
+.btn-friend-reject {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.btn-friend-reject:hover { background: rgba(255,80,80,0.15); border-color: #f55; color: #f55; }
+.btn-friend-remove {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.btn-friend-remove:hover { background: rgba(255,80,80,0.15); border-color: #f55; color: #f55; }
+.btn-friend-message {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-friend-message:hover { background: var(--color-hover, rgba(255,255,255,0.07)); }
+
+.friends-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.detail-back-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.detail-back-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+}

@@ -83,6 +83,28 @@ export const API = {
   ADMIN_SUBSCRIPTION_GENRES: `${API_BASE}/api/admin/subscription-genres`,
   ADMIN_NOTIF_RETENTION: `${API_BASE}/api/admin/settings/notification-retention`,
 
+  // Friends
+  FRIENDS:                      `${API_BASE}/api/friends`,
+  FRIEND_REQUEST: (username) => `${API_BASE}/api/friends/request/${username}`,
+  FRIEND_ACCEPT:  (id)       => `${API_BASE}/api/friends/accept/${id}`,
+  FRIEND_REJECT:  (id)       => `${API_BASE}/api/friends/reject/${id}`,
+  FRIEND_REMOVE:  (username) => `${API_BASE}/api/friends/${username}`,
+  FRIEND_STATUS:  (username) => `${API_BASE}/api/friends/status/${username}`,
+  FRIEND_REQUESTS_PENDING:      `${API_BASE}/api/friends/requests/pending`,
+
+  // Users
+  USER_SEARCH:                  `${API_BASE}/api/users/search`,
+  USER_PROFILE:  (username)  => `${API_BASE}/api/users/${username}/profile`,
+  USER_PRIVACY:               `${API_BASE}/api/users/me/privacy`,
+
+  // Messages
+  CONVERSATIONS:                `${API_BASE}/api/messages/conversations`,
+  CONVERSATION_START:(username)=>`${API_BASE}/api/messages/conversations/start/${username}`,
+  CONVERSATION_MESSAGES:(id)  => `${API_BASE}/api/messages/conversations/${id}/messages`,
+  CONVERSATION_SEND: (id)     => `${API_BASE}/api/messages/conversations/${id}/messages`,
+  CONVERSATION_READ: (id)     => `${API_BASE}/api/messages/conversations/${id}/read`,
+  MESSAGES_UNREAD_COUNT:        `${API_BASE}/api/messages/unread-count`,
+
   // Notifications
   NOTIFICATIONS:                `${API_BASE}/api/notifications`,
   NOTIFICATIONS_UNREAD_COUNT:   `${API_BASE}/api/notifications/unread-count`,

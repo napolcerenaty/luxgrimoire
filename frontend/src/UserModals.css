@@ -8,6 +8,27 @@
   gap: 0.5rem;
 }
 
+.user-nav-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent2);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.user-nav-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .user-icon-btn {
   background: transparent;
   border: 1px solid var(--border);
