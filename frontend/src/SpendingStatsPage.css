@@ -1,0 +1,605 @@
+/* ── SpendingStatsPage styles ─────────────────────────────────────────────── */
+
+.ss-page {
+  padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Loading / Error ─────────────────────────────────────────────────────── */
+.ss-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.ss-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #334155;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: ss-spin 0.7s linear infinite;
+}
+
+@keyframes ss-spin { to { transform: rotate(360deg); } }
+
+.ss-error {
+  padding: 2rem;
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ss-retry {
+  padding: 0.35rem 0.9rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.ss-retry:hover { background: #334155; }
+
+.ss-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.ss-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ss-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.ss-currency-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ss-currency-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.ss-currency-select {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ss-currency-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
+
+/* ── Summary cards ─────────────────────────────────────────────────────────── */
+.ss-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ss-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ss-card--accent {
+  background: linear-gradient(135deg, #1e1040 0%, #2d1b69 100%);
+  border-color: #7c3aed;
+}
+
+.ss-card-icon {
+  font-size: 1.2rem;
+  margin-bottom: 0.25rem;
+}
+
+.ss-card-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  line-height: 1.2;
+}
+
+.ss-card-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ss-card-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+/* ── Collection row ────────────────────────────────────────────────────────── */
+.ss-collection-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ss-coll-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.ss-coll-icon { font-size: 1rem; }
+.ss-coll-val  { font-size: 1rem; font-weight: 700; color: #e2e8f0; }
+.ss-coll-lab  { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+.ss-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 0.5rem;
+}
+
+.ss-tab {
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ss-tab:hover    { color: #e2e8f0; background: #1e293b; }
+.ss-tab--active  { color: #e2e8f0; background: #1e293b; border-color: #334155; }
+
+/* ── Section ───────────────────────────────────────────────────────────────── */
+.ss-section {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.ss-section-title {
+  margin: 0 0 1rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ss-section-title::before,
+.ss-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
+}
+
+.ss-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .ss-two-col { grid-template-columns: 1fr; }
+}
+
+/* ── Monthly chart ─────────────────────────────────────────────────────────── */
+.ss-monthly-chart {
+  overflow-x: auto;
+}
+
+.ss-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  padding-bottom: 1.5rem;
+  min-width: fit-content;
+}
+
+.ss-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 28px;
+  flex: 1;
+}
+
+.ss-bar-wrap {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  width: 100%;
+  height: 110px;
+  gap: 1px;
+  cursor: default;
+}
+
+.ss-bar-seg {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  transition: opacity 0.2s;
+}
+.ss-bar-seg:hover { opacity: 0.8; }
+
+.ss-bar-subs  { background: #7c3aed; }
+.ss-bar-purch { background: #0ea5e9; }
+
+.ss-bar-label {
+  font-size: 0.62rem;
+  color: #64748b;
+  text-align: center;
+  position: relative;
+  line-height: 1;
+}
+
+.ss-bar-year {
+  display: block;
+  font-size: 0.58rem;
+  color: #475569;
+}
+
+.ss-chart-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.ss-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.ss-dot-subs  { background: #7c3aed; }
+.ss-dot-purch { background: #0ea5e9; }
+
+/* ── Company breakdown ─────────────────────────────────────────────────────── */
+.ss-company-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.ss-company-row { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.ss-company-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ss-company-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.ss-company-name {
+  font-size: 0.88rem;
+  color: #e2e8f0;
+  flex: 1;
+}
+
+.ss-company-amount {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.ss-company-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.ss-company-periods { margin-left: auto; }
+
+/* ── Source breakdown ──────────────────────────────────────────────────────── */
+.ss-source-list { display: flex; flex-direction: column; gap: 1rem; }
+.ss-source-row  { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.ss-source-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ss-source-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ss-source-name   { flex: 1; font-size: 0.88rem; color: #e2e8f0; }
+.ss-source-pct    { font-size: 0.75rem; color: #64748b; }
+.ss-source-amount { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+
+.ss-source-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+/* ── Progress bar (shared) ─────────────────────────────────────────────────── */
+.ss-progress-track {
+  height: 6px;
+  background: #0f172a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ss-progress-bar {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────────── */
+.ss-table-wrap { overflow-x: auto; }
+
+.ss-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.ss-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #334155;
+}
+
+.ss-table td {
+  padding: 0.6rem 0.75rem;
+  color: #cbd5e1;
+  border-bottom: 1px solid #1e293b;
+}
+
+.ss-table tr:last-child td { border-bottom: none; }
+.ss-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+.ss-num  { text-align: right; }
+.ss-bold { font-weight: 600; color: #e2e8f0; }
+
+/* ── Breakdown grid ────────────────────────────────────────────────────────── */
+.ss-breakdown-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+
+.ss-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.88rem;
+  color: #94a3b8;
+  border-bottom: 1px solid #1e293b;
+}
+
+.ss-breakdown-total {
+  color: #e2e8f0;
+  border-top: 2px solid #334155;
+  border-bottom: none;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
+/* ── Forecast ──────────────────────────────────────────────────────────────── */
+.ss-forecast-note {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: -0.5rem 0 1rem;
+  font-style: italic;
+}
+
+.ss-forecast { display: flex; flex-direction: column; gap: 1rem; }
+
+.ss-forecast-month {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ss-forecast-month-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: #1e293b;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  border-bottom: 1px solid #334155;
+}
+
+.ss-forecast-subtotal {
+  font-size: 0.88rem;
+  color: #a78bfa;
+}
+
+.ss-forecast-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.ss-forecast-sub:last-child { border-bottom: none; }
+
+.ss-forecast-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ss-forecast-sub-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ss-forecast-sub-name { font-size: 0.84rem; color: #cbd5e1; }
+.ss-forecast-sub-day  { font-size: 0.72rem; color: #64748b; }
+.ss-forecast-sub-amount { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; flex-shrink: 0; }
+
+/* ── Sales & ROI tab ─────────────────────────────────────────────────────── */
+.ss-dim { color: #94a3b8; font-size: 0.85rem; }
+.ss-subsection-title { color: #c4b5fd; font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.ss-profit-pos { color: #22c55e; font-weight: 600; }
+.ss-profit-neg { color: #ef4444; font-weight: 600; }
+
+/* ── Sold books section in AccountPage ───────────────────────────────────── */
+.sold-books-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.sold-book-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.sold-book-thumb { width: 48px; height: 64px; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.sold-book-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sold-book-thumb-placeholder {
+  width: 100%; height: 100%;
+  background: #334155; display: flex; align-items: center; justify-content: center;
+  color: #94a3b8; font-size: 1.2rem;
+}
+
+.sold-book-info { display: flex; flex-direction: column; gap: 0.15rem; }
+.sold-book-title { font-weight: 600; color: #e2e8f0; font-size: 0.9rem; }
+.sold-book-edition { color: #c4b5fd; font-size: 0.8rem; }
+.sold-book-meta { display: flex; gap: 0.5rem; font-size: 0.78rem; color: #94a3b8; }
+.sold-book-venue { background: #334155; padding: 0 0.4em; border-radius: 4px; }
+
+.sold-book-prices { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; font-size: 0.8rem; }
+.sold-bought { color: #94a3b8; }
+.sold-sold   { color: #c4b5fd; }
+.sold-profit { font-weight: 700; font-size: 0.9rem; }
+.sold-profit.positive { color: #22c55e; }
+.sold-profit.negative { color: #ef4444; }
+
+/* ── Sell button in book cards ────────────────────────────────────────────── */
+.account-book-card-actions {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  align-items: center; flex-shrink: 0;
+}
+.account-book-card-sell, .account-book-card-remove {
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8; font-size: 0.85rem; padding: 0.2rem;
+  border-radius: 4px; transition: color 0.2s;
+}
+.account-book-card-sell:hover { color: #f59e0b; }
+.account-book-card-remove:hover { color: #ef4444; }
+
+.account-book-row-actions {
+  display: flex; gap: 0.25rem; align-items: center; flex-shrink: 0;
+}
+.account-book-row-sell, .account-book-row-remove {
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8; font-size: 0.85rem; padding: 0.25rem;
+  border-radius: 4px; transition: color 0.2s;
+}
+.account-book-row-sell:hover { color: #f59e0b; }
+.account-book-row-remove:hover { color: #ef4444; }
+
+/* ── Sale form modal ─────────────────────────────────────────────────────── */
+.sale-form { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+.sale-form-row {
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.sale-form-row label { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
+.sale-form-row input,
+.sale-form-row select,
+.sale-form-row textarea {
+  background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+  color: #e2e8f0; padding: 0.5rem 0.75rem; font-size: 0.9rem;
+  width: 100%; box-sizing: border-box;
+}
+.sale-form-row textarea { resize: vertical; }
+
+.sale-price-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; align-items: end;
+}
+.sale-price-row label { grid-column: 1 / -1; }
+.sale-price-row input  { min-width: 0; }
+.sale-price-row select { width: 80px; }
+
+.sale-form-error { color: #ef4444; font-size: 0.85rem; text-align: center; }

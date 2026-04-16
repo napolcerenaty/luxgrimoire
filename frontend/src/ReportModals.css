@@ -1,0 +1,287 @@
+/* ── Report / Data-request modals ──────────────────────── */
+.report-modal {
+  max-width: 540px;
+  width: 100%;
+  border: 1px solid rgba(42, 158, 196, 0.55) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(42, 158, 196, 0.25),
+    0 0 40px rgba(42, 158, 196, 0.07);
+}
+
+/* ── Auth gate ──────────────────────────────────────────── */
+.report-login-gate {
+  text-align: center;
+  padding: 1.5rem 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.report-login-gate-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.report-login-gate-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  color: var(--accent);
+  margin: 0;
+}
+
+.report-login-gate-desc {
+  color: var(--text-ghost);
+  font-size: 0.92rem;
+  margin: 0 0 0.5rem;
+  max-width: 340px;
+}
+
+.report-modal-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin: 0 0 0.75rem;
+}
+
+.report-reporter {
+  font-size: 0.88rem;
+  color: var(--text-ghost);
+  margin: 0 0 1rem;
+}
+
+.report-reporter strong {
+  color: var(--text-mid);
+}
+
+.report-images-section {
+  margin-top: 0.6rem;
+}
+
+.report-images-label {
+  font-size: 0.85rem;
+  color: var(--text-ghost);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.report-images-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.report-image-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.report-image-thumb img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.report-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  cursor: pointer;
+  color: var(--text-ghost);
+  padding: 0;
+  line-height: 1;
+}
+
+.report-image-remove:hover {
+  color: #e06c75;
+  border-color: #e06c75;
+}
+
+.report-image-add {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--text-ghost);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.report-image-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Success state ──────────────────────────────────────── */
+.report-success {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.report-success-icon {
+  font-size: 3rem;
+  color: #98c379;
+  margin-bottom: 0.75rem;
+}
+
+.report-success h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--accent);
+  font-size: 1.15rem;
+  margin: 0 0 0.5rem;
+}
+
+.report-success p {
+  color: var(--text-ghost);
+  font-size: 0.95rem;
+  margin: 0 0 1.25rem;
+}
+
+/* ── Floating bug report button ─────────────────────────── */
+.floating-bug-btn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  padding: 0.6rem 0.5rem;
+  cursor: pointer;
+  color: var(--text-ghost);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1.1rem;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  writing-mode: vertical-rl;
+}
+
+.floating-bug-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.floating-bug-btn-icon {
+  writing-mode: horizontal-tb;
+  font-size: 1rem;
+}
+
+.floating-bug-btn-text {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: 'Cinzel', serif;
+}
+
+/* ── Dev Banner ─────────────────────────────────────────── */
+.dev-banner {
+  background: linear-gradient(90deg, var(--accent-glow) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 0.4rem 1.2rem;
+  font-size: 0.8rem;
+  color: var(--text-ghost);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.dev-banner-text {
+  text-align: center;
+  flex: 1;
+}
+
+.dev-banner-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 0;
+}
+
+.dev-banner-link:hover {
+  color: var(--accent-bright);
+}
+
+.dev-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-ghost);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0 0 0.5rem;
+  flex-shrink: 0;
+}
+
+.dev-banner-dismiss:hover {
+  color: var(--text-mid);
+}
+
+/* ── Search panel data request prompt ───────────────────── */
+.sr-data-request-hint {
+  font-size: 0.82rem;
+  color: var(--text-ghost);
+  margin-top: 0.25rem;
+}
+
+.sr-data-request-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 0;
+}
+
+.sr-data-request-link:hover {
+  color: var(--accent-bright);
+}
+
+/* required asterisk */
+span.required {
+  color: #e06c75;
+}
+
+/* admin report image thumbs */
+.admin-report-images {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.admin-report-img-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
