@@ -3274,6 +3274,7 @@ function ImportsSection() {
 function EmailSection() {
   const [sending, setSending] = useState(false);
   const [result, setResult]   = useState(null);
+  const [form, setForm]       = useState({ to: "", subject: "", content: "" });
 
   const handleSend = () => {
     setResult(null);
