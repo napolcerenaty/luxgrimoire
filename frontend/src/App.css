@@ -331,20 +331,13 @@ main {
 }
 
 .book-cover img {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.7s ease, transform 0.4s ease;
+  transition: transform 0.4s ease;
 }
 
-.book-cover img.active {
-  opacity: 1;
-}
-
-.book-card:hover .book-cover img.active {
+.book-card:hover .book-cover img {
   transform: scale(1.05);
 }
 
