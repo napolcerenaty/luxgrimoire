@@ -173,13 +173,23 @@
 
 .account-section-title {
   font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-  color: var(--accent);
+  font-size: 1.1rem;
+  color: var(--accent2);
   margin: 0 0 1.5rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-dim);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-section-title::before,
+.account-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
 }
 
 /* Reuse UserPages.css form/row/button classes inside account-section */
@@ -355,12 +365,18 @@
 .account-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--border-dim);
+  gap: 0;
   border: 1px solid var(--border-dim);
   border-radius: 8px;
   overflow: hidden;
 }
+
+.account-cal-grid > * {
+  border-right: 1px solid var(--border-dim);
+  border-bottom: 1px solid var(--border-dim);
+}
+.account-cal-grid > *:nth-child(7n)        { border-right: none; }
+.account-cal-grid > *:nth-last-child(-n+7) { border-bottom: none; }
 
 /* Day name headers */
 .account-cal-day-header {
@@ -377,7 +393,7 @@
 /* Day cells — fixed height, content clips instead of expanding the cell */
 .account-cal-cell {
   background: var(--bg-surface);
-  height: 96px;
+  height: 110px;
   min-width: 0;           /* critical: prevents grid blowout */
   overflow: hidden;
   padding: 0.35rem 0.4rem 0.4rem;
@@ -419,9 +435,9 @@
   font-size: 0.7rem;
   padding: 2px 4px;
   border-radius: 2px;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   overflow: hidden;
-  text-overflow: ellipsis;
   min-width: 0;           /* allow shrink inside flex */
   line-height: 1.3;
   flex-shrink: 0;
@@ -481,6 +497,35 @@
   text-overflow: ellipsis;
   max-width: 100%;
   line-height: 1.2;
+}
+
+/* ── Hover / tap tip panel ── */
+.account-cal-tip-panel {
+  position: fixed;
+  z-index: 950;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  max-width: 210px;
+  box-shadow: var(--shadow-mid);
+  pointer-events: auto;
+}
+
+.account-cal-tip-label {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.92rem;
+  color: var(--text-bright);
+  word-break: break-word;
+}
+
+.account-cal-tip-type {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
+  margin-bottom: 0.25rem;
 }
 
 /* ── Sale popup overlay ── */
@@ -1198,7 +1243,7 @@
 .account-sub-meta-label {
   font-family: 'Cinzel', serif;
   font-size: 0.75rem;
-  color: var(--text-ghost);
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   min-width: 90px;
@@ -1235,3 +1280,110 @@
   margin: 0;
 }
 
+
+/* ─── Book status badges ───────────────────────────────────────────────────── */
+.book-status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.book-status-badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 20px;
+  font-family: 'Crimson Text', serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Ownership status colours */
+.book-status-ownership.book-status-owned        { background: rgba(122,200,120,0.15); color: #7bc878; border: 1px solid rgba(122,200,120,0.35); }
+.book-status-ownership.book-status-wishlist     { background: rgba(201,160,220,0.15); color: #c9a0dc; border: 1px solid rgba(201,160,220,0.35); }
+.book-status-ownership.book-status-preorder     { background: rgba(160,190,220,0.15); color: #a0bedc; border: 1px solid rgba(160,190,220,0.35); }
+.book-status-ownership.book-status-loaned-out   { background: rgba(240,190,100,0.15); color: #f0be64; border: 1px solid rgba(240,190,100,0.35); }
+.book-status-ownership.book-status-sold         { background: rgba(220,120,120,0.15); color: #dc7878; border: 1px solid rgba(220,120,120,0.35); }
+.book-status-ownership.book-status-gifted-away  { background: rgba(180,160,220,0.12); color: #b4a0dc; border: 1px solid rgba(180,160,220,0.3); }
+
+/* Reading status colours */
+.book-status-reading.book-status-unread         { background: rgba(150,150,180,0.12); color: #9696b4; border: 1px solid rgba(150,150,180,0.3); }
+.book-status-reading.book-status-reading        { background: rgba(100,180,220,0.15); color: #64b4dc; border: 1px solid rgba(100,180,220,0.35); }
+.book-status-reading.book-status-read           { background: rgba(122,200,120,0.15); color: #7bc878; border: 1px solid rgba(122,200,120,0.35); }
+.book-status-reading.book-status-dnf            { background: rgba(220,120,120,0.15); color: #dc7878; border: 1px solid rgba(220,120,120,0.35); }
+
+/* Price display */
+.account-book-card-price,
+.account-book-row-price {
+  font-size: 0.78rem;
+  color: var(--accent-dim, #9d8fbf);
+  font-style: italic;
+}
+
+/* ── Settings section heading ── */
+.settings-section-heading {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a2e);
+}
+
+/* ── Privacy rows ── */
+.privacy-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.privacy-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.privacy-row:first-child {
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.privacy-row-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-primary, #1a1a2e);
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.privacy-row-icon {
+  font-size: 1rem;
+  width: 1.4rem;
+  text-align: center;
+}
+
+.privacy-select {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  font-size: 0.85rem;
+  color: var(--text-primary, #1a1a2e);
+  cursor: pointer;
+  min-width: 130px;
+}
+
+.privacy-row-desc {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  padding-left: 1.9rem;
+}

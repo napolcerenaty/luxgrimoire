@@ -312,3 +312,62 @@
 .sr-add-link:hover {
   color: var(--accent-bright);
 }
+
+/* ─── Header compact search ─── */
+.search-panel-header {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 400px;
+}
+
+.search-header-row {
+  display: flex;
+  align-items: center;
+}
+
+.search-input-compact {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.search-input-compact:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow2);
+}
+
+.search-dropdown-header {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 320px;
+  z-index: 600;
+}
+
+.sr-request-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.18s;
+}
+
+.sr-request-link:hover {
+  color: var(--accent-bright);
+}

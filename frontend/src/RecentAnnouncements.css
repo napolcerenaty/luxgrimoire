@@ -417,3 +417,172 @@
     padding: 1.2rem 1.2rem 1.5rem;
   }
 }
+
+/* ─── Empty / loading state ─── */
+.announcements-empty {
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  color: var(--text-ghost);
+  font-style: italic;
+  padding: 2rem 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+/* ─── Interest badge on card ─── */
+.announcement-interested-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 1rem;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(0, 180, 220, 0.7);
+  line-height: 1;
+}
+
+.announcement-bought-badge {
+  color: #5fca7a;
+  text-shadow: 0 0 8px rgba(95, 202, 122, 0.7);
+}
+
+/* ─── Footer: see more + suggest ─── */
+.announcements-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.announcements-see-more {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-faint);
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.5rem 1.6rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.announcements-see-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 160, 200, 0.08);
+  box-shadow: 0 0 10px rgba(0, 180, 220, 0.15);
+}
+
+/* ─── Suggest prompt ─── */
+.announcements-suggest {
+  text-align: center;
+  margin-top: 1rem;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: var(--text-ghost);
+  font-style: italic;
+}
+
+.announcements-suggest-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  font-style: italic;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+
+.announcements-suggest-link:hover {
+  color: var(--text-bright);
+}
+
+/* ─── Modal edition list ─── */
+.ann-modal-editions {
+  margin: 0.8rem 0 0;
+}
+
+.ann-modal-editions-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
+  margin: 0 0 0.4rem;
+}
+
+.ann-modal-editions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ann-modal-editions-list li {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: var(--text-mid);
+}
+
+.ann-modal-editions-list li em {
+  color: var(--text-faint);
+}
+
+/* ─── Modal actions (interest button) ─── */
+.ann-modal-actions {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bg-raised);
+}
+
+.ann-modal-interest-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-faint);
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.ann-modal-interest-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 160, 200, 0.08);
+}
+
+.ann-modal-interest-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 160, 200, 0.1);
+}
+
+.ann-modal-bought-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #5fca7a;
+}
+
+.ann-modal-login-hint {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.85rem;
+  color: var(--text-ghost);
+  font-style: italic;
+  margin: 0;
+}

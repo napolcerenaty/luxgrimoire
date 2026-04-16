@@ -89,16 +89,47 @@
   letter-spacing: 0.04em;
 }
 
-.admin-role-badge.admin {
+.admin-role-badge.role-admin {
   background: hsla(0,70%,55%,0.15);
   color: #e05566;
   border: 1px solid hsla(0,70%,55%,0.3);
 }
 
-.admin-role-badge.user {
+.admin-role-badge.role-user {
   background: var(--accent-glow2);
   color: var(--accent);
   border: 1px solid var(--border-dim);
+}
+
+.admin-role-badge.role-superadmin {
+  background: hsla(280,70%,55%,0.15);
+  color: #b85ae0;
+  border: 1px solid hsla(280,70%,55%,0.35);
+}
+
+.admin-role-badge.role-company_manager {
+  background: hsla(200,60%,50%,0.15);
+  color: #4ab3d8;
+  border: 1px solid hsla(200,60%,50%,0.3);
+}
+
+/* legacy selectors kept for backwards compat */
+.admin-role-badge.admin { background: hsla(0,70%,55%,0.15); color: #e05566; border: 1px solid hsla(0,70%,55%,0.3); }
+.admin-role-badge.user  { background: var(--accent-glow2); color: var(--accent); border: 1px solid var(--border-dim); }
+
+.admin-edit-role-btn {
+  background: none;
+  border: 1px solid var(--border-dim);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.admin-edit-role-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── Status badge ── */
@@ -1023,9 +1054,23 @@
 /* ── Shared form helpers (used by NotificationsAdminSection) ─────────────── */
 .admin-section-title {
   font-family: 'Cinzel', serif;
-  font-size: 1rem;
-  color: var(--text-bright);
-  margin: 0 0 0.25rem 0;
+  font-size: 1.05rem;
+  color: var(--accent2);
+  margin: 0 0 1rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-section-title::before,
+.admin-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
 }
 .admin-form-field {
   display: flex;

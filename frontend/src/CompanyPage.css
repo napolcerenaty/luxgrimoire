@@ -177,11 +177,24 @@
 }
 
 .company-page-section-title {
+  font-family: 'Cinzel', serif;
   font-size: 1rem;
-  color: var(--accent);
-  margin-bottom: 0.7rem;
-  border-bottom: 1px solid var(--border-dim);
-  padding-bottom: 0.3rem;
+  color: var(--accent2);
+  margin-bottom: 1rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.company-page-section-title::before,
+.company-page-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
 }
 
 .company-page-subs-grid {
@@ -198,6 +211,16 @@
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+}
+
+.company-page-sub-card--clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.company-page-sub-card--clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
 
 .company-page-sub-logo {

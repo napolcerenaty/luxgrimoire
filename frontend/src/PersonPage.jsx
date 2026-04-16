@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
+import HeartButton from "./HeartButton";
 import "./PersonPage.css";
 
 const PAGE_SIZE = 12;
@@ -331,6 +332,7 @@ export default function PersonPage({
           ) : (
             <>
               <h1 className="pe-name">{person.name}</h1>
+              <HeartButton type={apiBase} id={personId} />
               <SocialLinks person={person} />
               {person.bio && <p className="pe-bio">{person.bio}</p>}
             </>
@@ -340,7 +342,7 @@ export default function PersonPage({
 
       {/* ── Editions ── */}
       <section className="pe-editions-section">
-        <h2 className="pe-editions-title">
+        <h2 className="section-title">
           {sectionTitle} {person.name}
           <span className="pe-editions-count">{filtered.length}</span>
         </h2>

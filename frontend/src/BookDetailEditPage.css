@@ -96,6 +96,12 @@
   border-color: var(--accent2);
 }
 
+.edit-input[type="date"]::-webkit-calendar-picker-indicator,
+.edit-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
 .edit-select {
   background: var(--bg);
   border: 1px solid var(--border-dim);
@@ -143,13 +149,23 @@
 
 .edit-section-title {
   font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--accent2);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0 0 0.25rem;
-  border-bottom: 1px solid var(--border-dim);
-  padding-bottom: 0.4rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.edit-section-title::before,
+.edit-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
 }
 
 .edit-dynamic-row {
@@ -446,3 +462,68 @@
   border-color: #cc4444;
 }
 
+
+/* ── Parse from description ──────────────────────────────────────────────── */
+
+.edit-parse-section {
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+}
+
+.edit-parse-toggle {
+  background: none;
+  border: none;
+  color: var(--accent2);
+  font-family: 'Cinzel', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.edit-parse-toggle:hover { color: var(--accent); }
+
+.edit-parse-body {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.edit-parse-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+}
+
+.edit-parse-textarea:focus { outline: none; border-color: var(--accent2); }
+
+.edit-parse-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.edit-parse-img-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.edit-parse-msg {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  color: var(--accent2);
+  font-style: italic;
+  margin: 0;
+}

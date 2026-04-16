@@ -86,8 +86,21 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const updateSocial = async (fields) => {
+    const r = await fetch(API.USER_SOCIAL, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Update failed");
+    setUser(data);
+    return data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings, uploadAvatar, updatePrivacy }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, updateSettings, uploadAvatar, updatePrivacy, updateSocial }}>
       {children}
     </AuthContext.Provider>
   );

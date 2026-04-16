@@ -1,10 +1,30 @@
 import { useState, useEffect } from "react";
 import "./CompanyPage.css";
 import { useI18n } from "./i18n";
+import { API } from "./api";
+import HeartButton from "./HeartButton";
+import SaleBuyModal from "./SaleBuyModal";
 
-export default function CompanyPage({ company, onBack, onEdit, onDelete, user }) {
+const resolveLogoUrl = (url) => {
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${API.BASE}${url}`;
+};
+
+export default function CompanyPage({ company, onBack, onEdit, onDelete, user, onSubscriptionClick, adminView }) {
   const { t } = useI18n();
   const [deleting, setDeleting] = useState(false);
+  const [fullCompany, setFullCompany] = useState(company);
+
+  useEffect(() => { setFullCompany(company); }, [company]);
+
+  useEffect(() => {
+    if (!company?.subscriptions && company?.id) {
+      fetch(`http://localhost:8080/api/companies/${company.id}`, { credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setFullCompany(data); })
+        .catch(() => {});
+    }
+  }, [company?.id]);
 
   // ── user subscriptions state ──
   const [userSubs, setUserSubs] = useState([]);
@@ -16,8 +36,47 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
   const today = new Date().toISOString().slice(0, 10);
   const [subForm, setSubForm] = useState({ startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "", prepayOptionId: null });
 
-  const canManage = user && (user.role === "admin" || company?.managerUsernames?.includes(user.username));
+  const canManage = user && (user.role === "admin" || fullCompany?.managerUsernames?.includes(user.username));
   const canDelete = user && user.role === "admin";
+
+  // ── Upcoming sales state ──
+  const [upcomingSales, setUpcomingSales] = useState([]);
+  const [saleInterests, setSaleInterests] = useState({}); // saleId -> status
+  const [buyModalSale, setBuyModalSale] = useState(null);
+
+  useEffect(() => {
+    if (!company?.id) return;
+    const endpoint = user ? API.USER_SALES_UPCOMING : API.SALES_UPCOMING;
+    fetch(endpoint, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => {
+        const filtered = data.filter((s) => s.companyId === company.id);
+        setUpcomingSales(filtered);
+        if (user) {
+          const map = {};
+          filtered.forEach((s) => { map[s.id] = s.userStatus || null; });
+          setSaleInterests(map);
+        }
+      })
+      .catch(() => {});
+  }, [company?.id, user]);
+
+  const handleSaleInterest = async (saleId) => {
+    if (!user) return;
+    const current = saleInterests[saleId];
+    const next = current === "INTERESTED" ? null : "INTERESTED";
+    try {
+      const res = await fetch(API.USER_SALE_INTEREST(saleId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: next }),
+      });
+      if (res.ok) {
+        setSaleInterests((prev) => ({ ...prev, [saleId]: next }));
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     if (!user) { setUserSubs([]); return; }
@@ -61,7 +120,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       }
     }
     const body = {
-      companyId: company.id,
+      companyId: fullCompany.id,
       subscriptionId: sub.id,
       startDate: formData.startDate || null,
       shippingCost: formData.shippingCost !== "" ? parseFloat(formData.shippingCost) : null,
@@ -88,7 +147,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
 
   const handleSubscribe = (sub) => {
     if (!user) return;
-    const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === company.id).length;
+    const count = userSubs.filter((e) => e.subscriptionId === sub.id && e.companyId === fullCompany.id).length;
     const resetForm = { startDate: today, shippingCost: "", taxesAndFees: "", startingMonth: "", renewalDay: "", prepayOptionId: null };
     setSubForm(resetForm);
     setSubscribeModal({ sub, isDupe: count > 0, count });
@@ -98,7 +157,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
     if (!window.confirm(t("company.deleteConfirm"))) return;
     setDeleting(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/companies/${company.id}`, {
+      const res = await fetch(`http://localhost:8080/api/companies/${fullCompany.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -108,7 +167,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
     }
   };
 
-  if (!company) return null;
+    if (!fullCompany) return null;
 
   const needsStartingMonth = subscribeModal?.sub &&
     (subscribeModal.sub.type === "BI_MONTHLY" || subscribeModal.sub.type === "QUARTERLY");
@@ -126,7 +185,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
             <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{subscribeModal.sub.name}</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
               <label style={{ fontSize: "0.9rem" }}>
-                Data startu
+                {t("company.sub.formStartDate")}
                 <input
                   type="date"
                   className="admin-form-input"
@@ -136,7 +195,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                 />
               </label>
               <label style={{ fontSize: "0.9rem" }}>
-                Koszt wysyłki (opcjonalnie)
+                {t("company.sub.formShipping")}
                 <input
                   type="number"
                   step="0.01"
@@ -149,7 +208,7 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                 />
               </label>
               <label style={{ fontSize: "0.9rem" }}>
-                Podatki/opłaty (opcjonalnie)
+                {t("company.sub.formTaxes")}
                 <input
                   type="number"
                   step="0.01"
@@ -163,23 +222,23 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
               </label>
               {needsStartingMonth && (
                 <label style={{ fontSize: "0.9rem" }}>
-                  Miesiąc startowy
+                  {t("company.sub.formStartMonth")}
                   <select
                     className="admin-form-select"
                     style={{ display: "block", marginTop: "0.25rem" }}
                     value={subForm.startingMonth}
                     onChange={(e) => setSubForm((f) => ({ ...f, startingMonth: e.target.value }))}
                   >
-                    <option value="">— wybierz —</option>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    <option value="">{t("company.sub.formSelect")}</option>
+                    {(t("bookDetail.months") || []).map((name, i) => (
+                      <option key={i + 1} value={i + 1}>{name}</option>
                     ))}
                   </select>
                 </label>
               )}
               {needsRenewalDay && (
                 <label style={{ fontSize: "0.9rem" }}>
-                  Dzień odnowy (1–31)
+                  {t("company.sub.formRenewalDay")}
                   <input
                     type="number"
                     min="1"
@@ -195,19 +254,19 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
               {/* Prepay options */}
               {subscribeModal.sub.prepayOptions && subscribeModal.sub.prepayOptions.length > 0 && (
                 <div style={{ fontSize: "0.9rem" }}>
-                  <div style={{ marginBottom: "0.3rem", fontWeight: 500 }}>Opcja płatności</div>
+                  <div style={{ marginBottom: "0.3rem", fontWeight: 500 }}>{t("company.sub.formPaymentOption")}</div>
                   <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
                     <input type="radio" name="prepayOption" value=""
                       checked={!subForm.prepayOptionId}
                       onChange={() => setSubForm(f => ({ ...f, prepayOptionId: null }))} />
-                    Płatność miesięczna ({subscribeModal.sub.basePrice ?? "—"})
+                    {t("company.sub.formMonthly")} ({subscribeModal.sub.basePrice ?? "—"})
                   </label>
                   {subscribeModal.sub.prepayOptions.map(opt => (
                     <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
                       <input type="radio" name="prepayOption" value={opt.id}
                         checked={subForm.prepayOptionId === opt.id}
                         onChange={() => setSubForm(f => ({ ...f, prepayOptionId: opt.id }))} />
-                      {opt.label || `${opt.months} mies.`} — {opt.price} ({((opt.price / opt.months)).toFixed(2)}/mies.)
+                      {opt.label || t("company.sub.formMonths")(opt.months)} — {opt.price} ({((opt.price / opt.months)).toFixed(2)}{t("company.sub.formPerMonth")})
                     </label>
                   ))}
                 </div>
@@ -226,9 +285,9 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       )}
       <div className="company-page-actions-top">
         <button className="company-back-btn" onClick={onBack}>{t("back")}</button>
-        {canManage && (
+        {adminView && canManage && (
           <div className="company-page-actions-right">
-            <button className="company-action-btn" onClick={() => onEdit(company)}>
+            <button className="company-action-btn" onClick={() => onEdit(fullCompany)}>
               {t("company.editBtn")}
             </button>
             {canDelete && (
@@ -245,33 +304,34 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
       </div>
 
       <div className="company-page-content">
-        {company.logoUrl && (
+        {fullCompany.logoUrl && (
           <div className="company-page-logo">
             <img
-              src={company.logoUrl}
-              alt={company.name}
+              src={resolveLogoUrl(fullCompany.logoUrl)}
+              alt={fullCompany.name}
               onError={(e) => {
-                e.target.src = `https://placehold.co/200x100/060d18/00b4d0?text=${encodeURIComponent(company.name || "?")}`;
+                e.target.src = `https://placehold.co/200x100/060d18/00b4d0?text=${encodeURIComponent(fullCompany.name || "?")}`;
               }}
             />
           </div>
         )}
 
-        <h1 className="company-page-name">{company.name}</h1>
+        <h1 className="company-page-name">{fullCompany.name}</h1>
+        <HeartButton type="companies" id={fullCompany.id} />
 
-        {company.websiteUrl && (
+        {fullCompany.websiteUrl && (
           <a
             className="company-page-website"
-            href={company.websiteUrl}
+            href={fullCompany.websiteUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
-            {company.websiteUrl}
+            {fullCompany.websiteUrl}
           </a>
         )}
 
         {/* Social media links */}
-        {["instagram","threads","tiktok","facebook","x","bluesky"].some(k => company[k]) && (
+        {["instagram","threads","tiktok","facebook","x","bluesky"].some(k => fullCompany[k]) && (
           <div className="company-page-social-links">
             {[
               { key: "instagram", label: "Instagram", icon: "📷" },
@@ -280,8 +340,8 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
               { key: "facebook",  label: "Facebook",  icon: "📘" },
               { key: "x",         label: "X",         icon: "✕"  },
               { key: "bluesky",   label: "Bluesky",   icon: "🦋" },
-            ].filter(p => company[p.key]).map(p => (
-              <a key={p.key} href={company[p.key]} target="_blank" rel="noopener noreferrer"
+            ].filter(p => fullCompany[p.key]).map(p => (
+              <a key={p.key} href={fullCompany[p.key]} target="_blank" rel="noopener noreferrer"
                 className="company-page-social-link" title={p.label}>
                 <span>{p.icon}</span> {p.label}
               </a>
@@ -289,30 +349,30 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
           </div>
         )}
 
-        {company.description && (
-          <p className="company-page-description">{company.description}</p>
+        {fullCompany.description && (
+          <p className="company-page-description">{fullCompany.description}</p>
         )}
 
         <div className="company-page-fields">
-          {company.location && (
+          {fullCompany.location && (
             <div className="company-page-field">
               <span className="company-page-label">{t("company.location")}</span>
-              <span className="company-page-value">{company.location}</span>
+              <span className="company-page-value">{fullCompany.location}</span>
             </div>
           )}
-          {company.defaultCurrency && (
+          {fullCompany.defaultCurrency && (
             <div className="company-page-field">
               <span className="company-page-label">{t("company.currency")}</span>
-              <span className="company-page-value">{company.defaultCurrency}</span>
+              <span className="company-page-value">{fullCompany.defaultCurrency}</span>
             </div>
           )}
         </div>
 
-        {company.subscriptions && company.subscriptions.length > 0 && (
+        {fullCompany.subscriptions && fullCompany.subscriptions.length > 0 && (
           <div className="company-page-section">
-            <h3 className="company-page-section-title">{t("company.subscriptions")}</h3>
+            <h3 className="section-title">{t("company.subscriptions")}</h3>
             <div className="company-page-subs-grid">
-              {company.subscriptions.map((sub, idx) => {
+              {fullCompany.subscriptions.map((sub, idx) => {
                 const subObj = typeof sub === "string" ? { name: sub } : sub;
                 const typeLabel = subObj.type === "BI_MONTHLY"
                   ? t("company.sub.typeBiMonthly")
@@ -322,9 +382,10 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                       ? t("company.sub.typeMonthly")
                       : subObj.type || "";
                 return (
-                  <div key={subObj.id || idx} className="company-page-sub-card">
+                  <div key={subObj.id || idx} className={`company-page-sub-card${onSubscriptionClick && subObj.id ? " company-page-sub-card--clickable" : ""}`}
+                    onClick={() => onSubscriptionClick && subObj.id && onSubscriptionClick({ companyId: fullCompany.id, subscriptionId: subObj.id })}>
                     {subObj.logoUrl && (
-                      <img className="company-page-sub-logo" src={subObj.logoUrl} alt={subObj.name}
+                      <img className="company-page-sub-logo" src={resolveLogoUrl(subObj.logoUrl)} alt={subObj.name}
                         onError={(e) => { e.target.style.display = "none"; }} />
                     )}
                     <div className="company-page-sub-body">
@@ -353,42 +414,20 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
                       )}
                       {subObj.basePrice != null && subObj.basePrice !== "" && (
                         <p className="company-page-sub-price">
-                          {subObj.basePrice} {company.defaultCurrency || ""}
+                          {subObj.basePrice} {fullCompany.defaultCurrency || ""}
                         </p>
                       )}
                       {user && subObj.id && (
                         <button
                           className={`uc-subscribe-btn${subAddedId === subObj.id ? " uc-subscribe-btn--added" : ""}`}
-                          onClick={() => handleSubscribe(subObj)}
+                          onClick={(e) => { e.stopPropagation(); handleSubscribe(subObj); }}
                         >
                           {subAddedId === subObj.id
                             ? t("userCollection.subAdded")
                             : t("userCollection.subscribe")}
                         </button>
                       )}
-                      {subObj.months && subObj.months.length > 0 && (
-                        <div className="company-page-sub-months">
-                          <span className="company-page-sub-months-title">{t("company.sub.months")}</span>
-                          <div className="company-page-sub-months-list">
-                            {subObj.months.map((mo, mi) => {
-                              const mName = (Array.isArray(t("bookDetail.months")) ? t("bookDetail.months")[mo.month - 1] : mo.month) + " " + mo.year;
-                              return (
-                                <div key={mo.id || mi} className={`company-page-sub-month${mo.bookId ? " has-book" : ""}`}>
-                                  {mo.imageUrl && (
-                                    <img className="company-page-sub-month-img" src={mo.imageUrl} alt={mo.theme || mName}
-                                      onError={(e) => { e.target.style.display = "none"; }} />
-                                  )}
-                                  <div className="company-page-sub-month-info">
-                                    <span className="company-page-sub-month-date">{mName}</span>
-                                    {mo.theme && <span className="company-page-sub-month-theme">{mo.theme}</span>}
-                                    {mo.bookId && <span className="company-page-sub-month-book-badge">📖</span>}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                      {/* Months shown only on SubscriptionDetailPage, not here */}
                     </div>
                   </div>
                 );
@@ -397,6 +436,94 @@ export default function CompanyPage({ company, onBack, onEdit, onDelete, user })
           </div>
         )}
       </div>
+
+      {/* ── Upcoming Sales ── */}
+      {upcomingSales.length > 0 && (
+        <div className="company-page-section" style={{ marginTop: "1.5rem" }}>
+          <h3 className="section-title">🛒 Upcoming Sales</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {upcomingSales.map((sale) => {
+              const interest = saleInterests[sale.id];
+              const isBought = interest === "BOUGHT";
+              return (
+                <div key={sale.id} style={{
+                  border: "1px solid var(--border, #e5e7eb)",
+                  borderRadius: 8,
+                  padding: "1rem",
+                  background: "var(--card-bg, #fff)",
+                }}>
+                  {sale.imageUrl && (
+                    <img src={sale.imageUrl} alt={sale.title}
+                      style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 6, marginBottom: "0.75rem" }}
+                      onError={(e) => { e.target.style.display = "none"; }} />
+                  )}
+                  <h4 style={{ margin: "0 0 0.25rem" }}>{sale.title}</h4>
+                  <p style={{ margin: "0 0 0.5rem", color: "var(--text-muted, #666)", fontSize: "0.9rem" }}>
+                    Sale date: <strong>{sale.generalSaleDate || sale.saleDate}</strong>
+                    {sale.basePrice && (
+                      <> · <strong>{parseFloat(sale.basePrice).toLocaleString("en-GB", { style: "currency", currency: sale.currency || "GBP" })}</strong></>
+                    )}
+                  </p>
+                  {sale.description && (
+                    <p style={{ margin: "0 0 0.75rem", fontSize: "0.88rem", color: "var(--text-ghost)" }}>{sale.description}</p>
+                  )}
+                  {user && (
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      {!isBought && (
+                        <button
+                          onClick={() => handleSaleInterest(sale.id)}
+                          style={{
+                            padding: "0.35rem 0.85rem",
+                            background: interest === "INTERESTED" ? "#7c3aed" : "var(--bg-secondary, #f3f4f6)",
+                            color: interest === "INTERESTED" ? "#fff" : "inherit",
+                            border: "1px solid var(--border, #e5e7eb)",
+                            borderRadius: 5,
+                            cursor: "pointer",
+                            fontSize: "0.88rem",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {interest === "INTERESTED" ? "⭐ Interested" : "☆ Interested"}
+                        </button>
+                      )}
+                      {isBought ? (
+                        <span style={{ color: "#16a34a", fontWeight: 600 }}>✅ Bought</span>
+                      ) : (
+                        <button
+                          onClick={() => setBuyModalSale(sale)}
+                          style={{
+                            padding: "0.35rem 0.85rem",
+                            background: "#7c3aed",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 5,
+                            cursor: "pointer",
+                            fontSize: "0.88rem",
+                            fontWeight: 500,
+                          }}
+                        >
+                          🛒 Buy
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {buyModalSale && (
+        <SaleBuyModal
+          sale={buyModalSale}
+          onClose={() => setBuyModalSale(null)}
+          onBought={(saleId) => {
+            setSaleInterests((prev) => ({ ...prev, [saleId]: "BOUGHT" }));
+            setTimeout(() => setBuyModalSale(null), 1500);
+          }}
+        />
+      )}
     </div>
   );
 }

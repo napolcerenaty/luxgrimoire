@@ -3,6 +3,7 @@
 :root {
   --bg:           #050810;
   --bg-surface:   #070f1c;
+  --bg-card:      #0a1828;
   --bg-raised:    #0d1f35;
   --bg-deep:      #030710;
   --bg-overlay:   #0a1428;
@@ -48,6 +49,7 @@
 [data-theme="light"] {
   --bg:           #e8f2f8;
   --bg-surface:   #f0f6fb;
+  --bg-card:      #edf5fb;
   --bg-raised:    #daeaf5;
   --bg-deep:      #d8ecf5;
   --bg-overlay:   #e2eef6;

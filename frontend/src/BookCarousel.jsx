@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "./i18n";
+import { API } from "./api";
 import "./BookCarousel.css";
 
 const PLACEHOLDER = "https://placehold.co/400x600/060d18/00b4d0?text=No+Image";
 
+const resolveUrl = (url) => url?.startsWith("/uploads") ? `${API.BASE}${url}` : url;
+
 export default function BookCarousel({ images }) {
   const { t } = useI18n();
-  const list = images && images.length > 0 ? images : [PLACEHOLDER];
+  const list = images && images.length > 0 ? images.map(resolveUrl) : [PLACEHOLDER];
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const prev = useCallback(() => {

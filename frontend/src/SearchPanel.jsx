@@ -11,7 +11,7 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
-export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, onArtistClick, user, onNewBook, onAdd }) {
+export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuthorClick, onArtistClick, user, onNewBook, onAdd, onRequestData, onSubscriptionClick, compact = false }) {
   const { t } = useI18n();
 
   const FILTERS = [
@@ -155,6 +155,105 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
 
   const dropdownVisible = open && query.trim().length >= 2;
 
+  if (compact) {
+    return (
+      <div className="search-panel-header" ref={wrapperRef}>
+        <div className="search-header-row">
+          <input
+            type="text"
+            className="search-input search-input-compact"
+            placeholder={t("search.placeholder")}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => query.trim().length >= 2 && setOpen(true)}
+            onKeyDown={handleKeyDown}
+          />
+        </div>
+        {dropdownVisible && (
+          <div className="search-dropdown search-dropdown-header">
+            {loading && <div className="sr-empty">{t("search.searching")}</div>}
+            {!loading && !hasResults && results && (
+              <div className="sr-empty">
+                {t("search.notFound")}{" "}
+                {user && onRequestData && (
+                  <button className="sr-request-link" onClick={() => { setOpen(false); onRequestData(); }}>
+                    {t("search.requestDataLink")}
+                  </button>
+                )}
+              </div>
+            )}
+            {!loading && results && (
+              <>
+                {results.books?.length > 0 && (
+                  <div className="sr-group">
+                    <div className="sr-group-label">{t("search.groupBooks")}</div>
+                    {results.books.slice(0, 4).map((item, i) => renderBookRow(item, `cb${i}`))}
+                  </div>
+                )}
+                {results.authors?.length > 0 && (
+                  <div className="sr-group">
+                    <div className="sr-group-label">{t("search.groupAuthors")}</div>
+                    {results.authors.slice(0, 3).map((item, i) => renderPersonRow(item, t("search.labelAuthor"), `cau${i}`, () => handleAuthorSelect(item.id)))}
+                  </div>
+                )}
+                {results.artists?.length > 0 && (
+                  <div className="sr-group">
+                    <div className="sr-group-label">{t("search.groupArtists")}</div>
+                    {results.artists.slice(0, 3).map((item, i) => renderPersonRow(item, t("search.labelArtist"), `car${i}`, () => handleArtistSelect(item.id)))}
+                  </div>
+                )}
+                {results.subscriptions?.length > 0 && (
+                  <div className="sr-group">
+                    <div className="sr-group-label">{t("search.groupSubs")}</div>
+                    {results.subscriptions.slice(0, 3).map((item, i) => (
+                      <button key={`cs${i}`} className="sr-item" onClick={() => {
+                        if (onSubscriptionClick) {
+                          setQuery(""); setOpen(false); setResults(null);
+                          onSubscriptionClick({ companyId: item.companyId, subscriptionId: item.id, subName: item.name });
+                        } else {
+                          handleCompanySelect(item.companyId, { id: item.companyId, name: item.companyName, logoUrl: item.companyLogoUrl });
+                        }
+                      }}>
+                        {item.logoUrl
+                          ? <img className="sr-thumb sr-thumb--square" src={item.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                          : <div className="sr-author-avatar">{item.name?.[0]?.toUpperCase()}</div>
+                        }
+                        <div className="sr-info">
+                          <span className="sr-title">{item.name}</span>
+                          <span className="sr-badge">
+                            {item.companyLogoUrl && <img className="sr-badge-logo" src={item.companyLogoUrl} alt="" />}
+                            {item.companyName}{item.type ? ` · ${item.type}` : ""}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {results.companies?.length > 0 && (
+                  <div className="sr-group">
+                    <div className="sr-group-label">{t("search.groupCompanies")}</div>
+                    {results.companies.slice(0, 3).map((item, i) => (
+                      <button key={`cc${i}`} className="sr-item" onClick={() => handleCompanySelect(item.id, item)}>
+                        {item.logoUrl
+                          ? <img className="sr-thumb sr-thumb--square" src={item.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />
+                          : <div className="sr-author-avatar">{item.name?.[0]?.toUpperCase()}</div>
+                        }
+                        <div className="sr-info">
+                          <span className="sr-title">{item.name}</span>
+                          <span className="sr-badge">{t("search.bookBoxCompany")}{item.location ? ` · ${item.location}` : ""}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="search-panel">
       <div className="search-panel-inner" ref={wrapperRef}>
@@ -204,6 +303,14 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                 ) : (
                   <span>{t("search.addIt")}</span>
                 )}
+                {(activeFilter === "subscriptions" || activeFilter === "companies") && onRequestData && (
+                  <div className="sr-data-request-hint">
+                    {t("search.requestDataHint")}{" "}
+                    <button className="sr-data-request-link" onClick={() => { setOpen(false); onRequestData(); }}>
+                      {t("search.requestDataLink")}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -241,7 +348,14 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
                       <button
                         key={`s${i}`}
                         className="sr-item"
-                        onClick={() => handleCompanySelect(item.companyId, { id: item.companyId, name: item.companyName, logoUrl: item.companyLogoUrl })}
+                        onClick={() => {
+                          if (onSubscriptionClick) {
+                            setQuery(""); setOpen(false); setResults(null);
+                            onSubscriptionClick({ companyId: item.companyId, subscriptionId: item.id, subName: item.name });
+                          } else {
+                            handleCompanySelect(item.companyId, { id: item.companyId, name: item.companyName, logoUrl: item.companyLogoUrl });
+                          }
+                        }}
                       >
                         {item.logoUrl
                           ? <img className="sr-thumb sr-thumb--square" src={item.logoUrl} alt="" onError={(e) => { e.target.style.display = "none"; }} />

@@ -112,9 +112,24 @@
 }
 
 .company-edit-section-title {
-  font-size: 1rem;
-  color: var(--accent);
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: var(--accent2);
   margin: 0 0 0.5rem 0;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.company-edit-section-title::before,
+.company-edit-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
 }
 
 .company-edit-section-note {

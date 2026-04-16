@@ -4,9 +4,13 @@ import BookCarousel from "./BookCarousel";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import { getLanguageLabel } from "./bookLanguages";
+import AddToCollectionModal from "./AddToCollectionModal";
+import HeartButton from "./HeartButton";
+import { API } from "./api";
 
 export default function BookDetailPage({
   bookId,
+  subMonthContext,
   onBack,
   onEdit,
   onEditEdition,
@@ -14,6 +18,7 @@ export default function BookDetailPage({
   onNavigateNew,
   onCompanyClick,
   onSeriesClick,
+  onArtistClick,
 }) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -25,9 +30,50 @@ export default function BookDetailPage({
   const [companies, setCompanies] = useState([]);
 
   const [ownedBooks, setOwnedBooks] = useState([]);
-  const [addingEditionId, setAddingEditionId] = useState(null);
+  const [atcEdition,  setAtcEdition] = useState(null);   // edition selected for AddToCollectionModal
   const [addedEditionId, setAddedEditionId] = useState(null);
   const [confirmDupe, setConfirmDupe] = useState(null); // { bookId, editionId, count }
+
+  // User tags per edition: { [editionId]: [{id, tag}] }
+  const [editionTags, setEditionTags] = useState({});
+  const [allUserTags, setAllUserTags] = useState([]);
+  const [tagInputs, setTagInputs] = useState({});        // { [editionId]: string }
+  const [tagDropdown, setTagDropdown] = useState(null);  // editionId with open dropdown
+
+  const loadEditionTags = (editionId) => {
+    fetch(API.USER_EDITION_TAGS(editionId), { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((tags) => setEditionTags((prev) => ({ ...prev, [editionId]: tags })))
+      .catch(() => {});
+  };
+
+  const addTag = async (editionId, tag) => {
+    const trimmed = tag?.trim();
+    if (!trimmed) return;
+    const res = await fetch(API.USER_EDITION_TAGS(editionId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ tag: trimmed }),
+    });
+    if (res.ok) {
+      loadEditionTags(editionId);
+      setTagInputs((prev) => ({ ...prev, [editionId]: "" }));
+      setTagDropdown(null);
+      // refresh all user tags for autocomplete
+      fetch(API.USER_TAGS, { credentials: "include" })
+        .then((r) => r.ok ? r.json() : [])
+        .then(setAllUserTags).catch(() => {});
+    }
+  };
+
+  const removeTag = async (editionId, tagId) => {
+    const res = await fetch(API.USER_EDITION_TAG(editionId, tagId), {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (res.ok) loadEditionTags(editionId);
+  };
 
   useEffect(() => {
     if (!bookId) return;
@@ -42,7 +88,16 @@ export default function BookDetailPage({
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((data) => { if (data) { setBook(data); setLoading(false); } })
+      .then((data) => {
+        if (data) {
+          setBook(data);
+          setLoading(false);
+          // load tags for each edition if user is logged in
+          if (user && data.editions) {
+            data.editions.forEach((ed) => loadEditionTags(ed.id));
+          }
+        }
+      })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [bookId]);
 
@@ -54,34 +109,16 @@ export default function BookDetailPage({
   }, []);
 
   useEffect(() => {
-    if (!user) { setOwnedBooks([]); return; }
-    fetch("http://localhost:8080/api/user/books", { credentials: "include" })
+    if (!user) { setOwnedBooks([]); setEditionTags({}); setAllUserTags([]); return; }
+    fetch(API.USER_BOOKS, { credentials: "include" })
       .then((res) => res.ok ? res.json() : [])
       .then(setOwnedBooks)
       .catch(() => setOwnedBooks([]));
+    // load all user tags for autocomplete
+    fetch(API.USER_TAGS, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setAllUserTags).catch(() => {});
   }, [user]);
-
-  const doAddEdition = async (edition) => {
-    if (!book || !edition) return;
-    setAddingEditionId(edition.id);
-    try {
-      const res = await fetch("http://localhost:8080/api/user/books", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ bookId: book.id, editionId: edition.id }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setOwnedBooks((prev) => [...prev, data.entry]);
-        setAddedEditionId(edition.id);
-        setTimeout(() => setAddedEditionId(null), 3000);
-      }
-    } finally {
-      setAddingEditionId(null);
-      setConfirmDupe(null);
-    }
-  };
 
   const handleAddEdition = (edition) => {
     if (!user || !edition) return;
@@ -89,8 +126,24 @@ export default function BookDetailPage({
     if (count > 0) {
       setConfirmDupe({ editionId: edition.id, count });
     } else {
-      doAddEdition(edition);
+      setAtcEdition(edition);
     }
+  };
+
+  const onPurchaseAdded = (tx) => {
+    // refresh owned books to reflect the new entry
+    fetch(API.USER_BOOKS, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => {
+        setOwnedBooks(data);
+        const newEntry = data.find((e) => e.editionId === atcEdition?.id);
+        if (newEntry) {
+          setAddedEditionId(newEntry.editionId);
+          setTimeout(() => setAddedEditionId(null), 3000);
+        }
+      })
+      .catch(() => {});
+    setAtcEdition(null);
   };
 
   const handleDeleteBook = async () => {
@@ -144,7 +197,6 @@ export default function BookDetailPage({
     const company = getCompanyForEdition(edition);
     const subDate = formatSubscriptionDate(edition.subscriptionMonth, edition.subscriptionYear);
     const hasSaleDates = edition.firstAccessDate || edition.earlyAccessDate || edition.generalSaleDate;
-    const isAdding = addingEditionId === edition.id;
     const wasAdded = addedEditionId === edition.id;
 
     return (
@@ -152,11 +204,11 @@ export default function BookDetailPage({
         <div className="detail-edition-header">
           <h3 className="detail-edition-name">{edition.editionName || t("bookDetail.defaultEdition")}</h3>
           <div className="detail-edition-actions">
+            <HeartButton type="editions" id={edition.id} />
             {user && (
               <button
                 className="detail-action-btn detail-add-collection-btn"
                 onClick={() => handleAddEdition(edition)}
-                disabled={isAdding}
               >
                 {wasAdded ? t("userCollection.bookAdded") : t("userCollection.addBook")}
               </button>
@@ -169,7 +221,7 @@ export default function BookDetailPage({
                 {t("bookDetail.editEditionBtn")}
               </button>
             )}
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || user?.role === "superadmin") && (
               <button
                 className="detail-action-btn detail-delete-btn"
                 onClick={() => handleDeleteEdition(edition)}
@@ -267,11 +319,90 @@ export default function BookDetailPage({
             <ul className="detail-artists-list">
               {edition.artists.map((artist, idx) => (
                 <li key={idx} className="detail-artist-card">
-                  <span className="detail-artist-name">{artist.artistName}</span>
+                  {artist.artistId && onArtistClick ? (
+                    <button
+                      className="detail-artist-name detail-artist-link"
+                      onClick={() => onArtistClick(artist.artistId)}
+                    >
+                      {artist.artistName}
+                    </button>
+                  ) : (
+                    <span className="detail-artist-name">{artist.artistName}</span>
+                  )}
                   <span className="detail-artist-role">{artist.contribution}</span>
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {edition.features && edition.features.length > 0 && (
+          <div className="detail-section">
+            <h3 className="detail-section-title">{t("bookDetail.features")}</h3>
+            <ul className="detail-features-list">
+              {edition.features.map((ft, idx) => (
+                <li key={idx} className="detail-feature-item">{ft}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {user && ownedBooks.some(e => e.editionId === edition.id) && (
+          <div className="detail-section detail-tags-section">
+            <h3 className="detail-section-title">{t("collection.tags.label")}</h3>
+            <div className="detail-tags-list">
+              {(editionTags[edition.id] || []).map((tg) => (
+                <span key={tg.id} className="detail-tag-chip">
+                  {tg.tag}
+                  <button
+                    className="detail-tag-remove"
+                    onClick={() => removeTag(edition.id, tg.id)}
+                    title={t("collection.tags.remove")}
+                  >×</button>
+                </span>
+              ))}
+              {(editionTags[edition.id] || []).length === 0 && (
+                <span className="detail-tags-empty">{t("collection.tags.noTags")}</span>
+              )}
+            </div>
+            <div className="detail-tags-input-row" style={{ position: "relative" }}>
+              <input
+                className="admin-form-input detail-tag-input"
+                type="text"
+                placeholder={t("collection.tags.placeholder")}
+                value={tagInputs[edition.id] || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTagInputs((prev) => ({ ...prev, [edition.id]: val }));
+                  setTagDropdown(val.length > 0 ? edition.id : null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { addTag(edition.id, tagInputs[edition.id]); }
+                  if (e.key === "Escape") { setTagDropdown(null); }
+                }}
+                onFocus={() => {
+                  if ((tagInputs[edition.id] || "").length > 0) setTagDropdown(edition.id);
+                }}
+              />
+              <button
+                className="page-btn"
+                style={{ marginLeft: "0.4rem", fontSize: "0.85rem" }}
+                onClick={() => addTag(edition.id, tagInputs[edition.id])}
+              >{t("collection.tags.add")}</button>
+              {tagDropdown === edition.id && allUserTags.filter((tg) => tg.toLowerCase().includes((tagInputs[edition.id] || "").toLowerCase())).length > 0 && (
+                <ul className="detail-tag-dropdown">
+                  {allUserTags
+                    .filter((tg) => tg.toLowerCase().includes((tagInputs[edition.id] || "").toLowerCase()))
+                    .slice(0, 8)
+                    .map((tg) => (
+                      <li key={tg}
+                        className="detail-tag-option"
+                        onMouseDown={(e) => { e.preventDefault(); addTag(edition.id, tg); }}
+                      >{tg}</li>
+                    ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -312,8 +443,7 @@ export default function BookDetailPage({
             <div className="uc-confirm-btns">
               <button
                 className="uc-confirm-yes"
-                onClick={() => doAddEdition(confirmDupeEdition)}
-                disabled={addingEditionId === confirmDupe.editionId}
+                onClick={() => { setAtcEdition(confirmDupeEdition); setConfirmDupe(null); }}
               >
                 {t("userCollection.confirmYes")}
               </button>
@@ -323,6 +453,16 @@ export default function BookDetailPage({
             </div>
           </div>
         </div>
+      )}
+
+      {atcEdition && book && (
+        <AddToCollectionModal
+          book={book}
+          edition={atcEdition}
+          subMonthContext={subMonthContext}
+          onClose={() => setAtcEdition(null)}
+          onAdded={onPurchaseAdded}
+        />
       )}
 
       <div className="detail-actions-top">
@@ -338,7 +478,7 @@ export default function BookDetailPage({
               {t("bookDetail.editBookMeta")}
             </button>
           )}
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.role === "superadmin") && (
             <button className="detail-action-btn detail-delete-btn" onClick={handleDeleteBook} disabled={deleting}>
               {t("bookDetail.deleteBtn")}
             </button>
@@ -349,6 +489,7 @@ export default function BookDetailPage({
       <div className="detail-book-header">
         <h1 className="detail-title">{book.title}</h1>
         {book.author && <p className="detail-author">{book.author}</p>}
+        <HeartButton type="books" id={book.id} />
         <div className="detail-fields" style={{ marginTop: "0.75rem" }}>
           {book.seriesName && (
             <div className="detail-field">

@@ -5,6 +5,7 @@ import EmojiPicker from "emoji-picker-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import "./MessageComposer.css";
 import { API } from "./api";
+import { useI18n } from "./i18n";
 
 const GIPHY_KEY = "dc6zaTOxFJmzC";
 const GIPHY_SEARCH = "https://api.giphy.com/v1/gifs/search";
@@ -24,6 +25,7 @@ function ToolbarButton({ onClick, active, title, children }) {
 }
 
 export default function MessageComposer({ onSend, disabled }) {
+  const { t } = useI18n();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [gifQuery, setGifQuery] = useState("");
@@ -195,7 +197,7 @@ export default function MessageComposer({ onSend, disabled }) {
             </div>
           )}
         </div>
-        <ToolbarButton onClick={() => fileInputRef.current?.click()} title="Wyślij zdjęcie">
+        <ToolbarButton onClick={() => fileInputRef.current?.click()} title={t("messages.sendPhoto")}>
           {uploading ? "⏳" : "🖼️"}
         </ToolbarButton>
         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageSelect} />
@@ -217,7 +219,7 @@ export default function MessageComposer({ onSend, disabled }) {
           className="composer-send-btn"
           onClick={handleSend}
           disabled={disabled || uploading}
-          title="Wyślij (Enter)"
+          title={t("messages.sendBtn")}
         >
           ➤
         </button>

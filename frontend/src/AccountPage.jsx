@@ -2,8 +2,16 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import { API } from "./api";
+import SpendingStatsPage from "./SpendingStatsPage";
+import FavoritesPage from "./FavoritesPage";
 import "./AccountPage.css";
 import "./UserPages.css";
+
+// Resolve relative upload URLs to absolute backend URLs
+function resolveLogoUrl(url) {
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${API.BASE}${url}`;
+}
 
 // ─── Timezone data ────────────────────────────────────────────────────────────
 const TIMEZONE_GROUPS = [
@@ -40,19 +48,26 @@ function getGmtOffset(tz) {
 // ─── Language → Intl locale ────────────────────────────────────────────────────
 const LANG_LOCALE = { pl: "pl-PL", en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES" };
 
-// ─── Test calendar data ────────────────────────────────────────────────────────
-const TEST_RENEWALS = [
-  { id: "r1", day: 5,  label: "FairyLoot • Romantasy",  hue: "255,62%,55%" },
-  { id: "r2", day: 12, label: "OwlCrate • YA Box",       hue: "199,91%,36%" },
-  { id: "r3", day: 20, label: "Illumicrate • Fantasy",   hue: "38,80%,40%"  },
-];
 
-const TEST_SALES = [
-  { id: "s1", day: 8,  title: "A Court of Thorns and Roses", box: "FairyLoot",   edition: "Deluxe Collector's Edition",        time: "13:00 UTC", author: "Sarah J. Maas",   hue: "255,62%,55%" },
-  { id: "s2", day: 15, title: "Fourth Wing",                 box: "OwlCrate",    edition: "Special Edition",                  time: "16:00 UTC", author: "Rebecca Yarros",  hue: "199,91%,36%" },
-  { id: "s3", day: 23, title: "House of Salt and Sorrows",   box: "FairyLoot",   edition: "FairyLoot Exclusive Edition",       time: "12:00 UTC", author: "Erin A. Craig",   hue: "350,80%,46%" },
-  { id: "s4", day: 28, title: "Crescent City",               box: "Illumicrate", edition: "Collector's Edition",               time: "14:00 UTC", author: "Sarah J. Maas",   hue: "38,80%,40%"  },
-];
+
+// Stable hue derived from a string so each company gets a consistent colour
+function strHue(str) {
+  let h = 0;
+  for (let i = 0; i < (str?.length ?? 0); i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return h % 360;
+}
+
+// Return renewal day within a given month if this month is a renewal month, else null
+function renewalDayInMonth(entry, sub, year, month) {
+  const renewalDay = entry?.renewalDay ?? sub?.renewalDay;
+  if (!renewalDay) return null;
+  const type = sub?.type || "MONTHLY";
+  if (type === "MONTHLY") return renewalDay;
+  const step = type === "BI_MONTHLY" ? 2 : 3;
+  const startMonthIdx = ((entry?.startingMonth ?? 1) - 1) % step;
+  if (((month - startMonthIdx) % step + step) % step === 0) return renewalDay;
+  return null;
+}
 
 // ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -60,21 +75,76 @@ const NAV_ITEMS = [
   { key: "collection",    icon: "📚", labelKey: "account.navCollection"    },
   { key: "iso",           icon: "🔍", labelKey: "account.navIso"           },
   { key: "interested",    icon: "⭐", labelKey: "account.navInterested"    },
+  { key: "sold",          icon: "🏷️",  labelKey: "account.navSold"          },
   { key: "subscriptions", icon: "📮", labelKey: "account.navSubscriptions" },
-  { key: "settings",      icon: "⚙️", labelKey: "account.navSettings"      },
+  { key: "spending",     icon: "💰", labelKey: "account.navSpending"     },
+  { key: "favorites",   icon: "❤️",  labelKey: "account.navFavorites"    },
+  { key: "settings",    icon: "⚙️",  labelKey: "account.navSettings"      },
 ];
 
 // ─── CALENDAR SECTION ────────────────────────────────────────────────────────
-function CalendarSection() {
+export function CalendarSection() {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
   const locale = LANG_LOCALE[lang] ?? "en-GB";
   const today  = new Date();
 
   const [viewDate,     setViewDate]     = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedSale, setSelectedSale] = useState(null);
+  const [selectedSale, setSelectedSale] = useState(null); // mobile click popup
+  const [calTip,       setCalTip]       = useState(null); // desktop hover tip
+  const [calSubs,      setCalSubs]      = useState([]);
+  const [calSales,     setCalSales]     = useState([]);
+
+  // true = real pointer device that supports hover (desktop), false = touch/mobile
+  const isHoverDevice = useRef(
+    typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  ).current;
+
+  const tipCloseTimer = useRef(null);
+  const openTip = (e, data) => {
+    clearTimeout(tipCloseTimer.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCalTip({ ...data, rect });
+  };
+  const scheduledCloseTip = () => {
+    tipCloseTimer.current = setTimeout(() => setCalTip(null), 150);
+  };
+  const cancelCloseTip = () => clearTimeout(tipCloseTimer.current);
 
   const year  = viewDate.getFullYear();
   const month = viewDate.getMonth();
+
+  useEffect(() => {
+    if (!user) { setCalSubs([]); setCalSales([]); return; }
+    Promise.all([
+      fetch(API.USER_SUBSCRIPTIONS, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch(API.COMPANIES,          { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch(API.USER_SALES_UPCOMING,{ credentials: "include" }).then(r => r.ok ? r.json() : []),
+    ]).then(([entries, companies, sales]) => {
+      const resolved = entries
+        .filter(e => e.active !== false)
+        .map(entry => {
+          const company = companies.find(c => c.id === entry.companyId) ?? null;
+          const sub     = company ? (company.subscriptions ?? []).find(s => s.id === entry.subscriptionId) ?? null : null;
+          return { entry, company, sub };
+        })
+        .filter(({ entry, sub }) => (entry.renewalDay ?? sub?.renewalDay) != null);
+      setCalSubs(resolved);
+
+      const interestedSales = sales
+        .filter(s => s.userStatus === "INTERESTED")
+        .map(s => ({
+          id:        s.id,
+          saleDate:  s.generalSaleDate,
+          title:     s.title,
+          box:       s.companyName,
+          time:      s.saleTimezone ? `${s.generalSaleDate} (${s.saleTimezone})` : s.generalSaleDate,
+          hue:       `${strHue(s.companyId ?? s.companyName)},60%,55%`,
+          userStatus: s.userStatus,
+        }));
+      setCalSales(interestedSales);
+    }).catch(() => {});
+  }, [user]);
 
   const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
@@ -101,8 +171,22 @@ function CalendarSection() {
     return arr;
   }, [year, month]);
 
-  const renewalsForDay = (day) => TEST_RENEWALS.filter(r => r.day === day);
-  const salesForDay    = (day) => TEST_SALES.filter(s => s.day === day);
+  const renewalsForDay = (day) =>
+    calSubs
+      .filter(({ entry, sub }) => renewalDayInMonth(entry, sub, year, month) === day)
+      .map(({ entry, company, sub }) => {
+        const hue = strHue(entry.companyId);
+        return {
+          id: entry.id,
+          label: sub?.name ?? company?.name ?? entry.subscriptionId,
+          hue: `${hue},60%,55%`,
+        };
+      });
+  const salesForDay    = (day) => calSales.filter(s => {
+    if (!s.saleDate) return false;
+    const [sy, sm, sd] = s.saleDate.split("-").map(Number);
+    return sy === year && sm === month + 1 && sd === day;
+  });
   const isToday        = (day) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
@@ -139,6 +223,9 @@ function CalendarSection() {
                 className="account-cal-renewal"
                 style={{ "--ev": `hsl(${r.hue})`, "--ev-bg": `hsla(${r.hue},.18)` }}
                 title={r.label}
+                onMouseEnter={isHoverDevice ? (e) => openTip(e, { type: "renewal", label: r.label, hue: r.hue }) : undefined}
+                onMouseLeave={isHoverDevice ? scheduledCloseTip : undefined}
+                onClick={!isHoverDevice ? (e) => openTip(e, { type: "renewal", label: r.label, hue: r.hue }) : undefined}
               >
                 🔄 {r.label}
               </div>
@@ -149,7 +236,9 @@ function CalendarSection() {
                 key={s.id}
                 className="account-cal-sale"
                 style={{ "--ev": `hsl(${s.hue})`, "--ev-bg": `hsla(${s.hue},.18)` }}
-                onClick={() => setSelectedSale(s)}
+                onMouseEnter={isHoverDevice ? (e) => openTip(e, { type: "sale", sale: s }) : undefined}
+                onMouseLeave={isHoverDevice ? scheduledCloseTip : undefined}
+                onClick={!isHoverDevice ? () => setSelectedSale(s) : undefined}
                 title={s.title}
               >
                 <span className="account-cal-sale-dot" />
@@ -163,7 +252,44 @@ function CalendarSection() {
         ))}
       </div>
 
-      {/* ── Sale detail popup ── */}
+      {/* ── Hover / tap tooltip ── */}
+      {calTip && (() => {
+        const top  = Math.min(calTip.rect.bottom + 6, window.innerHeight - 160);
+        const left = Math.max(8, Math.min(calTip.rect.left, window.innerWidth - 220));
+        return (
+          <>
+            {!isHoverDevice && (
+              <div className="account-cal-overlay" style={{ background: "transparent" }}
+                onClick={() => setCalTip(null)} />
+            )}
+            <div
+              className="account-cal-tip-panel"
+              style={{ top, left }}
+              onMouseEnter={isHoverDevice ? cancelCloseTip : undefined}
+              onMouseLeave={isHoverDevice ? scheduledCloseTip : undefined}
+            >
+              {calTip.type === "renewal" && (
+                <>
+                  <div className="account-cal-tip-type">🔄 Renewal</div>
+                  <div className="account-cal-tip-label"
+                    style={{ color: `hsl(${calTip.hue})` }}>{calTip.label}</div>
+                </>
+              )}
+              {calTip.type === "sale" && (
+                <>
+                  <p  className="account-cal-popup-box"   style={{ margin: "0 0 0.2rem" }}>{calTip.sale.box}</p>
+                  <h4 className="account-cal-popup-title" style={{ margin: "0 0 0.15rem", fontSize: "1rem" }}>{calTip.sale.title}</h4>
+                  <p  className="account-cal-popup-author" style={{ margin: "0 0 0.25rem" }}>{calTip.sale.author}</p>
+                  {calTip.sale.edition && <p className="account-cal-popup-edition" style={{ margin: "0 0 0.35rem" }}>{calTip.sale.edition}</p>}
+                  <p  className="account-cal-popup-time"  style={{ margin: 0 }}>🕐 {calTip.sale.time}</p>
+                </>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Sale detail popup (mobile / click) ── */}
       {selectedSale && (
         <div className="account-cal-overlay" onClick={() => setSelectedSale(null)}>
           <div className="account-cal-popup" onClick={e => e.stopPropagation()}>
@@ -183,8 +309,197 @@ function CalendarSection() {
   );
 }
 
+// ─── SELL BOOK MODAL ─────────────────────────────────────────────────────────
+const COMMON_VENUES = ["eBay", "Vinted", "Depop", "Facebook Marketplace", "Direct"];
+
+function SellBookModal({ entry, onClose, onSold, t }) {
+  const [saleDate,     setSaleDate]     = useState(new Date().toISOString().slice(0, 10));
+  const [salePrice,    setSalePrice]    = useState("");
+  const [saleCurrency, setSaleCurrency] = useState(entry?.currency || "GBP");
+  const [saleVenue,    setSaleVenue]    = useState("");
+  const [saleNotes,    setSaleNotes]    = useState("");
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!salePrice || isNaN(parseFloat(salePrice))) { setError(t("sale.errorPrice")); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(API.USER_BOOK(entry.id), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ownershipStatus: "SOLD",
+          saleDate,
+          salePrice: parseFloat(salePrice),
+          saleCurrency,
+          saleVenue,
+          saleNotes,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      onSold(entry.id);
+      onClose();
+    } catch {
+      setError(t("sale.errorSave"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <h2 className="modal-title">{t("sale.title")}</h2>
+        {entry?.title && <p className="modal-subtitle">{entry.title}</p>}
+        <form className="sale-form" onSubmit={handleSubmit}>
+          <div className="sale-form-row">
+            <label>{t("sale.date")}</label>
+            <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} required />
+          </div>
+          <div className="sale-form-row sale-price-row">
+            <label>{t("sale.price")}</label>
+            <input type="number" step="0.01" min="0" value={salePrice}
+              onChange={(e) => setSalePrice(e.target.value)} required placeholder="0.00" />
+            <select value={saleCurrency} onChange={(e) => setSaleCurrency(e.target.value)}>
+              {["GBP","USD","EUR","PLN","CZK","SEK","DKK","AUD","CAD"].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sale-form-row">
+            <label>{t("sale.venue")}</label>
+            <input list="venues-list" value={saleVenue} onChange={(e) => setSaleVenue(e.target.value)}
+              placeholder={t("sale.venuePlaceholder")} />
+            <datalist id="venues-list">
+              {COMMON_VENUES.map((v) => <option key={v} value={v} />)}
+            </datalist>
+          </div>
+          <div className="sale-form-row">
+            <label>{t("sale.notes")}</label>
+            <textarea value={saleNotes} onChange={(e) => setSaleNotes(e.target.value)}
+              rows={2} placeholder={t("sale.notesPlaceholder")} />
+          </div>
+          {error && <p className="sale-form-error">{error}</p>}
+          <div className="modal-actions">
+            <button type="button" className="modal-btn-cancel" onClick={onClose}>{t("common.cancel")}</button>
+            <button type="submit" className="modal-btn-confirm" disabled={saving}>
+              {saving ? "…" : t("sale.confirm")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── SOLD BOOKS SECTION ───────────────────────────────────────────────────────
+function SoldBooksSection() {
+  const { user } = useAuth();
+  const { t }    = useI18n();
+  const [entries,     setEntries]     = useState([]);
+  const [bookDetails, setBookDetails] = useState({});
+  const [loading,     setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    fetch(`${API.USER_BOOKS}?flag=SOLD`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { setEntries(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [user]);
+
+  useEffect(() => {
+    const ids = [...new Set(entries.map((e) => e.editionId).filter(Boolean))];
+    ids.forEach((id) => {
+      if (bookDetails[id]) return;
+      fetch(API.BOOK_BY_EDITION(id), { credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (d) setBookDetails((prev) => ({ ...prev, [id]: d })); })
+        .catch(() => {});
+    });
+  }, [entries]);
+
+  const enriched = entries.map((entry) => {
+    const bd = bookDetails[entry.editionId];
+    const ed = bd ? (bd.editions || []).find((e) => e.id === entry.editionId) : null;
+    return {
+      ...entry,
+      title:       bd?.title ?? "",
+      author:      bd?.author ?? "",
+      editionName: ed?.editionName ?? "",
+      imageUrl:    ed?.imageUrls?.[0] ?? null,
+    };
+  });
+
+  const fmt = (v, cur) => v != null ? `${Number(v).toFixed(2)} ${cur || ""}` : "—";
+  const totalCost = (e) => {
+    const base = parseFloat(e.allocatedPrice || 0);
+    const taxes = parseFloat(e.proportionalTaxes || 0);
+    const ship  = parseFloat(e.proportionalShipping || 0);
+    return base + taxes + ship;
+  };
+  const profit = (e) => e.salePrice != null && e.allocatedPrice != null
+    ? (parseFloat(e.salePrice) - totalCost(e)).toFixed(2)
+    : null;
+
+  return (
+    <section className="account-section">
+      <h2 className="section-title account-section-title">{t("account.navSold")}</h2>
+      {loading ? (
+        <p className="user-collection-empty">{t("booklist.loading")}</p>
+      ) : enriched.length === 0 ? (
+        <p className="user-collection-empty">{t("sale.noBooksYet")}</p>
+      ) : (
+        <div className="sold-books-list">
+          {enriched.map((e) => {
+            const p = profit(e);
+            return (
+              <div key={e.id} className="sold-book-row">
+                <div className="sold-book-thumb">
+                  {e.imageUrl
+                    ? <img src={e.imageUrl} alt={e.title} />
+                    : <div className="sold-book-thumb-placeholder">{e.title?.[0] ?? "?"}</div>}
+                </div>
+                <div className="sold-book-info">
+                  <span className="sold-book-title">{e.title || "—"}</span>
+                  {e.editionName && <span className="sold-book-edition">{e.editionName}</span>}
+                  <span className="sold-book-meta">
+                    {e.saleDate && <span>{e.saleDate}</span>}
+                    {e.saleVenue && <span className="sold-book-venue">{e.saleVenue}</span>}
+                  </span>
+                </div>
+                <div className="sold-book-prices">
+                  <span className="sold-bought">{t("sale.boughtFor")} {fmt(totalCost(e), e.currency)}</span>
+                  <span className="sold-sold">{t("sale.soldFor")} {fmt(e.salePrice, e.saleCurrency)}</span>
+                  {p != null && (
+                    <span className={`sold-profit ${parseFloat(p) >= 0 ? "positive" : "negative"}`}>
+                      {parseFloat(p) >= 0 ? "+" : ""}{p} {e.saleCurrency || ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── BOOK CARD (grid) ────────────────────────────────────────────────────────
-function BookCard({ entry, onRemove, onBookClick, t }) {
+function StatusBadge({ status, type, t }) {
+  if (!status) return null;
+  const key = type === 'ownership' ? `collection.ownership.${status}` : `collection.readStatus.${status}`;
+  const label = t(key) || status;
+  const cls = `book-status-badge book-status-${type} book-status-${status.toLowerCase().replace(/_/g, '-')}`;
+  return <span className={cls}>{label}</span>;
+}
+
+function BookCard({ entry, onRemove, onBookClick, onSell, t }) {
   return (
     <div className={`account-book-card${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-card-cover">
@@ -198,14 +513,26 @@ function BookCard({ entry, onRemove, onBookClick, t }) {
         {entry.author && <p className="account-book-card-author">{entry.author}</p>}
         {entry.editionName && <p className="account-book-card-edition">{entry.editionName}</p>}
         {entry.seriesName && <p className="account-book-card-series">{entry.seriesName}</p>}
+        <div className="book-status-badges">
+          <StatusBadge status={entry.ownershipStatus} type="ownership" t={t} />
+          <StatusBadge status={entry.readingStatus}   type="reading"   t={t} />
+        </div>
+        {entry.allocatedPrice != null && (
+          <p className="account-book-card-price">{entry.allocatedPrice} {entry.currency || ""}</p>
+        )}
       </div>
-      <button className="account-book-card-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
+      <div className="account-book-card-actions">
+        {onSell && entry.ownershipStatus === "OWNED" && (
+          <button className="account-book-card-sell" onClick={(e) => { e.stopPropagation(); onSell(entry); }} title={t("sale.sellBtn")}>🏷️</button>
+        )}
+        <button className="account-book-card-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
+      </div>
     </div>
   );
 }
 
 // ─── BOOK ROW (list) ─────────────────────────────────────────────────────────
-function BookRow({ entry, onRemove, onBookClick, t }) {
+function BookRow({ entry, onRemove, onBookClick, onSell, t }) {
   return (
     <div className={`account-book-row${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-row-thumb">
@@ -219,14 +546,26 @@ function BookRow({ entry, onRemove, onBookClick, t }) {
         {entry.author && <span className="account-book-row-author">{entry.author}</span>}
         {entry.editionName && <span className="account-book-row-edition">{entry.editionName}</span>}
         {entry.seriesName && <span className="account-book-row-series">{entry.seriesName}</span>}
+        <div className="book-status-badges">
+          <StatusBadge status={entry.ownershipStatus} type="ownership" t={t} />
+          <StatusBadge status={entry.readingStatus}   type="reading"   t={t} />
+          {entry.allocatedPrice != null && (
+            <span className="account-book-row-price">{entry.allocatedPrice} {entry.currency || ""}</span>
+          )}
+        </div>
       </div>
-      <button className="account-book-row-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
+      <div className="account-book-row-actions">
+        {onSell && entry.ownershipStatus === "OWNED" && (
+          <button className="account-book-row-sell" onClick={(e) => { e.stopPropagation(); onSell(entry); }} title={t("sale.sellBtn")}>🏷️</button>
+        )}
+        <button className="account-book-row-remove" onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }} title={t("booklist.remove")}>✕</button>
+      </div>
     </div>
   );
 }
 
 // ─── BOOK LIST SECTION (shared for collection / ISO / interested) ─────────────
-function BookListSection({ flag, onBookClick }) {
+export function BookListSection({ flag, onBookClick }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [entries,     setEntries]     = useState([]);
@@ -291,14 +630,30 @@ function BookListSection({ flag, onBookClick }) {
     if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== entryId));
   };
 
+  const [sellEntry, setSellEntry] = useState(null);
+
+  const handleSold = (entryId) => {
+    setEntries((prev) => prev.filter((e) => e.id !== entryId));
+  };
+
   const sectionTitle = flag === "OWNED"       ? t("account.navCollection")
                      : flag === "ISO"         ? t("account.navIso")
                      :                          t("account.navInterested");
 
+  const showSell = flag === "OWNED";
+
   return (
     <section className="account-section">
+      {sellEntry && (
+        <SellBookModal
+          entry={sellEntry}
+          onClose={() => setSellEntry(null)}
+          onSold={handleSold}
+          t={t}
+        />
+      )}
       <div className="account-booklist-header">
-        <h2 className="account-section-title">{sectionTitle}</h2>
+        <h2 className="section-title account-section-title">{sectionTitle}</h2>
         <div className="account-view-toggle">
           <button className={`account-view-btn${viewMode === "grid" ? " active" : ""}`} onClick={() => setViewMode("grid")} title={t("booklist.grid")}>⊞</button>
           <button className={`account-view-btn${viewMode === "list" ? " active" : ""}`} onClick={() => setViewMode("list")} title={t("booklist.list")}>☰</button>
@@ -320,11 +675,11 @@ function BookListSection({ flag, onBookClick }) {
         <p className="user-collection-empty">{t("booklist.empty")}</p>
       ) : viewMode === "grid" ? (
         <div className="account-booklist-grid">
-          {filtered.map((e) => <BookCard key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} t={t} />)}
+          {filtered.map((e) => <BookCard key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} onSell={showSell ? setSellEntry : null} t={t} />)}
         </div>
       ) : (
         <div className="account-booklist-list">
-          {filtered.map((e) => <BookRow key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} t={t} />)}
+          {filtered.map((e) => <BookRow key={e.id} entry={e} onRemove={removeBook} onBookClick={onBookClick} onSell={showSell ? setSellEntry : null} t={t} />)}
         </div>
       )}
     </section>
@@ -361,15 +716,79 @@ function nextRenewal(entry, sub) {
   return null;
 }
 
+// ─── SUB TAGS EDITOR ─────────────────────────────────────────────────────────
+function SubTagsEditor({ entryId }) {
+  const [tags, setTags] = useState([]);
+  const [input, setInput] = useState("");
+
+  useEffect(() => {
+    if (!entryId) return;
+    fetch(API.USER_SUB_TAGS(entryId), { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setTags)
+      .catch(() => {});
+  }, [entryId]);
+
+  const addTag = async () => {
+    const tag = input.trim();
+    if (!tag) return;
+    const res = await fetch(API.USER_SUB_TAGS(entryId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ tag }),
+    });
+    if (res.ok) {
+      const t = await res.json();
+      setTags((prev) => [...prev, t]);
+      setInput("");
+    }
+  };
+
+  const removeTag = async (tagId) => {
+    const res = await fetch(API.USER_SUB_TAG(entryId, tagId), {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (res.ok) setTags((prev) => prev.filter((t) => t.id !== tagId));
+  };
+
+  return (
+    <div style={{ marginTop: "1.5rem" }}>
+      <h4 style={{ margin: "0 0 0.5rem 0" }}>Tags</h4>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem" }}>
+        {tags.map((t) => (
+          <span key={t.id} className="edition-tag" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            {t.tag}
+            <button
+              onClick={() => removeTag(t.id)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", lineHeight: 1, padding: 0, fontSize: "0.85rem" }}
+            >✕</button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <input
+          className="admin-form-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addTag()}
+          placeholder="Add tag…"
+          style={{ maxWidth: "200px" }}
+        />
+        <button className="page-btn primary" onClick={addTag}>Add</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── SUBSCRIPTION DETAIL ─────────────────────────────────────────────────────
 function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
   const { t, lang } = useI18n();
   const locale = LANG_LOCALE[lang] ?? "en-GB";
   const [entry, setEntry] = useState(initialEntry);
   const [costHistory, setCostHistory] = useState([]);
-  const [billingPeriods, setBillingPeriods] = useState([]);
   const [editingCosts, setEditingCosts] = useState(false);
-  const [addingBillingPeriod, setAddingBillingPeriod] = useState(false);
   const now = new Date();
   const [costForm, setCostForm] = useState({
     effectiveFromMonth: now.getMonth() + 1,
@@ -377,29 +796,12 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
     shippingCost: "",
     taxesAndFees: "",
   });
-  const [bpForm, setBpForm] = useState({
-    billedAt: new Date().toISOString().slice(0, 10),
-    amountPaid: "",
-    monthsCovered: "1",
-    coveredFromMonth: String(now.getMonth() + 1),
-    coveredFromYear: String(now.getFullYear()),
-    prepayOptionId: "",
-    notes: "",
-  });
-
-  const loadBillingPeriods = () => {
-    fetch(API.USER_SUB_BILLING_PERIODS(entry.id), { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
-      .then(setBillingPeriods)
-      .catch(() => {});
-  };
 
   useEffect(() => {
     fetch(API.USER_SUBSCRIPTION_COST_HISTORY(entry.id), { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
       .then(setCostHistory)
       .catch(() => {});
-    loadBillingPeriods();
   }, [entry.id]);
 
   const renewal = nextRenewal(entry, sub);
@@ -407,7 +809,27 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
     ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(renewal)
     : null;
 
-  const logoSrc = sub?.logoUrl || company?.logoUrl;
+  const [savingStatus,   setSavingStatus]   = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelDate,     setCancelDate]     = useState(entry.cancellationDate ?? "");
+
+  const handleSetStatus = async (active, date) => {
+    setSavingStatus(true);
+    const res = await fetch(API.USER_SUBSCRIPTION_STATUS(entry.id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ active, cancellationDate: active ? null : (date || null) }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setEntry(updated);
+      setShowCancelForm(false);
+    }
+    setSavingStatus(false);
+  };
+
+  const logoSrc = resolveLogoUrl(sub?.logoUrl || company?.logoUrl);
 
   const handleSaveCosts = async () => {
     const body = {
@@ -463,6 +885,48 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
         </div>
       )}
 
+      {/* Status: active / cancelled */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: "0.35rem",
+          padding: "0.25rem 0.7rem", borderRadius: "999px", fontSize: "0.82rem", fontWeight: 600,
+          background: entry.active !== false ? "rgba(40,190,100,0.18)" : "rgba(220,60,60,0.18)",
+          color: entry.active !== false ? "#3dba70" : "#e05555",
+          border: `1px solid ${entry.active !== false ? "rgba(40,190,100,0.4)" : "rgba(220,60,60,0.4)"}`,
+        }}>
+          {entry.active !== false ? "✓ Aktywna" : "✕ Anulowana"}
+        </span>
+        {entry.active === false && entry.cancellationDate && (
+          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)" }}>od {entry.cancellationDate}</span>
+        )}
+        {entry.active !== false ? (
+          <button className="page-btn" style={{ fontSize: "0.82rem" }}
+            onClick={() => setShowCancelForm(v => !v)}>
+            Anuluj subskrypcję
+          </button>
+        ) : (
+          <button className="page-btn" style={{ fontSize: "0.82rem" }}
+            disabled={savingStatus} onClick={() => handleSetStatus(true, null)}>
+            {savingStatus ? "…" : "Przywróć"}
+          </button>
+        )}
+      </div>
+      {showCancelForm && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+          <label style={{ fontSize: "0.88rem" }}>
+            Data anulowania (opcjonalnie)
+            <input type="date" className="admin-form-input" style={{ display: "block", marginTop: "0.2rem" }}
+              value={cancelDate} onChange={e => setCancelDate(e.target.value)} />
+          </label>
+          <button className="page-btn primary" style={{ alignSelf: "flex-end" }}
+            disabled={savingStatus} onClick={() => handleSetStatus(false, cancelDate)}>
+            {savingStatus ? "…" : "Potwierdź anulowanie"}
+          </button>
+          <button className="page-btn" style={{ alignSelf: "flex-end" }}
+            onClick={() => setShowCancelForm(false)}>Anuluj</button>
+        </div>
+      )}
+
       <div className="account-sub-detail-meta">
         {sub?.basePrice && (
           <div className="account-sub-meta-row">
@@ -502,12 +966,6 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
             </div>
           </div>
         )}
-        {sub?.shipsInternationally !== undefined && (
-          <div className="account-sub-meta-row">
-            <span className="account-sub-meta-label">{t("sub.international")}</span>
-            <span className="account-sub-meta-value">{sub.shipsInternationally ? "✓" : "✗"}</span>
-          </div>
-        )}
       </div>
 
       {/* Edit costs */}
@@ -526,8 +984,8 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
               value={costForm.effectiveFromMonth}
               onChange={(e) => setCostForm((f) => ({ ...f, effectiveFromMonth: e.target.value }))}
             >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1}>{i + 1}</option>
+              {(t("bookDetail.months") || []).map((name, i) => (
+                <option key={i + 1} value={i + 1}>{name}</option>
               ))}
             </select>
           </label>
@@ -588,122 +1046,8 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
         </div>
       )}
 
-      {/* Billing periods */}
-      <div style={{ marginTop: "1.75rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-          <h4 style={{ margin: 0 }}>Okresy rozliczeniowe</h4>
-          <button className="page-btn primary" style={{ fontSize: "0.85rem" }}
-            onClick={() => setAddingBillingPeriod(true)}>+ Dodaj</button>
-        </div>
-        {billingPeriods.length === 0 && !addingBillingPeriod && (
-          <p style={{ fontSize: "0.9rem", color: "var(--text-ghost)" }}>Brak zapisanych okresów rozliczeniowych.</p>
-        )}
-        {billingPeriods.length > 0 && (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-            {billingPeriods.map((bp) => {
-              const amortized = bp.monthsCovered > 1
-                ? ` (${(bp.amountPaid / bp.monthsCovered).toFixed(2)}/mies.)`
-                : "";
-              return (
-                <li key={bp.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem" }}>
-                  <span>
-                    {bp.coveredFromMonth}/{bp.coveredFromYear}
-                    {bp.monthsCovered > 1 ? ` – ${bp.monthsCovered} mies.` : ""}
-                    {" — "}<strong>{bp.amountPaid}</strong>{amortized}
-                    {bp.billedAt ? ` · płatność: ${bp.billedAt}` : ""}
-                    {bp.notes ? ` · ${bp.notes}` : ""}
-                  </span>
-                  <button className="page-btn" style={{ fontSize: "0.78rem", padding: "0.1rem 0.4rem" }}
-                    onClick={async () => {
-                      const res = await fetch(API.USER_SUB_BILLING_PERIOD(entry.id, bp.id), { method: "DELETE", credentials: "include" });
-                      if (res.ok) loadBillingPeriods();
-                    }}>✕</button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {addingBillingPeriod && (
-          <div style={{ marginTop: "0.75rem", padding: "0.75rem", background: "var(--bg-subtle)", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            {/* Prepay option shortcuts */}
-            {sub?.prepayOptions && sub.prepayOptions.length > 0 && (
-              <div>
-                <div style={{ fontSize: "0.85rem", fontWeight: 500, marginBottom: "0.3rem" }}>Szybki wybór opcji z góry:</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                  <button type="button" className="page-btn"
-                    style={{ fontSize: "0.82rem" }}
-                    onClick={() => setBpForm(f => ({ ...f, monthsCovered: "1", amountPaid: String(sub.basePrice ?? ""), prepayOptionId: "" }))}>
-                    Miesięczna ({sub.basePrice})
-                  </button>
-                  {sub.prepayOptions.map(opt => (
-                    <button key={opt.id} type="button" className="page-btn"
-                      style={{ fontSize: "0.82rem" }}
-                      onClick={() => setBpForm(f => ({ ...f, monthsCovered: String(opt.months), amountPaid: String(opt.price), prepayOptionId: opt.id }))}>
-                      {opt.label || `${opt.months} mies.`} ({opt.price})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <label style={{ fontSize: "0.88rem" }}>
-                Data płatności
-                <input type="date" className="admin-form-input" style={{ display: "block" }}
-                  value={bpForm.billedAt} onChange={e => setBpForm(f => ({ ...f, billedAt: e.target.value }))} />
-              </label>
-              <label style={{ fontSize: "0.88rem" }}>
-                Kwota
-                <input type="number" step="0.01" min="0" className="admin-form-input" style={{ display: "block" }}
-                  value={bpForm.amountPaid} onChange={e => setBpForm(f => ({ ...f, amountPaid: e.target.value }))} placeholder="0.00" />
-              </label>
-              <label style={{ fontSize: "0.88rem" }}>
-                Mies. pokrytych
-                <input type="number" min="1" max="24" className="admin-form-input" style={{ display: "block" }}
-                  value={bpForm.monthsCovered} onChange={e => setBpForm(f => ({ ...f, monthsCovered: e.target.value }))} />
-              </label>
-              <label style={{ fontSize: "0.88rem" }}>
-                Od miesiąca
-                <input type="number" min="1" max="12" className="admin-form-input" style={{ display: "block" }}
-                  value={bpForm.coveredFromMonth} onChange={e => setBpForm(f => ({ ...f, coveredFromMonth: e.target.value }))} />
-              </label>
-              <label style={{ fontSize: "0.88rem" }}>
-                Od roku
-                <input type="number" min="2020" max="2099" className="admin-form-input" style={{ display: "block" }}
-                  value={bpForm.coveredFromYear} onChange={e => setBpForm(f => ({ ...f, coveredFromYear: e.target.value }))} />
-              </label>
-            </div>
-            <label style={{ fontSize: "0.88rem" }}>
-              Notatka (opcjonalnie)
-              <input className="admin-form-input" style={{ display: "block" }}
-                value={bpForm.notes} onChange={e => setBpForm(f => ({ ...f, notes: e.target.value }))} />
-            </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="page-btn primary" onClick={async () => {
-                const body = {
-                  billedAt: bpForm.billedAt,
-                  amountPaid: bpForm.amountPaid !== "" ? parseFloat(bpForm.amountPaid) : null,
-                  monthsCovered: parseInt(bpForm.monthsCovered) || 1,
-                  coveredFromMonth: parseInt(bpForm.coveredFromMonth),
-                  coveredFromYear: parseInt(bpForm.coveredFromYear),
-                  prepayOptionId: bpForm.prepayOptionId || null,
-                  notes: bpForm.notes || null,
-                };
-                const res = await fetch(API.USER_SUB_BILLING_PERIODS(entry.id), {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                  body: JSON.stringify(body),
-                });
-                if (res.ok) {
-                  loadBillingPeriods();
-                  setAddingBillingPeriod(false);
-                }
-              }}>Zapisz</button>
-              <button className="page-btn" onClick={() => setAddingBillingPeriod(false)}>Anuluj</button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Tags */}
+      <SubTagsEditor entryId={entry.id} />
 
       {company?.description && (
         <p className="account-sub-detail-desc">{company.description}</p>
@@ -713,7 +1057,7 @@ function SubDetailView({ entry: initialEntry, company, sub, onBack }) {
 }
 
 // ─── SUBSCRIPTIONS SECTION ────────────────────────────────────────────────────
-function SubscriptionsSection() {
+export function SubscriptionsSection() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const locale = LANG_LOCALE[lang] ?? "en-GB";
@@ -721,6 +1065,7 @@ function SubscriptionsSection() {
   const [companies,   setCompanies]   = useState([]);
   const [selected,    setSelected]    = useState(null); // { entry, company, sub }
   const [filterQuery, setFilterQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "active" | "cancelled"
 
   useEffect(() => {
     if (!user) return;
@@ -746,23 +1091,24 @@ function SubscriptionsSection() {
   };
 
   const q = filterQuery.trim().toLowerCase();
-  const filtered = q
-    ? userSubs.filter((entry) => {
-        const co  = companies.find((c) => c.id === entry.companyId);
-        const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
-        return (
-          (sub?.name  ?? "").toLowerCase().includes(q) ||
-          (co?.name   ?? "").toLowerCase().includes(q)
-        );
-      })
-    : userSubs;
+  const filtered = userSubs.filter((entry) => {
+    const co  = companies.find((c) => c.id === entry.companyId);
+    const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
+    if (statusFilter === "active"    && entry.active === false) return false;
+    if (statusFilter === "cancelled" && entry.active !== false) return false;
+    if (!q) return true;
+    return (
+      (sub?.name  ?? "").toLowerCase().includes(q) ||
+      (co?.name   ?? "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">{t("account.navSubscriptions")}</h2>
+      <h2 className="section-title account-section-title">{t("account.navSubscriptions")}</h2>
 
       {userSubs.length > 0 && (
-        <div className="account-booklist-filters" style={{ marginBottom: "1rem" }}>
+        <div className="account-booklist-filters" style={{ marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <input
             className="account-filter-input"
             type="text"
@@ -777,6 +1123,14 @@ function SubscriptionsSection() {
               title="Wyczyść filtr"
             >✕</button>
           )}
+          <div style={{ display: "flex", gap: "0.35rem" }}>
+            {[["all","Wszystkie"],["active","Aktywne"],["cancelled","Anulowane"]].map(([val, label]) => (
+              <button key={val} className="page-btn" style={{ fontSize: "0.8rem", padding: "0.2rem 0.6rem",
+                background: statusFilter === val ? "var(--accent)" : undefined,
+                color: statusFilter === val ? "#fff" : undefined,
+              }} onClick={() => setStatusFilter(val)}>{label}</button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -789,7 +1143,7 @@ function SubscriptionsSection() {
           {filtered.map((entry) => {
             const co  = companies.find((c) => c.id === entry.companyId);
             const sub = co ? (co.subscriptions || []).find((s) => s.id === entry.subscriptionId) : null;
-            const logoSrc = sub?.logoUrl || co?.logoUrl;
+            const logoSrc = resolveLogoUrl(sub?.logoUrl || co?.logoUrl);
             const renewal = nextRenewal(entry, sub);
             const renewalStr = renewal
               ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(renewal)
@@ -806,7 +1160,12 @@ function SubscriptionsSection() {
                 <div className="account-sub-info">
                   <span className="account-sub-company-name">{co?.name ?? entry.companyId}</span>
                   <span className="account-sub-name">{sub?.name ?? entry.subscriptionId}</span>
-                  {renewalStr && <span className="account-sub-renewal">🔄 {renewalStr}</span>}
+                  {renewalStr && entry.active !== false && <span className="account-sub-renewal">🔄 {renewalStr}</span>}
+                  {entry.active === false && (
+                    <span style={{ fontSize: "0.78rem", color: "#e05555", fontStyle: "italic" }}>
+                      Anulowana{entry.cancellationDate ? ` · od ${entry.cancellationDate}` : ""}
+                    </span>
+                  )}
                 </div>
                 <button
                   className="account-sub-remove"
@@ -824,8 +1183,8 @@ function SubscriptionsSection() {
 }
 
 // ─── SETTINGS SECTION ─────────────────────────────────────────────────────────
-function SettingsSection() {
-  const { user, updateProfile, uploadAvatar, updatePrivacy } = useAuth();
+export function SettingsSection() {
+  const { user, updateProfile, uploadAvatar, updatePrivacy, updateSocial } = useAuth();
   const { t } = useI18n();
 
   // ── Name / timezone form ──────────────────────────────────────────────────
@@ -844,24 +1203,59 @@ function SettingsSection() {
   const [avatarSaved,     setAvatarSaved]     = useState(false);
   const fileInputRef = useRef(null);
 
-  // ── Privacy ────────────────────────────────────────────────────────────────
-  const [libraryPublic, setLibraryPublic] = useState(user?.libraryPublic ?? false);
-  const [messagingPrivate, setMessagingPrivate] = useState(user?.messagingPrivate ?? false);
+  // ── Social / bio ──────────────────────────────────────────────────────────
+  const [bioPublic,     setBioPublic]     = useState(user?.bioPublic     ?? "");
+  const [goodreadsUrl,  setGoodreadsUrl]  = useState(user?.goodreadsUrl  ?? "");
+  const [storygraphUrl, setStorygraphUrl] = useState(user?.storygraphUrl ?? "");
+  const [instagramUrl,  setInstagramUrl]  = useState(user?.instagramUrl  ?? "");
+  const [twitterUrl,    setTwitterUrl]    = useState(user?.twitterUrl    ?? "");
+  const [socialSaving,  setSocialSaving]  = useState(false);
+  const [socialSaved,   setSocialSaved]   = useState(false);
+  const [socialErr,     setSocialErr]     = useState("");
+
+  const handleSocialSave = async () => {
+    setSocialSaving(true); setSocialErr("");
+    try {
+      await updateSocial({ bioPublic, goodreadsUrl, storygraphUrl, instagramUrl, twitterUrl });
+      setSocialSaved(true); setTimeout(() => setSocialSaved(false), 3000);
+    } catch (err) { setSocialErr(err.message); }
+    finally { setSocialSaving(false); }
+  };
+
+  // ── Granular privacy ──────────────────────────────────────────────────────
+  const [profilePrivacy,       setProfilePrivacy]       = useState(user?.profilePrivacy       ?? "PUBLIC");
+  const [collectionPrivacy,    setCollectionPrivacy]    = useState(user?.collectionPrivacy    ?? "FRIENDS");
+  const [isoPrivacy,           setIsoPrivacy]           = useState(user?.isoPrivacy           ?? "FRIENDS");
+  const [interestedPrivacy,    setInterestedPrivacy]    = useState(user?.interestedPrivacy    ?? "FOLLOWERS");
+  const [subscriptionsPrivacy, setSubscriptionsPrivacy] = useState(user?.subscriptionsPrivacy ?? "PRIVATE");
+  const [favoritesPrivacy,     setFavoritesPrivacy]     = useState(user?.favoritesPrivacy     ?? "PUBLIC");
+  const [messagingPrivate,     setMessagingPrivate]     = useState(user?.messagingPrivate     ?? false);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacySaved,  setPrivacySaved]  = useState(false);
 
-  const handlePrivacyChange = async (changes) => {
-    if (changes.libraryPublic !== undefined) setLibraryPublic(changes.libraryPublic);
-    if (changes.messagingPrivate !== undefined) setMessagingPrivate(changes.messagingPrivate);
+  const handlePrivacySave = async () => {
     setPrivacySaving(true);
     try {
-      await updatePrivacy(changes);
-      setPrivacySaved(true);
-      setTimeout(() => setPrivacySaved(false), 2500);
+      await updatePrivacy({
+        profilePrivacy, collectionPrivacy, isoPrivacy,
+        interestedPrivacy, subscriptionsPrivacy, favoritesPrivacy,
+        messagingPrivate,
+      });
+      setPrivacySaved(true); setTimeout(() => setPrivacySaved(false), 2500);
     } finally {
       setPrivacySaving(false);
     }
   };
+
+  const PRIVACY_LEVELS = ["PUBLIC", "FOLLOWERS", "FRIENDS", "PRIVATE"];
+  const privacyRows = [
+    { key: "profilePrivacy",       icon: "👤", labelKey: "privacy.sectionProfile",       val: profilePrivacy,       set: setProfilePrivacy       },
+    { key: "collectionPrivacy",    icon: "📚", labelKey: "privacy.sectionCollection",    val: collectionPrivacy,    set: setCollectionPrivacy    },
+    { key: "isoPrivacy",           icon: "🔍", labelKey: "privacy.sectionIso",           val: isoPrivacy,           set: setIsoPrivacy           },
+    { key: "interestedPrivacy",    icon: "⭐", labelKey: "privacy.sectionInterested",    val: interestedPrivacy,    set: setInterestedPrivacy    },
+    { key: "subscriptionsPrivacy", icon: "📮", labelKey: "privacy.sectionSubscriptions", val: subscriptionsPrivacy, set: setSubscriptionsPrivacy },
+    { key: "favoritesPrivacy",     icon: "❤️", labelKey: "privacy.sectionFavorites",    val: favoritesPrivacy,     set: setFavoritesPrivacy     },
+  ];
 
   const currentAvatarSrc = user?.avatarUrl ? `${API.BASE}${user.avatarUrl}` : null;
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
@@ -917,7 +1311,7 @@ function SettingsSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">{t("settings.title")}</h2>
+      <h2 className="section-title account-section-title">{t("settings.title")}</h2>
 
       {/* ── Avatar ── */}
       <div className="account-avatar-editor">
@@ -980,26 +1374,72 @@ function SettingsSection() {
 
       <div className="account-section-divider" />
 
-      {/* ── Privacy ── */}
+      {/* ── Public profile / social links ── */}
       <div className="user-page-form">
-        <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>{t("settings.privacyTitle")}</h3>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={libraryPublic}
-            onChange={e => handlePrivacyChange({ libraryPublic: e.target.checked })}
-            disabled={privacySaving}
-            style={{ width: 16, height: 16, cursor: "pointer" }}
+        <h3 className="settings-section-heading">{t("settings.publicProfileTitle")}</h3>
+        <label>
+          {t("settings.bio")}
+          <textarea
+            rows={3}
+            value={bioPublic}
+            onChange={e => setBioPublic(e.target.value)}
+            placeholder={t("settings.bioPlaceholder")}
+            style={{ resize: "vertical" }}
           />
-          <span>{t("settings.libraryPublic")}</span>
         </label>
-        <span className="field-hint" style={{ marginTop: "0.25rem" }}>{t("settings.libraryPublicHint")}</span>
+        <label>{t("publicProfile.goodreads")}
+          <input value={goodreadsUrl}  onChange={e => setGoodreadsUrl(e.target.value)}  placeholder="https://goodreads.com/user/show/..." />
+        </label>
+        <label>{t("publicProfile.storygraph")}
+          <input value={storygraphUrl} onChange={e => setStorygraphUrl(e.target.value)} placeholder="https://app.thestorygraph.com/profile/..." />
+        </label>
+        <label>{t("publicProfile.instagram")}
+          <input value={instagramUrl}  onChange={e => setInstagramUrl(e.target.value)}  placeholder="https://instagram.com/..." />
+        </label>
+        <label>{t("publicProfile.twitter")}
+          <input value={twitterUrl}    onChange={e => setTwitterUrl(e.target.value)}    placeholder="https://x.com/..." />
+        </label>
+        {socialErr  && <p className="page-error">{socialErr}</p>}
+        {socialSaved && <p className="page-success">{t("settings.saved")}</p>}
+        <button className="page-btn primary" onClick={handleSocialSave} disabled={socialSaving}>
+          {socialSaving ? t("settings.saving") : t("settings.saveBtn")}
+        </button>
+      </div>
 
-        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", marginTop: "0.75rem" }}>
+      <div className="account-section-divider" />
+
+      {/* ── Granular privacy ── */}
+      <div className="user-page-form">
+        <h3 className="settings-section-heading">{t("settings.privacyTitle")}</h3>
+        <p className="field-hint" style={{ marginBottom: "1rem" }}>{t("privacy.hint")}</p>
+
+        <div className="privacy-rows">
+          {privacyRows.map(({ key, icon, labelKey, val, set }) => (
+            <div key={key} className="privacy-row">
+              <div className="privacy-row-label">
+                <span className="privacy-row-icon">{icon}</span>
+                <span>{t(labelKey)}</span>
+              </div>
+              <select
+                className="privacy-select"
+                value={val}
+                onChange={e => set(e.target.value)}
+                disabled={privacySaving}
+              >
+                {PRIVACY_LEVELS.map(lv => (
+                  <option key={lv} value={lv}>{t(`privacy.level${lv.charAt(0)+lv.slice(1).toLowerCase()}`)}</option>
+                ))}
+              </select>
+              <p className="privacy-row-desc">{t(`privacy.desc${val.charAt(0)+val.slice(1).toLowerCase()}`)}</p>
+            </div>
+          ))}
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", marginTop: "1rem" }}>
           <input
             type="checkbox"
             checked={messagingPrivate}
-            onChange={e => handlePrivacyChange({ messagingPrivate: e.target.checked })}
+            onChange={e => setMessagingPrivate(e.target.checked)}
             disabled={privacySaving}
             style={{ width: 16, height: 16, cursor: "pointer" }}
           />
@@ -1008,6 +1448,9 @@ function SettingsSection() {
         <span className="field-hint" style={{ marginTop: "0.25rem" }}>{t("settings.messagingPrivateHint")}</span>
 
         {privacySaved && <p className="page-success" style={{ marginTop: "0.5rem" }}>{t("settings.saved")}</p>}
+        <button className="page-btn primary" onClick={handlePrivacySave} disabled={privacySaving} style={{ marginTop: "1rem" }}>
+          {privacySaving ? t("settings.saving") : t("settings.saveBtn")}
+        </button>
       </div>
     </section>
   );
@@ -1032,7 +1475,10 @@ export default function AccountPage({ onBack, initialSection = "calendar", onSec
       case "collection":    return <BookListSection flag="OWNED"      onBookClick={onBookClick} />;
       case "iso":           return <BookListSection flag="ISO"        onBookClick={onBookClick} />;
       case "interested":    return <BookListSection flag="INTERESTED" onBookClick={onBookClick} />;
+      case "sold":          return <SoldBooksSection />;
       case "subscriptions": return <SubscriptionsSection />;
+      case "spending":      return <SpendingStatsPage />;
+      case "favorites":     return <FavoritesPage />;
       case "settings":      return <SettingsSection />;
       default:              return null;
     }
@@ -1091,3 +1537,4 @@ export default function AccountPage({ onBack, initialSection = "calendar", onSec
     </div>
   );
 }
+

@@ -2,17 +2,29 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import { API } from "./api";
+import SaleAnnouncementAdminPage from "./SaleAnnouncementAdminPage";
+import BookDetailEditPage from "./BookDetailEditPage";
 import "./AccountPage.css";
 import "./AdminPage.css";
+import "./ReportModals.css";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
+const PL_MONTHS = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+const monthName = (m) => PL_MONTHS[(m - 1)] || m;
+
 function getNavItems(t) {
   return [
-    { key: "companies",     icon: "📦", label: t("admin.navBookBoxes")    },
-    { key: "users",         icon: "👥", label: t("admin.navUsers")        },
-    { key: "reports",       icon: "🐛", label: t("admin.navReports")      },
-    { key: "data-requests", icon: "📋", label: t("admin.navDataRequests") },
-    { key: "notifications", icon: "🔔", label: t("admin.navNotifications") },
+    { key: "companies",     icon: "📦", label: t("admin.navBookBoxes"),     permission: "MANAGE_COMPANIES"     },
+    { key: "books",         icon: "📖", label: t("admin.navBooks"),          permission: null },
+    { key: "users",         icon: "👥", label: t("admin.navUsers"),         permission: "MANAGE_USERS"         },
+    { key: "sales",         icon: "🛒", label: t("admin.navSales"),         permission: "MANAGE_SALES"         },
+    { key: "reports",       icon: "🐛", label: t("admin.navReports"),       permission: "MANAGE_REPORTS"       },
+    { key: "data-requests", icon: "📋", label: t("admin.navDataRequests"),  permission: "MANAGE_DATA_REQUESTS" },
+    { key: "notifications", icon: "🔔", label: t("admin.navNotifications"), permission: "MANAGE_NOTIFICATIONS" },
+    { key: "email",         icon: "✉️",  label: t("admin.navEmail"),         permission: "MANAGE_EMAIL"         },
+    { key: "imports",       icon: "🔄", label: t("admin.navImports"),       permission: "MANAGE_IMPORTS"       },
+    { key: "ol-catalog",    icon: "📚", label: t("admin.navOlCatalog"),     permission: "MANAGE_IMPORTS"       },
+    { key: "audit-log",     icon: "📋", label: t("admin.navAuditLog"),      permission: "MANAGE_AUDIT"         },
   ];
 }
 
@@ -22,7 +34,7 @@ function StatusBadge({ value }) {
 }
 
 function RoleBadge({ value }) {
-  return <span className={`admin-role-badge ${value}`}>{value}</span>;
+  return <span className={`admin-role-badge role-${value}`}>{value}</span>;
 }
 
 function Pagination({ page, totalPages, onPage }) {
@@ -40,16 +52,47 @@ function Pagination({ page, totalPages, onPage }) {
 
 // ─── Data: Countries & Currencies ────────────────────────────────────────────
 const COUNTRIES = [
-  { code: "PL", name: "Polska" }, { code: "US", name: "USA" }, { code: "GB", name: "Wielka Brytania" },
-  { code: "DE", name: "Niemcy" }, { code: "FR", name: "Francja" }, { code: "ES", name: "Hiszpania" },
-  { code: "IT", name: "Włochy" }, { code: "NL", name: "Holandia" }, { code: "SE", name: "Szwecja" },
-  { code: "NO", name: "Norwegia" }, { code: "DK", name: "Dania" }, { code: "FI", name: "Finlandia" },
-  { code: "CZ", name: "Czechy" }, { code: "SK", name: "Słowacja" }, { code: "HU", name: "Węgry" },
-  { code: "RO", name: "Rumunia" }, { code: "AT", name: "Austria" }, { code: "BE", name: "Belgia" },
-  { code: "CH", name: "Szwajcaria" }, { code: "PT", name: "Portugalia" }, { code: "IE", name: "Irlandia" },
-  { code: "CA", name: "Kanada" }, { code: "AU", name: "Australia" }, { code: "NZ", name: "Nowa Zelandia" },
-  { code: "JP", name: "Japonia" }, { code: "KR", name: "Korea Pd." }, { code: "CN", name: "Chiny" },
-  { code: "IN", name: "Indie" }, { code: "BR", name: "Brazylia" }, { code: "ZA", name: "RPA" },
+  { code: "AR", name: "Argentyna" },
+  { code: "AT", name: "Austria" },
+  { code: "AU", name: "Australia" },
+  { code: "BE", name: "Belgia" },
+  { code: "BR", name: "Brazylia" },
+  { code: "CA", name: "Kanada" },
+  { code: "CH", name: "Szwajcaria" },
+  { code: "CN", name: "Chiny" },
+  { code: "CZ", name: "Czechy" },
+  { code: "DE", name: "Niemcy" },
+  { code: "DK", name: "Dania" },
+  { code: "EE", name: "Estonia" },
+  { code: "ES", name: "Hiszpania" },
+  { code: "FI", name: "Finlandia" },
+  { code: "FR", name: "Francja" },
+  { code: "GB", name: "Wielka Brytania" },
+  { code: "GR", name: "Grecja" },
+  { code: "HR", name: "Chorwacja" },
+  { code: "HU", name: "Węgry" },
+  { code: "IE", name: "Irlandia" },
+  { code: "IN", name: "Indie" },
+  { code: "IT", name: "Włochy" },
+  { code: "JP", name: "Japonia" },
+  { code: "KR", name: "Korea Pd." },
+  { code: "LT", name: "Litwa" },
+  { code: "LV", name: "Łotwa" },
+  { code: "MX", name: "Meksyk" },
+  { code: "NL", name: "Holandia" },
+  { code: "NO", name: "Norwegia" },
+  { code: "NZ", name: "Nowa Zelandia" },
+  { code: "PL", name: "Polska" },
+  { code: "PT", name: "Portugalia" },
+  { code: "RO", name: "Rumunia" },
+  { code: "RS", name: "Serbia" },
+  { code: "SE", name: "Szwecja" },
+  { code: "SG", name: "Singapur" },
+  { code: "SI", name: "Słowenia" },
+  { code: "SK", name: "Słowacja" },
+  { code: "UA", name: "Ukraina" },
+  { code: "US", name: "USA" },
+  { code: "ZA", name: "RPA" },
 ];
 
 const CURRENCIES = [
@@ -161,6 +204,7 @@ function GenreTagPicker({ selected = [], onChange, allGenres = [] }) {
 // ─── SkipPolicyEditor ─────────────────────────────────────────────────────────
 function SkipPolicyEditor({ value, onChange }) {
   const isLimited  = value.skipPolicyType === "LIMITED";
+  const isNone     = value.skipPolicyType === "NONE";
   const set = field => e => onChange({ ...value, [field]: e.target.value });
 
   return (
@@ -168,7 +212,12 @@ function SkipPolicyEditor({ value, onChange }) {
       <div className="admin-form-label" style={{ marginBottom: "0.4rem" }}>Skip Policy</div>
       <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
         <label className="admin-form-check">
-          <input type="radio" checked={!isLimited}
+          <input type="radio" checked={isNone}
+            onChange={() => onChange({ ...value, skipPolicyType: "NONE" })} />
+          Brak skipów
+        </label>
+        <label className="admin-form-check">
+          <input type="radio" checked={!isLimited && !isNone}
             onChange={() => onChange({ ...value, skipPolicyType: "UNLIMITED" })} />
           Nielimitowana
         </label>
@@ -186,14 +235,19 @@ function SkipPolicyEditor({ value, onChange }) {
           </div>
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             <label className="admin-form-check">
-              <input type="radio" checked={value.skipResetType !== "CALENDAR_YEAR"}
+              <input type="radio" checked={value.skipResetType === "SUBSCRIPTION_START"}
                 onChange={() => onChange({ ...value, skipResetType: "SUBSCRIPTION_START" })} />
-              Od miesiąca startu subskrypcji
+              Data dodania subskrypcji (auto)
             </label>
             <label className="admin-form-check">
               <input type="radio" checked={value.skipResetType === "CALENDAR_YEAR"}
                 onChange={() => onChange({ ...value, skipResetType: "CALENDAR_YEAR" })} />
               Rok kalendarzowy (od stycznia)
+            </label>
+            <label className="admin-form-check">
+              <input type="radio" checked={value.skipResetType === "FIRST_SKIP"}
+                onChange={() => onChange({ ...value, skipResetType: "FIRST_SKIP" })} />
+              Od pierwszego skipu użytkownika
             </label>
           </div>
 
@@ -225,14 +279,23 @@ function SkipPolicyEditor({ value, onChange }) {
 // ─── SubscriptionInlineForm ───────────────────────────────────────────────────
 const EMPTY_SUB = {
   name: "", type: "MONTHLY", basePrice: "", renewalDay: "",
-  renewalDayUserSet: false,
+  renewalDayUserSet: false, startingMonth: "",
   isCombo: false, comboComponentIds: [],
   shipsInternationally: true, bookishMerch: false, genresList: [],
-  description: "",
+  description: "", defaultLanguage: "",
   skipPolicyType: "UNLIMITED", skipResetType: "SUBSCRIPTION_START",
   skipCount: "", maxConsecutiveSkips: "", skipPolicyNotes: "",
   prepayOptions: [],
 };
+
+const BOOK_LANGUAGES = [
+  { value: "", label: "— brak / mieszane —" },
+  { value: "en", label: "🇬🇧 English" },
+  { value: "pl", label: "🇵🇱 Polski" },
+  { value: "de", label: "🇩🇪 Deutsch" },
+  { value: "fr", label: "🇫🇷 Français" },
+  { value: "es", label: "🇪🇸 Español" },
+];
 
 const EMPTY_PREPAY = { months: "", price: "", label: "" };
 
@@ -318,12 +381,14 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
       renewalDay:           (!form.renewalDayUserSet && form.renewalDay) ? parseInt(form.renewalDay) : null,
       renewalDayUserSet:    form.renewalDayUserSet,
+      startingMonth:        (form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && form.startingMonth ? parseInt(form.startingMonth) : null,
       isCombo:              form.isCombo,
       comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
       bookishMerch:         form.bookishMerch,
       genres:               form.genresList,
       description:          form.description || null,
+      defaultLanguage:      form.defaultLanguage || null,
       skipPolicyType:       form.skipPolicyType,
       skipResetType:        form.skipPolicyType === "LIMITED" ? form.skipResetType : null,
       skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
@@ -341,7 +406,7 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
 
   return (
     <div className="admin-sub-inline-form">
-      <form onSubmit={handleAdd}>
+      <div>
 
         {/* Combo toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginBottom: "0.5rem" }}>
@@ -410,6 +475,17 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
               Ustawi użytkownik
             </label>
           </div>
+          {(form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && (
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
+              <label className="admin-form-label">Miesiąc startowy cyklu</label>
+              <select className="admin-form-select" value={form.startingMonth} onChange={set("startingMonth")}>
+                <option value="">— wybierz —</option>
+                {PL_MONTHS.map((name, i) => (
+                  <option key={i + 1} value={i + 1}>{name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {!form.isCombo && (
@@ -438,6 +514,13 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
             placeholder="Krótki opis subskrypcji widoczny dla użytkowników…" />
         </div>
 
+        <div className="admin-form-row" style={{ maxWidth: 220 }}>
+          <label className="admin-form-label">Domyślny język książek</label>
+          <select className="admin-form-select" value={form.defaultLanguage} onChange={set("defaultLanguage")}>
+            {BOOK_LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </select>
+        </div>
+
         <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
 
         <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
@@ -448,9 +531,9 @@ function SubscriptionInlineForm({ onAdd, onCancel, availableComponents = [] }) {
 
         <div className="admin-form-btns" style={{ marginTop: "0.75rem" }}>
           <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onCancel}>Anuluj</button>
-          <button type="submit" className="admin-btn admin-btn--primary admin-btn--sm">+ Dodaj subskrypcję</button>
+          <button type="button" className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleAdd}>+ Dodaj subskrypcję</button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -463,12 +546,14 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     basePrice:            s.basePrice != null ? String(s.basePrice) : "",
     renewalDay:           s.renewalDay != null ? String(s.renewalDay) : "",
     renewalDayUserSet:    !!s.renewalDayUserSet,
-    isCombo:              !!s.isCombo,
+    startingMonth:        s.startingMonth != null ? String(s.startingMonth) : "",
+    isCombo:!!s.isCombo,
     comboComponentIds:    s.comboComponentIds ?? [],
     shipsInternationally: s.shipsInternationally !== false,
     bookishMerch:         !!s.bookishMerch,
     genresList:           s.genres ?? [],
     description:          s.description || "",
+    defaultLanguage:      s.defaultLanguage || "",
     skipPolicyType:       s.skipPolicyType || "UNLIMITED",
     skipResetType:        s.skipResetType  || "SUBSCRIPTION_START",
     skipCount:            s.skipCount != null ? String(s.skipCount) : "",
@@ -479,8 +564,9 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     })),
   }) : {
     name: "", type: "MONTHLY", basePrice: "", renewalDay: "", renewalDayUserSet: false,
+    startingMonth: "",
     isCombo: false, comboComponentIds: [], shipsInternationally: true, bookishMerch: false,
-    genresList: [], description: "", skipPolicyType: "UNLIMITED",
+    genresList: [], description: "", defaultLanguage: "", skipPolicyType: "UNLIMITED",
     skipResetType: "SUBSCRIPTION_START", skipCount: "", maxConsecutiveSkips: "",
     skipPolicyNotes: "", prepayOptions: [],
   };
@@ -526,12 +612,14 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
       basePrice:            form.basePrice ? parseFloat(form.basePrice) : null,
       renewalDay:           (!form.renewalDayUserSet && form.renewalDay) ? parseInt(form.renewalDay) : null,
       renewalDayUserSet:    form.renewalDayUserSet,
+      startingMonth:        (form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && form.startingMonth ? parseInt(form.startingMonth) : null,
       isCombo:              form.isCombo,
       comboComponentIds:    form.isCombo ? form.comboComponentIds : [],
       shipsInternationally: form.shipsInternationally,
       bookishMerch:         form.bookishMerch,
       genres:               form.genresList,
       description:          form.description || null,
+      defaultLanguage:      form.defaultLanguage || null,
       skipPolicyType:       form.skipPolicyType,
       skipResetType:        form.skipPolicyType === "LIMITED" ? form.skipResetType : null,
       skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
@@ -637,8 +725,18 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
                 Ustawi użytkownik
               </label>
             </div>
+            {(form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && (
+              <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
+                <label className="admin-form-label">Miesiąc startowy cyklu</label>
+                <select className="admin-form-select" value={form.startingMonth} onChange={set("startingMonth")}>
+                  <option value="">— wybierz —</option>
+                  {PL_MONTHS.map((name, i) => (
+                    <option key={i + 1} value={i + 1}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-
           {!form.isCombo && (
             <>
               <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.25rem" }}>
@@ -665,6 +763,13 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
               placeholder="Krótki opis subskrypcji widoczny dla użytkowników…" />
           </div>
 
+          <div className="admin-form-row" style={{ maxWidth: 240 }}>
+            <label className="admin-form-label">Domyślny język książek</label>
+            <select className="admin-form-select" value={form.defaultLanguage} onChange={set("defaultLanguage")}>
+              {BOOK_LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+          </div>
+
           <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
 
           <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
@@ -680,6 +785,12 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
             </button>
           </div>
         </form>
+
+        {!isCreate && sub?.id && (
+          <div style={{ padding: "0 1.25rem 1.25rem" }}>
+            <ImportSourcesPanel companyId={companyId} subscriptionId={sub.id} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -782,7 +893,7 @@ function CompanyFormPage({ company, onSaved, onBack }) {
     <section className="account-section">
       <div className="admin-section-header" style={{ marginBottom: "1.5rem" }}>
         <button type="button" className="admin-btn admin-btn--ghost" onClick={onBack}>← Lista</button>
-        <h2 className="account-section-title" style={{ margin: 0 }}>
+        <h2 className="section-title account-section-title" style={{ margin: 0 }}>
           {isEdit ? `Edycja: ${company.name}` : "Nowy Book Box"}
         </h2>
       </div>
@@ -970,8 +1081,333 @@ function CompanyFormPage({ company, onSaved, onBack }) {
   );
 }
 
+// ─── InlineEditionCreator ─────────────────────────────────────────────────────
+function InlineEditionCreator({ onCreated, onCancel }) {
+  const { t } = useI18n();
+  const [mode, setMode] = useState("menu"); // "menu" | "new-book" | "add-edition"
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const doSearch = async (q) => {
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const r = await fetch(`${API.SEARCH}?q=${encodeURIComponent(q.trim())}&filter=books`, { credentials: "include" });
+      const data = r.ok ? await r.json() : {};
+      setSearchResults(data.books || []);
+    } catch { setSearchResults([]); }
+    setSearching(false);
+  };
+
+  const handleSaved = (book) => {
+    const editions = book.editions || [];
+    if (editions.length === 0) { onCancel(); return; }
+    // Find newly created edition (last by position; backend appends)
+    const latest = editions[editions.length - 1];
+    onCreated({
+      id:          latest.id,
+      editionName: latest.editionName,
+      bookTitle:   book.title,
+      imageUrl:    latest.imageUrl,
+      bookId:      book.id,
+    });
+  };
+
+  if (mode === "new-book") {
+    return <BookDetailEditPage initialData={null} editingEdition="new"
+      onSaved={handleSaved} onBack={() => setMode("menu")} />;
+  }
+  if (mode === "add-edition" && selectedBook) {
+    return <BookDetailEditPage initialData={selectedBook} editingEdition="new"
+      onSaved={handleSaved} onBack={() => setMode("menu")} />;
+  }
+
+  return (
+    <div style={{ background: "var(--surface-raised)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.8rem", marginTop: "0.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.7rem" }}>
+        <strong style={{ fontSize: "0.85rem" }}>{t("admin.createEdition")}</strong>
+        <button type="button" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-ghost)", fontSize: "1rem" }} onClick={onCancel}>✕</button>
+      </div>
+      <button className="admin-btn admin-btn--secondary admin-btn--sm" style={{ marginBottom: "0.7rem" }}
+        onClick={() => setMode("new-book")}>
+        {t("admin.newBookWithEdition")}
+      </button>
+      <div style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.3rem" }}>
+        {t("admin.orAddEditionToExisting")}
+      </div>
+      <input className="admin-form-input" placeholder={t("admin.searchTitle")} value={searchQ}
+        onChange={e => { setSearchQ(e.target.value); doSearch(e.target.value); }} />
+      {searching && <div style={{ fontSize: "0.78rem", color: "var(--text-ghost)", marginTop: 4 }}>…</div>}
+      {searchResults.map(book => (
+        <div key={book.id} style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0.4rem 0.6rem", fontSize: "0.82rem",
+          border: "1px solid var(--border)", borderRadius: 6, marginTop: 4,
+        }}>
+          <span><strong>{book.title}</strong>{book.author && <span style={{ color: "var(--text-ghost)", marginLeft: "0.4rem" }}>{book.author}</span>}</span>
+          <button className="admin-btn admin-btn--secondary admin-btn--sm"
+            onClick={() => { setSelectedBook(book); setMode("add-edition"); }}>
+            {t("admin.addEdition")}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── SubMonthsManager ─────────────────────────────────────────────────────────
+function EditionSearchWidget({ companyId, selectedEdition, onSelect, onClear }) {
+  const { t } = useI18n();
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const doSearch = () => {
+    if (!q.trim()) return;
+    setSearching(true);
+    fetch(`${API.ADMIN_COMPANY_EDITIONS_SEARCH(companyId)}?q=${encodeURIComponent(q.trim())}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setResults(Array.isArray(data) ? data : []); setSearching(false); })
+      .catch(() => setSearching(false));
+  };
+
+  return (
+    <div style={{ marginTop: "0.5rem" }}>
+      <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.bookEditionLabel")}</label>
+      {selectedEdition ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--surface-alt)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem" }}>
+          {selectedEdition.imageUrl && <img src={selectedEdition.imageUrl} alt="" style={{ height: 36, borderRadius: 4 }} onError={e => { e.target.style.display = "none"; }} />}
+          <span><strong>{selectedEdition.editionName || selectedEdition.subscriptionName}</strong>{selectedEdition.bookTitle ? ` — ${selectedEdition.bookTitle}` : ""}</span>
+          <button type="button" style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: "1rem" }} onClick={onClear}>✕</button>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
+            <input className="admin-form-input" style={{ flex: 1 }} placeholder={t("admin.searchEdition")} value={q} onChange={e => setQ(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); doSearch(); } }} />
+            <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={doSearch} disabled={searching}>
+              {searching ? "…" : t("admin.search")}
+            </button>
+          </div>
+          {results.length > 0 && (
+            <div style={{ border: "1px solid var(--border)", borderRadius: 6, marginTop: 4, maxHeight: 180, overflowY: "auto", background: "var(--surface-raised)" }}>
+              {results.map(r => (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 0.6rem", cursor: "pointer", fontSize: "0.82rem", borderBottom: "1px solid var(--border)" }}
+                  onClick={() => { onSelect(r); setResults([]); setQ(""); }}>
+                  {r.imageUrl && <img src={r.imageUrl} alt="" style={{ height: 32, borderRadius: 3 }} onError={e => { e.target.style.display = "none"; }} />}
+                  <span><strong>{r.editionName || r.subscriptionName || "—"}</strong>{r.bookTitle ? ` — ${r.bookTitle}` : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function SubMonthsManager({ sub, companyId }) {
+  const { t } = useI18n();
+  const [months, setMonths] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addingMonth, setAddingMonth] = useState(false);
+  const [editingMonth, setEditingMonth] = useState(null);
+  const [form, setForm] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, theme: "", imageUrl: "" });
+  const [books, setBooks] = useState([]); // [{bookId, editionId, _edition}]
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [creatingEditionForIdx, setCreatingEditionForIdx] = useState(null);
+
+  const loadMonths = () => {
+    setLoading(true);
+    fetch(API.ADMIN_SUB_MONTHS(companyId, sub.id), { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setMonths(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { loadMonths(); }, [sub.id]);
+
+  const openAdd = () => {
+    setForm({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, theme: "", imageUrl: "" });
+    setBooks([]);
+    setEditingMonth(null);
+    setAddingMonth(true);
+    setMsg(null);
+  };
+
+  const openEdit = (m) => {
+    setForm({ year: m.year, month: m.month, theme: m.theme || "", imageUrl: m.imageUrl || "" });
+    // Populate books from multi-book list or legacy single book
+    const existingBooks = Array.isArray(m.books) && m.books.length > 0
+      ? m.books.map(b => ({ bookId: b.bookId || "", editionId: b.editionId || "", _edition: b.editionId ? { id: b.editionId } : null }))
+      : (m.bookId ? [{ bookId: m.bookId, editionId: m.editionId || "", _edition: m.editionId ? { id: m.editionId } : null }] : []);
+    setBooks(existingBooks);
+    setEditingMonth(m);
+    setAddingMonth(false);
+    setMsg(null);
+  };
+
+  const closeForm = () => { setAddingMonth(false); setEditingMonth(null); setBooks([]); };
+
+  const addBook = () => setBooks(prev => [...prev, { bookId: "", editionId: "", _edition: null }]);
+  const removeBook = idx => setBooks(prev => prev.filter((_, i) => i !== idx));
+  const updateBookEdition = (idx, ed) => setBooks(prev => prev.map((b, i) => i === idx
+    ? { ...b, editionId: ed?.id || "", bookId: b.bookId, _edition: ed }
+    : b));
+
+  const handleSave = () => {
+    setSaving(true);
+    const booksPayload = books
+      .filter(b => b.editionId || b.bookId)
+      .map(b => ({ bookId: b.bookId || null, editionId: b.editionId || null }));
+    const payload = {
+      year: Number(form.year), month: Number(form.month),
+      theme: form.theme, imageUrl: form.imageUrl,
+      books: booksPayload,
+    };
+    const isEdit = !!editingMonth;
+    const url = isEdit ? API.ADMIN_MONTH(editingMonth.id) : API.ADMIN_SUB_MONTHS(companyId, sub.id);
+    fetch(url, {
+      method: isEdit ? "PUT" : "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || "Błąd")))
+      .then(() => { setSaving(false); closeForm(); loadMonths(); setMsg({ ok: true, text: isEdit ? "Zapisano." : "Dodano." }); })
+      .catch(e => { setSaving(false); setMsg({ ok: false, text: String(e) }); });
+  };
+
+  const handleDelete = (m) => {
+    if (!window.confirm(`Usunąć motyw ${monthName(m.month)} ${m.year}?`)) return;
+    fetch(API.ADMIN_MONTH(m.id), { method: "DELETE", credentials: "include" })
+      .then(r => { if (r.ok || r.status === 204) { loadMonths(); setMsg({ ok: true, text: "Usunięto." }); } })
+      .catch(() => setMsg({ ok: false, text: "Błąd usuwania." }));
+  };
+
+  const bookCount = (m) => {
+    if (Array.isArray(m.books) && m.books.length > 0) return m.books.length;
+    return m.bookId ? 1 : 0;
+  };
+
+  if (creatingEditionForIdx !== null) {
+    return (
+      <div style={{ marginTop: "1rem" }}>
+        <InlineEditionCreator
+          onCreated={(edition) => {
+            updateBookEdition(creatingEditionForIdx, edition);
+            setCreatingEditionForIdx(null);
+          }}
+          onCancel={() => setCreatingEditionForIdx(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: "1rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+        <strong style={{ fontSize: "0.9rem" }}>{t("admin.monthsTitle")} ({months.length})</strong>
+        {!addingMonth && !editingMonth && (
+          <button className="admin-btn admin-btn--secondary admin-btn--sm" onClick={openAdd}>+</button>
+        )}
+      </div>
+
+      {msg && (
+        <div style={{ fontSize: "0.82rem", marginBottom: "0.4rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
+          {msg.ok ? "✔ " : "✖ "}{msg.text}
+          <button style={{ marginLeft: 6, background: "none", border: "none", cursor: "pointer", fontSize: "0.78rem" }} onClick={() => setMsg(null)}>✕</button>
+        </div>
+      )}
+
+      {(addingMonth || editingMonth) && (
+        <div style={{ background: "var(--surface-alt)", borderRadius: 8, padding: "0.8rem", marginBottom: "0.8rem", border: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
+              <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.yearLabel")}</label>
+              <input className="admin-form-input" type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
+              <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.monthLabel")}</label>
+              <select className="admin-form-select" value={form.month} onChange={e => setForm(f => ({ ...f, month: e.target.value }))}>
+                {PL_MONTHS.map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+              </select>
+            </div>
+            <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
+              <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.themeLabel")}</label>
+              <input className="admin-form-input" value={form.theme} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} />
+            </div>
+          </div>
+          <div className="admin-form-row">
+            <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.imageUrlLabel")}</label>
+            <input className="admin-form-input" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} />
+          </div>
+          {form.imageUrl && (
+            <img src={form.imageUrl} alt="" style={{ height: 60, borderRadius: 5, marginBottom: 6 }} onError={e => { e.target.style.display = "none"; }} />
+          )}
+
+          {/* Multi-book section */}
+          <div style={{ marginTop: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+              <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{t("admin.booksInBox").replace("{n}", books.length)}</span>
+              <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={addBook}>{t("admin.addBookToBox")}</button>
+            </div>
+            {books.map((b, idx) => (
+              <div key={idx} style={{ display: "flex", alignItems: "flex-end", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                <div style={{ flex: 1 }}>
+                  <EditionSearchWidget
+                    companyId={companyId}
+                    selectedEdition={b._edition}
+                    onSelect={ed => updateBookEdition(idx, ed)}
+                    onClear={() => updateBookEdition(idx, null)}
+                  />
+                  {!b._edition && (
+                    <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm"
+                      style={{ marginTop: "0.3rem", fontSize: "0.76rem" }}
+                      onClick={() => setCreatingEditionForIdx(idx)}>
+                      {t("admin.createEdition")}
+                    </button>
+                  )}
+                </div>
+                <button type="button" className="admin-btn admin-btn--danger admin-btn--sm"
+                  style={{ marginBottom: "0.2rem" }} onClick={() => removeBook(idx)}>✕</button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
+            <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleSave} disabled={saving}>{saving ? "…" : t("admin.save")}</button>
+            <button className="admin-btn admin-btn--ghost admin-btn--sm" onClick={closeForm}>{t("admin.cancel")}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)" }}>{t("admin.loading")}</div> : (
+        months.length === 0 ? <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)" }}>{t("admin.noThemes")}</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+            {months.map(m => (
+              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.82rem", padding: "0.3rem 0", borderBottom: "1px solid var(--border-faint, var(--border))" }}>
+                {m.imageUrl && <img src={m.imageUrl} alt="" style={{ height: 32, borderRadius: 3 }} onError={e => { e.target.style.display = "none"; }} />}
+                <span style={{ minWidth: 110 }}><strong>{monthName(m.month)} {m.year}</strong></span>
+                <span style={{ flex: 1, color: m.theme ? "inherit" : "var(--text-ghost)" }}>{m.theme || "—"}</span>
+                {bookCount(m) > 0 && <span style={{ fontSize: "0.78rem", color: "var(--accent)" }}>📚 {bookCount(m)}</span>}
+                <button className="admin-action-btn" title="Edytuj" onClick={() => openEdit(m)}>✎</button>
+                <button className="admin-action-btn" title="Usuń" style={{ color: "var(--danger)" }} onClick={() => handleDelete(m)}>🗑</button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 // ─── Company Detail View ──────────────────────────────────────────────────────
 function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }) {
+  const { t } = useI18n();
   const [company, setCompany] = useState(initialCompany);
   const [selectedSub, setSelectedSub] = useState(null);
   const [editingSub,  setEditingSub]  = useState(null);
@@ -991,14 +1427,14 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
   return (
     <div className="admin-company-detail">
       <div className="admin-detail-header">
-        <button className="admin-btn admin-btn--ghost" onClick={onBack}>← Lista</button>
+        <button className="admin-btn admin-btn--ghost" onClick={onBack}>{t("admin.backToList")}</button>
         <div className="admin-detail-title">
           {logo && <img src={logo} alt="" className="admin-detail-logo" onError={e => { e.target.style.display = "none"; }} />}
-          <h2 className="account-section-title" style={{ margin: 0 }}>{company.name}</h2>
+          <h2 className="section-title account-section-title" style={{ margin: 0 }}>{company.name}</h2>
         </div>
         <div className="admin-detail-actions">
-          <button className="admin-btn admin-btn--secondary" onClick={() => onEdit(company)}>✎ Edytuj</button>
-          <button className="admin-btn admin-btn--danger"    onClick={() => onDelete(company)}>🗑 Usuń</button>
+          <button className="admin-btn admin-btn--secondary" onClick={() => onEdit(company)}>{t("admin.edit")}</button>
+          <button className="admin-btn admin-btn--danger"    onClick={() => onDelete(company)}>{t("admin.delete")}</button>
         </div>
       </div>
 
@@ -1028,12 +1464,12 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
       <div className="admin-subs-section">
         <div className="admin-section-header">
           <h3 className="admin-subs-title">
-            Subskrypcje ({company.subscriptions?.length ?? 0})
+            {t("admin.subscriptionsCount").replace("{n}", company.subscriptions?.length ?? 0)}
           </h3>
           {!addingSub && !editingSub && (
             <button className="admin-btn admin-btn--secondary admin-btn--sm"
               onClick={() => setAddingSub(true)}>
-              + Dodaj subskrypcję
+              {t("admin.addSubscription")}
             </button>
           )}
         </div>
@@ -1066,7 +1502,9 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                       <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
                       <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
                       <td>
-                        {sub.skipPolicyType === "LIMITED"
+                        {sub.skipPolicyType === "NONE"
+                          ? "Brak skipów"
+                          : sub.skipPolicyType === "LIMITED"
                           ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
                           : "Nielimitowana"}
                         {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
@@ -1099,8 +1537,10 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                               )}
                               <div style={{ marginTop: "0.6rem" }}>
                                 <button className="admin-btn admin-btn--secondary admin-btn--sm"
-                                  onClick={() => setEditingSub(sub)}>✎ Edytuj subskrypcję</button>
+                                  onClick={() => setEditingSub(sub)}>{t("admin.editSubscription")}</button>
                               </div>
+                              <SubMonthsManager sub={sub} companyId={company.id} />
+                              <ImportSourcesPanel companyId={company.id} subscriptionId={sub.id} />
                             </div>
                           </div>
                         </td>
@@ -1139,6 +1579,7 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
 // ─── SECTION: Book Boxy ───────────────────────────────────────────────────────
 function CompaniesSection() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [view,       setView]       = useState("list"); // "list" | "form" | "detail"
   const [companies,  setCompanies]  = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -1171,11 +1612,13 @@ function CompaniesSection() {
   if (view === "list") return (
     <section className="account-section">
       <div className="admin-section-header">
-        <h2 className="account-section-title">📦 {t("admin.navBookBoxes")}</h2>
-        <button className="admin-btn admin-btn--primary admin-btn--sm"
-          onClick={() => { setSelected(null); setView("form"); }}>
-          {t("admin.addBookBox")}
-        </button>
+        <h2 className="section-title account-section-title">📦 {t("admin.navBookBoxes")}</h2>
+        {user?.role !== "company_manager" && (
+          <button className="admin-btn admin-btn--primary admin-btn--sm"
+            onClick={() => { setSelected(null); setView("form"); }}>
+            {t("admin.addBookBox")}
+          </button>
+        )}
       </div>
 
       <div className="admin-search-row" style={{ marginBottom: "1rem" }}>
@@ -1259,13 +1702,289 @@ function CompaniesSection() {
 }
 
 // ─── SECTION: Użytkownicy ────────────────────────────────────────────────────
+const ALL_PERMISSIONS = [
+  "MANAGE_COMPANIES", "MANAGE_SALES", "MANAGE_REPORTS",
+  "MANAGE_DATA_REQUESTS", "MANAGE_NOTIFICATIONS", "MANAGE_EMAIL",
+  "MANAGE_USERS", "MANAGE_IMPORTS", "MANAGE_AUDIT",
+];
+const PERM_I18N_KEY = {
+  MANAGE_COMPANIES:    "permManageCompanies",
+  MANAGE_SALES:        "permManageSales",
+  MANAGE_REPORTS:      "permManageReports",
+  MANAGE_DATA_REQUESTS:"permManageDataRequests",
+  MANAGE_NOTIFICATIONS:"permManageNotifications",
+  MANAGE_EMAIL:        "permManageEmail",
+  MANAGE_USERS:        "permManageUsers",
+  MANAGE_IMPORTS:      "permManageImports",
+  MANAGE_AUDIT:        "permManageAudit",
+};
+
+// Default permissions per role (match backend AuthHelper)
+const ROLE_DEFAULT_PERMS = {
+  admin:           ALL_PERMISSIONS,
+  superadmin:      ALL_PERMISSIONS,
+  moderator:       ["MANAGE_DATA_REQUESTS", "MANAGE_SALES"],
+  company_manager: ["MANAGE_COMPANIES", "MANAGE_SALES"],
+  user:            [],
+};
+
+function roleI18nKey(r) {
+  return `admin.role${r.charAt(0).toUpperCase() + r.slice(1).replace(/_([a-z])/g, (_, c) => c.toUpperCase())}`;
+}
+
+function UserRoleModal({ targetUser, currentUser, onClose, onSaved }) {
+  const { t } = useI18n();
+  const isSuperAdmin = currentUser?.role === "superadmin";
+  // superadmin can assign any role; admin can assign user/company_manager/moderator (not admin/superadmin)
+  const ROLE_OPTIONS = isSuperAdmin
+    ? ["user", "company_manager", "moderator", "admin", "superadmin"]
+    : ["user", "company_manager", "moderator"];
+
+  const [role, setRole] = useState(targetUser.role || "user");
+  const [extraPerms, setExtraPerms] = useState(() => {
+    const stored = (targetUser.adminPermissions || "").split(",").map(s => s.trim()).filter(Boolean);
+    const defaults = ROLE_DEFAULT_PERMS[targetUser.role || "user"] || [];
+    return stored.filter(p => !defaults.includes(p));
+  });
+  const [managedCompanyId, setManagedCompanyId] = useState(targetUser.managedCompanyId || "");
+  const [companies, setCompanies] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState(null);
+
+  const defaultPerms = ROLE_DEFAULT_PERMS[role] || [];
+  const isAutoPerms  = role === "admin" || role === "superadmin";
+
+  // Load companies when company_manager is selected
+  useEffect(() => {
+    if (role === "company_manager") {
+      fetch(API.ADMIN_COMPANIES, { credentials: "include" })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setCompanies(Array.isArray(data) ? data : (data.content || [])))
+        .catch(() => {});
+    }
+  }, [role]);
+
+  const toggleExtra = (p) => {
+    setExtraPerms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const allPerms = isAutoPerms ? "" : [...defaultPerms, ...extraPerms].join(",");
+      const body = { role, adminPermissions: allPerms };
+      if (role === "company_manager") body.managedCompanyId = managedCompanyId || null;
+
+      const res = await fetch(API.ADMIN_USER_ROLE_PERMS(targetUser.username), {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        setError(txt || "Error saving");
+        setSaving(false);
+        return;
+      }
+      onSaved();
+      onClose();
+    } catch {
+      setError("Network error");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{t("admin.editRoleTitle")}</h3>
+        <p style={{ fontSize: "0.85rem", color: "var(--text-ghost)", marginBottom: "1rem" }}>
+          @{targetUser.username}
+        </p>
+
+        <label className="form-label">{t("admin.roleLabel")}</label>
+        <select className="form-input" value={role} onChange={e => { setRole(e.target.value); setExtraPerms([]); }}
+          style={{ marginBottom: "1.2rem" }}>
+          {ROLE_OPTIONS.map(r => (
+            <option key={r} value={r}>{t(roleI18nKey(r))}</option>
+          ))}
+        </select>
+
+        {role === "company_manager" && (
+          <>
+            <label className="form-label">{t("admin.companyLabel")}</label>
+            <select className="form-input" value={managedCompanyId}
+              onChange={e => setManagedCompanyId(e.target.value)}
+              style={{ marginBottom: "1.2rem" }}>
+              <option value="">{t("admin.selectCompany")}</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </>
+        )}
+
+        <label className="form-label">{t("admin.permissionsLabel")}</label>
+        {isAutoPerms ? (
+          <p style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginBottom: "1rem", fontStyle: "italic" }}>
+            {t("admin.permissionsHint")}
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.2rem" }}>
+            {ALL_PERMISSIONS.map(p => {
+              const isDefault = defaultPerms.includes(p);
+              const checked   = isDefault || extraPerms.includes(p);
+              return (
+                <label key={p} style={{ display: "flex", alignItems: "center", gap: "0.6rem",
+                  cursor: isDefault ? "default" : "pointer", fontSize: "0.88rem",
+                  opacity: isDefault ? 0.6 : 1 }}>
+                  <input type="checkbox" checked={checked} disabled={isDefault}
+                    onChange={() => !isDefault && toggleExtra(p)} />
+                  {t(`admin.${PERM_I18N_KEY[p]}`)}
+                  {isDefault && (
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-ghost)", fontStyle: "italic" }}>
+                      (domyślne)
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        {error && <p style={{ color: "var(--error)", fontSize: "0.85rem", marginBottom: "0.8rem" }}>{error}</p>}
+
+        <div className="modal-actions">
+          <button className="page-btn secondary" onClick={onClose}>{t("admin.cancel")}</button>
+          <button className="page-btn primary" onClick={handleSave} disabled={saving}>
+            {saving ? "…" : t("admin.saveRole")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BookEditionSection ───────────────────────────────────────────────────────
+
+function BookEditionSection() {
+  const { t } = useI18n();
+  // mode: "menu" | "new-book" | "add-edition" | "edit-meta"
+  const [mode, setMode] = useState("menu");
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const doSearch = async (q) => {
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const r = await fetch(`${API.SEARCH}?q=${encodeURIComponent(q)}&filter=books`, { credentials: "include" });
+      const data = r.ok ? await r.json() : {};
+      setSearchResults(Array.isArray(data) ? data : (data.books || []));
+    } catch { setSearchResults([]); }
+    setSearching(false);
+  };
+
+  const reset = () => { setMode("menu"); setSelectedBook(null); setSearchQ(""); setSearchResults([]); };
+
+  if (mode === "new-book") {
+    return (
+      <BookDetailEditPage
+        initialData={null}
+        editingEdition="new"
+        onSaved={reset}
+        onBack={reset}
+      />
+    );
+  }
+
+  if ((mode === "add-edition" || mode === "edit-meta") && selectedBook) {
+    return (
+      <BookDetailEditPage
+        initialData={selectedBook}
+        editingEdition={mode === "add-edition" ? "new" : null}
+        onSaved={reset}
+        onBack={reset}
+      />
+    );
+  }
+
+  return (
+    <div className="admin-section">
+      <h2 className="admin-section-title">📖 {t("admin.navBooks")}</h2>
+
+      {/* New book */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h3 style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", marginBottom: "0.8rem" }}>
+          Nowa książka
+        </h3>
+        <button className="page-btn primary" onClick={() => setMode("new-book")}>
+          + Dodaj nową książkę z edycją
+        </button>
+      </div>
+
+      {/* Find existing book */}
+      <div>
+        <h3 style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", marginBottom: "0.8rem" }}>
+          Istniejąca książka
+        </h3>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+          <input
+            className="form-input"
+            style={{ maxWidth: 360 }}
+            placeholder="Szukaj książki po tytule…"
+            value={searchQ}
+            onChange={e => { setSearchQ(e.target.value); doSearch(e.target.value); }}
+          />
+          {searching && <span style={{ alignSelf: "center", color: "var(--text-ghost)" }}>…</span>}
+        </div>
+        {searchQ.trim().length >= 2 && searchResults.length === 0 && !searching && (
+          <p style={{ fontSize: "0.83rem", color: "var(--text-ghost)" }}>Brak wyników.</p>
+        )}
+        {searchResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: 540 }}>
+            {searchResults.map(book => (
+              <div key={book.id} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "0.6rem 1rem", background: "var(--surface-2)", borderRadius: 8,
+                border: "1px solid var(--border)"
+              }}>
+                <span style={{ fontSize: "0.9rem" }}>
+                  <strong>{book.title}</strong>
+                  {book.author && <span style={{ color: "var(--text-ghost)", marginLeft: "0.5rem" }}>{book.author}</span>}
+                </span>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="page-btn secondary" style={{ fontSize: "0.8rem", padding: "0.3rem 0.8rem" }}
+                    onClick={() => { setSelectedBook(book); setMode("add-edition"); }}>
+                    + Edycja
+                  </button>
+                  <button className="page-btn secondary" style={{ fontSize: "0.8rem", padding: "0.3rem 0.8rem" }}
+                    onClick={() => { setSelectedBook(book); setMode("edit-meta"); }}>
+                    Edytuj metadane
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UsersSection() {
+  const { user: currentUser } = useAuth();
   const { t } = useI18n();
   const [emailQuery, setEmailQuery] = useState("");
   const [inputVal,   setInputVal]   = useState("");
   const [page,       setPage]       = useState(0);
   const [data,       setData]       = useState(null);
   const [loading,    setLoading]    = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
 
   const load = useCallback((p, email) => {
     setLoading(true);
@@ -1292,7 +2011,7 @@ function UsersSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">👥 {t("admin.navUsers")}</h2>
+      <h2 className="section-title account-section-title">👥 {t("admin.navUsers")}</h2>
 
       <div className="admin-search-row">
         <input
@@ -1323,6 +2042,7 @@ function UsersSection() {
                   <th>Imię i Nazwisko</th>
                   <th>{t("admin.colEmail")}</th>
                   <th>{t("admin.colRole")}</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -1338,6 +2058,11 @@ function UsersSection() {
                     <td>{[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}</td>
                     <td>{u.email || "—"}</td>
                     <td><RoleBadge value={u.role || "user"} /></td>
+                    <td>
+                      <button className="admin-edit-role-btn" onClick={() => setEditTarget(u)}>
+                        ✏️ {t("admin.edit")}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1345,6 +2070,14 @@ function UsersSection() {
           </div>
           <Pagination page={data.page} totalPages={data.totalPages} onPage={p => setPage(p)} />
         </>
+      )}
+      {editTarget && (
+        <UserRoleModal
+          targetUser={editTarget}
+          currentUser={currentUser}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); load(page, emailQuery); }}
+        />
       )}
     </section>
   );
@@ -1395,7 +2128,7 @@ function ReportsSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">🐛 {t("admin.reports")}</h2>
+      <h2 className="section-title account-section-title">🐛 {t("admin.reports")}</h2>
 
       <div className="admin-filter-row">
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
@@ -1443,6 +2176,19 @@ function ReportsSection() {
                           <p style={{ fontFamily: "'Crimson Text', serif", color: "var(--text-mid)", marginBottom: "0.6rem" }}>
                             <strong>Opis:</strong> {r.description || "—"}
                           </p>
+                          {r.imageUrls && r.imageUrls.length > 0 && (
+                            <div className="admin-report-images">
+                              {r.imageUrls.split(",").filter(Boolean).map((url, i) => (
+                                <a key={i} href={url.startsWith("http") ? url : `${API.BASE}${url}`} target="_blank" rel="noopener noreferrer">
+                                  <img
+                                    className="admin-report-img-thumb"
+                                    src={url.startsWith("http") ? url : `${API.BASE}${url}`}
+                                    alt={`Screenshot ${i + 1}`}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                           <textarea
                             className="admin-note-input"
                             placeholder="Notatka admina…"
@@ -1519,7 +2265,7 @@ function DataRequestsSection() {
 
   return (
     <section className="account-section">
-      <h2 className="account-section-title">📋 {t("admin.dataRequests")}</h2>
+      <h2 className="section-title account-section-title">📋 {t("admin.dataRequests")}</h2>
 
       <div className="admin-filter-row">
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
@@ -1540,6 +2286,7 @@ function DataRequestsSection() {
                 <tr>
                   <th>Data</th>
                   <th>Użytkownik</th>
+                  <th>Tytuł</th>
                   <th>Typ</th>
                   <th>Status</th>
                   <th></th>
@@ -1551,6 +2298,7 @@ function DataRequestsSection() {
                     <tr key={r.id}>
                       <td style={{ whiteSpace: "nowrap" }}>{new Date(r.createdAt).toLocaleDateString("pl-PL")}</td>
                       <td>{r.requesterUsername || "—"}</td>
+                      <td>{r.title || "—"}</td>
                       <td>{r.type}</td>
                       <td><StatusBadge value={r.status} /></td>
                       <td>
@@ -1561,10 +2309,23 @@ function DataRequestsSection() {
                     </tr>
                     {expanded === r.id && (
                       <tr key={`${r.id}-detail`} className="admin-table-detail-row">
-                        <td colSpan={5}>
+                        <td colSpan={6}>
                           <p style={{ fontFamily: "'Crimson Text', serif", color: "var(--text-mid)", marginBottom: "0.6rem" }}>
                             <strong>Opis:</strong> {r.description || "—"}
                           </p>
+                          {r.imageUrls && r.imageUrls.length > 0 && (
+                            <div className="admin-report-images">
+                              {r.imageUrls.split(",").filter(Boolean).map((url, i) => (
+                                <a key={i} href={url.startsWith("http") ? url : `${API.BASE}${url}`} target="_blank" rel="noopener noreferrer">
+                                  <img
+                                    className="admin-report-img-thumb"
+                                    src={url.startsWith("http") ? url : `${API.BASE}${url}`}
+                                    alt={`Screenshot ${i + 1}`}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                           <textarea
                             className="admin-note-input"
                             placeholder="Notatka admina…"
@@ -1688,7 +2449,7 @@ function NotificationsAdminSection() {
   return (
     <div className="admin-notif-section">
       <div className="admin-notif-compose">
-        <h2 className="admin-section-title">Wyślij powiadomienie</h2>
+        <h2 className="section-title admin-section-title">Wyślij powiadomienie</h2>
         <div className="admin-notif-form">
           <div className="admin-form-field">
             <label>Tytuł</label>
@@ -1834,12 +2595,917 @@ function NotificationsAdminSection() {
 }
 
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
+// ─── Email Section ────────────────────────────────────────────────────────────
+// ─── Import: Sources Panel (used inside SubscriptionEditModal) ────────────────
+function ImportSourcesPanel({ companyId, subscriptionId }) {
+  const [sources,    setSources]    = useState([]);
+  const [urlInput,   setUrlInput]   = useState("");
+  const [typeInput,  setTypeInput]  = useState("RSS");
+  const [adding,     setAdding]     = useState(false);
+  const [msg,        setMsg]        = useState(null);
+  const [scrapeUrl,  setScrapeUrl]  = useState("");
+  const [scraping,   setScraping]   = useState(false);
+  const [scraped,    setScraped]    = useState(null);
+  const [scrapeErr,  setScrapeErr]  = useState(null);
+  const [aiStatus,   setAiStatus]   = useState(null);
+  const [imageFile,  setImageFile]  = useState(null);
+  const [imageScanning, setImageScanning] = useState(false);
+  const [imageErr,   setImageErr]   = useState(null);
+  const [parentUrl,    setParentUrl]    = useState("");
+  const [parentScraping, setParentScraping] = useState(false);
+  const [parentResults,  setParentResults]  = useState([]);
+  const [parentErr,    setParentErr]    = useState(null);
+
+  const loadSources = useCallback(() => {
+    if (!companyId || !subscriptionId) return;
+    fetch(API.ADMIN_IMPORT_SOURCES(companyId, subscriptionId), { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setSources)
+      .catch(() => {});
+  }, [companyId, subscriptionId]);
+
+  useEffect(() => { loadSources(); }, [loadSources]);
+
+  useEffect(() => {
+    fetch(API.ADMIN_IMPORT_AI_STATUS, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setAiStatus(d))
+      .catch(() => {});
+  }, []);
+
+  const handleAddSource = () => {
+    if (!urlInput.trim()) return;
+    setAdding(true);
+    fetch(API.ADMIN_IMPORT_SOURCES_CREATE, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, subscriptionId, sourceType: typeInput, url: urlInput.trim() }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(() => { setUrlInput(""); setMsg({ ok: true, text: "Dodano źródło." }); loadSources(); })
+      .catch(() => setMsg({ ok: false, text: "Błąd dodawania źródła." }))
+      .finally(() => setAdding(false));
+  };
+
+  const handleDelete = id => {
+    fetch(API.ADMIN_IMPORT_SOURCE_DELETE(id), { method: "DELETE", credentials: "include" })
+      .then(() => loadSources())
+      .catch(() => {});
+  };
+
+  const handleCheckNow = id => {
+    fetch(API.ADMIN_IMPORT_SOURCE_CHECK(id), { method: "POST", credentials: "include" })
+      .then(r => r.json())
+      .then(d => setMsg({ ok: true, text: d.message || "Sprawdzono." }))
+      .catch(() => setMsg({ ok: false, text: "Błąd sprawdzania." }));
+  };
+
+  const handleScrapeImage = () => {
+    if (!imageFile) return;
+    setImageScanning(true); setScraped(null); setImageErr(null);
+    const formData = new FormData();
+    formData.append("file", imageFile);
+    fetch(API.ADMIN_IMPORT_SCRAPE_IMAGE, { method: "POST", credentials: "include", body: formData })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || "Błąd")))
+      .then(d => setScraped({ ...d, subscriptionId, companyId }))
+      .catch(e => setImageErr(String(e)))
+      .finally(() => setImageScanning(false));
+  };
+
+  const handleScrape = () => {
+    if (!scrapeUrl.trim()) return;
+    setScraping(true); setScraped(null); setScrapeErr(null);
+    fetch(API.ADMIN_IMPORT_SCRAPE_URL, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: scrapeUrl.trim(), subscriptionId, companyId }),
+    })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || "Błąd")))
+      .then(d => setScraped({ ...d, subscriptionId, companyId }))
+      .catch(e => setScrapeErr(String(e)))
+      .finally(() => setScraping(false));
+  };
+
+  const handleScrapeParent = () => {
+    if (!parentUrl.trim()) return;
+    setParentScraping(true); setParentResults([]); setParentErr(null);
+    fetch(API.ADMIN_IMPORT_SCRAPE_PARENT, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: parentUrl.trim(), subscriptionId, companyId }),
+    })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || "Błąd")))
+      .then(list => setParentResults(list.map((d, i) => ({ ...d, _key: i, subscriptionId, companyId }))))
+      .catch(e => setParentErr(String(e)))
+      .finally(() => setParentScraping(false));
+  };
+
+  const handleRemoveParentEntry = key => setParentResults(prev => prev.filter(e => e._key !== key));
+  const handleUpdateParentEntry = (key, updated) => setParentResults(prev => prev.map(e => e._key === key ? { ...e, ...updated } : e));
+
+  const handleSaveAllParent = () => {
+    if (!parentResults.length) return;
+    Promise.all(parentResults.map(entry =>
+      fetch(API.ADMIN_SUB_MONTHS(companyId, subscriptionId), {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: entry.year, month: entry.month, theme: entry.theme, imageUrl: entry.imageUrl }),
+      }).then(r => r.ok ? r.json() : Promise.reject())
+    ))
+    .then(() => { setParentResults([]); setParentUrl(""); setMsg({ ok: true, text: `Zapisano ${parentResults.length} miesięcy.` }); })
+    .catch(() => setMsg({ ok: false, text: "Błąd zapisu — sprawdź wpisy." }));
+  };
+
+  const handleSaveDirect = () => {
+    if (!scraped || !subscriptionId || !companyId) return;
+    fetch(API.ADMIN_SUB_MONTHS(companyId, subscriptionId), {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        year:     scraped.year,
+        month:    scraped.month,
+        theme:    scraped.theme,
+        imageUrl: scraped.imageUrl,
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(() => { setScraped(null); setScrapeUrl(""); setMsg({ ok: true, text: "Miesiąc zapisany." }); })
+      .catch(() => setMsg({ ok: false, text: "Błąd zapisu." }));
+  };
+
+  return (
+    <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+      <h4 style={{ margin: "0 0 0.75rem", fontSize: "1rem" }}>🔄 Import źródeł</h4>
+
+      {sources.length > 0 && (
+        <table className="admin-table" style={{ marginBottom: "0.75rem", fontSize: "0.83rem" }}>
+          <thead><tr><th>Typ</th><th>URL</th><th>Ostatnie sprawdzenie</th><th></th></tr></thead>
+          <tbody>
+            {sources.map(s => (
+              <tr key={s.id}>
+                <td>{s.sourceType}</td>
+                <td style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.url}</td>
+                <td style={{ fontSize: "0.78rem" }}>{s.lastCheckedAt ? new Date(s.lastCheckedAt).toLocaleString("pl-PL") : "—"}</td>
+                <td style={{ display: "flex", gap: "0.4rem" }}>
+                  {s.sourceType === "RSS" && (
+                    <button className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => handleCheckNow(s.id)}>Sprawdź teraz</button>
+                  )}
+                  <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => handleDelete(s.id)}>✕</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginBottom: "0.5rem" }}>
+        <select className="admin-form-select" style={{ width: "auto" }} value={typeInput} onChange={e => setTypeInput(e.target.value)}>
+          <option value="RSS">RSS</option>
+          <option value="BLOG">BLOG</option>
+        </select>
+        <input className="admin-form-input" style={{ flex: 1, minWidth: 200 }} value={urlInput}
+          onChange={e => setUrlInput(e.target.value)} placeholder="URL RSS lub bloga…" />
+        <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleAddSource} disabled={adding}>
+          {adding ? "Dodawanie…" : "Dodaj źródło"}
+        </button>
+      </div>
+
+      <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+          <span style={{ fontSize: "0.88rem", fontWeight: 600 }}>Importuj z URL wpisu</span>
+          {aiStatus && (
+            <span style={{
+              fontSize: "0.75rem", padding: "1px 7px", borderRadius: 10,
+              background: aiStatus.configured ? "var(--success-bg, #d4edda)" : "var(--surface-raised)",
+              color: aiStatus.configured ? "var(--success, #155724)" : "var(--text-muted)",
+              border: "1px solid currentColor", opacity: 0.85,
+            }}>
+              {aiStatus.configured ? "🤖 AI aktywne" : "AI niedostępne"}
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <input className="admin-form-input" style={{ flex: 1, minWidth: 220 }} value={scrapeUrl}
+            onChange={e => setScrapeUrl(e.target.value)} placeholder="https://blog.example.com/post…" />
+          <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleScrape} disabled={scraping}>
+            {scraping ? "Importuję…" : "Importuj"}
+          </button>
+        </div>
+        {scrapeErr && <div style={{ color: "var(--danger)", fontSize: "0.82rem", marginTop: "0.4rem" }}>✖ {scrapeErr}</div>}
+        {scraped && <ScrapedPreviewForm data={scraped} onDataChange={setScraped} onSavePending={handleSaveDirect} />}
+      </div>
+
+      {/* Parent URL multi-import section */}
+      <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
+        <div style={{ fontSize: "0.88rem", fontWeight: 600, marginBottom: "0.4rem" }}>🗂 Importuj z listy wpisów (parent URL)</div>
+        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>
+          Podaj URL strony z listą wpisów — system znajdzie i zaimportuje wszystkie miesiące automatycznie.
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <input className="admin-form-input" style={{ flex: 1, minWidth: 220 }} value={parentUrl}
+            onChange={e => setParentUrl(e.target.value)} placeholder="https://blog.example.com/kategoria/…" />
+          <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleScrapeParent} disabled={parentScraping}>
+            {parentScraping ? "Pobieram…" : "Pobierz wpisy"}
+          </button>
+        </div>
+        {parentErr && <div style={{ color: "var(--danger)", fontSize: "0.82rem", marginTop: "0.4rem" }}>✖ {parentErr}</div>}
+
+        {parentResults.length > 0 && (
+          <div style={{ marginTop: "0.75rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Znaleziono {parentResults.length} wpisów:</span>
+              <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleSaveAllParent}>
+                ✔ Zapisz wszystkie ({parentResults.length})
+              </button>
+            </div>
+            {parentResults.map(entry => (
+              <div key={entry._key} style={{ position: "relative", marginBottom: "0.5rem" }}>
+                <button onClick={() => handleRemoveParentEntry(entry._key)}
+                  style={{ position: "absolute", top: 8, right: 8, zIndex: 1, background: "var(--danger)", color: "#fff",
+                    border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.75rem", padding: "2px 6px" }}>
+                  ✕ Usuń
+                </button>
+                <ScrapedPreviewForm
+                  data={entry}
+                  onDataChange={updated => handleUpdateParentEntry(entry._key, updated)}
+                  onSavePending={() => {
+                    fetch(API.ADMIN_SUB_MONTHS(companyId, subscriptionId), {
+                      method: "POST", credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ year: entry.year, month: entry.month, theme: entry.theme, imageUrl: entry.imageUrl }),
+                    }).then(r => r.ok && handleRemoveParentEntry(entry._key))
+                      .catch(() => {});
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {aiStatus?.configured && (
+        <div style={{ marginTop: "0.75rem", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
+          <div style={{ fontSize: "0.88rem", fontWeight: 600, marginBottom: "0.4rem" }}>📷 Importuj ze zdjęcia</div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <input type="file" accept="image/jpeg,image/png,image/webp" style={{ flex: 1, minWidth: 180, fontSize: "0.82rem" }}
+              onChange={e => { setImageFile(e.target.files[0] || null); setImageErr(null); setScraped(null); }} />
+            <button className="admin-btn admin-btn--primary admin-btn--sm"
+              onClick={handleScrapeImage} disabled={imageScanning || !imageFile}>
+              {imageScanning ? "Analizuję…" : "Analizuj zdjęcie"}
+            </button>
+          </div>
+          {imageErr && <div style={{ color: "var(--danger)", fontSize: "0.82rem", marginTop: "0.4rem" }}>✖ {imageErr}</div>}
+        </div>
+      )}
+
+      {msg && (
+        <div style={{ fontSize: "0.83rem", marginTop: "0.5rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
+          {msg.ok ? "✔ " : "✖ "}{msg.text}
+          <button style={{ marginLeft: 8, fontSize: "0.78rem", background: "none", border: "none", cursor: "pointer" }} onClick={() => setMsg(null)}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScrapedPreviewForm({ data, onDataChange, onSavePending }) {
+  const set = field => e => onDataChange({ ...data, [field]: e.target.value });
+  const MONTHS = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+  const allImgs = data.allImages || [];
+
+  return (
+    <div style={{ background: "var(--surface-raised)", borderRadius: 8, padding: "0.75rem", marginTop: "0.75rem" }}>
+      <div style={{ fontSize: "0.88rem", fontWeight: 600, marginBottom: 8 }}>Podgląd importu — sprawdź i edytuj</div>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
+          <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Rok</label>
+          <input className="admin-form-input" type="number" value={data.year || ""} onChange={set("year")} placeholder="2025" />
+        </div>
+        <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+          <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Miesiąc</label>
+          <select className="admin-form-select" value={data.month || ""} onChange={set("month")}>
+            <option value="">—</option>
+            {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+        </div>
+        <div className="admin-form-row" style={{ flex: 2, minWidth: 160 }}>
+          <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Motyw</label>
+          <input className="admin-form-input" value={data.theme || ""} onChange={set("theme")} placeholder="Motyw miesiąca…" />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
+          <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Tytuł książki</label>
+          <input className="admin-form-input" value={data.bookTitle || ""} onChange={set("bookTitle")} />
+        </div>
+        <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
+          <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Autor</label>
+          <input className="admin-form-input" value={data.bookAuthor || ""} onChange={set("bookAuthor")} />
+        </div>
+      </div>
+
+      {/* Image picker */}
+      <div className="admin-form-row">
+        <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>URL obrazka (wybierz lub wpisz)</label>
+        <input className="admin-form-input" value={data.imageUrl || ""} onChange={set("imageUrl")} />
+      </div>
+      {allImgs.length > 0 && (
+        <div style={{ marginBottom: "0.6rem" }}>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
+            Znalezione obrazki — kliknij aby wybrać:
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {allImgs.map((src, i) => (
+              <div key={i} onClick={() => onDataChange({ ...data, imageUrl: src })}
+                style={{
+                  cursor: "pointer", borderRadius: 6, overflow: "hidden",
+                  border: `2px solid ${data.imageUrl === src ? "var(--accent)" : "var(--border)"}`,
+                  opacity: data.imageUrl === src ? 1 : 0.7,
+                  transition: "border-color 0.15s, opacity 0.15s",
+                  background: "var(--surface)",
+                }}>
+                <img src={src} alt=""
+                  style={{ width: 72, height: 72, objectFit: "cover", display: "block" }}
+                  onError={e => { e.target.closest("div").style.display = "none"; }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {data.imageUrl && (
+        <img src={data.imageUrl} alt="" style={{ height: 80, borderRadius: 6, marginBottom: 8 }}
+          onError={e => { e.target.style.display = "none"; }} />
+      )}
+      <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={onSavePending} style={{ marginTop: 4 }}>
+        ✔ Zapisz miesiąc
+      </button>
+    </div>
+  );
+}
+
+// ─── OL Catalog Section ───────────────────────────────────────────────────────
+function OlCatalogSection() {
+  const [status,   setStatus]   = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [msg,      setMsg]      = useState(null);
+  const [polling,  setPolling]  = useState(false);
+
+  const loadStatus = () => {
+    fetch(API.OL_IMPORT_STATUS, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setStatus(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  // Poll every 5 seconds while import is running
+  useEffect(() => {
+    if (!status?.running && polling) { setPolling(false); return; }
+    if (!status?.running) return;
+    setPolling(true);
+    const id = setInterval(loadStatus, 5000);
+    return () => clearInterval(id);
+  }, [status?.running]);
+
+  const handleTrigger = (mode) => {
+    setMsg(null);
+    fetch(API.OL_IMPORT_TRIGGER, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    })
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok || d.error) {
+          const text = d.error || `Błąd HTTP ${r.status}`;
+          setMsg({ ok: false, text });
+          return;
+        }
+        setMsg({ ok: true, text: `Import (${mode}) uruchomiony w tle. Status odświeża się automatycznie co 5 s.` });
+        setTimeout(loadStatus, 1000);
+      })
+      .catch(() => setMsg({ ok: false, text: "Błąd połączenia z serwerem." }));
+  };
+
+  const fmt = (n) => n?.toLocaleString("pl-PL") ?? "—";
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("pl-PL") : "—";
+  const fmtDuration = (sec) => {
+    if (!sec) return "—";
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m > 0 ? `${m} min ${s} s` : `${s} s`;
+  };
+
+  return (
+    <div className="admin-section">
+      <h2 className="section-title admin-section-title">📚 Katalog Open Library</h2>
+      <p className="admin-section-sub">
+        Baza startowa autorów i tytułów importowana z Open Library. Import działa w tle i nie wpływa na działanie aplikacji.
+        Miesięczna aktualizacja automatycznie uruchamia się 1. dnia miesiąca o 3:00.
+      </p>
+
+      {msg && (
+        <div style={{ fontSize: "0.85rem", marginBottom: "1rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
+          {msg.ok ? "✔ " : "✖ "}{msg.text}
+          <button style={{ marginLeft: 8, fontSize: "0.78rem", background: "none", border: "none", cursor: "pointer" }} onClick={() => setMsg(null)}>✕</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="admin-loading">Ładowanie…</div>
+      ) : (
+        <>
+          {/* Stats */}
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+            <div style={statCardStyle}>
+              <span style={statLabelStyle}>Książki w katalogu</span>
+              <span style={statValueStyle}>{fmt(status?.totalBooks)}</span>
+            </div>
+            <div style={statCardStyle}>
+              <span style={statLabelStyle}>Autorzy w katalogu</span>
+              <span style={statValueStyle}>{fmt(status?.totalAuthors)}</span>
+            </div>
+            {status?.lastRun && (
+              <>
+                <div style={statCardStyle}>
+                  <span style={statLabelStyle}>Ostatni import</span>
+                  <span style={statValueStyle} title={status.lastRun.runAt}>{fmtDate(status.lastRun.runAt)}</span>
+                </div>
+                <div style={statCardStyle}>
+                  <span style={statLabelStyle}>Tryb</span>
+                  <span style={statValueStyle}>{status.lastRun.mode}</span>
+                </div>
+                <div style={statCardStyle}>
+                  <span style={statLabelStyle}>Czas trwania</span>
+                  <span style={statValueStyle}>{fmtDuration(status.lastRun.durationSeconds)}</span>
+                </div>
+                <div style={statCardStyle}>
+                  <span style={statLabelStyle}>Przetworzone / wstawione</span>
+                  <span style={statValueStyle}>{fmt(status.lastRun.booksProcessed)} / {fmt(status.lastRun.booksInserted)}</span>
+                </div>
+                <div style={statCardStyle}>
+                  <span style={statLabelStyle}>Status</span>
+                  <span style={{
+                    ...statValueStyle,
+                    color: status.lastRun.status === "ok" ? "var(--success,#22c55e)" : status.lastRun.status === "partial" ? "var(--warning,#f59e0b)" : "var(--error,#ef4444)"
+                  }}>
+                    {status.lastRun.status === "ok" ? "✓ Zakończony" : status.lastRun.status === "partial" ? "⚠ Częściowy" : status.lastRun.status || "–"}
+                  </span>
+                  {status.lastRun.status === "partial" && status.lastRun.errorMessage && (
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: 4 }} title={status.lastRun.errorMessage}>
+                      Pobieranie przerwane (częściowe dane zapisane)
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Running indicator */}
+          {status?.running && (
+            <div style={{ background: "var(--accent-dim,rgba(99,102,241,.1))", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.85rem" }}>
+              ⏳ Import w toku…{" "}
+              <strong>{status.phase === "authors" ? "Autorzy" : status.phase === "works" ? "Dzieła" : status.phase}</strong>
+              {" — "}{fmt(status.currentLines)} wierszy
+            </div>
+          )}
+
+          {/* Trigger buttons */}
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              className="admin-btn"
+              disabled={status?.running}
+              onClick={() => handleTrigger("diff")}
+            >
+              {status?.running ? "Import w toku…" : "▶ Uruchom aktualizację (diff)"}
+            </button>
+            <button
+              className="admin-btn admin-btn-secondary"
+              disabled={status?.running}
+              onClick={() => {
+                if (!window.confirm("Import pełny (init) pobierze ~3–4 GB danych (dump OL) i przetworzy książki z gatunków: Fantasy, Romantasy, Dark Romance, Sci-Fi, Horror, Mystery/Thriller, Romance, YA. Oczekiwana liczba rekordów: ~200–400k książek, ~150–200k autorów. Czas trwania: 20–40 minut. Kontynuować?")) return;
+                handleTrigger("init");
+              }}
+            >
+              ♻ Pełny import (init)
+            </button>
+            <button
+              className="admin-btn admin-btn-ghost"
+              onClick={loadStatus}
+              disabled={status?.running}
+            >
+              ↻ Odśwież status
+            </button>
+          </div>
+
+          {!status?.lastRun && status?.totalBooks === 0 && (
+            <p style={{ marginTop: "1rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              💡 Katalog jest pusty. Uruchom <strong>Pełny import (init)</strong> aby zasilić bazę danych.{" "}
+              Import obejmuje gatunki: <em>Fantasy, Romantasy, Dark Romance, Sci-Fi, Horror, Mystery/Thriller, Romance, YA</em> — książki anglojęzyczne z lat 1980+.
+              Spodziewana liczba rekordów: ~200–400k książek, czas: 20–40 min.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const statCardStyle = {
+  background: "var(--surface-raised)",
+  borderRadius: 8,
+  padding: "0.75rem 1rem",
+  minWidth: 130,
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+};
+const statLabelStyle = { fontSize: "0.72rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" };
+const statValueStyle = { fontSize: "1.1rem", fontWeight: 600 };
+
+// ─── Import: Pending Queue Section ───────────────────────────────────────────
+function ImportsSection() {
+  const [pending,  setPending]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [editing,  setEditing]  = useState({});
+  const [approveEditions, setApproveEditions] = useState({});
+  const [msg,      setMsg]      = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(API.ADMIN_IMPORT_PENDING, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => { setPending(list); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const getEdit = item => editing[item.id] ?? {
+    year: item.year, month: item.month, theme: item.theme,
+    bookTitle: item.bookTitle, bookAuthor: item.bookAuthor, imageUrl: item.imageUrl,
+  };
+
+  const setEdit = (id, field, value) =>
+    setEditing(prev => ({ ...prev, [id]: { ...(prev[id] ?? {}), [field]: value } }));
+
+  const handleApprove = item => {
+    const data = getEdit(item);
+    const selectedEd = approveEditions[item.id] ?? null;
+    const payload = {
+      ...data,
+      bookId: data.bookId || null,
+      editionId: selectedEd ? selectedEd.id : null,
+    };
+    fetch(API.ADMIN_IMPORT_PENDING_APPROVE(item.id), {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.json())
+      .then(d => { setMsg({ ok: true, text: d.message || "Zatwierdzono." }); load(); })
+      .catch(() => setMsg({ ok: false, text: "Błąd zatwierdzania." }));
+  };
+
+  const handleReject = id => {
+    fetch(API.ADMIN_IMPORT_PENDING_REJECT(id), { method: "POST", credentials: "include" })
+      .then(() => { setMsg({ ok: true, text: "Odrzucono." }); load(); })
+      .catch(() => setMsg({ ok: false, text: "Błąd." }));
+  };
+
+  const MONTHS = ["","Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
+  return (
+    <div className="admin-section">
+      <h2 className="section-title admin-section-title">🔄 Oczekujące importy</h2>
+      <p className="admin-section-sub">Przejrzyj i zatwierdź lub odrzuć wpisy pobrane automatycznie ze źródeł RSS / blogów.</p>
+
+      {msg && (
+        <div style={{ fontSize: "0.85rem", marginBottom: "1rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
+          {msg.ok ? "✔ " : "✖ "}{msg.text}
+          <button style={{ marginLeft: 8, fontSize: "0.78rem", background: "none", border: "none", cursor: "pointer" }} onClick={() => setMsg(null)}>✕</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="admin-loading">Ładowanie…</div>
+      ) : pending.length === 0 ? (
+        <div className="admin-empty">Brak oczekujących importów. 🎉</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {pending.map(item => {
+            const e = getEdit(item);
+            const set = field => ev => setEdit(item.id, field, ev.target.value);
+            const selectedEd = approveEditions[item.id] ?? null;
+            return (
+              <div key={item.id} style={{ background: "var(--surface-raised)", borderRadius: 10, padding: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-ghost)" }}>
+                    Sub: <strong>{item.subscriptionId}</strong> ·{" "}
+                    {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>źródło</a>}
+                  </span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-ghost)" }}>
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString("pl-PL") : ""}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Rok</label>
+                    <input className="admin-form-input" type="number" value={e.year || ""} onChange={set("year")} />
+                  </div>
+                  <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Miesiąc</label>
+                    <select className="admin-form-select" value={e.month || ""} onChange={set("month")}>
+                      <option value="">—</option>
+                      {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Motyw</label>
+                    <input className="admin-form-input" value={e.theme || ""} onChange={set("theme")} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Tytuł książki</label>
+                    <input className="admin-form-input" value={e.bookTitle || ""} onChange={set("bookTitle")} />
+                  </div>
+                  <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Autor</label>
+                    <input className="admin-form-input" value={e.bookAuthor || ""} onChange={set("bookAuthor")} />
+                  </div>
+                </div>
+                <div className="admin-form-row">
+                  <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>URL obrazka</label>
+                  <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("imageUrl")} />
+                </div>
+                {e.imageUrl && (
+                  <img src={e.imageUrl} alt="" style={{ height: 70, borderRadius: 6, marginBottom: 8 }}
+                    onError={ev => { ev.target.style.display = "none"; }} />
+                )}
+                {item.companyId && (
+                  <EditionSearchWidget
+                    companyId={item.companyId}
+                    selectedEdition={selectedEd}
+                    onSelect={ed => setApproveEditions(prev => ({ ...prev, [item.id]: ed }))}
+                    onClear={() => setApproveEditions(prev => ({ ...prev, [item.id]: null }))}
+                  />
+                )}
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                  <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={() => handleApprove(item)}>
+                    ✔ Zatwierdź
+                  </button>
+                  <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => handleReject(item.id)}>
+                    ✕ Odrzuć
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailSection() {
+  const [sending, setSending] = useState(false);
+  const [result, setResult]   = useState(null);
+
+  const handleSend = () => {
+    setResult(null);
+    const { to, subject, content } = form;
+    if (!to.trim() || !to.includes("@")) {
+      setResult({ ok: false, msg: "Podaj prawidłowy adres email." }); return;
+    }
+    if (!subject.trim()) {
+      setResult({ ok: false, msg: "Tytuł nie może być pusty." }); return;
+    }
+    if (!content.trim()) {
+      setResult({ ok: false, msg: "Treść nie może być pusta." }); return;
+    }
+    setSending(true);
+    fetch(API.ADMIN_SEND_EMAIL, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: to.trim(), subject: subject.trim(), content: content.trim() }),
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (ok) {
+          setResult({ ok: true, msg: d.message || "Mail wysłany!" });
+          setForm({ to: "", subject: "", content: "" });
+        } else {
+          setResult({ ok: false, msg: d.error || "Błąd wysyłki." });
+        }
+      })
+      .catch(() => setResult({ ok: false, msg: "Błąd połączenia." }))
+      .finally(() => setSending(false));
+  };
+
+  return (
+    <div className="admin-section">
+      <h2 className="section-title admin-section-title">✉️ Wyślij email</h2>
+      <p className="admin-section-sub">Wyślij wiadomość na dowolny adres email. Mail zostanie wysłany z <strong>noreply@luxgrimoire.com</strong>.</p>
+
+      <div className="notif-form" style={{ maxWidth: 600 }}>
+        <label className="admin-label">Adres email odbiorcy</label>
+        <input
+          className="admin-input"
+          type="email"
+          placeholder="odbiorca@example.com"
+          value={form.to}
+          onChange={e => setForm(f => ({ ...f, to: e.target.value }))}
+        />
+
+        <label className="admin-label" style={{ marginTop: "1rem" }}>Tytuł</label>
+        <input
+          className="admin-input"
+          type="text"
+          placeholder="Temat wiadomości…"
+          value={form.subject}
+          onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+        />
+
+        <label className="admin-label" style={{ marginTop: "1rem" }}>Treść</label>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-ghost)", marginBottom: "0.4rem" }}>
+          Obsługiwany jest HTML — możesz używać tagów jak <code>&lt;b&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;a href="..."&gt;</code> itp.
+        </p>
+        <textarea
+          className="admin-input"
+          rows={10}
+          placeholder="Treść maila… (HTML jest obsługiwany)"
+          value={form.content}
+          onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+          style={{ resize: "vertical", fontFamily: "monospace", fontSize: "0.85rem" }}
+        />
+
+        {result && (
+          <div className={`notif-send-result ${result.ok ? "ok" : "error"}`} style={{ marginTop: "0.75rem" }}>
+            {result.ok ? "✔ " : "✖ "}{result.msg}
+          </div>
+        )}
+
+        <button
+          className="page-btn primary"
+          style={{ marginTop: "1rem" }}
+          onClick={handleSend}
+          disabled={sending}
+        >
+          {sending ? "Wysyłanie…" : "Wyślij email"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Audit Log Section ────────────────────────────────────────────────────────
+function SalesSection() {
+  const [companies, setCompanies] = useState([]);
+  useEffect(() => {
+    fetch(API.ADMIN_COMPANIES, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setCompanies(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+  return <SaleAnnouncementAdminPage companies={companies} />;
+}
+
+function AuditLogSection() {
+  const [logs, setLogs]           = useState([]);
+  const [page, setPage]           = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [filterAction, setFilterAction]   = useState("");
+  const [filterEntity, setFilterEntity]   = useState("");
+  const [filterUser,   setFilterUser]     = useState("");
+  const [loading, setLoading]     = useState(false);
+
+  const ACTIONS = ["", "CREATE", "UPDATE", "DELETE", "TRIGGER", "UPLOAD", "EMAIL"];
+
+  const load = useCallback((p = 0) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: p, size: 50 });
+    if (filterAction) params.set("action", filterAction);
+    if (filterEntity) params.set("entityType", filterEntity);
+    if (filterUser)   params.set("username", filterUser);
+    fetch(`/api/admin/audit-logs?${params}`, { credentials: "include" })
+      .then(r => r.json())
+      .then(d => {
+        setLogs(d.content || []);
+        setTotalPages(d.totalPages || 0);
+        setPage(d.page || 0);
+      })
+      .finally(() => setLoading(false));
+  }, [filterAction, filterEntity, filterUser]);
+
+  useEffect(() => { load(0); }, [load]);
+
+  const fmtDate = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" });
+  };
+
+  const ACTION_COLORS = {
+    CREATE: "#4caf50", UPDATE: "#2196f3", DELETE: "#f44336",
+    TRIGGER: "#ff9800", UPLOAD: "#9c27b0", EMAIL: "#00bcd4"
+  };
+
+  return (
+    <section className="admin-section">
+      <h2 className="section-title admin-section-title">📋 Audit Log</h2>
+
+      <div className="admin-filter-row" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+        <select value={filterAction} onChange={e => setFilterAction(e.target.value)} className="admin-input" style={{ minWidth: 130 }}>
+          {ACTIONS.map(a => <option key={a} value={a}>{a || "Wszystkie akcje"}</option>)}
+        </select>
+        <input
+          className="admin-input" placeholder="Typ encji (np. Company)" value={filterEntity}
+          onChange={e => setFilterEntity(e.target.value)} style={{ minWidth: 160 }}
+        />
+        <input
+          className="admin-input" placeholder="Użytkownik" value={filterUser}
+          onChange={e => setFilterUser(e.target.value)} style={{ minWidth: 140 }}
+        />
+        <button className="page-btn primary" onClick={() => load(0)}>Szukaj</button>
+        <button className="page-btn" onClick={() => {
+          setFilterAction(""); setFilterEntity(""); setFilterUser("");
+          setTimeout(() => load(0), 0);
+        }}>Reset</button>
+      </div>
+
+      {loading && <p style={{ color: "var(--text-ghost)" }}>Ładowanie…</p>}
+      {!loading && logs.length === 0 && <p style={{ color: "var(--text-ghost)" }}>Brak wpisów.</p>}
+      {!loading && logs.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table className="admin-table" style={{ fontSize: "0.82rem" }}>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Użytkownik</th>
+                <th>Akcja</th>
+                <th>Typ</th>
+                <th>ID</th>
+                <th>Opis</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map(log => (
+                <tr key={log.id}>
+                  <td style={{ whiteSpace: "nowrap" }}>{fmtDate(log.performedAt)}</td>
+                  <td><code>{log.performedByUsername}</code></td>
+                  <td>
+                    <span style={{
+                      background: ACTION_COLORS[log.action] || "#888",
+                      color: "#fff", borderRadius: 4, padding: "1px 6px", fontSize: "0.75rem"
+                    }}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td>{log.entityType}</td>
+                  <td style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <code title={log.entityId}>{log.entityId || "—"}</code>
+                  </td>
+                  <td style={{ maxWidth: 340, wordBreak: "break-word" }}>{log.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Pagination page={page} totalPages={totalPages} onPage={p => load(p)} />
+    </section>
+  );
+}
+
 export default function AdminPage({ onBack, initialSection = "companies" }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [activeSection, setActiveSection] = useState(initialSection);
 
-  if (!user || user.role !== "admin") {
+  // ─── helpers ─────────────────────────────────────────────────────────────
+  const isFullAdmin = user && (user.role === "admin" || user.role === "superadmin");
+  const isModerator = user?.role === "moderator";
+  const isCompanyManager = user?.role === "company_manager";
+  const userPerms   = user?.adminPermissions
+    ? user.adminPermissions.split(",").map(s => s.trim()).filter(Boolean)
+    : [];
+  const hasAdminAccess = isFullAdmin || isModerator || isCompanyManager || userPerms.length > 0;
+
+  const canAccess = (permission) => {
+    if (!permission) return true; // no permission required → available to all with admin access
+    if (isFullAdmin) return true;
+    if (isModerator && (permission === "MANAGE_DATA_REQUESTS" || permission === "MANAGE_SALES")) return true;
+    if (isCompanyManager && (permission === "MANAGE_COMPANIES" || permission === "MANAGE_SALES")) return true;
+    return userPerms.includes(permission);
+  };
+
+  // ─── access guard ─────────────────────────────────────────────────────────
+  if (!user || !hasAdminAccess) {
     return (
       <div className="status-container" style={{ padding: "4rem 1rem", textAlign: "center" }}>
         <p style={{ fontFamily: "'Cinzel', serif", color: "var(--text-ghost)", fontSize: "1.1rem" }}>
@@ -1852,15 +3518,24 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
     );
   }
 
-  const navItems = getNavItems(t);
+  const allNavItems = getNavItems(t);
+  const navItems = allNavItems.filter(item => canAccess(item.permission));
 
   const renderSection = () => {
+    const item = allNavItems.find(n => n.key === activeSection);
+    if (item && !canAccess(item.permission)) return null;
     switch (activeSection) {
       case "companies":     return <CompaniesSection />;
+      case "books":         return <BookEditionSection />;
       case "users":         return <UsersSection />;
+      case "sales":         return <SalesSection />;
       case "reports":       return <ReportsSection />;
       case "data-requests": return <DataRequestsSection />;
       case "notifications": return <NotificationsAdminSection />;
+      case "email":         return <EmailSection />;
+      case "imports":       return <ImportsSection />;
+      case "ol-catalog":    return <OlCatalogSection />;
+      case "audit-log":     return <AuditLogSection />;
       default:              return null;
     }
   };

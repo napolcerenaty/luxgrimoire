@@ -4,14 +4,27 @@ import { useI18n } from "./i18n";
 import "./UserPages.css";
 
 export default function ProfilePage({ onBack }) {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateSocial } = useAuth();
   const { t } = useI18n();
+
+  // Basic info
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName]   = useState(user?.lastName  ?? "");
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
   const [saved, setSaved]     = useState(false);
+
+  // Social / bio
+  const [editingSocial, setEditingSocial] = useState(false);
+  const [bioPublic,     setBioPublic]     = useState(user?.bioPublic     ?? "");
+  const [goodreadsUrl,  setGoodreadsUrl]  = useState(user?.goodreadsUrl  ?? "");
+  const [storygraphUrl, setStorygraphUrl] = useState(user?.storygraphUrl ?? "");
+  const [instagramUrl,  setInstagramUrl]  = useState(user?.instagramUrl  ?? "");
+  const [twitterUrl,    setTwitterUrl]    = useState(user?.twitterUrl    ?? "");
+  const [socialSaving,  setSocialSaving]  = useState(false);
+  const [socialSaved,   setSocialSaved]   = useState(false);
+  const [socialError,   setSocialError]   = useState("");
 
   // collection
   const [ownedBooks, setOwnedBooks] = useState([]);
@@ -91,6 +104,31 @@ export default function ProfilePage({ onBack }) {
     setError("");
   };
 
+  const handleSocialSave = async () => {
+    setSocialSaving(true);
+    setSocialError("");
+    try {
+      await updateSocial({ bioPublic, goodreadsUrl, storygraphUrl, instagramUrl, twitterUrl });
+      setEditingSocial(false);
+      setSocialSaved(true);
+      setTimeout(() => setSocialSaved(false), 3000);
+    } catch (err) {
+      setSocialError(err.message);
+    } finally {
+      setSocialSaving(false);
+    }
+  };
+
+  const handleSocialCancel = () => {
+    setBioPublic(user?.bioPublic     ?? "");
+    setGoodreadsUrl(user?.goodreadsUrl  ?? "");
+    setStorygraphUrl(user?.storygraphUrl ?? "");
+    setInstagramUrl(user?.instagramUrl  ?? "");
+    setTwitterUrl(user?.twitterUrl    ?? "");
+    setEditingSocial(false);
+    setSocialError("");
+  };
+
   return (
     <div className="user-page">
       <button className="back-btn" onClick={onBack}>{t("back")}</button>
@@ -144,6 +182,65 @@ export default function ProfilePage({ onBack }) {
             </div>
             {saved && <p className="page-success">{t("profile.saved")}</p>}
             <button className="page-btn primary" onClick={() => setEditing(true)}>
+              {t("profile.editBtn")}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bio & Social Links ────────────────────────────────────────── */}
+      <div className="user-page-card">
+        <h3 className="user-collection-title">{t("profile.socialTitle")}</h3>
+        <p className="field-hint">{t("profile.socialHint")}</p>
+
+        {editingSocial ? (
+          <div className="user-page-form">
+            <label>
+              {t("profile.bio")}
+              <textarea
+                rows={4}
+                maxLength={500}
+                value={bioPublic}
+                onChange={(e) => setBioPublic(e.target.value)}
+                placeholder={t("profile.bioPlaceholder")}
+                style={{ resize: "vertical" }}
+              />
+            </label>
+            <label>{t("profile.goodreads")}<input value={goodreadsUrl} onChange={(e) => setGoodreadsUrl(e.target.value)} placeholder="https://goodreads.com/user/..." /></label>
+            <label>{t("profile.storygraph")}<input value={storygraphUrl} onChange={(e) => setStorygraphUrl(e.target.value)} placeholder="https://app.thestorygraph.com/profile/..." /></label>
+            <label>{t("profile.instagram")}<input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/..." /></label>
+            <label>{t("profile.twitter")}<input value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} placeholder="https://x.com/..." /></label>
+            {socialError && <p className="page-error">{socialError}</p>}
+            <div className="page-btn-row">
+              <button className="page-btn primary" onClick={handleSocialSave} disabled={socialSaving}>
+                {socialSaving ? t("profile.saving") : t("profile.saveBtn")}
+              </button>
+              <button className="page-btn" onClick={handleSocialCancel}>{t("profile.cancel")}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="user-page-form">
+            {user?.bioPublic && (
+              <div className="profile-row profile-bio-row">
+                <p className="profile-bio-text">{user.bioPublic}</p>
+              </div>
+            )}
+            {[
+              { label: t("profile.goodreads"),  val: user?.goodreadsUrl  },
+              { label: t("profile.storygraph"), val: user?.storygraphUrl },
+              { label: t("profile.instagram"),  val: user?.instagramUrl  },
+              { label: t("profile.twitter"),    val: user?.twitterUrl    },
+            ].filter(r => r.val).map(({ label, val }) => (
+              <div key={label} className="profile-row">
+                <span className="profile-row-label">{label}</span>
+                <a className="profile-row-value profile-row-link" href={val} target="_blank" rel="noopener noreferrer">{val}</a>
+              </div>
+            ))}
+            {!user?.bioPublic && !user?.goodreadsUrl && !user?.storygraphUrl && !user?.instagramUrl && !user?.twitterUrl && (
+              <p className="user-collection-empty">{t("profile.socialEmpty")}</p>
+            )}
+            {socialSaved && <p className="page-success">{t("profile.saved")}</p>}
+            <button className="page-btn primary" onClick={() => setEditingSocial(true)}>
               {t("profile.editBtn")}
             </button>
           </div>

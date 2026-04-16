@@ -6,17 +6,26 @@ import { BOOK_LANGUAGES } from "./bookLanguages";
 
 // ── Combobox for authors / artists ────────────────────────────────────────────
 
-function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew }) {
+function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew, matchInstagram }) {
   const [input, setInput] = useState(value || "");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
   useEffect(() => { setInput(value || ""); }, [value]);
 
-  const filtered = input.trim()
-    ? items.filter((a) => a.name.toLowerCase().includes(input.toLowerCase()))
+  const lower = input.trim().toLowerCase();
+  const filtered = lower
+    ? items.filter((a) => {
+        const nameMatch = a.name && a.name.toLowerCase().includes(lower);
+        const igMatch = matchInstagram && a.instagram &&
+          (`@${a.instagram}`.toLowerCase().includes(lower) || a.instagram.toLowerCase().includes(lower));
+        return nameMatch || igMatch;
+      })
     : items;
-  const exactMatch = items.some((a) => a.name.toLowerCase() === input.trim().toLowerCase());
+  const exactMatch = items.some((a) =>
+    a.name.toLowerCase() === input.trim().toLowerCase() ||
+    (matchInstagram && a.instagram && `@${a.instagram}`.toLowerCase() === input.trim().toLowerCase())
+  );
 
   const handleChange = (e) => {
     setInput(e.target.value);
@@ -25,6 +34,7 @@ function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew
   };
 
   const selectItem = (item) => {
+    const display = matchInstagram && item.instagram ? `@${item.instagram}` : item.name;
     setInput(item.name);
     setOpen(false);
     onSelect(item, item.name);
@@ -33,6 +43,11 @@ function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew
   const handleAddNew = () => {
     setOpen(false);
     onAddNew(input.trim());
+  };
+
+  const displayItem = (item) => {
+    if (matchInstagram && item.instagram) return `${item.name !== item.instagram ? item.name + " " : ""}@${item.instagram}`;
+    return item.name;
   };
 
   return (
@@ -50,7 +65,7 @@ function NameCombobox({ value, items, onSelect, onAddNew, placeholder, addingNew
         <div className="combobox-dropdown">
           {filtered.map((a) => (
             <div key={a.id} className="combobox-option" onMouseDown={() => selectItem(a)}>
-              {a.name}
+              {displayItem(a)}
             </div>
           ))}
           {!exactMatch && input.trim() && (
@@ -88,7 +103,8 @@ function emptyEditionForm() {
     subscriptionId: "",
     subscriptionMonthId: "",
     publisher: "",
-    language: "",
+    language: "en",
+    alternativeTitle: "",
     subscriptionMonth: "",
     subscriptionYear: "",
     firstAccessDate: "",
@@ -98,8 +114,12 @@ function emptyEditionForm() {
     currency: "",
     imageUrls: [],
     artists: [],
+    features: [],
     bookBoxCompanyId: "",
     bookBoxCompanyCustomName: "",
+    collectionId: "",
+    _collectionSelect: "",
+    _collectionNewName: "",
     _companySelect: "",
     _subscriptionSelect: "",
     _monthSelect: "",
@@ -114,7 +134,8 @@ function toEditionForm(edition) {
     subscriptionId: edition.subscriptionId || "",
     subscriptionMonthId: edition.subscriptionMonthId || "",
     publisher: edition.publisher || "",
-    language: edition.language || "",
+    language: edition.language || "en",
+    alternativeTitle: edition.alternativeTitle || "",
     subscriptionMonth: edition.subscriptionMonth != null ? String(edition.subscriptionMonth) : "",
     subscriptionYear: edition.subscriptionYear != null ? String(edition.subscriptionYear) : "",
     firstAccessDate: edition.firstAccessDate || "",
@@ -128,8 +149,12 @@ function toEditionForm(edition) {
       contribution: a.contribution || "",
       artistId: a.artistId || "",
     })) : [],
+    features: edition.features ? [...edition.features] : [],
     bookBoxCompanyId: edition.bookBoxCompanyId || "",
     bookBoxCompanyCustomName: edition.bookBoxCompanyCustomName || "",
+    collectionId: edition.collectionId || "",
+    _collectionSelect: edition.collectionId ? edition.collectionId : "",
+    _collectionNewName: "",
     _companySelect: edition.bookBoxCompanyId ? edition.bookBoxCompanyId : (edition.bookBoxCompanyCustomName ? "custom" : ""),
     _subscriptionSelect: edition.subscriptionId ? edition.subscriptionId : (edition.subscriptionName ? "custom" : ""),
     _monthSelect: edition.subscriptionMonthId || "",
@@ -160,6 +185,11 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   const [contributionTypes, setContributionTypes] = useState([]);
   const [addingAuthor, setAddingAuthor] = useState(false);
   const [addingArtistIdx, setAddingArtistIdx] = useState(null);
+  const [parseOpen, setParseOpen] = useState(false);
+  const [parseText, setParseText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseMsg, setParseMsg] = useState(null);
+  const parseFileRef = useRef(null);
 
   useEffect(() => {
     const opts = { credentials: "include" };
@@ -226,14 +256,18 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
     if (!name) return;
     setAddingArtistIdx(idx);
     try {
+      const instagram = name.startsWith("@") ? name.slice(1) : null;
       const res = await fetch("http://localhost:8080/api/artists", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, instagram }),
       });
       if (res.ok) {
         const newA = await res.json();
-        setArtists((prev) => [...prev, newA]);
+        setArtists((prev) => {
+          const exists = prev.some(a => a.id === newA.id);
+          return exists ? prev : [...prev, newA];
+        });
         setEditionForm((f) => {
           const arr = f.artists.map((a, i) => i === idx ? { ...a, artistName: newA.name, artistId: newA.id } : a);
           return { ...f, artists: arr };
@@ -241,6 +275,112 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       }
     } finally {
       setAddingArtistIdx(null);
+    }
+  };
+
+  // ── Feature helpers ──────────────────────────────────────────────────────────
+  const addFeature = () => setEditionForm((f) => ({ ...f, features: [...f.features, ""] }));
+  const setFeature = (idx, val) => setEditionForm((f) => ({
+    ...f, features: f.features.map((ft, i) => i === idx ? val : ft),
+  }));
+  const removeFeature = (idx) => setEditionForm((f) => ({
+    ...f, features: f.features.filter((_, i) => i !== idx),
+  }));
+
+  // ── AI parse helpers ─────────────────────────────────────────────────────────
+  const applyParseResult = (data) => {
+    setEditionForm((f) => {
+      const newArtists = [...f.artists];
+      if (data.artists && data.artists.length > 0) {
+        for (const hint of data.artists) {
+          const handle = hint.instagramHandle || "";
+          const handle_bare = handle.startsWith("@") ? handle.slice(1) : handle;
+          const matchedArtist = artists.find((a) => a.instagram === handle_bare);
+          const normalizedContrib = (hint.contribution || "").toLowerCase().trim();
+          const alreadyIn = newArtists.some((a) => {
+            const sameArtist = a.artistName === handle || a.artistName === (matchedArtist?.name)
+              || (matchedArtist?.id && a.artistId === matchedArtist.id);
+            const sameContrib = (a.contribution || "").toLowerCase().trim() === normalizedContrib;
+            return sameArtist && sameContrib;
+          });
+          if (!alreadyIn) {
+            newArtists.push({
+              artistName: matchedArtist ? matchedArtist.name : handle,
+              contribution: hint.contribution || "",
+              artistId: matchedArtist ? matchedArtist.id : "",
+            });
+          }
+        }
+      }
+      const existingFeatures = new Set(f.features.map(ft => ft.toLowerCase().trim()));
+      const newFeatures = [...f.features];
+      if (data.features && data.features.length > 0) {
+        for (const ft of data.features) {
+          if (ft && !existingFeatures.has(ft.toLowerCase().trim())) newFeatures.push(ft);
+        }
+      }
+      return { ...f, artists: newArtists, features: newFeatures };
+    });
+  };
+
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+  const handleParseText = async () => {
+    if (!parseText.trim()) return;
+    setParsing(true); setParseMsg(null);
+    try {
+      const res = await fetch(API.PARSE_EDITION_DESCRIPTION, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: parseText }),
+      });
+      if (res.status === 429) { setParseMsg(t("bookDetail.parseRateLimit")); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      applyParseResult(await res.json());
+      setParseMsg(t("bookDetail.parseApplied"));
+    } catch {
+      setParseMsg(t("bookDetail.parseError"));
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleParseImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    if (file.size > MAX_IMAGE_BYTES) {
+      setParseMsg(t("bookDetail.parseImageTooBig"));
+      return;
+    }
+    setParsing(true); setParseMsg(null);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const dataUrl = ev.target.result;
+          const base64 = dataUrl.split(",")[1];
+          const mimeType = file.type || "image/jpeg";
+          const res = await fetch(API.PARSE_EDITION_DESCRIPTION, {
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64Image: base64, mimeType }),
+          });
+          if (res.status === 429) { setParseMsg(t("bookDetail.parseRateLimit")); return; }
+          if (res.status === 413) { setParseMsg(t("bookDetail.parseImageTooBig")); return; }
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          applyParseResult(await res.json());
+          setParseMsg(t("bookDetail.parseApplied"));
+        } catch {
+          setParseMsg(t("bookDetail.parseError"));
+        } finally {
+          setParsing(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setParseMsg(t("bookDetail.parseError"));
+      setParsing(false);
     }
   };
 
@@ -304,6 +444,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   const selectedCompany = editionForm._companySelect && editionForm._companySelect !== "custom"
     ? companies.find((c) => c.id === editionForm._companySelect) || null : null;
   const companySubs = selectedCompany?.subscriptions ?? [];
+  const companyCollections = selectedCompany?.collections ?? [];
   const selectedSub = editionForm._subscriptionSelect && editionForm._subscriptionSelect !== "custom"
     ? companySubs.find((s) => s.id === editionForm._subscriptionSelect) || null : null;
   const subMonths = selectedSub?.months ?? [];
@@ -323,7 +464,10 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       subscriptionId: editionForm.subscriptionId || null,
       subscriptionMonthId: editionForm.subscriptionMonthId || null,
       publisher: editionForm.publisher || null,
-      language: editionForm.language || null,
+      language: editionForm.language || "en",
+      alternativeTitle: (editionForm.language && editionForm.language !== "en")
+        ? (editionForm.alternativeTitle || null)
+        : null,
       subscriptionMonth: editionForm.subscriptionMonth ? parseInt(editionForm.subscriptionMonth, 10) : null,
       subscriptionYear: editionForm.subscriptionYear ? parseInt(editionForm.subscriptionYear, 10) : null,
       firstAccessDate: monthLocked ? null : (editionForm.firstAccessDate || null),
@@ -335,8 +479,10 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       artists: editionForm.artists.filter((a) => a.artistName.trim() !== "").map((a) => ({
         artistName: a.artistName, contribution: a.contribution, artistId: a.artistId || null,
       })),
+      features: editionForm.features.filter((f) => f.trim() !== ""),
       bookBoxCompanyId: editionForm.bookBoxCompanyId || null,
       bookBoxCompanyCustomName: editionForm.bookBoxCompanyCustomName || null,
+      collectionId: editionForm.collectionId || null,
     };
   };
 
@@ -346,18 +492,40 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
       || e.imageUrls.filter((u) => u.trim()).length > 0;
   };
 
+  // ── Collection inline create ─────────────────────────────────────────────────
+  const ensureCollectionId = async () => {
+    // If "new" was selected and a name was typed, create the collection first
+    if (editionForm._collectionSelect === "new" && editionForm._collectionNewName.trim()) {
+      const companyId = editionForm.bookBoxCompanyId;
+      if (!companyId) return null;
+      const res = await fetch(
+        `http://localhost:8080/api/companies/${companyId}/collections`,
+        { method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: editionForm._collectionNewName.trim() }) }
+      );
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const newCol = await res.json();
+      setEditionForm((f) => ({ ...f, collectionId: newCol.id, _collectionSelect: newCol.id, _collectionNewName: "" }));
+      return newCol.id;
+    }
+    return editionForm.collectionId || null;
+  };
+
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     setSaving(true);
     setError(null);
     try {
+      const collectionId = await ensureCollectionId();
       const base = "http://localhost:8080/api/book-details";
       const opts = (method, body) => ({
         method, credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const buildPayload = () => ({ ...buildEditionPayload(), collectionId: collectionId || null });
 
       if (isNewBook) {
         const bookRes = await fetch(base, opts("POST", {
@@ -368,7 +536,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
         if (!bookRes.ok) throw new Error(await bookRes.text() || `HTTP ${bookRes.status}`);
         let book = await bookRes.json();
         if (editionHasContent()) {
-          const edRes = await fetch(`${base}/${book.id}/editions`, opts("POST", buildEditionPayload()));
+          const edRes = await fetch(`${base}/${book.id}/editions`, opts("POST", buildPayload()));
           if (!edRes.ok) throw new Error(await edRes.text() || `HTTP ${edRes.status}`);
           book = await edRes.json();
         }
@@ -382,11 +550,11 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
         onSaved(await res.json());
       } else if (isNewEdition) {
-        const res = await fetch(`${base}/${initialData.id}/editions`, opts("POST", buildEditionPayload()));
+        const res = await fetch(`${base}/${initialData.id}/editions`, opts("POST", buildPayload()));
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
         onSaved(await res.json());
       } else if (isEditEdition) {
-        const res = await fetch(`${base}/${initialData.id}/editions/${editingEdition.id}`, opts("PUT", buildEditionPayload()));
+        const res = await fetch(`${base}/${initialData.id}/editions/${editingEdition.id}`, opts("PUT", buildPayload()));
         if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
         onSaved(await res.json());
       }
@@ -499,9 +667,9 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "custom") {
-                      setEditionForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                      setEditionForm((f) => ({ ...f, _companySelect: "custom", bookBoxCompanyId: "", bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "", collectionId: "", _collectionSelect: "", _collectionNewName: "" }));
                     } else {
-                      setEditionForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "" }));
+                      setEditionForm((f) => ({ ...f, _companySelect: val, bookBoxCompanyId: val, bookBoxCompanyCustomName: "", _subscriptionSelect: "", subscriptionId: "", subscriptionName: "", _monthSelect: "", subscriptionMonthId: "", collectionId: "", _collectionSelect: "", _collectionNewName: "" }));
                     }
                   }}
                 >
@@ -590,6 +758,43 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               )}
             </div>
 
+            {/* Collection — shown when a known company is selected */}
+            {selectedCompany && (
+              <div className="edit-grid">
+                <label className="edit-label edit-label--full">
+                  {t("bookDetail.collection")}
+                  <select
+                    className="edit-select"
+                    value={editionForm._collectionSelect}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "new") {
+                        setEditionForm((f) => ({ ...f, _collectionSelect: "new", collectionId: "", _collectionNewName: "" }));
+                      } else {
+                        const found = companyCollections.find((c) => c.id === val);
+                        setEditionForm((f) => ({ ...f, _collectionSelect: val, collectionId: val, _collectionNewName: found?.name ?? "" }));
+                      }
+                    }}
+                  >
+                    <option value="">{t("bookDetail.noCollection")}</option>
+                    {companyCollections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                    <option value="new">{t("bookDetail.newCollection")}</option>
+                  </select>
+                  {editionForm._collectionSelect === "new" && (
+                    <input
+                      className="edit-input"
+                      style={{ marginTop: "0.5rem" }}
+                      value={editionForm._collectionNewName}
+                      onChange={(e) => setEditionForm((f) => ({ ...f, _collectionNewName: e.target.value }))}
+                      placeholder={t("bookDetail.newCollectionPlaceholder")}
+                    />
+                  )}
+                </label>
+              </div>
+            )}
+
             {/* Publisher + Language */}
             <div className="edit-grid">
               <label className="edit-label">
@@ -609,8 +814,18 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
               </label>
             </div>
 
+            {/* Alternative title — shown when language is not English */}
+            {editionForm.language && editionForm.language !== "en" && (
+              <label className="edit-label">
+                {t("bookDetail.alternativeTitle")}
+                <input className="edit-input" value={editionForm.alternativeTitle}
+                  onChange={(e) => setEd("alternativeTitle", e.target.value)}
+                  placeholder={t("bookDetail.alternativeTitlePlaceholder")} />
+              </label>
+            )}
+
             {/* Free-text subscription month/year (when no structured months available) */}
-            {subMonths.length === 0 && (
+            {subMonths.length === 0 && editionForm._subscriptionSelect !== "" && (
               <div className="edit-grid">
                 <label className="edit-label">
                   {t("bookDetail.subscriptionDate")}
@@ -736,6 +951,7 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
                       onAddNew={(name) => handleAddNewArtist(idx, name)}
                       placeholder={t("bookDetail.artistName")}
                       addingNew={addingArtistIdx === idx}
+                      matchInstagram={true}
                     />
                   </div>
                   <input
@@ -750,6 +966,66 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
                 </div>
               ))}
               <button className="edit-add-btn" type="button" onClick={addArtist}>{t("bookDetail.addArtist")}</button>
+            </div>
+
+            {/* Special Edition Features */}
+            <div className="edit-section">
+              <h3 className="edit-section-title">{t("bookDetail.features")}</h3>
+              {editionForm.features.map((ft, idx) => (
+                <div key={idx} className="edit-dynamic-row">
+                  <input
+                    className="edit-input"
+                    value={ft}
+                    onChange={(e) => setFeature(idx, e.target.value)}
+                    placeholder={t("bookDetail.featurePlaceholder")}
+                  />
+                  <button className="edit-remove-btn" type="button" onClick={() => removeFeature(idx)}>&#x2715;</button>
+                </div>
+              ))}
+              <button className="edit-add-btn" type="button" onClick={addFeature}>{t("bookDetail.addFeature")}</button>
+            </div>
+
+            {/* Parse from description */}
+            <div className="edit-section edit-parse-section">
+              <button
+                type="button"
+                className="edit-parse-toggle"
+                onClick={() => { setParseOpen((p) => !p); setParseMsg(null); }}
+              >
+                {parseOpen ? "▾" : "▸"} {t("bookDetail.parseDescription")}
+              </button>
+              {parseOpen && (
+                <div className="edit-parse-body">
+                  <textarea
+                    className="edit-parse-textarea"
+                    rows={6}
+                    value={parseText}
+                    onChange={(e) => setParseText(e.target.value)}
+                    placeholder={t("bookDetail.parseDescPlaceholder")}
+                  />
+                  <div className="edit-parse-actions">
+                    <button
+                      type="button"
+                      className="edit-add-btn"
+                      onClick={handleParseText}
+                      disabled={parsing || !parseText.trim()}
+                    >
+                      {parsing ? t("bookDetail.parsing") : t("bookDetail.parseBtn")}
+                    </button>
+                    <label className="edit-add-btn edit-parse-img-label" style={{ cursor: "pointer" }}>
+                      📷 {t("bookDetail.parseScreenshot")}
+                      <input
+                        ref={parseFileRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={handleParseImage}
+                      />
+                    </label>
+                  </div>
+                  {parseMsg && <p className="edit-parse-msg">{parseMsg}</p>}
+                </div>
+              )}
             </div>
           </>
         )}

@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
 import "./CompanyListPage.css";
 import { useI18n } from "./i18n";
+import { API } from "./api";
 
-export default function CompanyListPage({ onCompanyClick, onNewCompany, user }) {
+function resolveLogoUrl(url) {
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${API.BASE}${url}`;
+}
+
+export default function CompanyListPage({ onCompanyClick, onNewCompany, onRequestData, user }) {
   const { t } = useI18n();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:8080/api/companies", { credentials: "include" })
@@ -18,15 +25,27 @@ export default function CompanyListPage({ onCompanyClick, onNewCompany, user }) 
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
+  const filtered = search.trim()
+    ? companies.filter(c => c.name?.toLowerCase().includes(search.toLowerCase()))
+    : companies;
+
   return (
     <div className="company-list-page">
       <div className="company-list-header">
-        <h2 className="company-list-title">{t("company.listTitle")}</h2>
-        {user && (
-          <button className="company-new-btn" onClick={onNewCompany}>
-            {t("company.newBtn")}
-          </button>
-        )}
+        <h2 className="section-title">{t("company.listTitle")}</h2>
+      </div>
+
+      <div className="company-list-toolbar">
+        <input
+          className="company-search-input"
+          type="search"
+          placeholder={t("company.searchPlaceholder")}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <button className="company-request-btn" onClick={onRequestData}>
+          {t("company.requestDataHint")}
+        </button>
       </div>
 
       {loading && (
@@ -35,12 +54,12 @@ export default function CompanyListPage({ onCompanyClick, onNewCompany, user }) 
         </div>
       )}
       {error && <p className="company-error">{error}</p>}
-      {!loading && !error && companies.length === 0 && (
+      {!loading && !error && filtered.length === 0 && (
         <p className="company-empty">{t("company.noCompanies")}</p>
       )}
 
       <div className="company-grid">
-        {companies.map((company) => (
+        {filtered.map((company) => (
           <article
             key={company.id}
             className="company-card"
@@ -50,13 +69,21 @@ export default function CompanyListPage({ onCompanyClick, onNewCompany, user }) 
             onKeyDown={(e) => e.key === "Enter" && onCompanyClick(company)}
           >
             <div className="company-card-logo">
-              <img
-                src={company.logoUrl}
-                alt={company.name}
-                onError={(e) => {
-                  e.target.src = `https://placehold.co/200x100/060d18/00b4d0?text=${encodeURIComponent(company.name || "?")}`;
-                }}
-              />
+              {resolveLogoUrl(company.logoUrl) ? (
+                <img
+                  src={resolveLogoUrl(company.logoUrl)}
+                  alt={company.name}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://placehold.co/200x100/060d18/00b4d0?text=${encodeURIComponent(company.name || "?")}`;
+                  }}
+                />
+              ) : (
+                <img
+                  src={`https://placehold.co/200x100/060d18/00b4d0?text=${encodeURIComponent(company.name || "?")}`}
+                  alt={company.name}
+                />
+              )}
             </div>
             <div className="company-card-info">
               <h3 className="company-card-name">{company.name}</h3>
@@ -68,7 +95,7 @@ export default function CompanyListPage({ onCompanyClick, onNewCompany, user }) 
               )}
               {company.subscriptions && company.subscriptions.length > 0 && (
                 <p className="company-card-subs">
-                  {company.subscriptions.length} {t("company.subscriptions")}
+                  {company.subscriptions.map(s => typeof s === "string" ? s : s.name).join(", ")}
                 </p>
               )}
             </div>

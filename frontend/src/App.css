@@ -4,12 +4,22 @@
   flex-direction: column;
 }
 
+/* Sticky header wrapper */
+.app-header-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: var(--bg);
+}
+
 /* Header */
 .header {
   background: var(--grad-header);
   border-bottom: 1px solid var(--border);
-  padding: 2rem 2rem 1.5rem;
-  text-align: center;
+  padding: 0.6rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   position: relative;
 }
 
@@ -23,43 +33,165 @@
 
 .header-logo {
   font-family: 'Cinzel', serif;
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: 1.3rem;
   font-weight: 700;
   margin: 0;
   color: var(--accent);
   letter-spacing: 0.08em;
-  text-shadow: 0 0 30px rgba(0, 140, 190, 0.4);
+  text-shadow: 0 0 20px rgba(0, 140, 190, 0.4);
   cursor: pointer;
   transition: text-shadow 0.2s, color 0.2s;
   position: relative;
   z-index: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
 
 .header-logo:hover {
   color: var(--accent-bright);
-  text-shadow: 0 0 50px rgba(0, 150, 200, 0.60);
+  text-shadow: 0 0 40px rgba(0, 150, 200, 0.60);
 }
 
 
 .header-controls {
-  position: absolute;
-  top: 1rem;
-  right: 1.2rem;
-  z-index: 200;
+  position: static;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-left: auto;
+  z-index: 200;
   overflow: visible;
+  flex-shrink: 0;
 }
 
 /* Main */
 main {
   flex: 1;
-  padding: 0 2rem 2.5rem;
+  padding: 1.5rem 2rem 2.5rem;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
+
+/* Main navigation bar */
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 2rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.main-nav::-webkit-scrollbar { display: none; }
+
+.main-nav-item {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.85rem 1rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.18s, border-color 0.18s;
+  flex-shrink: 0;
+}
+.main-nav-item:hover {
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+.main-nav-item.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.main-nav-item.admin-nav-item {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+.main-nav-item.admin-nav-item:hover,
+.main-nav-item.admin-nav-item.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Page section wrapper (collection, friends, messages) */
+.page-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.page-section--full {
+  min-height: 500px;
+}
+
+/* User dropdown */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  z-index: 500;
+  overflow: hidden;
+}
+.user-dropdown-header {
+  padding: 0.85rem 1rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.user-dropdown-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.user-dropdown-username {
+  font-size: 0.8rem;
+  color: var(--text-ghost);
+}
+.user-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.88rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.user-dropdown-item:hover {
+  background: var(--accent-glow3);
+  color: var(--accent);
+}
+.user-dropdown-logout {
+  color: var(--text-ghost);
+}
+.user-dropdown-logout:hover {
+  color: #e06c75;
+  background: rgba(224,108,117,0.08);
+}
+
 
 /* Nav tabs (kept for possible reuse) */
 .nav-tabs {
@@ -318,7 +450,11 @@ main {
   color: var(--accent);
   letter-spacing: 0.06em;
   text-shadow: 0 0 16px rgba(0, 130, 180, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
 }
+
 
 .footer-tagline {
   font-family: 'Crimson Text', serif;

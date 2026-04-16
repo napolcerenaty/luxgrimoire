@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import "./ReportModals.css";
 import CollectionPage from "./CollectionPage";
 import { AuthProvider } from "./AuthContext";
 import { useAuth } from "./AuthContext";
 import UserMenu from "./UserMenu";
-import AccountPage from "./AccountPage";
+import AccountPage, { CalendarSection, BookListSection, SubscriptionsSection, SettingsSection } from "./AccountPage";
 import { I18nProvider, useI18n } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
 import { ThemeProvider } from "./ThemeContext";
@@ -18,12 +19,21 @@ import AuthorPage from "./AuthorPage";
 import ArtistPage from "./ArtistPage";
 import SearchPanel from "./SearchPanel";
 import RecentAnnouncements from "./RecentAnnouncements";
+import AllAnnouncementsPage from "./AllAnnouncementsPage";
 import AdminPage from "./AdminPage";
 import NotificationsPage from "./NotificationsPage";
 import NotificationBell from "./NotificationBell";
 import FriendsPage from "./FriendsPage";
 import MessagesPage from "./MessagesPage";
 import { API } from "./api";
+import BugReportModal from "./BugReportModal";
+import DataRequestModal from "./DataRequestModal";
+import FaqPage from "./FaqPage";
+import PublicProfilePage from "./PublicProfilePage";
+import SubscriptionDetailPage from "./SubscriptionDetailPage";
+import StaticPage from "./StaticPage";
+import FavoritesPage from "./FavoritesPage";
+import SpendingStatsPage from "./SpendingStatsPage";
 
 function BookCard({ book, onClick }) {
   const coverUrl = book.coverUrl
@@ -132,12 +142,19 @@ function AppInner() {
   const [selectedAuthorId, setSelectedAuthorId] = useState(null);
   const [selectedArtistId, setSelectedArtistId] = useState(null);
   const [selectedSeriesBookId, setSelectedSeriesBookId] = useState(null);
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [messageTargetUser, setMessageTargetUser] = useState(null);
+  const [publicProfileUsername, setPublicProfileUsername] = useState(null);
 
   const [prevTab, setPrevTab] = useState("browse");
-  const [accountSection, setAccountSection] = useState("calendar");
   const [notifRefreshKey, setNotifRefreshKey] = useState(0);
   const [msgRefreshKey, setMsgRefreshKey] = useState(0);
+  // Subscription month context when a book is opened from a subscription month card
+  // Shape: { month: number (1-12), year: number, renewalDay: number|null } or null
+  const [subMonthContext, setSubMonthContext] = useState(null);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [dataRequestOpen, setDataRequestOpen] = useState(false);
+  const [devBannerDismissed, setDevBannerDismissed] = useState(() => sessionStorage.getItem("devBannerDismissed") === "1");
 
   // Hash-based navigation: /#admin opens admin panel if user is admin
   useEffect(() => {
@@ -151,25 +168,80 @@ function AppInner() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
-  const handleBookClick = (bookId) => {
-    setSelectedBookId(bookId);
+  // Navigate with browser history support
+  const navigate = (newTab, opts = {}) => {
+    const newState = {
+      tab: newTab,
+      selectedBookId: opts.selectedBookId !== undefined ? opts.selectedBookId : selectedBookId,
+      selectedCompany: opts.selectedCompany !== undefined ? opts.selectedCompany : selectedCompany,
+      selectedAuthorId: opts.selectedAuthorId !== undefined ? opts.selectedAuthorId : selectedAuthorId,
+      selectedArtistId: opts.selectedArtistId !== undefined ? opts.selectedArtistId : selectedArtistId,
+      selectedSeriesBookId: opts.selectedSeriesBookId !== undefined ? opts.selectedSeriesBookId : selectedSeriesBookId,
+      selectedSubscription: opts.selectedSubscription !== undefined ? opts.selectedSubscription : selectedSubscription,
+      publicProfileUsername: opts.publicProfileUsername !== undefined ? opts.publicProfileUsername : publicProfileUsername,
+      prevTab: opts.prevTab !== undefined ? opts.prevTab : prevTab,
+      messageTargetUser: opts.messageTargetUser !== undefined ? opts.messageTargetUser : messageTargetUser,
+      subMonthContext: opts.subMonthContext !== undefined ? opts.subMonthContext : subMonthContext,
+    };
+    if (opts.selectedBookId !== undefined) setSelectedBookId(opts.selectedBookId);
+    if (opts.selectedCompany !== undefined) setSelectedCompany(opts.selectedCompany);
+    if (opts.selectedAuthorId !== undefined) setSelectedAuthorId(opts.selectedAuthorId);
+    if (opts.selectedArtistId !== undefined) setSelectedArtistId(opts.selectedArtistId);
+    if (opts.selectedSeriesBookId !== undefined) setSelectedSeriesBookId(opts.selectedSeriesBookId);
+    if (opts.selectedSubscription !== undefined) setSelectedSubscription(opts.selectedSubscription);
+    if (opts.publicProfileUsername !== undefined) setPublicProfileUsername(opts.publicProfileUsername);
+    if (opts.prevTab !== undefined) setPrevTab(opts.prevTab);
+    if (opts.messageTargetUser !== undefined) setMessageTargetUser(opts.messageTargetUser);
+    if (opts.editingBook !== undefined) setEditingBook(opts.editingBook);
+    if (opts.editingEdition !== undefined) setEditingEdition(opts.editingEdition);
+    if (opts.editingCompany !== undefined) setEditingCompany(opts.editingCompany);
+    if (opts.subMonthContext !== undefined) setSubMonthContext(opts.subMonthContext);
+    setTab(newTab);
+    history.pushState(newState, "");
+  };
+
+  useEffect(() => {
+    history.replaceState({ tab: "browse" }, "");
+    const onPop = (e) => {
+      if (!e.state) return;
+      const s = e.state;
+      setTab(s.tab || "browse");
+      if (s.selectedBookId !== undefined) setSelectedBookId(s.selectedBookId);
+      if (s.selectedCompany !== undefined) setSelectedCompany(s.selectedCompany);
+      if (s.selectedAuthorId !== undefined) setSelectedAuthorId(s.selectedAuthorId);
+      if (s.selectedArtistId !== undefined) setSelectedArtistId(s.selectedArtistId);
+      if (s.selectedSeriesBookId !== undefined) setSelectedSeriesBookId(s.selectedSeriesBookId);
+      if (s.selectedSubscription !== undefined) setSelectedSubscription(s.selectedSubscription);
+      if (s.publicProfileUsername !== undefined) setPublicProfileUsername(s.publicProfileUsername);
+      if (s.prevTab !== undefined) setPrevTab(s.prevTab);
+      if (s.messageTargetUser !== undefined) setMessageTargetUser(s.messageTargetUser);
+      if (s.subMonthContext !== undefined) setSubMonthContext(s.subMonthContext);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const handleBookClick = (bookId, subCtx = null) => {
     setEditingBook(null);
-    if (tab !== "book-detail") setPrevTab(tab);
-    setTab("book-detail");
+    navigate("book-detail", { selectedBookId: bookId, prevTab: tab !== "book-detail" ? tab : prevTab, subMonthContext: subCtx });
   };
   const handleEditBook = (book) => { setEditingBook(book); setEditingEdition(null); setTab("book-edit"); };
   const handleEditEdition = (book, edition) => { setEditingBook(book); setEditingEdition(edition); setTab("book-edit"); };
   const handleNewEdition = (book) => { setEditingBook(book); setEditingEdition("new"); setTab("book-edit"); };
   const handleNewBook = () => { setEditingBook(null); setEditingEdition(null); setTab("book-edit"); };
   const handleBookSaved = (saved) => { setSelectedBookId(saved.id); setEditingBook(null); setEditingEdition(null); setTab("book-detail"); };
-  const handleSeriesClick = (bookId) => { setSelectedSeriesBookId(bookId); setPrevTab(tab); setTab("series-books"); };
+  const handleSeriesClick = (bookId) => { navigate("series-books", { selectedSeriesBookId: bookId, prevTab: tab }); };
 
-  const handleCompanyClick = (company) => { setSelectedCompany(company); setTab("company-detail"); };
-  const handleAuthorClick = (authorId) => { setSelectedAuthorId(authorId); setPrevTab(tab); setTab("author-detail"); };
-  const handleArtistClick = (artistId) => { setSelectedArtistId(artistId); setPrevTab(tab); setTab("artist-detail"); };
+  const handleCompanyClick = (company) => { navigate("company-detail", { selectedCompany: company }); };
+  const handleAuthorClick = (authorId) => { navigate("author-detail", { selectedAuthorId: authorId, prevTab: tab }); };
+  const handleArtistClick = (artistId) => { navigate("artist-detail", { selectedArtistId: artistId, prevTab: tab }); };
   const handleNewCompany = () => { setEditingCompany(null); setTab("company-edit"); };
   const handleEditCompany = (company) => { setEditingCompany(company); setTab("company-edit"); };
   const handleCompanySaved = (saved) => { setSelectedCompany(saved); setTab("company-detail"); };
+
+  const handleSubscriptionClick = ({ companyId, subscriptionId }) => {
+    navigate("subscription-detail", { selectedSubscription: { companyId, subscriptionId }, prevTab: tab !== "subscription-detail" ? tab : prevTab });
+  };
 
   useEffect(() => {
     fetch(API.BOOKS + "?page=0&size=100")
@@ -181,26 +253,119 @@ function AppInner() {
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
-  const isUserPage = tab === "account" || tab === "admin" || tab === "notifications" || tab === "friends" || tab === "messages";
-  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail" || tab === "series-books";
+  const isDetailPage = tab === "book-detail" || tab === "book-edit" || tab === "company-detail" || tab === "company-edit" || tab === "author-detail" || tab === "artist-detail" || tab === "series-books" || tab === "faq" || tab === "privacy" || tab === "terms" || tab === "subscription-detail";
+
+  // Library tabs = any account section rendered inside AccountPage
+  const LIBRARY_SECTIONS = ["calendar","collection","iso","interested","subscriptions","favorites","spending","settings","sold","library"];
+  const COMMUNITY_SECTIONS = ["friends","messages","community"];
+  const isLibraryTab   = LIBRARY_SECTIONS.includes(tab);
+  const isCommunityTab = COMMUNITY_SECTIONS.includes(tab);
+  // Which section should AccountPage open to
+  const librarySection = isLibraryTab && tab !== "library" ? tab : "collection";
+
+  // Community sub-tab state (friends / messages)
+  const communitySubTab = tab === "messages" ? "messages" : "friends";
+
+  const navActiveTab = (() => {
+    if (["company-detail", "company-edit", "subscription-detail"].includes(tab)) return "company-list";
+    if (LIBRARY_SECTIONS.includes(tab)) return "library";
+    if (COMMUNITY_SECTIONS.includes(tab)) return "community";
+    return tab;
+  })();
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-controls">
-          {user && <NotificationBell onOpenPage={() => setTab("notifications")} refreshKey={notifRefreshKey} />}
-          <ThemePicker />
-          <LanguagePicker />
-          <UserMenu onNavigate={setTab} msgRefreshKey={msgRefreshKey} />
+      {!devBannerDismissed && (
+        <div className="dev-banner">
+          <span className="dev-banner-text">
+            {t("devBanner.text")}{" "}
+            <button className="dev-banner-link" onClick={() => setBugReportOpen(true)}>
+              {t("devBanner.link")}
+            </button>
+          </span>
+          <button className="dev-banner-dismiss" onClick={() => {
+            sessionStorage.setItem("devBannerDismissed", "1");
+            setDevBannerDismissed(true);
+          }} title={t("devBanner.dismiss")}>✕</button>
         </div>
-        <h1
-          className="header-logo"
-          onClick={() => setTab("browse")}
-          title="LuxGrimoire – Strona główna"
-        >✶ LuxGrimoire ✶</h1>
-      </header>
+      )}
 
-      {!isUserPage && !isDetailPage && (
+      <div className="app-header-wrap">
+        <header className="header">
+          <h1
+            className="header-logo"
+            onClick={() => navigate("browse")}
+            title="LuxGrimoire – Strona główna"
+          >LuxGrimoire</h1>
+          <SearchPanel
+            compact
+            books={books}
+            onBookClick={handleBookClick}
+            onCompanyClick={handleCompanyClick}
+            onAuthorClick={handleAuthorClick}
+            onArtistClick={handleArtistClick}
+            user={user}
+            onNewBook={handleNewBook}
+            onAdd={(filter) => {
+              if (filter === "companies") { handleNewCompany(); }
+              else { handleNewBook(); }
+            }}
+            onRequestData={() => setDataRequestOpen(true)}
+            onSubscriptionClick={handleSubscriptionClick}
+          />
+          <div className="header-controls">
+            {user && <NotificationBell onOpenPage={() => navigate("notifications")} refreshKey={notifRefreshKey} />}
+            <ThemePicker />
+            <LanguagePicker />
+            <UserMenu onNavigate={(t) => navigate(t)} msgRefreshKey={msgRefreshKey} />
+          </div>
+        </header>
+
+        <nav className="main-nav">
+          <button
+            className={`main-nav-item${navActiveTab === "browse" ? " active" : ""}`}
+            onClick={() => navigate("browse")}
+          >
+            {t("nav.discover")}
+          </button>
+          <button
+            className={`main-nav-item${navActiveTab === "company-list" ? " active" : ""}`}
+            onClick={() => navigate("company-list")}
+          >
+            {t("nav.bookBoxes")}
+          </button>
+          {user && (
+            <button
+              className={`main-nav-item${navActiveTab === "library" ? " active" : ""}`}
+              onClick={() => navigate("library")}
+            >
+              {t("nav.library")}
+            </button>
+          )}
+          {user && (
+            <button
+              className={`main-nav-item${navActiveTab === "community" ? " active" : ""}`}
+              onClick={() => navigate("friends")}
+            >
+              {t("nav.community")}
+            </button>
+          )}
+          {user && (
+            user.role === "admin" || user.role === "superadmin" ||
+            user.role === "moderator" || user.role === "company_manager" ||
+            (user.adminPermissions && user.adminPermissions.trim().length > 0)
+          ) && (
+            <button
+              className={`main-nav-item admin-nav-item${tab === "admin" ? " active" : ""}`}
+              onClick={() => navigate("admin")}
+            >
+              {t("nav.admin")}
+            </button>
+          )}
+        </nav>
+      </div>
+
+      {!isDetailPage && tab !== "admin" && !isLibraryTab && !isCommunityTab && (
         <SearchPanel
           books={books}
           onBookClick={handleBookClick}
@@ -213,6 +378,8 @@ function AppInner() {
             if (filter === "companies") { handleNewCompany(); }
             else { handleNewBook(); }
           }}
+          onRequestData={() => setDataRequestOpen(true)}
+          onSubscriptionClick={handleSubscriptionClick}
         />
       )}
 
@@ -230,7 +397,7 @@ function AppInner() {
             </div>
           ) : (
             <>
-              <RecentAnnouncements />
+              <RecentAnnouncements onSeeMore={() => navigate("all-announcements", { prevTab: "browse" })} />
               {books.length > 0 && (
                 <>
                   <h2 className="section-title">{t("browse.sectionTitle")}</h2>
@@ -244,34 +411,74 @@ function AppInner() {
             </>
           )
         )}
-        {tab === "collection" && <CollectionPage onBookClick={handleBookClick} />}
-        {tab === "account"    && <AccountPage
+        {isLibraryTab && (
+          <AccountPage
+            key={librarySection}
+            initialSection={librarySection}
             onBack={() => setTab("browse")}
-            initialSection={accountSection}
-            onSectionChange={setAccountSection}
-            onBookClick={(bookId) => { setSelectedBookId(bookId); setEditingBook(null); setPrevTab("account"); setTab("book-detail"); }}
-          />}
+            onBookClick={handleBookClick}
+            onSectionChange={(s) => setTab(s)}
+          />
+        )}
+        {isCommunityTab && (
+          <div className="account-page">
+            <aside className="account-sidebar">
+              <div className="account-user-badge">
+                <div className="account-avatar">
+                  <span className="account-avatar-initials">
+                    {[user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?"}
+                  </span>
+                </div>
+                <div className="account-user-text">
+                  <p className="account-display-name">{user?.firstName} {user?.lastName}</p>
+                  <p className="account-username">@{user?.username}</p>
+                </div>
+              </div>
+              <nav className="account-nav">
+                <button className={`account-nav-item${communitySubTab === "friends" ? " active" : ""}`} onClick={() => setTab("friends")}>
+                  <span className="account-nav-icon">👥</span>
+                  <span className="account-nav-label">{t("friends.title")}</span>
+                  <span className="account-nav-arrow">›</span>
+                </button>
+                <button className={`account-nav-item${communitySubTab === "messages" ? " active" : ""}`} onClick={() => setTab("messages")}>
+                  <span className="account-nav-icon">💬</span>
+                  <span className="account-nav-label">{t("messages.title")}</span>
+                  <span className="account-nav-arrow">›</span>
+                </button>
+              </nav>
+              <button className="account-back-site-btn" onClick={() => setTab("browse")}>
+                {t("account.backToSite")}
+              </button>
+            </aside>
+            <main className="account-content">
+              {communitySubTab === "friends" && (
+                <FriendsPage
+                  onBack={() => setTab("browse")}
+                  onMessage={(username) => { setMessageTargetUser(username); setTab("messages"); }}
+                  onViewProfile={(username) => { setPublicProfileUsername(username); setTab("public-profile"); }}
+                />
+              )}
+              {communitySubTab === "messages" && (
+                <MessagesPage
+                  onBack={() => { setMessageTargetUser(null); setMsgRefreshKey(k => k + 1); setTab("browse"); }}
+                  initialUsername={messageTargetUser}
+                  currentUsername={user?.username}
+                  onRead={() => setMsgRefreshKey(k => k + 1)}
+                />
+              )}
+            </main>
+          </div>
+        )}
         {tab === "admin" && <AdminPage onBack={() => { window.location.hash = ""; setTab("browse"); }} />}
+        {tab === "all-announcements" && (
+          <AllAnnouncementsPage onBack={() => navigate(prevTab || "browse")} />
+        )}
         {tab === "notifications" && <NotificationsPage onBack={() => setTab("browse")} onRead={() => setNotifRefreshKey(k => k + 1)} onNavigate={(target) => setTab(target)} />}
-        {tab === "friends" && (
-          <FriendsPage
-            onBack={() => setTab("browse")}
-            onMessage={(username) => { setMessageTargetUser(username); setTab("messages"); }}
-            onViewProfile={(username) => { /* future: user profile page */ }}
-          />
-        )}
-        {tab === "messages" && (
-          <MessagesPage
-            onBack={() => { setMessageTargetUser(null); setMsgRefreshKey(k => k + 1); setTab("browse"); }}
-            initialUsername={messageTargetUser}
-            currentUsername={user?.username}
-            onRead={() => setMsgRefreshKey(k => k + 1)}
-          />
-        )}
         {tab === "company-list" && (
           <CompanyListPage
             onCompanyClick={handleCompanyClick}
             onNewCompany={handleNewCompany}
+            onRequestData={() => setDataRequestOpen(true)}
             user={user}
           />
         )}
@@ -282,6 +489,16 @@ function AppInner() {
             onEdit={handleEditCompany}
             onDelete={() => setTab("company-list")}
             user={user}
+            onSubscriptionClick={handleSubscriptionClick}
+          />
+        )}
+        {tab === "subscription-detail" && selectedSubscription && (
+          <SubscriptionDetailPage
+            companyId={selectedSubscription.companyId}
+            subscriptionId={selectedSubscription.subscriptionId}
+            onBack={() => setTab(prevTab)}
+            onCompanyClick={(company) => { setSelectedCompany(company); setTab("company-detail"); }}
+            onBookClick={handleBookClick}
           />
         )}
         {tab === "company-edit" && (
@@ -295,6 +512,7 @@ function AppInner() {
          {tab === "book-detail" && (
            <BookDetailPage
              bookId={selectedBookId}
+             subMonthContext={subMonthContext}
              onBack={() => setTab(prevTab)}
              onEdit={handleEditBook}
              onEditEdition={handleEditEdition}
@@ -302,6 +520,7 @@ function AppInner() {
              onNavigateNew={handleNewBook}
              onCompanyClick={handleCompanyClick}
              onSeriesClick={handleSeriesClick}
+             onArtistClick={handleArtistClick}
             />
           )}
         {tab === "series-books" && (
@@ -340,12 +559,35 @@ function AppInner() {
             onBookClick={handleBookClick}
           />
         )}
+        {tab === "faq" && (
+          <FaqPage onBack={() => setTab("browse")} />
+        )}
+        {tab === "privacy" && (
+          <StaticPage
+            pageKey="privacy_policy"
+            titleKey="footer.privacyPolicy"
+            onBack={() => setTab("browse")}
+          />
+        )}
+        {tab === "terms" && (
+          <StaticPage
+            pageKey="terms_of_use"
+            titleKey="footer.termsOfUse"
+            onBack={() => setTab("browse")}
+          />
+        )}
+        {tab === "public-profile" && publicProfileUsername && (
+          <PublicProfilePage
+            username={publicProfileUsername}
+            onBack={() => setTab(prevTab)}
+          />
+        )}
       </main>
 
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <span className="footer-logo">✶ LuxGrimoire ✶</span>
+            <span className="footer-logo">LuxGrimoire</span>
             <span className="footer-tagline">{t("app.tagline")}</span>
           </div>
 
@@ -353,7 +595,7 @@ function AppInner() {
             <div className="footer-col">
               <span className="footer-col-title">{t("footer.discoverTitle")}</span>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.browseEditions")}</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.bookBoxes")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("company-list"); }}>{t("footer.bookBoxes")}</a>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.announcements")}</a>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.luckyDraw")}</a>
             </div>
@@ -363,22 +605,23 @@ function AppInner() {
                 <span className="footer-col-title">{t("footer.accountTitle")}</span>
                 <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("collection"); }}>{t("footer.myCollection")}</a>
                 <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.mySubscriptions")}</a>
-                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("account"); }}>{t("footer.profileSettings")}</a>
+                <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("settings"); }}>{t("footer.profileSettings")}</a>
               </div>
             )}
 
             <div className="footer-col">
               <span className="footer-col-title">{t("footer.helpTitle")}</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.faq")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("faq"); }}>{t("footer.faq")}</a>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.howItWorks")}</a>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.contact")}</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.reportIssue")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setBugReportOpen(true); }}>{t("footer.reportIssue")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setDataRequestOpen(true); }}>{t("footer.requestData")}</a>
             </div>
 
             <div className="footer-col">
               <span className="footer-col-title">{t("footer.legalTitle")}</span>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.privacyPolicy")}</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.termsOfUse")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("privacy"); }}>{t("footer.privacyPolicy")}</a>
+              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setTab("terms"); }}>{t("footer.termsOfUse")}</a>
               <a href="#" className="footer-link" onClick={e => { e.preventDefault(); }}>{t("footer.cookiePolicy")}</a>
             </div>
           </div>
@@ -388,6 +631,18 @@ function AppInner() {
           &copy; {new Date().getFullYear()} LuxGrimoire — {t("app.footer")}
         </div>
       </footer>
+
+      <button
+        className="floating-bug-btn"
+        onClick={() => setBugReportOpen(true)}
+        title={t("report.bugTitle")}
+      >
+        <span className="floating-bug-btn-icon">🐛</span>
+        <span className="floating-bug-btn-text">{t("report.floatingBtnLabel")}</span>
+      </button>
+
+      {bugReportOpen && <BugReportModal onClose={() => setBugReportOpen(false)} />}
+      {dataRequestOpen && <DataRequestModal onClose={() => setDataRequestOpen(false)} />}
     </div>
   );
 }
