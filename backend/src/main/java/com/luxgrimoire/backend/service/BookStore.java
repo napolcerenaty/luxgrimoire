@@ -4,6 +4,7 @@ import com.luxgrimoire.backend.dto.BookDetailResponse;
 import com.luxgrimoire.backend.dto.BookSeriesEntryResponse;
 import com.luxgrimoire.backend.dto.BookSummaryDto;
 import com.luxgrimoire.backend.dto.PageResponse;
+import com.luxgrimoire.backend.dto.RecentEditionDto;
 import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
 import org.springframework.data.domain.Page;
@@ -231,6 +232,22 @@ public class BookStore {
         return bookRepo.findRandomApprovedEditionId()
                 .flatMap(editionId -> editionRepo.findById(editionId))
                 .map(e -> Map.of("bookId", e.getBook().getId(), "editionId", e.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecentEditionDto> findRecentEditions(int size) {
+        return editionRepo.findRecentWithImages(PageRequest.of(0, size)).stream()
+                .map(e -> new RecentEditionDto(
+                        e.getId(),
+                        e.getBook().getId(),
+                        e.getBook().getTitle(),
+                        e.getBook().getAuthor(),
+                        e.getEditionName(),
+                        e.getSubscriptionName(),
+                        e.getBookBoxCompanyId(),
+                        e.getImageUrls()
+                ))
+                .toList();
     }
 
     @Transactional

@@ -69,6 +69,33 @@ function BookCard({ book, onClick }) {
   );
 }
 
+const PLACEHOLDER = "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
+
+function RecentEditionCard({ edition, onClick }) {
+  const images = edition.imageUrls?.map(assetUrl).filter(Boolean) ?? [];
+  const cover = images[0] || PLACEHOLDER;
+  const label = edition.editionName || edition.subscriptionName || null;
+
+  return (
+    <article className="edition-strip-card" onClick={onClick} role="button" tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}>
+      <div className="edition-strip-cover">
+        <img src={cover} alt={`Cover of ${edition.bookTitle}`}
+          onError={(e) => { e.target.src = PLACEHOLDER; }} />
+        {label && <span className="edition-strip-badge">{label}</span>}
+        <div className="edition-strip-overlay">
+          <span className="edition-strip-overlay-icon">🔍</span>
+          <span>Details</span>
+        </div>
+      </div>
+      <div className="edition-strip-info">
+        <p className="edition-strip-title">{edition.bookTitle}</p>
+        <p className="edition-strip-author">{edition.author}</p>
+      </div>
+    </article>
+  );
+}
+
 function SeriesBooksPage({ sourceBookId, onBack, onBookClick }) {
   const { t } = useI18n();
   const [books, setBooks] = useState([]);
@@ -131,7 +158,7 @@ function AppInner() {
   const { t } = useI18n();
   const { user } = useAuth();
   const [tab, setTab] = useState("browse");
-  const [books, setBooks] = useState([]);
+  const [recentEditions, setRecentEditions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState(null);
@@ -244,12 +271,12 @@ function AppInner() {
   };
 
   useEffect(() => {
-    fetch(API.BOOKS + "?page=0&size=100")
+    fetch(API.RECENT_EDITIONS + "?size=9")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         return res.json();
       })
-      .then((data) => { setBooks(data.content ?? data); setLoading(false); })
+      .then((data) => { setRecentEditions(data); setLoading(false); })
       .catch((err) => { setError(err.message); setLoading(false); });
   }, []);
 
@@ -299,7 +326,6 @@ function AppInner() {
           >LuxGrimoire</h1>
           <SearchPanel
             compact
-            books={books}
             onBookClick={handleBookClick}
             onCompanyClick={handleCompanyClick}
             onAuthorClick={handleAuthorClick}
@@ -367,7 +393,6 @@ function AppInner() {
 
       {!isDetailPage && tab !== "admin" && !isLibraryTab && !isCommunityTab && (
         <SearchPanel
-          books={books}
           onBookClick={handleBookClick}
           onCompanyClick={handleCompanyClick}
           onAuthorClick={handleAuthorClick}
@@ -398,12 +423,12 @@ function AppInner() {
           ) : (
             <>
               <RecentAnnouncements onSeeMore={() => navigate("all-announcements", { prevTab: "browse" })} />
-              {books.length > 0 && (
+              {recentEditions.length > 0 && (
                 <>
                   <h2 className="section-title">{t("browse.sectionTitle")}</h2>
-                  <div className="book-grid">
-                    {books.map((book) => (
-                      <BookCard key={book.id} book={book} onClick={handleBookClick} />
+                  <div className="edition-strip">
+                    {recentEditions.map((ed) => (
+                      <RecentEditionCard key={ed.editionId} edition={ed} onClick={() => handleBookClick(ed.bookId)} />
                     ))}
                   </div>
                 </>

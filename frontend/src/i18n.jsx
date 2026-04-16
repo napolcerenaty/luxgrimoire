@@ -63,7 +63,7 @@ const T = {
       loading:       "Ładowanie kolekcji…",
       error:         "⚠ Nie można załadować książek: {msg}",
       errorHint:     "Upewnij się, że backend Spring Boot działa na porcie 8080.",
-      sectionTitle:  "Nasza kolekcja",
+      sectionTitle:  "Ostatnio dodane edycje",
     },
     col: {
       loading:       "Ładowanie kolekcji…",
@@ -807,7 +807,7 @@ const T = {
       loading:       "Loading the collection…",
       error:         "⚠ Could not load books: {msg}",
       errorHint:     "Make sure the Spring Boot backend is running on port 8080.",
-      sectionTitle:  "Our Collection",
+      sectionTitle:  "Recently Added Editions",
     },
     col: {
       loading:       "Loading collection…",
@@ -1547,7 +1547,7 @@ const T = {
       loading:       "Sammlung wird geladen…",
       error:         "⚠ Bücher konnten nicht geladen werden: {msg}",
       errorHint:     "Stellen Sie sicher, dass das Spring Boot Backend auf Port 8080 läuft.",
-      sectionTitle:  "Unsere Sammlung",
+      sectionTitle:  "Zuletzt hinzugefügte Editionen",
     },
     col: {
       loading:       "Sammlung wird geladen…",
@@ -2287,7 +2287,7 @@ const T = {
       loading:       "Chargement de la collection…",
       error:         "⚠ Impossible de charger les livres : {msg}",
       errorHint:     "Assurez-vous que le backend Spring Boot fonctionne sur le port 8080.",
-      sectionTitle:  "Notre collection",
+      sectionTitle:  "Éditions récemment ajoutées",
     },
     col: {
       loading:       "Chargement de la collection…",
@@ -3027,7 +3027,7 @@ const T = {
       loading:       "Cargando la colección…",
       error:         "⚠ No se pudieron cargar los libros: {msg}",
       errorHint:     "Asegúrate de que el backend Spring Boot esté ejecutándose en el puerto 8080.",
-      sectionTitle:  "Nuestra colección",
+      sectionTitle:  "Ediciones añadidas recientemente",
     },
     col: {
       loading:       "Cargando la colección…",

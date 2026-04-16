@@ -3,7 +3,9 @@ package com.luxgrimoire.backend.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +41,10 @@ public class BookEdition {
     private String subscriptionMonthId;
     @Column(name = "collection_id")
     private String collectionId;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT NOW()")
+    private LocalDateTime createdAt;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "book_edition_image", joinColumns = @JoinColumn(name = "edition_id"))
@@ -107,4 +113,5 @@ public class BookEdition {
     public void setSubscriptionMonthId(String subscriptionMonthId) { this.subscriptionMonthId = subscriptionMonthId; }
     public String getCollectionId() { return collectionId; }
     public void setCollectionId(String collectionId) { this.collectionId = collectionId; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

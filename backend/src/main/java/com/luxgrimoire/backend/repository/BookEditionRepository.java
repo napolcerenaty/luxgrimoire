@@ -40,4 +40,7 @@ public interface BookEditionRepository extends JpaRepository<BookEdition, String
 
     @Query("SELECT e FROM BookEdition e JOIN FETCH e.book WHERE e.id = :id")
     Optional<BookEdition> findByIdWithBook(@Param("id") String id);
+
+    @Query("SELECT e FROM BookEdition e JOIN FETCH e.book b WHERE SIZE(e.imageUrls) > 0 AND b.status = 'approved' ORDER BY e.createdAt DESC")
+    List<BookEdition> findRecentWithImages(org.springframework.data.domain.Pageable pageable);
 }

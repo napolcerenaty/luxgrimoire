@@ -4,6 +4,7 @@ import com.luxgrimoire.backend.dto.BookDetailResponse;
 import com.luxgrimoire.backend.dto.BookSummaryDto;
 import com.luxgrimoire.backend.dto.CreateBookRequest;
 import com.luxgrimoire.backend.dto.PageResponse;
+import com.luxgrimoire.backend.dto.RecentEditionDto;
 import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.model.BookEdition;
 import com.luxgrimoire.backend.model.SaleAnnouncement;
@@ -164,6 +165,11 @@ public class BookDetailController {
         return bookStore.findRandomApprovedEdition()
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/recent-editions")
+    public List<RecentEditionDto> getRecentEditions(@RequestParam(defaultValue = "9") int size) {
+        return bookStore.findRecentEditions(Math.min(size, 20));
     }
 
     @GetMapping("/by-title")
