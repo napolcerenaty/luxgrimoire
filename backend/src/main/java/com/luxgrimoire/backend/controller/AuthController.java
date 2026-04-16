@@ -194,7 +194,7 @@ public class AuthController {
             emailService.sendPasswordReset(user.getEmail(), user.getUsername(), rawToken);
         });
 
-        return ResponseEntity.ok(Map.of("message", "Jeśli konto istnieje, wysłaliśmy link resetujący hasło."));
+        return ResponseEntity.ok(Map.of("message", "If the account exists, we have sent a password reset link."));
     }
 
     @PostMapping("/reset-password")
@@ -210,7 +210,7 @@ public class AuthController {
 
         PasswordResetToken prt = resetTokenRepo.findById(token).orElse(null);
         if (prt == null || !prt.isValid())
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token wygasł lub jest nieprawidłowy."));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token has expired or is invalid."));
 
         Optional<AppUser> userOpt = userStore.findByUsername(prt.getUsername());
         if (userOpt.isEmpty())
@@ -223,7 +223,7 @@ public class AuthController {
         prt.setUsed(true);
         resetTokenRepo.save(prt);
 
-        return ResponseEntity.ok(Map.of("message", "Hasło zostało zmienione. Możesz się teraz zalogować."));
+        return ResponseEntity.ok(Map.of("message", "Password has been changed. You can now log in."));
     }
 
     private String generateToken() {

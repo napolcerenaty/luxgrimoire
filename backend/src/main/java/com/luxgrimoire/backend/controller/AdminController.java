@@ -580,8 +580,8 @@ public class AdminController {
         report.setImageUrls(imageUrlsStr);
         reportRepo.save(report);
 
-        notificationService.sendToUser(report.getReporterUsername(), "Zgłoszenie przyjęte",
-            "Twoje zgłoszenie błędu \"" + report.getTitle() + "\" zostało przyjęte. Będziemy Cię informować o zmianach statusu.",
+        notificationService.sendToUser(report.getReporterUsername(), "Report received",
+            "Your bug report \"" + report.getTitle() + "\" has been received. We will keep you updated on any status changes.",
             "system", "system");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(report);
@@ -601,8 +601,8 @@ public class AdminController {
             auditLogService.log(AuthHelper.getUsername(session), "UPDATE", "ErrorReport", id,
                     "Updated bug report \"" + report.getTitle() + "\" → status=" + report.getStatus());
             if (report.getReporterUsername() != null) {
-                notificationService.sendToUser(report.getReporterUsername(), "Aktualizacja zgłoszenia",
-                    "Status Twojego zgłoszenia \"" + report.getTitle() + "\" zmienił się na: " + report.getStatus(),
+                notificationService.sendToUser(report.getReporterUsername(), "Report status updated",
+                    "The status of your report \"" + report.getTitle() + "\" has changed to: " + report.getStatus(),
                     "system", "system");
             }
             return ResponseEntity.ok(report);
@@ -671,8 +671,8 @@ public class AdminController {
                     req.setReporters(String.join(",", reporterList));
                     dataRequestRepo.save(req);
                 }
-                notificationService.sendToUser(username, "Zapotrzebowanie przyjęte",
-                    "Twoje zgłoszenie sprzedaży \"" + title + "\" zostało przyjęte (połączone z istniejącym).",
+                notificationService.sendToUser(username, "Request received",
+                    "Your sale report \"" + title + "\" has been received (merged with an existing request).",
                     "system", "system");
                 return ResponseEntity.status(HttpStatus.CREATED).body(req);
             }
@@ -687,8 +687,8 @@ public class AdminController {
         req.setReporters(username);
         dataRequestRepo.save(req);
 
-        notificationService.sendToUser(req.getRequesterUsername(), "Zapotrzebowanie przyjęte",
-            "Twoje zapotrzebowanie na dane \"" + (req.getTitle() != null ? req.getTitle() : type) + "\" zostało przyjęte.",
+        notificationService.sendToUser(req.getRequesterUsername(), "Request received",
+            "Your data request \"" + (req.getTitle() != null ? req.getTitle() : type) + "\" has been received.",
             "system", "system");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(req);
@@ -716,9 +716,9 @@ public class AdminController {
                       .map(String::trim).filter(s -> !s.isBlank())
                       .forEach(toNotify::add);
             }
-            String msg = "Status Twojego zapotrzebowania \"" + label + "\" zmienił się na: " + req.getStatus();
+            String msg = "The status of your request \"" + label + "\" has changed to: " + req.getStatus();
             for (String recipient : toNotify) {
-                notificationService.sendToUser(recipient, "Aktualizacja zapotrzebowania", msg, "system", "system");
+                notificationService.sendToUser(recipient, "Request status updated", msg, "system", "system");
             }
             return ResponseEntity.ok(req);
         }).orElse(ResponseEntity.notFound().build());
@@ -846,7 +846,7 @@ public class AdminController {
         if (!AuthHelper.isAdmin(session))    return forbidden();
         int days = body.getOrDefault("days", 180);
         if (days < 7 || days > 3650)
-            return ResponseEntity.badRequest().body(Map.of("error", "Retencja musi być między 7 a 3650 dni."));
+            return ResponseEntity.badRequest().body(Map.of("error", "Retention must be between 7 and 3650 days."));
         appSettingService.set("notification.retention.days", String.valueOf(days));
         auditLogService.log(AuthHelper.getUsername(session), "UPDATE", "AppSetting",
                 "notification.retention.days", "Set notification retention to " + days + " days");
@@ -865,16 +865,16 @@ public class AdminController {
         String content = body.get("content");
 
         if (to == null || to.isBlank() || !to.contains("@"))
-            return ResponseEntity.badRequest().body(Map.of("error", "Podaj prawidłowy adres email."));
+            return ResponseEntity.badRequest().body(Map.of("error", "Please provide a valid email address."));
         if (subject == null || subject.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "Tytuł nie może być pusty."));
+            return ResponseEntity.badRequest().body(Map.of("error", "Subject cannot be empty."));
         if (content == null || content.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "Treść nie może być pusta."));
+            return ResponseEntity.badRequest().body(Map.of("error", "Content cannot be empty."));
 
         emailService.sendCustom(to.trim(), subject.trim(), content.trim());
         auditLogService.log(AuthHelper.getUsername(session), "EMAIL", "Email", null,
                 "Sent custom email to " + to.trim() + " — subject: \"" + subject.trim() + "\"");
-        return ResponseEntity.ok(Map.of("ok", true, "message", "Mail wysłany na " + to.trim()));
+        return ResponseEntity.ok(Map.of("ok", true, "message", "Email sent to " + to.trim()));
     }
 
     // ── BookEdition search ────────────────────────────────────────────────────
