@@ -224,6 +224,14 @@ public class BookStore {
         return editionRepo.findBookByEditionId(editionId);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Map<String, String>> findRandomApprovedEdition() {
+        return bookRepo.findRandomApprovedEdition().map(row -> Map.of(
+                "bookId",    (String) row[1],
+                "editionId", (String) row[0]
+        ));
+    }
+
     @Transactional
     public void linkEditionToMonth(BookEdition edition) {
         if (edition.getSubscriptionMonthId() == null || edition.getBookBoxCompanyId() == null) return;

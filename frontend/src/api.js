@@ -28,6 +28,7 @@ export const API = {
   BOOK_SERIES_BOOKS: (bookId) => `${API_BASE}/api/book-details/${bookId}/series-books`,
   BOOK_SERIES_NAMES:  `${API_BASE}/api/book-details/series-names`,
   BOOK_CONTRIBUTIONS: `${API_BASE}/api/book-details/contributions`,
+  BOOK_RANDOM_EDITION:`${API_BASE}/api/book-details/random-edition`,
   BOOK_EDITIONS: (bookId) => `${API_BASE}/api/book-details/${bookId}/editions`,
   BOOK_EDITION: (bookId, editionId) => `${API_BASE}/api/book-details/${bookId}/editions/${editionId}`,
 

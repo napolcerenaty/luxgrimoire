@@ -159,6 +159,13 @@ public class BookDetailController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/random-edition")
+    public ResponseEntity<?> getRandomEdition() {
+        return bookStore.findRandomApprovedEdition()
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/by-title")
     public ResponseEntity<Book> getByTitle(@RequestParam String title) {
         return bookStore.findByTitle(title)

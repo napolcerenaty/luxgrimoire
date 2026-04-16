@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./i18n";
-import { assetUrl } from "./api";
+import { assetUrl, API } from "./api";
 import "./SearchPanel.css";
 
 function useDebounce(value, delay) {
@@ -88,10 +88,9 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
   };
 
   const handleLuckyDraw = () => {
-    const bookList = books || [];
-    if (bookList.length === 0) return;
-    const pick = bookList[Math.floor(Math.random() * bookList.length)];
-    onBookClick(pick.id);
+    fetch(API.BOOK_RANDOM_EDITION, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.bookId) onBookClick(data.bookId); });
   };
 
   const handleKeyDown = (e) => {
