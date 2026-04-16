@@ -34,6 +34,7 @@ export const API = {
 
   // Companies
   COMPANIES:            `${API_BASE}/api/companies`,
+  COMPANIES_SUMMARY:    `${API_BASE}/api/companies/summary`,
   COMPANY: (id)      => `${API_BASE}/api/companies/${id}`,
 
   // Authors / Artists

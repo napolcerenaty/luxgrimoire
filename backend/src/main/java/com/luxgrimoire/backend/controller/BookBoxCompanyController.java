@@ -1,5 +1,6 @@
 package com.luxgrimoire.backend.controller;
 
+import com.luxgrimoire.backend.dto.CompanySummaryDto;
 import com.luxgrimoire.backend.model.BookBoxCollection;
 import com.luxgrimoire.backend.model.BookBoxCompany;
 import com.luxgrimoire.backend.repository.BookBoxCollectionRepository;
@@ -30,6 +31,11 @@ public class BookBoxCompanyController {
         this.store             = store;
         this.deletionLogService = deletionLogService;
         this.collectionRepo    = collectionRepo;
+    }
+
+    @GetMapping("/summary")
+    public List<CompanySummaryDto> getAllSummary() {
+        return store.findAllSummaries();
     }
 
     @GetMapping

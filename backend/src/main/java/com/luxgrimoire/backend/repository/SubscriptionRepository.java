@@ -1,5 +1,6 @@
 package com.luxgrimoire.backend.repository;
 
+import com.luxgrimoire.backend.dto.SubscriptionSummaryDto;
 import com.luxgrimoire.backend.model.Subscription;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,4 +21,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
 
     @Query("SELECT DISTINCT g FROM Subscription s JOIN s.genres g ORDER BY g")
     List<String> findAllDistinctGenres();
+
+    @Query(value = "SELECT g.subscription_id, g.genre FROM subscription_genre g", nativeQuery = true)
+    List<Object[]> findAllSubscriptionGenreRows();
+
+    @Query("SELECT new com.luxgrimoire.backend.dto.SubscriptionSummaryDto(" +
+           "s.id, s.name, s.logoUrl, s.renewalDay, s.parentSubscriptionId, s.basePrice, s.type, c.id) " +
+           "FROM Subscription s JOIN s.company c")
+    List<SubscriptionSummaryDto> findAllSummaries();
 }

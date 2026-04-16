@@ -1,5 +1,7 @@
 package com.luxgrimoire.backend.service;
 
+import com.luxgrimoire.backend.dto.CompanySummaryDto;
+import com.luxgrimoire.backend.dto.SubscriptionSummaryDto;
 import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -92,6 +94,42 @@ public class BookBoxCompanyStore {
     @Transactional(readOnly = true)
     public List<BookBoxCompany> findAll() {
         return companyRepo.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CompanySummaryDto> findAllSummaries() {
+        // Fetch company basics (id, name, logoUrl) without triggering eager associations
+        List<Object[]> companyRows = companyRepo.findAllCompanySummaryRows();
+        Map<String, CompanySummaryDto> companyMap = new LinkedHashMap<>();
+        for (Object[] row : companyRows) {
+            String id      = (String) row[0];
+            String name    = (String) row[1];
+            String logoUrl = (String) row[2];
+            companyMap.put(id, new CompanySummaryDto(id, name, logoUrl, new ArrayList<>()));
+        }
+
+        // Fetch subscription summaries (no months, no books)
+        List<SubscriptionSummaryDto> subSummaries = subscriptionRepo.findAllSummaries();
+
+        // Fetch genres per subscription
+        List<Object[]> genreRows = subscriptionRepo.findAllSubscriptionGenreRows();
+        Map<String, List<String>> genresBySubId = new HashMap<>();
+        for (Object[] row : genreRows) {
+            String subId = (String) row[0];
+            String genre = (String) row[1];
+            genresBySubId.computeIfAbsent(subId, k -> new ArrayList<>()).add(genre);
+        }
+
+        // Assemble subscriptions with genres into company summaries
+        for (SubscriptionSummaryDto sub : subSummaries) {
+            sub.setGenres(genresBySubId.getOrDefault(sub.getId(), List.of()));
+            CompanySummaryDto company = companyMap.get(sub.getCompanyId());
+            if (company != null) {
+                company.getSubscriptions().add(sub);
+            }
+        }
+
+        return new ArrayList<>(companyMap.values());
     }
 
     @Transactional(readOnly = true)

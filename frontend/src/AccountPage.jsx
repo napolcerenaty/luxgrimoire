@@ -118,7 +118,7 @@ export function CalendarSection() {
     if (!user) { setCalSubs([]); setCalSales([]); return; }
     Promise.all([
       fetch(API.USER_SUBSCRIPTIONS, { credentials: "include" }).then(r => r.ok ? r.json() : []),
-      fetch(API.COMPANIES,          { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch(API.COMPANIES_SUMMARY,          { credentials: "include" }).then(r => r.ok ? r.json() : []),
       fetch(API.USER_SALES_UPCOMING,{ credentials: "include" }).then(r => r.ok ? r.json() : []),
     ]).then(([entries, companies, sales]) => {
       const resolved = entries
@@ -578,7 +578,7 @@ export function BookListSection({ flag, onBookClick }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(API.COMPANIES, { credentials: "include" })
+    fetch(API.COMPANIES_SUMMARY, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
   }, []);
 
@@ -1071,7 +1071,7 @@ export function SubscriptionsSection() {
     if (!user) return;
     fetch(API.USER_SUBSCRIPTIONS, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setUserSubs).catch(() => {});
-    fetch(API.COMPANIES, { credentials: "include" })
+    fetch(API.COMPANIES_SUMMARY, { credentials: "include" })
       .then((r) => r.ok ? r.json() : []).then(setCompanies).catch(() => {});
   }, [user]);
 

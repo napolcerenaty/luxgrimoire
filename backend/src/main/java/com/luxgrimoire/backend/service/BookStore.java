@@ -24,12 +24,14 @@ public class BookStore {
     private final BookRepository bookRepo;
     private final BookEditionRepository editionRepo;
     private final BookBoxCompanyStore companyStore;
+    private final SubscriptionMonthRepository monthRepo;
 
     public BookStore(BookRepository bookRepo, BookEditionRepository editionRepo,
-                     BookBoxCompanyStore companyStore) {
+                     BookBoxCompanyStore companyStore, SubscriptionMonthRepository monthRepo) {
         this.bookRepo = bookRepo;
         this.editionRepo = editionRepo;
         this.companyStore = companyStore;
+        this.monthRepo = monthRepo;
     }
 
     @Transactional(readOnly = true)
@@ -247,14 +249,7 @@ public class BookStore {
 
     @Transactional
     public void unlinkBookFromMonth(String monthId) {
-        companyStore.findAll().forEach(company ->
-            company.getSubscriptions().forEach(sub ->
-                sub.getMonths().stream()
-                    .filter(m -> monthId.equals(m.getId()))
-                    .findFirst()
-                    .ifPresent(m -> m.setBookId(null))
-            )
-        );
+        monthRepo.unlinkBook(monthId);
     }
 
     private void refreshCoverUrl(Book book) {
