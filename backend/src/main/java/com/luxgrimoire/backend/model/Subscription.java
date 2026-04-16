@@ -56,6 +56,9 @@ public class Subscription {
     @Column(name = "is_combo")
     private boolean isCombo = false;
 
+    @Column(name = "parent_subscription_id")
+    private String parentSubscriptionId;
+
     @Column(name = "renewal_day")
     private Integer renewalDay;
 
@@ -147,6 +150,8 @@ public class Subscription {
     public void setDescription(String description) { this.description = description; }
     public boolean isCombo() { return isCombo; }
     public void setCombo(boolean combo) { isCombo = combo; }
+    public String getParentSubscriptionId() { return parentSubscriptionId; }
+    public void setParentSubscriptionId(String parentSubscriptionId) { this.parentSubscriptionId = parentSubscriptionId; }
     public Integer getRenewalDay() { return renewalDay; }
     public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
     public boolean isRenewalDayUserSet() { return renewalDayUserSet; }

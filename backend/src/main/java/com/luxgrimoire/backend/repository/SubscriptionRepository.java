@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, String> {
     List<Subscription> findByCompanyId(String companyId);
+    List<Subscription> findByParentSubscriptionId(String parentId);
 
     @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.company WHERE LOWER(s.name) LIKE :q")
     List<Subscription> searchByNamePattern(@Param("q") String pattern);

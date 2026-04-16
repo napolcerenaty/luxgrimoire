@@ -559,6 +559,7 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     skipCount:            s.skipCount != null ? String(s.skipCount) : "",
     maxConsecutiveSkips:  s.maxConsecutiveSkips != null ? String(s.maxConsecutiveSkips) : "",
     skipPolicyNotes:      s.skipPolicyNotes || "",
+    parentSubscriptionId: s.parentSubscriptionId || "",
     prepayOptions:        (s.prepayOptions ?? []).map(o => ({
       months: String(o.months), price: String(o.price), label: o.label || ""
     })),
@@ -568,7 +569,7 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
     isCombo: false, comboComponentIds: [], shipsInternationally: true, bookishMerch: false,
     genresList: [], description: "", defaultLanguage: "", skipPolicyType: "UNLIMITED",
     skipResetType: "SUBSCRIPTION_START", skipCount: "", maxConsecutiveSkips: "",
-    skipPolicyNotes: "", prepayOptions: [],
+    skipPolicyNotes: "", parentSubscriptionId: "", prepayOptions: [],
   };
 
   const [form, setForm]               = useState(() => subToForm(sub));
@@ -625,6 +626,7 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
       skipCount:            form.skipPolicyType === "LIMITED" && form.skipCount ? parseInt(form.skipCount) : null,
       maxConsecutiveSkips:  form.skipPolicyType === "LIMITED" && form.maxConsecutiveSkips ? parseInt(form.maxConsecutiveSkips) : null,
       skipPolicyNotes:      form.skipPolicyNotes || null,
+      parentSubscriptionId: form.parentSubscriptionId || null,
       prepayOptions:        form.prepayOptions
         .filter(o => o.months && o.price)
         .map(o => ({ months: parseInt(o.months), price: parseFloat(o.price), label: o.label || null })),
@@ -656,27 +658,55 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
   };
 
   const nonComboCandidates = siblingSubs.filter(s => !s.isCombo && s.id !== sub?.id);
+  // Variant parent candidates: subs from same company without a parentSubscriptionId (not already variants), not this sub
+  const variantParentCandidates = siblingSubs.filter(s => !s.parentSubscriptionId && s.id !== sub?.id && !s.isCombo);
+  const isVariant = Boolean(form.parentSubscriptionId);
 
   return (
     <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="admin-modal-box" style={{ maxWidth: 700, maxHeight: "90vh", overflowY: "auto" }}>
         <div className="admin-modal-header">
-          <h3>{isCreate ? "+ Nowa subskrypcja" : "Edytuj subskrypcję"}</h3>
+          <h3>{isCreate ? "+ New subscription" : "Edit subscription"}</h3>
           <button className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSave} style={{ padding: "0 1.25rem 1.25rem" }}>
 
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginBottom: "0.5rem" }}>
             <label className="admin-form-check" style={{ fontSize: "0.97rem" }}>
-              <input type="checkbox" checked={form.isCombo} onChange={toggle("isCombo")} />
-              <strong>Subskrypcja Combo</strong>
+              <input type="checkbox" checked={form.isCombo} onChange={toggle("isCombo")}
+                disabled={isVariant} />
+              <strong>Combo subscription</strong>
+            </label>
+            <label className="admin-form-check" style={{ fontSize: "0.97rem" }}>
+              <input type="checkbox"
+                checked={isVariant}
+                onChange={() => setForm(prev => ({ ...prev, parentSubscriptionId: prev.parentSubscriptionId ? "" : (variantParentCandidates[0]?.id || "") }))} />
+              <strong>Variant of another subscription</strong>
             </label>
           </div>
+
+          {isVariant && (
+            <div className="admin-skip-policy" style={{ marginBottom: "0.75rem", borderColor: "var(--accent)" }}>
+              <div className="admin-form-row">
+                <label className="admin-form-label">Parent subscription (months will be shared)</label>
+                <select className="admin-form-select" value={form.parentSubscriptionId}
+                  onChange={e => setForm(prev => ({ ...prev, parentSubscriptionId: e.target.value }))}>
+                  <option value="">— select —</option>
+                  {variantParentCandidates.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                This subscription shares months/themes with the parent. Set a different name and price for this variant.
+              </p>
+            </div>
+          )}
 
           {form.isCombo && nonComboCandidates.length > 0 && (
             <div className="admin-skip-policy" style={{ marginBottom: "0.75rem" }}>
               <div className="admin-form-label" style={{ marginBottom: "0.4rem" }}>
-                Składowe combo ({form.comboComponentIds.length} wybrano)
+                Combo components ({form.comboComponentIds.length} selected)
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                 {nonComboCandidates.map(s => (
@@ -693,27 +723,27 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
 
           <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
             <div className="admin-form-row" style={{ flex: 2, minWidth: 180 }}>
-              <label className="admin-form-label">Nazwa *</label>
+              <label className="admin-form-label">Name *</label>
               <input className="admin-form-input" value={form.name} onChange={set("name")} required />
             </div>
-            {!form.isCombo && (
+            {!form.isCombo && !isVariant && (
               <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
-                <label className="admin-form-label">Typ</label>
+                <label className="admin-form-label">Type</label>
                 <select className="admin-form-select" value={form.type} onChange={set("type")}>
                   {SUB_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
             )}
             <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
-              <label className="admin-form-label">Cena bazowa</label>
+              <label className="admin-form-label">Base price</label>
               <input type="number" step="0.01" min="0" className="admin-form-input"
                 value={form.basePrice} onChange={set("basePrice")} placeholder="0.00" />
             </div>
             <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
-              <label className="admin-form-label">Dzień odnowy</label>
+              <label className="admin-form-label">Renewal day</label>
               {form.renewalDayUserSet ? (
                 <span style={{ fontSize: "0.85rem", color: "var(--text-ghost)", padding: "0.35rem 0" }}>
-                  Ustawia użytkownik
+                  Set by user
                 </span>
               ) : (
                 <input type="number" min="1" max="31" className="admin-form-input"
@@ -722,10 +752,10 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
               <label className="admin-form-check" style={{ marginTop: "0.3rem", fontSize: "0.82rem" }}>
                 <input type="checkbox" checked={form.renewalDayUserSet}
                   onChange={() => setForm(prev => ({ ...prev, renewalDayUserSet: !prev.renewalDayUserSet, renewalDay: "" }))} />
-                Ustawi użytkownik
+                Set by user
               </label>
             </div>
-            {(form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && (
+            {!isVariant && (form.type === "BI_MONTHLY" || form.type === "QUARTERLY") && (
               <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
                 <label className="admin-form-label">Miesiąc startowy cyklu</label>
                 <select className="admin-form-select" value={form.startingMonth} onChange={set("startingMonth")}>
@@ -737,16 +767,16 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
               </div>
             )}
           </div>
-          {!form.isCombo && (
+          {!form.isCombo && !isVariant && (
             <>
               <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.25rem" }}>
                 <label className="admin-form-check">
                   <input type="checkbox" checked={form.shipsInternationally} onChange={toggle("shipsInternationally")} />
-                  Wysyłka int'l
+                  International shipping
                 </label>
                 <label className="admin-form-check">
                   <input type="checkbox" checked={form.bookishMerch} onChange={toggle("bookishMerch")} />
-                  Merch
+                  Bookish merch
                 </label>
               </div>
               <GenreTagPicker
@@ -757,31 +787,35 @@ function SubscriptionEditModal({ sub, companyId, siblingSubs = [], onClose, onSa
           )}
 
           <div className="admin-form-row">
-            <label className="admin-form-label">Opis subskrypcji</label>
+            <label className="admin-form-label">Description</label>
             <textarea className="admin-form-textarea" rows={3}
               value={form.description} onChange={set("description")}
-              placeholder="Krótki opis subskrypcji widoczny dla użytkowników…" />
+              placeholder="Short description visible to users…" />
           </div>
 
-          <div className="admin-form-row" style={{ maxWidth: 240 }}>
-            <label className="admin-form-label">Domyślny język książek</label>
-            <select className="admin-form-select" value={form.defaultLanguage} onChange={set("defaultLanguage")}>
-              {BOOK_LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-          </div>
+          {!isVariant && (
+            <div className="admin-form-row" style={{ maxWidth: 240 }}>
+              <label className="admin-form-label">Default book language</label>
+              <select className="admin-form-select" value={form.defaultLanguage} onChange={set("defaultLanguage")}>
+                {BOOK_LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </select>
+            </div>
+          )}
 
-          <ImageUpload label="Logo subskrypcji" currentUrl={logoPreview} onChange={handleLogoChange} />
+          <ImageUpload label="Subscription logo" currentUrl={logoPreview} onChange={handleLogoChange} />
 
-          <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />
+          {!isVariant && <SkipPolicyEditor value={form} onChange={v => setForm(prev => ({ ...prev, ...v }))} />}
 
-          <PrepayOptionsEditor
-            value={form.prepayOptions}
-            onChange={opts => setForm(prev => ({ ...prev, prepayOptions: opts }))} />
+          {!isVariant && (
+            <PrepayOptionsEditor
+              value={form.prepayOptions}
+              onChange={opts => setForm(prev => ({ ...prev, prepayOptions: opts }))} />
+          )}
 
           <div className="admin-form-btns" style={{ marginTop: "0.75rem" }}>
-            <button type="button" className="admin-btn admin-btn--ghost" onClick={onClose}>Anuluj</button>
+            <button type="button" className="admin-btn admin-btn--ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="admin-btn admin-btn--primary" disabled={saving}>
-              {saving ? "Zapisywanie…" : "Zapisz zmiany"}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
@@ -1478,10 +1512,14 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr><th>Nazwa</th><th>Typ</th><th>Cena</th><th>Dzień odnowy</th><th>Skip Policy</th><th></th></tr>
+                <tr><th>Name</th><th>Type</th><th>Price</th><th>Renewal day</th><th>Skip Policy</th><th></th></tr>
               </thead>
               <tbody>
-                {company.subscriptions.map(sub => (
+                {company.subscriptions.map(sub => {
+                  const parentSub = sub.parentSubscriptionId
+                    ? company.subscriptions.find(s => s.id === sub.parentSubscriptionId)
+                    : null;
+                  return (
                   <>
                     <tr key={sub.id}
                       className={`admin-table-row-clickable${selectedSub?.id === sub.id ? " admin-table-row-selected" : ""}`}
@@ -1489,6 +1527,11 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                       <td>
                         <strong>{sub.name}</strong>
                         {sub.isCombo && <span className="admin-combo-badge" style={{ marginLeft: "0.5rem" }}>COMBO</span>}
+                        {parentSub && (
+                          <span className="admin-combo-badge" style={{ marginLeft: "0.5rem", background: "var(--accent-soft, #e8d5f5)", color: "var(--accent)" }}>
+                            VARIANT
+                          </span>
+                        )}
                         {sub.isCombo && sub.comboComponentIds?.length > 0 && (
                           <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginTop: "0.2rem" }}>
                             {sub.comboComponentIds
@@ -1497,20 +1540,25 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                               .join(" + ")}
                           </div>
                         )}
+                        {parentSub && (
+                          <div style={{ fontSize: "0.82rem", color: "var(--text-ghost)", marginTop: "0.2rem" }}>
+                            ↳ months from: {parentSub.name}
+                          </div>
+                        )}
                       </td>
-                      <td>{sub.isCombo ? "COMBO" : (sub.type || "—")}</td>
+                      <td>{sub.isCombo ? "COMBO" : parentSub ? `${parentSub.type || "—"} (inherited)` : (sub.type || "—")}</td>
                       <td>{sub.basePrice != null ? `${sub.basePrice} ${company.defaultCurrency || ""}` : "—"}</td>
-                      <td>{sub.renewalDayUserSet ? "👤 ustawi użytkownik" : (sub.renewalDay ?? "—")}</td>
+                      <td>{sub.renewalDayUserSet ? "👤 set by user" : (sub.renewalDay ?? "—")}</td>
                       <td>
                         {sub.skipPolicyType === "NONE"
-                          ? "Brak skipów"
+                          ? "No skips"
                           : sub.skipPolicyType === "LIMITED"
-                          ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "rok kalen." : "od startu"} · ${sub.skipCount ?? "?"} skip${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} z rzędu` : ""}`
-                          : "Nielimitowana"}
+                          ? `Limited · reset: ${sub.skipResetType === "CALENDAR_YEAR" ? "calendar year" : "from start"} · ${sub.skipCount ?? "?"} skips${sub.maxConsecutiveSkips != null ? ` · max ${sub.maxConsecutiveSkips} consecutive` : ""}`
+                          : "Unlimited"}
                         {sub.skipPolicyNotes && <><br /><small style={{ color: "var(--text-ghost)" }}>{sub.skipPolicyNotes}</small></>}
                       </td>
                       <td>
-                        <button className="admin-action-btn" title="Edytuj"
+                        <button className="admin-action-btn" title="Edit"
                           onClick={e => { e.stopPropagation(); setEditingSub(sub); }}>✎</button>
                       </td>
                     </tr>
@@ -1539,7 +1587,13 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                                 <button className="admin-btn admin-btn--secondary admin-btn--sm"
                                   onClick={() => setEditingSub(sub)}>{t("admin.editSubscription")}</button>
                               </div>
-                              <SubMonthsManager sub={sub} companyId={company.id} />
+                              {parentSub ? (
+                                <div style={{ marginTop: "0.75rem", padding: "0.6rem 0.8rem", background: "var(--bg-subtle)", borderRadius: "6px", fontSize: "0.88rem", color: "var(--text-muted)" }}>
+                                  📅 Months are shared from <strong>{parentSub.name}</strong>. Manage months there.
+                                </div>
+                              ) : (
+                                <SubMonthsManager sub={sub} companyId={company.id} />
+                              )}
                               <ImportSourcesPanel companyId={company.id} subscriptionId={sub.id} />
                             </div>
                           </div>
@@ -1547,7 +1601,8 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                       </tr>
                     )}
                   </>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -63,6 +63,14 @@ export default function SubscriptionDetailPage({ companyId, subscriptionId, onBa
         const found = (data.subscriptions || []).find(
           (s) => (typeof s === "object" ? s.id : null) === subscriptionId
         );
+        // If this subscription is a variant, inject the parent's months
+        if (found && found.parentSubscriptionId) {
+          const parent = (data.subscriptions || []).find(s => s.id === found.parentSubscriptionId);
+          if (parent) {
+            found._resolvedMonths = parent.months;
+            found._parentName = parent.name;
+          }
+        }
         setSub(found || null);
         setLoading(false);
       })
@@ -83,10 +91,11 @@ export default function SubscriptionDetailPage({ companyId, subscriptionId, onBa
   }, [user, subscriptionId, companyId]);
 
   useEffect(() => {
-    if (!sub?.months) return;
+    const effectiveMonths = sub?._resolvedMonths ?? sub?.months;
+    if (!effectiveMonths) return;
     // Collect all unique bookIds from both legacy bookId and new books array
     const bookIdSet = new Set();
-    sub.months.forEach((m) => {
+    effectiveMonths.forEach((m) => {
       if (m.bookId) bookIdSet.add(m.bookId);
       if (Array.isArray(m.books)) m.books.forEach(b => { if (b.bookId) bookIdSet.add(b.bookId); });
     });
@@ -158,6 +167,7 @@ export default function SubscriptionDetailPage({ companyId, subscriptionId, onBa
 
   const logoUrl = resolveLogoUrl(sub.logoUrl || company.logoUrl);
   const locale = LOCALE_MAP[lang] || "pl-PL";
+  const effectiveMonths = sub._resolvedMonths ?? sub.months ?? [];
   const getMonthName = (monthNum) => {
     try {
       return new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, monthNum - 1, 1));
@@ -360,11 +370,16 @@ export default function SubscriptionDetailPage({ companyId, subscriptionId, onBa
       </div>
 
       {/* Month themes */}
-      {sub.months?.length > 0 && (
+      {effectiveMonths.length > 0 && (
         <div className="sub-detail-months-section">
-          <h2 className="section-title">Motywy miesięcy</h2>
+          <h2 className="section-title">{t("company.monthThemes") || "Monthly themes"}</h2>
+          {sub._parentName && (
+            <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+              📅 Months shared with <strong>{sub._parentName}</strong>
+            </p>
+          )}
           <div className="sub-detail-months-grid">
-            {[...sub.months].sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month).map((mo, idx) => {
+            {[...effectiveMonths].sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month).map((mo, idx) => {
               const moName = getMonthName(mo.month);
 
               // Collect all books for this month (multi-book or legacy)
