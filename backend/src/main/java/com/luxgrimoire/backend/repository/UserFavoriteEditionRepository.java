@@ -11,4 +11,6 @@ public interface UserFavoriteEditionRepository extends JpaRepository<UserFavorit
     Optional<UserFavoriteEdition> findByUsernameAndEditionId(String username, String editionId);
     boolean existsByUsernameAndEditionId(String username, String editionId);
     void deleteByUsernameAndEditionId(String username, String editionId);
+    long countByEditionId(String editionId);
+    List<UserFavoriteEdition> findByEditionIdAndNotifyTrue(String editionId);
 }

@@ -37,6 +37,11 @@ public class BookBoxCompany {
     @Column(name = "username")
     private List<String> managerUsernames = new ArrayList<>();
 
+    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference("company-collections")
+    @BatchSize(size = 30)
+    private List<BookBoxCollection> collections = new ArrayList<>();
+
     public BookBoxCompany() {}
 
     public BookBoxCompany(String id, String name, String logoUrl, String websiteUrl,
@@ -83,4 +88,6 @@ public class BookBoxCompany {
     public void setSubscriptions(List<Subscription> subscriptions) { this.subscriptions = subscriptions != null ? subscriptions : new ArrayList<>(); }
     public List<String> getManagerUsernames() { return managerUsernames; }
     public void setManagerUsernames(List<String> managerUsernames) { this.managerUsernames = managerUsernames != null ? managerUsernames : new ArrayList<>(); }
+    public List<BookBoxCollection> getCollections() { return collections; }
+    public void setCollections(List<BookBoxCollection> collections) { this.collections = collections != null ? collections : new ArrayList<>(); }
 }

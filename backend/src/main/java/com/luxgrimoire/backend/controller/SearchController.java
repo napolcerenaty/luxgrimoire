@@ -2,10 +2,13 @@ package com.luxgrimoire.backend.controller;
 
 import com.luxgrimoire.backend.model.*;
 import com.luxgrimoire.backend.repository.*;
+import com.luxgrimoire.backend.util.AppConstants;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,22 +23,37 @@ public class SearchController {
     private final ArtistRepository artistRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final BookBoxCompanyRepository companyRepository;
+    private final BookEditionRepository editionRepository;
+    private final SaleAnnouncementRepository saleRepository;
+    private final SaleAnnouncementEditionRepository saleEditionRepository;
+    private final UserBookEntryRepository userBookEntryRepository;
 
     public SearchController(BookRepository bookRepository, AuthorRepository authorRepository,
                             ArtistRepository artistRepository, SubscriptionRepository subscriptionRepository,
-                            BookBoxCompanyRepository companyRepository) {
+                            BookBoxCompanyRepository companyRepository, BookEditionRepository editionRepository,
+                            SaleAnnouncementRepository saleRepository,
+                            SaleAnnouncementEditionRepository saleEditionRepository,
+                            UserBookEntryRepository userBookEntryRepository) {
         this.bookRepository = bookRepository;
         this.authorRepository = authorRepository;
         this.artistRepository = artistRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.companyRepository = companyRepository;
+        this.editionRepository = editionRepository;
+        this.saleRepository = saleRepository;
+        this.saleEditionRepository = saleEditionRepository;
+        this.userBookEntryRepository = userBookEntryRepository;
     }
 
     @GetMapping
     @Transactional(readOnly = true)
     public Map<String, Object> search(
             @RequestParam(required = false, defaultValue = "") String q,
-            @RequestParam(required = false, defaultValue = "all") String filter) {
+            @RequestParam(required = false, defaultValue = "all") String filter,
+            @RequestParam(required = false) String editionCompanyId,
+            HttpSession session) {
+
+        String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
 
         Map<String, Object> result = new LinkedHashMap<>();
 
@@ -77,6 +95,7 @@ public class SearchController {
                 item.put("author", book.getAuthor());
                 item.put("authorId", book.getAuthorId());
                 item.put("seriesName", book.getSeriesName());
+                item.put("volumeNumber", book.getVolumeNumber());
                 item.put("coverUrl", book.getCoverUrl());
 
                 String companyId = null;
@@ -196,6 +215,50 @@ public class SearchController {
             result.put("companies", companyResults);
         } else {
             result.put("companies", List.of());
+        }
+
+        // ── Editions ───────────────────────────────────────────────────────
+        if (all || "edition".equals(filter) || "editions".equals(filter)) {
+            List<BookEdition> editions = (editionCompanyId != null && !editionCompanyId.isBlank())
+                    ? editionRepository.searchByCompanyAndText(editionCompanyId, q.trim(), PageRequest.of(0, RESULTS_LIMIT))
+                    : editionRepository.searchByText(q.trim(), PageRequest.of(0, RESULTS_LIMIT));
+
+            // Hide editions linked to future sales unless the user already owns them
+            String today = LocalDate.now().toString();
+            Set<String> futureSaleEditionIds = saleRepository
+                    .findByGeneralSaleDateGreaterThanEqualOrderByGeneralSaleDateAsc(today)
+                    .stream()
+                    .flatMap(s -> saleEditionRepository.findByEditionId(s.getId()).stream())
+                    .map(SaleAnnouncementEdition::getEditionId)
+                    .collect(Collectors.toSet());
+
+            Set<String> ownedEditionIds = new HashSet<>();
+            if (username != null && !futureSaleEditionIds.isEmpty()) {
+                userBookEntryRepository.findByUserUsername(username).stream()
+                        .map(UserBookEntry::getEditionId)
+                        .filter(Objects::nonNull)
+                        .forEach(ownedEditionIds::add);
+            }
+
+            final Set<String> finalFutureSaleEditionIds = futureSaleEditionIds;
+            final Set<String> finalOwnedEditionIds = ownedEditionIds;
+            editions = editions.stream()
+                    .filter(e -> !finalFutureSaleEditionIds.contains(e.getId())
+                              || finalOwnedEditionIds.contains(e.getId()))
+                    .collect(Collectors.toList());
+
+            List<Map<String, Object>> editionResults = new ArrayList<>();
+            for (BookEdition e : editions) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", e.getId());
+                item.put("editionName", e.getEditionName());
+                item.put("bookTitle", e.getBook() != null ? e.getBook().getTitle() : null);
+                item.put("bookId", e.getBook() != null ? e.getBook().getId() : null);
+                editionResults.add(item);
+            }
+            result.put("editions", editionResults);
+        } else {
+            result.put("editions", List.of());
         }
 
         return result;

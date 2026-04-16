@@ -104,6 +104,11 @@ public class BookBoxCompanyStore {
         if (c.getId() == null || c.getId().isBlank()) {
             c.setId(UUID.randomUUID().toString());
         }
+        if (c.getSubscriptions() != null) {
+            for (Subscription s : c.getSubscriptions()) {
+                s.setCompany(c);
+            }
+        }
         return companyRepo.save(c);
     }
 
@@ -139,7 +144,9 @@ public class BookBoxCompanyStore {
     @Transactional
     public Optional<BookBoxCompany> updateMetadata(String id, String name, String logoUrl,
                                                    String websiteUrl, String description,
-                                                   String location, String defaultCurrency) {
+                                                   String location, String defaultCurrency,
+                                                   String instagram, String threads, String tiktok,
+                                                   String facebook, String x, String bluesky) {
         return companyRepo.findById(id).map(existing -> {
             if (name != null)            existing.setName(name);
             if (logoUrl != null)         existing.setLogoUrl(logoUrl);
@@ -147,6 +154,12 @@ public class BookBoxCompanyStore {
             if (description != null)     existing.setDescription(description);
             if (location != null)        existing.setLocation(location);
             if (defaultCurrency != null) existing.setDefaultCurrency(defaultCurrency);
+            existing.setInstagram(instagram);
+            existing.setThreads(threads);
+            existing.setTiktok(tiktok);
+            existing.setFacebook(facebook);
+            existing.setX(x);
+            existing.setBluesky(bluesky);
             return companyRepo.save(existing);
         });
     }

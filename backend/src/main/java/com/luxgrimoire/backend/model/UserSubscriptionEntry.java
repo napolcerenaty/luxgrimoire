@@ -45,7 +45,13 @@ public class UserSubscriptionEntry {
     @Column(name = "renewal_day")
     private Integer renewalDay;
 
-    @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Column(name = "cancellation_date")
+    private String cancellationDate;
+
+    @Column(name = "first_skip_date")
+    private Instant firstSkipDate;
+
+    @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference("entry-billing-periods")
     @BatchSize(size = 50)
     private List<UserSubBillingPeriod> billingPeriods = new ArrayList<>();
@@ -81,6 +87,10 @@ public class UserSubscriptionEntry {
     public void setActive(boolean active) { this.active = active; }
     public Integer getRenewalDay() { return renewalDay; }
     public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
+    public String getCancellationDate() { return cancellationDate; }
+    public void setCancellationDate(String cancellationDate) { this.cancellationDate = cancellationDate; }
+    public Instant getFirstSkipDate() { return firstSkipDate; }
+    public void setFirstSkipDate(Instant firstSkipDate) { this.firstSkipDate = firstSkipDate; }
     public List<UserSubBillingPeriod> getBillingPeriods() { return billingPeriods; }
     public void setBillingPeriods(List<UserSubBillingPeriod> billingPeriods) { this.billingPeriods = billingPeriods != null ? billingPeriods : new ArrayList<>(); }
 }

@@ -21,6 +21,8 @@ public class UserFavoriteAuthor {
     @Column(nullable = false)
     private String authorId;
 
+    private boolean notify = true;
+
     private Instant addedAt;
 
     public UserFavoriteAuthor() {
@@ -33,5 +35,7 @@ public class UserFavoriteAuthor {
     public void setUsername(String username) { this.username = username; }
     public String getAuthorId() { return authorId; }
     public void setAuthorId(String authorId) { this.authorId = authorId; }
+    public boolean isNotify() { return notify; }
+    public void setNotify(boolean notify) { this.notify = notify; }
     public Instant getAddedAt() { return addedAt; }
 }

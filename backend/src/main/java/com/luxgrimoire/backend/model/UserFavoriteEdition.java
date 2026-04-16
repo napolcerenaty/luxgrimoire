@@ -21,6 +21,8 @@ public class UserFavoriteEdition {
     @Column(nullable = false)
     private String editionId;
 
+    private boolean notify = true;
+
     private Instant addedAt;
 
     public UserFavoriteEdition() {
@@ -33,5 +35,7 @@ public class UserFavoriteEdition {
     public void setUsername(String username) { this.username = username; }
     public String getEditionId() { return editionId; }
     public void setEditionId(String editionId) { this.editionId = editionId; }
+    public boolean isNotify() { return notify; }
+    public void setNotify(boolean notify) { this.notify = notify; }
     public Instant getAddedAt() { return addedAt; }
 }

@@ -5,6 +5,7 @@ import com.luxgrimoire.backend.model.UserBookEntry;
 import com.luxgrimoire.backend.repository.AppUserRepository;
 import com.luxgrimoire.backend.repository.UserBookEntryRepository;
 import com.luxgrimoire.backend.repository.UserSubscriptionEntryRepository;
+import com.luxgrimoire.backend.repository.SubscriptionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ class UserStoreTest {
     @Mock AppUserRepository userRepo;
     @Mock UserBookEntryRepository bookEntryRepo;
     @Mock UserSubscriptionEntryRepository subEntryRepo;
+    @Mock SubscriptionRepository subscriptionRepo;
 
     @InjectMocks UserStore userStore;
 

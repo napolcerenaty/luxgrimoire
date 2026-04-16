@@ -30,6 +30,15 @@ public class DataRequest {
 
     private String adminNote;
 
+    @Column(nullable = true)
+    private String title;
+
+    @Column(length = 1000)
+    private String imageUrls; // comma-separated
+
+    @Column(length = 2000)
+    private String reporters; // comma-separated usernames who reported this URL
+
     public DataRequest() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -47,4 +56,10 @@ public class DataRequest {
     public Instant getCreatedAt()              { return createdAt; }
     public String getAdminNote()               { return adminNote; }
     public void setAdminNote(String v)         { this.adminNote = v; }
+    public String getTitle()                   { return title; }
+    public void setTitle(String v)             { this.title = v; }
+    public String getImageUrls()               { return imageUrls; }
+    public void setImageUrls(String v)         { this.imageUrls = v; }
+    public String getReporters()               { return reporters; }
+    public void setReporters(String v)         { this.reporters = v; }
 }

@@ -32,6 +32,9 @@ public class ErrorReport {
 
     private String adminNote;
 
+    @Column(length = 1000)
+    private String imageUrls; // comma-separated image URL strings (max 3)
+
     public ErrorReport() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -51,4 +54,6 @@ public class ErrorReport {
     public Instant getCreatedAt()              { return createdAt; }
     public String getAdminNote()               { return adminNote; }
     public void setAdminNote(String v)         { this.adminNote = v; }
+    public String getImageUrls()               { return imageUrls; }
+    public void setImageUrls(String v)         { this.imageUrls = v; }
 }

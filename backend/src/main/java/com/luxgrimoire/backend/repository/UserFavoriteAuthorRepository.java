@@ -11,4 +11,6 @@ public interface UserFavoriteAuthorRepository extends JpaRepository<UserFavorite
     Optional<UserFavoriteAuthor> findByUsernameAndAuthorId(String username, String authorId);
     boolean existsByUsernameAndAuthorId(String username, String authorId);
     void deleteByUsernameAndAuthorId(String username, String authorId);
+    long countByAuthorId(String authorId);
+    List<UserFavoriteAuthor> findByAuthorIdAndNotifyTrue(String authorId);
 }

@@ -62,6 +62,12 @@ public class Subscription {
     @Column(name = "renewal_day_user_set")
     private boolean renewalDayUserSet = false;
 
+    @Column(name = "starting_month")
+    private Integer startingMonth;
+
+    @Column(name = "default_language")
+    private String defaultLanguage;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "subscription_combo_component",
@@ -145,6 +151,10 @@ public class Subscription {
     public void setRenewalDay(Integer renewalDay) { this.renewalDay = renewalDay; }
     public boolean isRenewalDayUserSet() { return renewalDayUserSet; }
     public void setRenewalDayUserSet(boolean renewalDayUserSet) { this.renewalDayUserSet = renewalDayUserSet; }
+    public Integer getStartingMonth() { return startingMonth; }
+    public void setStartingMonth(Integer startingMonth) { this.startingMonth = startingMonth; }
+    public String getDefaultLanguage() { return defaultLanguage; }
+    public void setDefaultLanguage(String defaultLanguage) { this.defaultLanguage = defaultLanguage; }
     public List<Subscription> getComboComponents() { return comboComponents; }
     public void setComboComponents(List<Subscription> comboComponents) { this.comboComponents = comboComponents != null ? comboComponents : new ArrayList<>(); }
     public List<SubscriptionPrepayOption> getPrepayOptions() { return prepayOptions; }

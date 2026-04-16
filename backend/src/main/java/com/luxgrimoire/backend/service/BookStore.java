@@ -175,11 +175,33 @@ public class BookStore {
             if (existing.getBook() == null || !bookId.equals(existing.getBook().getId())) {
                 return null;
             }
-            updated.setId(editionId);
-            updated.setBook(existing.getBook());
-            BookEdition saved = editionRepo.save(updated);
+            existing.setEditionName(updated.getEditionName());
+            existing.setSubscriptionName(updated.getSubscriptionName());
+            existing.setPublisher(updated.getPublisher());
+            existing.setLanguage(updated.getLanguage());
+            existing.setSubscriptionMonth(updated.getSubscriptionMonth());
+            existing.setSubscriptionYear(updated.getSubscriptionYear());
+            existing.setFirstAccessDate(updated.getFirstAccessDate());
+            existing.setEarlyAccessDate(updated.getEarlyAccessDate());
+            existing.setGeneralSaleDate(updated.getGeneralSaleDate());
+            existing.setBasePrice(updated.getBasePrice());
+            existing.setCurrency(updated.getCurrency());
+            existing.setBookBoxCompanyId(updated.getBookBoxCompanyId());
+            existing.setBookBoxCompanyCustomName(updated.getBookBoxCompanyCustomName());
+            existing.setSubscriptionId(updated.getSubscriptionId());
+            existing.setSubscriptionMonthId(updated.getSubscriptionMonthId());
+
+            existing.getImageUrls().clear();
+            if (updated.getImageUrls() != null) existing.getImageUrls().addAll(updated.getImageUrls());
+
+            existing.getArtists().clear();
+            if (updated.getArtists() != null) existing.getArtists().addAll(updated.getArtists());
+
+            existing.getFeatures().clear();
+            if (updated.getFeatures() != null) existing.getFeatures().addAll(updated.getFeatures());
+
             refreshCoverUrl(existing.getBook());
-            return saved;
+            return editionRepo.save(existing);
         }).filter(Objects::nonNull);
     }
 
@@ -199,7 +221,7 @@ public class BookStore {
 
     @Transactional(readOnly = true)
     public Optional<Book> findBookByEditionId(String editionId) {
-        return editionRepo.findById(editionId).map(BookEdition::getBook);
+        return editionRepo.findBookByEditionId(editionId);
     }
 
     @Transactional

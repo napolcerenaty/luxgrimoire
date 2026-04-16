@@ -6,6 +6,11 @@ import com.luxgrimoire.backend.dto.CreateBookRequest;
 import com.luxgrimoire.backend.dto.PageResponse;
 import com.luxgrimoire.backend.model.Book;
 import com.luxgrimoire.backend.model.BookEdition;
+import com.luxgrimoire.backend.model.SaleAnnouncement;
+import com.luxgrimoire.backend.repository.SaleAnnouncementEditionRepository;
+import com.luxgrimoire.backend.repository.SaleAnnouncementRepository;
+import com.luxgrimoire.backend.repository.SubscriptionRepository;
+import com.luxgrimoire.backend.repository.UserBookEntryRepository;
 import com.luxgrimoire.backend.service.BookBoxCompanyStore;
 import com.luxgrimoire.backend.service.BookStore;
 import com.luxgrimoire.backend.service.DeletionLogService;
@@ -13,11 +18,16 @@ import com.luxgrimoire.backend.service.FileStorageService;
 import com.luxgrimoire.backend.util.AppConstants;
 import com.luxgrimoire.backend.util.AuthHelper;
 import jakarta.servlet.http.HttpSession;
+import com.luxgrimoire.backend.service.OpenAiService;
+import com.luxgrimoire.backend.service.AiRateLimiterService;
+import com.luxgrimoire.backend.service.FavoriteNotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,16 +35,76 @@ import java.util.Map;
 @RequestMapping("/api/book-details")
 public class BookDetailController {
 
-    private final BookStore           bookStore;
-    private final FileStorageService  fileStorageService;
-    private final DeletionLogService  deletionLogService;
+    /** Base64 overhead ≈ 4/3 — this cap corresponds to ~5 MB original image. */
+    private static final int MAX_BASE64_IMAGE_CHARS = 7_000_000;
+
+    private final BookStore              bookStore;
+    private final FileStorageService          fileStorageService;
+    private final DeletionLogService          deletionLogService;
+    private final SubscriptionRepository      subscriptionRepository;
+    private final OpenAiService               openAiService;
+    private final AiRateLimiterService        aiRateLimiter;
+    private final FavoriteNotificationService favoriteNotificationService;
+    private final SaleAnnouncementEditionRepository saleAnnouncementEditionRepo;
+    private final SaleAnnouncementRepository        saleAnnouncementRepo;
+    private final UserBookEntryRepository           userBookEntryRepo;
 
     public BookDetailController(BookStore bookStore, BookBoxCompanyStore companyStore,
                                 FileStorageService fileStorageService,
-                                DeletionLogService deletionLogService) {
-        this.bookStore          = bookStore;
-        this.fileStorageService = fileStorageService;
-        this.deletionLogService = deletionLogService;
+                                DeletionLogService deletionLogService,
+                                SubscriptionRepository subscriptionRepository,
+                                OpenAiService openAiService,
+                                AiRateLimiterService aiRateLimiter,
+                                FavoriteNotificationService favoriteNotificationService,
+                                SaleAnnouncementEditionRepository saleAnnouncementEditionRepo,
+                                SaleAnnouncementRepository saleAnnouncementRepo,
+                                UserBookEntryRepository userBookEntryRepo) {
+        this.bookStore                   = bookStore;
+        this.fileStorageService          = fileStorageService;
+        this.deletionLogService          = deletionLogService;
+        this.subscriptionRepository      = subscriptionRepository;
+        this.openAiService               = openAiService;
+        this.aiRateLimiter               = aiRateLimiter;
+        this.favoriteNotificationService = favoriteNotificationService;
+        this.saleAnnouncementEditionRepo = saleAnnouncementEditionRepo;
+        this.saleAnnouncementRepo        = saleAnnouncementRepo;
+        this.userBookEntryRepo           = userBookEntryRepo;
+    }
+
+    @PostMapping("/parse-edition-description")
+    public ResponseEntity<?> parseEditionDescription(@RequestBody Map<String, String> body, HttpSession session) {
+        String username = AuthHelper.getUsername(session);
+        if (username == null) return ResponseEntity.status(401).build();
+
+        // Rate limit non-admin users only
+        if (!AuthHelper.isAdmin(session) && !aiRateLimiter.tryConsume(username)) {
+            long retryAfter = aiRateLimiter.retryAfterSeconds(username);
+            return ResponseEntity.status(429)
+                    .header("Retry-After", String.valueOf(retryAfter))
+                    .body(Map.of("error", "Too many AI requests. Try again in " + retryAfter + " seconds."));
+        }
+
+        String text       = body.get("text");
+        String base64Image = body.get("base64Image");
+        String mimeType   = body.getOrDefault("mimeType", "image/jpeg");
+
+        if (base64Image != null && base64Image.length() > MAX_BASE64_IMAGE_CHARS) {
+            return ResponseEntity.status(413).body(Map.of("error", "Image exceeds 5 MB limit"));
+        }
+
+        if (!openAiService.isConfigured()) {
+            return ResponseEntity.status(503).body(Map.of("error", "AI parsing not configured"));
+        }
+
+        OpenAiService.EditionParseResult result;
+        if (base64Image != null && !base64Image.isBlank()) {
+            result = openAiService.parseEditionDescriptionFromImage(base64Image, mimeType);
+        } else if (text != null && !text.isBlank()) {
+            result = openAiService.parseEditionDescription(text);
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("error", "No text or image provided"));
+        }
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/images")
@@ -106,8 +176,19 @@ public class BookDetailController {
     @GetMapping("/{bookId}")
     public ResponseEntity<BookDetailResponse> getById(@PathVariable String bookId, HttpSession session) {
         String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
-        boolean includePending = AuthHelper.isAdmin(session);
+        boolean isAdmin = AuthHelper.isAdmin(session);
+        boolean includePending = isAdmin;
         return bookStore.findDetailById(bookId, includePending)
+                .map(detail -> {
+                    if (isAdmin) return detail;
+                    List<BookEdition> visible = detail.getEditions().stream()
+                            .filter(e -> !isEditionHidden(e.getId(), username))
+                            .toList();
+                    return new BookDetailResponse(
+                            detail.getId(), detail.getTitle(), detail.getAuthor(),
+                            detail.getAuthorId(), detail.getSeriesName(), detail.getVolumeNumber(),
+                            visible);
+                })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -177,9 +258,33 @@ public class BookDetailController {
         if (username == null || username.isBlank()) {
             return ResponseEntity.status(401).build();
         }
+        // Auto-set language from subscription's defaultLanguage if not already set
+        if ((edition.getLanguage() == null || edition.getLanguage().isBlank())
+                && edition.getSubscriptionId() != null && !edition.getSubscriptionId().isBlank()) {
+            subscriptionRepository.findById(edition.getSubscriptionId()).ifPresent(sub -> {
+                if (sub.getDefaultLanguage() != null && !sub.getDefaultLanguage().isBlank()) {
+                    edition.setLanguage(sub.getDefaultLanguage());
+                }
+            });
+        }
         return bookStore.addEdition(bookId, edition)
                 .map(saved -> {
                     bookStore.linkEditionToMonth(saved);
+                    // Notify users who favorited this book, its author, or artists
+                    bookStore.findById(bookId).ifPresent(book -> {
+                        String edName = saved.getEditionName() != null ? saved.getEditionName() : "New edition";
+                        favoriteNotificationService.notifyBookFavoriters(bookId, edName, book.getTitle());
+                        if (book.getAuthorId() != null && !book.getAuthorId().isBlank()) {
+                            favoriteNotificationService.notifyAuthorFavoriters(
+                                    book.getAuthorId(), book.getAuthor() != null ? book.getAuthor() : "Author", edName);
+                        }
+                        if (saved.getArtists() != null) {
+                            saved.getArtists().stream()
+                                    .filter(ac -> ac.getArtistId() != null && !ac.getArtistId().isBlank())
+                                    .forEach(ac -> favoriteNotificationService.notifyArtistFavoriters(
+                                            ac.getArtistId(), ac.getArtistName(), edName));
+                        }
+                    });
                     return bookStore.findById(bookId)
                             .<ResponseEntity<?>>map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
@@ -232,6 +337,25 @@ public class BookDetailController {
         if (!removed) return ResponseEntity.notFound().build();
         return ResponseEntity.ok().build();
     }
+
+    // ─── Edition visibility helper ────────────────────────────────────────────
+
+    private boolean isEditionHidden(String editionId, String username) {
+        var saleLinks = saleAnnouncementEditionRepo.findByEditionId(editionId);
+        if (saleLinks.isEmpty()) return false;
+        String today = LocalDate.now().toString();
+        for (var link : saleLinks) {
+            var saleOpt = saleAnnouncementRepo.findById(link.getSaleId());
+            if (saleOpt.isEmpty()) continue;
+            String saleDate = saleOpt.get().getGeneralSaleDate();
+            if (saleDate != null && saleDate.compareTo(today) > 0) {
+                // Sale is in the future — check if user owns this edition
+                if (username == null) return true;
+                if (userBookEntryRepo.findByUserUsernameAndEditionId(username, editionId).isEmpty()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
-
-

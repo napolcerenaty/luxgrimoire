@@ -60,6 +60,14 @@ public class ArtistService {
         if (artist.getId() == null || artist.getId().isBlank()) {
             artist.setId(UUID.randomUUID().toString());
         }
+        // Find-or-create: if instagram handle given, return existing artist with that handle
+        if (artist.getInstagram() != null && !artist.getInstagram().isBlank()) {
+            String handle = artist.getInstagram().startsWith("@")
+                    ? artist.getInstagram().substring(1) : artist.getInstagram();
+            artist.setInstagram(handle);
+            Optional<Artist> existing = artistRepo.findByInstagram(handle);
+            if (existing.isPresent()) return existing.get();
+        }
         return artistRepo.save(artist);
     }
 

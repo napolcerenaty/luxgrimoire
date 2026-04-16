@@ -23,9 +23,21 @@ public class UserSubBillingPeriod {
     @Column(name = "billed_at")
     private String billedAt;
 
-    /** Total amount paid for this billing period */
-    @Column(name = "amount_paid", precision = 10, scale = 2)
-    private BigDecimal amountPaid;
+    /** Base subscription amount for this billing period */
+    @Column(name = "base_amount", precision = 10, scale = 2)
+    private BigDecimal baseAmount;
+
+    /** Taxes and fees portion */
+    @Column(name = "taxes_and_fees", precision = 10, scale = 2)
+    private BigDecimal taxesAndFees;
+
+    /** Shipping portion */
+    @Column(precision = 10, scale = 2)
+    private BigDecimal shipping;
+
+    /** Optional link to a PurchaseTransaction created for this billing period (for unified stats). */
+    @Column(name = "purchase_transaction_id")
+    private String purchaseTransactionId;
 
     /** Number of months this payment covers (1 = regular monthly) */
     @Column(name = "months_covered")
@@ -57,8 +69,21 @@ public class UserSubBillingPeriod {
     public void setEntry(UserSubscriptionEntry entry) { this.entry = entry; }
     public String getBilledAt() { return billedAt; }
     public void setBilledAt(String billedAt) { this.billedAt = billedAt; }
-    public BigDecimal getAmountPaid() { return amountPaid; }
-    public void setAmountPaid(BigDecimal amountPaid) { this.amountPaid = amountPaid; }
+    public BigDecimal getBaseAmount() { return baseAmount; }
+    public void setBaseAmount(BigDecimal baseAmount) { this.baseAmount = baseAmount; }
+    public BigDecimal getTaxesAndFees() { return taxesAndFees; }
+    public void setTaxesAndFees(BigDecimal taxesAndFees) { this.taxesAndFees = taxesAndFees; }
+    public BigDecimal getShipping() { return shipping; }
+    public void setShipping(BigDecimal shipping) { this.shipping = shipping; }
+    /** Computed total — sum of all three components. */
+    public BigDecimal getAmountPaid() {
+        BigDecimal total = baseAmount != null ? baseAmount : BigDecimal.ZERO;
+        if (taxesAndFees != null) total = total.add(taxesAndFees);
+        if (shipping     != null) total = total.add(shipping);
+        return total;
+    }
+    public String getPurchaseTransactionId() { return purchaseTransactionId; }
+    public void setPurchaseTransactionId(String purchaseTransactionId) { this.purchaseTransactionId = purchaseTransactionId; }
     public int getMonthsCovered() { return monthsCovered; }
     public void setMonthsCovered(int monthsCovered) { this.monthsCovered = monthsCovered; }
     public int getCoveredFromMonth() { return coveredFromMonth; }

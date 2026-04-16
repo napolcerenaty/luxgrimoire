@@ -25,6 +25,7 @@ public class BookEdition {
     private String subscriptionName;
     private String publisher;
     private String language;
+    private String alternativeTitle;
     private Integer subscriptionMonth;
     private Integer subscriptionYear;
     private String firstAccessDate;
@@ -36,6 +37,8 @@ public class BookEdition {
     private String bookBoxCompanyCustomName;
     private String subscriptionId;
     private String subscriptionMonthId;
+    @Column(name = "collection_id")
+    private String collectionId;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "book_edition_image", joinColumns = @JoinColumn(name = "edition_id"))
@@ -48,6 +51,13 @@ public class BookEdition {
     @CollectionTable(name = "book_edition_artist", joinColumns = @JoinColumn(name = "edition_id"))
     @BatchSize(size = 50)
     private List<ArtistContribution> artists = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "book_edition_feature", joinColumns = @JoinColumn(name = "edition_id"))
+    @Column(name = "feature", columnDefinition = "TEXT")
+    @OrderColumn(name = "sort_order")
+    @BatchSize(size = 50)
+    private List<String> features = new ArrayList<>();
 
     public BookEdition() {
         this.id = UUID.randomUUID().toString();
@@ -65,6 +75,8 @@ public class BookEdition {
     public void setPublisher(String publisher) { this.publisher = publisher; }
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
+    public String getAlternativeTitle() { return alternativeTitle; }
+    public void setAlternativeTitle(String alternativeTitle) { this.alternativeTitle = alternativeTitle; }
     public Integer getSubscriptionMonth() { return subscriptionMonth; }
     public void setSubscriptionMonth(Integer subscriptionMonth) { this.subscriptionMonth = subscriptionMonth; }
     public Integer getSubscriptionYear() { return subscriptionYear; }
@@ -83,6 +95,8 @@ public class BookEdition {
     public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
     public List<ArtistContribution> getArtists() { return artists; }
     public void setArtists(List<ArtistContribution> artists) { this.artists = artists; }
+    public List<String> getFeatures() { return features; }
+    public void setFeatures(List<String> features) { this.features = features; }
     public String getBookBoxCompanyId() { return bookBoxCompanyId; }
     public void setBookBoxCompanyId(String bookBoxCompanyId) { this.bookBoxCompanyId = bookBoxCompanyId; }
     public String getBookBoxCompanyCustomName() { return bookBoxCompanyCustomName; }
@@ -91,4 +105,6 @@ public class BookEdition {
     public void setSubscriptionId(String subscriptionId) { this.subscriptionId = subscriptionId; }
     public String getSubscriptionMonthId() { return subscriptionMonthId; }
     public void setSubscriptionMonthId(String subscriptionMonthId) { this.subscriptionMonthId = subscriptionMonthId; }
+    public String getCollectionId() { return collectionId; }
+    public void setCollectionId(String collectionId) { this.collectionId = collectionId; }
 }
