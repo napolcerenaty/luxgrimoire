@@ -226,10 +226,9 @@ public class BookStore {
 
     @Transactional(readOnly = true)
     public Optional<Map<String, String>> findRandomApprovedEdition() {
-        return bookRepo.findRandomApprovedEdition().map(row -> Map.of(
-                "bookId",    (String) row[1],
-                "editionId", (String) row[0]
-        ));
+        return bookRepo.findRandomApprovedEditionId()
+                .flatMap(editionId -> editionRepo.findById(editionId))
+                .map(e -> Map.of("bookId", e.getBook().getId(), "editionId", e.getId()));
     }
 
     @Transactional

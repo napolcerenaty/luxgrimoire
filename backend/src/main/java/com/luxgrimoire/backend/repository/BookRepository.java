@@ -44,14 +44,14 @@ public interface BookRepository extends JpaRepository<Book, String> {
     Optional<Book> findWithEditionsById(@Param("id") String id);
 
     @Query(value = """
-        SELECT e.id AS edition_id, e.book_id AS book_id
+        SELECT e.id
         FROM book_edition e
         JOIN book b ON e.book_id = b.id
         WHERE b.status = 'approved'
         ORDER BY RANDOM()
         LIMIT 1
         """, nativeQuery = true)
-    Optional<Object[]> findRandomApprovedEdition();
+    Optional<String> findRandomApprovedEditionId();
 
     @Query(value = """
         SELECT i.image_url FROM book_edition e
