@@ -3383,22 +3383,28 @@ function AuditLogSection() {
   const [filterEntity, setFilterEntity]   = useState("");
   const [filterUser,   setFilterUser]     = useState("");
   const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
 
   const ACTIONS = ["", "CREATE", "UPDATE", "DELETE", "TRIGGER", "UPLOAD", "EMAIL"];
 
   const load = useCallback((p = 0) => {
     setLoading(true);
+    setError(null);
     const params = new URLSearchParams({ page: p, size: 50 });
     if (filterAction) params.set("action", filterAction);
     if (filterEntity) params.set("entityType", filterEntity);
     if (filterUser)   params.set("username", filterUser);
     fetch(`/api/admin/audit-logs?${params}`, { credentials: "include" })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(d => {
         setLogs(d.content || []);
         setTotalPages(d.totalPages || 0);
         setPage(d.page || 0);
       })
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [filterAction, filterEntity, filterUser]);
 
@@ -3407,7 +3413,7 @@ function AuditLogSection() {
   const fmtDate = (iso) => {
     if (!iso) return "";
     const d = new Date(iso);
-    return d.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" });
+    return d.toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" });
   };
 
   const ACTION_COLORS = {
@@ -3421,36 +3427,37 @@ function AuditLogSection() {
 
       <div className="admin-filter-row" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
         <select value={filterAction} onChange={e => setFilterAction(e.target.value)} className="admin-input" style={{ minWidth: 130 }}>
-          {ACTIONS.map(a => <option key={a} value={a}>{a || "Wszystkie akcje"}</option>)}
+          {ACTIONS.map(a => <option key={a} value={a}>{a || "All actions"}</option>)}
         </select>
         <input
-          className="admin-input" placeholder="Typ encji (np. Company)" value={filterEntity}
+          className="admin-input" placeholder="Entity type (e.g. Company)" value={filterEntity}
           onChange={e => setFilterEntity(e.target.value)} style={{ minWidth: 160 }}
         />
         <input
-          className="admin-input" placeholder="Użytkownik" value={filterUser}
+          className="admin-input" placeholder="Username" value={filterUser}
           onChange={e => setFilterUser(e.target.value)} style={{ minWidth: 140 }}
         />
-        <button className="page-btn primary" onClick={() => load(0)}>Szukaj</button>
+        <button className="page-btn primary" onClick={() => load(0)}>Search</button>
         <button className="page-btn" onClick={() => {
           setFilterAction(""); setFilterEntity(""); setFilterUser("");
           setTimeout(() => load(0), 0);
         }}>Reset</button>
       </div>
 
-      {loading && <p style={{ color: "var(--text-ghost)" }}>Ładowanie…</p>}
-      {!loading && logs.length === 0 && <p style={{ color: "var(--text-ghost)" }}>Brak wpisów.</p>}
-      {!loading && logs.length > 0 && (
+      {loading && <p style={{ color: "var(--text-ghost)" }}>Loading…</p>}
+      {error && <p style={{ color: "var(--color-error, #f44336)" }}>Error loading audit log: {error}</p>}
+      {!loading && !error && logs.length === 0 && <p style={{ color: "var(--text-ghost)" }}>No entries found.</p>}
+      {!loading && !error && logs.length > 0 && (
         <div style={{ overflowX: "auto" }}>
           <table className="admin-table" style={{ fontSize: "0.82rem" }}>
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Użytkownik</th>
-                <th>Akcja</th>
-                <th>Typ</th>
+                <th>Date</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Type</th>
                 <th>ID</th>
-                <th>Opis</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>

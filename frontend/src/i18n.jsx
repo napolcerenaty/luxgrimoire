@@ -22,7 +22,7 @@ function loadLang() {
     const saved = localStorage.getItem(LS_KEY);
     if (saved && SUPPORTED.includes(saved)) return saved;
   } catch {}
-  return detectBrowserLang();
+  return "en";
 }
 
 // ─── Translation tables ───────────────────────────────────────────────────────
