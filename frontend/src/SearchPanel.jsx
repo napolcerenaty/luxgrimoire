@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./i18n";
+import { assetUrl } from "./api";
 import "./SearchPanel.css";
 
 function useDebounce(value, delay) {
@@ -105,7 +106,7 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
     <button key={key} className="sr-item" onClick={() => handleSelect(item.id)}>
       <img
         className="sr-thumb"
-        src={item.coverUrl || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
+        src={assetUrl(item.coverUrl) || "https://placehold.co/36x54/060d18/00b4d0?text=?"}
         alt=""
         onError={(e) => { e.target.src = "https://placehold.co/36x54/060d18/00b4d0?text=?"; }}
       />

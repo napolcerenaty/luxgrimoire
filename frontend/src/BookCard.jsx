@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
+import { assetUrl } from "./api";
 
 const FALLBACK = "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
 const CYCLE_INTERVAL = 1500;
 
 export default function BookCard({ book, onClick }) {
   const images = [...new Set([
-    ...(book.coverUrl ? [book.coverUrl] : []),
-    ...(book.editions?.map((e) => e.imageUrls?.[0]).filter(Boolean) || []),
+    ...(book.coverUrl ? [assetUrl(book.coverUrl)] : []),
+    ...(book.editions?.map((e) => assetUrl(e.imageUrls?.[0])).filter(Boolean) || []),
   ])];
 
   if (images.length === 0) images.push(FALLBACK);

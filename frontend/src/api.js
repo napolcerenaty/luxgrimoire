@@ -1,5 +1,9 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
+/** Converts a relative /uploads/... path to an absolute backend URL. */
+export const assetUrl = (url) =>
+  url && url.startsWith("/") ? `${API_BASE}${url}` : url;
+
 export const API = {
   BASE: API_BASE,
 

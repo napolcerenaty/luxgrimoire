@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
-import { API } from "./api";
+import { API, assetUrl } from "./api";
 import SpendingStatsPage from "./SpendingStatsPage";
 import FavoritesPage from "./FavoritesPage";
 import "./AccountPage.css";
@@ -461,7 +461,7 @@ function SoldBooksSection() {
               <div key={e.id} className="sold-book-row">
                 <div className="sold-book-thumb">
                   {e.imageUrl
-                    ? <img src={e.imageUrl} alt={e.title} />
+                    ? <img src={assetUrl(e.imageUrl)} alt={e.title} />
                     : <div className="sold-book-thumb-placeholder">{e.title?.[0] ?? "?"}</div>}
                 </div>
                 <div className="sold-book-info">
@@ -504,7 +504,7 @@ function BookCard({ entry, onRemove, onBookClick, onSell, t }) {
     <div className={`account-book-card${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-card-cover">
         {entry.imageUrl
-          ? <img src={entry.imageUrl} alt={entry.title} />
+          ? <img src={assetUrl(entry.imageUrl)} alt={entry.title} />
           : <div className="account-book-card-cover-placeholder"><span>{entry.title?.[0] ?? "?"}</span></div>
         }
       </div>
@@ -537,7 +537,7 @@ function BookRow({ entry, onRemove, onBookClick, onSell, t }) {
     <div className={`account-book-row${onBookClick ? " clickable" : ""}`} onClick={onBookClick ? () => onBookClick(entry.bookId) : undefined}>
       <div className="account-book-row-thumb">
         {entry.imageUrl
-          ? <img src={entry.imageUrl} alt={entry.title} />
+          ? <img src={assetUrl(entry.imageUrl)} alt={entry.title} />
           : <div className="account-book-row-thumb-placeholder" />
         }
       </div>

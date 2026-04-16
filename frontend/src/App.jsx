@@ -25,7 +25,7 @@ import NotificationsPage from "./NotificationsPage";
 import NotificationBell from "./NotificationBell";
 import FriendsPage from "./FriendsPage";
 import MessagesPage from "./MessagesPage";
-import { API } from "./api";
+import { API, assetUrl } from "./api";
 import BugReportModal from "./BugReportModal";
 import DataRequestModal from "./DataRequestModal";
 import FaqPage from "./FaqPage";
@@ -36,8 +36,8 @@ import FavoritesPage from "./FavoritesPage";
 import SpendingStatsPage from "./SpendingStatsPage";
 
 function BookCard({ book, onClick }) {
-  const coverUrl = book.coverUrl
-    || book.editions?.[0]?.imageUrls?.[0]
+  const coverUrl = assetUrl(book.coverUrl)
+    || assetUrl(book.editions?.[0]?.imageUrls?.[0])
     || "https://placehold.co/300x450/060d18/00b4d0?text=No+Cover";
   const seriesLabel = book.seriesName
     ? `${book.seriesName}${book.volumeNumber ? ` #${book.volumeNumber}` : ""}`
