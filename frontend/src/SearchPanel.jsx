@@ -88,12 +88,10 @@ export default function SearchPanel({ books, onBookClick, onCompanyClick, onAuth
   };
 
   const handleLuckyDraw = () => {
-    const allPairs = (books || []).flatMap((b) =>
-      (b.editions || []).map((e) => ({ bookId: b.id, editionId: e.id }))
-    );
-    if (allPairs.length === 0) return;
-    const pick = allPairs[Math.floor(Math.random() * allPairs.length)];
-    onBookClick(pick.bookId);
+    const bookList = books || [];
+    if (bookList.length === 0) return;
+    const pick = bookList[Math.floor(Math.random() * bookList.length)];
+    onBookClick(pick.id);
   };
 
   const handleKeyDown = (e) => {
