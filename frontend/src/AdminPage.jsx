@@ -3394,7 +3394,7 @@ function AuditLogSection() {
     if (filterAction) params.set("action", filterAction);
     if (filterEntity) params.set("entityType", filterEntity);
     if (filterUser)   params.set("username", filterUser);
-    fetch(`/api/admin/audit-logs?${params}`, { credentials: "include" })
+    fetch(`${API.ADMIN_AUDIT_LOGS}?${params}`, { credentials: "include" })
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();

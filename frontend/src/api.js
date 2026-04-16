@@ -154,6 +154,7 @@ export const API = {
   NOTIFICATIONS_DELETE_BATCH:   `${API_BASE}/api/notifications/batch`,
   ADMIN_NOTIFICATIONS:          `${API_BASE}/api/admin/notifications`,
   ADMIN_SEND_EMAIL:             `${API_BASE}/api/admin/send-email`,
+  ADMIN_AUDIT_LOGS:             `${API_BASE}/api/admin/audit-logs`,
 
   // Import / Scraper
   ADMIN_IMPORT_SCRAPE_URL:                         `${API_BASE}/api/admin/import/scrape-url`,
