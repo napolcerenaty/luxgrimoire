@@ -1116,7 +1116,7 @@ function CompanyFormPage({ company, onSaved, onBack }) {
 }
 
 // ─── InlineEditionCreator ─────────────────────────────────────────────────────
-function InlineEditionCreator({ onCreated, onCancel }) {
+function InlineEditionCreator({ onCreated, onCancel, prefilledEdition }) {
   const { t } = useI18n();
   const [mode, setMode] = useState("menu"); // "menu" | "new-book" | "add-edition"
   const [selectedBook, setSelectedBook] = useState(null);
@@ -1151,10 +1151,12 @@ function InlineEditionCreator({ onCreated, onCancel }) {
 
   if (mode === "new-book") {
     return <BookDetailEditPage initialData={null} editingEdition="new"
+      initialEditionData={prefilledEdition}
       onSaved={handleSaved} onBack={() => setMode("menu")} />;
   }
   if (mode === "add-edition" && selectedBook) {
     return <BookDetailEditPage initialData={selectedBook} editingEdition="new"
+      initialEditionData={prefilledEdition}
       onSaved={handleSaved} onBack={() => setMode("menu")} />;
   }
 
@@ -1242,7 +1244,7 @@ function EditionSearchWidget({ companyId, selectedEdition, onSelect, onClear }) 
   );
 }
 
-function SubMonthsManager({ sub, companyId }) {
+function SubMonthsManager({ sub, companyId, currency }) {
   const { t } = useI18n();
   const [months, setMonths] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1341,9 +1343,24 @@ function SubMonthsManager({ sub, companyId }) {
   };
 
   if (creatingEditionForIdx !== null) {
+    const renewalDay = sub?.renewalDay ? String(sub.renewalDay).padStart(2, "0") : "01";
+    const generalSaleDate = form.year && form.month
+      ? `${form.year}-${String(form.month).padStart(2, "0")}-${renewalDay}`
+      : "";
+    const prefilledEdition = {
+      bookBoxCompanyId: companyId || "",
+      subscriptionId: sub?.id || "",
+      subscriptionName: sub?.name || "",
+      subscriptionYear: String(form.year || ""),
+      subscriptionMonth: String(form.month || ""),
+      generalSaleDate,
+      currency: currency || "",
+      basePrice: sub?.basePrice != null ? String(sub.basePrice) : "",
+    };
     return (
       <div style={{ marginTop: "1rem" }}>
         <InlineEditionCreator
+          prefilledEdition={prefilledEdition}
           onCreated={(edition) => {
             updateBookEdition(creatingEditionForIdx, edition);
             setCreatingEditionForIdx(null);
@@ -1617,7 +1634,7 @@ function CompanyDetailView({ company: initialCompany, onBack, onEdit, onDelete }
                                   📅 Months are shared from <strong>{parentSub.name}</strong>. Manage months there.
                                 </div>
                               ) : (
-                                <SubMonthsManager sub={sub} companyId={company.id} />
+                                <SubMonthsManager sub={sub} companyId={company.id} currency={company.defaultCurrency} />
                               )}
                               <ImportSourcesPanel companyId={company.id} subscriptionId={sub.id} />
                             </div>

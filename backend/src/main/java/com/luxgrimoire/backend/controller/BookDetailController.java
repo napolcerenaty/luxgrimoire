@@ -298,7 +298,7 @@ public class BookDetailController {
                                             ac.getArtistId(), ac.getArtistName(), edName));
                         }
                     });
-                    return bookStore.findById(bookId)
+                    return bookStore.findByIdWithEditions(bookId)
                             .<ResponseEntity<?>>map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
                 })
@@ -323,7 +323,7 @@ public class BookDetailController {
         return bookStore.updateEdition(bookId, editionId, edition)
                 .map(updated -> {
                     bookStore.linkEditionToMonth(updated);
-                    return bookStore.findById(bookId)
+                    return bookStore.findByIdWithEditions(bookId)
                             .<ResponseEntity<?>>map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
                 })

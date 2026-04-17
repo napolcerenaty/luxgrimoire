@@ -163,7 +163,7 @@ function toEditionForm(edition) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function BookDetailEditPage({ initialData, editingEdition, onSaved, onBack }) {
+export default function BookDetailEditPage({ initialData, editingEdition, initialEditionData, onSaved, onBack }) {
   const { t } = useI18n();
 
   const isNewBook = initialData === null;
@@ -175,7 +175,9 @@ export default function BookDetailEditPage({ initialData, editingEdition, onSave
   const showEditionForm = isNewBook || isNewEdition || isEditEdition;
 
   const [bookForm, setBookForm] = useState(() => toBookForm(initialData));
-  const [editionForm, setEditionForm] = useState(() => toEditionForm(editingEdition));
+  const [editionForm, setEditionForm] = useState(() =>
+    (editingEdition === "new" && initialEditionData) ? toEditionForm(initialEditionData) : toEditionForm(editingEdition)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [companies, setCompanies] = useState([]);
