@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.time.LocalDate;
 
 @Service
 public class BookStore {
@@ -236,7 +237,8 @@ public class BookStore {
 
     @Transactional(readOnly = true)
     public List<RecentEditionDto> findRecentEditions(int size) {
-        return editionRepo.findRecentWithImages(PageRequest.of(0, size)).stream()
+        String today = LocalDate.now().toString();
+        return editionRepo.findRecentWithImages(today, PageRequest.of(0, size)).stream()
                 .map(e -> new RecentEditionDto(
                         e.getId(),
                         e.getBook().getId(),
