@@ -1253,6 +1253,19 @@ function SubMonthsManager({ sub, companyId }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [creatingEditionForIdx, setCreatingEditionForIdx] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImg(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fetch(API.UPLOAD_IMAGE, { method: "POST", credentials: "include", body: fd })
+      .then(r => r.ok ? r.json() : Promise.reject("Upload failed"))
+      .then(data => { setForm(f => ({ ...f, imageUrl: data.url })); setUploadingImg(false); })
+      .catch(() => { setMsg({ ok: false, text: "Błąd uploadu zdjęcia." }); setUploadingImg(false); });
+  };
 
   const loadMonths = () => {
     setLoading(true);
@@ -1377,10 +1390,22 @@ function SubMonthsManager({ sub, companyId }) {
           </div>
           <div className="admin-form-row">
             <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.imageUrlLabel")}</label>
-            <input className="admin-form-input" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} />
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+              <input className="admin-form-input" style={{ flex: 1 }} value={form.imageUrl}
+                onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                placeholder="https://... lub wgraj plik →" />
+              <label className={`admin-btn admin-btn--secondary admin-btn--sm${uploadingImg ? " disabled" : ""}`}
+                style={{ cursor: uploadingImg ? "default" : "pointer", whiteSpace: "nowrap" }}>
+                {uploadingImg ? "…" : "📁 Wgraj"}
+                <input type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={handleImageUpload} disabled={uploadingImg} />
+              </label>
+            </div>
           </div>
           {form.imageUrl && (
-            <img src={form.imageUrl} alt="" style={{ height: 60, borderRadius: 5, marginBottom: 6 }} onError={e => { e.target.style.display = "none"; }} />
+            <img src={form.imageUrl.startsWith("/") ? `${API.BASE}${form.imageUrl}` : form.imageUrl}
+              alt="" style={{ height: 60, borderRadius: 5, marginBottom: 6 }}
+              onError={e => { e.target.style.display = "none"; }} />
           )}
 
           {/* Multi-book section */}
