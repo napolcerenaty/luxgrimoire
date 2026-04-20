@@ -9,6 +9,7 @@ import com.luxgrimoire.backend.repository.SubscriptionImportSourceRepository;
 import com.luxgrimoire.backend.repository.SubscriptionMonthRepository;
 import com.luxgrimoire.backend.repository.SubscriptionRepository;
 import com.luxgrimoire.backend.service.AdminAuditLogService;
+import com.luxgrimoire.backend.service.FileStorageService;
 import com.luxgrimoire.backend.service.OpenAiService;
 import com.luxgrimoire.backend.service.PageScraperService;
 import com.luxgrimoire.backend.service.PageScraperService.ScrapedMonthData;
@@ -36,6 +37,7 @@ public class ImportController {
     private final SubscriptionMonthRepository        monthRepo;
     private final RssFeedScheduler                   scheduler;
     private final AdminAuditLogService               auditLogService;
+    private final FileStorageService                 fileStorage;
 
     public ImportController(PageScraperService scraper,
                             OpenAiService openAiService,
@@ -44,7 +46,8 @@ public class ImportController {
                             SubscriptionRepository subscriptionRepo,
                             SubscriptionMonthRepository monthRepo,
                             RssFeedScheduler scheduler,
-                            AdminAuditLogService auditLogService) {
+                            AdminAuditLogService auditLogService,
+                            FileStorageService fileStorage) {
         this.scraper         = scraper;
         this.openAiService   = openAiService;
         this.sourceRepo      = sourceRepo;
@@ -53,6 +56,7 @@ public class ImportController {
         this.monthRepo       = monthRepo;
         this.scheduler       = scheduler;
         this.auditLogService = auditLogService;
+        this.fileStorage     = fileStorage;
     }
 
     // ── Guard helpers ─────────────────────────────────────────────────────────
@@ -299,6 +303,14 @@ public class ImportController {
                 sm.setTheme(theme);
 
                 String imageUrl = strFromBody(body, "imageUrl", pending.getImageUrl());
+                // Download remote image and store locally if it's an external URL
+                if (imageUrl != null && imageUrl.startsWith("http")) {
+                    String category  = "SALE_ANNOUNCEMENT".equals(pending.getTargetType())
+                            ? "sale-announcements" : "monthly-themes";
+                    String companyId = pending.getCompanyId();
+                    String local = fileStorage.storeRemoteImage(imageUrl, category, companyId);
+                    if (local != null) imageUrl = local;
+                }
                 sm.setImageUrl(imageUrl);
 
                 String bookId = strFromBody(body, "bookId", null);

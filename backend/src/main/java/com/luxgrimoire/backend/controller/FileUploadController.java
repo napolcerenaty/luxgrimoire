@@ -32,10 +32,10 @@ public class FileUploadController {
         String ext = contentType.contains("png") ? ".png" : contentType.contains("gif") ? ".gif" : ".jpg";
         String filename = UUID.randomUUID() + ext;
         try {
-            Path dir = Paths.get(uploadDir).toAbsolutePath();
+            Path dir = Paths.get(uploadDir, "book-covers").toAbsolutePath();
             Files.createDirectories(dir);
             Files.copy(file.getInputStream(), dir.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
-            return ResponseEntity.ok(Map.of("url", baseUrl + "/" + filename));
+            return ResponseEntity.ok(Map.of("url", baseUrl + "/book-covers/" + filename));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body(Map.of("error", "Upload failed"));
         }
