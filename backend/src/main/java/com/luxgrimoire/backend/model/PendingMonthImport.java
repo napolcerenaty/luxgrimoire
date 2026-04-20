@@ -41,6 +41,14 @@ public class PendingMonthImport {
     @Column(name = "status")
     private String status; // "PENDING", "APPROVED", "REJECTED"
 
+    /** MONTH_THEME or SALE_ANNOUNCEMENT */
+    @Column(name = "target_type", length = 30)
+    private String targetType = "MONTH_THEME";
+
+    /** Raw page/post title from scraper (useful for sale announcements) */
+    @Column(name = "raw_title", length = 500)
+    private String rawTitle;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -66,6 +74,10 @@ public class PendingMonthImport {
     public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getTargetType() { return targetType; }
+    public void setTargetType(String targetType) { this.targetType = targetType; }
+    public String getRawTitle() { return rawTitle; }
+    public void setRawTitle(String rawTitle) { this.rawTitle = rawTitle; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

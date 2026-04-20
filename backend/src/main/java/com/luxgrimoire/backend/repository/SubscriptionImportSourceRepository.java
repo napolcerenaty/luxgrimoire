@@ -7,4 +7,6 @@ import java.util.List;
 public interface SubscriptionImportSourceRepository extends JpaRepository<SubscriptionImportSource, Long> {
     List<SubscriptionImportSource> findByCompanyIdAndSubscriptionId(String companyId, String subscriptionId);
     List<SubscriptionImportSource> findBySourceType(String sourceType);
+    List<SubscriptionImportSource> findByEnabled(boolean enabled);
+    List<SubscriptionImportSource> findAllByOrderByCompanyIdAscNameAsc();
 }

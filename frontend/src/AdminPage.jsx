@@ -2988,18 +2988,18 @@ function ScrapedPreviewForm({ data, onDataChange, onSavePending }) {
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Rok</label>
-          <input className="admin-form-input" type="number" value={data.year || ""} onChange={set("year")} placeholder="2025" />
+          <input className="admin-form-input" type="number" value={data.year || ""} onChange={set("admin.yearLabel")} placeholder="2025" />
         </div>
         <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Miesiąc</label>
-          <select className="admin-form-select" value={data.month || ""} onChange={set("month")}>
+          <select className="admin-form-select" value={data.month || ""} onChange={set("admin.monthLabel")}>
             <option value="">—</option>
             {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
           </select>
         </div>
         <div className="admin-form-row" style={{ flex: 2, minWidth: 160 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Motyw</label>
-          <input className="admin-form-input" value={data.theme || ""} onChange={set("theme")} placeholder="Motyw miesiąca…" />
+          <input className="admin-form-input" value={data.theme || ""} onChange={set("admin.themeLabel")} placeholder="Motyw miesiąca…" />
         </div>
       </div>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -3016,7 +3016,7 @@ function ScrapedPreviewForm({ data, onDataChange, onSavePending }) {
       {/* Image picker */}
       <div className="admin-form-row">
         <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>URL obrazka (wybierz lub wpisz)</label>
-        <input className="admin-form-input" value={data.imageUrl || ""} onChange={set("imageUrl")} />
+        <input className="admin-form-input" value={data.imageUrl || ""} onChange={set("admin.imageUrlLabel")} />
       </div>
       {allImgs.length > 0 && (
         <div style={{ marginBottom: "0.6rem" }}>
@@ -3235,8 +3235,263 @@ const statCardStyle = {
 const statLabelStyle = { fontSize: "0.72rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" };
 const statValueStyle = { fontSize: "1.1rem", fontWeight: 600 };
 
-// ─── Import: Pending Queue Section ───────────────────────────────────────────
+// ─── Import Sources + Pending Queue Section ──────────────────────────────────
 function ImportsSection() {
+  const { t } = useI18n();
+  const [tab, setTab] = useState("sources"); // "sources" | "pending"
+
+  return (
+    <div className="admin-section">
+      <h2 className="section-title admin-section-title">🔄 {t("admin.importAutomation")}</h2>
+      <p className="admin-section-sub">{t("admin.importAutomationSub")}</p>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+        <button
+          className={`admin-btn admin-btn--sm ${tab === "sources" ? "admin-btn--primary" : ""}`}
+          onClick={() => setTab("sources")}
+        >
+          ⚙ {t("admin.importSources")}
+        </button>
+        <button
+          className={`admin-btn admin-btn--sm ${tab === "pending" ? "admin-btn--primary" : ""}`}
+          onClick={() => setTab("pending")}
+        >
+          📥 {t("admin.importPendingQueue")}
+        </button>
+      </div>
+      {tab === "sources" ? <ImportSourcesTab /> : <ImportPendingTab />}
+    </div>
+  );
+}
+
+// ─── Sources management tab ───────────────────────────────────────────────────
+function ImportSourcesTab() {
+  const { t } = useI18n();
+  const [sources, setSources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editId, setEditId]   = useState(null); // id being edited, null = add new
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]       = useState(emptySourceForm());
+  const [msg, setMsg]         = useState(null);
+
+  function emptySourceForm() {
+    return { name: "", url: "", sourceType: "RSS", targetType: "MONTH_THEME",
+             companyId: "", subscriptionId: "",
+             checkFrequency: "DAILY", checkHour: 6,
+             checkDayOfWeek: "", checkDayOfMonth: "" };
+  }
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(API.ADMIN_IMPORT_SOURCES_ALL, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => { setSources(list); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const startEdit = src => {
+    setEditId(src.id);
+    setForm({
+      name: src.name || "", url: src.url || "",
+      sourceType: src.sourceType || "RSS", targetType: src.targetType || "MONTH_THEME",
+      companyId: src.companyId || "", subscriptionId: src.subscriptionId || "",
+      checkFrequency: src.checkFrequency || "DAILY",
+      checkHour: src.checkHour ?? 6,
+      checkDayOfWeek: src.checkDayOfWeek ?? "",
+      checkDayOfMonth: src.checkDayOfMonth ?? "",
+      enabled: src.enabled !== false,
+    });
+    setShowForm(true);
+  };
+
+  const startAdd = () => {
+    setEditId(null);
+    setForm(emptySourceForm());
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    const payload = {
+      ...form,
+      checkHour: form.checkHour !== "" ? Number(form.checkHour) : 6,
+      checkDayOfWeek: form.checkDayOfWeek !== "" ? Number(form.checkDayOfWeek) : null,
+      checkDayOfMonth: form.checkDayOfMonth !== "" ? Number(form.checkDayOfMonth) : null,
+    };
+    const url    = editId ? API.ADMIN_IMPORT_SOURCE_UPDATE(editId) : API.ADMIN_IMPORT_SOURCES_CREATE;
+    const method = editId ? "PUT" : "POST";
+    fetch(url, { method, credentials: "include",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || "Error"); }))
+      .then(() => { setMsg({ ok: true, text: editId ? t("admin.importSourceUpdated") : t("admin.importSourceCreated") }); setShowForm(false); load(); })
+      .catch(e => setMsg({ ok: false, text: e.message }));
+  };
+
+  const handleDelete = id => {
+    if (!window.confirm(t("admin.confirmDelete"))) return;
+    fetch(API.ADMIN_IMPORT_SOURCE_DELETE(id), { method: "DELETE", credentials: "include" })
+      .then(r => { if (r.ok || r.status === 204) { setMsg({ ok: true, text: t("admin.importSourceDeleted") }); load(); }
+                   else setMsg({ ok: false, text: "Error" }); });
+  };
+
+  const handleToggle = src => {
+    fetch(API.ADMIN_IMPORT_SOURCE_UPDATE(src.id), { method: "PUT", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: !src.enabled }) })
+      .then(r => r.ok ? r.json() : null)
+      .then(updated => { if (updated) setSources(prev => prev.map(s => s.id === src.id ? updated : s)); });
+  };
+
+  const handleCheckNow = id => {
+    fetch(API.ADMIN_IMPORT_SOURCE_CHECK(id), { method: "POST", credentials: "include" })
+      .then(r => r.json())
+      .then(d => setMsg({ ok: true, text: d.message || t("admin.importCheckDone") }))
+      .catch(() => setMsg({ ok: false, text: "Error" }));
+  };
+
+  const f = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const FREQ_LABEL = { DAILY: t("admin.importFreqDaily"), WEEKLY: t("admin.importFreqWeekly"), MONTHLY: t("admin.importFreqMonthly") };
+  const DOW_NAMES  = [t("admin.monday"), t("admin.tuesday"), t("admin.wednesday"), t("admin.thursday"), t("admin.friday"), t("admin.saturday"), t("admin.sunday")];
+
+  return (
+    <div>
+      {msg && (
+        <div style={{ fontSize: "0.85rem", marginBottom: "1rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
+          {msg.ok ? "✔ " : "✖ "}{msg.text}
+          <button style={{ marginLeft: 8, fontSize: "0.78rem", background: "none", border: "none", cursor: "pointer" }} onClick={() => setMsg(null)}>✕</button>
+        </div>
+      )}
+
+      <button className="admin-btn admin-btn--primary admin-btn--sm" style={{ marginBottom: "1rem" }} onClick={startAdd}>
+        + {t("admin.importAddSource")}
+      </button>
+
+      {showForm && (
+        <div style={{ background: "var(--surface-raised)", borderRadius: 10, padding: "1rem", marginBottom: "1rem" }}>
+          <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>{editId ? t("admin.importEditSource") : t("admin.importAddSource")}</h3>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 2, minWidth: 180 }}>
+              <label className="admin-form-label">{t("admin.importSourceName")}</label>
+              <input className="admin-form-input" value={form.name} onChange={f("name")} placeholder="e.g. Owl Crate RSS" />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+              <label className="admin-form-label">{t("admin.importSourceCompany")}</label>
+              <input className="admin-form-input" value={form.companyId} onChange={f("companyId")} />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+              <label className="admin-form-label">{t("admin.importSourceSub")}</label>
+              <input className="admin-form-input" value={form.subscriptionId} onChange={f("subscriptionId")} />
+            </div>
+          </div>
+          <div className="admin-form-row">
+            <label className="admin-form-label">URL</label>
+            <input className="admin-form-input" value={form.url} onChange={f("url")} placeholder="https://..." />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
+              <label className="admin-form-label">{t("admin.importSourceType")}</label>
+              <select className="admin-form-select" value={form.sourceType} onChange={f("sourceType")}>
+                <option value="RSS">RSS</option>
+                <option value="BLOG">Blog</option>
+              </select>
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>
+              <label className="admin-form-label">{t("admin.importTargetType")}</label>
+              <select className="admin-form-select" value={form.targetType} onChange={f("targetType")}>
+                <option value="MONTH_THEME">{t("admin.importTargetMonthTheme")}</option>
+                <option value="SALE_ANNOUNCEMENT">{t("admin.importTargetSale")}</option>
+              </select>
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 140 }}>
+              <label className="admin-form-label">{t("admin.importFrequency")}</label>
+              <select className="admin-form-select" value={form.checkFrequency} onChange={f("checkFrequency")}>
+                <option value="DAILY">{t("admin.importFreqDaily")}</option>
+                <option value="WEEKLY">{t("admin.importFreqWeekly")}</option>
+                <option value="MONTHLY">{t("admin.importFreqMonthly")}</option>
+              </select>
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 90 }}>
+              <label className="admin-form-label">{t("admin.importHourUTC")}</label>
+              <input className="admin-form-input" type="number" min={0} max={23} value={form.checkHour} onChange={f("checkHour")} />
+            </div>
+            {form.checkFrequency === "WEEKLY" && (
+              <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
+                <label className="admin-form-label">{t("admin.importDayOfWeek")}</label>
+                <select className="admin-form-select" value={form.checkDayOfWeek} onChange={f("checkDayOfWeek")}>
+                  <option value="">—</option>
+                  {DOW_NAMES.map((d, i) => <option key={i+1} value={i+1}>{d}</option>)}
+                </select>
+              </div>
+            )}
+            {form.checkFrequency === "MONTHLY" && (
+              <div className="admin-form-row" style={{ flex: 1, minWidth: 90 }}>
+                <label className="admin-form-label">{t("admin.importDayOfMonth")}</label>
+                <input className="admin-form-input" type="number" min={1} max={31} value={form.checkDayOfMonth} onChange={f("checkDayOfMonth")} />
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleSave}>{t("admin.save")}</button>
+            <button className="admin-btn admin-btn--sm" onClick={() => setShowForm(false)}>{t("admin.cancel")}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="admin-loading">{t("admin.loading")}</div>
+      ) : sources.length === 0 ? (
+        <div className="admin-empty">{t("admin.importNoSources")}</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {sources.map(src => (
+            <div key={src.id} style={{ background: "var(--surface-raised)", borderRadius: 10, padding: "0.75rem 1rem", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{src.name || src.url}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-ghost)", wordBreak: "break-all" }}>{src.url}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 2 }}>
+                  {src.companyId && <span>{t("admin.company")}: <strong>{src.companyId}</strong> · </span>}
+                  {src.subscriptionId && <span>Sub: <strong>{src.subscriptionId}</strong> · </span>}
+                  <span style={{ color: src.targetType === "SALE_ANNOUNCEMENT" ? "var(--accent)" : "var(--success)" }}>
+                    {src.targetType === "SALE_ANNOUNCEMENT" ? t("admin.importTargetSale") : t("admin.importTargetMonthTheme")}
+                  </span>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-ghost)", marginTop: 2 }}>
+                  {FREQ_LABEL[src.checkFrequency] || src.checkFrequency}
+                  {src.checkHour != null && ` · ${String(src.checkHour).padStart(2,"0")}:00 UTC`}
+                  {src.checkFrequency === "WEEKLY" && src.checkDayOfWeek && ` · ${DOW_NAMES[src.checkDayOfWeek - 1]}`}
+                  {src.checkFrequency === "MONTHLY" && src.checkDayOfMonth && ` · ${t("admin.day")} ${src.checkDayOfMonth}`}
+                </div>
+                {src.lastCheckedAt && (
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-ghost)" }}>
+                    {t("admin.importLastChecked")}: {new Date(src.lastCheckedAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+                <button
+                  className={`admin-btn admin-btn--sm ${src.enabled ? "admin-btn--primary" : ""}`}
+                  style={{ minWidth: 70, fontSize: "0.78rem" }}
+                  onClick={() => handleToggle(src)}
+                  title={src.enabled ? t("admin.importDisable") : t("admin.importEnable")}
+                >
+                  {src.enabled ? "✔ " + t("admin.active") : "○ " + t("admin.inactive")}
+                </button>
+                <button className="admin-btn admin-btn--sm" onClick={() => handleCheckNow(src.id)} title={t("admin.importCheckNow")}>▶</button>
+                <button className="admin-btn admin-btn--sm" onClick={() => startEdit(src)}>✏</button>
+                <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => handleDelete(src.id)}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Pending Queue tab ────────────────────────────────────────────────────────
+function ImportPendingTab() {
+  const { t } = useI18n();
   const [pending,  setPending]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [editing,  setEditing]  = useState({});
@@ -3275,34 +3530,30 @@ function ImportsSection() {
       body: JSON.stringify(payload),
     })
       .then(r => r.json())
-      .then(d => { setMsg({ ok: true, text: d.message || "Zatwierdzono." }); load(); })
-      .catch(() => setMsg({ ok: false, text: "Błąd zatwierdzania." }));
+      .then(d => { setMsg({ ok: true, text: d.message || t("admin.importApproved") }); load(); })
+      .catch(() => setMsg({ ok: false, text: t("admin.importApproveError") }));
   };
 
   const handleReject = id => {
     fetch(API.ADMIN_IMPORT_PENDING_REJECT(id), { method: "POST", credentials: "include" })
-      .then(() => { setMsg({ ok: true, text: "Odrzucono." }); load(); })
-      .catch(() => setMsg({ ok: false, text: "Błąd." }));
+      .then(() => { setMsg({ ok: true, text: t("admin.importRejected") }); load(); })
+      .catch(() => setMsg({ ok: false, text: t("admin.error") }));
   };
 
-  const MONTHS = ["","Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+  const MONTHS_I18N = Array.from({ length: 12 }, (_, i) => t(`admin.month${i + 1}`));
 
   return (
-    <div className="admin-section">
-      <h2 className="section-title admin-section-title">🔄 Oczekujące importy</h2>
-      <p className="admin-section-sub">Przejrzyj i zatwierdź lub odrzuć wpisy pobrane automatycznie ze źródeł RSS / blogów.</p>
-
+    <div>
       {msg && (
         <div style={{ fontSize: "0.85rem", marginBottom: "1rem", color: msg.ok ? "var(--success)" : "var(--danger)" }}>
           {msg.ok ? "✔ " : "✖ "}{msg.text}
           <button style={{ marginLeft: 8, fontSize: "0.78rem", background: "none", border: "none", cursor: "pointer" }} onClick={() => setMsg(null)}>✕</button>
         </div>
       )}
-
       {loading ? (
-        <div className="admin-loading">Ładowanie…</div>
+        <div className="admin-loading">{t("admin.loading")}</div>
       ) : pending.length === 0 ? (
-        <div className="admin-empty">Brak oczekujących importów. 🎉</div>
+        <div className="admin-empty">{t("admin.importNoPending")} 🎉</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {pending.map(item => {
@@ -3313,43 +3564,45 @@ function ImportsSection() {
               <div key={item.id} style={{ background: "var(--surface-raised)", borderRadius: 10, padding: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-ghost)" }}>
-                    Sub: <strong>{item.subscriptionId}</strong> ·{" "}
-                    {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>źródło</a>}
+                    {item.targetType === "SALE_ANNOUNCEMENT" && <span style={{ color: "var(--accent)", marginRight: 6 }}>[{t("admin.importTargetSale")}]</span>}
+                    {item.rawTitle && <span style={{ marginRight: 6 }}>{item.rawTitle} · </span>}
+                    Sub: <strong>{item.subscriptionId}</strong>
+                    {item.sourceUrl && <> · <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{t("admin.source")}</a></>}
                   </span>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-ghost)" }}>
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString("pl-PL") : ""}
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
-                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Rok</label>
-                    <input className="admin-form-input" type="number" value={e.year || ""} onChange={set("year")} />
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.yearLabel")}</label>
+                    <input className="admin-form-input" type="number" value={e.year || ""} onChange={set("admin.yearLabel")} />
                   </div>
                   <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
-                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Miesiąc</label>
-                    <select className="admin-form-select" value={e.month || ""} onChange={set("month")}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.monthLabel")}</label>
+                    <select className="admin-form-select" value={e.month || ""} onChange={set("admin.monthLabel")}>
                       <option value="">—</option>
-                      {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                      {MONTHS_I18N.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
                     </select>
                   </div>
                   <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
-                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Motyw</label>
-                    <input className="admin-form-input" value={e.theme || ""} onChange={set("theme")} />
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.themeLabel")}</label>
+                    <input className="admin-form-input" value={e.theme || ""} onChange={set("admin.themeLabel")} />
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
-                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Tytuł książki</label>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("bookTitle")}</label>
                     <input className="admin-form-input" value={e.bookTitle || ""} onChange={set("bookTitle")} />
                   </div>
                   <div className="admin-form-row" style={{ flex: 2, minWidth: 150 }}>
-                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Autor</label>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("bookAuthor")}</label>
                     <input className="admin-form-input" value={e.bookAuthor || ""} onChange={set("bookAuthor")} />
                   </div>
                 </div>
                 <div className="admin-form-row">
-                  <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>URL obrazka</label>
-                  <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("imageUrl")} />
+                  <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.imageUrlLabel")}</label>
+                  <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("admin.imageUrlLabel")} />
                 </div>
                 {e.imageUrl && (
                   <img src={e.imageUrl} alt="" style={{ height: 70, borderRadius: 6, marginBottom: 8 }}
@@ -3365,10 +3618,10 @@ function ImportsSection() {
                 )}
                 <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                   <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={() => handleApprove(item)}>
-                    ✔ Zatwierdź
+                    ✔ {t("admin.approve")}
                   </button>
                   <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => handleReject(item.id)}>
-                    ✕ Odrzuć
+                    ✕ {t("admin.reject")}
                   </button>
                 </div>
               </div>
@@ -3934,3 +4187,5 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
     </div>
   );
 }
+
+

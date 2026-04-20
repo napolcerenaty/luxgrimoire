@@ -139,6 +139,14 @@ public class ImportController {
 
     // ── Import Sources ────────────────────────────────────────────────────────
 
+    /** List ALL sources (admin/superadmin) */
+    @GetMapping("/sources")
+    public ResponseEntity<?> listAllSources(HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+        return ResponseEntity.ok(sourceRepo.findAllByOrderByCompanyIdAscNameAsc());
+    }
+
     @GetMapping("/sources/{companyId}/{subscriptionId}")
     public ResponseEntity<?> listSources(@PathVariable String companyId,
                                          @PathVariable String subscriptionId,
@@ -164,15 +172,47 @@ public class ImportController {
             sourceType = "RSS";
 
         SubscriptionImportSource source = new SubscriptionImportSource();
+        source.setName((String) body.get("name"));
         source.setCompanyId(companyId);
         source.setSubscriptionId(subscriptionId);
         source.setSourceType(sourceType.toUpperCase());
+        source.setTargetType(targetTypeFrom(body));
         source.setUrl(url.trim());
+        applyScheduleFields(source, body);
 
         SubscriptionImportSource saved = sourceRepo.save(source);
         auditLogService.log(AuthHelper.getUsername(session), "CREATE", "ImportSource",
                 String.valueOf(saved.getId()), "Created import source: " + url.trim());
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @PutMapping("/sources/{id}")
+    public ResponseEntity<?> updateSource(@PathVariable Long id,
+                                          @RequestBody Map<String, Object> body,
+                                          HttpSession session) {
+        if (!AuthHelper.isLoggedIn(session)) return unauthorized();
+        if (!AuthHelper.isAdmin(session))    return forbidden();
+
+        return sourceRepo.findById(id).map(source -> {
+            String name = (String) body.get("name");
+            if (name != null) source.setName(name);
+            String url = (String) body.get("url");
+            if (url != null && !url.isBlank()) source.setUrl(url.trim());
+            String sourceType = (String) body.get("sourceType");
+            if (sourceType != null && !sourceType.isBlank()) source.setSourceType(sourceType.toUpperCase());
+            source.setTargetType(targetTypeFrom(body));
+            applyScheduleFields(source, body);
+
+            if (body.containsKey("enabled")) {
+                Object en = body.get("enabled");
+                source.setEnabled(Boolean.TRUE.equals(en) || "true".equals(String.valueOf(en)));
+            }
+
+            SubscriptionImportSource saved = sourceRepo.save(source);
+            auditLogService.log(AuthHelper.getUsername(session), "UPDATE", "ImportSource",
+                    String.valueOf(id), "Updated import source id=" + id);
+            return ResponseEntity.ok((Object) saved);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/sources/{id}")
@@ -305,7 +345,25 @@ public class ImportController {
         p.setBookAuthor((String) body.get("bookAuthor"));
         p.setImageUrl((String) body.get("imageUrl"));
         p.setSourceUrl((String) body.get("sourceUrl"));
+        p.setTargetType(targetTypeFrom(body));
+        p.setRawTitle((String) body.get("rawTitle"));
         return p;
+    }
+
+    private String targetTypeFrom(Map<String, Object> body) {
+        String tt = (String) body.get("targetType");
+        return (tt != null && !tt.isBlank()) ? tt.toUpperCase() : "MONTH_THEME";
+    }
+
+    private void applyScheduleFields(SubscriptionImportSource source, Map<String, Object> body) {
+        String freq = (String) body.get("checkFrequency");
+        if (freq != null && !freq.isBlank()) source.setCheckFrequency(freq.toUpperCase());
+        Integer hour = intFromBody(body, "checkHour", null);
+        if (hour != null) source.setCheckHour(hour);
+        Integer dow = intFromBody(body, "checkDayOfWeek", null);
+        source.setCheckDayOfWeek(dow);
+        Integer dom = intFromBody(body, "checkDayOfMonth", null);
+        source.setCheckDayOfMonth(dom);
     }
 
     private Integer intFromBody(Map<String, Object> body, String key, Integer fallback) {
