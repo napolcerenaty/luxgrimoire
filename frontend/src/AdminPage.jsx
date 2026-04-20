@@ -3421,7 +3421,8 @@ function ImportSourcesTab() {
               <label className="admin-form-label">{t("admin.importSourceType")}</label>
               <select className="admin-form-select" value={form.sourceType} onChange={f("sourceType")}>
                 <option value="RSS">RSS</option>
-                <option value="BLOG">Blog</option>
+                <option value="BLOG">Blog (single page)</option>
+                <option value="BLOG_LISTING">{t("admin.importSourceBlogListing")}</option>
               </select>
             </div>
             <div className="admin-form-row" style={{ flex: 1, minWidth: 160 }}>

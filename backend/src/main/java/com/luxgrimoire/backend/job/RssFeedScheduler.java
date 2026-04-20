@@ -15,7 +15,10 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class RssFeedScheduler {
@@ -78,6 +81,8 @@ public class RssFeedScheduler {
         String sourceType = source.getSourceType();
         if ("RSS".equalsIgnoreCase(sourceType)) {
             checkRssSource(source);
+        } else if ("BLOG_LISTING".equalsIgnoreCase(sourceType)) {
+            checkBlogListingSource(source);
         } else {
             checkBlogSource(source);
         }
@@ -116,6 +121,52 @@ public class RssFeedScheduler {
             String targetType = classifyEntry(source, data.rawText, data.rawText);
             savePendingImport(source, data, source.getUrl(), null, targetType);
         }
+        source.setLastCheckedAt(Instant.now());
+        sourceRepo.save(source);
+    }
+
+    /**
+     * Blog listing: scrapes a page that lists articles, visits each article
+     * and saves new ones as pending imports.
+     * Already-visited article URLs are stored (newline-separated) in lastItemGuid
+     * so they are not re-imported on subsequent runs.
+     */
+    private void checkBlogListingSource(SubscriptionImportSource source) {
+        List<ScrapedMonthData> results = scraper.scrapeParentPage(source.getUrl());
+        if (results.isEmpty()) {
+            source.setLastCheckedAt(Instant.now());
+            sourceRepo.save(source);
+            return;
+        }
+
+        // Load already-seen article URLs from lastItemGuid (newline-separated)
+        Set<String> seenUrls = new HashSet<>();
+        if (source.getLastItemGuid() != null && !source.getLastItemGuid().isBlank()) {
+            for (String line : source.getLastItemGuid().split("\n")) {
+                if (!line.isBlank()) seenUrls.add(line.trim());
+            }
+        }
+
+        int newCount = 0;
+        for (ScrapedMonthData data : results) {
+            String articleUrl = data.sourceUrl;
+            if (articleUrl != null && seenUrls.contains(articleUrl)) continue;
+
+            String targetType = classifyEntry(source, data.theme, data.rawText);
+            savePendingImport(source, data, articleUrl, null, targetType);
+
+            if (articleUrl != null) seenUrls.add(articleUrl);
+            newCount++;
+        }
+
+        if (newCount > 0) {
+            // Persist seen URLs; cap at 500 entries to prevent unbounded growth
+            List<String> seenList = new ArrayList<>(seenUrls);
+            if (seenList.size() > 500) seenList = seenList.subList(seenList.size() - 500, seenList.size());
+            source.setLastItemGuid(String.join("\n", seenList));
+        }
+
+        log.info("Blog listing check for source id={}: {} new imports", source.getId(), newCount);
         source.setLastCheckedAt(Instant.now());
         sourceRepo.save(source);
     }
