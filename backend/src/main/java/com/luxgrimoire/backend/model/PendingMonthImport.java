@@ -32,10 +32,10 @@ public class PendingMonthImport {
     @Column(name = "book_author", length = 500)
     private String bookAuthor;
 
-    @Column(name = "image_url", length = 1000)
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
-    @Column(name = "source_url", length = 1000)
+    @Column(name = "source_url", columnDefinition = "TEXT")
     private String sourceUrl;
 
     @Column(name = "status")

@@ -28,7 +28,7 @@ public class SubscriptionImportSource {
     @Column(name = "target_type", length = 30)
     private String targetType = "MONTH_THEME";
 
-    @Column(name = "url", length = 1000)
+    @Column(name = "url", columnDefinition = "TEXT")
     private String url;
 
     /** Whether this source is actively scheduled */
@@ -54,7 +54,7 @@ public class SubscriptionImportSource {
     @Column(name = "last_checked_at")
     private Instant lastCheckedAt;
 
-    @Column(name = "last_item_guid", length = 1000)
+    @Column(name = "last_item_guid", columnDefinition = "TEXT")
     private String lastItemGuid;
 
     /**
