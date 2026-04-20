@@ -2988,18 +2988,18 @@ function ScrapedPreviewForm({ data, onDataChange, onSavePending }) {
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Rok</label>
-          <input className="admin-form-input" type="number" value={data.year || ""} onChange={set("admin.yearLabel")} placeholder="2025" />
+          <input className="admin-form-input" type="number" value={data.year || ""} onChange={set("year")} placeholder="2025" />
         </div>
         <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Miesiąc</label>
-          <select className="admin-form-select" value={data.month || ""} onChange={set("admin.monthLabel")}>
+          <select className="admin-form-select" value={data.month || ""} onChange={set("month")}>
             <option value="">—</option>
             {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
           </select>
         </div>
         <div className="admin-form-row" style={{ flex: 2, minWidth: 160 }}>
           <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>Motyw</label>
-          <input className="admin-form-input" value={data.theme || ""} onChange={set("admin.themeLabel")} placeholder="Motyw miesiąca…" />
+          <input className="admin-form-input" value={data.theme || ""} onChange={set("theme")} placeholder="Motyw miesiąca…" />
         </div>
       </div>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -3016,7 +3016,7 @@ function ScrapedPreviewForm({ data, onDataChange, onSavePending }) {
       {/* Image picker */}
       <div className="admin-form-row">
         <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>URL obrazka (wybierz lub wpisz)</label>
-        <input className="admin-form-input" value={data.imageUrl || ""} onChange={set("admin.imageUrlLabel")} />
+        <input className="admin-form-input" value={data.imageUrl || ""} onChange={set("imageUrl")} />
       </div>
       {allImgs.length > 0 && (
         <div style={{ marginBottom: "0.6rem" }}>
@@ -3557,11 +3557,19 @@ function ImportPendingTab() {
 
   const getEdit = item => {
     const stored = editing[item.id];
+    // Parse all images from the persisted JSON (for gallery picker)
+    const allImages = (() => {
+      if (item.allImagesJson) {
+        try { return JSON.parse(item.allImagesJson); } catch { return []; }
+      }
+      return [];
+    })();
     // Merge stored edits on top of item defaults so untouched fields keep item values
     return {
       year: item.year, month: item.month, theme: item.theme,
       bookTitle: item.bookTitle, bookAuthor: item.bookAuthor,
       imageUrl: item.imageUrl, targetType: item.targetType,
+      allImages,
       ...(stored ?? {}),
     };
   };
@@ -3674,6 +3682,29 @@ function ImportPendingTab() {
                   <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.imageUrlLabel")}</label>
                   <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("imageUrl")} />
                 </div>
+                {e.allImages && e.allImages.length > 0 && (
+                  <div style={{ marginBottom: "0.6rem" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
+                      {t("admin.importImageGallery") || "Kliknij obrazek aby wybrać:"}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                      {e.allImages.map((src, i) => (
+                        <div key={i} onClick={() => setEdit(item.id, "imageUrl", src)}
+                          style={{
+                            cursor: "pointer", borderRadius: 6, overflow: "hidden",
+                            border: `2px solid ${e.imageUrl === src ? "var(--accent)" : "var(--border)"}`,
+                            opacity: e.imageUrl === src ? 1 : 0.7,
+                            transition: "border-color 0.15s, opacity 0.15s",
+                            background: "var(--surface)",
+                          }}>
+                          <img src={src} alt=""
+                            style={{ width: 72, height: 72, objectFit: "cover", display: "block" }}
+                            onError={ev => { ev.target.closest("div").style.display = "none"; }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {e.imageUrl && (
                   <img src={e.imageUrl} alt="" style={{ height: 70, borderRadius: 6, marginBottom: 8 }}
                     onError={ev => { ev.target.style.display = "none"; }} />

@@ -52,6 +52,10 @@ public class PendingMonthImport {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    /** JSON array of all images scraped from the source (for admin gallery picker). */
+    @Column(name = "all_images_json", columnDefinition = "TEXT")
+    private String allImagesJson;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getCompanyId() { return companyId; }
@@ -80,4 +84,6 @@ public class PendingMonthImport {
     public void setRawTitle(String rawTitle) { this.rawTitle = rawTitle; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getAllImagesJson() { return allImagesJson; }
+    public void setAllImagesJson(String allImagesJson) { this.allImagesJson = allImagesJson; }
 }

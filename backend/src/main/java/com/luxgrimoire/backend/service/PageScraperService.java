@@ -82,6 +82,11 @@ public class PageScraperService {
     // Pattern to match  /2025/01/  or  -2025-01-  in URLs
     private static final Pattern URL_DATE_PATTERN = Pattern.compile("[/\\-](20\\d{2})[/\\-](0[1-9]|1[0-2])[/\\-]");
 
+    // Shopify CDN size suffix pattern: _480x480, _large, _medium, etc.
+    private static final Pattern SHOPIFY_SIZE_SUFFIX = Pattern.compile(
+            "_(\\d+x\\d*|\\d*x\\d+|pico|icon|thumb|small|compact|medium|large|grande|xlarge|1024x1024|2048x2048|master)" +
+            "(?=\\.[a-zA-Z]{2,5}(\\?|$|#))");
+
     // ── Public API ────────────────────────────────────────────────────────────────
 
     public ScrapedMonthData scrapeUrl(String url) {
@@ -97,12 +102,13 @@ public class PageScraperService {
             // 1. Collect ALL candidate images from the page (for manual selection in UI)
             String ogImageAll = doc.select("meta[property=og:image]").attr("content");
             if (ogImageAll != null && !ogImageAll.isBlank()) {
-                result.allImages.add(ogImageAll);
+                result.allImages.add(upgradeImageUrl(ogImageAll));
             }
             doc.select("img[src]").stream()
                     .map(img -> img.absUrl("src"))
                     .filter(src -> src != null && !src.isBlank())
                     .filter(src -> !looksLikeLogo(src))
+                    .map(this::upgradeImageUrl)
                     .distinct()
                     .limit(20)
                     .forEach(result.allImages::add);
@@ -114,17 +120,17 @@ public class PageScraperService {
             // 2. Pick best single imageUrl automatically (admin can override from allImages)
             String contentImg = findContentImage(doc, url);
             if (contentImg != null) {
-                result.imageUrl = contentImg;
+                result.imageUrl = upgradeImageUrl(contentImg);
             } else {
                 String ogImage = ogImageAll;
                 if (ogImage != null && !ogImage.isBlank() && !looksLikeLogo(ogImage)) {
-                    result.imageUrl = ogImage;
+                    result.imageUrl = upgradeImageUrl(ogImage);
                 } else {
                     Element firstImg = doc.select("img[src]").stream()
                             .filter(img -> !looksLikeLogo(img.absUrl("src")))
                             .findFirst().orElse(null);
-                    if (firstImg != null) result.imageUrl = firstImg.absUrl("src");
-                    else if (ogImage != null && !ogImage.isBlank()) result.imageUrl = ogImage;
+                    if (firstImg != null) result.imageUrl = upgradeImageUrl(firstImg.absUrl("src"));
+                    else if (ogImage != null && !ogImage.isBlank()) result.imageUrl = upgradeImageUrl(ogImage);
                 }
             }
 
@@ -298,6 +304,23 @@ public class PageScraperService {
                 || lower.matches(".*\\.(ico|svg)([?#].*)?$");
     }
 
+    /**
+     * Upgrades a Shopify CDN image URL to full resolution by stripping size suffixes
+     * (e.g. _480x480, _large) and width/height query params.
+     * Non-Shopify URLs are returned unchanged.
+     */
+    private String upgradeImageUrl(String url) {
+        if (url == null) return null;
+        if (url.contains("cdn.shopify.com")) {
+            url = SHOPIFY_SIZE_SUFFIX.matcher(url).replaceFirst("");
+            url = url.replaceAll("([?&])width=\\d+", "$1")
+                     .replaceAll("([?&])height=\\d+", "$1")
+                     .replaceAll("\\?&", "?")
+                     .replaceAll("[?&]$", "");
+        }
+        return url;
+    }
+
     public List<ScrapedMonthData> scrapeParentPage(String parentUrl) {
         // Try WordPress REST API first (handles headless WP / SPAs)
         List<ScrapedMonthData> wpResults = tryWordPressRestApi(parentUrl);
@@ -463,6 +486,7 @@ public class PageScraperService {
                     contentDoc.select("img[src]").stream()
                             .map(img -> img.attr("src"))
                             .filter(src -> src != null && !src.isBlank() && !looksLikeLogo(src))
+                            .map(this::upgradeImageUrl)
                             .distinct().limit(10)
                             .forEach(d.allImages::add);
                     if (!d.allImages.isEmpty()) d.imageUrl = d.allImages.get(0);
@@ -489,6 +513,7 @@ public class PageScraperService {
                 // Featured image wins if present
                 String featuredUrl = post.path("jetpack_featured_media_url").asText(null);
                 if (featuredUrl != null && !featuredUrl.isBlank() && !looksLikeLogo(featuredUrl)) {
+                    featuredUrl = upgradeImageUrl(featuredUrl);
                     if (!d.allImages.contains(featuredUrl)) d.allImages.add(0, featuredUrl);
                     d.imageUrl = featuredUrl;
                 }

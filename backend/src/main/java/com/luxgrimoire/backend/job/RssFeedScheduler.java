@@ -1,5 +1,6 @@
 package com.luxgrimoire.backend.job;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luxgrimoire.backend.model.PendingMonthImport;
 import com.luxgrimoire.backend.model.SubscriptionImportSource;
 import com.luxgrimoire.backend.repository.PendingMonthImportRepository;
@@ -28,13 +29,16 @@ public class RssFeedScheduler {
     private final SubscriptionImportSourceRepository sourceRepo;
     private final PendingMonthImportRepository       pendingRepo;
     private final PageScraperService                 scraper;
+    private final ObjectMapper                       objectMapper;
 
     public RssFeedScheduler(SubscriptionImportSourceRepository sourceRepo,
                              PendingMonthImportRepository pendingRepo,
-                             PageScraperService scraper) {
-        this.sourceRepo  = sourceRepo;
-        this.pendingRepo = pendingRepo;
-        this.scraper     = scraper;
+                             PageScraperService scraper,
+                             ObjectMapper objectMapper) {
+        this.sourceRepo   = sourceRepo;
+        this.pendingRepo  = pendingRepo;
+        this.scraper      = scraper;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -89,7 +93,22 @@ public class RssFeedScheduler {
     }
 
     private void checkRssSource(SubscriptionImportSource source) {
-        List<RssEntryInfo> entries = scraper.parseRssFeed(source.getUrl());
+        boolean isFirstRun = source.getLastItemGuid() == null || source.getLastItemGuid().isBlank();
+
+        List<RssEntryInfo> entries;
+        if (isFirstRun) {
+            // On first run, fetch multiple pages to cover full history (e.g. Shopify Atom feeds)
+            entries = new ArrayList<>();
+            for (int page = 1; page <= 10; page++) {
+                String pageUrl = page == 1 ? source.getUrl() : appendPageParam(source.getUrl(), page);
+                List<RssEntryInfo> pageEntries = scraper.parseRssFeed(pageUrl);
+                if (pageEntries.isEmpty()) break;
+                entries.addAll(pageEntries);
+            }
+        } else {
+            entries = scraper.parseRssFeed(source.getUrl());
+        }
+
         if (entries.isEmpty()) {
             source.setLastCheckedAt(Instant.now());
             sourceRepo.save(source);
@@ -113,6 +132,10 @@ public class RssFeedScheduler {
         if (newestGuid != null) source.setLastItemGuid(newestGuid);
         source.setLastCheckedAt(Instant.now());
         sourceRepo.save(source);
+    }
+
+    private String appendPageParam(String url, int page) {
+        return url + (url.contains("?") ? "&" : "?") + "page=" + page;
     }
 
     private void checkBlogSource(SubscriptionImportSource source) {
@@ -224,6 +247,13 @@ public class RssFeedScheduler {
         pending.setRawTitle(rawTitle);
         pending.setStatus("PENDING");
         pending.setCreatedAt(Instant.now());
+
+        if (data.allImages != null && !data.allImages.isEmpty()) {
+            try {
+                pending.setAllImagesJson(objectMapper.writeValueAsString(data.allImages));
+            } catch (Exception ignored) {}
+        }
+
         pendingRepo.save(pending);
         log.info("Saved pending {} import for sub={}: {}", targetType, source.getSubscriptionId(), sourceUrl);
     }
