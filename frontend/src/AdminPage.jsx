@@ -1409,7 +1409,9 @@ function SubMonthsManager({ sub, companyId, currency }) {
             <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
               <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.monthLabel")}</label>
               <select className="admin-form-select" value={form.month} onChange={e => setForm(f => ({ ...f, month: e.target.value }))}>
-                {(t("months") || []).map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i+1} value={i+1}>{t(`admin.month${i + 1}`)}</option>
+                ))}
               </select>
             </div>
             <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
