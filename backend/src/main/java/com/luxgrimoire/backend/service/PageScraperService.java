@@ -131,7 +131,7 @@ public class PageScraperService {
             // Headings for theme candidate
             String h1 = doc.select("h1").text();
             String h2 = doc.select("h2").first() != null ? doc.select("h2").first().text() : "";
-            result.theme = h1.isBlank() ? h2 : h1;
+            result.theme = cleanThemeHeading(h1.isBlank() ? h2 : h1);
 
             // Full text (first 2000 chars for debugging)
             String fullText = doc.body() != null ? doc.body().text() : "";
@@ -151,6 +151,15 @@ public class PageScraperService {
                     result.month = parsed[0];
                     result.year  = parsed[1];
                 }
+            }
+
+            // Last-resort: find just a month name without requiring a year
+            // (e.g. "January Cosy Theme: Tails of Magic" has no year in text)
+            if (result.month == null) {
+                Integer m = extractMonthFromText(result.theme);
+                if (m == null) m = extractMonthFromText(url);
+                if (m == null) m = extractMonthFromText(fullText.substring(0, Math.min(600, fullText.length())));
+                if (m != null) result.month = m;
             }
 
             // Try to extract year from URL path like /2025/ if still missing
@@ -514,6 +523,28 @@ public class PageScraperService {
             String host = uri.getHost();
             return host != null ? host.replaceFirst("^www\\.", "") : url;
         } catch (Exception e) { return url; }
+    }
+
+    /**
+     * Strips leading "MonthName [words]: " or "MonthName [words] - " prefix from article headings.
+     * Examples:
+     *   "January Cosy Theme: Tails of Magic"  →  "Tails of Magic"
+     *   "February Theme Reveal – The Lost Stars"  →  "The Lost Stars"
+     *   "March Sale Announcement"  →  unchanged (no separator after prefix)
+     */
+    private static final Pattern HEADING_MONTH_PREFIX =
+            Pattern.compile("^(?:january|february|march|april|may|june|july|august|september|october|november|december|"
+                    + "styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień)"
+                    + "\\s+[^:–\\-–—]{0,40}[:\\-–—]\\s*", Pattern.CASE_INSENSITIVE);
+
+    private String cleanThemeHeading(String heading) {
+        if (heading == null || heading.isBlank()) return heading;
+        Matcher m = HEADING_MONTH_PREFIX.matcher(heading.trim());
+        if (m.find()) {
+            String rest = heading.trim().substring(m.end()).trim();
+            if (!rest.isBlank()) return rest;
+        }
+        return heading.trim();
     }
 
     private boolean looksLikePostLink(String href, String parentUrl) {

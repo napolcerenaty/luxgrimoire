@@ -3555,10 +3555,15 @@ function ImportPendingTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  const getEdit = item => editing[item.id] ?? {
-    year: item.year, month: item.month, theme: item.theme,
-    bookTitle: item.bookTitle, bookAuthor: item.bookAuthor, imageUrl: item.imageUrl,
-    targetType: item.targetType,
+  const getEdit = item => {
+    const stored = editing[item.id];
+    // Merge stored edits on top of item defaults so untouched fields keep item values
+    return {
+      year: item.year, month: item.month, theme: item.theme,
+      bookTitle: item.bookTitle, bookAuthor: item.bookAuthor,
+      imageUrl: item.imageUrl, targetType: item.targetType,
+      ...(stored ?? {}),
+    };
   };
 
   const setEdit = (id, field, value) =>
@@ -3641,18 +3646,18 @@ function ImportPendingTab() {
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
                     <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.yearLabel")}</label>
-                    <input className="admin-form-input" type="number" value={e.year || ""} onChange={set("admin.yearLabel")} />
+                    <input className="admin-form-input" type="number" value={e.year || ""} onChange={set("year")} />
                   </div>
                   <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
                     <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.monthLabel")}</label>
-                    <select className="admin-form-select" value={e.month || ""} onChange={set("admin.monthLabel")}>
+                    <select className="admin-form-select" value={e.month || ""} onChange={set("month")}>
                       <option value="">—</option>
                       {MONTHS_I18N.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
                     </select>
                   </div>
                   <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
                     <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.themeLabel")}</label>
-                    <input className="admin-form-input" value={e.theme || ""} onChange={set("admin.themeLabel")} />
+                    <input className="admin-form-input" value={e.theme || ""} onChange={set("theme")} />
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -3667,7 +3672,7 @@ function ImportPendingTab() {
                 </div>
                 <div className="admin-form-row">
                   <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.imageUrlLabel")}</label>
-                  <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("admin.imageUrlLabel")} />
+                  <input className="admin-form-input" value={e.imageUrl || ""} onChange={set("imageUrl")} />
                 </div>
                 {e.imageUrl && (
                   <img src={e.imageUrl} alt="" style={{ height: 70, borderRadius: 6, marginBottom: 8 }}
