@@ -344,157 +344,166 @@ public class PageScraperService {
 
     /**
      * Try to import posts using WordPress REST API.
-     * Returns null if this doesn't look like a WordPress category URL or API is unavailable.
+     * - If the URL contains /category/, filters by that category (existing behaviour).
+     * - Otherwise, fetches recent posts from the root WP REST API.
+     *   This handles JS-rendered WordPress sites where Jsoup can't see article links.
+     * Returns null if the site doesn't appear to be WordPress or the API is unavailable.
      */
     private List<ScrapedMonthData> tryWordPressRestApi(String parentUrl) {
         try {
             URI uri = new URI(parentUrl);
             String base = uri.getScheme() + "://" + uri.getHost();
-            String path = uri.getPath(); // e.g. /category/theme-reveals/adult-monthly-themes/
-
-            // Must contain /category/ to be a WP category page
-            if (!path.contains("/category/")) return null;
-
-            // Extract the last path segment as category slug
-            String[] parts = path.replaceAll("/$", "").split("/");
-            String slug = parts[parts.length - 1];
-            if (slug.isBlank()) return null;
+            String path = uri.getPath();
 
             HttpClient http = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(8))
                     .build();
 
-            // Step 1: resolve category slug → ID
-            String catUrl = base + "/wp-json/wp/v2/categories?slug=" + slug;
-            String catJson = httpGet(http, catUrl);
-            if (catJson == null) return null;
+            if (path.contains("/category/")) {
+                // Category-filtered: resolve slug → ID then fetch by category
+                String[] parts = path.replaceAll("/$", "").split("/");
+                String slug = parts[parts.length - 1];
+                if (slug.isBlank()) return null;
 
+                String catJson = httpGet(http, base + "/wp-json/wp/v2/categories?slug=" + slug);
+                if (catJson == null) return null;
+
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode cats = mapper.readTree(catJson);
+                if (!cats.isArray() || cats.isEmpty()) return null;
+                int categoryId = cats.get(0).get("id").asInt();
+
+                return fetchWordPressPosts(base, http,
+                        "/wp-json/wp/v2/posts?categories=" + categoryId + "&per_page=50&orderby=date&order=desc");
+            } else {
+                // Generic WordPress: try REST API without category filter.
+                // Returns null if the endpoint is unavailable (non-WP site).
+                return fetchWordPressPosts(base, http,
+                        "/wp-json/wp/v2/posts?per_page=50&orderby=date&order=desc");
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** Fetches and processes paginated WP REST API posts. Returns null if endpoint unavailable. */
+    private List<ScrapedMonthData> fetchWordPressPosts(String base, HttpClient http, String apiPath) {
+        try {
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode cats = mapper.readTree(catJson);
-            if (!cats.isArray() || cats.isEmpty()) return null;
-            int categoryId = cats.get(0).get("id").asInt();
-
-            // Step 2: get ALL posts via paginated WP REST API
             List<JsonNode> allPosts = new ArrayList<>();
             int page = 1;
             int totalPages = 1;
             do {
-                String postsUrl = base + "/wp-json/wp/v2/posts?categories=" + categoryId
-                        + "&per_page=50&orderby=date&order=desc&page=" + page;
-                HttpRequest postsReq = HttpRequest.newBuilder()
+                String postsUrl = base + apiPath + "&page=" + page;
+                HttpRequest req = HttpRequest.newBuilder()
                         .uri(new URI(postsUrl))
                         .timeout(Duration.ofSeconds(8))
                         .header("User-Agent", "Mozilla/5.0 (compatible; LuxGrimoireBot/1.0)")
                         .GET().build();
-                HttpResponse<String> postsResp = http.send(postsReq, HttpResponse.BodyHandlers.ofString());
-                if (postsResp.statusCode() != 200) break;
-
-                // Read total pages from response header
-                if (page == 1) {
-                    String totalPagesHeader = postsResp.headers().firstValue("X-WP-TotalPages").orElse("1");
-                    try { totalPages = Integer.parseInt(totalPagesHeader.trim()); } catch (Exception ignored) {}
+                HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() != 200) {
+                    // 404 means not a WP site (or API disabled) — return null to fall through to HTML scraping
+                    return page == 1 ? null : (allPosts.isEmpty() ? null : processWordPressPosts(allPosts));
                 }
-
-                JsonNode pagePosts = mapper.readTree(postsResp.body());
+                if (page == 1) {
+                    String tp = resp.headers().firstValue("X-WP-TotalPages").orElse("1");
+                    try { totalPages = Integer.parseInt(tp.trim()); } catch (Exception ignored) {}
+                }
+                JsonNode pagePosts = mapper.readTree(resp.body());
                 if (!pagePosts.isArray() || pagePosts.isEmpty()) break;
                 pagePosts.forEach(allPosts::add);
                 page++;
-            } while (page <= totalPages && allPosts.size() < 200); // safety cap
+            } while (page <= totalPages && allPosts.size() < 200);
 
-            if (allPosts.isEmpty()) return null;
-
-            List<ScrapedMonthData> results = new ArrayList<>();
-            DateTimeFormatter dtf = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
-            for (JsonNode post : allPosts) {
-                try {
-                    ScrapedMonthData d = new ScrapedMonthData();
-                    d.sourceUrl = post.path("link").asText(null);
-
-                    // Year always comes from post date — but adjust for year-end announcements:
-                    // December posts announcing January/February belong to the NEXT year.
-                    // Rule: if post is in Nov/Dec AND extracted month is Jan/Feb → roll year forward.
-                    String dateStr = post.path("date").asText(null);
-                    Integer postYear = null;
-                    Integer postMonth = null;
-                    if (dateStr != null) {
-                        LocalDateTime dt = LocalDateTime.parse(dateStr, dtf);
-                        postYear = dt.getYear();
-                        postMonth = dt.getMonthValue();
-                    }
-
-                    // Theme from post title — also try to extract month from title
-                    String title = post.path("title").path("rendered").asText(null);
-                    if (title != null) {
-                        d.theme = Jsoup.parse(title).text();
-                        // Try month name extraction from title directly (ignores year requirement)
-                        Integer titleMonth = extractMonthFromText(d.theme);
-                        if (titleMonth != null) d.month = titleMonth;
-                    }
-
-                    // Parse content HTML for images and text
-                    String contentHtml = post.path("content").path("rendered").asText(null);
-                    if (contentHtml != null && !contentHtml.isBlank()) {
-                        Document contentDoc = Jsoup.parse(contentHtml);
-                        String bodyText = contentDoc.text();
-                        d.rawText = bodyText.length() > 2000 ? bodyText.substring(0, 2000) : bodyText;
-
-                        // If month still not found, try month name in content (NO year extraction — year comes from post date)
-                        if (d.month == null) {
-                            Integer contentMonth = extractMonthFromText(bodyText.substring(0, Math.min(300, bodyText.length())));
-                            if (contentMonth != null) d.month = contentMonth;
-                        }
-
-                        // Collect all images from content
-                        contentDoc.select("img[src]").stream()
-                                .map(img -> img.attr("src"))
-                                .filter(src -> src != null && !src.isBlank() && !looksLikeLogo(src))
-                                .distinct().limit(10)
-                                .forEach(d.allImages::add);
-                        if (!d.allImages.isEmpty()) d.imageUrl = d.allImages.get(0);
-
-                        // AI extraction if configured — only use AI for month/theme/book, NEVER for year
-                        // (AI sees text that may reference old years like "since 2023", copyright notices, etc.)
-                        if (openAiService.isConfigured()) {
-                            ScrapedMonthData ai = openAiService.extractFromText(
-                                    d.theme + "\n" + d.rawText, d.sourceUrl);
-                            if (ai != null) {
-                                if (ai.month      != null) d.month      = ai.month;
-                                // ai.year intentionally NOT applied — post date year is authoritative
-                                if (ai.theme      != null && !ai.theme.isBlank()) d.theme = ai.theme;
-                                if (ai.bookTitle  != null) d.bookTitle  = ai.bookTitle;
-                                if (ai.bookAuthor != null) d.bookAuthor = ai.bookAuthor;
-                            }
-                        }
-                    }
-
-                    // Year always comes from post date — but adjust for year-end announcements:
-                    // December posts announcing January/February belong to the NEXT year.
-                    d.year = postYear;
-                    if (postYear != null && postMonth != null && d.month != null) {
-                        // Post in Oct/Nov/Dec announcing Jan/Feb/Mar → next year
-                        if (postMonth >= 10 && d.month <= 3) {
-                            d.year = postYear + 1;
-                        }
-                    }
-
-                    // Featured image (highest priority)
-                    String featuredUrl = post.path("jetpack_featured_media_url").asText(null);
-                    if (featuredUrl != null && !featuredUrl.isBlank() && !looksLikeLogo(featuredUrl)) {
-                        if (!d.allImages.contains(featuredUrl)) d.allImages.add(0, featuredUrl);
-                        d.imageUrl = featuredUrl;
-                    }
-
-                    if (d.month != null) results.add(d);
-                } catch (Exception ignored) {}
-            }
-
-            sortByDate(results);
-            return results;
-
+            return allPosts.isEmpty() ? null : processWordPressPosts(allPosts);
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private List<ScrapedMonthData> processWordPressPosts(List<JsonNode> allPosts) {
+        List<ScrapedMonthData> results = new ArrayList<>();
+        DateTimeFormatter dtf = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+        for (JsonNode post : allPosts) {
+            try {
+                ScrapedMonthData d = new ScrapedMonthData();
+                d.sourceUrl = post.path("link").asText(null);
+
+                String dateStr = post.path("date").asText(null);
+                Integer postYear = null;
+                Integer postMonth = null;
+                if (dateStr != null) {
+                    LocalDateTime dt = LocalDateTime.parse(dateStr, dtf);
+                    postYear = dt.getYear();
+                    postMonth = dt.getMonthValue();
+                }
+
+                // Theme from post title (cleaned of leading "Month Type: " prefix)
+                String title = post.path("title").path("rendered").asText(null);
+                if (title != null) {
+                    d.theme = cleanThemeHeading(Jsoup.parse(title).text());
+                    Integer titleMonth = extractMonthFromText(d.theme);
+                    if (titleMonth == null) titleMonth = extractMonthFromText(Jsoup.parse(title).text());
+                    if (titleMonth != null) d.month = titleMonth;
+                }
+
+                // Parse content HTML for images, text, and month
+                String contentHtml = post.path("content").path("rendered").asText(null);
+                if (contentHtml != null && !contentHtml.isBlank()) {
+                    Document contentDoc = Jsoup.parse(contentHtml);
+                    String bodyText = contentDoc.text();
+                    d.rawText = bodyText.length() > 2000 ? bodyText.substring(0, 2000) : bodyText;
+
+                    if (d.month == null) {
+                        Integer contentMonth = extractMonthFromText(bodyText.substring(0, Math.min(300, bodyText.length())));
+                        if (contentMonth != null) d.month = contentMonth;
+                    }
+
+                    contentDoc.select("img[src]").stream()
+                            .map(img -> img.attr("src"))
+                            .filter(src -> src != null && !src.isBlank() && !looksLikeLogo(src))
+                            .distinct().limit(10)
+                            .forEach(d.allImages::add);
+                    if (!d.allImages.isEmpty()) d.imageUrl = d.allImages.get(0);
+
+                    if (openAiService.isConfigured()) {
+                        ScrapedMonthData ai = openAiService.extractFromText(
+                                d.theme + "\n" + d.rawText, d.sourceUrl);
+                        if (ai != null) {
+                            if (ai.month     != null) d.month     = ai.month;
+                            if (ai.theme     != null && !ai.theme.isBlank()) d.theme = ai.theme;
+                            if (ai.bookTitle != null) d.bookTitle = ai.bookTitle;
+                            if (ai.bookAuthor!= null) d.bookAuthor = ai.bookAuthor;
+                        }
+                    }
+                }
+
+                // Year from post date (adjust for year-end announcements)
+                d.year = postYear;
+                if (postYear != null && postMonth != null && d.month != null) {
+                    if (postMonth >= 10 && d.month <= 3) d.year = postYear + 1;
+                }
+                if (d.year == null) d.year = LocalDate.now(ZoneOffset.UTC).getYear();
+
+                // Featured image wins if present
+                String featuredUrl = post.path("jetpack_featured_media_url").asText(null);
+                if (featuredUrl != null && !featuredUrl.isBlank() && !looksLikeLogo(featuredUrl)) {
+                    if (!d.allImages.contains(featuredUrl)) d.allImages.add(0, featuredUrl);
+                    d.imageUrl = featuredUrl;
+                }
+
+                // Also try sourceUrl slug for month if still missing
+                if (d.month == null && d.sourceUrl != null) {
+                    d.month = extractMonthFromText(d.sourceUrl);
+                }
+
+                if (d.month != null) results.add(d);
+            } catch (Exception ignored) {}
+        }
+
+        sortByDate(results);
+        return results.isEmpty() ? null : results;
     }
 
     private String httpGet(HttpClient http, String url) {
