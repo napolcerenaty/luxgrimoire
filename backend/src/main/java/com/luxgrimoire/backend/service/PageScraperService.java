@@ -333,7 +333,7 @@ public class PageScraperService {
             for (var f : futures) {
                 try {
                     ScrapedMonthData d = f.get();
-                    if (d != null && d.month != null) results.add(d);
+                    if (d != null && d.theme != null && !d.theme.isBlank()) results.add(d);
                 } catch (Exception ignored) {}
             }
 
@@ -498,7 +498,11 @@ public class PageScraperService {
                     d.month = extractMonthFromText(d.sourceUrl);
                 }
 
-                if (d.month != null) results.add(d);
+                // Include all posts regardless of whether month was detected —
+                // articles from a configured category are always relevant.
+                // Admin can fill in the month in the pending review UI.
+                // (Only skip if no theme/title at all — completely empty scrape)
+                if (d.theme != null && !d.theme.isBlank()) results.add(d);
             } catch (Exception ignored) {}
         }
 
