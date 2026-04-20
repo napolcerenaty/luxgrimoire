@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useAuth } from "./AuthContext";
 import { useI18n } from "./i18n";
 import { API } from "./api";
@@ -3268,10 +3268,12 @@ function ImportSourcesTab() {
   const { t } = useI18n();
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editId, setEditId]   = useState(null); // id being edited, null = add new
+  const [editId, setEditId]   = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]       = useState(emptySourceForm());
   const [msg, setMsg]         = useState(null);
+  const [companies, setCompanies]     = useState([]);
+  const [companySubs, setCompanySubs] = useState([]);
 
   function emptySourceForm() {
     return { name: "", url: "", sourceType: "RSS", targetType: "MONTH_THEME",
@@ -3279,6 +3281,23 @@ function ImportSourcesTab() {
              checkFrequency: "DAILY", checkHour: 6,
              checkDayOfWeek: "", checkDayOfMonth: "" };
   }
+
+  // Load companies once for dropdowns
+  useEffect(() => {
+    fetch(API.ADMIN_COMPANIES, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => setCompanies(list))
+      .catch(() => {});
+  }, []);
+
+  // When company changes in form, load its subscriptions
+  useEffect(() => {
+    if (!form.companyId) { setCompanySubs([]); return; }
+    fetch(API.ADMIN_COMPANY_SUBS(form.companyId), { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => setCompanySubs(list))
+      .catch(() => setCompanySubs([]));
+  }, [form.companyId]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -3377,11 +3396,17 @@ function ImportSourcesTab() {
             </div>
             <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
               <label className="admin-form-label">{t("admin.importSourceCompany")}</label>
-              <input className="admin-form-input" value={form.companyId} onChange={f("companyId")} />
+              <select className="admin-form-select" value={form.companyId} onChange={e => setForm(prev => ({ ...prev, companyId: e.target.value, subscriptionId: "" }))}>
+                <option value="">— {t("admin.importSelectCompany")} —</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
             </div>
             <div className="admin-form-row" style={{ flex: 1, minWidth: 120 }}>
               <label className="admin-form-label">{t("admin.importSourceSub")}</label>
-              <input className="admin-form-input" value={form.subscriptionId} onChange={f("subscriptionId")} />
+              <select className="admin-form-select" value={form.subscriptionId} onChange={f("subscriptionId")} disabled={!form.companyId}>
+                <option value="">— {t("admin.importSelectSub")} —</option>
+                {companySubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
           </div>
           <div className="admin-form-row">
@@ -4033,8 +4058,9 @@ function PendingBooksSection() {
             </thead>
             <tbody>
               {books.map(book => (
-                <React.Fragment key={book.id}>
+                <Fragment key={book.id}>
                   <tr>
+
                     <td>
                       {editing?.bookId === book.id
                         ? <input className="admin-form-input" value={editing.title}
@@ -4070,7 +4096,7 @@ function PendingBooksSection() {
                       )}
                     </td>
                   </tr>
-                </React.Fragment>
+                </Fragment>
               ))}
             </tbody>
           </table>
