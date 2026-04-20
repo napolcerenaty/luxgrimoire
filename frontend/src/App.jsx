@@ -195,7 +195,47 @@ function AppInner() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
+  // Global error handler — sends unhandled JS errors to backend
+  useEffect(() => {
+    const sendLog = (level, message, stack, context) => {
+      try {
+        fetch(API.APP_LOGS, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ level, message: String(message).slice(0, 500), stackTrace: stack?.slice?.(0, 4000) ?? null, context }),
+        }).catch(() => {});
+      } catch (_) {}
+    };
+    const onError = (e) => sendLog("ERROR", e.message || "Unknown error", e.error?.stack, `${e.filename}:${e.lineno}`);
+    const onRejection = (e) => sendLog("ERROR", e.reason?.message || String(e.reason) || "Unhandled rejection", e.reason?.stack, "unhandledrejection");
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   // Navigate with browser history support
+  const buildShareableUrl = (newTab, state) => {
+    const p = new URLSearchParams();
+    if (newTab === "book-detail" && state.selectedBookId) {
+      p.set("v", "book"); p.set("id", state.selectedBookId);
+    } else if (newTab === "subscription-detail" && state.selectedSubscription?.subscriptionId) {
+      p.set("v", "sub");
+      p.set("id",  state.selectedSubscription.subscriptionId);
+      if (state.selectedSubscription.companyId) p.set("cid", state.selectedSubscription.companyId);
+    } else if (newTab === "company-detail" && state.selectedCompany?.id) {
+      p.set("v", "company"); p.set("id", state.selectedCompany.id);
+    } else if (newTab === "author-detail" && state.selectedAuthorId) {
+      p.set("v", "author"); p.set("id", state.selectedAuthorId);
+    } else if (newTab === "artist-detail" && state.selectedArtistId) {
+      p.set("v", "artist"); p.set("id", state.selectedArtistId);
+    }
+    return p.toString() ? `${window.location.pathname}?${p}` : window.location.pathname;
+  };
+
   const navigate = (newTab, opts = {}) => {
     const newState = {
       tab: newTab,
@@ -224,11 +264,40 @@ function AppInner() {
     if (opts.editingCompany !== undefined) setEditingCompany(opts.editingCompany);
     if (opts.subMonthContext !== undefined) setSubMonthContext(opts.subMonthContext);
     setTab(newTab);
-    history.pushState(newState, "");
+    const url = buildShareableUrl(newTab, newState);
+    history.pushState(newState, "", url);
   };
 
   useEffect(() => {
-    history.replaceState({ tab: "browse" }, "");
+    // Read URL params for deep-link navigation on first load
+    const p = new URLSearchParams(window.location.search);
+    const v = p.get("v");
+    const id = p.get("id");
+    if (v && id) {
+      if (v === "book") {
+        setSelectedBookId(id);
+        setTab("book-detail");
+        setPrevTab("browse");
+      } else if (v === "sub") {
+        const cid = p.get("cid") || null;
+        setSelectedSubscription({ subscriptionId: id, companyId: cid });
+        setTab("subscription-detail");
+        setPrevTab("browse");
+      } else if (v === "company") {
+        setSelectedCompany({ id });
+        setTab("company-detail");
+        setPrevTab("browse");
+      } else if (v === "author") {
+        setSelectedAuthorId(id);
+        setTab("author-detail");
+        setPrevTab("browse");
+      } else if (v === "artist") {
+        setSelectedArtistId(id);
+        setTab("artist-detail");
+        setPrevTab("browse");
+      }
+    }
+    history.replaceState({ tab: "browse" }, "", window.location.href);
     const onPop = (e) => {
       if (!e.state) return;
       const s = e.state;

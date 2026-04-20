@@ -257,8 +257,12 @@ export default function SubscriptionDetailPage({ companyId, subscriptionId, onBa
         </div>
       )}
       <button className="sub-detail-back-btn" onClick={onBack}>← {t("back")}</button>
-
-      {/* Header */}
+      <button className="detail-action-btn" style={{ marginBottom: "0.5rem" }} title={t("share.copyLink")}
+        onClick={() => {
+          const url = `${window.location.origin}${window.location.pathname}?v=sub&id=${subscriptionId}&cid=${companyId}`;
+          navigator.clipboard?.writeText(url).then(() => alert(t("share.copied"))).catch(() => prompt(t("share.copyLink"), url));
+        }}>🔗 {t("share.copyLink")}
+      </button>
       <div className="sub-detail-header">
         {/* Logo */}
         <div className="sub-detail-logo-container">

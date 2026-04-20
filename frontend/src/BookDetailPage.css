@@ -403,7 +403,10 @@ button.detail-artist-link:hover {
 .detail-edition-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
 .detail-edition-name { font-size: 1.05rem; font-weight: 600; color: var(--accent); margin: 0; }
 .detail-edition-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.detail-no-editions { color: #547898; font-style: italic; text-align: center; padding: 2rem 0; }
+.detail-no-editions { color: #547898; font-style: italic; text-align: center; padding: 1.5rem 0 0.5rem; }
+.detail-no-editions-cta { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1.5rem 0; }
+.detail-no-editions-login { color: #547898; font-size: 0.85rem; }
+.detail-add-edition-cta { font-size: 1rem; padding: 0.6rem 1.5rem; }
 @media (max-width: 768px) {
   .detail-edition-header {
     flex-direction: column;

@@ -205,4 +205,8 @@ export const API = {
   // Static pages
   PAGE: (key)               => `${API_BASE}/api/pages/${key}`,
   ADMIN_PAGE: (key)         => `${API_BASE}/api/admin/pages/${key}`,
+  // App Logs
+  APP_LOGS:                `${API_BASE}/api/logs`,
+  ADMIN_APP_LOGS:          `${API_BASE}/api/admin/app-logs`,
+  ADMIN_APP_LOG: (id)   => `${API_BASE}/api/admin/app-logs/${id}`,
 };

@@ -468,6 +468,13 @@ export default function BookDetailPage({
       <div className="detail-actions-top">
         <button className="detail-back-btn" onClick={onBack}>{t("back")}</button>
         <div className="detail-actions-right">
+          <button className="detail-action-btn" title={t("share.copyLink")}
+            onClick={() => {
+              const url = `${window.location.origin}${window.location.pathname}?v=book&id=${book.id}`;
+              navigator.clipboard?.writeText(url).then(() => alert(t("share.copied"))).catch(() => prompt(t("share.copyLink"), url));
+            }}>
+            🔗
+          </button>
           {user && (
             <button className="detail-action-btn" onClick={() => onNewEdition && onNewEdition(book)}>
               {t("bookDetail.addEdition")}
@@ -518,7 +525,17 @@ export default function BookDetailPage({
           {book.editions && book.editions.length > 0 ? (
             book.editions.map((edition) => renderEditionCard(edition))
           ) : (
-            <p className="detail-no-editions">{t("bookDetail.noEditions")}</p>
+            <div className="detail-no-editions-cta">
+              <p className="detail-no-editions">{t("bookDetail.noEditions")}</p>
+              {user ? (
+                <button className="detail-action-btn detail-add-edition-cta"
+                  onClick={() => onNewEdition && onNewEdition(book)}>
+                  {t("bookDetail.addEdition")}
+                </button>
+              ) : (
+                <p className="detail-no-editions-login">{t("bookDetail.noEditionsLoginHint")}</p>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -25,6 +25,7 @@ function getNavItems(t) {
     { key: "imports",       icon: "🔄", label: t("admin.navImports"),       permission: "MANAGE_IMPORTS"       },
     { key: "ol-catalog",    icon: "📚", label: t("admin.navOlCatalog"),     permission: "MANAGE_IMPORTS"       },
     { key: "audit-log",     icon: "📋", label: t("admin.navAuditLog"),      permission: "MANAGE_AUDIT"         },
+    { key: "app-logs",      icon: "🪵", label: t("admin.navAppLogs"),       permission: "MANAGE_AUDIT"         },
   ];
 }
 
@@ -1265,7 +1266,7 @@ function SubMonthsManager({ sub, companyId, currency }) {
     fetch(API.UPLOAD_IMAGE, { method: "POST", credentials: "include", body: fd })
       .then(r => r.ok ? r.json() : Promise.reject("Upload failed"))
       .then(data => { setForm(f => ({ ...f, imageUrl: data.url })); setUploadingImg(false); })
-      .catch(() => { setMsg({ ok: false, text: "Błąd uploadu zdjęcia." }); setUploadingImg(false); });
+      .catch(() => { setMsg({ ok: false, text: t("admin.uploadError") }); setUploadingImg(false); });
   };
 
   const loadMonths = () => {
@@ -1407,7 +1408,7 @@ function SubMonthsManager({ sub, companyId, currency }) {
             <div className="admin-form-row" style={{ flex: 1, minWidth: 130 }}>
               <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.monthLabel")}</label>
               <select className="admin-form-select" value={form.month} onChange={e => setForm(f => ({ ...f, month: e.target.value }))}>
-                {PL_MONTHS.map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+                {(t("months") || []).map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
               </select>
             </div>
             <div className="admin-form-row" style={{ flex: 3, minWidth: 180 }}>
@@ -1420,10 +1421,10 @@ function SubMonthsManager({ sub, companyId, currency }) {
             <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
               <input className="admin-form-input" style={{ flex: 1 }} value={form.imageUrl}
                 onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://... lub wgraj plik →" />
+                placeholder={t("admin.imageUrlPlaceholder")} />
               <label className={`admin-btn admin-btn--secondary admin-btn--sm${uploadingImg ? " disabled" : ""}`}
                 style={{ cursor: uploadingImg ? "default" : "pointer", whiteSpace: "nowrap" }}>
-                {uploadingImg ? "…" : "📁 Wgraj"}
+                {uploadingImg ? "…" : t("admin.uploadBtn")}
                 <input type="file" accept="image/*" style={{ display: "none" }}
                   onChange={handleImageUpload} disabled={uploadingImg} />
               </label>
@@ -3597,6 +3598,120 @@ function AuditLogSection() {
   );
 }
 
+// ─── App Logs Section ──────────────────────────────────────────────────────────
+function AppLogsSection() {
+  const { t } = useI18n();
+  const [logs, setLogs]         = useState([]);
+  const [page, setPage]         = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterLevel,  setFilterLevel]  = useState("");
+  const [filterSource, setFilterSource] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
+  const load = (p = 0) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: p, size: 50 });
+    if (filterLevel)  params.set("level",  filterLevel);
+    if (filterSource) params.set("source", filterSource);
+    fetch(`${API.ADMIN_APP_LOGS}?${params}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : { items: [], totalPages: 0, totalItems: 0, page: 0 })
+      .then(d => { setLogs(d.items || []); setTotalPages(d.totalPages); setTotalItems(d.totalItems); setPage(d.page); })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(0); }, [filterLevel, filterSource]);
+
+  const deleteLog = (id) => {
+    fetch(API.ADMIN_APP_LOG(id), { method: "DELETE", credentials: "include" })
+      .then(() => load(page));
+  };
+
+  const clearAll = () => {
+    if (!confirm("Delete ALL app logs?")) return;
+    fetch(API.ADMIN_APP_LOGS, { method: "DELETE", credentials: "include" })
+      .then(() => load(0));
+  };
+
+  const levelColor = (lvl) => lvl === "ERROR" ? "var(--danger)" : lvl === "WARN" ? "var(--warning, orange)" : "var(--text-muted)";
+
+  return (
+    <section className="admin-section">
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+        <h2 className="section-title admin-section-title" style={{ margin: 0 }}>🪵 {t("admin.navAppLogs")}</h2>
+        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{totalItems} {t("admin.appLogsTotal")}</span>
+        <div style={{ display: "flex", gap: "0.5rem", marginLeft: "auto" }}>
+          <select className="admin-form-select" value={filterSource} onChange={e => setFilterSource(e.target.value)} style={{ fontSize: "0.8rem" }}>
+            <option value="">{t("admin.appLogsAllSources")}</option>
+            <option value="FRONTEND">Frontend</option>
+            <option value="BACKEND">Backend</option>
+          </select>
+          <select className="admin-form-select" value={filterLevel} onChange={e => setFilterLevel(e.target.value)} style={{ fontSize: "0.8rem" }}>
+            <option value="">{t("admin.appLogsAllLevels")}</option>
+            <option value="ERROR">ERROR</option>
+            <option value="WARN">WARN</option>
+            <option value="INFO">INFO</option>
+          </select>
+          <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={clearAll}>{t("admin.appLogsClearAll")}</button>
+        </div>
+      </div>
+      {loading && <div className="status-container"><div className="spinner"/></div>}
+      {!loading && logs.length === 0 && <p className="admin-empty">{t("admin.appLogsEmpty")}</p>}
+      {!loading && logs.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table className="admin-table" style={{ fontSize: "0.78rem" }}>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Source</th>
+                <th>Level</th>
+                <th>Message</th>
+                <th>Context</th>
+                <th>User</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map(log => (
+                <>
+                  <tr key={log.id} style={{ cursor: log.stackTrace ? "pointer" : "default" }}
+                    onClick={() => log.stackTrace && setExpanded(expanded === log.id ? null : log.id)}>
+                    <td style={{ whiteSpace: "nowrap", color: "var(--text-muted)" }}>
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td><span style={{ fontSize: "0.72rem", background: "var(--surface-alt)", borderRadius: 4, padding: "1px 5px" }}>{log.source}</span></td>
+                    <td><strong style={{ color: levelColor(log.level) }}>{log.level}</strong></td>
+                    <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={log.message}>{log.message}</td>
+                    <td style={{ color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={log.context}>{log.context}</td>
+                    <td style={{ color: "var(--text-muted)" }}>{log.userId || "—"}</td>
+                    <td>
+                      <button className="admin-btn admin-btn--danger admin-btn--sm"
+                        onClick={e => { e.stopPropagation(); deleteLog(log.id); }}>✕</button>
+                    </td>
+                  </tr>
+                  {expanded === log.id && log.stackTrace && (
+                    <tr key={`${log.id}-stack`}>
+                      <td colSpan={7}>
+                        <pre style={{ margin: "0.3rem 0", padding: "0.5rem", background: "var(--surface-alt)", borderRadius: 6, fontSize: "0.72rem", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 300, overflowY: "auto", color: "var(--text-muted)" }}>
+                          {log.stackTrace}
+                        </pre>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Pagination page={page} totalPages={totalPages} onPage={p => load(p)} />
+    </section>
+  );
+}
+
 export default function AdminPage({ onBack, initialSection = "companies" }) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -3651,6 +3766,7 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
       case "imports":       return <ImportsSection />;
       case "ol-catalog":    return <OlCatalogSection />;
       case "audit-log":     return <AuditLogSection />;
+      case "app-logs":      return <AppLogsSection />;
       default:              return null;
     }
   };
