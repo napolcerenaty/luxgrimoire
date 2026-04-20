@@ -889,7 +889,10 @@ public class AdminController {
                                             @RequestParam(defaultValue = "") String q,
                                             HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
-        if (!AuthHelper.isAdmin(session))    return forbidden();
+        // Admins can search any company; company_manager can only search their own company
+        String managedCompanyId = AuthHelper.getManagedCompanyId(session);
+        boolean isOwnCompany = companyId.equals(managedCompanyId);
+        if (!AuthHelper.isAdmin(session) && !isOwnCompany) return forbidden();
 
         List<com.luxgrimoire.backend.model.BookEdition> editions = bookEditionRepo.searchByCompanyAndText(
                 companyId, q, PageRequest.of(0, 20));

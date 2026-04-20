@@ -190,7 +190,8 @@ public class BookDetailController {
     public ResponseEntity<BookDetailResponse> getById(@PathVariable String bookId, HttpSession session) {
         String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         boolean isAdmin = AuthHelper.isAdmin(session);
-        boolean includePending = isAdmin;
+        boolean isCompanyManager = AuthHelper.isCompanyManager(session);
+        boolean includePending = isAdmin || isCompanyManager;
         return bookStore.findDetailById(bookId, includePending)
                 .map(detail -> {
                     if (isAdmin) return detail;
@@ -228,7 +229,7 @@ public class BookDetailController {
         book.setSeriesName(body.getSeriesName());
         book.setVolumeNumber(body.getVolumeNumber());
         book.setAddedBy(username);
-        book.setStatus(AuthHelper.isAdmin(session)
+        book.setStatus((AuthHelper.isAdmin(session) || AuthHelper.isCompanyManager(session))
                 ? AppConstants.STATUS_APPROVED : AppConstants.STATUS_PENDING);
         Book saved = bookStore.save(book);
         return ResponseEntity.ok(saved);
