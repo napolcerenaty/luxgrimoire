@@ -289,6 +289,14 @@ public class ImportController {
             if (subscriptionId == null)
                 return ResponseEntity.badRequest().<Object>body(Map.of("error", "No subscriptionId on pending import"));
 
+            // Allow admin to reclassify UNKNOWN items via body; reject if still UNKNOWN
+            String resolvedType = strFromBody(body, "targetType", pending.getTargetType());
+            if ("UNKNOWN".equals(resolvedType))
+                return ResponseEntity.badRequest().<Object>body(
+                        Map.of("error", "Please classify this import as MONTH_THEME or SALE_ANNOUNCEMENT before approving"));
+
+            pending.setTargetType(resolvedType);
+
             return subscriptionRepo.findById(subscriptionId).map(sub -> {
                 // Build the SubscriptionMonth
                 SubscriptionMonth sm = new SubscriptionMonth();
@@ -305,7 +313,7 @@ public class ImportController {
                 String imageUrl = strFromBody(body, "imageUrl", pending.getImageUrl());
                 // Download remote image and store locally if it's an external URL
                 if (imageUrl != null && imageUrl.startsWith("http")) {
-                    String category  = "SALE_ANNOUNCEMENT".equals(pending.getTargetType())
+                    String category  = "SALE_ANNOUNCEMENT".equals(resolvedType)
                             ? "sale-announcements" : "monthly-themes";
                     String companyId = pending.getCompanyId();
                     String local = fileStorage.storeRemoteImage(imageUrl, category, companyId);
@@ -376,6 +384,9 @@ public class ImportController {
         source.setCheckDayOfWeek(dow);
         Integer dom = intFromBody(body, "checkDayOfMonth", null);
         source.setCheckDayOfMonth(dom);
+        // Keyword classification
+        if (body.containsKey("monthThemeKeywords")) source.setMonthThemeKeywords((String) body.get("monthThemeKeywords"));
+        if (body.containsKey("saleKeywords"))       source.setSaleKeywords((String) body.get("saleKeywords"));
     }
 
     private Integer intFromBody(Map<String, Object> body, String key, Integer fallback) {

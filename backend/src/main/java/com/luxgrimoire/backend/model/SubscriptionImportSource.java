@@ -57,6 +57,20 @@ public class SubscriptionImportSource {
     @Column(name = "last_item_guid", length = 1000)
     private String lastItemGuid;
 
+    /**
+     * Comma-separated keywords that indicate a MONTH_THEME entry.
+     * Example: "reveal,theme,spoiler,unboxing"
+     */
+    @Column(name = "month_theme_keywords", length = 1000)
+    private String monthThemeKeywords;
+
+    /**
+     * Comma-separated keywords that indicate a SALE_ANNOUNCEMENT entry.
+     * Example: "sale,available,shop,order now"
+     */
+    @Column(name = "sale_keywords", length = 1000)
+    private String saleKeywords;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -85,4 +99,8 @@ public class SubscriptionImportSource {
     public void setLastCheckedAt(Instant lastCheckedAt) { this.lastCheckedAt = lastCheckedAt; }
     public String getLastItemGuid() { return lastItemGuid; }
     public void setLastItemGuid(String lastItemGuid) { this.lastItemGuid = lastItemGuid; }
+    public String getMonthThemeKeywords() { return monthThemeKeywords; }
+    public void setMonthThemeKeywords(String monthThemeKeywords) { this.monthThemeKeywords = monthThemeKeywords; }
+    public String getSaleKeywords() { return saleKeywords; }
+    public void setSaleKeywords(String saleKeywords) { this.saleKeywords = saleKeywords; }
 }

@@ -3279,7 +3279,8 @@ function ImportSourcesTab() {
     return { name: "", url: "", sourceType: "RSS", targetType: "MONTH_THEME",
              companyId: "", subscriptionId: "",
              checkFrequency: "DAILY", checkHour: 6,
-             checkDayOfWeek: "", checkDayOfMonth: "" };
+             checkDayOfWeek: "", checkDayOfMonth: "",
+             monthThemeKeywords: "", saleKeywords: "" };
   }
 
   // Load companies once for dropdowns
@@ -3320,6 +3321,8 @@ function ImportSourcesTab() {
       checkDayOfWeek: src.checkDayOfWeek ?? "",
       checkDayOfMonth: src.checkDayOfMonth ?? "",
       enabled: src.enabled !== false,
+      monthThemeKeywords: src.monthThemeKeywords || "",
+      saleKeywords: src.saleKeywords || "",
     });
     setShowForm(true);
   };
@@ -3456,6 +3459,24 @@ function ImportSourcesTab() {
               </div>
             )}
           </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 200 }}>
+              <label className="admin-form-label">
+                {t("admin.importMonthKeywords")}
+                <span style={{ color: "var(--text-ghost)", fontSize: "0.72rem", marginLeft: 4 }}>({t("admin.importKeywordsHint")})</span>
+              </label>
+              <input className="admin-form-input" value={form.monthThemeKeywords} onChange={f("monthThemeKeywords")}
+                placeholder="reveal,theme,spoiler,unboxing" />
+            </div>
+            <div className="admin-form-row" style={{ flex: 1, minWidth: 200 }}>
+              <label className="admin-form-label">
+                {t("admin.importSaleKeywords")}
+                <span style={{ color: "var(--text-ghost)", fontSize: "0.72rem", marginLeft: 4 }}>({t("admin.importKeywordsHint")})</span>
+              </label>
+              <input className="admin-form-input" value={form.saleKeywords} onChange={f("saleKeywords")}
+                placeholder="sale,available,shop,order now" />
+            </div>
+          </div>
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
             <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={handleSave}>{t("admin.save")}</button>
             <button className="admin-btn admin-btn--sm" onClick={() => setShowForm(false)}>{t("admin.cancel")}</button>
@@ -3536,6 +3557,7 @@ function ImportPendingTab() {
   const getEdit = item => editing[item.id] ?? {
     year: item.year, month: item.month, theme: item.theme,
     bookTitle: item.bookTitle, bookAuthor: item.bookAuthor, imageUrl: item.imageUrl,
+    targetType: item.targetType,
   };
 
   const setEdit = (id, field, value) =>
@@ -3589,7 +3611,11 @@ function ImportPendingTab() {
               <div key={item.id} style={{ background: "var(--surface-raised)", borderRadius: 10, padding: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-ghost)" }}>
-                    {item.targetType === "SALE_ANNOUNCEMENT" && <span style={{ color: "var(--accent)", marginRight: 6 }}>[{t("admin.importTargetSale")}]</span>}
+                    {item.targetType === "UNKNOWN"
+                      ? <span style={{ color: "var(--warning, #f59e0b)", fontWeight: 600, marginRight: 6 }}>⚠ {t("admin.importUnknown")}</span>
+                      : item.targetType === "SALE_ANNOUNCEMENT"
+                        ? <span style={{ color: "var(--accent)", marginRight: 6 }}>[{t("admin.importTargetSale")}]</span>
+                        : null}
                     {item.rawTitle && <span style={{ marginRight: 6 }}>{item.rawTitle} · </span>}
                     Sub: <strong>{item.subscriptionId}</strong>
                     {item.sourceUrl && <> · <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{t("admin.source")}</a></>}
@@ -3598,6 +3624,19 @@ function ImportPendingTab() {
                     {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
                   </span>
                 </div>
+                {/* Type selector for UNKNOWN items */}
+                {(item.targetType === "UNKNOWN" || editing[item.id]?.targetType) && (
+                  <div className="admin-form-row" style={{ marginBottom: "0.5rem" }}>
+                    <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.importTargetType")}</label>
+                    <select className="admin-form-select"
+                      value={editing[item.id]?.targetType ?? item.targetType}
+                      onChange={ev => setEdit(item.id, "targetType", ev.target.value)}>
+                      <option value="UNKNOWN">— {t("admin.importClassify")} —</option>
+                      <option value="MONTH_THEME">{t("admin.importTargetMonthTheme")}</option>
+                      <option value="SALE_ANNOUNCEMENT">{t("admin.importTargetSale")}</option>
+                    </select>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <div className="admin-form-row" style={{ flex: 1, minWidth: 80 }}>
                     <label className="admin-form-label" style={{ fontSize: "0.78rem" }}>{t("admin.yearLabel")}</label>

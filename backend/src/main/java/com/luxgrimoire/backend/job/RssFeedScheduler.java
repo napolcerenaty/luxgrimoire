@@ -99,7 +99,8 @@ public class RssFeedScheduler {
             if (entry.link == null || entry.link.isBlank()) continue;
 
             ScrapedMonthData data = scraper.scrapeUrl(entry.link);
-            savePendingImport(source, data, entry.link, entry.title);
+            String targetType = classifyEntry(source, entry.title, data != null ? data.rawText : null);
+            savePendingImport(source, data, entry.link, entry.title, targetType);
 
             if (newestGuid == null) newestGuid = entry.guid;
         }
@@ -112,14 +113,51 @@ public class RssFeedScheduler {
     private void checkBlogSource(SubscriptionImportSource source) {
         ScrapedMonthData data = scraper.scrapeUrl(source.getUrl());
         if (data != null) {
-            savePendingImport(source, data, source.getUrl(), null);
+            String targetType = classifyEntry(source, data.rawText, data.rawText);
+            savePendingImport(source, data, source.getUrl(), null, targetType);
         }
         source.setLastCheckedAt(Instant.now());
         sourceRepo.save(source);
     }
 
-    private void savePendingImport(SubscriptionImportSource source, ScrapedMonthData data, String sourceUrl, String rawTitle) {
-        String targetType = source.getTargetType() != null ? source.getTargetType() : "MONTH_THEME";
+    /**
+     * Classifies an entry as MONTH_THEME, SALE_ANNOUNCEMENT, or UNKNOWN.
+     *
+     * If neither keyword list is configured → falls back to source.targetType.
+     * If keywords are configured but nothing matches → returns "UNKNOWN" so
+     * the admin can manually classify in the pending queue.
+     */
+    private String classifyEntry(SubscriptionImportSource source, String title, String bodyText) {
+        String monthKw = source.getMonthThemeKeywords();
+        String saleKw  = source.getSaleKeywords();
+
+        boolean hasKeywords = (monthKw != null && !monthKw.isBlank())
+                           || (saleKw  != null && !saleKw.isBlank());
+
+        if (!hasKeywords) {
+            // No keyword config → use source default
+            return source.getTargetType() != null ? source.getTargetType() : "MONTH_THEME";
+        }
+
+        String text = ((title    != null ? title    : "") + " "
+                     + (bodyText != null ? bodyText : "")).toLowerCase();
+
+        if (monthKw != null && !monthKw.isBlank()) {
+            for (String kw : monthKw.split(",")) {
+                if (!kw.isBlank() && text.contains(kw.trim().toLowerCase())) return "MONTH_THEME";
+            }
+        }
+        if (saleKw != null && !saleKw.isBlank()) {
+            for (String kw : saleKw.split(",")) {
+                if (!kw.isBlank() && text.contains(kw.trim().toLowerCase())) return "SALE_ANNOUNCEMENT";
+            }
+        }
+
+        return "UNKNOWN"; // keywords configured but no match → manual review
+    }
+
+    private void savePendingImport(SubscriptionImportSource source, ScrapedMonthData data,
+                                   String sourceUrl, String rawTitle, String targetType) {
 
         PendingMonthImport pending = new PendingMonthImport();
         pending.setCompanyId(source.getCompanyId());
