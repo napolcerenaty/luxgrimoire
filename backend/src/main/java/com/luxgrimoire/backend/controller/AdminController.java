@@ -931,6 +931,21 @@ public class AdminController {
                     bm.put("bookId",    b.getBookId());
                     bm.put("editionId", b.getEditionId());
                     bm.put("sortOrder", b.getSortOrder());
+                    // Enrich with edition display info
+                    if (b.getEditionId() != null && !b.getEditionId().isBlank()) {
+                        bookEditionRepo.findByIdWithBook(b.getEditionId()).ifPresent(ed -> {
+                            bm.put("editionName",    ed.getEditionName());
+                            bm.put("subscriptionName", ed.getSubscriptionName());
+                            bm.put("bookTitle",      ed.getBook() != null ? ed.getBook().getTitle() : null);
+                            String img = ed.getImageUrls() != null && !ed.getImageUrls().isEmpty()
+                                    ? ed.getImageUrls().get(0) : null;
+                            bm.put("imageUrl", img);
+                            // Backfill bookId if missing
+                            if (b.getBookId() == null && ed.getBook() != null) {
+                                bm.put("bookId", ed.getBook().getId());
+                            }
+                        });
+                    }
                     return bm;
                 }).toList());
         return m;

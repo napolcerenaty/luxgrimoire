@@ -1138,13 +1138,12 @@ function InlineEditionCreator({ onCreated, onCancel, prefilledEdition }) {
   const handleSaved = (book) => {
     const editions = book.editions || [];
     if (editions.length === 0) { onCancel(); return; }
-    // Find newly created edition (last by position; backend appends)
     const latest = editions[editions.length - 1];
     onCreated({
       id:          latest.id,
       editionName: latest.editionName,
       bookTitle:   book.title,
-      imageUrl:    latest.imageUrl,
+      imageUrl:    Array.isArray(latest.imageUrls) ? latest.imageUrls[0] : latest.imageUrl,
       bookId:      book.id,
     });
   };
@@ -1291,7 +1290,18 @@ function SubMonthsManager({ sub, companyId, currency }) {
     setForm({ year: m.year, month: m.month, theme: m.theme || "", imageUrl: m.imageUrl || "" });
     // Populate books from multi-book list or legacy single book
     const existingBooks = Array.isArray(m.books) && m.books.length > 0
-      ? m.books.map(b => ({ bookId: b.bookId || "", editionId: b.editionId || "", _edition: b.editionId ? { id: b.editionId } : null }))
+      ? m.books.map(b => ({
+          bookId: b.bookId || "",
+          editionId: b.editionId || "",
+          _edition: b.editionId ? {
+            id: b.editionId,
+            bookId: b.bookId || null,
+            editionName: b.editionName || null,
+            subscriptionName: b.subscriptionName || null,
+            bookTitle: b.bookTitle || null,
+            imageUrl: b.imageUrl || null,
+          } : null
+        }))
       : (m.bookId ? [{ bookId: m.bookId, editionId: m.editionId || "", _edition: m.editionId ? { id: m.editionId } : null }] : []);
     setBooks(existingBooks);
     setEditingMonth(m);
@@ -1304,7 +1314,7 @@ function SubMonthsManager({ sub, companyId, currency }) {
   const addBook = () => setBooks(prev => [...prev, { bookId: "", editionId: "", _edition: null }]);
   const removeBook = idx => setBooks(prev => prev.filter((_, i) => i !== idx));
   const updateBookEdition = (idx, ed) => setBooks(prev => prev.map((b, i) => i === idx
-    ? { ...b, editionId: ed?.id || "", bookId: b.bookId, _edition: ed }
+    ? { ...b, editionId: ed?.id || "", bookId: ed?.bookId || b.bookId || "", _edition: ed }
     : b));
 
   const handleSave = () => {
