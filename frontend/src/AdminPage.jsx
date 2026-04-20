@@ -1139,7 +1139,11 @@ function InlineEditionCreator({ onCreated, onCancel, prefilledEdition }) {
 
   const handleSaved = (book) => {
     const editions = book.editions || [];
-    if (editions.length === 0) { onCancel(); return; }
+    if (editions.length === 0) {
+      // Book created but no edition — link the book anyway (edition can be added later)
+      onCreated({ id: null, editionName: null, bookTitle: book.title, imageUrl: null, bookId: book.id });
+      return;
+    }
     const latest = editions[editions.length - 1];
     onCreated({
       id:          latest.id,
@@ -1315,6 +1319,11 @@ function SubMonthsManager({ sub, companyId, currency }) {
 
   const addBook = () => setBooks(prev => [...prev, { bookId: "", editionId: "", _edition: null }]);
   const removeBook = idx => setBooks(prev => prev.filter((_, i) => i !== idx));
+  const addAndCreateBook = () => {
+    const newIdx = books.length;
+    setBooks(prev => [...prev, { bookId: "", editionId: "", _edition: null }]);
+    setCreatingEditionForIdx(newIdx);
+  };
   const updateBookEdition = (idx, ed) => setBooks(prev => prev.map((b, i) => i === idx
     ? { ...b, editionId: ed?.id || "", bookId: ed?.bookId || b.bookId || "", _edition: ed }
     : b));
@@ -1441,9 +1450,14 @@ function SubMonthsManager({ sub, companyId, currency }) {
 
           {/* Multi-book section */}
           <div style={{ marginTop: "0.5rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{t("admin.booksInBox").replace("{n}", books.length)}</span>
-              <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={addBook}>{t("admin.addBookToBox")}</button>
+              <button type="button" className="admin-btn admin-btn--primary admin-btn--sm" onClick={addAndCreateBook}>
+                + {t("admin.createAndLinkBook") || "Utwórz nową książkę"}
+              </button>
+              <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={addBook}>
+                {t("admin.addBookToBox")}
+              </button>
             </div>
             {books.map((b, idx) => (
               <div key={idx} style={{ display: "flex", alignItems: "flex-end", gap: "0.4rem", marginBottom: "0.4rem" }}>
