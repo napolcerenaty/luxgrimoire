@@ -26,6 +26,7 @@ function getNavItems(t) {
     { key: "ol-catalog",    icon: "📚", label: t("admin.navOlCatalog"),     permission: "MANAGE_IMPORTS"       },
     { key: "audit-log",     icon: "📋", label: t("admin.navAuditLog"),      permission: "MANAGE_AUDIT"         },
     { key: "app-logs",      icon: "🪵", label: t("admin.navAppLogs"),       permission: "MANAGE_AUDIT"         },
+    { key: "pending-books", icon: "⏳", label: t("admin.navPendingBooks"),   permission: "MANAGE_DATA_REQUESTS" },
   ];
 }
 
@@ -3712,6 +3713,120 @@ function AppLogsSection() {
   );
 }
 
+// ─── Pending Books Section ────────────────────────────────────────────────────
+function PendingBooksSection() {
+  const { t } = useI18n();
+  const [books, setBooks]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg]       = useState(null);
+  const [editing, setEditing] = useState(null); // { bookId, title, author, seriesName, volumeNumber }
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(API.BOOK_PENDING, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => { setBooks(list); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const approve = async (bookId) => {
+    const r = await fetch(API.BOOK_APPROVE(bookId), { method: "PUT", credentials: "include" });
+    if (r.ok) { setMsg(t("admin.pendingBooksApproved")); load(); }
+    else setMsg(t("admin.pendingBooksError"));
+  };
+
+  const remove = async (bookId) => {
+    if (!window.confirm(t("admin.confirmDelete"))) return;
+    const r = await fetch(API.BOOK(bookId), { method: "DELETE", credentials: "include" });
+    if (r.ok) { setMsg(t("admin.pendingBooksDeleted")); load(); }
+    else setMsg(t("admin.pendingBooksError"));
+  };
+
+  const startEdit = (book) => setEditing({
+    bookId: book.id, title: book.title, author: book.author,
+    seriesName: book.seriesName || "", volumeNumber: book.volumeNumber || "",
+  });
+
+  const saveEdit = async () => {
+    const { bookId, ...fields } = editing;
+    const r = await fetch(API.BOOK(bookId), {
+      method: "PUT", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (r.ok) { setMsg(t("admin.saved")); setEditing(null); load(); }
+    else setMsg(t("admin.pendingBooksError"));
+  };
+
+  return (
+    <section className="admin-section">
+      <h2 className="admin-section-title">{t("admin.navPendingBooks")}</h2>
+      {msg && <div className="admin-msg">{msg}</div>}
+      {loading ? <div className="admin-loading">…</div> : books.length === 0
+        ? <p className="admin-empty">{t("admin.pendingBooksEmpty")}</p>
+        : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t("admin.bookTitle")}</th>
+                <th>{t("admin.bookAuthor")}</th>
+                <th>{t("series")}</th>
+                <th>{t("admin.addedBy")}</th>
+                <th>{t("admin.editions")}</th>
+                <th>{t("admin.actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {books.map(book => (
+                <React.Fragment key={book.id}>
+                  <tr>
+                    <td>
+                      {editing?.bookId === book.id
+                        ? <input className="admin-form-input" value={editing.title}
+                            onChange={e => setEditing(v => ({ ...v, title: e.target.value }))} />
+                        : book.title}
+                    </td>
+                    <td>
+                      {editing?.bookId === book.id
+                        ? <input className="admin-form-input" value={editing.author}
+                            onChange={e => setEditing(v => ({ ...v, author: e.target.value }))} />
+                        : book.author}
+                    </td>
+                    <td>
+                      {editing?.bookId === book.id
+                        ? <input className="admin-form-input" style={{ width: 120 }} value={editing.seriesName}
+                            onChange={e => setEditing(v => ({ ...v, seriesName: e.target.value }))} />
+                        : (book.seriesName ? `${book.seriesName}${book.volumeNumber ? " #" + book.volumeNumber : ""}` : "—")}
+                    </td>
+                    <td>{book.addedBy || "—"}</td>
+                    <td>{book.editions?.length ?? 0}</td>
+                    <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {editing?.bookId === book.id ? (
+                        <>
+                          <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={saveEdit}>{t("admin.save")}</button>
+                          <button className="admin-btn admin-btn--sm" onClick={() => setEditing(null)}>{t("admin.cancel")}</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={() => approve(book.id)}>✓ {t("admin.approve")}</button>
+                          <button className="admin-btn admin-btn--sm" onClick={() => startEdit(book)}>✏️</button>
+                          <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => remove(book.id)}>🗑</button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        )
+      }
+    </section>
+  );
+}
+
 export default function AdminPage({ onBack, initialSection = "companies" }) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -3767,6 +3882,7 @@ export default function AdminPage({ onBack, initialSection = "companies" }) {
       case "ol-catalog":    return <OlCatalogSection />;
       case "audit-log":     return <AuditLogSection />;
       case "app-logs":      return <AppLogsSection />;
+      case "pending-books": return <PendingBooksSection />;
       default:              return null;
     }
   };

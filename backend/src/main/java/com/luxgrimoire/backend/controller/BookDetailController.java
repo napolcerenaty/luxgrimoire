@@ -145,14 +145,14 @@ public class BookDetailController {
     @GetMapping("/pending")
     public ResponseEntity<?> getPendingBooks(HttpSession session) {
         String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
-        if (!AuthHelper.isAdmin(session)) return ResponseEntity.status(403).build();
+        if (!AuthHelper.isAdmin(session) && !AuthHelper.isModerator(session)) return ResponseEntity.status(403).build();
         return ResponseEntity.ok(bookStore.findAllPending());
     }
 
     @PutMapping("/{bookId}/approve")
     public ResponseEntity<?> approveBook(@PathVariable String bookId, HttpSession session) {
         String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
-        if (!AuthHelper.isAdmin(session)) return ResponseEntity.status(403).build();
+        if (!AuthHelper.isAdmin(session) && !AuthHelper.isModerator(session)) return ResponseEntity.status(403).build();
         return bookStore.findById(bookId).map(book -> {
             book.setStatus(AppConstants.STATUS_APPROVED);
             bookStore.save(book);
@@ -191,7 +191,7 @@ public class BookDetailController {
         String username = (String) session.getAttribute(AppConstants.SESSION_USERNAME);
         boolean isAdmin = AuthHelper.isAdmin(session);
         boolean isCompanyManager = AuthHelper.isCompanyManager(session);
-        boolean includePending = isAdmin || isCompanyManager;
+        boolean includePending = true; // pending books are visible to all users; status is for admin data review only
         return bookStore.findDetailById(bookId, includePending)
                 .map(detail -> {
                     if (isAdmin) return detail;

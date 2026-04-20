@@ -960,7 +960,7 @@ public class AdminController {
                                         @PathVariable String subId,
                                         HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
-        if (!AuthHelper.isAdmin(session))    return forbidden();
+        if (!AuthHelper.isAdmin(session) && !companyId.equals(AuthHelper.getManagedCompanyId(session))) return forbidden();
 
         return subscriptionRepo.findById(subId).map(sub -> {
             List<Map<String, Object>> list = sub.getMonths().stream()
@@ -979,7 +979,7 @@ public class AdminController {
                                          @RequestBody Map<String, Object> body,
                                          HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
-        if (!AuthHelper.isAdmin(session))    return forbidden();
+        if (!AuthHelper.isAdmin(session) && !companyId.equals(AuthHelper.getManagedCompanyId(session))) return forbidden();
 
         return subscriptionRepo.findById(subId).map(sub -> {
             SubscriptionMonth sm = new SubscriptionMonth();
@@ -1012,9 +1012,15 @@ public class AdminController {
                                          @RequestBody Map<String, Object> body,
                                          HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
-        if (!AuthHelper.isAdmin(session))    return forbidden();
+        boolean isAdmin = AuthHelper.isAdmin(session);
+        String managedCompanyId = AuthHelper.getManagedCompanyId(session);
 
         return monthRepo.findById(monthId).map(sm -> {
+            if (!isAdmin) {
+                Subscription sub = sm.getSubscription();
+                if (sub == null || sub.getCompany() == null
+                        || !sub.getCompany().getId().equals(managedCompanyId)) return forbidden();
+            }
             applyMonthBody(sm, body);
             monthRepo.save(sm);
             auditLogService.log(AuthHelper.getUsername(session), "UPDATE", "SubscriptionMonth",
@@ -1028,13 +1034,19 @@ public class AdminController {
     @Transactional
     public ResponseEntity<?> deleteMonth(@PathVariable String monthId, HttpSession session) {
         if (!AuthHelper.isLoggedIn(session)) return unauthorized();
-        if (!AuthHelper.isAdmin(session))    return forbidden();
+        boolean isAdmin = AuthHelper.isAdmin(session);
+        String managedCompanyId = AuthHelper.getManagedCompanyId(session);
 
         return monthRepo.findById(monthId).map(sm -> {
+            if (!isAdmin) {
+                Subscription sub = sm.getSubscription();
+                if (sub == null || sub.getCompany() == null
+                        || !sub.getCompany().getId().equals(managedCompanyId)) return forbidden();
+            }
             String desc = "Deleted month " + sm.getYear() + "/" + sm.getMonth()
                     + (sm.getTheme() != null ? " — " + sm.getTheme() : "");
-            Subscription sub = sm.getSubscription();
-            if (sub != null) sub.getMonths().removeIf(m -> m.getId().equals(monthId));
+            Subscription sub2 = sm.getSubscription();
+            if (sub2 != null) sub2.getMonths().removeIf(m -> m.getId().equals(monthId));
             monthRepo.delete(sm);
             auditLogService.log(AuthHelper.getUsername(session), "DELETE", "SubscriptionMonth", monthId, desc);
             return ResponseEntity.noContent().<Void>build();
