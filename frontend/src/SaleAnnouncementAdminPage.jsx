@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { API } from "./api";
+import BookDetailEditPage from "./BookDetailEditPage";
 import "./SaleAnnouncementAdminPage.css";
 
 // Common timezones: [IANA name, display label]
@@ -42,6 +43,7 @@ const EMPTY_FORM = {
   currency: "GBP",
   description: "",
   imageUrl: "",
+  extraImages: [],
 };
 
 /** Combine a date string and time string into an ISO-like "YYYY-MM-DDThh:mm" string,
@@ -68,7 +70,10 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
   const [error, setError] = useState(null);
   const [imgMode, setImgMode] = useState("url"); // "url" | "upload"
   const [uploading, setUploading] = useState(false);
+  const [extraImgInput, setExtraImgInput] = useState(""); // URL input for adding extra image
+  const [uploadingExtra, setUploadingExtra] = useState(false);
   const fileInputRef = useRef(null);
+  const extraFileInputRef = useRef(null);
 
   // Edition picker state
   const [selectedSaleId, setSelectedSaleId] = useState(null);
@@ -77,6 +82,8 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
   const [editionSearch, setEditionSearch] = useState("");
   const [editionResults, setEditionResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  // Inline book creation inside the edition picker
+  const [creatingBookInline, setCreatingBookInline] = useState(false);
 
   const loadSales = useCallback(() => {
     setLoading(true);
@@ -101,6 +108,7 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
     setForm(EMPTY_FORM);
     setShowForm(true);
     setError(null);
+    setExtraImgInput("");
   };
 
   const openEdit = (sale) => {
@@ -108,6 +116,8 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
     const gs = split(sale.generalSaleDate || sale.saleDate || "");
     const fa = split(sale.firstAccessDate || "");
     const ea = split(sale.earlyAccessDate || "");
+    let extraImages = [];
+    try { extraImages = JSON.parse(sale.extraImagesJson || "[]") || []; } catch {}
     setForm({
       title: sale.title || "",
       companyId: sale.companyId || "",
@@ -122,8 +132,10 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
       currency: sale.currency || "GBP",
       description: sale.description || "",
       imageUrl: sale.imageUrl || "",
+      extraImages,
     });
     setImgMode("url");
+    setExtraImgInput("");
     setShowForm(true);
     setError(null);
   };
@@ -142,6 +154,7 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
       currency: form.currency || null,
       description: form.description || null,
       imageUrl: form.imageUrl || null,
+      extraImagesJson: form.extraImages && form.extraImages.length > 0 ? JSON.stringify(form.extraImages) : null,
     };
     try {
       const url = editing ? API.SALE(editing.id) : API.SALES;
@@ -171,6 +184,7 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
   const openEditionPicker = (sale) => {
     setSelectedSaleId(sale.id);
     setSelectedSaleCompanyId(sale.companyId || null);
+    setCreatingBookInline(false);
     loadEditions(sale.id);
   };
 
@@ -237,6 +251,36 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleExtraImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingExtra(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(API.UPLOAD_IMAGE, { method: "POST", credentials: "include", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setForm(p => ({ ...p, extraImages: [...(p.extraImages || []), url] }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingExtra(false);
+      if (extraFileInputRef.current) extraFileInputRef.current.value = "";
+    }
+  };
+
+  const addExtraImageUrl = () => {
+    const url = extraImgInput.trim();
+    if (!url) return;
+    setForm(p => ({ ...p, extraImages: [...(p.extraImages || []), url] }));
+    setExtraImgInput("");
+  };
+
+  const removeExtraImage = (idx) => {
+    setForm(p => ({ ...p, extraImages: (p.extraImages || []).filter((_, i) => i !== idx) }));
   };
 
   const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
@@ -357,7 +401,7 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
             </label>
 
             {/* Image: URL or file upload */}
-            <p className="sa-section-title">Image</p>
+            <p className="sa-section-title">Main Image</p>
             <div className="sa-img-toggle">
               <button className={imgMode === "url" ? "active" : ""} onClick={() => setImgMode("url")}>URL</button>
               <button className={imgMode === "upload" ? "active" : ""} onClick={() => setImgMode("upload")}>Upload file</button>
@@ -385,6 +429,38 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
               <img src={form.imageUrl} alt="" style={{ maxWidth: "100%", maxHeight: 120, marginTop: "0.5rem", borderRadius: 4 }} />
             )}
 
+            {/* Extra images */}
+            <p className="sa-section-title">Additional Images ({(form.extraImages || []).length})</p>
+            {(form.extraImages || []).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                {(form.extraImages || []).map((url, idx) => (
+                  <div key={idx} style={{ position: "relative", display: "inline-block" }}>
+                    <img src={url} alt="" style={{ height: 72, borderRadius: 4, border: "1px solid var(--border-dim)" }} onError={e => { e.target.style.opacity = 0.3; }} />
+                    <button onClick={() => removeExtraImage(idx)} style={{
+                      position: "absolute", top: 2, right: 2, background: "#dc2626", border: "none",
+                      borderRadius: "50%", width: 18, height: 18, color: "#fff", fontSize: 10,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1
+                    }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", marginBottom: "0.3rem" }}>
+              <input className="sa-input" style={{ flex: 1 }} placeholder="Add image URL…"
+                value={extraImgInput} onChange={e => setExtraImgInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addExtraImageUrl()} />
+              <button className="sa-btn-sm" style={{ background: "#0ea5e9", whiteSpace: "nowrap" }}
+                onClick={addExtraImageUrl}>+ Add URL</button>
+            </div>
+            <div>
+              <input ref={extraFileInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                onChange={handleExtraImageUpload} />
+              <button className="sa-btn-sm" style={{ background: "#6366f1" }}
+                onClick={() => extraFileInputRef.current?.click()} disabled={uploadingExtra}>
+                {uploadingExtra ? "Uploading…" : "📁 Upload extra image"}
+              </button>
+            </div>
+
             {error && <div className="sa-error">{error}</div>}
             <div className="sa-btn-row">
               <button onClick={() => setShowForm(false)} className="sa-btn-sm" style={{ background: "#6b7280", padding: "0.35rem 0.9rem" }}>Cancel</button>
@@ -398,50 +474,82 @@ export default function SaleAnnouncementAdminPage({ companies = [] }) {
 
       {/* Edition Picker */}
       {selectedSaleId && (
-        <div className="sa-modal-overlay" onClick={() => { setSelectedSaleId(null); setSelectedSaleCompanyId(null); }}>
-          <div className="sa-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Manage Editions</h3>
+        <div className="sa-modal-overlay" onClick={() => { if (!creatingBookInline) { setSelectedSaleId(null); setSelectedSaleCompanyId(null); } }}>
+          <div className="sa-modal" style={{ maxWidth: creatingBookInline ? 900 : 560 }} onClick={(e) => e.stopPropagation()}>
 
-            <p className="sa-section-title">Linked editions</p>
-            {editions.length === 0 ? (
-              <p style={{ color: "var(--text-faint)", fontSize: "0.88rem" }}>None added yet.</p>
+            {creatingBookInline ? (
+              /* Inline book + edition creation */
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                  <button className="sa-btn-sm" style={{ background: "#6b7280" }} onClick={() => setCreatingBookInline(false)}>← Back</button>
+                  <h3 style={{ margin: 0 }}>Create New Book</h3>
+                </div>
+                <BookDetailEditPage
+                  initialData={null}
+                  editingEdition="new"
+                  onSaved={async (book) => {
+                    // Auto-link the created edition (first edition on the book)
+                    const editionId = book.editions && book.editions.length > 0 ? book.editions[0].id : null;
+                    if (editionId && selectedSaleId) {
+                      await addEdition(editionId);
+                    }
+                    setCreatingBookInline(false);
+                  }}
+                  onBack={() => setCreatingBookInline(false)}
+                />
+              </div>
             ) : (
-              <ul className="sa-edition-list">
-                {editions.map((e) => {
-                  const label = [e.bookTitle, e.editionName].filter(Boolean).join(" — ") || e.editionId;
-                  return (
-                    <li key={e.id}>
-                      <span>{label}</span>
-                      <button onClick={() => removeEdition(e.id, e.editionId)} className="sa-btn-sm" style={{ background: "#dc2626" }}>Remove</button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+              /* Normal edition search / list */
+              <>
+                <h3>Manage Editions</h3>
 
-            <p className="sa-section-title">Add edition (search by title{selectedSaleCompanyId ? " — filtered by company" : ""})</p>
-            <input
-              className="sa-input"
-              placeholder="Search editions…"
-              value={editionSearch}
-              onChange={(e) => handleEditionSearch(e.target.value)}
-            />
-            {searchLoading && <p style={{ color: "var(--text-faint)", fontSize: "0.85rem" }}>Searching…</p>}
-            {editionResults.length > 0 && (
-              <ul className="sa-search-results">
-                {editionResults.map((r) => {
-                  const id = r.id || r.editionId;
-                  const label = [r.bookTitle || r.title, r.editionName].filter(Boolean).join(" — ");
-                  return (
-                    <li key={id} onClick={() => addEdition(id)}>{label || id}</li>
-                  );
-                })}
-              </ul>
-            )}
+                <p className="sa-section-title">Linked editions</p>
+                {editions.length === 0 ? (
+                  <p style={{ color: "var(--text-faint)", fontSize: "0.88rem" }}>None added yet.</p>
+                ) : (
+                  <ul className="sa-edition-list">
+                    {editions.map((e) => {
+                      const label = [e.bookTitle, e.editionName].filter(Boolean).join(" — ") || e.editionId;
+                      return (
+                        <li key={e.id}>
+                          <span>{label}</span>
+                          <button onClick={() => removeEdition(e.id, e.editionId)} className="sa-btn-sm" style={{ background: "#dc2626" }}>Remove</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
 
-            <div className="sa-btn-row">
-              <button onClick={() => { setSelectedSaleId(null); setSelectedSaleCompanyId(null); }} className="sa-btn-sm" style={{ background: "#6b7280", padding: "0.35rem 0.9rem" }}>Close</button>
-            </div>
+                <p className="sa-section-title">Add edition (search by title{selectedSaleCompanyId ? " — filtered by company" : ""})</p>
+                <input
+                  className="sa-input"
+                  placeholder="Search editions…"
+                  value={editionSearch}
+                  onChange={(e) => handleEditionSearch(e.target.value)}
+                />
+                {searchLoading && <p style={{ color: "var(--text-faint)", fontSize: "0.85rem" }}>Searching…</p>}
+                {editionResults.length > 0 && (
+                  <ul className="sa-search-results">
+                    {editionResults.map((r) => {
+                      const id = r.id || r.editionId;
+                      const label = [r.bookTitle || r.title, r.editionName].filter(Boolean).join(" — ");
+                      return (
+                        <li key={id} onClick={() => addEdition(id)}>{label || id}</li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <p className="sa-section-title" style={{ marginTop: "1rem" }}>Or create a new book</p>
+                <button className="sa-btn" style={{ background: "#7c3aed" }} onClick={() => setCreatingBookInline(true)}>
+                  + Create new book &amp; link edition
+                </button>
+
+                <div className="sa-btn-row">
+                  <button onClick={() => { setSelectedSaleId(null); setSelectedSaleCompanyId(null); }} className="sa-btn-sm" style={{ background: "#6b7280", padding: "0.35rem 0.9rem" }}>Close</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -333,6 +333,7 @@ public class SaleAnnouncementController {
         if (body.containsKey("currency"))         sale.setCurrency((String) body.get("currency"));
         if (body.containsKey("description"))      sale.setDescription((String) body.get("description"));
         if (body.containsKey("imageUrl"))         sale.setImageUrl((String) body.get("imageUrl"));
+        if (body.containsKey("extraImagesJson"))  sale.setExtraImagesJson((String) body.get("extraImagesJson"));
         if (body.containsKey("basePrice") && body.get("basePrice") != null) {
             sale.setBasePrice(new BigDecimal(body.get("basePrice").toString()));
         }
@@ -356,6 +357,7 @@ public class SaleAnnouncementController {
         m.put("currency",    sale.getCurrency());
         m.put("description", sale.getDescription());
         m.put("imageUrl",    sale.getImageUrl());
+        m.put("extraImagesJson", sale.getExtraImagesJson());
         m.put("createdAt",   sale.getCreatedAt());
         int editionCount = (int) saleEditionRepo.countBySaleId(sale.getId());
         m.put("editionCount", editionCount);

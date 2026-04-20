@@ -40,6 +40,9 @@ public class SaleAnnouncement {
 
     private String imageUrl;
 
+    @Column(columnDefinition = "TEXT", name = "extra_images_json")
+    private String extraImagesJson;
+
     private Instant createdAt;
 
     public SaleAnnouncement() {
@@ -69,6 +72,8 @@ public class SaleAnnouncement {
     public void setDescription(String d)      { this.description = d; }
     public String getImageUrl()               { return imageUrl; }
     public void setImageUrl(String imageUrl)  { this.imageUrl = imageUrl; }
+    public String getExtraImagesJson()               { return extraImagesJson; }
+    public void setExtraImagesJson(String j)         { this.extraImagesJson = j; }
     public Instant getCreatedAt()             { return createdAt; }
     public void setCreatedAt(Instant t)       { this.createdAt = t; }
 }

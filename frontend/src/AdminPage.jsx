@@ -9,8 +9,6 @@ import "./AdminPage.css";
 import "./ReportModals.css";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
-const PL_MONTHS = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
-const monthName = (m) => PL_MONTHS[(m - 1)] || m;
 
 function getNavItems(t) {
   return [
@@ -1352,7 +1350,7 @@ function SubMonthsManager({ sub, companyId, currency }) {
   };
 
   const handleDelete = (m) => {
-    if (!window.confirm(`Usunąć motyw ${monthName(m.month)} ${m.year}?`)) return;
+    if (!window.confirm(`Usunąć motyw ${t(`admin.month${m.month}`)} ${m.year}?`)) return;
     fetch(API.ADMIN_MONTH(m.id), { method: "DELETE", credentials: "include" })
       .then(r => { if (r.ok || r.status === 204) { loadMonths(); setMsg({ ok: true, text: "Usunięto." }); } })
       .catch(() => setMsg({ ok: false, text: "Błąd usuwania." }));
@@ -1495,7 +1493,7 @@ function SubMonthsManager({ sub, companyId, currency }) {
             {months.map(m => (
               <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.82rem", padding: "0.3rem 0", borderBottom: "1px solid var(--border-faint, var(--border))" }}>
                 {m.imageUrl && <img src={m.imageUrl} alt="" style={{ height: 32, borderRadius: 3 }} onError={e => { e.target.style.display = "none"; }} />}
-                <span style={{ minWidth: 110 }}><strong>{monthName(m.month)} {m.year}</strong></span>
+                <span style={{ minWidth: 110 }}><strong>{t(`admin.month${m.month}`)} {m.year}</strong></span>
                 <span style={{ flex: 1, color: m.theme ? "inherit" : "var(--text-ghost)" }}>{m.theme || "—"}</span>
                 {bookCount(m) > 0 && <span style={{ fontSize: "0.78rem", color: "var(--accent)" }}>📚 {bookCount(m)}</span>}
                 <button className="admin-action-btn" title="Edytuj" onClick={() => openEdit(m)}>✎</button>
@@ -2045,30 +2043,30 @@ function BookEditionSection() {
       {/* New book */}
       <div style={{ marginBottom: "2rem" }}>
         <h3 style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", marginBottom: "0.8rem" }}>
-          Nowa książka
+          {t("admin.newBookSection")}
         </h3>
         <button className="page-btn primary" onClick={() => setMode("new-book")}>
-          + Dodaj nową książkę z edycją
+          {t("admin.newBookWithEdition")}
         </button>
       </div>
 
       {/* Find existing book */}
       <div>
         <h3 style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", marginBottom: "0.8rem" }}>
-          Istniejąca książka
+          {t("admin.existingBookSection")}
         </h3>
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+        <div className="admin-search-row" style={{ marginBottom: "0.8rem" }}>
           <input
             className="form-input"
             style={{ maxWidth: 360 }}
-            placeholder="Szukaj książki po tytule…"
+            placeholder={t("admin.searchTitle")}
             value={searchQ}
             onChange={e => { setSearchQ(e.target.value); doSearch(e.target.value); }}
           />
           {searching && <span style={{ alignSelf: "center", color: "var(--text-ghost)" }}>…</span>}
         </div>
         {searchQ.trim().length >= 2 && searchResults.length === 0 && !searching && (
-          <p style={{ fontSize: "0.83rem", color: "var(--text-ghost)" }}>Brak wyników.</p>
+          <p style={{ fontSize: "0.83rem", color: "var(--text-ghost)" }}>{t("admin.bookSearchNoResults")}</p>
         )}
         {searchResults.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: 540 }}>
@@ -2085,11 +2083,11 @@ function BookEditionSection() {
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button className="page-btn secondary" style={{ fontSize: "0.8rem", padding: "0.3rem 0.8rem" }}
                     onClick={() => { setSelectedBook(book); setMode("add-edition"); }}>
-                    + Edycja
+                    {t("admin.addEdition")}
                   </button>
                   <button className="page-btn secondary" style={{ fontSize: "0.8rem", padding: "0.3rem 0.8rem" }}
                     onClick={() => { setSelectedBook(book); setMode("edit-meta"); }}>
-                    Edytuj metadane
+                    {t("books.editBookMeta")}
                   </button>
                 </div>
               </div>
