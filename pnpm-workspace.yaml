@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "scripts"
 allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true

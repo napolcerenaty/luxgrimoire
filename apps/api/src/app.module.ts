@@ -15,6 +15,7 @@ import { SpendingModule } from './modules/spending/spending.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { SponsoredModule } from './modules/sponsored/sponsored.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     FavoritesModule,
     NotificationsModule,
     ProfileModule,
+    SponsoredModule,
   ],
 })
 export class AppModule {}

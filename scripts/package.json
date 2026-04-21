@@ -1,0 +1,17 @@
+{
+  "name": "@luxgrimoire/scripts",
+  "version": "0.0.1",
+  "scripts": {
+    "migrate": "ts-node --project tsconfig.json migrate-everheart.ts"
+  },
+  "dependencies": {
+    "pg": "^8.11.0",
+    "@prisma/client": "^6.7.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.4.0",
+    "prisma": "^6.7.0"
+  }
+}

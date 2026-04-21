@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import type { ApiBookBoxCompany, ApiSubscription, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { ApiBookBoxCompany, ApiSubscription, ApiSponsoredSlot, PaginatedResponse } from '@luxgrimoire/shared-types'
 
 export const metadata: Metadata = {
   title: 'Luxury Book Editions & Subscription Boxes',
@@ -11,18 +11,20 @@ export const metadata: Metadata = {
 }
 
 async function getHomeData() {
-  const [companiesRes, subscriptionsRes] = await Promise.all([
+  const [companiesRes, subscriptionsRes, featuredSlots] = await Promise.all([
     apiFetch<PaginatedResponse<ApiBookBoxCompany>>('/companies?pageSize=6').catch(() => null),
     apiFetch<PaginatedResponse<ApiSubscription>>('/subscriptions?pageSize=6&isDiscontinued=false').catch(() => null),
+    apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
   ])
   return {
     companies: companiesRes?.data ?? [],
     subscriptions: subscriptionsRes?.data ?? [],
+    featuredSlots: Array.isArray(featuredSlots) ? featuredSlots : [],
   }
 }
 
 export default async function HomePage() {
-  const { companies, subscriptions } = await getHomeData()
+  const { companies, subscriptions, featuredSlots } = await getHomeData()
 
   return (
     <div>
@@ -52,6 +54,52 @@ export default async function HomePage() {
           </form>
         </div>
       </section>
+
+      {/* Featured Partners (sponsored) */}
+      {featuredSlots.length > 0 && (
+        <section className="container mx-auto px-4 py-12">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-serif font-semibold text-stone-100">Featured Partners</h2>
+            <span className="text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 rounded-full font-medium tracking-wide uppercase">
+              Sponsored
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredSlots.map((slot) => {
+              const logo = cloudinaryUrl(slot.company.logoUrl, 'w_300,h_300,c_fill,q_auto,f_auto')
+              return (
+                <Link
+                  key={slot.id}
+                  href={`/companies/${slot.company.slug}`}
+                  className="flex items-center gap-5 p-5 rounded-2xl bg-gradient-to-br from-stone-900 to-stone-950 border border-amber-700/40 hover:border-amber-500/60 shadow-lg shadow-amber-900/10 transition-all group"
+                >
+                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-stone-800 flex items-center justify-center shrink-0 ring-2 ring-amber-700/30">
+                    {logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt={slot.company.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl font-serif text-amber-600">
+                        {slot.company.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="inline-block text-[10px] text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 rounded-full font-semibold uppercase tracking-widest mb-2">
+                      ✦ Featured
+                    </span>
+                    <h3 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors truncate text-lg">
+                      {slot.company.name}
+                    </h3>
+                    {slot.company.country && (
+                      <p className="text-xs text-stone-500 mt-0.5">{slot.company.country}</p>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Featured Companies */}
       {companies.length > 0 && (

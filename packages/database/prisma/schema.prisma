@@ -63,6 +63,8 @@ model User {
   editionLikes          EditionLike[]
   editionComments       EditionComment[]
   saleInterests         UserSaleInterest[]
+  reviews               Review[]
+  reviewHelpfuls        ReviewHelpful[]
 
   @@map("users")
 }
@@ -130,6 +132,7 @@ model Book {
   userEntries     UserBookEntry[]
   favoriteBy      UserFavoriteBook[]
   saleEditions    SaleAnnouncementEdition[]
+  reviews         Review[]
 
   @@map("books")
 }
@@ -479,6 +482,39 @@ model UserFollow {
 
   @@id([followerId, followingId])
   @@map("user_follows")
+}
+
+model Review {
+  id                 String   @id @default(cuid())
+  userId             String
+  bookId             String
+  rating             Int
+  title              String?
+  body               String
+  containsSpoilers   Boolean  @default(false)
+  isVerifiedPurchase Boolean  @default(false)
+  helpfulCount       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  helpful ReviewHelpful[]
+
+  @@unique([userId, bookId])
+  @@map("reviews")
+}
+
+model ReviewHelpful {
+  userId   String
+  reviewId String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@id([userId, reviewId])
+  @@map("review_helpfuls")
 }
 
 model EditionLike {

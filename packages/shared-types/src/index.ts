@@ -106,10 +106,15 @@ export interface ApiSubscriptionMonthBook {
 
 export interface ApiSponsoredSlot {
   id: string;
+  companyId: string;
   type: 'HOMEPAGE_FEATURED' | 'COMPANY_PAGE_BANNER' | 'NEWSLETTER_SLOT';
   startsAt: string;
   endsAt: string;
+  priceEur: number;
+  notes: string | null;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
   company: ApiBookBoxCompany;
 }
 
