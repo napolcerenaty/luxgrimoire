@@ -1,1 +1,43 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+@theme {
+  /* Remap stone palette → deep navy (matches old-approach) */
+  --color-stone-950: #050810;
+  --color-stone-900: #070f1c;
+  --color-stone-800: #0a1828;
+  --color-stone-700: #0d1f35;
+  --color-stone-600: #183858;
+  --color-stone-500: #2a5070;
+  --color-stone-400: #7ab0cc;
+  --color-stone-300: #b0cce0;
+  --color-stone-200: #c0e4f4;
+  --color-stone-100: #e8f4ff;
+  --color-stone-50:  #f0f7fc;
+
+  /* Remap amber palette → cyan-blue accent (matches old-approach) */
+  --color-amber-400: #4ab8d8;
+  --color-amber-500: #2a9ec4;
+  --color-amber-600: #1a82a8;
+  --color-amber-700: #183858;
+
+  /* Fonts */
+  --font-sans:  'Crimson Text', Georgia, serif;
+  --font-serif: 'Cinzel', Georgia, serif;
+}
+
+/* CSS vars for direct usage */
+:root {
+  --bg:          #050810;
+  --bg-surface:  #070f1c;
+  --bg-card:     #0a1828;
+  --bg-raised:   #0d1f35;
+  --border:      #183858;
+  --border-dim:  #0d2840;
+  --text:        #c0e4f4;
+  --text-bright: #e8f4ff;
+  --text-dim:    #7ab0cc;
+  --accent:      #2a9ec4;
+  --accent-bright: #4ab8d8;
+  --shadow:      rgba(0,0,0,0.7);
+}

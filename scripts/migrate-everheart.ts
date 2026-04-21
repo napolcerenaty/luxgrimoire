@@ -139,23 +139,14 @@ async function main() {
         const monthIds = monthRes.rows.map((r) => r.id)
 
         if (monthIds.length > 0) {
-          // Get book_ids from month-book junction (try both possible table names)
-          let smb: { book_id: string; book_edition_id?: string }[] = []
-          for (const table of ['subscription_month_book', 'book_subscription_month']) {
-            try {
-              const r = await old.query(
-                `SELECT book_id, book_edition_id FROM ${table} WHERE subscription_month_id = ANY($1)`,
-                [monthIds],
-              )
-              smb = r.rows
-              break
-            } catch {
-              // try next table name
-            }
-          }
-          smb.forEach((r) => {
+          // Get book_ids from month-book junction
+          const smb = await old.query(
+            `SELECT book_id, edition_id FROM subscription_month_book WHERE month_id = ANY($1)`,
+            [monthIds],
+          )
+          smb.rows.forEach((r) => {
             everheartBookIds.add(r.book_id)
-            if (r.book_edition_id) everheartEditionIds.add(r.book_edition_id)
+            if (r.edition_id) everheartEditionIds.add(r.edition_id)
           })
         }
       }
@@ -170,20 +161,19 @@ async function main() {
   // ────────────────────────────────────────────────────────────────────────
   console.log('\n[Step 2] Migrating users...')
   try {
+    // PK is username (no id column); password column holds hash
     const { rows: users } = await old.query(
-      `SELECT id, username, email, password_hash, encoded_password, role, created_at FROM app_user`,
+      `SELECT username, email, password, role FROM app_user`,
     )
     for (const u of users) {
       try {
-        const passwordHash: string | null =
-          u.password_hash ?? u.encoded_password ?? null
         const role = mapRole(u.role ?? '')
-        const slug = generateSlug(u.username ?? u.email)
+        const slug = generateSlug(u.username ?? u.email ?? 'user')
 
         if (DRY_RUN) {
           console.log(`  [dry] Would upsert user: ${u.email} (${role})`)
           track('Users', 1)
-          userMap.set(String(u.id), `dry-${u.id}`)
+          userMap.set(String(u.username), `dry-${u.username}`)
           continue
         }
 
@@ -191,17 +181,16 @@ async function main() {
           where: { email: u.email },
           update: {},
           create: {
-            username: u.username ?? slug,
+            username: u.username,
             email: u.email,
-            passwordHash,
+            passwordHash: u.password ?? null,
             role,
-            createdAt: u.created_at ? new Date(u.created_at) : undefined,
           },
         })
-        userMap.set(String(u.id), created.id)
+        userMap.set(String(u.username), created.id)
         track('Users', 1)
       } catch (err) {
-        console.error(`  ✗ User failed (id=${u.id}, email=${u.email}):`, err)
+        console.error(`  ✗ User failed (username=${u.username}, email=${u.email}):`, err)
         track('Users', 0, 1)
       }
     }
@@ -218,7 +207,7 @@ async function main() {
   console.log('\n[Step 3] Migrating Everheart company...')
   try {
     const { rows: companies } = await old.query(
-      `SELECT id, name, description, country, website, logo_path, is_ioss_implemented
+      `SELECT id, name, description, location, website_url, logo_url, ioss_implemented
        FROM book_box_company
        WHERE name ILIKE '%everheart%'`,
     )
@@ -240,9 +229,9 @@ async function main() {
             slug,
             name: c.name,
             description: c.description ?? null,
-            country: c.country ?? null,
-            website: c.website ?? null,
-            logoUrl: c.logo_path ?? null,
+            country: c.location ?? null,
+            website: c.website_url ?? null,
+            logoUrl: c.logo_url ?? null,
           },
         })
         companyMap.set(String(c.id), created.id)
@@ -268,14 +257,13 @@ async function main() {
     const { rows: books } =
       bookIdsArray.length > 0
         ? await old.query(
-            `SELECT id, title, original_title, description, series_name, volume_number,
-                    cover_image_path, isbn, language
+            `SELECT id, title, series_name, volume_number, cover_url
              FROM book WHERE id = ANY($1)`,
             [bookIdsArray],
           )
         : await old.query(
-            `SELECT id, title, original_title, description, series_name, volume_number,
-                    cover_image_path, isbn, language FROM book`,
+            `SELECT id, title, series_name, volume_number, cover_url
+             FROM book`,
           )
 
     for (const b of books) {
@@ -295,13 +283,9 @@ async function main() {
           create: {
             slug,
             title: b.title,
-            altTitle: b.original_title ?? null,
-            description: b.description ?? null,
             seriesName: b.series_name ?? null,
             volumeNumber: b.volume_number != null ? Number(b.volume_number) : null,
-            coverImage: b.cover_image_path ?? null,
-            isbn: b.isbn ?? null,
-            language: b.language ?? 'en',
+            coverImage: b.cover_url ?? null,
           },
         })
         bookMap.set(String(b.id), created.id)
@@ -321,14 +305,15 @@ async function main() {
   // ────────────────────────────────────────────────────────────────────────
   console.log('\n[Step 5] Migrating authors...')
   try {
+    // Old DB has book.author_id FK directly — no book_author junction table
     const bookIdsArray = Array.from(bookMap.keys())
     const { rows: authors } =
       bookIdsArray.length > 0
         ? await old.query(
-            `SELECT DISTINCT a.id, a.name, a.biography, a.nationality
+            `SELECT DISTINCT a.id, a.name, a.bio, a.nationality, a.website
              FROM author a
-             JOIN book_author ba ON ba.author_id = a.id
-             WHERE ba.book_id = ANY($1)`,
+             JOIN book b ON b.author_id = a.id
+             WHERE b.id = ANY($1)`,
             [bookIdsArray],
           )
         : { rows: [] }
@@ -350,7 +335,7 @@ async function main() {
           create: {
             slug,
             name: a.name,
-            bio: a.biography ?? null,
+            bio: a.bio ?? null,
           },
         })
         authorMap.set(String(a.id), created.id)
@@ -374,8 +359,7 @@ async function main() {
     const { rows: editions } =
       bookIdsArray.length > 0
         ? await old.query(
-            `SELECT id, book_id, publisher, publish_year, format, cover_image_path,
-                    page_count, isbn, language
+            `SELECT id, book_id, publisher, edition_name, book_box_company_id
              FROM book_edition WHERE book_id = ANY($1)`,
             [bookIdsArray],
           )
@@ -389,8 +373,8 @@ async function main() {
           continue
         }
 
-        const slug = generateSlug(`${e.publisher ?? 'edition'}-${e.book_id}`)
-        const format = mapFormat(e.format)
+        const label = e.edition_name ?? e.publisher ?? 'edition'
+        const slug = generateSlug(`${label}-${e.book_id}`)
 
         if (DRY_RUN) {
           console.log(`  [dry] Would upsert edition for book_id=${e.book_id}`)
@@ -406,13 +390,8 @@ async function main() {
             slug,
             bookId: newBookId,
             publisher: e.publisher ?? null,
-            publishYear: e.publish_year ? parseInt(e.publish_year) : null,
-            format,
-            coverImage: e.cover_image_path ?? null,
+            notes: e.edition_name ?? null,
             additionalImages: [],
-            isSpecial: format
-              ? ['SPECIAL', 'DELUXE', 'COLLECTORS', 'LIMITED'].includes(format)
-              : false,
           },
         })
         editionMap.set(String(e.id), created.id)
@@ -436,26 +415,12 @@ async function main() {
     const { rows: artists } =
       editionIdsArray.length > 0
         ? await old.query(
-            `SELECT DISTINCT ar.id, ar.name, ar.biography
-             FROM artist ar
-             JOIN artist_contribution ac ON ac.artist_id = ar.id
-             WHERE ac.book_edition_id = ANY($1)
-             UNION
-             SELECT DISTINCT ar.id, ar.name, ar.biography
+            `SELECT DISTINCT ar.id, ar.name, ar.bio, ar.specialty
              FROM artist ar
              JOIN book_edition_artist bea ON bea.artist_id = ar.id
-             WHERE bea.book_edition_id = ANY($1)`,
+             WHERE bea.edition_id = ANY($1)`,
             [editionIdsArray],
-          ).catch(async () => {
-            // Fall back to single table if union fails
-            return old.query(
-              `SELECT DISTINCT ar.id, ar.name, ar.biography
-               FROM artist ar
-               JOIN artist_contribution ac ON ac.artist_id = ar.id
-               WHERE ac.book_edition_id = ANY($1)`,
-              [editionIdsArray],
-            )
-          })
+          )
         : { rows: [] }
 
     for (const a of artists) {
@@ -475,7 +440,7 @@ async function main() {
           create: {
             slug,
             name: a.name,
-            bio: a.biography ?? null,
+            bio: a.bio ?? null,
           },
         })
         artistMap.set(String(a.id), created.id)
@@ -495,11 +460,12 @@ async function main() {
   // ────────────────────────────────────────────────────────────────────────
   console.log('\n[Step 8] Linking authors to books...')
   try {
+    // Old DB has no book_author junction — author is a direct FK on book
     const bookIdsArray = Array.from(bookMap.keys())
     const { rows: links } =
       bookIdsArray.length > 0
         ? await old.query(
-            `SELECT book_id, author_id FROM book_author WHERE book_id = ANY($1)`,
+            `SELECT id AS book_id, author_id FROM book WHERE id = ANY($1) AND author_id IS NOT NULL`,
             [bookIdsArray],
           )
         : { rows: [] }
@@ -544,23 +510,16 @@ async function main() {
     const { rows: contribs } =
       editionIdsArray.length > 0
         ? await old.query(
-            `SELECT book_edition_id, artist_id, contribution_type
-             FROM artist_contribution
-             WHERE book_edition_id = ANY($1)`,
+            `SELECT edition_id, artist_id, contribution
+             FROM book_edition_artist
+             WHERE edition_id = ANY($1)`,
             [editionIdsArray],
-          ).catch(() =>
-            old.query(
-              `SELECT book_edition_id, artist_id, contribution_type
-               FROM book_edition_artist
-               WHERE book_edition_id = ANY($1)`,
-              [editionIdsArray],
-            ),
           )
         : { rows: [] }
 
     for (const c of contribs) {
       try {
-        const newEditionId = editionMap.get(String(c.book_edition_id))
+        const newEditionId = editionMap.get(String(c.edition_id))
         const newArtistId = artistMap.get(String(c.artist_id))
         if (!newEditionId || !newArtistId) {
           track('ArtistContributions', 0, 1)
@@ -568,7 +527,7 @@ async function main() {
         }
 
         if (DRY_RUN) {
-          console.log(`  [dry] Would link artist ${c.artist_id} → edition ${c.book_edition_id}`)
+          console.log(`  [dry] Would link artist ${c.artist_id} → edition ${c.edition_id}`)
           track('ArtistContributions', 1)
           continue
         }
@@ -579,13 +538,13 @@ async function main() {
           create: {
             editionId: newEditionId,
             artistId: newArtistId,
-            role: c.contribution_type ?? 'cover',
+            role: c.contribution ?? 'cover',
           },
         })
         track('ArtistContributions', 1)
       } catch (err) {
         console.error(
-          `  ✗ ArtistContribution failed (edition=${c.book_edition_id}, artist=${c.artist_id}):`,
+          `  ✗ ArtistContribution failed (edition=${c.edition_id}, artist=${c.artist_id}):`,
           err,
         )
         track('ArtistContributions', 0, 1)
@@ -602,8 +561,7 @@ async function main() {
   console.log('\n[Step 10] Migrating subscriptions...')
   try {
     const { rows: subs } = await old.query(
-      `SELECT s.id, s.name, s.description, s.genre, s.company_id,
-              s.is_discontinued, s.start_date, s.end_date, s.cover_image_path
+      `SELECT s.id, s.name, s.description, s.type, s.company_id, s.logo_url
        FROM subscription s
        JOIN book_box_company c ON c.id = s.company_id
        WHERE c.name ILIKE '%everheart%'`,
@@ -635,11 +593,8 @@ async function main() {
             companyId: newCompanyId,
             name: s.name,
             description: s.description ?? null,
-            genre: s.genre ?? null,
-            coverImage: s.cover_image_path ?? null,
-            isDiscontinued: s.is_discontinued ?? false,
-            startDate: s.start_date ? new Date(s.start_date) : null,
-            endDate: s.end_date ? new Date(s.end_date) : null,
+            genre: s.type ?? null,
+            coverImage: s.logo_url ?? null,
           },
         })
         subscriptionMap.set(String(s.id), created.id)
@@ -663,7 +618,7 @@ async function main() {
     const { rows: months } =
       subIdsArray.length > 0
         ? await old.query(
-            `SELECT id, subscription_id, year, month, theme, cover_image_path
+            `SELECT id, subscription_id, year, month, theme, image_url
              FROM subscription_month WHERE subscription_id = ANY($1)`,
             [subIdsArray],
           )
@@ -698,7 +653,7 @@ async function main() {
             year: parseInt(m.year),
             month: parseInt(m.month),
             theme: m.theme ?? null,
-            coverImage: m.cover_image_path ?? null,
+            coverImage: m.image_url ?? null,
           },
         })
         monthMap.set(String(m.id), created.id)
@@ -719,30 +674,24 @@ async function main() {
   console.log('\n[Step 12] Migrating subscription month books...')
   try {
     const monthIdsArray = Array.from(monthMap.keys())
-    let smbs: { subscription_month_id: string; book_id: string; book_edition_id?: string; is_main_book?: boolean }[] = []
+    // Old DB: subscription_month_book has month_id, book_id, edition_id, sort_order (0=main)
+    const smbs: { month_id: string; book_id: string; edition_id?: string; sort_order?: number }[] = []
 
     if (monthIdsArray.length > 0) {
-      for (const table of ['subscription_month_book', 'book_subscription_month']) {
-        try {
-          const r = await old.query(
-            `SELECT subscription_month_id, book_id, book_edition_id, is_main_book
-             FROM ${table} WHERE subscription_month_id = ANY($1)`,
-            [monthIdsArray],
-          )
-          smbs = r.rows
-          break
-        } catch {
-          // try next
-        }
-      }
+      const r = await old.query(
+        `SELECT month_id, book_id, edition_id, sort_order
+         FROM subscription_month_book WHERE month_id = ANY($1)`,
+        [monthIdsArray],
+      )
+      smbs.push(...r.rows)
     }
 
     for (const smb of smbs) {
       try {
-        const newMonthId = monthMap.get(String(smb.subscription_month_id))
+        const newMonthId = monthMap.get(String(smb.month_id))
         const newBookId = bookMap.get(String(smb.book_id))
-        const newEditionId = smb.book_edition_id
-          ? editionMap.get(String(smb.book_edition_id)) ?? null
+        const newEditionId = smb.edition_id
+          ? editionMap.get(String(smb.edition_id)) ?? null
           : null
 
         if (!newMonthId || !newBookId) {
@@ -752,7 +701,7 @@ async function main() {
 
         if (DRY_RUN) {
           console.log(
-            `  [dry] Would upsert month-book: month=${smb.subscription_month_id}, book=${smb.book_id}`,
+            `  [dry] Would upsert month-book: month=${smb.month_id}, book=${smb.book_id}`,
           )
           track('MonthBooks', 1)
           continue
@@ -765,13 +714,13 @@ async function main() {
             monthId: newMonthId,
             bookId: newBookId,
             editionId: newEditionId,
-            isMainBook: smb.is_main_book ?? true,
+            isMainBook: (smb.sort_order ?? 0) === 0,
           },
         })
         track('MonthBooks', 1)
       } catch (err) {
         console.error(
-          `  ✗ MonthBook failed (month=${smb.subscription_month_id}, book=${smb.book_id}):`,
+          `  ✗ MonthBook failed (month=${smb.month_id}, book=${smb.book_id}):`,
           err,
         )
         track('MonthBooks', 0, 1)

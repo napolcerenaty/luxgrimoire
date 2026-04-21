@@ -1,11 +1,8 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { Providers } from '@/components/Providers'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
@@ -33,7 +30,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-stone-950 text-stone-100 min-h-screen`}>
+      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased">
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
