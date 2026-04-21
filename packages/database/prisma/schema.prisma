@@ -1,0 +1,658 @@
+// LuxGrimoire — Prisma Schema
+// Every entity has: id (cuid), slug (unique, immutable), createdAt, updatedAt
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MODERATOR
+  USER
+}
+
+enum SponsoredSlotType {
+  HOMEPAGE_FEATURED
+  COMPANY_PAGE_BANNER
+  NEWSLETTER_SLOT
+}
+
+// ─────────────────────────────────────────────
+// AUTH / USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id                String   @id @default(cuid())
+  username          String   @unique
+  email             String   @unique
+  emailVerified     Boolean  @default(false)
+  passwordHash      String?
+  role              Role     @default(USER)
+  preferredCurrency String   @default("EUR")
+  avatarUrl         String?
+  bio               String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  sessions              Session[]
+  accounts              Account[]
+  bookEntries           UserBookEntry[]
+  subscriptionEntries   UserSubscriptionEntry[]
+  purchases             PurchaseTransaction[]
+  favoriteBooks         UserFavoriteBook[]
+  favoriteAuthors       UserFavoriteAuthor[]
+  favoriteArtists       UserFavoriteArtist[]
+  favoriteEditions      UserFavoriteEdition[]
+  favoriteCompanies     UserFavoriteCompany[]
+  notifications         UserNotification[]
+  sentMessages          Message[]            @relation("SentMessages")
+  conversationMembers   ConversationMember[]
+  following             UserFollow[]         @relation("Follower")
+  followers             UserFollow[]         @relation("Following")
+  editionTags           UserEditionTag[]
+  subEntryTags          UserSubEntryTag[]
+  editionLikes          EditionLike[]
+  editionComments       EditionComment[]
+  saleInterests         UserSaleInterest[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id           String  @id @default(cuid())
+  userId       String
+  provider     String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("accounts")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────
+// BOOKS & CATALOGUE
+// ─────────────────────────────────────────────
+
+model Book {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  altTitle    String?
+  description String?
+  coverImage  String?  // Cloudinary public_id
+  language    String   @default("en")
+  isbn        String?
+  seriesName  String?
+  volumeNumber Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authors         BookAuthor[]
+  editions        BookEdition[]
+  monthBooks      SubscriptionMonthBook[]
+  userEntries     UserBookEntry[]
+  favoriteBy      UserFavoriteBook[]
+  saleEditions    SaleAnnouncementEdition[]
+
+  @@map("books")
+}
+
+model Author {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  bio         String?
+  photoUrl    String?  // Cloudinary public_id
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  books       BookAuthor[]
+  favoriteBy  UserFavoriteAuthor[]
+
+  @@map("authors")
+}
+
+model BookAuthor {
+  bookId    String
+  authorId  String
+
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, authorId])
+  @@map("book_authors")
+}
+
+model Artist {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  bio         String?
+  photoUrl    String?  // Cloudinary public_id
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contributions ArtistContribution[]
+  favoriteBy    UserFavoriteArtist[]
+
+  @@map("artists")
+}
+
+model ArtistContribution {
+  id        String @id @default(cuid())
+  editionId String
+  artistId  String
+  role      String @default("cover")
+
+  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  artist  Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([editionId, artistId])
+  @@map("artist_contributions")
+}
+
+model BookEdition {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  bookId           String
+  publisher        String?
+  publishYear      Int?
+  format           String?
+  coverImage       String?  // Cloudinary public_id
+  additionalImages String[] // Cloudinary public_ids
+  isSpecial        Boolean  @default(false)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  book          Book                    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  artists       ArtistContribution[]
+  monthBooks    SubscriptionMonthBook[]
+  userEntries   UserBookEntry[]
+  favoriteBy    UserFavoriteEdition[]
+  tags          UserEditionTag[]
+  likes         EditionLike[]
+  comments      EditionComment[]
+  saleEditions  SaleAnnouncementEdition[]
+
+  @@map("book_editions")
+}
+
+// ─────────────────────────────────────────────
+// BOX COMPANIES & SUBSCRIPTIONS
+// ─────────────────────────────────────────────
+
+model BookBoxCompany {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  logoUrl     String?  // Cloudinary public_id
+  website     String?
+  country     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions  Subscription[]
+  favoriteBy     UserFavoriteCompany[]
+  sponsoredSlots SponsoredSlot[]
+
+  @@map("book_box_companies")
+}
+
+model Subscription {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  companyId       String
+  name            String
+  description     String?
+  coverImage      String?   // Cloudinary public_id
+  genre           String?
+  startDate       DateTime?
+  endDate         DateTime? // null = still active
+  isDiscontinued  Boolean   @default(false)
+  currency        String    @default("EUR")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company        BookBoxCompany          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  months         SubscriptionMonth[]
+  userEntries    UserSubscriptionEntry[]
+  prepayOptions  SubscriptionPrepayOption[]
+
+  @@map("subscriptions")
+}
+
+model SubscriptionMonth {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  year           Int
+  month          Int      // 1-12
+  theme          String?
+  coverImage     String?  // Cloudinary public_id
+  spoilerImage   String?  // Cloudinary public_id
+  isSpoiler      Boolean  @default(false)
+  announcedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription  Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  books         SubscriptionMonthBook[]
+  userMonths    UserSubBillingPeriod[]
+
+  @@unique([subscriptionId, year, month])
+  @@map("subscription_months")
+}
+
+model SubscriptionMonthBook {
+  id          String  @id @default(cuid())
+  monthId     String
+  bookId      String
+  editionId   String?
+  isMainBook  Boolean @default(true)
+
+  month   SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  book    Book              @relation(fields: [bookId], references: [id])
+  edition BookEdition?      @relation(fields: [editionId], references: [id])
+
+  @@unique([monthId, bookId])
+  @@map("subscription_month_books")
+}
+
+model SubscriptionPrepayOption {
+  id             String  @id @default(cuid())
+  subscriptionId String
+  months         Int
+  price          Float
+  currency       String  @default("EUR")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_prepay_options")
+}
+
+// ─────────────────────────────────────────────
+// USER COLLECTION
+// ─────────────────────────────────────────────
+
+model UserBookEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  bookId      String
+  editionId   String?
+  purchasedAt DateTime?
+  source      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book         @relation(fields: [bookId], references: [id])
+  edition BookEdition? @relation(fields: [editionId], references: [id])
+
+  @@unique([userId, bookId, editionId])
+  @@map("user_book_entries")
+}
+
+model UserSubscriptionEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  subscriptionId String
+  startDate      DateTime?
+  endDate        DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription           @relation(fields: [subscriptionId], references: [id])
+  billingPeriods UserSubBillingPeriod[]
+  tags           UserSubEntryTag[]
+  costChanges    UserSubscriptionCostChange[]
+
+  @@unique([userId, subscriptionId])
+  @@map("user_subscription_entries")
+}
+
+model UserSubBillingPeriod {
+  id          String   @id @default(cuid())
+  entryId     String
+  monthId     String
+  amount      Float?
+  currency    String   @default("EUR")
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  entry UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  month SubscriptionMonth     @relation(fields: [monthId], references: [id])
+
+  @@unique([entryId, monthId])
+  @@map("user_sub_billing_periods")
+}
+
+model UserSubscriptionCostChange {
+  id        String   @id @default(cuid())
+  entryId   String
+  newAmount Float
+  currency  String   @default("EUR")
+  changedAt DateTime @default(now())
+  note      String?
+
+  entry UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@map("user_subscription_cost_changes")
+}
+
+model PurchaseTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Float
+  currency    String   @default("EUR")
+  description String?
+  purchasedAt DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_transactions")
+}
+
+// ─────────────────────────────────────────────
+// FAVORITES & TAGS
+// ─────────────────────────────────────────────
+
+model UserFavoriteBook {
+  userId String
+  bookId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  @@id([userId, bookId])
+  @@map("user_favorite_books")
+}
+
+model UserFavoriteAuthor {
+  userId   String
+  authorId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  @@id([userId, authorId])
+  @@map("user_favorite_authors")
+}
+
+model UserFavoriteArtist {
+  userId   String
+  artistId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  @@id([userId, artistId])
+  @@map("user_favorite_artists")
+}
+
+model UserFavoriteEdition {
+  userId    String
+  editionId String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  @@id([userId, editionId])
+  @@map("user_favorite_editions")
+}
+
+model UserFavoriteCompany {
+  userId    String
+  companyId String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@id([userId, companyId])
+  @@map("user_favorite_companies")
+}
+
+model UserEditionTag {
+  id        String      @id @default(cuid())
+  userId    String
+  editionId String
+  tag       String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  @@unique([userId, editionId, tag])
+  @@map("user_edition_tags")
+}
+
+model UserSubEntryTag {
+  id      String                @id @default(cuid())
+  userId  String
+  entryId String
+  tag     String
+  user    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry   UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  @@unique([userId, entryId, tag])
+  @@map("user_sub_entry_tags")
+}
+
+// ─────────────────────────────────────────────
+// SOCIAL
+// ─────────────────────────────────────────────
+
+model UserFollow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("user_follows")
+}
+
+model EditionLike {
+  userId    String
+  editionId String
+  createdAt DateTime @default(now())
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, editionId])
+  @@map("edition_likes")
+}
+
+model EditionComment {
+  id        String   @id @default(cuid())
+  userId    String
+  editionId String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@map("edition_comments")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String
+  userId         String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model UserNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notifications")
+}
+
+// ─────────────────────────────────────────────
+// SALE ANNOUNCEMENTS
+// ─────────────────────────────────────────────
+
+model SaleAnnouncement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  sourceUrl   String?
+  images      String[] // Cloudinary public_ids
+  companyId   String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  editions  SaleAnnouncementEdition[]
+  interests UserSaleInterest[]
+
+  @@map("sale_announcements")
+}
+
+model SaleAnnouncementEdition {
+  id               String @id @default(cuid())
+  announcementId   String
+  bookId           String
+  editionId        String?
+  price            Float?
+  currency         String @default("EUR")
+
+  announcement SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  book         Book             @relation(fields: [bookId], references: [id])
+  edition      BookEdition?     @relation(fields: [editionId], references: [id])
+
+  @@map("sale_announcement_editions")
+}
+
+model UserSaleInterest {
+  userId         String
+  announcementId String
+  createdAt      DateTime @default(now())
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, announcementId])
+  @@map("user_sale_interests")
+}
+
+// ─────────────────────────────────────────────
+// MONETISATION
+// ─────────────────────────────────────────────
+
+model SponsoredSlot {
+  id         String            @id @default(cuid())
+  companyId  String
+  type       SponsoredSlotType
+  startsAt   DateTime
+  endsAt     DateTime
+  priceEur   Float
+  notes      String?
+  isActive   Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  company BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("sponsored_slots")
+}
+
+// ─────────────────────────────────────────────
+// APP CONFIG
+// ─────────────────────────────────────────────
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model ExchangeRateCache {
+  id        String   @id @default(cuid())
+  base      String
+  target    String
+  rate      Float
+  fetchedAt DateTime @default(now())
+
+  @@unique([base, target])
+  @@map("exchange_rate_cache")
+}
