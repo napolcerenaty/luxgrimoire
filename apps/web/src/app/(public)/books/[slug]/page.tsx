@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
+import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { ApiBook } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -188,6 +189,7 @@ export default async function BookPage({ params }: Props) {
           </div>
         </section>
       )}
+      <ReviewsSection bookId={book.id} />
     </div>
   )
 }
