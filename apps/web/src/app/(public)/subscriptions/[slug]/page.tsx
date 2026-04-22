@@ -164,9 +164,9 @@ export default async function SubscriptionPage({ params }: Props) {
                                 <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
                                   {mb.book.title}
                                 </p>
-                                {mb.book.authors.length > 0 && (
+                                {(mb.book.authors?.length ?? 0) > 0 && (
                                   <p className="text-xs text-stone-400">
-                                    {mb.book.authors.map((a) => a.name).join(', ')}
+                                    {mb.book.authors.map((a: { author: { name: string } }) => a.author.name).join(', ')}
                                   </p>
                                 )}
                               </div>

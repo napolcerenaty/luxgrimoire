@@ -80,7 +80,14 @@ export class SubscriptionsService {
           include: {
             books: {
               include: {
-                book: { select: { title: true, slug: true } },
+                book: {
+                    select: {
+                      title: true,
+                      slug: true,
+                      coverImage: true,
+                      authors: { select: { author: { select: { name: true, slug: true } } } },
+                    },
+                  },
                 edition: { select: { slug: true, coverImage: true } },
               },
             },
