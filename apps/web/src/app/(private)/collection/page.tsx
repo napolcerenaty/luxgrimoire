@@ -256,9 +256,13 @@ export default function CollectionPage() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click (but not when clicking inside a dropdown)
   useEffect(() => {
-    const handler = () => setOpenDropdown(null)
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('[data-dropdown]')) {
+        setOpenDropdown(null)
+      }
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
@@ -552,16 +556,16 @@ export default function CollectionPage() {
                             {/* Ownership status badge */}
                             <div
                               className="relative"
-                              onMouseDown={(e) => e.stopPropagation()}
+                              data-dropdown
                             >
                               <span
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                  entry.ownershipStatus === 'OWNED' ? 'text-green-400 bg-green-900/30 border-green-800/50' :
-                                  entry.ownershipStatus === 'PREORDER' ? 'text-amber-400 bg-amber-900/30 border-amber-800/50' :
-                                  entry.ownershipStatus === 'TO_SELL' ? 'text-purple-400 bg-purple-900/30 border-purple-800/50' :
-                                  (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-400 bg-blue-900/30 border-blue-800/50' :
-                                  'text-stone-400 bg-stone-800 border-stone-700'
+                                  entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                                  entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                                  entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                                  (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                                  'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
                                 {entry.ownershipStatus}
@@ -594,13 +598,13 @@ export default function CollectionPage() {
                             {/* Reading status badge */}
                             <div
                               className="relative"
-                              onMouseDown={(e) => e.stopPropagation()}
+                              data-dropdown
                             >
                               <span
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                  entry.readingStatus === 'READ' ? 'text-teal-400 bg-teal-900/30 border-teal-800/50' :
-                                  'text-stone-400 bg-stone-800 border-stone-700'
+                                  entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                                  'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
                                 {entry.readingStatus}
