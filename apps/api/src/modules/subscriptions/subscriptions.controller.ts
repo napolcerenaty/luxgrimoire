@@ -164,6 +164,12 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get('my/subscriptions')
+  getMySubscriptions(@CurrentUser() user: CurrentUserType) {
+    return this.subscriptionsService.getMySubscriptions(user.id);
+  }
+
+  @ApiBearerAuth()
   @Get(':slug/my-entry')
   getMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
     return this.subscriptionsService.getMySubscriptionEntry(user.id, slug);

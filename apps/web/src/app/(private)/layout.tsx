@@ -4,11 +4,12 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
-import { BookOpen, Heart, DollarSign, Star, User, Rss } from 'lucide-react'
+import { BookOpen, Heart, DollarSign, Star, User, Rss, BookMarked } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const NAV_LINKS = [
   { href: '/collection', label: 'My Collection', icon: BookOpen },
+  { href: '/subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/spending', label: 'Spending', icon: DollarSign },
   { href: '/favorites', label: 'Favorites', icon: Star },

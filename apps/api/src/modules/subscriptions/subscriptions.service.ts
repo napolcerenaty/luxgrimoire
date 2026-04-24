@@ -347,6 +347,35 @@ export class SubscriptionsService {
     });
   }
 
+  async getMySubscriptions(userId: string) {
+    return this.prisma.userSubscriptionEntry.findMany({
+      where: { userId },
+      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
+      select: {
+        id: true,
+        active: true,
+        startDate: true,
+        renewalDay: true,
+        costCurrency: true,
+        basePrice: true,
+        shippingCost: true,
+        taxesAndFees: true,
+        subscription: {
+          select: {
+            slug: true,
+            name: true,
+            coverImage: true,
+            logoUrl: true,
+            currency: true,
+            price: true,
+            isDiscontinued: true,
+            company: { select: { name: true, slug: true } },
+          },
+        },
+      },
+    });
+  }
+
   async cancelMySubscription(userId: string, slug: string) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findUnique({

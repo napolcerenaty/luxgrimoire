@@ -289,10 +289,8 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
                 </div>
               )
             })}
-            {linkedFees.length > 0 && (
-              allSameCurrency
-                ? <p className="text-xs text-stone-500 pt-1 text-right">Total: <span className="text-stone-300">{feesTotal!.toFixed(2)} {cur}</span></p>
-                : <p className="text-xs text-amber-600/80 pt-1">Fees are in different currencies — enter a manual total below if needed.</p>
+            {linkedFees.length > 0 && !allSameCurrency && (
+              <p className="text-xs text-amber-600/80 pt-1">Fees are in different currencies — enter a manual total below if needed.</p>
             )}
             <p className="text-xs text-stone-600 mt-1">
               Selected fees are tracked independently and auto-applied on backfill.
