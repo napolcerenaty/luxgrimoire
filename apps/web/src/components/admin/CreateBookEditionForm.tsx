@@ -269,7 +269,7 @@ export interface CreateBookEditionFormProps {
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
   existingBookId?: string
-  onSuccess: () => void
+  onSuccess: (editionId?: string) => void
   onCancel: () => void
 }
 
@@ -459,7 +459,7 @@ export default function CreateBookEditionForm({
       }
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       setSaved(true)
-      setTimeout(() => onSuccess(), 800)
+      setTimeout(() => onSuccess(ed.id), 800)
     } catch (e: unknown) {
       alert(`Error creating edition: ${e instanceof Error ? e.message : String(e)}`)
     } finally {

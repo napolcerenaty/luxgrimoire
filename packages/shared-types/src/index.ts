@@ -397,6 +397,7 @@ export interface ApiSaleAnnouncement {
   isPublished: boolean;
   isBundle: boolean;
   availableForPurchase: boolean;
+  saleStatus: string;
   createdAt: string;
   updatedAt: string;
   editions?: Array<{
