@@ -102,14 +102,26 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
               <Clock className="w-4 h-4 text-stone-400 shrink-0" />
               <p className="text-sm text-stone-200 font-medium">On the waitlist</p>
             </div>
-            <button
-              onClick={handleLeave}
-              disabled={busy}
-              className="flex items-center gap-1 text-xs text-stone-500 hover:text-red-400 transition-colors disabled:opacity-50 shrink-0"
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-              Remove
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={handleLeave}
+                disabled={busy}
+                className="flex items-center gap-1 text-xs text-stone-500 hover:text-red-400 transition-colors disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                Remove
+              </button>
+              {!editingDate && (
+                <button
+                  onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setEditingDate(true) }}
+                  className="flex items-center gap-1 text-xs text-stone-600 hover:text-stone-400 transition-colors"
+                  title="Edit date"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-stone-400 pl-6">
             {editingDate ? (
@@ -129,18 +141,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
                 </button>
               </>
             ) : (
-              <>
-                <span>{joinDate.toLocaleDateString('en-GB')}</span>
-                <span className="text-stone-600">·</span>
-                <span>{daysOnList}d</span>
-                <button
-                  onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setEditingDate(true) }}
-                  className="text-stone-600 hover:text-stone-400 transition-colors"
-                  title="Edit date"
-                >
-                  <Pencil className="w-3 h-3" />
-                </button>
-              </>
+              <span>{joinDate.toLocaleDateString('en-GB')} · {daysOnList}d</span>
             )}
           </div>
         </div>
