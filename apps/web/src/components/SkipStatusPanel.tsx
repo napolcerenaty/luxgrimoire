@@ -121,7 +121,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
               Skip {MONTH_NAMES[skipTarget.month]} {skipTarget.year}?
             </p>
             <p className="text-sm text-stone-400">
-              This will record a skip for this month. You will not receive the box for this period.
+              This will record a skip for this month. Box from this period will not be added to your collection.
             </p>
             {skipMutation.error && (
               <p className="text-xs text-red-400">
