@@ -24,19 +24,23 @@ export function DevBanner() {
 
   return (
     <div className="relative z-[60] flex items-center justify-between gap-3 px-4 py-2 text-xs font-medium"
-      style={{ background: 'linear-gradient(90deg, #78350f 0%, #92400e 50%, #78350f 100%)', color: '#fef3c7' }}
+      style={{ background: 'var(--grad-header, #1c1917)', borderBottom: '1px solid rgba(245,158,11,0.2)', color: '#d6c89a' }}
     >
       <div className="flex items-center gap-2 flex-1 justify-center">
-        <Construction size={13} className="shrink-0 opacity-80" />
-        <span>
+        <Construction size={13} className="shrink-0 text-amber-400/70" />
+        <span style={{ color: '#b0956a' }}>
           LuxGrimoire is under active development — you may encounter bugs or incomplete features.
-          Found something? Use the <strong className="font-semibold">Report a Bug</strong> button.
+          Found something?{' '}
+          <strong className="font-semibold" style={{ color: '#d4a843' }}>Use the Report a Bug button.</strong>
         </span>
       </div>
       <button
         onClick={dismiss}
-        className="shrink-0 p-0.5 rounded opacity-70 hover:opacity-100 transition-opacity"
+        className="shrink-0 p-0.5 rounded transition-opacity"
+        style={{ color: '#7a6a50', opacity: 0.7 }}
         aria-label="Dismiss"
+        onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+        onMouseOut={e => (e.currentTarget.style.opacity = '0.7')}
       >
         <X size={13} />
       </button>

@@ -5,17 +5,16 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { BugReportsService } from './bug-reports.service';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles, Public } from '../../common/decorators/auth.decorators';
+import { Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 
 @ApiTags('bug-reports')
 @Controller('bug-reports')
 export class BugReportsController {
   constructor(private readonly bugReportsService: BugReportsService) {}
 
-  /** Anyone can submit — auth optional */
+  /** Anyone can submit — auth optional (userId captured when logged in) */
   @Post()
-  @Public()
+  @OptionalAuth()
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() body: { title: string; description: string; pageUrl?: string; category?: string },
