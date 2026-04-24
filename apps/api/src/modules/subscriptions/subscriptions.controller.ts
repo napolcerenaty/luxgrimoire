@@ -167,6 +167,12 @@ export class SubscriptionsController {
     return this.subscriptionsService.getMySubscriptionEntry(user.id, slug);
   }
 
+  @ApiBearerAuth()
+  @Patch(':slug/my-entry/cancel')
+  cancelMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    return this.subscriptionsService.cancelMySubscription(user.id, slug);
+  }
+
   // ── Waitlist ──────────────────────────────────────────────────────────────
 
   @ApiBearerAuth()

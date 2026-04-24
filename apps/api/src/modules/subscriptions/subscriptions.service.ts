@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -337,6 +338,59 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     return this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+  }
+
+  async cancelMySubscription(userId: string, slug: string) {
+    const sub = await this.findBySlug(slug);
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
+    if (!entry.active) throw new BadRequestException('Subscription is already cancelled');
+
+    // Check if current date falls within any active SERIES_ONLY series with canCancelDuring=false
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+
+    const blockingSeries = await this.prisma.subscriptionSeries.findFirst({
+      where: {
+        subscriptionId: sub.id,
+        skipMode: 'SERIES_ONLY',
+        canCancelDuring: false,
+        isActive: true,
+        OR: [
+          // Starts in same year, ends in same year: check month range
+          {
+            startYear: currentYear,
+            endYear: currentYear,
+            startMonth: { lte: currentMonth },
+            endMonth: { gte: currentMonth },
+          },
+          // Series spans multiple years — starts before current year, ends after
+          { startYear: { lt: currentYear }, endYear: { gt: currentYear } },
+          // Starts before or in current year, ends in current year at or after current month
+          { startYear: { lt: currentYear }, endYear: currentYear, endMonth: { gte: currentMonth } },
+          // Starts in current year at or before current month, ends after current year
+          { startYear: currentYear, startMonth: { lte: currentMonth }, endYear: { gt: currentYear } },
+        ],
+      },
+      select: { name: true },
+    });
+
+    if (blockingSeries) {
+      throw new BadRequestException(
+        `Cannot cancel during active series "${blockingSeries.name}". Cancellation is locked until the series ends.`,
+      );
+    }
+
+    return this.prisma.userSubscriptionEntry.update({
+      where: { id: entry.id },
+      data: {
+        active: false,
+        cancellationDate: new Date().toISOString().slice(0, 10),
+      },
     });
   }
 
