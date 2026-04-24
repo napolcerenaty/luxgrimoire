@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getMySubscriptionEntry } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 interface SkipPolicy {
   type: string
@@ -85,11 +86,16 @@ export default function SubscriptionInfoPanel({
   country,
   skipPolicy,
 }: Props) {
+  const { user } = useAuth()
   const [token, setToken] = useState<string | null>(null)
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
   const [skipState, setSkipState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [skipError, setSkipError] = useState<string | null>(null)
+  const [convertedRate, setConvertedRate] = useState<number | null>(null)
+
+  const userCurrency = user?.preferredCurrency
+  const showConversion = !!userCurrency && userCurrency !== currency
 
   useEffect(() => {
     const t = localStorage.getItem('luxgrimoire_token')
@@ -105,11 +111,24 @@ export default function SubscriptionInfoPanel({
     }
   }, [subscriptionSlug])
 
+  useEffect(() => {
+    if (!showConversion || !price) return
+    authFetch<{ rate: number }>(`/currency/rate?from=${currency}&to=${userCurrency}`)
+      .then((data) => setConvertedRate(data.rate))
+      .catch(() => setConvertedRate(null))
+  }, [showConversion, currency, userCurrency, price])
+
   const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
   const priceNum = price ? parseFloat(price) : null
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
   const taxes = isSubscriber && myEntry?.taxesAndFees ? parseFloat(myEntry.taxesAndFees) : null
   const total = priceNum !== null && shipping !== null ? priceNum + shipping + (taxes ?? 0) : null
+
+  /** Returns "≈ X.XX CUR" if conversion rate is known, else null */
+  function converted(amount: number): string | null {
+    if (!convertedRate || !userCurrency) return null
+    return `≈ ${(amount * convertedRate).toFixed(2)} ${userCurrency}`
+  }
 
   const canSkip = skipPolicy && skipPolicy.type !== 'NONE'
   const nextMonth = getNextMonth()
@@ -181,26 +200,46 @@ export default function SubscriptionInfoPanel({
             <>
               <p className="text-xs text-stone-500 uppercase tracking-wider mb-3">Your subscription cost</p>
               <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-baseline gap-2">
                   <span className="text-stone-400">Box</span>
-                  <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {currency}</span>
+                  <span className="text-right">
+                    <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {currency}</span>
+                    {priceNum !== null && converted(priceNum) && (
+                      <span className="block text-xs text-stone-500">{converted(priceNum)}</span>
+                    )}
+                  </span>
                 </div>
                 {shipping !== null && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-baseline gap-2">
                     <span className="text-stone-400">Shipping</span>
-                    <span className="text-stone-100">{shipping.toFixed(2)} {currency}</span>
+                    <span className="text-right">
+                      <span className="text-stone-100">{shipping.toFixed(2)} {currency}</span>
+                      {converted(shipping) && (
+                        <span className="block text-xs text-stone-500">{converted(shipping)}</span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {taxes !== null && taxes > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-baseline gap-2">
                     <span className="text-stone-400">Taxes & fees</span>
-                    <span className="text-stone-100">{taxes.toFixed(2)} {currency}</span>
+                    <span className="text-right">
+                      <span className="text-stone-100">{taxes.toFixed(2)} {currency}</span>
+                      {converted(taxes) && (
+                        <span className="block text-xs text-stone-500">{converted(taxes)}</span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {total !== null && (
-                  <div className="flex justify-between pt-2 border-t border-stone-700/60">
+                  <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
                     <span className="text-stone-300 font-medium">Total / month</span>
-                    <span className="text-stone-100 font-semibold">{total.toFixed(2)} {currency}</span>
+                    <span className="text-right">
+                      <span className="text-stone-100 font-semibold">{total.toFixed(2)} {currency}</span>
+                      {converted(total) && (
+                        <span className="block text-xs text-stone-400 font-medium">{converted(total)}</span>
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
@@ -259,6 +298,11 @@ export default function SubscriptionInfoPanel({
               <p className="text-2xl font-serif font-semibold text-stone-100">
                 {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
               </p>
+              {convertedRate && userCurrency && (
+                <p className="text-sm text-stone-500 mt-0.5">
+                  ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
+                </p>
+              )}
               <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
             </>
           ) : (

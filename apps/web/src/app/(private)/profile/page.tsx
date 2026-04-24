@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
@@ -41,6 +41,30 @@ export default function ProfilePage() {
   )
   const [newUsername, setNewUsername] = useState(user?.username ?? '')
   const [profileSuccess, setProfileSuccess] = useState(false)
+
+  const timezoneOptions = useMemo(() => {
+    const now = new Date()
+    function parseOffsetMinutes(offset: string): number {
+      const match = offset.match(/GMT([+-])(\d+)(?::(\d+))?/)
+      if (!match) return 0
+      const sign = match[1] === '+' ? 1 : -1
+      return sign * (parseInt(match[2]) * 60 + parseInt(match[3] ?? '0'))
+    }
+    return Intl.supportedValuesOf('timeZone')
+      .map((tz) => {
+        const offsetStr = new Intl.DateTimeFormat('en', { timeZone: tz, timeZoneName: 'shortOffset' })
+          .formatToParts(now).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT'
+        const abbrev = new Intl.DateTimeFormat('en', { timeZone: tz, timeZoneName: 'short' })
+          .formatToParts(now).find((p) => p.type === 'timeZoneName')?.value ?? ''
+        const extra = abbrev && abbrev !== offsetStr ? ` (${abbrev})` : ''
+        return {
+          tz,
+          label: `${offsetStr} — ${tz.replace(/_/g, ' ')}${extra}`,
+          offsetNum: parseOffsetMinutes(offsetStr),
+        }
+      })
+      .sort((a, b) => a.offsetNum - b.offsetNum || a.tz.localeCompare(b.tz))
+  }, [])
   const [usernameSuccess, setUsernameSuccess] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
@@ -255,8 +279,8 @@ export default function ProfilePage() {
             onChange={(e) => setTimezone(e.target.value)}
             className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
           >
-            {Intl.supportedValuesOf('timeZone').map((tz) => (
-              <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+            {timezoneOptions.map(({ tz, label }) => (
+              <option key={tz} value={tz}>{label}</option>
             ))}
           </select>
           <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
