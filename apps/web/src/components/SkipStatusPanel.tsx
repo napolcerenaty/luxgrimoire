@@ -93,13 +93,6 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
         )}
       </p>
 
-      {deadlineLabel && (
-        <p className={`text-xs font-medium ${status.isPastDeadline ? 'text-amber-400' : 'text-stone-400'}`}>
-          {status.isPastDeadline ? '⚠️ Deadline passed (tracking)' : '⏰ Skip deadline:'}{' '}
-          {deadlineLabel}
-        </p>
-      )}
-
       {status.notes && <p className="text-xs text-stone-500 italic">{status.notes}</p>}
 
       {status.warnings.map((w, i) => (
