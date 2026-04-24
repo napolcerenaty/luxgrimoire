@@ -8,7 +8,7 @@ import type { ApiBookEdition, ApiBookBoxCompany, ApiBookBoxCollection, Paginated
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-
+import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import ImageUpload from '@/components/admin/ImageUpload'
 
 const INPUT_CLASS =
@@ -234,15 +234,6 @@ export default function AdminEditionsPage() {
     language: '',
   }
 
-  const createMutation = useMutation({
-    mutationFn: (payload: ReturnType<typeof formToPayload>) =>
-      authFetch('/editions', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] })
-      setCreateOpen(false)
-    },
-  })
-
   const editMutation = useMutation({
     mutationFn: ({
       slug,
@@ -405,12 +396,10 @@ export default function AdminEditionsPage() {
       )}
 
       <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>
-        <EditionForm
-          initial={emptyForm}
-          submitLabel="Create Edition"
-          submitting={createMutation.isPending}
-          onSubmit={(form) => createMutation.mutate(formToPayload(form))}
-          lockCompany={isManager}
+        <CreateBookEditionForm
+          defaultCompanyId={isManager ? managedCompanyId : undefined}
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setCreateOpen(false) }}
+          onCancel={() => setCreateOpen(false)}
         />
       </FormModal>
 

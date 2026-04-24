@@ -257,14 +257,16 @@ function AiParseSection({ onResult, disabled }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export interface CreateBookEditionFormProps {
-  subscriptionSlug: string
+  subscriptionSlug?: string
   subscriptionId?: string | null
   defaultCurrency?: string | null
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
-  monthYear: number
-  monthMonth: number
+  monthYear?: number
+  monthMonth?: number
+  /** If true, form stops after Step 1 (book only — no edition or month linking) */
+  bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
   existingBookId?: string
   onSuccess: () => void
@@ -274,7 +276,7 @@ export interface CreateBookEditionFormProps {
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
   defaultPrice, renewalDay,
-  monthYear, monthMonth, existingBookId, onSuccess, onCancel,
+  monthYear, monthMonth, existingBookId, bookOnly, onSuccess, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
   const startStep = existingBookId ? 2 : 1
@@ -297,11 +299,11 @@ export default function CreateBookEditionForm({
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState('')
-  const [publishYear, setPublishYear] = useState(String(monthYear))
+  const [publishYear, setPublishYear] = useState(monthYear != null ? String(monthYear) : '')
   const [firstAccessDate, setFirstAccessDate] = useState('')
   const [earlyAccessDate, setEarlyAccessDate] = useState('')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
-    if (renewalDay == null) return ''
+    if (renewalDay == null || monthMonth == null || monthYear == null) return ''
     const mm = String(monthMonth).padStart(2, '0')
     const dd = String(renewalDay).padStart(2, '0')
     return `${monthYear}-${mm}-${dd}`
@@ -381,7 +383,12 @@ export default function CreateBookEditionForm({
       }
       setCreatedBookId(book.id)
       setCreatedBookSlug(book.slug)
-      setStep(2)
+      if (bookOnly) {
+        qc.invalidateQueries({ queryKey: ['admin', 'books'] })
+        onSuccess()
+      } else {
+        setStep(2)
+      }
     } catch (e: unknown) {
       alert(`Error creating book: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -442,12 +449,15 @@ export default function CreateBookEditionForm({
         })
       }
       qc.invalidateQueries({ queryKey: ['artists-search'] })
-      // Link to month
-      await authFetch(
-        `/subscriptions/${subscriptionSlug}/months/${monthYear}/${monthMonth}/books`,
-        { method: 'POST', body: JSON.stringify({ bookId: createdBookId, editionId: ed.id }) }
-      )
-      qc.invalidateQueries({ queryKey: ['admin', 'subscriptions', subscriptionSlug, 'months'] })
+      // Link to month (only when used in subscription context)
+      if (subscriptionSlug && monthYear != null && monthMonth != null) {
+        await authFetch(
+          `/subscriptions/${subscriptionSlug}/months/${monthYear}/${monthMonth}/books`,
+          { method: 'POST', body: JSON.stringify({ bookId: createdBookId, editionId: ed.id }) }
+        )
+        qc.invalidateQueries({ queryKey: ['admin', 'subscriptions', subscriptionSlug, 'months'] })
+      }
+      qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       setSaved(true)
       setTimeout(() => onSuccess(), 800)
     } catch (e: unknown) {
@@ -461,7 +471,9 @@ export default function CreateBookEditionForm({
   if (step === 1) return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Step 1 / 2 — Book</span>
+        <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">
+          {bookOnly ? 'Book details' : 'Step 1 / 2 — Book'}
+        </span>
       </div>
 
       {/* Title */}
@@ -522,7 +534,7 @@ export default function CreateBookEditionForm({
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || !title.trim()} onClick={handleStep1}
           className={BTN_PRIMARY}>
-          {busy ? 'Creating…' : 'Next: Edition →'}
+          {busy ? 'Creating…' : bookOnly ? 'Create Book' : 'Next: Edition →'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
       </div>

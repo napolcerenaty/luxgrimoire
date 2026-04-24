@@ -11,6 +11,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
+import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -153,38 +154,7 @@ export default function AdminBooksPage() {
   })
   const books = data?.data ?? []
 
-  // Create: POST book then link authors
-  const createMutation = useMutation({
-    mutationFn: async (form: BookFormState) => {
-      const book = await authFetch<{ id: string; slug: string; genres: string[] }>('/books', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: form.title,
-          description: form.description || undefined,
-          seriesName: form.seriesName || undefined,
-          volumeNumber: form.volumeNumber ? Number(form.volumeNumber) : undefined,
-          genres: form.genres.length ? form.genres : undefined,
-        }),
-      })
-      for (const auth of form.authors) {
-        let authorId = auth.id
-        if (!authorId) {
-          const created = await authFetch<{ id: string }>('/authors', {
-            method: 'POST', body: JSON.stringify({ name: auth.name }),
-          })
-          authorId = created.id
-        }
-        await authFetch(`/books/${book.slug}/authors/${authorId}`, { method: 'POST' })
-      }
-      return book
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'books'] })
-      setCreateOpen(false)
-    },
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
+  // Create handled by CreateBookEditionForm
   // Edit: PATCH scalar fields + diff authors
   const editMutation = useMutation({
     mutationFn: async ({ book, form }: { book: RawBook; form: BookFormState }) => {
@@ -307,9 +277,11 @@ export default function AdminBooksPage() {
       )}
 
       <FormModal open={createOpen} title="Add Book" onClose={() => setCreateOpen(false)}>
-        <BookForm initial={EMPTY_FORM} submitLabel="Create Book"
-          submitting={createMutation.isPending}
-          onSubmit={form => createMutation.mutate(form)} />
+        <CreateBookEditionForm
+          bookOnly
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'books'] }); setCreateOpen(false) }}
+          onCancel={() => setCreateOpen(false)}
+        />
       </FormModal>
 
       <FormModal open={editBook !== null} title="Edit Book" onClose={() => setEditBook(null)}>
