@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/authFetch'
+import { getFeeTemplates } from '@/lib/api'
+import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,18 +73,24 @@ function monthLabel(m: SubscriptionMonth) {
 
 // ── Step 1: Subscription details ─────────────────────────────────────────────
 
+interface LinkedFee {
+  templateId: string
+  customAmount: string  // editable amount string
+}
+
 interface Step1Props {
   currency: string
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
   userDefaultTaxRate?: number | null
   onNext: (data: {
-    startDate: string       // YYYY-MM-DD if renewalDay known; YYYY-MM otherwise
+    startDate: string
     costCurrency: string
     basePrice: string
     shippingCost: string
     taxesAndFees: string
-    renewalDay?: number     // only if sub doesn't have one
+    linkedFeeTemplates: { templateId: string; customAmount?: number }[]
+    renewalDay?: number
   }) => void
 }
 
@@ -94,36 +102,71 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
   const [costCurrency, setCostCurrency] = useState(currency)
   const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
-  const [taxesAndFees, setTaxesAndFees] = useState('')
+  const [taxesManual, setTaxesManual] = useState('')
 
-  // Auto-compute taxes when basePrice changes (if user has defaultTaxRate)
+  // Fee templates
+  const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
+  const [linkedFees, setLinkedFees] = useState<LinkedFee[]>([])
+  const [templatesLoaded, setTemplatesLoaded] = useState(false)
+
   useEffect(() => {
-    if (userDefaultTaxRate && userDefaultTaxRate > 0 && basePrice) {
-      const computed = (parseFloat(basePrice) * userDefaultTaxRate) / 100
-      setTaxesAndFees(isNaN(computed) ? '' : computed.toFixed(2))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basePrice, userDefaultTaxRate])
+    getFeeTemplates(true)
+      .then(ts => {
+        setTemplates(ts)
+        setTemplatesLoaded(true)
+      })
+      .catch(() => setTemplatesLoaded(true))
+  }, [])
+
+  function toggleTemplate(t: ApiFeeTemplate) {
+    setLinkedFees(prev => {
+      const exists = prev.find(f => f.templateId === t.id)
+      if (exists) return prev.filter(f => f.templateId !== t.id)
+      return [...prev, {
+        templateId: t.id,
+        customAmount: t.defaultAmount != null ? String(t.defaultAmount) : '',
+      }]
+    })
+  }
+
+  function updateAmount(templateId: string, val: string) {
+    setLinkedFees(prev => prev.map(f => f.templateId === templateId ? { ...f, customAmount: val } : f))
+  }
+
+  // Sum of linked fees (for info display)
+  const feesTotal = linkedFees.reduce((sum, f) => {
+    const a = parseFloat(f.customAmount)
+    return sum + (isNaN(a) ? 0 : a)
+  }, 0)
+
+  // taxesAndFees value sent to API: either manual override or sum from templates
+  const taxesAndFees = taxesManual !== '' ? taxesManual : (feesTotal > 0 ? feesTotal.toFixed(2) : '')
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const parts = firstOrderDate.split('-').map(Number)
-    const d = subscriptionRenewalDay != null
-      ? firstOrderDate             // full YYYY-MM-DD
-      : `${parts[0]}-${String(parts[1]).padStart(2, '0')}` // YYYY-MM (no fixed renewal day)
+    const startDate = subscriptionRenewalDay != null
+      ? firstOrderDate
+      : `${parts[0]}-${String(parts[1]).padStart(2, '0')}`
 
     onNext({
-      startDate: d,
+      startDate,
       costCurrency: costCurrency || currency,
       basePrice,
       shippingCost,
       taxesAndFees,
-      ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate).getDate() }),
+      linkedFeeTemplates: linkedFees.map(f => ({
+        templateId: f.templateId,
+        customAmount: f.customAmount !== '' ? parseFloat(f.customAmount) : undefined,
+      })),
+      ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
     })
   }
 
+  const cur = costCurrency || currency
+
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
       {/* First order date */}
@@ -162,49 +205,105 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
         />
       </div>
 
-      {/* Base price */}
-      <div>
-        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Base price ({costCurrency || currency})</label>
-        <input
-          type="number"
-          min={0}
-          step="0.01"
-          value={basePrice}
-          onChange={e => setBasePrice(e.target.value)}
-          placeholder="0.00"
-          className="w-36 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
-        />
-      </div>
-
-      {/* Shipping + taxes */}
+      {/* Base price + shipping side by side */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping ({costCurrency || currency})</label>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Base price ({cur})</label>
           <input
-            type="number"
-            min={0}
-            step="0.01"
+            type="number" min={0} step="0.01"
+            value={basePrice}
+            onChange={e => setBasePrice(e.target.value)}
+            placeholder="0.00"
+            className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping ({cur})</label>
+          <input
+            type="number" min={0} step="0.01"
             value={shippingCost}
             onChange={e => setShippingCost(e.target.value)}
             placeholder="0.00"
             className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
           />
         </div>
-        <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Taxes &amp; fees ({costCurrency || currency})</label>
+      </div>
+
+      {/* Fee templates */}
+      <div>
+        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
+          Taxes &amp; fees ({cur})
+        </label>
+
+        {templatesLoaded && templates.length > 0 ? (
+          <div className="space-y-2 mb-3">
+            {templates.map(t => {
+              const linked = linkedFees.find(f => f.templateId === t.id)
+              return (
+                <div key={t.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id={`ft-${t.id}`}
+                    checked={!!linked}
+                    onChange={() => toggleTemplate(t)}
+                    className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                  />
+                  <label htmlFor={`ft-${t.id}`} className="flex-1 text-sm text-stone-200 cursor-pointer">
+                    {t.name}
+                    <span className="ml-1.5 text-xs text-stone-500">{t.category}</span>
+                  </label>
+                  {linked ? (
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={linked.customAmount}
+                      onChange={e => updateAmount(t.id, e.target.value)}
+                      placeholder="0.00"
+                      className="w-24 bg-stone-800 border border-stone-600 rounded-lg px-2 py-1 text-stone-100 text-sm"
+                    />
+                  ) : (
+                    t.defaultAmount != null && (
+                      <span className="text-xs text-stone-600 w-24 text-right">
+                        {parseFloat(String(t.defaultAmount)).toFixed(2)} {t.defaultCurrency}
+                      </span>
+                    )
+                  )}
+                </div>
+              )
+            })}
+            {linkedFees.length > 0 && (
+              <p className="text-xs text-stone-500 pt-1 text-right">
+                Total fees: <span className="text-stone-300">{feesTotal.toFixed(2)} {cur}</span>
+              </p>
+            )}
+            <p className="text-xs text-stone-600 mt-1">
+              Selected fees will be linked to this subscription and auto-applied on backfill.
+            </p>
+          </div>
+        ) : templatesLoaded ? (
+          <p className="text-xs text-stone-500 mb-2">
+            No fee templates defined.{' '}
+            <a href="/profile" className="text-amber-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
+          </p>
+        ) : (
+          <p className="text-xs text-stone-600 mb-2">Loading…</p>
+        )}
+
+        {/* Manual override */}
+        <div className="flex items-center gap-2">
           <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={taxesAndFees}
-            onChange={e => setTaxesAndFees(e.target.value)}
-            placeholder="0.00"
-            className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+            type="number" min={0} step="0.01"
+            value={taxesManual}
+            onChange={e => setTaxesManual(e.target.value)}
+            placeholder={linkedFees.length > 0 ? feesTotal.toFixed(2) : '0.00'}
+            className="w-32 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
           />
-          {userDefaultTaxRate && userDefaultTaxRate > 0 && (
-            <p className="text-xs text-stone-500 mt-1">Based on your default tax rate ({userDefaultTaxRate}%)</p>
-          )}
+          <span className="text-xs text-stone-500">manual override (optional)</span>
         </div>
+        {userDefaultTaxRate != null && userDefaultTaxRate > 0 && (
+          <p className="text-xs text-stone-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
+        )}
       </div>
 
       <p className="text-xs text-stone-500">
@@ -438,6 +537,7 @@ export default function JoinSubscriptionModal({
     basePrice: string
     shippingCost: string
     taxesAndFees: string
+    linkedFeeTemplates: { templateId: string; customAmount?: number }[]
     renewalDay?: number
   }) => {
     setError(null)
@@ -453,6 +553,7 @@ export default function JoinSubscriptionModal({
           shippingCost: data.shippingCost || undefined,
           taxesAndFees: data.taxesAndFees || undefined,
           renewalDay: data.renewalDay,
+          linkedFeeTemplates: data.linkedFeeTemplates.length > 0 ? data.linkedFeeTemplates : undefined,
         }),
       })
       setJoinResult(result)

@@ -457,6 +457,24 @@ export class SubscriptionsService {
       },
     });
 
+    // Save linked fee templates (replace existing associations)
+    if (dto.linkedFeeTemplates !== undefined) {
+      // Delete previous associations for this entry
+      await this.prisma.userSubscriptionEntryFeeTemplate.deleteMany({
+        where: { subscriptionEntryId: entry.id },
+      });
+      if (dto.linkedFeeTemplates.length > 0) {
+        await this.prisma.userSubscriptionEntryFeeTemplate.createMany({
+          data: dto.linkedFeeTemplates.map(t => ({
+            subscriptionEntryId: entry.id,
+            feeTemplateId: t.templateId,
+            customAmount: t.customAmount ?? null,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     // Compute eligible past months: from startDate+1 to current month (inclusive)
     const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
 
@@ -521,6 +539,13 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+      include: {
+        feeTemplates: {
+          include: {
+            feeTemplate: true,
+          },
+        },
+      },
     });
     if (!entry) throw new NotFoundException('You must join this subscription before backfilling');
 
@@ -543,7 +568,7 @@ export class SubscriptionsService {
       for (const mb of monthBooks) {
         if (!mb.editionId || !mb.bookId) continue;
         try {
-          await this.prisma.userBookEntry.upsert({
+          const bookEntry = await this.prisma.userBookEntry.upsert({
             where: { userId_bookId_editionId: { userId, bookId: mb.bookId, editionId: mb.editionId } },
             create: {
               userId,
@@ -556,6 +581,27 @@ export class SubscriptionsService {
             update: {},
           });
           booksAdded++;
+
+          // Create UserPurchaseFee records for each linked fee template
+          if ((entry as any).feeTemplates?.length > 0) {
+            for (const link of (entry as any).feeTemplates) {
+              const template = link.feeTemplate;
+              const amount = link.customAmount ?? template.defaultAmount;
+              if (!amount) continue;
+              await this.prisma.userPurchaseFee.create({
+                data: {
+                  userId,
+                  feeTemplateId: template.id,
+                  name: template.name,
+                  amount: parseFloat(amount.toString()),
+                  currency: entry.costCurrency ?? template.defaultCurrency,
+                  date: purchaseDate,
+                  category: template.category,
+                  userBookEntryId: bookEntry.id,
+                },
+              });
+            }
+          }
         } catch {
           // skip duplicates silently
         }

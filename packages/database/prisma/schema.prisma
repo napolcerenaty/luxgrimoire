@@ -659,6 +659,7 @@ model UserSubscriptionEntry {
   tags           UserSubEntryTag[]
   costChanges    UserSubscriptionCostChange[]
   skipRecords    UserSkipRecord[]
+  feeTemplates   UserSubscriptionEntryFeeTemplate[]
 
   @@unique([userId, subscriptionId])
   @@index([userId])
@@ -1054,10 +1055,27 @@ model UserFeeTemplate {
 
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   purchaseFees UserPurchaseFee[]
+  subscriptionEntries UserSubscriptionEntryFeeTemplate[]
 
   @@index([userId])
   @@index([userId, isActive])
   @@map("user_fee_templates")
+}
+
+/// Links a fee template to a subscription entry — these templates auto-apply on each billing period
+model UserSubscriptionEntryFeeTemplate {
+  subscriptionEntryId String
+  feeTemplateId       String
+  /// Optional per-subscription override amount (if null, uses template's defaultAmount)
+  customAmount        Decimal? @db.Decimal(10, 2)
+  createdAt           DateTime @default(now())
+
+  entry       UserSubscriptionEntry @relation(fields: [subscriptionEntryId], references: [id], onDelete: Cascade)
+  feeTemplate UserFeeTemplate       @relation(fields: [feeTemplateId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionEntryId, feeTemplateId])
+  @@index([subscriptionEntryId])
+  @@map("user_subscription_entry_fee_templates")
 }
 
 /// Individual fee/tax instance linked to a billing period or book entry

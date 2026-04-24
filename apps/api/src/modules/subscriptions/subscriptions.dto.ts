@@ -7,6 +7,8 @@ import {
   Min,
   Max,
   IsDateString,
+  IsNumber,
+  ValidateNested,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -355,6 +357,17 @@ export class SubscriptionQueryDto {
   shipsInternationally?: boolean;
 }
 
+export class LinkedFeeTemplateDto {
+  @IsString()
+  templateId!: string;
+
+  /** Override amount (if omitted, uses template's defaultAmount) */
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  customAmount?: number;
+}
+
 export class JoinSubscriptionDto {
   /** Start date — YYYY-MM-DD (when subscription has renewalDay) or YYYY-MM */
   @IsOptional()
@@ -384,6 +397,13 @@ export class JoinSubscriptionDto {
   @Max(31)
   @Type(() => Number)
   renewalDay?: number;
+
+  /** Fee templates to link to this subscription entry */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LinkedFeeTemplateDto)
+  linkedFeeTemplates?: LinkedFeeTemplateDto[];
 }
 
 export class BackfillSubscriptionDto {
