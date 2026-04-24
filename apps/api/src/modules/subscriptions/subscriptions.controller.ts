@@ -18,6 +18,8 @@ import {
   UpdateMonthDto,
   AddMonthBookDto,
   SubscriptionQueryDto,
+  JoinSubscriptionDto,
+  BackfillSubscriptionDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -171,6 +173,26 @@ export class SubscriptionsController {
   @Patch(':slug/my-entry/cancel')
   cancelMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
     return this.subscriptionsService.cancelMySubscription(user.id, slug);
+  }
+
+  @ApiBearerAuth()
+  @Post(':slug/join')
+  joinSubscription(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: JoinSubscriptionDto,
+  ) {
+    return this.subscriptionsService.joinSubscription(user.id, slug, dto);
+  }
+
+  @ApiBearerAuth()
+  @Post(':slug/join/backfill')
+  backfillSubscription(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: BackfillSubscriptionDto,
+  ) {
+    return this.subscriptionsService.backfillSubscription(user.id, slug, dto);
   }
 
   // ── Waitlist ──────────────────────────────────────────────────────────────

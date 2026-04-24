@@ -45,6 +45,15 @@ export class SkipPolicyEngine {
     return this.evaluateCanSkip(policy, state);
   }
 
+  /** Public entry point for recomputing skip state after bulk operations (e.g. backfill) */
+  async recomputeSkipState(userId: string, subscriptionId: string) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { skipPolicy: true },
+    });
+    return this.recomputeState(userId, subscriptionId, subscription?.skipPolicy ?? null);
+  }
+
   async recordSkip(
     userId: string,
     subscriptionSlug: string,

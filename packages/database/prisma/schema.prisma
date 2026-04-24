@@ -647,6 +647,7 @@ model UserSubscriptionEntry {
   firstSkipDate    DateTime?
   prepaidMonths    Int       @default(1)
   nextRenewalDate  DateTime?
+  costCurrency     String?   // currency for shippingCost + taxesAndFees (defaults to subscription currency)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

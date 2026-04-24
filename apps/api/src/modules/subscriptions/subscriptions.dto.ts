@@ -354,3 +354,42 @@ export class SubscriptionQueryDto {
   @IsBoolean()
   shipsInternationally?: boolean;
 }
+
+export class JoinSubscriptionDto {
+  /** Start month in YYYY-MM format, e.g. "2024-01" */
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  /** Currency for shipping + taxes (defaults to subscription currency) */
+  @IsOptional()
+  @IsString()
+  costCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingCost?: string;
+
+  @IsOptional()
+  @IsString()
+  taxesAndFees?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  @Type(() => Number)
+  renewalDay?: number;
+}
+
+export class BackfillSubscriptionDto {
+  /** Month IDs the user received (creates UserBookEntry per edition) */
+  @IsArray()
+  @IsString({ each: true })
+  selectedMonthIds!: string[];
+
+  /** Month IDs the user skipped (creates UserSkipRecord) */
+  @IsArray()
+  @IsString({ each: true })
+  skippedMonthIds!: string[];
+}

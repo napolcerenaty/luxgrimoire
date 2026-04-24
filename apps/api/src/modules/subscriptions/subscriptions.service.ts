@@ -12,12 +12,18 @@ import {
   UpdateMonthDto,
   AddMonthBookDto,
   SubscriptionQueryDto,
+  JoinSubscriptionDto,
+  BackfillSubscriptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly skipPolicyEngine: SkipPolicyEngine,
+  ) {}
 
   async create(dto: CreateSubscriptionDto) {
     const company = await this.prisma.bookBoxCompany.findUnique({
@@ -394,7 +400,175 @@ export class SubscriptionsService {
     });
   }
 
-  // ── Waitlist ─────────────────────────────────────────────────────────────
+  async joinSubscription(userId: string, slug: string, dto: JoinSubscriptionDto) {
+    const sub = await this.findBySlug(slug);
+
+    const existing = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (existing?.active) {
+      throw new ConflictException('You are already subscribed to this subscription');
+    }
+
+    // Resolve renewalDay: dto > sub default
+    const renewalDay = dto.renewalDay ?? (sub as any).renewalDay ?? 1;
+
+    // Parse startDate (YYYY-MM) → first-of-month ISO string
+    let startDateObj: Date | null = null;
+    if (dto.startDate) {
+      const [y, m] = dto.startDate.split('-').map(Number);
+      startDateObj = new Date(y, m - 1, 1);
+    }
+
+    const entry = await this.prisma.userSubscriptionEntry.upsert({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+      create: {
+        userId,
+        subscriptionId: sub.id,
+        active: true,
+        startDate: startDateObj ? startDateObj.toISOString().slice(0, 10) : null,
+        shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
+        taxesAndFees: dto.taxesAndFees ? parseFloat(dto.taxesAndFees) : null,
+        costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
+        renewalDay,
+      },
+      update: {
+        active: true,
+        cancellationDate: null,
+        startDate: startDateObj ? startDateObj.toISOString().slice(0, 10) : undefined,
+        shippingCost: dto.shippingCost !== undefined ? parseFloat(dto.shippingCost) : undefined,
+        taxesAndFees: dto.taxesAndFees !== undefined ? parseFloat(dto.taxesAndFees) : undefined,
+        costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
+        renewalDay,
+      },
+    });
+
+    // Compute eligible past months: from startDate+1 to current month (inclusive)
+    const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
+
+    return { entry, eligibleMonths };
+  }
+
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null) {
+    if (!startDateObj) return [];
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    // First eligible month = startDate + 1 month
+    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
+    const startYear = nextMonthDate.getFullYear();
+    const startMonth = nextMonthDate.getMonth() + 1;
+
+    // If startDate is in current month or later → nothing to backfill
+    if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
+      return [];
+    }
+
+    return this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId,
+        AND: [
+          {
+            OR: [
+              { year: { gt: startYear } },
+              { year: startYear, month: { gte: startMonth } },
+            ],
+          },
+          {
+            OR: [
+              { year: { lt: currentYear } },
+              { year: currentYear, month: { lte: currentMonth } },
+            ],
+          },
+        ],
+      },
+      include: {
+        books: {
+          include: {
+            edition: {
+              include: {
+                book: {
+                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                },
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+        series: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+  }
+
+  async backfillSubscription(userId: string, slug: string, dto: BackfillSubscriptionDto) {
+    const sub = await this.findBySlug(slug);
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!entry) throw new NotFoundException('You must join this subscription before backfilling');
+
+    const renewalDay = entry.renewalDay ?? 1;
+    let booksAdded = 0;
+    let skipsRecorded = 0;
+
+    // Create book entries for selected months
+    for (const monthId of dto.selectedMonthIds) {
+      const monthRecord = await this.prisma.subscriptionMonth.findUnique({ where: { id: monthId } });
+      if (!monthRecord) continue;
+
+      const purchaseDate = new Date(monthRecord.year, monthRecord.month - 1, renewalDay);
+
+      const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
+        where: { monthId },
+        select: { editionId: true, bookId: true },
+      });
+
+      for (const mb of monthBooks) {
+        if (!mb.editionId || !mb.bookId) continue;
+        try {
+          await this.prisma.userBookEntry.upsert({
+            where: { userId_bookId_editionId: { userId, bookId: mb.bookId, editionId: mb.editionId } },
+            create: {
+              userId,
+              bookId: mb.bookId,
+              editionId: mb.editionId,
+              purchaseDate,
+              ownershipStatus: 'OWNED',
+              readingStatus: 'UNREAD',
+            },
+            update: {},
+          });
+          booksAdded++;
+        } catch {
+          // skip duplicates silently
+        }
+      }
+    }
+
+    // Create skip records for skipped months
+    for (const monthId of dto.skippedMonthIds) {
+      try {
+        await this.prisma.userSkipRecord.upsert({
+          where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: monthId } },
+          create: { userId, userEntryId: entry.id, subscriptionMonthId: monthId, skippedAt: new Date() },
+          update: {},
+        });
+        skipsRecorded++;
+      } catch {
+        // skip duplicates silently
+      }
+    }
+
+    // Recompute skip state counters
+    if (skipsRecorded > 0) {
+      await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
+    }
+
+    return { booksAdded, skipsRecorded };
+  }
 
   async joinWaitlist(userId: string, subscriptionSlug: string, joinedAt?: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });

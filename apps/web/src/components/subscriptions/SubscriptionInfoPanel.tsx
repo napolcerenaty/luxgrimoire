@@ -5,6 +5,7 @@ import { getMySubscriptionEntry } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
+import JoinSubscriptionModal from './JoinSubscriptionModal'
 
 interface SkipPolicy {
   type: string
@@ -107,6 +108,7 @@ export default function SubscriptionInfoPanel({
   const [skipError, setSkipError] = useState<string | null>(null)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
   const [seriesList, setSeriesList] = useState<ApiSubscriptionSeries[]>([])
+  const [showJoinModal, setShowJoinModal] = useState(false)
 
   const userCurrency = user?.preferredCurrency
   const showConversion = !!userCurrency && userCurrency !== currency
@@ -402,14 +404,41 @@ export default function SubscriptionInfoPanel({
       )}
 
       {/* Add to my subscriptions button */}
-      <button
-        type="button"
-        disabled
-        className="w-full py-2.5 px-4 rounded-lg border border-stone-600/60 text-stone-400 text-sm font-medium cursor-not-allowed opacity-60 hover:opacity-60 transition-opacity"
-        title="Coming soon"
-      >
-        + Add to my subscriptions
-      </button>
+      {token && !isSubscriber && myEntry !== undefined && (
+        <button
+          type="button"
+          onClick={() => setShowJoinModal(true)}
+          className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+        >
+          + Add to my subscriptions
+        </button>
+      )}
+      {!token && (
+        <button
+          type="button"
+          disabled
+          className="w-full py-2.5 px-4 rounded-lg border border-stone-600/60 text-stone-400 text-sm font-medium cursor-not-allowed opacity-60"
+          title="Log in to subscribe"
+        >
+          + Add to my subscriptions
+        </button>
+      )}
+
+      {showJoinModal && (
+        <JoinSubscriptionModal
+          subscriptionSlug={subscriptionSlug}
+          subscriptionCurrency={currency}
+          onJoined={() => {
+            setShowJoinModal(false)
+            setLoading(true)
+            getMySubscriptionEntry(subscriptionSlug)
+              .then(setMyEntry)
+              .catch(() => setMyEntry(null))
+              .finally(() => setLoading(false))
+          }}
+          onClose={() => setShowJoinModal(false)}
+        />
+      )}
     </div>
   )
 }
