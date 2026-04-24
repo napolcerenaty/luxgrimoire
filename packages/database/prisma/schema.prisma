@@ -535,6 +535,7 @@ model UserBookEntry {
   purchaseDate          DateTime?
   purchaseTransactionId String?
   readingStatus         String                 @default("UNREAD")
+  priceCurrency         String?                @db.VarChar(3)
   saleCurrency          String?
   saleDate              String?
   saleNotes             String?

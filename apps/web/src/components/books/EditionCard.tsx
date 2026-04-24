@@ -65,7 +65,7 @@ export function EditionCard({
             className="absolute bottom-0 left-0 right-0 px-2 py-1 text-center"
             style={{ background: 'rgba(5,10,18,0.82)' }}
           >
-            <span className="text-[9px] font-serif font-semibold uppercase tracking-widest text-amber-400 line-clamp-1">
+            <span className="text-[9px] font-serif font-semibold uppercase tracking-widest line-clamp-1" style={{ color: '#e8d9b0' }}>
               {companyName}
             </span>
           </div>

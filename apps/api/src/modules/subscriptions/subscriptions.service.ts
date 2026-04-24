@@ -698,6 +698,9 @@ export class SubscriptionsService {
 
       for (const mb of monthBooks) {
         if (!mb.editionId || !mb.bookId) continue;
+        const pricePerBook = entry.basePrice && monthBooks.length > 0
+          ? parseFloat(entry.basePrice.toString()) / monthBooks.length
+          : null;
         try {
           const bookEntry = await this.prisma.userBookEntry.upsert({
             where: { userId_bookId_editionId: { userId, bookId: mb.bookId, editionId: mb.editionId } },
@@ -708,6 +711,8 @@ export class SubscriptionsService {
               purchaseDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
+              ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
+              ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
             },
             update: {},
           });

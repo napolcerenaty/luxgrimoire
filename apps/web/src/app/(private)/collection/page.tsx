@@ -19,6 +19,7 @@ interface CollectionEntry {
   ownershipStatus: string
   readingStatus: string
   allocatedPrice: string | null
+  priceCurrency: string | null
   purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
@@ -249,6 +250,7 @@ export default function CollectionPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('ALL')
+  const [bookFilter, setBookFilter] = useState('')
   const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
@@ -291,18 +293,17 @@ export default function CollectionPage() {
     },
   })
 
-  // Fetch currency conversion rates for entries with purchase groups
+  // Fetch currency conversion rates for entries with purchase groups or priceCurrency
   useEffect(() => {
     const defaultCurrency = user?.preferredCurrency
     if (!defaultCurrency || entries.length === 0) return
     const combos = new Set<string>()
     for (const e of entries) {
-      if (e.purchaseGroup && e.allocatedPrice) {
-        const from = e.purchaseGroup.currency
-        const date = e.purchaseGroup.purchasedAt.slice(0, 10)
-        if (from !== defaultCurrency) {
-          combos.add(`${from}:${defaultCurrency}:${date}`)
-        }
+      if (!e.allocatedPrice) continue
+      const from = e.priceCurrency ?? e.purchaseGroup?.currency
+      const date = e.purchaseGroup?.purchasedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+      if (from && from !== defaultCurrency) {
+        combos.add(`${from}:${defaultCurrency}:${date}`)
       }
     }
     if (combos.size === 0) return
@@ -326,6 +327,7 @@ export default function CollectionPage() {
   }, [entries, user?.preferredCurrency])
 
   const filtered = entries.filter((e) => {
+    if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
@@ -487,9 +489,17 @@ export default function CollectionPage() {
       ) : (
         /* ─── Books tab ─── */
         <>
-          {/* Filters */}
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {(['ALL', 'SERIES', 'YEAR'] as const).map((f) => (
+          {/* Search + Filters */}
+          <div className="flex flex-col gap-3 mb-6">
+            <input
+              type="text"
+              value={bookFilter}
+              onChange={e => setBookFilter(e.target.value)}
+              placeholder="Filter by book title…"
+              className="w-full max-w-sm bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {(['ALL', 'SERIES', 'YEAR'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -502,7 +512,8 @@ export default function CollectionPage() {
                 {f === 'ALL' ? 'All' : f === 'SERIES' ? 'By Series' : 'By Year'}
               </button>
             ))}
-          </div>
+            </div>
+          }
 
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-stone-500">
@@ -642,20 +653,22 @@ export default function CollectionPage() {
                           </div>
 
                           {/* Cost display */}
-                          {entry.allocatedPrice && entry.purchaseGroup && (
-                            <p className="text-[10px] text-stone-400">
-                              {parseFloat(entry.allocatedPrice).toFixed(2)} {entry.purchaseGroup.currency}
-                              {(() => {
-                                const dc = user?.preferredCurrency
-                                if (!dc || entry.purchaseGroup.currency === dc) return null
-                                const key = `${entry.purchaseGroup.currency}:${dc}:${entry.purchaseGroup.purchasedAt.slice(0, 10)}`
-                                const rate = conversionRates[key]
-                                if (!rate) return null
-                                const converted = (parseFloat(entry.allocatedPrice) * rate).toFixed(2)
-                                return <span className="text-stone-500"> · {converted} {dc}</span>
-                              })()}
-                            </p>
-                          )}
+                          {entry.allocatedPrice && (entry.priceCurrency || entry.purchaseGroup?.currency) && (() => {
+                            const costCur = entry.priceCurrency ?? entry.purchaseGroup!.currency
+                            const dc = user?.preferredCurrency
+                            const purchasedAt = entry.purchaseGroup?.purchasedAt
+                            return (
+                              <p className="text-[10px] text-stone-400">
+                                {parseFloat(entry.allocatedPrice).toFixed(2)} {costCur}
+                                {dc && costCur !== dc && purchasedAt && (() => {
+                                  const key = `${costCur}:${dc}:${purchasedAt.slice(0, 10)}`
+                                  const rate = conversionRates[key]
+                                  if (!rate) return null
+                                  return <span className="text-stone-500"> · {(parseFloat(entry.allocatedPrice!) * rate).toFixed(2)} {dc}</span>
+                                })()}
+                              </p>
+                            )
+                          })()}
 
                           {entry.acquiredAt && (
                             <p className="text-[10px] text-stone-500">
