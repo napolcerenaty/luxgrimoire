@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/authFetch'
 import { getFeeTemplates } from '@/lib/api'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -510,7 +511,7 @@ function MonthRow({ month, checked, onToggle }: {
       {mainBook?.edition?.coverImage && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_40,h_56,c_fill/${mainBook.edition.coverImage}`}
+          src={cloudinaryUrl(mainBook.edition.coverImage, 'w_40,h_56,c_fill,q_auto,f_auto') ?? ''}
           alt=""
           width={40}
           height={56}
