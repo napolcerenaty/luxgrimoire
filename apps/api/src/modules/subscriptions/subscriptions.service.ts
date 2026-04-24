@@ -120,7 +120,7 @@ export class SubscriptionsService {
     const pageSize = Math.min(query.pageSize ?? 20, 100);
     const skip = (page - 1) * pageSize;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { isHidden: false };
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];

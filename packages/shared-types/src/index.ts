@@ -176,6 +176,7 @@ export interface ApiSubscription {
   startDate: string | null;
   endDate: string | null;
   isDiscontinued: boolean;
+  isHidden: boolean;
   currency: string;
   price: string | null;
   language: string | null;

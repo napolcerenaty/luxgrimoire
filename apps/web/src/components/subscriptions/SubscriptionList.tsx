@@ -80,24 +80,36 @@ export default function SubscriptionList({ subscriptions }: Props) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((sub) => {
-            const cover = cloudinaryUrl(sub.coverImage, 'w_600,h_400,c_fill,q_auto,f_auto')
-            const subGenres: string[] = Array.isArray(sub.genres) && sub.genres.length > 0
-              ? sub.genres
-              : sub.genre ? [sub.genre] : []
+            const cover = cloudinaryUrl(sub.coverImage, 'w_600,q_auto,f_auto')
+            const subGenres: string[] = [
+              ...(Array.isArray(sub.genres) ? sub.genres : []),
+              ...(sub.genre ? [sub.genre] : []),
+            ].filter((g, i, arr) => arr.indexOf(g) === i)
             return (
               <Link
                 key={sub.id}
                 href={`/subscriptions/${sub.slug}`}
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
               >
-                <div className="aspect-[3/2] overflow-hidden bg-stone-800">
+                <div className="aspect-[3/2] relative overflow-hidden bg-stone-950">
                   {cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cover}
-                      alt={sub.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                    <>
+                      {/* Blurred background fill */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={cover}
+                        alt=""
+                        aria-hidden
+                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50"
+                      />
+                      {/* Contained main image */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={cover}
+                        alt={sub.name}
+                        className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-600 text-sm">
                       No image

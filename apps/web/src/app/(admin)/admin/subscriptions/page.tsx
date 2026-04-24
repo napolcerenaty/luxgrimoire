@@ -40,6 +40,7 @@ interface SubFormData {
   copyFromSlug: string
   componentIds: string[]
   isDiscontinued: boolean
+  isHidden: boolean
   startDate: string
   endDate: string
   // Skip policy (saved separately via PUT /skip-policy/:slug)
@@ -71,6 +72,7 @@ const EMPTY_FORM: SubFormData = {
   copyFromSlug: '',
   componentIds: [],
   isDiscontinued: false,
+  isHidden: false,
   startDate: '',
   endDate: '',
   skipPolicyType: 'NONE',
@@ -103,6 +105,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     copyFromSlug: '',
     componentIds: (sub as any).componentIds ?? [],
     isDiscontinued: sub.isDiscontinued,
+    isHidden: sub.isHidden ?? false,
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
     skipPolicyType: p?.type ?? 'NONE',
@@ -135,6 +138,7 @@ function formToCreatePayload(form: SubFormData) {
     copyFromSlug: form.copyFromSlug || undefined,
     componentIds: form.componentIds.length > 0 ? form.componentIds : undefined,
     isDiscontinued: form.isDiscontinued,
+    isHidden: form.isHidden,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -160,6 +164,7 @@ function formToUpdatePayload(form: SubFormData) {
     parentSubscriptionId: form.parentSubscriptionId || undefined,
     componentIds: form.componentIds,
     isDiscontinued: form.isDiscontinued,
+    isHidden: form.isHidden,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -555,6 +560,17 @@ function SubscriptionForm({
         Discontinued
       </label>
 
+      {/* Hidden */}
+      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.isHidden}
+          onChange={(e) => setField('isHidden', e.target.checked)}
+          className="accent-amber-400 w-4 h-4"
+        />
+        Hidden (not visible on public pages — for drafts/historical data)
+      </label>
+
       {/* ── Skip Policy ──────────────────────────────────────────── */}
       <div className="border border-stone-700 rounded-lg p-4 flex flex-col gap-3">
         <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
@@ -789,7 +805,9 @@ export default function AdminSubscriptionsPage() {
       key: 'status',
       label: 'Status',
       render: (row: ApiSubscription) =>
-        row.isDiscontinued ? (
+        row.isHidden ? (
+          <span className="text-stone-500 text-xs font-medium">Hidden</span>
+        ) : row.isDiscontinued ? (
           <span className="text-red-400 text-xs font-medium">Discontinued</span>
         ) : (
           <span className="text-emerald-400 text-xs font-medium">Active</span>

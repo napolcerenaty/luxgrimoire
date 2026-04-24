@@ -117,6 +117,10 @@ export class CreateSubscriptionDto {
   @IsArray()
   @IsString({ each: true })
   shippingCountries?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isHidden?: boolean;
 }
 
 export class UpdateSubscriptionDto {
@@ -217,6 +221,10 @@ export class UpdateSubscriptionDto {
   @IsArray()
   @IsString({ each: true })
   shippingCountries?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isHidden?: boolean;
 }
 
 export class CreatePrepayOptionDto {

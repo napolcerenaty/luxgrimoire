@@ -341,6 +341,7 @@ model Subscription {
   startDate            DateTime?
   endDate              DateTime?
   isDiscontinued       Boolean   @default(false)
+  isHidden             Boolean   @default(false)
   currency             String    @default("EUR")
   price                String?
   language             String?
