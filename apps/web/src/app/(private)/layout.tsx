@@ -9,7 +9,7 @@ import { clsx } from 'clsx'
 
 const NAV_LINKS = [
   { href: '/collection', label: 'My Collection', icon: BookOpen },
-  { href: '/subscriptions', label: 'Subscriptions', icon: BookMarked },
+  { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/spending', label: 'Spending', icon: DollarSign },
   { href: '/favorites', label: 'Favorites', icon: Star },
