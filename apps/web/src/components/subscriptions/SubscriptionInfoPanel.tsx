@@ -348,30 +348,31 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Active subscriber: 2-column layout — costs+cancel on left, skip policy on right */}
+      {/* Active subscriber: 2-column layout — costs on left, skip policy on right */}
       {isSubscriber ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div className="space-y-4">
-            {costPanel}
-            <button
-              type="button"
-              onClick={() => setShowCancelModal(true)}
-              className="w-full py-2 px-4 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/40 text-sm font-medium transition-colors"
-            >
-              Cancel subscription
-            </button>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div>{costPanel}</div>
+            <div>
+              <SkipStatusPanel
+                subscriptionSlug={subscriptionSlug}
+                months={months}
+                onSkipSuccess={refreshEntry}
+              />
+            </div>
           </div>
-          <div>
-            <SkipStatusPanel
-              subscriptionSlug={subscriptionSlug}
-              months={months}
-              onSkipSuccess={refreshEntry}
-            />
-          </div>
+          {/* Cancel full-width below both columns */}
+          <button
+            type="button"
+            onClick={() => setShowCancelModal(true)}
+            className="w-full py-2 px-4 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/40 text-sm font-medium transition-colors"
+          >
+            Cancel subscription
+          </button>
         </div>
       ) : (
-        /* Non-subscriber: single column */
-        <>
+        /* Non-subscriber: compact single column, max-w-sm */
+        <div className="max-w-sm space-y-4">
           {costPanel}
           {token && !isSubscriber && myEntry !== undefined && (
             <button
@@ -382,8 +383,7 @@ export default function SubscriptionInfoPanel({
               + Add to my subscriptions
             </button>
           )}
-          {myEntry !== undefined && !isSubscriber && null /* WaitlistButton moved to page header, below cover image */}
-        </>
+        </div>
       )}
 
       {showJoinModal && (

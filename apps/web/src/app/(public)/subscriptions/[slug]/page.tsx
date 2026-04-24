@@ -152,8 +152,8 @@ export default async function SubscriptionPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Subscription info panel — below header, max-w-2xl keeps it tidy for both guest and subscriber */}
-      <div className="mb-12 max-w-2xl">
+      {/* Subscription info panel — below header */}
+      <div className="mb-12">
         <SubscriptionInfoPanel
           subscriptionSlug={sub.slug}
           price={sub.price}
