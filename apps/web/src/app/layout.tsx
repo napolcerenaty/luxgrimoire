@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import { DevBanner } from '@/components/layout/DevBanner'
+import { BugReportButton } from '@/components/layout/BugReportButton'
 import { Providers } from '@/components/Providers'
 
 export const metadata: Metadata = {
@@ -32,9 +34,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased">
         <Providers>
+          <DevBanner />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <BugReportButton />
         </Providers>
       </body>
     </html>

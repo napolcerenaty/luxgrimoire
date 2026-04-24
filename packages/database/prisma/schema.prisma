@@ -55,6 +55,7 @@ model User {
   skipRecords         UserSkipRecord[]
   subEntryTags        UserSubEntryTag[]
   subscriptionEntries UserSubscriptionEntry[]
+  bugReports          BugReport[]
   managedCompany      BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
 
   @@index([shippingCountry])
@@ -912,6 +913,22 @@ model AuditLog {
   @@index([entityType])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model BugReport {
+  id          String   @id @default(uuid())
+  userId      String?
+  title       String
+  description String
+  pageUrl     String?
+  category    String   @default("general") @db.VarChar(50)
+  status      String   @default("open") @db.VarChar(20)
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("bug_reports")
 }
 
 /// Reusable fee templates defined by the user (e.g. "Polish Customs VAT", "DHL Processing Fee")

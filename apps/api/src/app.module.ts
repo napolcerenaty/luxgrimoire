@@ -28,6 +28,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.module';
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
+import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { SubscriptionSeriesModule } from './modules/subscription-series/subscrip
     PurchaseGroupsModule,
     BookBoxCollectionsModule,
     SubscriptionSeriesModule,
+    BugReportsModule,
   ],
 })
 export class AppModule {}
