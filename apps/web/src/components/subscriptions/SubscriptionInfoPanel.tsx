@@ -7,7 +7,6 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
-import WaitlistButton from './WaitlistButton'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
 
 function formatType(type: string): string {
@@ -383,9 +382,7 @@ export default function SubscriptionInfoPanel({
               + Add to my subscriptions
             </button>
           )}
-          {myEntry !== undefined && !isSubscriber && (
-            <WaitlistButton subscriptionSlug={subscriptionSlug} />
-          )}
+          {myEntry !== undefined && !isSubscriber && null /* WaitlistButton moved to page header, below cover image */}
         </>
       )}
 

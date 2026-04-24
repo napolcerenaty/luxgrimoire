@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
+import WaitlistButton from '@/components/subscriptions/WaitlistButton'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -138,14 +139,17 @@ export default async function SubscriptionPage({ params }: Props) {
           </div>
         </div>
 
-        {coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={coverUrl}
-            alt={sub.name}
-            className="rounded-xl shadow-xl w-full object-cover max-h-72 md:max-h-none"
-          />
-        )}
+        <div className="flex flex-col gap-3">
+          {coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt={sub.name}
+              className="rounded-xl shadow-xl w-full object-cover max-h-72 md:max-h-none"
+            />
+          )}
+          <WaitlistButton subscriptionSlug={sub.slug} />
+        </div>
       </div>
 
       {/* Subscription info panel — below header, max-w-2xl keeps it tidy for both guest and subscriber */}

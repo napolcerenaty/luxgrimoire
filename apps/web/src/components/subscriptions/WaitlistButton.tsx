@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Clock, X, Loader2, Pencil, Check } from 'lucide-react'
-import { joinWaitlist, leaveWaitlist, updateWaitlistDate, getMyWaitlistStatus } from '@/lib/api'
+import { joinWaitlist, leaveWaitlist, updateWaitlistDate, getMyWaitlistStatus, getMySubscriptionEntry } from '@/lib/api'
 
 interface WaitlistButtonProps {
   subscriptionSlug: string
@@ -25,8 +25,12 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   useEffect(() => {
     const token = localStorage.getItem('luxgrimoire_token')
     if (!token) { setStatus('no-auth'); return }
-    getMyWaitlistStatus(subscriptionSlug)
-      .then(data => setStatus(data ?? null))
+    // Hide for active subscribers
+    getMySubscriptionEntry(subscriptionSlug)
+      .then((entry) => {
+        if (entry?.active) { setStatus('no-auth'); return }
+        return getMyWaitlistStatus(subscriptionSlug).then(data => setStatus(data ?? null))
+      })
       .catch(() => setStatus(null))
   }, [subscriptionSlug])
 
