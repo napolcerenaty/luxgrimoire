@@ -543,9 +543,11 @@ model UserBookEntry {
   salePrice             Decimal?               @db.Decimal(10, 2)
   saleVenue             String?
   purchaseGroupId       String?
+  subscriptionEntryId   String?
   book                  Book                   @relation(fields: [bookId], references: [id])
   edition               BookEdition?           @relation(fields: [editionId], references: [id])
   purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
+  subscriptionEntry     UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   purchaseDiscounts     UserPurchaseDiscount[]
   purchaseFees          UserPurchaseFee[]
@@ -585,6 +587,7 @@ model UserSubscriptionEntry {
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]
   costChanges        UserSubscriptionCostChange[]
+  bookEntries        UserBookEntry[]
   subscription       Subscription                       @relation(fields: [subscriptionId], references: [id])
   user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeTemplates       UserSubscriptionEntryFeeTemplate[]

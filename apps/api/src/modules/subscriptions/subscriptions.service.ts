@@ -472,6 +472,11 @@ export class SubscriptionsService {
     }
 
     if (opts.removeBooks) {
+      // Delete books linked via subscriptionEntryId (added via backfill)
+      await this.prisma.userBookEntry.deleteMany({
+        where: { userId, subscriptionEntryId: entry.id },
+      });
+      // Also delete books linked via purchaseTransactionId (manual billing periods)
       const txIds = entry.billingPeriods
         .map((p) => p.purchaseTransactionId)
         .filter((id): id is string => id != null);
@@ -711,6 +716,7 @@ export class SubscriptionsService {
               purchaseDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
+              subscriptionEntryId: entry.id,
               ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
               ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
             },
