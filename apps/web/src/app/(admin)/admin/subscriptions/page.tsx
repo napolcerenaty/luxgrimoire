@@ -792,12 +792,20 @@ export default function AdminSubscriptionsPage() {
       key: 'manage',
       label: 'Manage',
       render: (row: ApiSubscription) => (
-        <Link
-          href={`/admin/subscriptions/${row.slug}/months`}
-          className="text-amber-400 text-xs hover:underline"
-        >
-          View Months →
-        </Link>
+        <>
+          <Link
+            href={`/admin/subscriptions/${row.slug}/months`}
+            className="text-amber-400 text-xs hover:underline"
+          >
+            View Months →
+          </Link>
+          <Link
+            href={`/admin/subscriptions/${row.slug}/series`}
+            className="text-purple-400 text-xs hover:underline ml-3"
+          >
+            Series →
+          </Link>
+        </>
       ),
     },
   ]

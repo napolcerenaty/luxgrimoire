@@ -420,19 +420,3 @@ export interface ApiSubscriptionSeries {
   _count?: { months: number };
 }
 
-  id: string;
-  userId: string;
-  subscriptionId: string;
-  joinedAt: string;
-  leftAt: string | null;
-  daysOnList: number;
-  isActive: boolean;
-  subscription: {
-    id: string;
-    slug: string;
-    name: string;
-    coverImage: string | null;
-    isDiscontinued: boolean;
-    company: { id: string; name: string; slug: string; logoUrl: string | null } | null;
-  };
-}

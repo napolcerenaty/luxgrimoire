@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { getMySubscriptionEntry } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
+import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 
 interface SkipPolicy {
   type: string
@@ -77,6 +78,18 @@ function getNextMonth(): { year: number; month: number; label: string } {
   return { year: now.getFullYear(), month, label: `${MONTHS[month - 1]} ${now.getFullYear()}` }
 }
 
+/** Find the series that contains a specific month (year/month), if any */
+function findSeriesForMonth(
+  seriesList: ApiSubscriptionSeries[],
+  year: number,
+  month: number,
+): ApiSubscriptionSeries | null {
+  return seriesList.find(s =>
+    s.isActive &&
+    (s.months ?? []).some(m => m.year === year && m.month === month),
+  ) ?? null
+}
+
 export default function SubscriptionInfoPanel({
   subscriptionSlug,
   price,
@@ -93,6 +106,7 @@ export default function SubscriptionInfoPanel({
   const [skipState, setSkipState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [skipError, setSkipError] = useState<string | null>(null)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
+  const [seriesList, setSeriesList] = useState<ApiSubscriptionSeries[]>([])
 
   const userCurrency = user?.preferredCurrency
   const showConversion = !!userCurrency && userCurrency !== currency
@@ -110,6 +124,14 @@ export default function SubscriptionInfoPanel({
       setMyEntry(null)
     }
   }, [subscriptionSlug])
+
+  // Fetch series when user is a subscriber
+  useEffect(() => {
+    if (!token) return
+    authFetch<ApiSubscriptionSeries[]>(`/subscription-series?subscriptionSlug=${subscriptionSlug}`)
+      .then(setSeriesList)
+      .catch(() => setSeriesList([]))
+  }, [subscriptionSlug, token])
 
   useEffect(() => {
     if (!showConversion || !price) return
@@ -133,13 +155,33 @@ export default function SubscriptionInfoPanel({
   const canSkip = skipPolicy && skipPolicy.type !== 'NONE'
   const nextMonth = getNextMonth()
 
+  // Find if next month is inside a series
+  const nextMonthSeries = findSeriesForMonth(seriesList, nextMonth.year, nextMonth.month)
+  const isSeriesOnly = nextMonthSeries?.skipMode === 'SERIES_ONLY'
+
+  // Active series (for badge display — series whose date range covers current/next month)
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const now = new Date()
+  const curKey = now.getFullYear() * 12 + now.getMonth() + 1
+  const activeSeries = seriesList.filter(s => {
+    const start = s.startYear * 12 + s.startMonth
+    const end = s.endYear * 12 + s.endMonth
+    return s.isActive && curKey >= start && curKey <= end
+  })
+
   const handleSkipNextMonth = async () => {
     setSkipState('loading')
     setSkipError(null)
     try {
-      await authFetch(`/skip-policy/${subscriptionSlug}/skip/${nextMonth.year}/${nextMonth.month}`, {
-        method: 'POST',
-      })
+      if (isSeriesOnly && nextMonthSeries) {
+        await authFetch(`/skip-policy/${subscriptionSlug}/series/${nextMonthSeries.slug}/skip`, {
+          method: 'POST',
+        })
+      } else {
+        await authFetch(`/skip-policy/${subscriptionSlug}/skip/${nextMonth.year}/${nextMonth.month}`, {
+          method: 'POST',
+        })
+      }
       setSkipState('success')
       // Refresh entry so nextRenewalDate reflects the billing period shift
       getMySubscriptionEntry(subscriptionSlug)
@@ -174,6 +216,26 @@ export default function SubscriptionInfoPanel({
           </span>
         )}
       </div>
+
+      {/* Active series badges */}
+      {activeSeries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {activeSeries.map(s => (
+            <div key={s.id} className="flex items-center gap-1.5 bg-purple-500/15 border border-purple-500/30 rounded-full px-3 py-1">
+              <span className="text-xs text-purple-300 font-medium">📚 {s.name}</span>
+              <span className="text-xs text-purple-500">
+                {MONTHS_SHORT[s.startMonth - 1]} {s.startYear}–{MONTHS_SHORT[s.endMonth - 1]} {s.endYear}
+              </span>
+              {s.skipMode === 'SERIES_ONLY' && (
+                <span className="text-[10px] text-purple-600/80 ml-0.5">series skip</span>
+              )}
+              {!s.canCancelDuring && (
+                <span className="text-[10px] text-amber-600/70 ml-0.5">no cancel</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Skip policy */}
       {skipPolicy && skipPolicy.type !== 'NONE' && (
@@ -269,23 +331,40 @@ export default function SubscriptionInfoPanel({
                   </div>
                 ) : null}
 
-                {/* Skip next month */}
+                {/* Skip button — series-aware */}
                 {canSkip && (
                   <div className="pt-1">
                     {skipState === 'success' ? (
                       <p className="text-xs text-emerald-400 font-medium">
-                        ✓ {nextMonth.label} skipped
+                        ✓ {isSeriesOnly && nextMonthSeries ? `"${nextMonthSeries.name}" series skipped` : `${nextMonth.label} skipped`}
                       </p>
                     ) : (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => void handleSkipNextMonth()}
-                          disabled={skipState === 'loading'}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-stone-600 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 disabled:opacity-50 transition-colors"
-                        >
-                          {skipState === 'loading' ? 'Skipping…' : `Skip ${nextMonth.label}`}
-                        </button>
+                        {isSeriesOnly && nextMonthSeries ? (
+                          <div className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => void handleSkipNextMonth()}
+                              disabled={skipState === 'loading'}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-purple-500/40 text-purple-300 hover:border-purple-400/70 hover:text-purple-200 disabled:opacity-50 transition-colors"
+                            >
+                              {skipState === 'loading' ? 'Skipping…' : `⏭ Skip series: "${nextMonthSeries.name}"`}
+                            </button>
+                            <p className="text-[10px] text-stone-600">
+                              Skips all {nextMonthSeries._count?.months ?? nextMonthSeries.months?.length ?? ''} months of this series
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleSkipNextMonth()}
+                            disabled={skipState === 'loading'}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-600 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 disabled:opacity-50 transition-colors"
+                          >
+                            {skipState === 'loading' ? 'Skipping…' : `Skip ${nextMonth.label}`}
+                            {nextMonthSeries && <span className="ml-1 text-stone-500 text-[10px]">({nextMonthSeries.name})</span>}
+                          </button>
+                        )}
                         {skipState === 'error' && skipError && (
                           <p className="text-xs text-red-400 mt-1">{skipError}</p>
                         )}
