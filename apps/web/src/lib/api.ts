@@ -256,15 +256,19 @@ export async function updateWaitlistDate(slug: string, joinedAt: string): Promis
 export async function getMySubscriptionEntry(slug: string): Promise<{
   shippingCost: string | null;
   taxesAndFees: string | null;
+  basePrice: string | null;
   costCurrency: string | null;
   active: boolean;
   prepaidMonths: number;
   renewalDay: number | null;
   nextRenewalDate: string | null;
+  cancellationDate: string | null;
+  cancellationReason: string | null;
   feeTemplates: Array<{
     customAmount: string | null;
     customCurrency: string | null;
     feeTemplate: {
+      id: string;
       name: string;
       defaultAmount: string | null;
       defaultCurrency: string;
@@ -289,6 +293,38 @@ export async function leaveWaitlist(slug: string): Promise<void> {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
+export async function cancelMySubscriptionEntry(
+  slug: string,
+  data: { cancellationDate?: string; cancellationReason?: string },
+): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/cancel`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
+}
+
+export async function updateMyEntryCosts(
+  slug: string,
+  data: {
+    basePrice?: string;
+    shippingCost?: string;
+    taxesAndFees?: string;
+    costCurrency?: string;
+    linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number | null; customCurrency?: string | null }>;
+  },
+): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/costs`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
 }
 
 

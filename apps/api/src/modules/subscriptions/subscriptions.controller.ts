@@ -20,6 +20,8 @@ import {
   SubscriptionQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
+  CancelMyEntryDto,
+  UpdateMyEntryCostsDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -177,8 +179,22 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Patch(':slug/my-entry/cancel')
-  cancelMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
-    return this.subscriptionsService.cancelMySubscription(user.id, slug);
+  cancelMyEntry(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: CancelMyEntryDto,
+  ) {
+    return this.subscriptionsService.cancelMySubscription(user.id, slug, dto);
+  }
+
+  @ApiBearerAuth()
+  @Patch(':slug/my-entry/costs')
+  updateMyEntryCosts(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: UpdateMyEntryCostsDto,
+  ) {
+    return this.subscriptionsService.updateMyEntryCosts(user.id, slug, dto);
   }
 
   @ApiBearerAuth()

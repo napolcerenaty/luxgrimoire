@@ -422,3 +422,40 @@ export class BackfillSubscriptionDto {
   @IsString({ each: true })
   skippedMonthIds!: string[];
 }
+
+export class CancelMyEntryDto {
+  /** ISO date string YYYY-MM-DD for when the subscription was cancelled */
+  @IsOptional()
+  @IsString()
+  cancellationDate?: string;
+
+  /** Optional reason for cancellation */
+  @IsOptional()
+  @IsString()
+  cancellationReason?: string;
+}
+
+export class UpdateMyEntryCostsDto {
+  @IsOptional()
+  @IsString()
+  basePrice?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingCost?: string;
+
+  @IsOptional()
+  @IsString()
+  taxesAndFees?: string;
+
+  @IsOptional()
+  @IsString()
+  costCurrency?: string;
+
+  /** Full replacement list of linked fee templates */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LinkedFeeTemplateDto)
+  linkedFeeTemplates?: LinkedFeeTemplateDto[];
+}

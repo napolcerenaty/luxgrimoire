@@ -381,7 +381,7 @@ export class SubscriptionsService {
     });
   }
 
-  async cancelMySubscription(userId: string, slug: string) {
+  async cancelMySubscription(userId: string, slug: string, dto: { cancellationDate?: string; cancellationReason?: string } = {}) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
@@ -429,9 +429,51 @@ export class SubscriptionsService {
       where: { id: entry.id },
       data: {
         active: false,
-        cancellationDate: new Date().toISOString().slice(0, 10),
+        cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
+        cancellationReason: dto.cancellationReason ?? null,
       },
     });
+  }
+
+  async updateMyEntryCosts(
+    userId: string,
+    slug: string,
+    dto: { basePrice?: string; shippingCost?: string; taxesAndFees?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
+  ) {
+    const sub = await this.findBySlug(slug);
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
+
+    await this.prisma.userSubscriptionEntry.update({
+      where: { id: entry.id },
+      data: {
+        ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
+        ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
+        ...(dto.taxesAndFees !== undefined && { taxesAndFees: dto.taxesAndFees }),
+        ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
+      },
+    });
+
+    if (dto.linkedFeeTemplates !== undefined) {
+      // Replace all fee template links for this entry
+      await this.prisma.userSubscriptionEntryFeeTemplate.deleteMany({
+        where: { subscriptionEntryId: entry.id },
+      });
+      if (dto.linkedFeeTemplates.length > 0) {
+        await this.prisma.userSubscriptionEntryFeeTemplate.createMany({
+          data: dto.linkedFeeTemplates.map((t) => ({
+            subscriptionEntryId: entry.id,
+            feeTemplateId: t.templateId,
+            customAmount: t.customAmount != null ? t.customAmount.toString() : null,
+            customCurrency: t.customCurrency ?? null,
+          })),
+        });
+      }
+    }
+
+    return this.getMySubscriptionEntry(userId, slug);
   }
 
   async joinSubscription(userId: string, slug: string, dto: JoinSubscriptionDto) {

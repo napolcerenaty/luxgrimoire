@@ -645,8 +645,9 @@ model UserSubscriptionEntry {
   taxesAndFees     Decimal?  @db.Decimal(10, 2)
   active           Boolean   @default(true)
   renewalDay       Int?
-  cancellationDate String?
-  firstSkipDate    DateTime?
+  cancellationDate   String?
+  cancellationReason String?
+  firstSkipDate      DateTime?
   prepaidMonths    Int       @default(1)
   nextRenewalDate  DateTime?
   costCurrency     String?   // currency for shippingCost + taxesAndFees (defaults to subscription currency)
