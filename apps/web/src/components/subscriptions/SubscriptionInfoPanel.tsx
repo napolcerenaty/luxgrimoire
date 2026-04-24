@@ -140,8 +140,7 @@ export default function SubscriptionInfoPanel({
   const entryCurrency = myEntry?.costCurrency ?? currency
   const priceNum = isSubscriber && myEntry?.basePrice ? parseFloat(myEntry.basePrice) : (price ? parseFloat(price) : null)
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
-  const taxes = isSubscriber && myEntry?.taxesAndFees ? parseFloat(myEntry.taxesAndFees) : null
-  const total = priceNum !== null && shipping !== null ? priceNum + shipping + (taxes ?? 0) : null
+  const total = priceNum !== null && shipping !== null ? priceNum + shipping : null
 
   function refreshEntry() {
     setLoading(true)
@@ -205,26 +204,21 @@ export default function SubscriptionInfoPanel({
                 </span>
               </div>
             )}
-            {taxes !== null && taxes > 0 && (
-              <div className="flex justify-between items-baseline gap-2">
-                <span className="text-stone-400">Taxes & fees</span>
-                <span className="text-right">
-                  <span className="text-stone-100">{taxes.toFixed(2)} {entryCurrency}</span>
-                  {converted(taxes) && (
-                    <span className="block text-xs text-stone-500">{converted(taxes)}</span>
-                  )}
-                </span>
-              </div>
-            )}
             {(myEntry?.feeTemplates ?? []).filter(f => f.feeTemplate.isActive).map((link, i) => {
               const amt = link.customAmount ?? link.feeTemplate.defaultAmount
               const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
+              const amtNum = amt != null ? parseFloat(amt) : null
               return (
                 <div key={i} className="flex justify-between items-baseline gap-2">
                   <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
                   <span className="text-right text-xs text-stone-400">
-                    {amt != null
-                      ? <>{parseFloat(amt).toFixed(2)} {feeCur}</>
+                    {amtNum != null
+                      ? <>
+                          {amtNum.toFixed(2)} {feeCur}
+                          {feeCur === entryCurrency && converted(amtNum) && (
+                            <span className="block text-stone-500">{converted(amtNum)}</span>
+                          )}
+                        </>
                       : <span className="italic text-stone-600">variable</span>
                     }
                   </span>
@@ -440,8 +434,7 @@ function EditEntryCostsModal({
 }) {
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
-  const [taxesAndFees, setTaxesAndFees] = useState(entry.taxesAndFees ?? '')
-  const [costCurrency, setCostCurrency] = useState(entry.costCurrency ?? subscriptionCurrency)
+  const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
   const [feeLinks, setFeeLinks] = useState<Array<{ templateId: string; name: string; customAmount: string; customCurrency: string }>>(
     entry.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
@@ -478,7 +471,6 @@ function EditEntryCostsModal({
       await updateMyEntryCosts(subscriptionSlug, {
         basePrice: basePrice || undefined,
         shippingCost: shippingCost || undefined,
-        taxesAndFees: taxesAndFees || undefined,
         costCurrency: costCurrency || undefined,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
@@ -541,20 +533,6 @@ function EditEntryCostsModal({
               value={shippingCost}
               onChange={e => setShippingCost(e.target.value)}
               placeholder="e.g. 8.00"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
-            />
-          </div>
-
-          {/* Taxes & fees (manual) */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Taxes & fees — manual total ({costCurrency})</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={taxesAndFees}
-              onChange={e => setTaxesAndFees(e.target.value)}
-              placeholder="e.g. 5.50"
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
           </div>
