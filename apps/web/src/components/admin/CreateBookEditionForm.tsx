@@ -296,6 +296,8 @@ export default function CreateBookEditionForm({
   const [companyId, setCompanyId] = useState(defaultCompanyId ?? '')
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
+  const [publisher, setPublisher] = useState('')
+  const [publishYear, setPublishYear] = useState(String(monthYear))
   const [firstAccessDate, setFirstAccessDate] = useState('')
   const [earlyAccessDate, setEarlyAccessDate] = useState('')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
@@ -333,6 +335,7 @@ export default function CreateBookEditionForm({
       })
     }
     // Edition fields
+    if (r.edition?.publisher) setPublisher(r.edition.publisher)
     if (r.edition?.price != null) setPrice(String(r.edition.price))
     if (r.edition?.currency) setCurrency(r.edition.currency)
     if (r.edition?.firstAccessDate) setFirstAccessDate(r.edition.firstAccessDate)
@@ -396,6 +399,8 @@ export default function CreateBookEditionForm({
           bookId: createdBookId,
           bookBoxCompanyId: companyId || undefined,
           subscriptionId: subscriptionId || undefined,
+          publisher: publisher.trim() || undefined,
+          publishYear: publishYear ? Number(publishYear) : undefined,
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
@@ -555,6 +560,20 @@ export default function CreateBookEditionForm({
               placeholder="USD" maxLength={3}
               className="w-16 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm text-center uppercase" />
           </div>
+        </div>
+      </div>
+
+      {/* Publisher + Edition year */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LBL}>Publisher</label>
+          <input value={publisher} onChange={e => setPublisher(e.target.value)}
+            placeholder="e.g. Fairyloot Exclusive" className={INP} />
+        </div>
+        <div>
+          <label className={LBL}>Edition year</label>
+          <input type="number" value={publishYear} onChange={e => setPublishYear(e.target.value)}
+            placeholder={String(monthYear)} min={1900} max={2100} className={INP} />
         </div>
       </div>
 
