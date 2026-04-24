@@ -148,8 +148,8 @@ export default async function SubscriptionPage({ params }: Props) {
         )}
       </div>
 
-      {/* Subscription info panel — full width below header to avoid tall right-column gap */}
-      <div className="mb-12">
+      {/* Subscription info panel — below header, max-w-2xl keeps it tidy for both guest and subscriber */}
+      <div className="mb-12 max-w-2xl">
         <SubscriptionInfoPanel
           subscriptionSlug={sub.slug}
           price={sub.price}
