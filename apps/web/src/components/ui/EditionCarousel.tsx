@@ -131,7 +131,7 @@ export function EditionCarousel({ title, viewAllHref, cards }: Props) {
                   {card.ribbon && (
                     <div
                       className="absolute bottom-0 left-0 right-0 px-2 py-1 text-center"
-                      style={{ background: 'rgba(5,10,18,0.82)', borderTop: '1px solid rgba(180,120,40,0.35)' }}
+                      style={{ background: 'rgba(5,10,18,0.82)' }}
                     >
                       <span className="text-[9px] font-serif font-semibold uppercase tracking-widest text-amber-400 line-clamp-1">
                         {card.ribbon}
@@ -147,12 +147,12 @@ export function EditionCarousel({ title, viewAllHref, cards }: Props) {
                 </div>
 
                 {/* Info */}
-                <div className="px-2.5 py-2">
+                <div className="px-2.5 py-2 flex flex-col min-h-[4.5rem]">
                   <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
                     {card.title}
                   </p>
                   {card.subtitle && (
-                    <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-1 font-sans">{card.subtitle}</p>
+                    <p className="text-[11px] text-stone-500 mt-auto pt-0.5 line-clamp-1 font-sans">{card.subtitle}</p>
                   )}
                 </div>
               </Link>
