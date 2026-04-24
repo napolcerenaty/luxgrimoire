@@ -8,6 +8,7 @@ import type { ApiSkipStatus, ApiSubscriptionMonth } from '@luxgrimoire/shared-ty
 interface Props {
   subscriptionSlug: string
   months: ApiSubscriptionMonth[]
+  onSkipSuccess?: () => void
 }
 
 const MONTH_NAMES = [
@@ -15,7 +16,7 @@ const MONTH_NAMES = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
-export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
+export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSuccess }: Props) {
   const queryClient = useQueryClient()
   const [skipTarget, setSkipTarget] = useState<{ year: number; month: number } | null>(null)
 
@@ -33,6 +34,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
       setSkipTarget(null)
+      onSkipSuccess?.()
     },
   })
 
@@ -52,6 +54,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
       const d = new Date()
       return m.year > d.getFullYear() || (m.year === d.getFullYear() && m.month >= d.getMonth() + 1)
     })
+    .filter((m) => !status?.skippedMonths?.some((s) => s.year === m.year && s.month === m.month))
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
   const limitText =

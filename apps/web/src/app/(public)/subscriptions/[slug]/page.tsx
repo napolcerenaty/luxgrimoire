@@ -5,7 +5,6 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
-import SkipStatusPanel from '@/components/SkipStatusPanel'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 
@@ -139,7 +138,6 @@ export default async function SubscriptionPage({ params }: Props) {
           </div>
 
           <div className="mt-6">
-            <SkipStatusPanel subscriptionSlug={sub.slug} months={months} />
           </div>
         </div>
 
@@ -160,6 +158,7 @@ export default async function SubscriptionPage({ params }: Props) {
             shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
             country={sub.company?.country ?? null}
             renewalDay={sub.renewalDay ?? null}
+            months={months}
           />
         </div>
       </div>

@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiSubscriptionSeries, ApiFeeTemplate } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
 import WaitlistButton from './WaitlistButton'
+import SkipStatusPanel from '@/components/SkipStatusPanel'
 
 function formatType(type: string): string {
   const map: Record<string, string> = {
@@ -26,6 +28,7 @@ interface Props {
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
+  months: ApiSubscriptionMonth[]
 }
 
 type FeeTemplateLink = {
@@ -60,13 +63,19 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0])
 }
 
-function nextRenewalFromDay(renewalDay: number): string {
+function nextRenewalFromDay(renewalDay: number, skippedMonths: { year: number; month: number }[] = []): string {
   const today = new Date()
   const year = today.getFullYear()
   const month = today.getMonth()
-  const candidate = new Date(year, month, renewalDay)
-  const next = candidate > today ? candidate : new Date(year, month + 1, renewalDay)
-  return next.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  let candidate = new Date(year, month, renewalDay)
+  if (candidate <= today) {
+    candidate = new Date(year, month + 1, renewalDay)
+  }
+  // Advance past skipped months
+  while (skippedMonths.some((s) => s.year === candidate.getFullYear() && s.month === candidate.getMonth() + 1)) {
+    candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, renewalDay)
+  }
+  return candidate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export default function SubscriptionInfoPanel({
@@ -77,6 +86,7 @@ export default function SubscriptionInfoPanel({
   shipsInternationally,
   country,
   renewalDay,
+  months,
 }: Props) {
   const { user } = useAuth()
   const [token, setToken] = useState<string | null>(null)
@@ -90,6 +100,13 @@ export default function SubscriptionInfoPanel({
 
   const userCurrency = user?.preferredCurrency
   const showConversion = !!userCurrency && userCurrency !== currency
+
+  const { data: skipStatus } = useQuery({
+    queryKey: ['skip-status', subscriptionSlug],
+    queryFn: () => authFetch<{ skippedMonths: { year: number; month: number }[] }>(`/skip-policy/${subscriptionSlug}/status`),
+    enabled: !!token,
+    retry: false,
+  })
 
   useEffect(() => {
     const t = localStorage.getItem('luxgrimoire_token')
@@ -308,7 +325,7 @@ export default function SubscriptionInfoPanel({
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-stone-500">🔄</span>
                     <span className="text-stone-400">Renews on</span>
-                    <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay)}</span>
+                    <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
                   </div>
                 ) : null}
               </div>
@@ -375,6 +392,15 @@ export default function SubscriptionInfoPanel({
         >
           Cancel subscription
         </button>
+      )}
+
+      {/* Skip panel — only for logged-in subscribers */}
+      {isSubscriber && (
+        <SkipStatusPanel
+          subscriptionSlug={subscriptionSlug}
+          months={months}
+          onSkipSuccess={refreshEntry}
+        />
       )}
 
       {showJoinModal && (
