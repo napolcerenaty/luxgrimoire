@@ -355,14 +355,74 @@ export class SubscriptionsService {
 
   async getMySubscriptionEntry(userId: string, slug: string) {
     const sub = await this.findBySlug(slug);
-    return this.prisma.userSubscriptionEntry.findUnique({
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
       include: {
         feeTemplates: {
           include: { feeTemplate: true },
         },
+        skipRecords: {
+          where: { undoneAt: null },
+          include: { month: { select: { year: true, month: true } } },
+        },
       },
     });
+    if (!entry) return null;
+
+    const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
+    const type = (sub as any).type as string | null;
+    const startingMonth = (sub as any).startingMonth as number | null;
+    const userStartDate = entry.startDate ?? null;
+    const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+
+    const nextRenewalDate = this.computeNextRenewalDate(renewalDay, type, startingMonth, userStartDate, skippedMonths);
+
+    const { skipRecords: _sr, ...entryWithoutSkips } = entry;
+    return { ...entryWithoutSkips, nextRenewalDate: nextRenewalDate ? nextRenewalDate.toISOString() : null };
+  }
+
+  private computeNextRenewalDate(
+    renewalDay: number,
+    type: string | null,
+    startingMonth: number | null,
+    userStartDate: string | null,
+    skippedMonths: { year: number; month: number }[] = [],
+  ): Date | null {
+    const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
+    const now = new Date();
+
+    let candYear = now.getFullYear();
+    let candMonth = now.getMonth() + 1; // 1-indexed
+
+    for (let i = 0; i < 24; i++) {
+      // For BIMONTHLY/QUARTERLY, skip months not in the cycle
+      if (interval > 1 && startingMonth != null) {
+        const offset = ((candMonth - startingMonth) % 12 + 12) % 12;
+        if (offset % interval !== 0) {
+          [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
+          continue;
+        }
+      }
+
+      const candDate = new Date(Date.UTC(candYear, candMonth - 1, renewalDay));
+
+      const isSkipped = skippedMonths.some((s) => s.year === candYear && s.month === candMonth);
+      if (!isSkipped && candDate > now) {
+        if (userStartDate) {
+          const startD = new Date(userStartDate);
+          if (candDate >= startD) return candDate;
+        } else {
+          return candDate;
+        }
+      }
+
+      [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
+    }
+    return null;
+  }
+
+  private incrementMonth(year: number, month: number): [number, number] {
+    return month === 12 ? [year + 1, 1] : [year, month + 1];
   }
 
   async getMySubscriptions(userId: string) {
