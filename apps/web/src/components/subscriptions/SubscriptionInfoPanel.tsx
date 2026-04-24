@@ -92,6 +92,8 @@ export default function SubscriptionInfoPanel({
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
+  // rates to convert each fee template currency → entryCurrency
+  const [feeRates, setFeeRates] = useState<Record<string, number>>({})
   const [seriesList, setSeriesList] = useState<ApiSubscriptionSeries[]>([])
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showEditCosts, setShowEditCosts] = useState(false)
@@ -136,11 +138,48 @@ export default function SubscriptionInfoPanel({
       .catch(() => setConvertedRate(null))
   }, [showConversion, currency, userCurrency, price])
 
+  // Fetch conversion rates for fee template currencies that differ from entryCurrency
+  useEffect(() => {
+    if (!myEntry?.feeTemplates?.length) return
+    const ec = myEntry.costCurrency ?? currency
+    const uniqueCurs = [...new Set(
+      myEntry.feeTemplates
+        .filter(f => f.feeTemplate.isActive)
+        .map(f => f.customCurrency ?? f.feeTemplate.defaultCurrency)
+        .filter((c): c is string => !!c && c !== ec)
+    )]
+    if (!uniqueCurs.length) return
+    Promise.all(
+      uniqueCurs.map(c =>
+        authFetch<{ rate: number }>(`/currency/rate?from=${c}&to=${ec}`)
+          .then(data => [c, data.rate] as [string, number])
+          .catch(() => [c, null] as [string, null])
+      )
+    ).then(results => {
+      const rates: Record<string, number> = {}
+      results.forEach(([c, r]) => { if (r !== null) rates[c] = r })
+      setFeeRates(rates)
+    })
+  }, [myEntry?.feeTemplates, myEntry?.costCurrency, currency])
+
   const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
   const entryCurrency = myEntry?.costCurrency ?? currency
   const priceNum = isSubscriber && myEntry?.basePrice ? parseFloat(myEntry.basePrice) : (price ? parseFloat(price) : null)
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
-  const total = priceNum !== null && shipping !== null ? priceNum + shipping : null
+  const feeTotal = isSubscriber
+    ? (myEntry?.feeTemplates ?? [])
+        .filter(f => f.feeTemplate.isActive)
+        .reduce((sum, link) => {
+          const amt = link.customAmount ?? link.feeTemplate.defaultAmount
+          if (amt == null) return sum
+          const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
+          const amtNum = parseFloat(amt)
+          if (feeCur === entryCurrency) return sum + amtNum
+          const rate = feeRates[feeCur ?? '']
+          return rate ? sum + amtNum * rate : sum
+        }, 0)
+    : 0
+  const total = priceNum !== null && shipping !== null ? priceNum + shipping + feeTotal : null
 
   function refreshEntry() {
     setLoading(true)
@@ -208,6 +247,14 @@ export default function SubscriptionInfoPanel({
               const amt = link.customAmount ?? link.feeTemplate.defaultAmount
               const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
               const amtNum = amt != null ? parseFloat(amt) : null
+              // amount in entryCurrency (for display when feeCur differs)
+              const amtInEntry = amtNum != null && feeCur !== entryCurrency && feeRates[feeCur ?? '']
+                ? amtNum * feeRates[feeCur!]
+                : null
+              // amount in userCurrency
+              const feeToUserRate = feeCur === entryCurrency
+                ? convertedRate
+                : (amtInEntry != null ? convertedRate : null)
               return (
                 <div key={i} className="flex justify-between items-baseline gap-2">
                   <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
@@ -215,8 +262,13 @@ export default function SubscriptionInfoPanel({
                     {amtNum != null
                       ? <>
                           {amtNum.toFixed(2)} {feeCur}
-                          {feeCur === entryCurrency && converted(amtNum) && (
-                            <span className="block text-stone-500">{converted(amtNum)}</span>
+                          {amtInEntry != null && (
+                            <span className="block text-stone-500">≈ {amtInEntry.toFixed(2)} {entryCurrency}</span>
+                          )}
+                          {feeToUserRate && userCurrency && userCurrency !== feeCur && (
+                            <span className="block text-stone-500">
+                              ≈ {((amtInEntry ?? amtNum) * feeToUserRate).toFixed(2)} {userCurrency}
+                            </span>
                           )}
                         </>
                       : <span className="italic text-stone-600">variable</span>
