@@ -141,6 +141,10 @@ export default function SubscriptionInfoPanel({
         method: 'POST',
       })
       setSkipState('success')
+      // Refresh entry so nextRenewalDate reflects the billing period shift
+      getMySubscriptionEntry(subscriptionSlug)
+        .then(setMyEntry)
+        .catch(() => {})
     } catch (e) {
       setSkipState('error')
       setSkipError((e as Error).message ?? 'Could not skip month')

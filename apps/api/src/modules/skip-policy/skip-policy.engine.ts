@@ -115,6 +115,11 @@ export class SkipPolicyEngine {
 
     await this.notifyIfNeeded(userId, subscription.id, policy, newState);
 
+    // If prepaid subscription, extend the billing period by 1 month
+    if (entry.prepaidMonths > 1) {
+      await this.adjustPrepaidBillingPeriod(entry.id, 1, entry.effectiveRenewalDay ?? 1);
+    }
+
     const deadline = this.computeDeadline(policy, entry, { year, month });
     return this.buildStatus(policy, newState, deadline);
   }
@@ -147,6 +152,11 @@ export class SkipPolicyEngine {
 
     // Recompute state from scratch (simplest safe approach)
     const updatedState = await this.recomputeState(userId, subscription.id, policy);
+
+    // If prepaid subscription, retract the billing period by 1 month
+    if (entry.prepaidMonths > 1) {
+      await this.adjustPrepaidBillingPeriod(entry.id, -1, entry.effectiveRenewalDay ?? 1);
+    }
 
     const deadline = this.computeDeadline(policy, entry, { year, month });
     return this.buildStatus(policy, updatedState, deadline);
@@ -355,6 +365,57 @@ export class SkipPolicyEngine {
         body: warnings.join(' '),
         payload: { subscriptionId, warnings },
       },
+    });
+  }
+
+  /**
+   * For prepaid subscriptions: shifts the end of the latest billing period by +1 or -1 month.
+   * Also shifts nextRenewalDate on the entry accordingly.
+   * direction = 1  → skip recorded (period extends)
+   * direction = -1 → skip undone  (period retracts)
+   */
+  private async adjustPrepaidBillingPeriod(
+    entryId: string,
+    direction: 1 | -1,
+    renewalDay: number,
+  ): Promise<void> {
+    // Find the most recent billing period that has a coveredTo range
+    const period = await this.prisma.userSubBillingPeriod.findFirst({
+      where: { entryId, coveredToMonth: { not: null }, coveredToYear: { not: null } },
+      orderBy: [{ coveredToYear: 'desc' }, { coveredToMonth: 'desc' }],
+    });
+
+    if (!period?.coveredToMonth || !period?.coveredToYear) return;
+
+    // Compute new end month
+    const d = new Date(period.coveredToYear, period.coveredToMonth - 1);
+    d.setMonth(d.getMonth() + direction);
+    const newCoveredToMonth = d.getMonth() + 1;
+    const newCoveredToYear = d.getFullYear();
+
+    await this.prisma.userSubBillingPeriod.update({
+      where: { id: period.id },
+      data: { coveredToMonth: newCoveredToMonth, coveredToYear: newCoveredToYear },
+    });
+
+    // Shift nextRenewalDate on the entry
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entryId },
+      select: { nextRenewalDate: true },
+    });
+
+    let newRenewal: Date;
+    if (entry?.nextRenewalDate) {
+      newRenewal = new Date(entry.nextRenewalDate);
+      newRenewal.setMonth(newRenewal.getMonth() + direction);
+    } else {
+      // Derive from billing period end: renewal is on renewalDay of the month after the period ends
+      newRenewal = new Date(newCoveredToYear, newCoveredToMonth, renewalDay);
+    }
+
+    await this.prisma.userSubscriptionEntry.update({
+      where: { id: entryId },
+      data: { nextRenewalDate: newRenewal },
     });
   }
 
