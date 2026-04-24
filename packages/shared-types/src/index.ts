@@ -8,6 +8,7 @@ export interface ApiUser {
   email: string;
   role: Role;
   preferredCurrency: string;
+  timezone: string;
   avatarUrl: string | null;
   bio: string | null;
   createdAt: string;

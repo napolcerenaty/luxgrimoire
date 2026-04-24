@@ -11,6 +11,7 @@ interface AuthUser {
   displayName?: string
   avatar?: string
   preferredCurrency?: string
+  timezone?: string
 }
 
 interface AuthContextType {

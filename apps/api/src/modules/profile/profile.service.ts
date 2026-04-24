@@ -34,6 +34,7 @@ export class ProfileService {
         ...(dto.bio !== undefined && { bio: dto.bio }),
         ...(dto.avatar !== undefined && { avatarUrl: dto.avatar }),
         ...(dto.preferredCurrency !== undefined && { preferredCurrency: dto.preferredCurrency }),
+        ...(dto.timezone !== undefined && { timezone: dto.timezone }),
       },
       select: {
         id: true,
@@ -42,6 +43,7 @@ export class ProfileService {
         bio: true,
         avatarUrl: true,
         preferredCurrency: true,
+        timezone: true,
         createdAt: true,
         updatedAt: true,
       },

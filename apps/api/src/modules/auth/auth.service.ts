@@ -129,6 +129,7 @@ export class AuthService {
         role: true,
         managedCompanyId: true,
         preferredCurrency: true,
+        timezone: true,
         avatarUrl: true,
         bio: true,
         createdAt: true,
