@@ -312,7 +312,7 @@ export async function removeMySubscriptionEntry(
   slug: string,
   opts: { removeBooks: boolean; removeSpending: boolean },
 ): Promise<void> {
-  const token = localStorage.getItem('luxgrimoire_token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
   if (!token) throw new Error('Not authenticated')
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
     method: 'DELETE',
@@ -452,7 +452,7 @@ export interface CountryFeeHint {
 }
 
 export async function getCountryFeeHints(slug: string, country: string): Promise<CountryFeeHint[]> {
-  const token = localStorage.getItem('luxgrimoire_token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
   if (!token) return []
   const res = await fetch(`${API_URL}/subscriptions/${slug}/country-fees?country=${country}`, {
     headers: { Authorization: `Bearer ${token}` },
