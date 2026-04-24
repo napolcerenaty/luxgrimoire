@@ -53,7 +53,8 @@ export default async function HomePage() {
       title: e.book?.title ?? 'Unknown',
       subtitle: e.book?.seriesName
         ? `${e.book.seriesName}${e.book.volumeNumber != null ? ` #${e.book.volumeNumber}` : ''}`
-        : authors,
+        : null,
+      author: authors,
       ribbon: e.bookBoxCompanyCustomName ?? e.bookBoxCompany?.name ?? null,
     }
   })
