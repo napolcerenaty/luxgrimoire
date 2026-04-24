@@ -12,6 +12,30 @@ export class CreateArtistDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  twitter?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
 }
 
 export class UpdateArtistDto {
@@ -26,6 +50,30 @@ export class UpdateArtistDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  twitter?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
 }
 
 export class ArtistQueryDto {

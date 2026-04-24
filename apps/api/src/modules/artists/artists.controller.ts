@@ -12,11 +12,16 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ArtistsService } from './artists.service';
 import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('artists')
 @Controller('artists')
 export class ArtistsController {
-  constructor(private readonly artistsService: ArtistsService) {}
+  constructor(
+    private readonly artistsService: ArtistsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Public()
   @Get()
@@ -31,23 +36,29 @@ export class ArtistsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
-  create(@Body() dto: CreateArtistDto) {
-    return this.artistsService.create(dto);
+  async create(@Body() dto: CreateArtistDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.artistsService.create(dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_ARTIST', entityType: 'artist', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
   @Patch(':slug')
-  update(@Param('slug') slug: string, @Body() dto: UpdateArtistDto) {
-    return this.artistsService.update(slug, dto);
+  async update(@Param('slug') slug: string, @Body() dto: UpdateArtistDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.artistsService.update(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_ARTIST', entityType: 'artist', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN')
   @Delete(':slug')
-  delete(@Param('slug') slug: string) {
-    return this.artistsService.delete(slug);
+  async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.artistsService.delete(slug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_ARTIST', entityType: 'artist', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 }

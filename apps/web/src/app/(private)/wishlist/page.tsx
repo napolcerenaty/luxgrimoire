@@ -2,8 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
-import { cloudinaryUrl } from '@/lib/cloudinary'
-import { Badge } from '@/components/ui/Badge'
+import { EditionCard } from '@/components/books/EditionCard'
 import { BookOpen, Trash2, MoveRight } from 'lucide-react'
 
 interface CollectionEntry {
@@ -18,11 +17,13 @@ interface CollectionEntry {
     publisher: string | null
     publishYear: number | null
     format: string | null
+    bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
       id: string
       title: string
       slug: string
       seriesName: string | null
+      volumeNumber: number | null
       authors: Array<{ id: string; name: string; slug: string }>
     }
   }
@@ -78,69 +79,41 @@ export default function WishlistPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {entries.map((entry) => {
-            const cover = cloudinaryUrl(entry.edition.coverImage)
-            return (
-              <div
-                key={entry.id}
-                className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden group hover:border-stone-600 transition-colors"
-              >
-                <div className="aspect-[2/3] bg-stone-800 relative overflow-hidden">
-                  {cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cover}
-                      alt={entry.edition.book.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-stone-600">
-                      <BookOpen size={32} />
-                    </div>
-                  )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                    <button
-                      onClick={() => moveMutation.mutate(entry.id)}
-                      disabled={moveMutation.isPending}
-                      className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
-                    >
-                      <MoveRight size={12} />
-                      Move to Collection
-                    </button>
-                    <button
-                      onClick={() => removeMutation.mutate(entry.id)}
-                      disabled={removeMutation.isPending}
-                      className="flex items-center gap-1.5 border border-stone-600 text-stone-300 hover:text-red-400 hover:border-red-800 px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
-                    >
-                      <Trash2 size={12} />
-                      Remove
-                    </button>
-                  </div>
+          {entries.map((entry) => (
+            <EditionCard
+              key={entry.id}
+              href={`/books/${entry.edition.book.slug}`}
+              coverImage={entry.edition.coverImage}
+              companyName={entry.edition.bookBoxCompany?.name}
+              seriesName={entry.edition.book.seriesName}
+              volumeNumber={entry.edition.book.volumeNumber}
+              title={entry.edition.book.title}
+              authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
+              imageActions={
+                <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); moveMutation.mutate(entry.id) }}
+                    disabled={moveMutation.isPending}
+                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
+                  >
+                    <MoveRight size={12} />
+                    Move to Collection
+                  </button>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
+                    disabled={removeMutation.isPending}
+                    className="flex items-center gap-1.5 border border-stone-600 text-stone-300 hover:text-red-400 hover:border-red-800 px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    Remove
+                  </button>
                 </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-stone-100 leading-tight line-clamp-2 mb-1">
-                    {entry.edition.book.title}
-                  </p>
-                  {entry.edition.book.authors[0] && (
-                    <p className="text-xs text-stone-400 truncate">
-                      {entry.edition.book.authors[0].name}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {entry.edition.publisher && (
-                      <Badge variant="outline">{entry.edition.publisher}</Badge>
-                    )}
-                    {entry.edition.format && (
-                      <Badge variant="default">{entry.edition.format}</Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+              }
+            />
+          ))}
         </div>
       )}
     </div>
   )
 }
+

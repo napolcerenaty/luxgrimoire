@@ -1,16 +1,16 @@
-import { IsString, IsOptional, IsBoolean, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class AddToCollectionDto {
   @IsString() bookEditionId!: string;
-  @IsOptional() @IsDateString() acquiredDate?: string;
   @IsOptional() @IsString() condition?: string;
   @IsOptional() @IsBoolean() isWishlist?: boolean;
-  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() ownershipStatus?: string;
+  @IsOptional() @IsString() readingStatus?: string;
 }
 
 export class UpdateCollectionEntryDto {
-  @IsOptional() @IsDateString() acquiredDate?: string;
   @IsOptional() @IsString() condition?: string;
   @IsOptional() @IsBoolean() isWishlist?: boolean;
-  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() ownershipStatus?: string;
+  @IsOptional() @IsString() readingStatus?: string;
 }

@@ -10,7 +10,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    new FastifyAdapter({ bodyLimit: 20 * 1024 * 1024 }), // 20 MB for base64 image uploads
   );
 
   app.useGlobalPipes(
@@ -20,6 +20,8 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
   app.setGlobalPrefix('api');

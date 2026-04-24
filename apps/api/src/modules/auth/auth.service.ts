@@ -45,12 +45,16 @@ export class AuthService {
       },
     });
 
-    return this.signToken(user.id, user.email, user.role, user.username);
+    return this.signToken(user.id, user.email, user.role, user.username, null);
   }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: {
+        id: true, email: true, role: true, username: true,
+        passwordHash: true, managedCompanyId: true,
+      },
     });
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
@@ -59,7 +63,7 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    return this.signToken(user.id, user.email, user.role, user.username);
+    return this.signToken(user.id, user.email, user.role, user.username, user.managedCompanyId);
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
@@ -123,6 +127,7 @@ export class AuthService {
         username: true,
         email: true,
         role: true,
+        managedCompanyId: true,
         preferredCurrency: true,
         avatarUrl: true,
         bio: true,
@@ -133,9 +138,9 @@ export class AuthService {
     return user;
   }
 
-  private signToken(id: string, email: string, role: string, username: string) {
-    const payload = { sub: id, email, role, username };
+  private signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
+    const payload = { sub: id, email, role, username, managedCompanyId: managedCompanyId ?? null };
     const token = this.jwt.sign(payload);
-    return { accessToken: token, userId: id, role, username };
+    return { accessToken: token, userId: id, role, username, managedCompanyId: managedCompanyId ?? null };
   }
 }

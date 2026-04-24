@@ -17,6 +17,14 @@ export class CompaniesService {
         logoUrl: dto.logoUrl,
         website: dto.website,
         country: dto.country,
+        defaultCurrency: dto.defaultCurrency,
+        instagram: dto.instagram,
+        threads: dto.threads,
+        tiktok: dto.tiktok,
+        facebook: dto.facebook,
+        x: dto.x,
+        bluesky: dto.bluesky,
+        iossImplemented: dto.iossImplemented ?? false,
       },
     });
   }
@@ -55,6 +63,7 @@ export class CompaniesService {
       where: { slug },
       include: {
         subscriptions: true,
+        collections: true,
         sponsoredSlots: { where: { isActive: true } },
       },
     });

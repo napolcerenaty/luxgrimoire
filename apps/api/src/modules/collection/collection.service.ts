@@ -15,6 +15,7 @@ export class CollectionService {
         include: {
           edition: {
             include: {
+              bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
               book: {
                 include: {
                   authors: { include: { author: true } },
@@ -40,9 +41,8 @@ export class CollectionService {
         userId,
         bookId: edition.bookId,
         editionId: dto.bookEditionId,
-        purchasedAt: dto.acquiredDate ? new Date(dto.acquiredDate) : undefined,
-        source: dto.condition,
-        notes: dto.notes,
+        condition: dto.condition,
+        ownershipStatus: 'OWNED',
       },
     });
   }
@@ -54,9 +54,9 @@ export class CollectionService {
     return this.prisma.userBookEntry.update({
       where: { id: entryId },
       data: {
-        ...(dto.acquiredDate !== undefined && { purchasedAt: new Date(dto.acquiredDate) }),
-        ...(dto.condition !== undefined && { source: dto.condition }),
-        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.condition !== undefined && { condition: dto.condition }),
+        ...(dto.ownershipStatus !== undefined && { ownershipStatus: dto.ownershipStatus }),
+        ...(dto.readingStatus !== undefined && { readingStatus: dto.readingStatus }),
       },
     });
   }

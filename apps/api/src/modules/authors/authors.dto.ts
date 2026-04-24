@@ -12,6 +12,30 @@ export class CreateAuthorDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  nationality?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  twitter?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
 }
 
 export class UpdateAuthorDto {
@@ -26,6 +50,30 @@ export class UpdateAuthorDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  nationality?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  twitter?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
 }
 
 export class AuthorQueryDto {

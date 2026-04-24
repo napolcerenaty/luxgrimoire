@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddTransactionDto, UpdateTransactionDto } from './spending.dto';
+import { FeesService } from '../fees/fees.service';
 
 @Injectable()
 export class SpendingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly feesService: FeesService,
+  ) {}
 
   async getTransactions(userId: string, page = 1, pageSize = 20, currency?: string) {
     const skip = (page - 1) * pageSize;
@@ -57,27 +61,52 @@ export class SpendingService {
 
   async getSpendingStats(userId: string, currency?: string) {
     const where = { userId, ...(currency ? { currency } : {}) };
-    const transactions = await this.prisma.purchaseTransaction.findMany({ where });
-    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const [transactions, fees, discounts, refunds] = await Promise.all([
+      this.prisma.purchaseTransaction.findMany({ where }),
+      this.feesService.getFeesForStats(userId, currency),
+      this.feesService.getDiscountsForStats(userId, currency),
+      this.feesService.getRefundsForStats(userId, currency),
+    ]);
 
     const byYear: Record<number, number> = {};
     const byMonthMap: Record<string, number> = {};
     const now = new Date();
 
-    for (const t of transactions) {
-      const year = t.purchasedAt.getFullYear();
-      byYear[year] = (byYear[year] ?? 0) + t.amount;
+    const processEntry = (amount: number, date: Date) => {
+      const year = date.getFullYear();
+      byYear[year] = (byYear[year] ?? 0) + amount;
 
       const diffMonths =
-        (now.getFullYear() - t.purchasedAt.getFullYear()) * 12 +
-        (now.getMonth() - t.purchasedAt.getMonth());
+        (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
       if (diffMonths >= 0 && diffMonths < 12) {
-        const key = `${t.purchasedAt.getFullYear()}-${String(t.purchasedAt.getMonth() + 1).padStart(2, '0')}`;
-        byMonthMap[key] = (byMonthMap[key] ?? 0) + t.amount;
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        byMonthMap[key] = (byMonthMap[key] ?? 0) + amount;
       }
+    };
+
+    let totalAmount = 0;
+    for (const t of transactions) {
+      const amt = Number(t.amount);
+      totalAmount += amt;
+      processEntry(amt, t.purchasedAt);
+    }
+    for (const f of fees) {
+      const amt = Number(f.amount);
+      totalAmount += amt;
+      processEntry(amt, f.date);
+    }
+    for (const d of discounts) {
+      const amt = -Number(d.amount);
+      totalAmount += amt;
+      processEntry(amt, d.date);
+    }
+    for (const r of refunds) {
+      const amt = -Number(r.amount);
+      totalAmount += amt;
+      processEntry(amt, r.date);
     }
 
-    const byMonth = Object.entries(byMonthMap)
+    const byMonth= Object.entries(byMonthMap)
       .map(([month, amount]) => ({ month, amount }))
       .sort((a, b) => a.month.localeCompare(b.month));
 

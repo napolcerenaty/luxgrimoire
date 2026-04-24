@@ -14,20 +14,32 @@ import {
   Package,
   ShieldCheck,
   Sparkles,
+  Bell,
+  Megaphone,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
-const BASE_LINKS = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/books', label: 'Books', icon: BookOpen },
-  { href: '/admin/authors', label: 'Authors', icon: Users },
-  { href: '/admin/artists', label: 'Artists', icon: Brush },
-  { href: '/admin/editions', label: 'Editions', icon: Layers },
-  { href: '/admin/companies', label: 'Companies', icon: Building2 },
+const COMPANY_MANAGER_LINKS = [
+  { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
   { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+  { href: '/admin/books', label: 'Books', icon: BookOpen },
+  { href: '/admin/editions', label: 'Editions', icon: Layers },
 ]
 
-const ADMIN_ONLY_LINKS = [
+const MODERATOR_LINKS = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
+  { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+  { href: '/admin/books', label: 'Books', icon: BookOpen },
+  { href: '/admin/editions', label: 'Editions', icon: Layers },
+  { href: '/admin/authors', label: 'Authors', icon: Users },
+  { href: '/admin/artists', label: 'Artists', icon: Brush },
+  { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
+  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+]
+
+const ADMIN_LINKS = [
+  ...MODERATOR_LINKS,
   { href: '/admin/users', label: 'Users', icon: ShieldCheck },
   { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
 ]
@@ -38,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
 
   const isAuthorized =
-    user?.role === 'ADMIN' || user?.role === 'MODERATOR'
+    user?.role === 'ADMIN' || user?.role === 'MODERATOR' || user?.role === 'COMPANY_MANAGER'
 
   useEffect(() => {
     if (!loading && !isAuthorized) {
@@ -56,10 +68,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!isAuthorized) return null
 
-  const navLinks = [
-    ...BASE_LINKS,
-    ...(user.role === 'ADMIN' ? ADMIN_ONLY_LINKS : []),
-  ]
+  const navLinks =
+    user.role === 'ADMIN' ? ADMIN_LINKS :
+    user.role === 'MODERATOR' ? MODERATOR_LINKS :
+    COMPANY_MANAGER_LINKS
 
   return (
     <div className="flex min-h-screen bg-stone-950">

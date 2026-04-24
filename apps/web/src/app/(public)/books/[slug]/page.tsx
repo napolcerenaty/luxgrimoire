@@ -5,6 +5,10 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
+import { AddEditionForm } from '@/components/books/AddEditionForm'
+import { ArtistLink } from '@/components/ui/ArtistLink'
+import { EditionCard } from '@/components/books/EditionCard'
+import { BookBundleInfo } from '@/components/books/BookBundleInfo'
 import type { ApiBook } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -85,10 +89,14 @@ export default async function BookPage({ params }: Props) {
         {/* Info */}
         <div>
           {book.seriesName && (
-            <p className="text-sm text-amber-500 mb-2 font-medium">
+            <Link
+              href={`/books?series=${encodeURIComponent(book.seriesName)}`}
+              className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
+            >
               {book.seriesName}
-              {book.volumeNumber ? ` · Vol. ${book.volumeNumber}` : ''}
-            </p>
+              {book.volumeNumber ? ` #${book.volumeNumber}` : ''}
+              <span className="ml-1 text-xs text-stone-500">→ series</span>
+            </Link>
           )}
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3 leading-tight">
             {book.title}
@@ -132,63 +140,46 @@ export default async function BookPage({ params }: Props) {
       </div>
 
       {/* Editions */}
-      {editions.length > 0 && (
-        <section className="mt-16">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Editions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {editions.map((edition) => {
-              const editionCover = cloudinaryUrl(edition.coverImage, 'w_400,c_fill,q_auto,f_auto')
-              return (
-                <div
-                  key={edition.id}
-                  className="rounded-xl bg-stone-900 border border-stone-800 overflow-hidden"
-                >
-                  {editionCover && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={editionCover}
-                      alt={`${book.title} – ${edition.publisher ?? 'Edition'}`}
-                      className="w-full aspect-[3/2] object-cover"
-                    />
-                  )}
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      {edition.isSpecial && <Badge variant="warning">Special</Badge>}
-                      {edition.format && <Badge variant="outline">{edition.format}</Badge>}
-                    </div>
-                    {edition.publisher && (
-                      <p className="font-semibold text-stone-100 text-sm">{edition.publisher}</p>
-                    )}
-                    {edition.publishYear && (
-                      <p className="text-xs text-stone-400 mt-0.5">{edition.publishYear}</p>
-                    )}
-                    {edition.artists.length > 0 && (
-                      <p className="text-xs text-stone-500 mt-2">
-                        Art by{' '}
-                        {edition.artists.map((a, i) => (
-                          <span key={a.artist.id}>
-                            {i > 0 && ', '}
-                            <Link
-                              href={`/artists/${a.artist.slug}`}
-                              className="text-amber-500 hover:underline"
-                            >
-                              {a.artist.name}
-                            </Link>
-                            {a.role ? ` (${a.role})` : ''}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                    {edition.notes && (
-                      <p className="text-xs text-stone-500 mt-2 italic">{edition.notes}</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+      <section className="mt-16">
+        <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
+          Editions
+          {editions.length > 0 && (
+            <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
+          )}
+        </h2>
+        {editions.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {editions.map((edition) => (
+              <EditionCard
+                key={edition.id}
+                href={`/books/${book.slug}`}
+                coverImage={edition.coverImage}
+                companyName={(edition as any).bookBoxCompany?.name}
+                seriesName={book.seriesName}
+                volumeNumber={book.volumeNumber}
+                title={book.title}
+                authors={book.authors}
+                unverified={!edition.verifiedAt}
+                footer={
+                  edition.artists?.length > 0 ? (
+                    <p className="text-[11px] text-stone-500 flex flex-wrap gap-x-1 items-center mt-1">
+                      {edition.artists.map((a: any, i: number) => (
+                        <span key={a.artist.id} className="flex items-center gap-x-0.5">
+                          {i > 0 && <span className="text-stone-600">,</span>}
+                          <ArtistLink artist={a.artist} />
+                          {a.role ? <span className="text-stone-600 text-[10px]"> ({a.role})</span> : null}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null
+                }
+              />
+            ))}
           </div>
-        </section>
-      )}
+        )}
+        <AddEditionForm bookId={book.id} bookSlug={book.slug} />
+      </section>
+      <BookBundleInfo editionIds={editions.map(e => e.id)} />
       <ReviewsSection bookId={book.id} />
     </div>
   )

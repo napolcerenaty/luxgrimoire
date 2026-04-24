@@ -10,7 +10,18 @@ export class AuthorsService {
   async create(dto: CreateAuthorDto) {
     const slug = generateSlug(dto.name);
     return this.prisma.author.create({
-      data: { slug, name: dto.name, bio: dto.bio, photoUrl: dto.photoUrl },
+      data: {
+        slug,
+        name: dto.name,
+        bio: dto.bio,
+        photoUrl: dto.photoUrl,
+        nationality: dto.nationality,
+        website: dto.website,
+        instagram: dto.instagram,
+        twitter: dto.twitter,
+        facebook: dto.facebook,
+        tiktok: dto.tiktok,
+      },
     });
   }
 

@@ -10,7 +10,18 @@ export class ArtistsService {
   async create(dto: CreateArtistDto) {
     const slug = generateSlug(dto.name);
     return this.prisma.artist.create({
-      data: { slug, name: dto.name, bio: dto.bio, photoUrl: dto.photoUrl },
+      data: {
+        slug,
+        name: dto.name,
+        bio: dto.bio,
+        photoUrl: dto.photoUrl,
+        specialty: dto.specialty,
+        website: dto.website,
+        instagram: dto.instagram,
+        twitter: dto.twitter,
+        facebook: dto.facebook,
+        tiktok: dto.tiktok,
+      },
     });
   }
 
@@ -43,13 +54,35 @@ export class ArtistsService {
       include: {
         contributions: {
           include: {
-            edition: { include: { book: true } },
+            edition: {
+              include: {
+                book: { include: { authors: { include: { author: true } } } },
+                bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+              },
+            },
           },
         },
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return artist;
+
+    // Flatten book.authors join-table rows → flat ApiAuthor[]
+    const flatContributions = artist.contributions.map((c) => ({
+      ...c,
+      edition: {
+        ...c.edition,
+        book: c.edition.book
+          ? {
+              ...c.edition.book,
+              authors: c.edition.book.authors.map(
+                (ba: { author: unknown }) => ba.author,
+              ),
+            }
+          : c.edition.book,
+      },
+    }));
+
+    return { ...artist, contributions: flatContributions };
   }
 
   async update(slug: string, dto: UpdateArtistDto) {

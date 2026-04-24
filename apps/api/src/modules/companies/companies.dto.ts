@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCompanyDto {
@@ -20,6 +20,38 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  threads?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  x?: string;
+
+  @IsOptional()
+  @IsString()
+  bluesky?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  iossImplemented?: boolean;
 }
 
 export class UpdateCompanyDto {
@@ -42,6 +74,38 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @IsOptional()
+  @IsString()
+  threads?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktok?: string;
+
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  x?: string;
+
+  @IsOptional()
+  @IsString()
+  bluesky?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  iossImplemented?: boolean;
 }
 
 export class CompanyQueryDto {

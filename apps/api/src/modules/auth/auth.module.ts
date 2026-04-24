@@ -11,9 +11,11 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'dev-secret',
-      signOptions: { expiresIn: '7d' },
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET ?? 'dev-secret',
+        signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as any },
+      }),
     }),
   ],
   controllers: [AuthController],

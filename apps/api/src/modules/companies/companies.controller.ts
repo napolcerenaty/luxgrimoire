@@ -7,16 +7,22 @@ import {
   Param,
   Body,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('companies')
 @Controller('companies')
 export class CompaniesController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(
+    private readonly companiesService: CompaniesService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Public()
   @Get()
@@ -33,21 +39,37 @@ export class CompaniesController {
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
   @Post()
-  create(@Body() dto: CreateCompanyDto) {
-    return this.companiesService.create(dto);
+  async create(@Body() dto: CreateCompanyDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.companiesService.create(dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_COMPANY', entityType: 'company', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
-  update(@Param('slug') slug: string, @Body() dto: UpdateCompanyDto) {
-    return this.companiesService.update(slug, dto);
+  async update(
+    @Param('slug') slug: string,
+    @Body() dto: UpdateCompanyDto,
+    @CurrentUser() user: { id: string; username: string; role: string; managedCompanyId: string | null },
+  ) {
+    if (user.role === 'COMPANY_MANAGER') {
+      const company = await this.companiesService.findBySlug(slug);
+      if (company.id !== user.managedCompanyId) {
+        throw new ForbiddenException('You can only manage your own company');
+      }
+    }
+    const result = await this.companiesService.update(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_COMPANY', entityType: 'company', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN')
   @Delete(':slug')
-  delete(@Param('slug') slug: string) {
-    return this.companiesService.delete(slug);
+  async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.companiesService.delete(slug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_COMPANY', entityType: 'company', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 }

@@ -4,7 +4,11 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import type { ApiSubscription } from '@luxgrimoire/shared-types'
+import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import SkipStatusPanel from '@/components/SkipStatusPanel'
+import MonthCard from '@/components/subscriptions/MonthCard'
+import WaitlistButton from '@/components/subscriptions/WaitlistButton'
+import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -32,6 +36,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+function getMainBook(monthData: ApiSubscriptionMonth) {
+  const mb = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
+  if (!mb) return null
+  return {
+    slug: mb.book.slug,
+    title: mb.book.title,
+    coverImage: mb.book.coverImage ?? null,
+    edition: mb.edition ? {
+      slug: mb.edition.slug ?? null,
+      coverImage: mb.edition.coverImage ?? null,
+    } : null,
+  }
+}
+
 export default async function SubscriptionPage({ params }: Props) {
   const { slug } = await params
 
@@ -43,10 +61,24 @@ export default async function SubscriptionPage({ params }: Props) {
   }
 
   const coverUrl = cloudinaryUrl(sub.coverImage, 'w_800,c_fill,q_auto,f_auto')
+
+  // Sort months newest first
   const months = (sub.months ?? []).sort((a, b) => {
     if (b.year !== a.year) return b.year - a.year
     return b.month - a.month
   })
+
+  const now = new Date()
+  const currentMonth = months.find(
+    (m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1,
+  )
+  const upcomingMonth = months.find(
+    (m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1),
+  )
+
+  // Exclude featured months from "All Boxes" grid
+  const featuredIds = new Set([currentMonth?.id, upcomingMonth?.id].filter(Boolean))
+  const allBoxMonths = months.filter((m) => !featuredIds.has(m.id))
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
@@ -68,7 +100,8 @@ export default async function SubscriptionPage({ params }: Props) {
         </Link>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-10 mb-12">
+      {/* Header */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-10 mb-12">
         <div>
           <div className="flex items-center gap-3 flex-wrap mb-3">
             {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
@@ -89,118 +122,227 @@ export default async function SubscriptionPage({ params }: Props) {
             {sub.startDate && <span>Started: {sub.startDate.slice(0, 7)}</span>}
             {sub.endDate && <span>Ended: {sub.endDate.slice(0, 7)}</span>}
           </div>
+
+          <div className="mt-6">
+            <SkipStatusPanel subscriptionSlug={sub.slug} months={months} />
+            <WaitlistButton subscriptionSlug={sub.slug} />
+          </div>
         </div>
 
-        {coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={coverUrl}
-            alt={sub.name}
-            className="rounded-xl shadow-xl w-full object-cover"
+        <div className="flex flex-col gap-4">
+          {coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt={sub.name}
+              className="rounded-xl shadow-xl w-full object-cover max-h-80 md:max-h-none"
+            />
+          )}
+          <SubscriptionInfoPanel
+            subscriptionSlug={sub.slug}
+            price={sub.price}
+            currency={sub.currency}
+            type={sub.type}
+            shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
+            country={sub.company?.country ?? null}
+            skipPolicy={sub.skipPolicy}
           />
-        )}
+        </div>
       </div>
 
-      {/* Months */}
-      {months.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            Past Boxes ({months.length})
-          </h2>
-          <div className="space-y-8">
-            {months.map((monthData) => {
-              const monthCover = cloudinaryUrl(monthData.coverImage, 'w_400,c_fill,q_auto,f_auto')
-              const monthName = MONTH_NAMES[monthData.month - 1]
-              const mainBooks = monthData.books.filter((b) => b.isMainBook)
-              const extras = monthData.books.filter((b) => !b.isMainBook)
-
-              return (
-                <div
-                  key={monthData.id}
-                  className="rounded-xl bg-stone-900 border border-stone-800 overflow-hidden"
-                >
-                  <div className="flex flex-col sm:flex-row gap-0">
-                    {monthCover && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={monthCover}
-                        alt={`${monthName} ${monthData.year}`}
-                        className="w-full sm:w-48 h-40 sm:h-auto object-cover shrink-0"
-                      />
-                    )}
-                    <div className="p-5 flex-1">
-                      <div className="flex items-center gap-3 flex-wrap mb-3">
-                        <h3 className="font-serif text-lg font-semibold text-amber-400">
-                          {monthName} {monthData.year}
-                        </h3>
-                        {monthData.theme && (
-                          <Badge variant="outline">{monthData.theme}</Badge>
-                        )}
-                        {monthData.isSpoiler && (
-                          <Badge variant="warning">Spoiler</Badge>
-                        )}
-                      </div>
-
-                      {mainBooks.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2 font-medium">
-                            Main Book
-                          </p>
-                          {mainBooks.map((mb) => (
-                            <Link
-                              key={mb.bookId}
-                              href={`/books/${mb.book.slug}`}
-                              className="flex items-center gap-3 group"
-                            >
-                              {cloudinaryUrl(mb.book.coverImage, 'w_60,c_fill,q_auto,f_auto') && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={cloudinaryUrl(mb.book.coverImage, 'w_60,c_fill,q_auto,f_auto')!}
-                                  alt={mb.book.title}
-                                  className="w-10 h-14 rounded object-cover shrink-0"
-                                />
-                              )}
-                              <div>
-                                <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
-                                  {mb.book.title}
-                                </p>
-                                {(mb.book.authors?.length ?? 0) > 0 && (
-                                  <p className="text-xs text-stone-400">
-                                    {mb.book.authors.map((a: { author: { name: string } }) => a.author.name).join(', ')}
-                                  </p>
-                                )}
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-
-                      {extras.length > 0 && (
-                        <div>
-                          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2 font-medium">
-                            Extras
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {extras.map((eb) => (
-                              <Link
-                                key={eb.bookId}
-                                href={`/books/${eb.book.slug}`}
-                                className="text-xs text-stone-400 hover:text-amber-400 transition-colors"
-                              >
-                                {eb.book.title}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+      {/* Featured months (current + upcoming) */}
+      {(currentMonth || upcomingMonth) && (
+        <section className="mb-12">
+          <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
+            {currentMonth && (
+              <FeaturedMonthCard
+                label="Current Month"
+                labelVariant="current"
+                monthData={currentMonth}
+              />
+            )}
+            {upcomingMonth && (
+              <FeaturedMonthCard
+                label="Upcoming Theme"
+                labelVariant="upcoming"
+                monthData={upcomingMonth}
+              />
+            )}
           </div>
         </section>
       )}
+
+      {/* All months grid — excludes featured */}
+      {allBoxMonths.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
+            All Boxes ({months.length})
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {allBoxMonths.map((m) => (
+              <MonthCard
+                key={m.id}
+                year={m.year}
+                month={m.month}
+                monthName={MONTH_NAMES[m.month - 1]}
+                theme={m.theme}
+                coverImage={m.coverImage}
+                mainBook={getMainBook(m)}
+                isSpoiler={m.isSpoiler}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+// ── Featured month card (server component, CSS-only hover) ───────────────────
+
+interface FeaturedMonthCardProps {
+  label: string
+  labelVariant: 'current' | 'upcoming'
+  monthData: ApiSubscriptionMonth
+}
+
+function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCardProps) {
+  const monthName = MONTH_NAMES[monthData.month - 1]
+  // No c_fill — let contain work properly
+  const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
+  const mainBook = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
+  const bookCoverUrl = cloudinaryUrl(
+    mainBook?.edition?.coverImage ?? mainBook?.book?.coverImage ?? null,
+    'w_600,c_fill,q_auto,f_auto',
+  )
+
+  const imageArea = (
+    <div className="group relative overflow-hidden aspect-[16/9] bg-stone-950 cursor-pointer">
+      {coverUrl ? (
+        <>
+          {/* Blurred background fill — eliminates hard letterboxing */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-0"
+          />
+          {/* Main image — contained, no crop */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt={`${monthName} ${monthData.year}`}
+            className="relative z-10 w-full h-full object-contain transition-opacity duration-300 group-hover:opacity-0"
+          />
+        </>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-stone-600 text-sm">
+          No image
+        </div>
+      )}
+
+      {/* Hover: book cover — blurred bg fill + contained foreground */}
+      {bookCoverUrl && (
+        <div className="absolute inset-0 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          {/* Blurred background fill */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bookCoverUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50"
+          />
+          {/* Contained foreground — no crop */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bookCoverUrl}
+            alt={mainBook?.book?.title ?? ''}
+            className="relative z-10 w-full h-full object-contain"
+          />
+        </div>
+      )}
+
+      {/* Hover overlay with title */}
+      <div className="absolute inset-0 z-30 flex items-center justify-center bg-stone-950/65 px-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        {mainBook ? (
+          <p className="text-stone-100 text-sm font-serif font-semibold text-center leading-snug line-clamp-4">
+            {mainBook.book.title}
+          </p>
+        ) : (
+          <p className="text-stone-400 text-xs text-center italic">Book details coming soon</p>
+        )}
+      </div>
+
+      {/* Label badge */}
+      <div className="absolute top-3 left-3 z-40">
+        <span
+          className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
+            labelVariant === 'current'
+              ? 'bg-amber-500 text-stone-950'
+              : 'bg-stone-700 text-amber-400 border border-amber-700/50'
+          }`}
+        >
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors">
+      {mainBook ? (
+        <Link href={mainBook.edition?.slug ? `/editions/${mainBook.edition.slug}` : `/books/${mainBook.book.slug}`}>{imageArea}</Link>
+      ) : (
+        imageArea
+      )}
+
+      <div className="p-5">
+        <p className="text-stone-100 font-serif font-bold text-lg mb-1">
+          {monthName} {monthData.year}
+        </p>
+
+        {monthData.theme ? (
+          <p className="text-stone-200 text-sm font-serif italic mb-3">{monthData.theme}</p>
+        ) : (
+          <p className="text-stone-500 text-sm italic mb-3">Theme not announced yet</p>
+        )}
+
+        {/* Main book info below image */}
+        {mainBook ? (
+          <Link
+            href={`/books/${mainBook.book.slug}`}
+            className="flex items-center gap-3 group mt-2"
+          >
+            {cloudinaryUrl(mainBook.book.coverImage, 'w_80,c_fill,q_auto,f_auto') && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cloudinaryUrl(mainBook.book.coverImage, 'w_80,c_fill,q_auto,f_auto')!}
+                alt={mainBook.book.title}
+                className="w-10 h-14 rounded object-cover shrink-0"
+              />
+            )}
+            <div>
+              <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors line-clamp-2">
+                {mainBook.book.title}
+              </p>
+              {(mainBook.book.authors?.length ?? 0) > 0 && (
+                <p className="text-xs text-stone-400 mt-0.5">
+                  {mainBook.book.authors
+                    .map((a) => (a as unknown as { author: { name: string } }).author?.name ?? (a as unknown as { name: string }).name)
+                    .join(', ')}
+                </p>
+              )}
+            </div>
+          </Link>
+        ) : (
+          <p className="text-stone-500 text-xs italic mt-2">Book details coming soon</p>
+        )}
+
+        {monthData.isSpoiler && (
+          <Badge variant="warning" className="mt-2">Spoiler</Badge>
+        )}
+      </div>
     </div>
   )
 }

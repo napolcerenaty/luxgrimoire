@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+@import "tailwindcss";
 
 @theme {
   /* Remap stone palette → deep navy (matches old-approach) */
@@ -16,10 +16,17 @@
   --color-stone-50:  #f0f7fc;
 
   /* Remap amber palette → cyan-blue accent (matches old-approach) */
+  --color-amber-50:  #e8f6fb;
+  --color-amber-100: #cceaf4;
+  --color-amber-200: #a0d8ec;
+  --color-amber-300: #6ec5e0;
   --color-amber-400: #4ab8d8;
   --color-amber-500: #2a9ec4;
   --color-amber-600: #1a82a8;
-  --color-amber-700: #183858;
+  --color-amber-700: #196480;
+  --color-amber-800: #0d4055;
+  --color-amber-900: #072030;
+  --color-amber-950: #040f18;
 
   /* Fonts */
   --font-sans:  'Crimson Text', Georgia, serif;
@@ -28,16 +35,94 @@
 
 /* CSS vars for direct usage */
 :root {
-  --bg:          #050810;
-  --bg-surface:  #070f1c;
-  --bg-card:     #0a1828;
-  --bg-raised:   #0d1f35;
-  --border:      #183858;
-  --border-dim:  #0d2840;
-  --text:        #c0e4f4;
-  --text-bright: #e8f4ff;
-  --text-dim:    #7ab0cc;
-  --accent:      #2a9ec4;
+  --bg:            #050810;
+  --bg-surface:    #070f1c;
+  --bg-card:       #0a1828;
+  --bg-raised:     #0d1f35;
+  --border:        #183858;
+  --border-dim:    #0d2840;
+  --text:          #c0e4f4;
+  --text-bright:   #e8f4ff;
+  --text-dim:      #7ab0cc;
+  --text-muted:    #3a7898;
+  --accent:        #2a9ec4;
+  --accent2:       #1a82a8;
   --accent-bright: #4ab8d8;
-  --shadow:      rgba(0,0,0,0.7);
+  --accent-glow:   rgba(0,130,180,0.15);
+  --accent-glow3:  rgba(0,110,160,0.12);
+  --shadow:        rgba(0,0,0,0.7);
+  --grad-header:   linear-gradient(135deg, #060d18 0%, #0d1f35 50%, #060d18 100%);
+}
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Navbar logo glow effect */
+.nav-logo {
+  text-shadow: 0 0 20px rgba(0, 140, 190, 0.4);
+  transition: text-shadow 0.2s ease, color 0.2s ease;
+}
+.nav-logo:hover {
+  color: var(--accent-bright) !important;
+  text-shadow: 0 0 40px rgba(0, 150, 200, 0.65), 0 0 80px rgba(0, 130, 180, 0.3);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(42, 158, 196, 0.3);
+  color: #e8f4ff;
+}
+
+/* ── Light theme ───────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  /* Remap stone palette → light blue-slate */
+  --color-stone-950: #e4edf8;
+  --color-stone-900: #d8e6f4;
+  --color-stone-800: #ccdaf0;
+  --color-stone-700: #b0c8e4;
+  --color-stone-600: #7a9ec0;
+  --color-stone-500: #456a90;
+  --color-stone-400: #1a3a5a;
+  --color-stone-300: #0d2038;
+  --color-stone-200: #081428;
+  --color-stone-100: #040c18;
+  --color-stone-50:  #020810;
+
+  /* Remap amber → deeper cyan (readable on light blue bg) */
+  --color-amber-50:  #002840;
+  --color-amber-100: #003d5c;
+  --color-amber-200: #005278;
+  --color-amber-300: #006898;
+  --color-amber-400: #0878b0;
+  --color-amber-500: #0d5585;
+  --color-amber-600: #0d6898;
+  --color-amber-700: #1a82a8;
+  --color-amber-800: #2a9ec4;
+  --color-amber-900: #6ec5e0;
+  --color-amber-950: #cceaf4;
+
+  /* CSS vars */
+  --bg:            #e4edf8;
+  --bg-surface:    #d8e6f4;
+  --bg-card:       #ccdaf0;
+  --bg-raised:     #c0d0e8;
+  --border:        #9ab8d8;
+  --border-dim:    #b0cce4;
+  --text:          #0d1f35;
+  --text-bright:   #040c18;
+  --text-dim:      #1a3a5a;
+  --text-muted:    #1a6888;
+  --accent:        #0d5585;
+  --accent2:       #0878b0;
+  --accent-bright: #1a82a8;
+  --accent-glow:   rgba(0, 100, 160, 0.15);
+  --accent-glow3:  rgba(0, 80, 140, 0.10);
+  --shadow:        rgba(0, 20, 60, 0.10);
+  --grad-header:   linear-gradient(135deg, #c8daf0 0%, #d4e4f8 50%, #c8daf0 100%);
+}
+
+/* Lighter search/input shadow in light mode */
+[data-theme="light"] input,
+[data-theme="light"] .search-box {
+  box-shadow: 0 2px 8px rgba(0, 40, 100, 0.08);
 }

@@ -1,47 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
-import type { ApiBookEdition, PaginatedResponse } from '@luxgrimoire/shared-types'
+import { useAuth } from '@/components/AuthProvider'
+import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+
+import ImageUpload from '@/components/admin/ImageUpload'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
-const FORMAT_OPTIONS = ['STANDARD', 'SPECIAL', 'DELUXE', 'COLLECTORS', 'LIMITED']
-
 interface EditionFormData {
   bookId: string
+  bookBoxCompanyId: string
   publisher: string
   publishYear: string
-  format: string
   coverImage: string
   pageCount: string
   isbn: string
   language: string
 }
 
-const EMPTY_FORM: EditionFormData = {
-  bookId: '',
-  publisher: '',
-  publishYear: '',
-  format: 'STANDARD',
-  coverImage: '',
-  pageCount: '',
-  isbn: '',
-  language: '',
+interface EditionFormProps {
+  initial: EditionFormData
+  onSubmit: (data: EditionFormData) => void
+  submitting: boolean
+  submitLabel: string
+  lockCompany?: boolean
 }
 
 function editionToForm(edition: ApiBookEdition): EditionFormData {
   return {
     bookId: edition.bookId,
+    bookBoxCompanyId: (edition as ApiBookEdition & { bookBoxCompanyId?: string }).bookBoxCompanyId ?? '',
     publisher: edition.publisher ?? '',
     publishYear: edition.publishYear != null ? String(edition.publishYear) : '',
-    format: edition.format ?? 'STANDARD',
     coverImage: edition.coverImage ?? '',
     pageCount: '',
     isbn: '',
@@ -52,9 +50,9 @@ function editionToForm(edition: ApiBookEdition): EditionFormData {
 function formToPayload(form: EditionFormData) {
   return {
     bookId: form.bookId,
+    bookBoxCompanyId: form.bookBoxCompanyId || undefined,
     publisher: form.publisher || undefined,
     publishYear: form.publishYear ? Number(form.publishYear) : undefined,
-    format: form.format || undefined,
     coverImage: form.coverImage || undefined,
     pageCount: form.pageCount ? Number(form.pageCount) : undefined,
     isbn: form.isbn || undefined,
@@ -62,15 +60,10 @@ function formToPayload(form: EditionFormData) {
   }
 }
 
-interface EditionFormProps {
-  initial: EditionFormData
-  onSubmit: (data: EditionFormData) => void
-  submitting: boolean
-  submitLabel: string
-}
-
-function EditionForm({ initial, onSubmit, submitting, submitLabel }: EditionFormProps) {
+function EditionForm({ initial, onSubmit, submitting, submitLabel, lockCompany }: EditionFormProps) {
   const [form, setForm] = useState<EditionFormData>(initial)
+
+  useEffect(() => { setForm(initial) }, [initial])
 
   const set = (field: keyof EditionFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -88,6 +81,16 @@ function EditionForm({ initial, onSubmit, submitting, submitLabel }: EditionForm
         <label className={LABEL_CLASS}>Book ID</label>
         <input className={INPUT_CLASS} value={form.bookId} onChange={set('bookId')} />
       </div>
+      <div>
+        <label className={LABEL_CLASS}>Book Box Company ID</label>
+        <input
+          className={INPUT_CLASS + (lockCompany ? ' opacity-60 cursor-not-allowed' : '')}
+          value={form.bookBoxCompanyId}
+          onChange={set('bookBoxCompanyId')}
+          readOnly={lockCompany}
+          placeholder={lockCompany ? 'Auto-set to your company' : 'Optional'}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Publisher</label>
@@ -103,20 +106,13 @@ function EditionForm({ initial, onSubmit, submitting, submitLabel }: EditionForm
           />
         </div>
       </div>
-      <div>
-        <label className={LABEL_CLASS}>Format</label>
-        <select className={INPUT_CLASS} value={form.format} onChange={set('format')}>
-          {FORMAT_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className={LABEL_CLASS}>Cover Image (Cloudinary publicId)</label>
-        <input className={INPUT_CLASS} value={form.coverImage} onChange={set('coverImage')} />
-      </div>
+      <ImageUpload
+          label="Cover Image"
+          folder="luxgrimoire/editions"
+          value={form.coverImage}
+          onChange={(id) => setForm((f) => ({ ...f, coverImage: id }))}
+          aspectRatio="2/3"
+        />
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Page Count</label>
@@ -149,23 +145,68 @@ function EditionForm({ initial, onSubmit, submitting, submitLabel }: EditionForm
 
 export default function AdminEditionsPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isManager = user?.role === 'COMPANY_MANAGER'
+  const managedCompanyId = (user as (typeof user & { managedCompanyId?: string }) | null)?.managedCompanyId ?? ''
+
   const [createOpen, setCreateOpen] = useState(false)
   const [editEdition, setEditEdition] = useState<ApiBookEdition | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Filters
+  const [search, setSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [unverifiedOnly, setUnverifiedOnly] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const buildParams = () => {
+    const p = new URLSearchParams({ page: '1', pageSize: '50' })
+    if (debouncedSearch) p.set('search', debouncedSearch)
+    if (unverifiedOnly) p.set('needsVerification', 'true')
+    if (isManager && managedCompanyId) {
+      p.set('companyId', managedCompanyId)
+    } else if (companyFilter) {
+      p.set('companyId', companyFilter)
+    }
+    return p.toString()
+  }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'editions'],
+    queryKey: ['admin', 'editions', debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly],
     queryFn: () =>
-      authFetch<PaginatedResponse<ApiBookEdition> | ApiBookEdition[]>(
-        '/editions?page=1&pageSize=20',
+      authFetch<PaginatedResponse<ApiBookEdition>>(
+        `/editions?${buildParams()}`,
       ),
   })
 
-  const editions = data
-    ? Array.isArray(data)
-      ? data
-      : data.data
+  const editions = data?.data ?? []
+
+  // Companies for filter dropdown (admins/moderators only)
+  const { data: companiesData } = useQuery({
+    queryKey: ['admin', 'companies-list'],
+    queryFn: () => authFetch<PaginatedResponse<ApiBookBoxCompany> | ApiBookBoxCompany[]>('/companies?pageSize=100'),
+    enabled: !isManager,
+  })
+  const companies = companiesData
+    ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
+
+  const emptyForm: EditionFormData = {
+    bookId: '',
+    bookBoxCompanyId: managedCompanyId,
+    publisher: '',
+    publishYear: '',
+    coverImage: '',
+    pageCount: '',
+    isbn: '',
+    language: '',
+  }
 
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
@@ -195,36 +236,80 @@ export default function AdminEditionsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] })
       setDeleteEdition(null)
+      setDeleteError(null)
+    },
+    onError: (err: Error) => {
+      setDeleteError(err.message ?? 'Cannot delete this edition')
     },
   })
 
+  const verifyMutation = useMutation({
+    mutationFn: (slug: string) => authFetch(`/editions/${slug}/verify`, { method: 'POST' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }),
+  })
+
+  const canVerify = user?.role === 'ADMIN' || user?.role === 'MODERATOR'
+
   const columns = [
     {
+      key: 'book',
+      label: 'Book',
+      render: (row: ApiBookEdition) => (
+        <div>
+          <div className="text-stone-100 font-medium">{row.book?.title ?? '—'}</div>
+          {row.book?.seriesName && (
+            <div className="text-stone-500 text-xs">
+              {row.book.seriesName}{row.book.volumeNumber != null ? ` #${row.book.volumeNumber}` : ''}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'authors',
+      label: 'Author(s)',
+      render: (row: ApiBookEdition) => {
+        const authors = row.book?.authors
+        if (!authors?.length) return <span className="text-stone-500">—</span>
+        return <span className="text-stone-300 text-sm">{authors.map((a) => a.name).join(', ')}</span>
+      },
+    },
+    {
       key: 'publisher',
-      label: 'Publisher',
-      render: (row: ApiBookEdition) => row.publisher ?? '—',
+      label: 'Publisher / Edition',
+      render: (row: ApiBookEdition) => (
+        <div>
+          <div className="text-stone-300 text-sm">{row.publisher ?? '—'}</div>
+          {row.publishYear && <div className="text-stone-500 text-xs">{row.publishYear}</div>}
+        </div>
+      ),
     },
     {
-      key: 'publishYear',
-      label: 'Year',
-      render: (row: ApiBookEdition) => row.publishYear ?? '—',
+      key: 'company',
+      label: 'Book Box',
+      render: (row: ApiBookEdition) => row.bookBoxCompany?.name
+        ? <span className="text-amber-400 text-sm">{row.bookBoxCompany.name}</span>
+        : <span className="text-stone-500">—</span>,
     },
     {
-      key: 'format',
-      label: 'Format',
-      render: (row: ApiBookEdition) => row.format ?? '—',
-    },
-    {
-      key: 'coverImage',
-      label: 'Cover',
-      render: (row: ApiBookEdition) =>
-        row.coverImage ? (
-          <span className="text-stone-400 text-xs truncate max-w-[120px] inline-block">
-            {row.coverImage}
-          </span>
-        ) : (
-          '—'
-        ),
+      key: 'verified',
+      label: 'Status',
+      render: (row: ApiBookEdition) => row.verifiedAt ? (
+        <span className="inline-flex items-center gap-1 text-xs text-emerald-400">✓ Verified</span>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">⚠ Unverified</span>
+          {canVerify && (
+            <button
+              onClick={(e) => { e.stopPropagation(); verifyMutation.mutate(row.slug) }}
+              disabled={verifyMutation.isPending}
+              className="text-xs px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-400 hover:bg-emerald-800/60 border border-emerald-700/40 transition-colors disabled:opacity-50"
+            >
+              Verify
+            </button>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -240,23 +325,66 @@ export default function AdminEditionsPage() {
         </button>
       </div>
 
+      {/* Filters */}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <input
+          type="search"
+          placeholder="Search by book, author, publisher…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-72"
+        />
+        {!isManager && (
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+          >
+            <option value="">All Book Boxes</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {(search || companyFilter || unverifiedOnly) && (
+          <button
+            onClick={() => { setSearch(''); setCompanyFilter(''); setUnverifiedOnly(false) }}
+            className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
+          >
+            Clear
+          </button>
+        )}
+        <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer ml-auto">
+          <input
+            type="checkbox"
+            checked={unverifiedOnly}
+            onChange={(e) => setUnverifiedOnly(e.target.checked)}
+            className="accent-amber-400"
+          />
+          Unverified only
+        </label>
+      </div>
+
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
+      ) : editions.length === 0 ? (
+        <div className="text-stone-500 py-8 text-center">No editions found{search || companyFilter ? ' matching your filters' : ''}.</div>
       ) : (
         <DataTable
           columns={columns}
           data={editions}
           onEdit={(row) => setEditEdition(row)}
-          onDelete={(row) => setDeleteEdition(row)}
+          onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
         />
       )}
 
       <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>
         <EditionForm
-          initial={EMPTY_FORM}
+          initial={emptyForm}
           submitLabel="Create Edition"
           submitting={createMutation.isPending}
           onSubmit={(form) => createMutation.mutate(formToPayload(form))}
+          lockCompany={isManager}
         />
       </FormModal>
 
@@ -273,15 +401,16 @@ export default function AdminEditionsPage() {
             onSubmit={(form) =>
               editMutation.mutate({ slug: editEdition.slug, payload: formToPayload(form) })
             }
+            lockCompany={isManager}
           />
         )}
       </FormModal>
 
       <ConfirmDialog
         open={deleteEdition !== null}
-        message={`Delete edition "${deleteEdition?.publisher ?? deleteEdition?.slug}"? This cannot be undone.`}
-        onConfirm={() => deleteEdition && deleteMutation.mutate(deleteEdition.slug)}
-        onCancel={() => setDeleteEdition(null)}
+        message={deleteError ?? `Delete edition "${deleteEdition?.publisher ?? deleteEdition?.slug}"?${isManager ? ' You can only delete editions not in any user\'s collection.' : ' This cannot be undone.'}`}
+        onConfirm={() => !deleteError && deleteEdition && deleteMutation.mutate(deleteEdition.slug)}
+        onCancel={() => { setDeleteEdition(null); setDeleteError(null); }}
       />
     </div>
   )

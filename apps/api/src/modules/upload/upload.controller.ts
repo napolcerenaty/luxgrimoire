@@ -1,7 +1,17 @@
-import { Controller, Post, Delete, Param, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsString, IsOptional } from 'class-validator';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { UploadService } from './upload.service';
+
+class UploadImageDto {
+  @IsString()
+  data!: string; // base64 data URI: "data:image/jpeg;base64,..."
+
+  @IsOptional()
+  @IsString()
+  folder?: string;
+}
 
 @ApiTags('upload')
 @ApiBearerAuth()
@@ -9,17 +19,14 @@ import { UploadService } from './upload.service';
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post('image')
-  async uploadImage(@Req() req: any) {
-    const data = await req.file();
-    if (!data) throw new Error('No file uploaded');
-    const buffer = await data.toBuffer();
-    const folder = (data.fields as Record<string, { value: string }>)?.folder?.value ?? 'uploads';
-    return this.uploadService.uploadImage(buffer, folder);
+  async uploadImage(@Body() dto: UploadImageDto) {
+    const folder = dto.folder ?? 'luxgrimoire/uploads';
+    return this.uploadService.uploadImageBase64(dto.data, folder);
   }
 
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Delete('image/:publicId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteImage(@Param('publicId') publicId: string) {

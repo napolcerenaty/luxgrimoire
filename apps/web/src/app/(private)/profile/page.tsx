@@ -6,6 +6,8 @@ import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Camera, Loader2, Check } from 'lucide-react'
+import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
+import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 
 interface UpdateProfilePayload {
   displayName?: string
@@ -46,6 +48,7 @@ export default function ProfilePage() {
       const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('folder', 'luxgrimoire/avatars')
       const res = await fetch(`${API_BASE}/upload/image`, {
         method: 'POST',
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -230,7 +233,7 @@ export default function ProfilePage() {
       </form>
 
       {/* Change username */}
-      <form onSubmit={handleUsernameSave} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+      <form onSubmit={handleUsernameSave} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4 mb-6">
         <div>
           <h2 className="font-serif font-semibold text-stone-100">Change Username</h2>
           <p className="text-xs text-stone-400 mt-1">
@@ -269,6 +272,11 @@ export default function ProfilePage() {
           )}
         </button>
       </form>
+      {/* Fee Templates */}
+      <FeeTemplateManager />
+
+      {/* Waitlist */}
+      <WaitlistPanel />
     </div>
   )
 }

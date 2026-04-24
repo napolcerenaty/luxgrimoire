@@ -7,6 +7,7 @@ interface AuthUser {
   email: string
   username: string
   role: string
+  managedCompanyId?: string | null
   displayName?: string
   avatar?: string
 }
@@ -34,10 +35,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: AuthUser | null) => {
-        if (data) setUser(data)
-        else localStorage.removeItem('luxgrimoire_token')
+      .then(async (r) => {
+        if (r.ok) {
+          const data: AuthUser = await r.json()
+          setUser(data)
+        } else if (r.status === 401) {
+          // Token truly invalid — remove it
+          localStorage.removeItem('luxgrimoire_token')
+        }
+        // 5xx or other errors: keep the token (server may be restarting)
+      })
+      .catch(() => {
+        // Network error: server is down/restarting — keep the token
       })
       .finally(() => setLoading(false))
   }, [])

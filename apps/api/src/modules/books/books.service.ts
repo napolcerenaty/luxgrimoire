@@ -15,10 +15,13 @@ export class BooksService {
         title: dto.title,
         altTitle: dto.altTitle,
         description: dto.description,
+        coverImage: dto.coverImage,
         language: dto.language ?? 'en',
         isbn: dto.isbn,
         seriesName: dto.seriesName,
         volumeNumber: dto.volumeNumber,
+        genres: dto.genres ?? [],
+        status: dto.status ?? 'approved',
       },
     });
   }
@@ -33,6 +36,9 @@ export class BooksService {
     if (query.seriesName) where.seriesName = query.seriesName;
     if (query.authorId) {
       where.authors = { some: { authorId: query.authorId } };
+    }
+    if (query.genre) {
+      where.genres = { has: query.genre };
     }
     if (query.search) {
       where.OR = [
@@ -55,16 +61,47 @@ export class BooksService {
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
+  async findSeriesNames(search?: string): Promise<string[]> {
+    const books = await this.prisma.book.findMany({
+      where: {
+        seriesName: {
+          not: null,
+          ...(search ? { contains: search, mode: 'insensitive' as const } : {}),
+        },
+      },
+      select: { seriesName: true },
+      distinct: ['seriesName'],
+      orderBy: { seriesName: 'asc' },
+      take: 20,
+    });
+    return books.map(b => b.seriesName).filter(Boolean) as string[];
+  }
+
+  async findGenres(search?: string): Promise<string[]> {
+    // Aggregate all genres arrays and return distinct values
+    const books = await this.prisma.book.findMany({
+      select: { genres: true },
+      where: { genres: { isEmpty: false } },
+    });
+    const all = Array.from(new Set(books.flatMap(b => b.genres)));
+    if (search) {
+      const q = search.toLowerCase();
+      return all.filter(g => g.toLowerCase().includes(q)).sort().slice(0, 30);
+    }
+    return all.sort().slice(0, 50);
+  }
+
   async findBySlug(slug: string) {
     const book = await this.prisma.book.findUnique({
       where: { slug },
       include: {
         authors: { include: { author: true } },
-        editions: { include: { artists: { include: { artist: true } } } },
+        editions: { include: { artists: { include: { artist: true } }, bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } } } },
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);
-    return book;
+    // Flatten authors so response matches ApiBook type
+    return { ...book, authors: book.authors.map(ba => ba.author) };
   }
 
   async update(slug: string, dto: UpdateBookDto) {

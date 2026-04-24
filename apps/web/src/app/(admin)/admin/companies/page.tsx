@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
@@ -12,32 +13,62 @@ const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
+// Common ISO 4217 currencies
+const CURRENCIES = [
+  'AED','AUD','BGN','BRL','CAD','CHF','CNY','CZK','DKK','EGP',
+  'EUR','GBP','HKD','HRK','HUF','IDR','ILS','INR','JPY','KRW',
+  'MAD','MXN','MYR','NOK','NZD','PHP','PLN','RON','RUB','SAR',
+  'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
+]
+
+
+const COUNTRIES = [
+  'Australia','Austria','Belgium','Brazil','Canada','China','Croatia','Czech Republic',
+  'Denmark','Estonia','Finland','France','Germany','Greece','Hungary','Iceland','India',
+  'Ireland','Israel','Italy','Japan','Latvia','Lithuania','Luxembourg','Malta','Mexico',
+  'Netherlands','New Zealand','Norway','Poland','Portugal','Romania','Slovakia','Slovenia',
+  'South Korea','Spain','Sweden','Switzerland','Turkey','Ukraine','United Kingdom',
+  'United States','South Africa',
+].sort()
+
 interface CompanyFormData {
   name: string
   description: string
   country: string
   website: string
   logoUrl: string
+  defaultCurrency: string
+  instagram: string
+  threads: string
+  tiktok: string
+  facebook: string
+  x: string
+  bluesky: string
   iossImplemented: boolean
 }
 
 const EMPTY_FORM: CompanyFormData = {
-  name: '',
-  description: '',
-  country: '',
-  website: '',
-  logoUrl: '',
+  name: '', description: '', country: '', website: '',
+  logoUrl: '', defaultCurrency: '',
+  instagram: '', threads: '', tiktok: '', facebook: '', x: '', bluesky: '',
   iossImplemented: false,
 }
 
-function companyToForm(company: ApiBookBoxCompany): CompanyFormData {
+function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
   return {
-    name: company.name,
-    description: company.description ?? '',
-    country: company.country ?? '',
-    website: company.website ?? '',
-    logoUrl: company.logoUrl ?? '',
-    iossImplemented: false,
+    name: c.name,
+    description: c.description ?? '',
+    country: c.country ?? '',
+    website: c.website ?? '',
+    logoUrl: c.logoUrl ?? '',
+    defaultCurrency: c.defaultCurrency ?? '',
+    instagram: c.instagram ?? '',
+    threads: c.threads ?? '',
+    tiktok: c.tiktok ?? '',
+    facebook: c.facebook ?? '',
+    x: c.x ?? '',
+    bluesky: c.bluesky ?? '',
+    iossImplemented: c.iossImplemented ?? false,
   }
 }
 
@@ -48,6 +79,13 @@ function formToPayload(form: CompanyFormData) {
     country: form.country || undefined,
     website: form.website || undefined,
     logoUrl: form.logoUrl || undefined,
+    defaultCurrency: form.defaultCurrency || undefined,
+    instagram: form.instagram || undefined,
+    threads: form.threads || undefined,
+    tiktok: form.tiktok || undefined,
+    facebook: form.facebook || undefined,
+    x: form.x || undefined,
+    bluesky: form.bluesky || undefined,
     iossImplemented: form.iossImplemented,
   }
 }
@@ -61,46 +99,138 @@ interface CompanyFormProps {
 
 function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyFormProps) {
   const [form, setForm] = useState<CompanyFormData>(initial)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    initial.logoUrl ? `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload/w_120,h_120,c_fill/${initial.logoUrl}` : null
+  )
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const set = (field: keyof CompanyFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/book-boxes' }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json() as { publicId: string; url: string }
+      setForm((f) => ({ ...f, logoUrl: json.publicId }))
+      setPreviewUrl(json.url)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSubmit(form)
-      }}
-      className="flex flex-col gap-4"
-    >
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
+      {/* Name */}
       <div>
         <label className={LABEL_CLASS}>Name *</label>
         <input required className={INPUT_CLASS} value={form.name} onChange={set('name')} />
       </div>
+
+      {/* Description */}
       <div>
         <label className={LABEL_CLASS}>Description</label>
-        <textarea
-          rows={3}
-          className={INPUT_CLASS}
-          value={form.description}
-          onChange={set('description')}
-        />
+        <textarea rows={3} className={INPUT_CLASS} value={form.description} onChange={set('description')} />
       </div>
+
+      {/* Country + Currency */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Country</label>
-          <input className={INPUT_CLASS} value={form.country} onChange={set('country')} />
+          <select className={INPUT_CLASS} value={form.country} onChange={set('country')}>
+            <option value="">— Select country —</option>
+            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div>
-          <label className={LABEL_CLASS}>Website</label>
-          <input className={INPUT_CLASS} value={form.website} onChange={set('website')} />
+          <label className={LABEL_CLASS}>Default Currency</label>
+          <input
+            className={INPUT_CLASS}
+            placeholder="EUR"
+            list="currencies-list"
+            value={form.defaultCurrency}
+            onChange={set('defaultCurrency')}
+          />
+          <datalist id="currencies-list">
+            {CURRENCIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </div>
       </div>
+
+      {/* Website */}
       <div>
-        <label className={LABEL_CLASS}>Logo Image (Cloudinary publicId)</label>
-        <input className={INPUT_CLASS} value={form.logoUrl} onChange={set('logoUrl')} />
+        <label className={LABEL_CLASS}>Website</label>
+        <input type="url" className={INPUT_CLASS} placeholder="https://..." value={form.website} onChange={set('website')} />
       </div>
+
+      {/* Logo upload */}
+      <div>
+        <label className={LABEL_CLASS}>Logo</label>
+        <div className="flex items-center gap-4">
+          {previewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover border border-stone-700" />
+          )}
+          <div className="flex-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
+            >
+              {uploading ? 'Uploading…' : previewUrl ? 'Change image' : 'Upload image'}
+            </button>
+            {form.logoUrl && <p className="text-xs text-stone-500 mt-1 truncate">{form.logoUrl}</p>}
+            {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
+          </div>
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+      </div>
+
+      {/* Social media */}
+      <div>
+        <p className="text-sm text-stone-400 font-semibold mb-2">Social Media</p>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { field: 'instagram', placeholder: 'https://instagram.com/...' },
+            { field: 'threads',   placeholder: 'https://threads.net/...' },
+            { field: 'tiktok',    placeholder: 'https://tiktok.com/...' },
+            { field: 'facebook',  placeholder: 'https://facebook.com/...' },
+            { field: 'x',        placeholder: 'https://x.com/...' },
+            { field: 'bluesky',   placeholder: 'https://bsky.app/...' },
+          ] as { field: keyof CompanyFormData; placeholder: string }[]).map(({ field, placeholder }) => (
+            <div key={field}>
+              <label className={LABEL_CLASS}>{field.charAt(0).toUpperCase() + field.slice(1)}</label>
+              <input className={INPUT_CLASS} placeholder={placeholder} value={form[field] as string} onChange={set(field)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* IOSS */}
       <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
         <input
           type="checkbox"
@@ -110,9 +240,10 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
         />
         IOSS Implemented
       </label>
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || uploading}
         className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
@@ -123,79 +254,58 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
 
 export default function AdminCompaniesPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isManager = user?.role === 'COMPANY_MANAGER'
   const [createOpen, setCreateOpen] = useState(false)
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'companies'],
-    queryFn: () =>
-      authFetch<PaginatedResponse<ApiBookBoxCompany> | ApiBookBoxCompany[]>(
-        '/companies?page=1&pageSize=20',
-      ),
+    queryFn: () => authFetch<PaginatedResponse<ApiBookBoxCompany> | ApiBookBoxCompany[]>('/companies?page=1&pageSize=50'),
   })
 
-  const companies = data
-    ? Array.isArray(data)
-      ? data
-      : data.data
-    : []
+  const allCompanies = data ? (Array.isArray(data) ? data : data.data) : []
+  const companies = isManager && user?.managedCompanyId
+    ? allCompanies.filter((c) => c.id === user.managedCompanyId)
+    : allCompanies
 
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
       authFetch('/companies', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
-      setCreateOpen(false)
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setCreateOpen(false) },
   })
 
   const editMutation = useMutation({
-    mutationFn: ({
-      slug,
-      payload,
-    }: {
-      slug: string
-      payload: ReturnType<typeof formToPayload>
-    }) => authFetch(`/companies/${slug}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
-      setEditCompany(null)
-    },
+    mutationFn: ({ slug, payload }: { slug: string; payload: ReturnType<typeof formToPayload> }) =>
+      authFetch(`/companies/${slug}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setEditCompany(null) },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => authFetch(`/companies/${slug}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
-      setDeleteCompany(null)
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setDeleteCompany(null) },
   })
 
   const columns = [
-    { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => row.name },
     {
-      key: 'country',
-      label: 'Country',
-      render: (row: ApiBookBoxCompany) => row.country ?? '—',
+      key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
+        row.logoUrl
+          ? <img src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload/w_40,h_40,c_fill/${row.logoUrl}`} alt="" className="w-9 h-9 rounded object-cover" />
+          : <div className="w-9 h-9 rounded bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">{row.name.charAt(0)}</div>,
+    },
+    { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-stone-200">{row.name}</span> },
+    { key: 'country', label: 'Country', render: (row: ApiBookBoxCompany) => row.country ?? '—' },
+    {
+      key: 'website', label: 'Website', render: (row: ApiBookBoxCompany) =>
+        row.website
+          ? <a href={row.website} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline text-xs">{row.website.replace(/^https?:\/\//, '')}</a>
+          : '—',
     },
     {
-      key: 'website',
-      label: 'Website',
-      render: (row: ApiBookBoxCompany) => {
-        if (!row.website) return '—'
-        const truncated =
-          row.website.length > 30 ? `${row.website.slice(0, 30)}…` : row.website
-        return (
-          <a
-            href={row.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-amber-400 hover:underline"
-          >
-            {truncated}
-          </a>
-        )
+      key: 'social', label: 'Social', render: (row: ApiBookBoxCompany) => {
+        const links = [row.instagram, row.tiktok, row.x, row.bluesky, row.threads, row.facebook].filter(Boolean)
+        return <span className="text-stone-500 text-xs">{links.length ? `${links.length} link${links.length > 1 ? 's' : ''}` : '—'}</span>
       },
     },
   ]
@@ -203,58 +313,45 @@ export default function AdminCompaniesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Companies</h1>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
-        >
-          Add Company
-        </button>
+        <h1 className="text-2xl font-bold text-stone-100">Book Boxes</h1>
+        {!isManager && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          >
+            Add Book Box
+          </button>
+        )}
       </div>
 
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={companies}
-          onEdit={(row) => setEditCompany(row)}
-          onDelete={(row) => setDeleteCompany(row)}
-        />
+        <DataTable columns={columns} data={companies} onEdit={(row) => setEditCompany(row)} onDelete={isManager ? undefined : (row) => setDeleteCompany(row)} />
       )}
 
-      <FormModal open={createOpen} title="Add Company" onClose={() => setCreateOpen(false)}>
-        <CompanyForm
-          initial={EMPTY_FORM}
-          submitLabel="Create Company"
-          submitting={createMutation.isPending}
-          onSubmit={(form) => createMutation.mutate(formToPayload(form))}
-        />
+      <FormModal open={createOpen} title="Add Book Box" onClose={() => setCreateOpen(false)}>
+        <CompanyForm initial={EMPTY_FORM} submitLabel="Create Book Box" submitting={createMutation.isPending} onSubmit={(form) => createMutation.mutate(formToPayload(form))} />
       </FormModal>
 
-      <FormModal
-        open={editCompany !== null}
-        title="Edit Company"
-        onClose={() => setEditCompany(null)}
-      >
+      <FormModal open={editCompany !== null} title="Edit Book Box" onClose={() => setEditCompany(null)}>
         {editCompany && (
           <CompanyForm
             initial={companyToForm(editCompany)}
             submitLabel="Save Changes"
             submitting={editMutation.isPending}
-            onSubmit={(form) =>
-              editMutation.mutate({ slug: editCompany.slug, payload: formToPayload(form) })
-            }
+            onSubmit={(form) => editMutation.mutate({ slug: editCompany.slug, payload: formToPayload(form) })}
           />
         )}
       </FormModal>
 
       <ConfirmDialog
         open={deleteCompany !== null}
-        message={`Delete company "${deleteCompany?.name}"? This cannot be undone.`}
+        message={`Delete "${deleteCompany?.name}"? This cannot be undone.`}
         onConfirm={() => deleteCompany && deleteMutation.mutate(deleteCompany.slug)}
         onCancel={() => setDeleteCompany(null)}
       />
     </div>
   )
 }
+

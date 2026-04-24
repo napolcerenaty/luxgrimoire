@@ -12,11 +12,16 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthorsService } from './authors.service';
 import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('authors')
 @Controller('authors')
 export class AuthorsController {
-  constructor(private readonly authorsService: AuthorsService) {}
+  constructor(
+    private readonly authorsService: AuthorsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Public()
   @Get()
@@ -31,23 +36,29 @@ export class AuthorsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
-  create(@Body() dto: CreateAuthorDto) {
-    return this.authorsService.create(dto);
+  async create(@Body() dto: CreateAuthorDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.authorsService.create(dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_AUTHOR', entityType: 'author', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
   @Patch(':slug')
-  update(@Param('slug') slug: string, @Body() dto: UpdateAuthorDto) {
-    return this.authorsService.update(slug, dto);
+  async update(@Param('slug') slug: string, @Body() dto: UpdateAuthorDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.authorsService.update(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_AUTHOR', entityType: 'author', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN')
   @Delete(':slug')
-  delete(@Param('slug') slug: string) {
-    return this.authorsService.delete(slug);
+  async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.authorsService.delete(slug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_AUTHOR', entityType: 'author', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 }

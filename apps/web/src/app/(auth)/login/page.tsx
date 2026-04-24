@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/AuthProvider'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 export default function LoginPage() {
   const router = useRouter()
+  const auth = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +34,13 @@ export default function LoginPage() {
         return
       }
 
-      localStorage.setItem('luxgrimoire_token', data.accessToken)
+      // Fetch full user profile to populate AuthProvider state
+      const meRes = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${data.accessToken}` },
+      })
+      const me = meRes.ok ? await meRes.json() : { id: data.userId, email, username: data.username, role: data.role }
+
+      auth.login(data.accessToken, me)
       router.push('/collection')
     } catch {
       setError('Network error. Please try again.')
@@ -44,7 +52,7 @@ export default function LoginPage() {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
-        <h1 className="font-serif italic text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
+        <h1 className="font-serif text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
         <p className="text-stone-400 text-sm">Sign in to your account</p>
       </div>
 

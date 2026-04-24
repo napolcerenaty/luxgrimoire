@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
-import { cloudinaryUrl } from '@/lib/cloudinary'
+import { createPurchaseGroup, getPurchaseGroups } from '@/lib/api'
+import type { ApiPurchaseGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { Plus, Trash2, BookOpen } from 'lucide-react'
+import { EditionCard } from '@/components/books/EditionCard'
+import { Plus, Trash2, BookOpen, Package } from 'lucide-react'
 
 interface CollectionEntry {
   id: string
@@ -20,14 +22,205 @@ interface CollectionEntry {
     publisher: string | null
     publishYear: number | null
     format: string | null
+    bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
       id: string
       title: string
       slug: string
       seriesName: string | null
+      volumeNumber: number | null
       authors: Array<{ id: string; name: string; slug: string }>
     }
   }
+}
+
+interface EditionSearchResult {
+  id: string
+  slug: string
+  coverImage: string | null
+  publisher: string | null
+  publishYear: number | null
+  book: {
+    id: string
+    title: string
+    slug: string
+    authors: Array<{ id: string; name: string; slug: string }>
+  }
+}
+
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const LBL = 'block text-sm text-stone-400 mb-1'
+
+function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const [form, setForm] = useState({
+    title: '',
+    totalAmount: '',
+    currency: 'USD',
+    shippingAmount: '',
+    purchasedAt: new Date().toISOString().slice(0, 10),
+    notes: '',
+  })
+  const [editionSearch, setEditionSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [selectedEditions, setSelectedEditions] = useState<EditionSearchResult[]>([])
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(editionSearch), 300)
+    return () => clearTimeout(t)
+  }, [editionSearch])
+
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ['editions-search', debouncedSearch],
+    queryFn: () =>
+      debouncedSearch.length >= 2
+        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10`).then(r => r.data)
+        : Promise.resolve([]),
+    enabled: debouncedSearch.length >= 2,
+  })
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      createPurchaseGroup({
+        title: form.title || undefined,
+        totalAmount: Number(form.totalAmount),
+        currency: form.currency,
+        shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
+        purchasedAt: form.purchasedAt,
+        notes: form.notes || undefined,
+        editionIds: selectedEditions.map(e => e.id),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
+      setSuccess(true)
+      setTimeout(() => {
+        onClose()
+        setSuccess(false)
+        setForm({ title: '', totalAmount: '', currency: 'USD', shippingAmount: '', purchasedAt: new Date().toISOString().slice(0, 10), notes: '' })
+        setSelectedEditions([])
+        setEditionSearch('')
+      }, 1500)
+    },
+  })
+
+  const addEdition = (ed: EditionSearchResult) => {
+    if (!selectedEditions.find(e => e.id === ed.id)) {
+      setSelectedEditions(prev => [...prev, ed])
+    }
+  }
+
+  const removeEdition = (id: string) => {
+    setSelectedEditions(prev => prev.filter(e => e.id !== id))
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add Bundle">
+      {success ? (
+        <div className="text-center py-6">
+          <div className="text-4xl mb-3">✓</div>
+          <p className="text-green-400 font-semibold">Bundle added to your collection!</p>
+        </div>
+      ) : (
+        <form
+          onSubmit={e => { e.preventDefault(); mutation.mutate() }}
+          className="flex flex-col gap-4"
+        >
+          <div>
+            <label className={LBL}>Bundle Title (optional)</label>
+            <input className={INP} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. BOTM October 2024" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LBL}>Total Amount *</label>
+              <input required type="number" step="0.01" min="0" className={INP} value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LBL}>Currency</label>
+              <input className={INP} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LBL}>Shipping Amount</label>
+              <input type="number" step="0.01" min="0" className={INP} value={form.shippingAmount} onChange={e => setForm(f => ({ ...f, shippingAmount: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LBL}>Purchase Date *</label>
+              <input required type="date" className={INP} value={form.purchasedAt} onChange={e => setForm(f => ({ ...f, purchasedAt: e.target.value }))} />
+            </div>
+          </div>
+
+          <div>
+            <label className={LBL}>Notes</label>
+            <input className={INP} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+
+          {/* Edition search */}
+          <div>
+            <label className={LBL}>Search Editions *</label>
+            <input
+              className={INP}
+              value={editionSearch}
+              onChange={e => setEditionSearch(e.target.value)}
+              placeholder="Search by title, author…"
+            />
+            {searchResults.length > 0 && (
+              <div className="mt-2 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                {searchResults.map(ed => (
+                  <button
+                    key={ed.id}
+                    type="button"
+                    onClick={() => addEdition(ed)}
+                    className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors flex items-center gap-2 text-sm"
+                  >
+                    {ed.coverImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={ed.coverImage} alt="" className="w-8 h-10 object-cover rounded" />
+                    )}
+                    <div>
+                      <p className="text-stone-200">{ed.book.title}</p>
+                      <p className="text-stone-500 text-xs">{ed.publisher ?? ''} {ed.publishYear ?? ''}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Selected editions */}
+          {selectedEditions.length > 0 && (
+            <div>
+              <p className="text-xs text-stone-500 mb-2">{selectedEditions.length} edition{selectedEditions.length !== 1 ? 's' : ''} selected:</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedEditions.map(ed => (
+                  <span key={ed.id} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
+                    {ed.book.title}
+                    <button type="button" onClick={() => removeEdition(ed.id)} className="text-stone-500 hover:text-red-400">×</button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {mutation.isError && (
+            <p className="text-red-400 text-sm">{(mutation.error as Error).message}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={mutation.isPending || selectedEditions.length === 0}
+            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+          >
+            {mutation.isPending ? 'Adding…' : 'Add Bundle'}
+          </button>
+        </form>
+      )}
+    </Modal>
+  )
 }
 
 interface CollectionStats {
@@ -50,17 +243,25 @@ type FilterMode = 'ALL' | 'SERIES' | 'YEAR'
 export default function CollectionPage() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<FilterMode>('ALL')
+  const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [addBundleOpen, setAddBundleOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
-    queryFn: () => authFetch<CollectionEntry[]>('/collection?isWishlist=false'),
+    queryFn: () =>
+      authFetch<{ data: CollectionEntry[]; total: number }>('/collection').then((r) => r.data),
   })
 
   const { data: stats } = useQuery({
     queryKey: ['collection-stats'],
     queryFn: () => authFetch<CollectionStats>('/collection/stats'),
+  })
+
+  const { data: bundles = [] } = useQuery({
+    queryKey: ['purchase-groups'],
+    queryFn: getPurchaseGroups,
   })
 
   const removeMutation = useMutation({
@@ -116,13 +317,22 @@ export default function CollectionPage() {
           <h1 className="text-3xl font-serif font-bold text-stone-100">My Collection</h1>
           <p className="text-stone-400 text-sm mt-1">Your physical book library</p>
         </div>
-        <button
-          onClick={() => setAddModalOpen(true)}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} />
-          Add Book
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAddBundleOpen(true)}
+            className="flex items-center gap-2 bg-stone-700 hover:bg-stone-600 text-stone-100 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+          >
+            <Package size={16} />
+            Add Bundle
+          </button>
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+          >
+            <Plus size={16} />
+            Add Book
+          </button>
+        </div>
       </div>
 
       {/* Stats bar */}
@@ -144,119 +354,172 @@ export default function CollectionPage() {
           </p>
         </div>
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
-          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">This Year</p>
-          <p className="text-2xl font-serif font-bold text-stone-100">
-            {
-              entries.filter(
-                (e) => e.acquiredAt && new Date(e.acquiredAt).getFullYear() === new Date().getFullYear(),
-              ).length
-            }
-          </p>
+          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Bundles</p>
+          <p className="text-2xl font-serif font-bold text-stone-100">{bundles.length}</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {(['ALL', 'SERIES', 'YEAR'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
-              filter === f
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                : 'text-stone-400 border-stone-700 hover:border-stone-500'
-            }`}
-          >
-            {f === 'ALL' ? 'All' : f === 'SERIES' ? 'By Series' : 'By Year'}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-stone-800 pb-0">
+        <button
+          onClick={() => setTab('books')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'books'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          Books
+        </button>
+        <button
+          onClick={() => setTab('bundles')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'bundles'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          Bundles {bundles.length > 0 && <span className="ml-1 text-xs">({bundles.length})</span>}
+        </button>
       </div>
 
-      {entries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-stone-500">
-          <BookOpen size={48} className="mb-4 opacity-30" />
-          <p className="font-serif text-lg">Your collection is empty</p>
-          <p className="text-sm mt-1">Start adding books you own</p>
+      {tab === 'bundles' ? (
+        /* ─── Bundles tab ─── */
+        <div>
+          {bundles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <Package size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">No bundles yet</p>
+              <p className="text-sm mt-1">Add a bundle to track a group purchase</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {bundles.map((bundle) => (
+                <div key={bundle.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-stone-200 font-medium">
+                        {bundle.title ?? new Date(bundle.purchasedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                      {bundle.saleAnnouncement && (
+                        <a
+                          href={`/sale-announcements/${bundle.saleAnnouncement.id}`}
+                          className="text-xs text-amber-400 hover:underline"
+                        >
+                          {bundle.saleAnnouncement.title}
+                        </a>
+                      )}
+                    </div>
+                    <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
+                      {bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-3">
+                    <div>
+                      <p className="text-xs text-stone-500">Total</p>
+                      <p className="text-lg font-bold text-amber-400">{bundle.totalAmount} {bundle.currency}</p>
+                    </div>
+                    {bundle.perBookCost != null && (bundle.bookCount ?? 0) > 1 && (
+                      <div>
+                        <p className="text-xs text-stone-500">Per book</p>
+                        <p className="text-sm font-medium text-stone-300">{bundle.perBookCost} {bundle.currency}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="space-y-8">
-          {grouped.map((group, gi) => {
-            const groupLabel =
-              filter === 'SERIES'
-                ? (group[0]?.edition.book.seriesName ?? 'Standalone')
-                : filter === 'YEAR'
-                  ? (group[0]?.acquiredAt
-                      ? new Date(group[0].acquiredAt).getFullYear().toString()
-                      : 'Unknown')
-                  : null
+        /* ─── Books tab ─── */
+        <>
+          {/* Filters */}
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {(['ALL', 'SERIES', 'YEAR'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                  filter === f
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    : 'text-stone-400 border-stone-700 hover:border-stone-500'
+                }`}
+              >
+                {f === 'ALL' ? 'All' : f === 'SERIES' ? 'By Series' : 'By Year'}
+              </button>
+            ))}
+          </div>
 
-            return (
-              <div key={gi}>
-                {groupLabel && (
-                  <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2">
-                    {groupLabel}
-                  </h2>
-                )}
+          {entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <BookOpen size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">Your collection is empty</p>
+              <p className="text-sm mt-1">Start adding books you own</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {grouped.map((group, gi) => {
+                const groupLabel =
+                  filter === 'SERIES'
+                    ? (group[0]?.edition.book.seriesName ?? 'Standalone')
+                    : filter === 'YEAR'
+                      ? (group[0]?.acquiredAt
+                          ? new Date(group[0].acquiredAt).getFullYear().toString()
+                          : 'Unknown')
+                      : null
+
+                return (
+                  <div key={gi}>
+                    {groupLabel && (
+                      <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2">
+                        {groupLabel}
+                      </h2>
+                    )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {group.map((entry) => {
-                    const cover = cloudinaryUrl(entry.edition.coverImage)
-                    return (
-                      <div
-                        key={entry.id}
-                        className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden group hover:border-stone-600 transition-colors"
-                      >
-                        <div className="aspect-[2/3] bg-stone-800 relative overflow-hidden">
-                          {cover ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={cover}
-                              alt={entry.edition.book.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-stone-600">
-                              <BookOpen size={32} />
-                            </div>
+                  {group.map((entry) => (
+                    <EditionCard
+                      key={entry.id}
+                      href={`/books/${entry.edition.book.slug}`}
+                      coverImage={entry.edition.coverImage}
+                      companyName={entry.edition.bookBoxCompany?.name}
+                      seriesName={entry.edition.book.seriesName}
+                      volumeNumber={entry.edition.book.volumeNumber}
+                      title={entry.edition.book.title}
+                      authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
+                      imageActions={
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
+                          disabled={removeMutation.isPending}
+                          className="absolute top-2 right-2 p-1.5 bg-stone-950/80 text-stone-400 hover:text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          aria-label="Remove"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      }
+                      footer={
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {entry.condition && (
+                            <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
+                              {entry.condition.replace('_', ' ')}
+                            </Badge>
                           )}
-                          <button
-                            onClick={() => removeMutation.mutate(entry.id)}
-                            disabled={removeMutation.isPending}
-                            className="absolute top-2 right-2 p-1.5 bg-stone-950/80 text-stone-400 hover:text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                            aria-label="Remove"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                        <div className="p-3">
-                          <p className="text-sm font-medium text-stone-100 leading-tight line-clamp-2 mb-1">
-                            {entry.edition.book.title}
-                          </p>
-                          {entry.edition.book.authors[0] && (
-                            <p className="text-xs text-stone-400 truncate">
-                              {entry.edition.book.authors[0].name}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-1 mt-2 flex-wrap">
-                            {entry.condition && (
-                              <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
-                                {entry.condition.replace('_', ' ')}
-                              </Badge>
-                            )}
-                          </div>
                           {entry.acquiredAt && (
-                            <p className="text-xs text-stone-500 mt-1">
+                            <p className="text-[10px] text-stone-500">
                               {new Date(entry.acquiredAt).toLocaleDateString()}
                             </p>
                           )}
                         </div>
-                      </div>
-                    )
-                  })}
+                      }
+                    />
+                  ))}
                 </div>
               </div>
             )
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* Add to Collection modal */}
@@ -280,6 +543,9 @@ export default function CollectionPage() {
           </a>
         </div>
       </Modal>
+
+      <AddBundleModal open={addBundleOpen} onClose={() => setAddBundleOpen(false)} />
     </div>
   )
 }
+

@@ -24,6 +24,14 @@ export class UploadService {
     });
   }
 
+  async uploadImageBase64(dataUri: string, folder: string): Promise<{ publicId: string; url: string }> {
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder,
+      resource_type: 'image',
+    });
+    return { publicId: result.public_id, url: result.secure_url };
+  }
+
   async deleteImage(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(publicId);
   }

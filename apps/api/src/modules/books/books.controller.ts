@@ -12,11 +12,28 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { BooksService } from './books.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('books')
 @Controller('books')
 export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
+  constructor(
+    private readonly booksService: BooksService,
+    private readonly auditService: AuditService,
+  ) {}
+
+  @Public()
+  @Get('series')
+  findSeries(@Query('search') search?: string) {
+    return this.booksService.findSeriesNames(search);
+  }
+
+  @Public()
+  @Get('genres')
+  findGenres(@Query('search') search?: string) {
+    return this.booksService.findGenres(search);
+  }
 
   @Public()
   @Get()
@@ -31,35 +48,41 @@ export class BooksController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
-  create(@Body() dto: CreateBookDto) {
-    return this.booksService.create(dto);
+  async create(@Body() dto: CreateBookDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.booksService.create(dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_BOOK', entityType: 'book', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
-  update(@Param('slug') slug: string, @Body() dto: UpdateBookDto) {
-    return this.booksService.update(slug, dto);
+  async update(@Param('slug') slug: string, @Body() dto: UpdateBookDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.booksService.update(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_BOOK', entityType: 'book', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN')
   @Delete(':slug')
-  delete(@Param('slug') slug: string) {
-    return this.booksService.delete(slug);
+  async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.booksService.delete(slug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_BOOK', entityType: 'book', entityId: result.id, entityTitle: result.slug });
+    return result;
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post(':slug/authors/:authorId')
   addAuthor(@Param('slug') slug: string, @Param('authorId') authorId: string) {
     return this.booksService.addAuthor(slug, authorId);
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR')
   @Delete(':slug/authors/:authorId')
   removeAuthor(@Param('slug') slug: string, @Param('authorId') authorId: string) {
     return this.booksService.removeAuthor(slug, authorId);

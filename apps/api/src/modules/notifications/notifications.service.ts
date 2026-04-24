@@ -1,13 +1,35 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+const DEFAULT_TTL_KEY = 'notification.default_ttl_days';
+const DEFAULT_TTL_DAYS = 30;
+
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  onModuleInit() {
+    // Daily cleanup of expired notifications
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    setInterval(() => this.cleanupExpired(), DAY_MS);
+    // Run once shortly after startup
+    setTimeout(() => this.cleanupExpired(), 10_000);
+  }
+
+  // ─── User-facing ────────────────────────────────────────────────────────────
 
   async getNotifications(userId: string, page = 1, pageSize = 20, unreadOnly?: boolean) {
     const skip = (page - 1) * pageSize;
-    const where = { userId, ...(unreadOnly ? { readAt: null } : {}) };
+    const where: any = {
+      userId,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      ...(unreadOnly ? { readAt: null } : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.userNotification.findMany({
         where,
@@ -37,12 +59,109 @@ export class NotificationsService {
     });
   }
 
+  async deleteNotification(userId: string, notificationId: string) {
+    const notification = await this.prisma.userNotification.findUnique({ where: { id: notificationId } });
+    if (!notification) throw new NotFoundException('Notification not found');
+    if (notification.userId !== userId) throw new ForbiddenException();
+    await this.prisma.userNotification.delete({ where: { id: notificationId } });
+    return { ok: true };
+  }
+
+  async deleteAllRead(userId: string) {
+    const { count } = await this.prisma.userNotification.deleteMany({
+      where: { userId, readAt: { not: null } },
+    });
+    return { deleted: count };
+  }
+
   async getUnreadCount(userId: string) {
     const count = await this.prisma.userNotification.count({
-      where: { userId, readAt: null },
+      where: {
+        userId,
+        readAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
     });
     return { count };
   }
+
+  // ─── Admin-facing ───────────────────────────────────────────────────────────
+
+  async sendNotification(dto: {
+    targetType: 'users' | 'role' | 'all';
+    userIds?: string[];
+    role?: string;
+    title: string;
+    body?: string;
+    link?: string;
+    type?: string;
+    expiresInDays?: number;
+  }) {
+    const { targetType, userIds, role, title, body, link, type = 'admin', expiresInDays } = dto;
+
+    let targetUserIds: string[] = [];
+
+    if (targetType === 'users' && userIds?.length) {
+      targetUserIds = userIds;
+    } else if (targetType === 'role' && role) {
+      const users = await this.prisma.user.findMany({
+        where: { role: role as any },
+        select: { id: true },
+      });
+      targetUserIds = users.map((u) => u.id);
+    } else if (targetType === 'all') {
+      const users = await this.prisma.user.findMany({ select: { id: true } });
+      targetUserIds = users.map((u) => u.id);
+    }
+
+    if (!targetUserIds.length) return { sent: 0 };
+
+    const ttlDays = expiresInDays ?? (await this.getDefaultTtlDays());
+    const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
+
+    await this.prisma.userNotification.createMany({
+      data: targetUserIds.map((uid) => ({
+        userId: uid,
+        type,
+        title,
+        body: body ?? null,
+        link: link ?? null,
+        expiresAt,
+      })),
+    });
+
+    return { sent: targetUserIds.length };
+  }
+
+  async cleanupExpired() {
+    const { count } = await this.prisma.userNotification.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
+    });
+    return { deleted: count };
+  }
+
+  // ─── TTL settings ────────────────────────────────────────────────────────────
+
+  async getDefaultTtlDays(): Promise<number> {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: DEFAULT_TTL_KEY } });
+    return setting ? Number(setting.value) : DEFAULT_TTL_DAYS;
+  }
+
+  async setDefaultTtlDays(days: number) {
+    await this.prisma.appSetting.upsert({
+      where: { key: DEFAULT_TTL_KEY },
+      create: { key: DEFAULT_TTL_KEY, value: String(days) },
+      update: { value: String(days) },
+    });
+    return { ttlDays: days };
+  }
+
+  async getSettings() {
+    const ttlDays = await this.getDefaultTtlDays();
+    return { ttlDays };
+  }
+
+  // ─── Internal ────────────────────────────────────────────────────────────────
 
   async createNotification(
     userId: string,
@@ -53,8 +172,10 @@ export class NotificationsService {
     entityId?: string,
   ) {
     const link = entityType && entityId ? `${entityType}:${entityId}` : undefined;
+    const ttlDays = await this.getDefaultTtlDays();
+    const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
     return this.prisma.userNotification.create({
-      data: { userId, type, title, body, link },
+      data: { userId, type, title, body, link, expiresAt },
     });
   }
 }

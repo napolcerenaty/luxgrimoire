@@ -5,6 +5,8 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, PaginatedResponse } from '@luxgrimoire/shared-types'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Subscriptions',
   description: 'Browse all luxury book subscription boxes on LuxGrimoire.',

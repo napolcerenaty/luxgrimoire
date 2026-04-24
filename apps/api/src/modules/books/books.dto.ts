@@ -5,6 +5,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -22,6 +23,10 @@ export class CreateBookDto {
 
   @IsOptional()
   @IsString()
+  coverImage?: string;
+
+  @IsOptional()
+  @IsString()
   language?: string;
 
   @IsOptional()
@@ -36,6 +41,15 @@ export class CreateBookDto {
   @IsNumber()
   @Type(() => Number)
   volumeNumber?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  genres?: string[];
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }
 
 export class UpdateBookDto {
@@ -53,6 +67,10 @@ export class UpdateBookDto {
 
   @IsOptional()
   @IsString()
+  coverImage?: string;
+
+  @IsOptional()
+  @IsString()
   language?: string;
 
   @IsOptional()
@@ -67,6 +85,15 @@ export class UpdateBookDto {
   @IsNumber()
   @Type(() => Number)
   volumeNumber?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  genres?: string[];
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }
 
 export class BookQueryDto {
@@ -98,4 +125,8 @@ export class BookQueryDto {
   @IsOptional()
   @IsString()
   authorId?: string;
+
+  @IsOptional()
+  @IsString()
+  genre?: string;
 }

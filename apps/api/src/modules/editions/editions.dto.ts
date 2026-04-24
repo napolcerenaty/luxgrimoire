@@ -4,6 +4,7 @@ import {
   IsInt,
   IsBoolean,
   IsArray,
+  IsDecimal,
   Min,
   Max,
 } from 'class-validator';
@@ -15,7 +16,19 @@ export class CreateEditionDto {
 
   @IsOptional()
   @IsString()
+  editionName?: string;
+
+  @IsOptional()
+  @IsString()
   publisher?: string;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @IsOptional()
+  @IsString()
+  alternativeTitle?: string;
 
   @IsOptional()
   @Type(() => Number)
@@ -41,13 +54,66 @@ export class CreateEditionDto {
 
   @IsOptional()
   @IsString()
-  notes?: string;
+  basePrice?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  firstAccessDate?: string;
+
+  @IsOptional()
+  @IsString()
+  earlyAccessDate?: string;
+
+  @IsOptional()
+  @IsString()
+  generalSaleDate?: string;
+
+  @IsOptional()
+  @IsString()
+  bookBoxCompanyId?: string;
+
+  @IsOptional()
+  @IsString()
+  bookBoxCompanyCustomName?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionId?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionMonthId?: string;
+
+  @IsOptional()
+  @IsString()
+  collectionId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  features?: string[];
 }
 
 export class UpdateEditionDto {
   @IsOptional()
   @IsString()
+  editionName?: string;
+
+  @IsOptional()
+  @IsString()
   publisher?: string;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @IsOptional()
+  @IsString()
+  alternativeTitle?: string;
 
   @IsOptional()
   @Type(() => Number)
@@ -73,12 +139,57 @@ export class UpdateEditionDto {
 
   @IsOptional()
   @IsString()
-  notes?: string;
+  basePrice?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  firstAccessDate?: string;
+
+  @IsOptional()
+  @IsString()
+  earlyAccessDate?: string;
+
+  @IsOptional()
+  @IsString()
+  generalSaleDate?: string;
+
+  @IsOptional()
+  @IsString()
+  bookBoxCompanyId?: string;
+
+  @IsOptional()
+  @IsString()
+  bookBoxCompanyCustomName?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionId?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionMonthId?: string;
+
+  @IsOptional()
+  @IsString()
+  collectionId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  features?: string[];
 }
 
 export class AddArtistDto {
   @IsString()
   artistId!: string;
+
+  @IsOptional()
+  @IsString()
+  artistName?: string;
 
   @IsOptional()
   @IsString()
@@ -106,4 +217,29 @@ export class EditionQueryDto {
   @IsOptional()
   @IsString()
   bookSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  companyId?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionId?: string;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @IsOptional()
+  @IsString()
+  format?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  needsVerification?: boolean;
 }

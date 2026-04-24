@@ -25,20 +25,87 @@ export class SubscriptionsService {
     if (!company) throw new NotFoundException(`Company '${dto.companyId}' not found`);
 
     const slug = generateSlugFromParts(company.name, dto.name);
-    return this.prisma.subscription.create({
+    const subscription = await this.prisma.subscription.create({
       data: {
         slug,
         companyId: dto.companyId,
         name: dto.name,
         description: dto.description,
         coverImage: dto.coverImage,
-        genre: dto.genre,
+        logoUrl: dto.logoUrl,
+        genre: dto.genres?.[0] ?? dto.genre ?? null,
+        genres: dto.genres ?? (dto.genre ? [dto.genre] : []),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         isDiscontinued: dto.isDiscontinued ?? false,
         currency: dto.currency ?? 'EUR',
+        price: dto.price,
+        language: dto.language,
+        shipsInternationally: dto.shipsInternationally ?? false,
+        type: dto.type,
+        bookishMerch: dto.bookishMerch ?? false,
+        isCombo: dto.isCombo ?? false,
+        parentSubscriptionId: dto.parentSubscriptionId,
+        renewalDay: dto.renewalDay,
+        renewalDayUserSet: dto.renewalDayUserSet ?? false,
+        startingMonth: dto.startingMonth,
+        shippingCountries: dto.shippingCountries ?? [],
       },
     });
+
+    // Copy months+books from source subscription
+    if (dto.copyFromSlug) {
+      await this.copyMonthsFrom(subscription.id, dto.copyFromSlug);
+    }
+
+    // Set combo components
+    if (dto.componentIds?.length) {
+      await this.prisma.subscriptionComboComponent.createMany({
+        data: dto.componentIds.map((componentId) => ({ comboId: subscription.id, componentId })),
+        skipDuplicates: true,
+      });
+    }
+
+    return subscription;
+  }
+
+  private async copyMonthsFrom(targetSubscriptionId: string, sourceSlug: string) {
+    const source = await this.prisma.subscription.findUnique({
+      where: { slug: sourceSlug },
+      include: {
+        months: {
+          include: { books: true },
+        },
+      },
+    });
+    if (!source) throw new NotFoundException(`Source subscription '${sourceSlug}' not found`);
+
+    for (const month of source.months) {
+      const newMonth = await this.prisma.subscriptionMonth.create({
+        data: {
+          subscriptionId: targetSubscriptionId,
+          year: month.year,
+          month: month.month,
+          theme: month.theme,
+          coverImage: month.coverImage,
+          spoilerImage: month.spoilerImage,
+          isSpoiler: month.isSpoiler,
+          actualShipping: month.actualShipping ?? undefined,
+          boxPrice: month.boxPrice ?? undefined,
+        },
+      });
+      if (month.books.length) {
+        await this.prisma.subscriptionMonthBook.createMany({
+          data: month.books.map((b) => ({
+            monthId: newMonth.id,
+            bookId: b.bookId,
+            editionId: b.editionId,
+            isMainBook: b.isMainBook,
+            sortOrder: b.sortOrder,
+          })),
+        });
+      }
+    }
   }
 
   async findAll(query: SubscriptionQueryDto) {
@@ -49,9 +116,13 @@ export class SubscriptionsService {
     const where: Record<string, unknown> = {};
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
-    if (query.genre) where.genre = query.genre;
+    if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
+    if (query.type) where.type = query.type;
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
+    }
+    if (query.shipsInternationally !== undefined) {
+      where.shipsInternationally = query.shipsInternationally;
     }
 
     const [data, total] = await Promise.all([
@@ -61,6 +132,7 @@ export class SubscriptionsService {
         take: pageSize,
         include: {
           company: { select: { id: true, slug: true, name: true, logoUrl: true } },
+          skipPolicy: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -75,6 +147,7 @@ export class SubscriptionsService {
       where: { slug },
       include: {
         company: true,
+        skipPolicy: true,
         months: {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
@@ -82,13 +155,23 @@ export class SubscriptionsService {
               include: {
                 book: {
                     select: {
+                      id: true,
                       title: true,
                       slug: true,
                       coverImage: true,
                       authors: { select: { author: { select: { name: true, slug: true } } } },
                     },
                   },
-                edition: { select: { slug: true, coverImage: true } },
+                edition: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    editionName: true,
+                    publisher: true,
+                    publishYear: true,
+                    coverImage: true,
+                  },
+                },
               },
             },
           },
@@ -101,10 +184,24 @@ export class SubscriptionsService {
 
   async update(slug: string, dto: UpdateSubscriptionDto) {
     await this.findBySlug(slug);
-    const data: Record<string, unknown> = { ...dto };
+    const { componentIds, ...rest } = dto;
+    const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
-    return this.prisma.subscription.update({ where: { slug }, data });
+    const updated = await this.prisma.subscription.update({ where: { slug }, data });
+
+    // Replace combo components if provided
+    if (componentIds !== undefined) {
+      await this.prisma.subscriptionComboComponent.deleteMany({ where: { comboId: updated.id } });
+      if (componentIds.length) {
+        await this.prisma.subscriptionComboComponent.createMany({
+          data: componentIds.map((componentId) => ({ comboId: updated.id, componentId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return updated;
   }
 
   async delete(slug: string) {
@@ -150,6 +247,8 @@ export class SubscriptionsService {
         coverImage: dto.coverImage,
         spoilerImage: dto.spoilerImage,
         isSpoiler: dto.isSpoiler ?? false,
+        actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
+        boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
       },
     });
   }
@@ -212,6 +311,7 @@ export class SubscriptionsService {
           bookId: dto.bookId,
           editionId: dto.editionId,
           isMainBook: dto.isMainBook ?? true,
+          sortOrder: dto.sortOrder ?? 0,
         },
       });
     } catch {
@@ -230,6 +330,113 @@ export class SubscriptionsService {
 
     return this.prisma.subscriptionMonthBook.delete({
       where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
+    });
+  }
+
+  async getMySubscriptionEntry(userId: string, slug: string) {
+    const sub = await this.findBySlug(slug);
+    return this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+  }
+
+  // ── Waitlist ─────────────────────────────────────────────────────────────
+
+  async joinWaitlist(userId: string, subscriptionSlug: string, joinedAt?: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    const existing = await this.prisma.subscriptionWaitlistEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (existing) throw new ConflictException('Already on the waitlist for this subscription');
+
+    return this.prisma.subscriptionWaitlistEntry.create({
+      data: {
+        userId,
+        subscriptionId: sub.id,
+        ...(joinedAt ? { joinedAt: new Date(joinedAt) } : {}),
+      },
+      include: { subscription: { select: { id: true, slug: true, name: true, coverImage: true } } },
+    });
+  }
+
+  async updateWaitlistJoinDate(userId: string, subscriptionSlug: string, joinedAt: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    const existing = await this.prisma.subscriptionWaitlistEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!existing) throw new NotFoundException('Not on the waitlist');
+
+    return this.prisma.subscriptionWaitlistEntry.update({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+      data: { joinedAt: new Date(joinedAt) },
+    });
+  }
+
+  async leaveWaitlist(userId: string, subscriptionSlug: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    const existing = await this.prisma.subscriptionWaitlistEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!existing) throw new NotFoundException('Not on the waitlist');
+
+    await this.prisma.subscriptionWaitlistEntry.delete({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+  }
+
+  async getMyWaitlistStatus(userId: string, subscriptionSlug: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });
+    if (!sub) return null;
+
+    return this.prisma.subscriptionWaitlistEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+  }
+
+  async getMyWaitlist(userId: string) {
+    const entries = await this.prisma.subscriptionWaitlistEntry.findMany({
+      where: { userId },
+      include: {
+        subscription: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            coverImage: true,
+            isDiscontinued: true,
+            company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+          },
+        },
+      },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    const now = new Date();
+    return entries.map((e) => ({
+      ...e,
+      daysOnList: e.leftAt
+        ? Math.floor((new Date(e.leftAt).getTime() - new Date(e.joinedAt).getTime()) / 86400000)
+        : Math.floor((now.getTime() - new Date(e.joinedAt).getTime()) / 86400000),
+      isActive: !e.leftAt,
+    }));
+  }
+
+  /** Call this when a user actually subscribes to mark their waitlist entry as resolved */
+  async resolveWaitlistEntry(userId: string, subscriptionId: string, resolvedAt: Date) {
+    const existing = await this.prisma.subscriptionWaitlistEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId } },
+    });
+    if (!existing || existing.leftAt) return; // not on list or already resolved
+
+    await this.prisma.subscriptionWaitlistEntry.update({
+      where: { userId_subscriptionId: { userId, subscriptionId } },
+      data: { leftAt: resolvedAt },
     });
   }
 }
