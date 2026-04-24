@@ -694,7 +694,7 @@ export class SubscriptionsService {
       const monthRecord = await this.prisma.subscriptionMonth.findUnique({ where: { id: monthId } });
       if (!monthRecord) continue;
 
-      const purchaseDate = new Date(monthRecord.year, monthRecord.month - 1, renewalDay);
+      const renewalDate = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
 
       const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
         where: { monthId },
@@ -713,7 +713,8 @@ export class SubscriptionsService {
               userId,
               bookId: mb.bookId,
               editionId: mb.editionId,
-              purchaseDate,
+              purchaseDate: renewalDate,
+              acquiredAt: renewalDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
               subscriptionEntryId: entry.id,
@@ -739,7 +740,7 @@ export class SubscriptionsService {
                   name: template.name,
                   amount: parseFloat(amount.toString()),
                   currency: feeCurrency,
-                  date: purchaseDate,
+                  date: renewalDate,
                   category: template.category,
                   userBookEntryId: bookEntry.id,
                 },
@@ -760,7 +761,7 @@ export class SubscriptionsService {
                   name: 'Shipping',
                   amount: shippingPerBook,
                   currency: entry.costCurrency ?? 'USD',
-                  date: purchaseDate,
+                  date: renewalDate,
                   category: 'SHIPPING',
                   userBookEntryId: bookEntry.id,
                 },
@@ -781,7 +782,7 @@ export class SubscriptionsService {
                   name: 'Taxes & Fees',
                   amount: taxPerBook,
                   currency: entry.costCurrency ?? 'USD',
-                  date: purchaseDate,
+                  date: renewalDate,
                   category: 'OTHER',
                   userBookEntryId: bookEntry.id,
                 },
