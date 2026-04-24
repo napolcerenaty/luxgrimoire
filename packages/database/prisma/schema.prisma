@@ -1,7 +1,3 @@
-// LuxGrimoire — Prisma Schema
-// Note: All IDs use @default(uuid()) which generates UUID v4.
-// Upgrading to UUIDv7 requires the pg_uuidv7 PostgreSQL extension.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,77 +7,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─────────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────────
-
-enum Role {
-  ADMIN
-  MODERATOR
-  COMPANY_MANAGER
-  USER
-}
-
-enum SponsoredSlotType {
-  HOMEPAGE_FEATURED
-  COMPANY_PAGE_BANNER
-  NEWSLETTER_SLOT
-}
-
-// ─────────────────────────────────────────────
-// AUTH / USERS
-// ─────────────────────────────────────────────
-
 model User {
-  id                String   @id @default(uuid())
-  username          String   @unique
-  email             String   @unique
-  emailVerified     Boolean  @default(false)
-  passwordHash      String?
-  role              Role     @default(USER)
-  managedCompanyId  String?
-  preferredCurrency String   @default("EUR")
-  shippingCountry  String?  @db.VarChar(2) // ISO 3166-1 alpha-2, e.g. "PL", "DE"
-  timezone          String   @default("UTC")
-  defaultTaxRate    Decimal? @db.Decimal(5, 2) // user's default tax/VAT rate as a percentage (e.g. 21.00)
-  avatarUrl         String?
-  bio               String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  sessions            Session[]
+  id                  String                      @id @default(uuid())
+  username            String                      @unique
+  email               String                      @unique
+  emailVerified       Boolean                     @default(false)
+  passwordHash        String?
+  role                Role                        @default(USER)
+  preferredCurrency   String                      @default("EUR")
+  avatarUrl           String?
+  bio                 String?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  managedCompanyId    String?
+  timezone            String                      @default("UTC")
+  defaultTaxRate      Decimal?                    @db.Decimal(5, 2)
+  shippingCountry     String?                     @db.VarChar(2)
   accounts            Account[]
-  bookEntries         UserBookEntry[]
-  subscriptionEntries UserSubscriptionEntry[]
-  purchases           PurchaseTransaction[]
-  favoriteBooks       UserFavoriteBook[]
-  favoriteAuthors     UserFavoriteAuthor[]
-  favoriteArtists     UserFavoriteArtist[]
-  favoriteEditions    UserFavoriteEdition[]
-  favoriteCompanies   UserFavoriteCompany[]
-  notifications       UserNotification[]
-  sentMessages        Message[]               @relation("SentMessages")
-  conversationMembers ConversationMember[]
-  following           UserFollow[]            @relation("Follower")
-  followers           UserFollow[]            @relation("Following")
-  editionTags         UserEditionTag[]
-  subEntryTags        UserSubEntryTag[]
-  editionLikes        EditionLike[]
-  editionComments     EditionComment[]
-  commentLikes        CommentLike[]
-  saleInterests       UserSaleInterest[]
-  reviews             Review[]
-  reviewHelpfuls      ReviewHelpful[]
   auditLogs           AuditLog[]
-  managedCompany      BookBoxCompany?         @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
-  skipRecords         UserSkipRecord[]
-  submittedEditions   BookEdition[]           @relation("SubmittedEditions")
-  feeTemplates        UserFeeTemplate[]
-  purchaseFees        UserPurchaseFee[]
-  purchaseDiscounts   UserPurchaseDiscount[]
-  purchaseRefunds     UserPurchaseRefund[]
-  purchaseGroups      UserPurchaseGroup[]
+  submittedEditions   BookEdition[]               @relation("SubmittedEditions")
+  commentLikes        CommentLike[]
+  conversationMembers ConversationMember[]
+  editionComments     EditionComment[]
+  editionLikes        EditionLike[]
+  sentMessages        Message[]                   @relation("SentMessages")
+  purchases           PurchaseTransaction[]
+  reviewHelpfuls      ReviewHelpful[]
+  reviews             Review[]
+  sessions            Session[]
   waitlistEntries     SubscriptionWaitlistEntry[]
+  bookEntries         UserBookEntry[]
+  editionTags         UserEditionTag[]
+  favoriteArtists     UserFavoriteArtist[]
+  favoriteAuthors     UserFavoriteAuthor[]
+  favoriteBooks       UserFavoriteBook[]
+  favoriteCompanies   UserFavoriteCompany[]
+  favoriteEditions    UserFavoriteEdition[]
+  feeTemplates        UserFeeTemplate[]
+  following           UserFollow[]                @relation("Follower")
+  followers           UserFollow[]                @relation("Following")
+  notifications       UserNotification[]
+  purchaseDiscounts   UserPurchaseDiscount[]
+  purchaseFees        UserPurchaseFee[]
+  purchaseGroups      UserPurchaseGroup[]
+  purchaseRefunds     UserPurchaseRefund[]
+  saleInterests       UserSaleInterest[]
+  skipRecords         UserSkipRecord[]
+  subEntryTags        UserSubEntryTag[]
+  subscriptionEntries UserSubscriptionEntry[]
+  managedCompany      BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
 
   @@index([shippingCountry])
   @@map("users")
@@ -96,8 +70,7 @@ model Session {
   userAgent String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -109,8 +82,7 @@ model Account {
   providerId   String
   accessToken  String?
   refreshToken String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerId])
   @@map("accounts")
@@ -126,32 +98,27 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-// ─────────────────────────────────────────────
-// BOOKS & CATALOGUE
-// ─────────────────────────────────────────────
-
 model Book {
-  id           String   @id @default(uuid())
-  slug         String   @unique
+  id           String                  @id @default(uuid())
+  slug         String                  @unique
   title        String
   altTitle     String?
   description  String?
-  coverImage   String? // Cloudinary public_id
-  language     String   @default("en")
+  coverImage   String?
+  language     String                  @default("en")
   isbn         String?
   seriesName   String?
   volumeNumber Float?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  status       String                  @default("approved")
   genres       String[]
-  status       String   @default("approved")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  authors     BookAuthor[]
-  editions    BookEdition[]
-  monthBooks  SubscriptionMonthBook[]
-  userEntries UserBookEntry[]
-  favoriteBy  UserFavoriteBook[]
-  reviews     Review[]
+  authors      BookAuthor[]
+  editions     BookEdition[]
+  reviews      Review[]
+  monthBooks   SubscriptionMonthBook[]
+  userEntries  UserBookEntry[]
+  favoriteBy   UserFavoriteBook[]
 
   @@index([language])
   @@index([seriesName])
@@ -160,22 +127,21 @@ model Book {
 }
 
 model Author {
-  id          String   @id @default(uuid())
-  slug        String   @unique
+  id          String               @id @default(uuid())
+  slug        String               @unique
   name        String
   bio         String?
-  photoUrl    String? // Cloudinary public_id
-  nationality String?
-  website     String?
-  instagram   String?
-  twitter     String?
+  photoUrl    String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
   facebook    String?
+  instagram   String?
+  nationality String?
   tiktok      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  books      BookAuthor[]
-  favoriteBy UserFavoriteAuthor[]
+  twitter     String?
+  website     String?
+  books       BookAuthor[]
+  favoriteBy  UserFavoriteAuthor[]
 
   @@index([nationality])
   @@map("authors")
@@ -184,29 +150,27 @@ model Author {
 model BookAuthor {
   bookId   String
   authorId String
-
-  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  book     Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@id([bookId, authorId])
   @@map("book_authors")
 }
 
 model Artist {
-  id        String   @id @default(uuid())
-  slug      String   @unique
-  name      String
-  bio       String?
-  photoUrl  String? // Cloudinary public_id
-  specialty String?
-  website   String?
-  instagram String?
-  twitter   String?
-  facebook  String?
-  tiktok    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id            String               @id @default(uuid())
+  slug          String               @unique
+  name          String
+  bio           String?
+  photoUrl      String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  facebook      String?
+  instagram     String?
+  specialty     String?
+  tiktok        String?
+  twitter       String?
+  website       String?
   contributions ArtistContribution[]
   favoriteBy    UserFavoriteArtist[]
 
@@ -215,60 +179,58 @@ model Artist {
 }
 
 model ArtistContribution {
-  id         String  @id @default(uuid())
+  id         String      @id @default(uuid())
   editionId  String
   artistId   String
+  role       String      @default("cover")
   artistName String?
-  role       String  @default("cover")
-
-  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  artist  Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist     Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   @@unique([editionId, artistId])
   @@map("artist_contributions")
 }
 
 model BookEdition {
-  id                       String   @id @default(uuid())
-  slug                     String   @unique
+  id                       String                    @id @default(uuid())
+  slug                     String                    @unique
   bookId                   String
-  editionName              String?
   publisher                String?
-  language                 String?
-  alternativeTitle         String?
   publishYear              Int?
   format                   String?
-  coverImage               String? // Cloudinary public_id
-  additionalImages         String[] // Cloudinary public_ids
-  isSpecial                Boolean  @default(false)
-  basePrice                Decimal? @db.Decimal(10, 2)
-  currency                 String?
-  firstAccessDate          String?
-  earlyAccessDate          String?
-  generalSaleDate          String?
-  bookBoxCompanyId         String?
+  coverImage               String?
+  additionalImages         String[]
+  isSpecial                Boolean                   @default(false)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  alternativeTitle         String?
+  basePrice                Decimal?                  @db.Decimal(10, 2)
   bookBoxCompanyCustomName String?
+  bookBoxCompanyId         String?
+  collectionId             String?
+  currency                 String?
+  earlyAccessDate          String?
+  editionName              String?
+  features                 String[]
+  firstAccessDate          String?
+  generalSaleDate          String?
+  language                 String?
   subscriptionId           String?
   subscriptionMonthId      String?
-  collectionId             String?
-  features                 String[]
-  verifiedAt               DateTime?
   submittedByUserId        String?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-
-  book         Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookBoxCompany BookBoxCompany?         @relation(fields: [bookBoxCompanyId], references: [id])
-  collection   BookBoxCollection?        @relation(fields: [collectionId], references: [id])
-  submittedBy  User?                     @relation("SubmittedEditions", fields: [submittedByUserId], references: [id])
-  artists      ArtistContribution[]
-  monthBooks   SubscriptionMonthBook[]
-  userEntries  UserBookEntry[]
-  favoriteBy   UserFavoriteEdition[]
-  tags         UserEditionTag[]
-  likes        EditionLike[]
-  comments     EditionComment[]
-  saleEditions SaleAnnouncementEdition[]
+  verifiedAt               DateTime?
+  artists                  ArtistContribution[]
+  bookBoxCompany           BookBoxCompany?           @relation(fields: [bookBoxCompanyId], references: [id])
+  book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  collection               BookBoxCollection?        @relation(fields: [collectionId], references: [id])
+  submittedBy              User?                     @relation("SubmittedEditions", fields: [submittedByUserId], references: [id])
+  comments                 EditionComment[]
+  likes                    EditionLike[]
+  saleEditions             SaleAnnouncementEdition[]
+  monthBooks               SubscriptionMonthBook[]
+  userEntries              UserBookEntry[]
+  tags                     UserEditionTag[]
+  favoriteBy               UserFavoriteEdition[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -279,99 +241,91 @@ model BookEdition {
   @@map("book_editions")
 }
 
-// ─────────────────────────────────────────────
-// BOX COMPANIES & SUBSCRIPTIONS
-// ─────────────────────────────────────────────
-
 model BookBoxCompany {
-  id              String   @id @default(uuid())
-  slug            String   @unique
+  id              String                @id @default(uuid())
+  slug            String                @unique
   name            String
   description     String?
-  logoUrl         String? // Cloudinary public_id
+  logoUrl         String?
   website         String?
   country         String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  bluesky         String?
   defaultCurrency String?
+  facebook        String?
   instagram       String?
+  iossImplemented Boolean               @default(false)
   threads         String?
   tiktok          String?
-  facebook        String?
   x               String?
-  bluesky         String?
-  iossImplemented Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  subscriptions  Subscription[]
-  editions       BookEdition[]
-  favoriteBy     UserFavoriteCompany[]
-  sponsoredSlots SponsoredSlot[]
-  collections    BookBoxCollection[]
-  managers       User[]                @relation("CompanyManagers")
+  collections     BookBoxCollection[]
+  editions        BookEdition[]
+  sponsoredSlots  SponsoredSlot[]
+  subscriptions   Subscription[]
+  favoriteBy      UserFavoriteCompany[]
+  managers        User[]                @relation("CompanyManagers")
 
   @@index([country])
   @@map("book_box_companies")
 }
 
 model BookBoxCollection {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   companyId   String
   name        String
-  slug        String   @unique
-  description String?
   coverImage  String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company  BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  editions BookEdition[]
+  createdAt   DateTime       @default(now())
+  description String?
+  isActive    Boolean        @default(true)
+  slug        String         @unique
+  updatedAt   DateTime       @updatedAt
+  company     BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  editions    BookEdition[]
 
   @@map("book_box_collections")
 }
 
 model Subscription {
-  id                   String    @id @default(uuid())
-  slug                 String    @unique
+  id                   String                       @id @default(uuid())
+  slug                 String                       @unique
   companyId            String
   name                 String
   description          String?
-  coverImage           String? // Cloudinary public_id
-  logoUrl              String?
+  coverImage           String?
   genre                String?
-  genres               String[]
   startDate            DateTime?
   endDate              DateTime?
-  isDiscontinued       Boolean   @default(false)
-  isHidden             Boolean   @default(false)
-  currency             String    @default("EUR")
-  price                String?
-  language             String?
-  shipsInternationally Boolean   @default(false)
-  type                 String?
-  contentType          String    @default("MIX")
-  bookishMerch         Boolean   @default(false)
-
-  isCombo              Boolean   @default(false)
+  isDiscontinued       Boolean                      @default(false)
+  currency             String                       @default("EUR")
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  bookishMerch         Boolean                      @default(false)
+  genres               String[]
+  isCombo              Boolean                      @default(false)
+  logoUrl              String?
   parentSubscriptionId String?
   renewalDay           Int?
-  renewalDayUserSet    Boolean   @default(false)
-  startingMonth        Int?
+  renewalDayUserSet    Boolean                      @default(false)
   shippingCountries    String[]
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  company         BookBoxCompany               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  parent          Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  variants        Subscription[]               @relation("SubVariants")
-  months          SubscriptionMonth[]
-  series          SubscriptionSeries[]
-  userEntries     UserSubscriptionEntry[]
-  prepayOptions   SubscriptionPrepayOption[]
-  comboComponents SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
-  comboOf         SubscriptionComboComponent[] @relation("SubscriptionAsComponent")
-  skipPolicy      SubscriptionSkipPolicy?
-  waitlistEntries SubscriptionWaitlistEntry[]
+  shipsInternationally Boolean                      @default(false)
+  startingMonth        Int?
+  type                 String?
+  language             String?
+  price                String?
+  contentType          String                       @default("MIX")
+  isHidden             Boolean                      @default(false)
+  comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
+  comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")
+  months               SubscriptionMonth[]
+  prepayOptions        SubscriptionPrepayOption[]
+  series               SubscriptionSeries[]
+  skipPolicy           SubscriptionSkipPolicy?
+  waitlistEntries      SubscriptionWaitlistEntry[]
+  company              BookBoxCompany               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
+  variants             Subscription[]               @relation("SubVariants")
+  userEntries          UserSubscriptionEntry[]
 
   @@index([companyId])
   @@index([isDiscontinued])
@@ -382,81 +336,63 @@ model Subscription {
 model SubscriptionComboComponent {
   comboId     String
   componentId String
-
-  combo     Subscription @relation("SubscriptionAsCombo", fields: [comboId], references: [id], onDelete: Cascade)
-  component Subscription @relation("SubscriptionAsComponent", fields: [componentId], references: [id], onDelete: Cascade)
+  combo       Subscription @relation("SubscriptionAsCombo", fields: [comboId], references: [id], onDelete: Cascade)
+  component   Subscription @relation("SubscriptionAsComponent", fields: [componentId], references: [id], onDelete: Cascade)
 
   @@id([comboId, componentId])
   @@map("subscription_combo_components")
 }
 
 model SubscriptionSkipPolicy {
-  subscriptionId String  @id
-  // Policy types (String for extensibility without migrations):
-  // NONE | UNLIMITED | UNLIMITED_MAX_CONSECUTIVE | CALENDAR_YEAR | FROM_FIRST_SKIP | FROM_SUB_START
-  type           String  @default("NONE")
-  maxSkips       Int?    // max skips allowed in the window (null = unlimited)
-  maxConsecutive Int?    // max consecutive skips (for UNLIMITED_MAX_CONSECUTIVE)
-  windowMonths   Int?    // window length in months (for FROM_FIRST_SKIP, FROM_SUB_START)
-  // Skip deadline: N days before the renewal date of the month being skipped (0 = day of renewal)
-  skipDeadlineDaysBefore Int @default(0)
-  notes          String? // human-readable description for users
-  // TODO: Add canUndoSkip Boolean @default(false) when skip reversal policy is defined
-
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId         String       @id
+  type                   String       @default("NONE")
+  maxSkips               Int?
+  maxConsecutive         Int?
+  windowMonths           Int?
+  notes                  String?
+  skipDeadlineDaysBefore Int          @default(0)
+  subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("subscription_skip_policies")
 }
 
-// ─────────────────────────────────────────────
-// SUBSCRIPTION SERIES
-// ─────────────────────────────────────────────
-// A series groups consecutive months under a named commitment window.
-// skipMode:
-//   INDIVIDUAL  – each month in the series can be skipped independently
-//   SERIES_ONLY – the entire series must be skipped as a single action (1 skip unit)
-// canCancelDuring – when true, users cannot cancel their subscription while the series is active
-
 model SubscriptionSeries {
-  id              String   @id @default(uuid())
+  id              String              @id @default(uuid())
   subscriptionId  String
-  slug            String   @unique
+  slug            String              @unique
   name            String
   description     String?
-  coverImage      String?  // Cloudinary public_id
-  startMonth      Int      // 1–12
+  coverImage      String?
+  startMonth      Int
   startYear       Int
   endMonth        Int
   endYear         Int
-  // INDIVIDUAL | SERIES_ONLY
-  skipMode        String   @default("INDIVIDUAL")
-  canCancelDuring Boolean  @default(true)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  subscription Subscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  months       SubscriptionMonth[]
-  skipRecords  UserSkipRecord[]
+  skipMode        String              @default("INDIVIDUAL")
+  canCancelDuring Boolean             @default(true)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  months          SubscriptionMonth[]
+  subscription    Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  skipRecords     UserSkipRecord[]
 
   @@index([subscriptionId])
   @@map("subscription_series")
 }
 
 model UserSkipRecord {
-  id                  String    @id @default(uuid())
+  id                  String                @id @default(uuid())
   userId              String
   userEntryId         String
   subscriptionMonthId String
-  seriesId            String?   // set when skip was triggered via series skip endpoint
-  skippedAt           DateTime  @default(now())
-  windowKey           String? // "2024" for calendar year, "2024-03-15" for from-first-skip, etc.
-  undoneAt            DateTime? // TODO: populate when skip reversal is implemented
-
-  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userEntry UserSubscriptionEntry @relation(fields: [userEntryId], references: [id], onDelete: Cascade)
-  month    SubscriptionMonth     @relation(fields: [subscriptionMonthId], references: [id], onDelete: Cascade)
-  series   SubscriptionSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  skippedAt           DateTime              @default(now())
+  windowKey           String?
+  undoneAt            DateTime?
+  seriesId            String?
+  series              SubscriptionSeries?   @relation(fields: [seriesId], references: [id])
+  month               SubscriptionMonth     @relation(fields: [subscriptionMonthId], references: [id], onDelete: Cascade)
+  userEntry           UserSubscriptionEntry @relation(fields: [userEntryId], references: [id], onDelete: Cascade)
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userEntryId, subscriptionMonthId])
   @@index([userEntryId])
@@ -468,9 +404,9 @@ model UserSubscriptionSkipState {
   userId           String
   subscriptionId   String
   windowKey        String?
-  skipsInWindow    Int      @default(0)
-  consecutiveSkips Int      @default(0)
-  totalSkips       Int      @default(0)
+  skipsInWindow    Int       @default(0)
+  consecutiveSkips Int       @default(0)
+  totalSkips       Int       @default(0)
   lastSkipAt       DateTime?
 
   @@id([userId, subscriptionId])
@@ -478,40 +414,38 @@ model UserSubscriptionSkipState {
 }
 
 model SubscriptionPrepayOption {
-  id             String  @id @default(uuid())
+  id             String       @id @default(uuid())
   subscriptionId String
   months         Int
-  price          Decimal @db.Decimal(10, 2)
+  price          Decimal      @db.Decimal(10, 2)
   label          String?
-
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("subscription_prepay_options")
 }
 
 model SubscriptionMonth {
-  id             String    @id @default(uuid())
+  id             String                  @id @default(uuid())
   subscriptionId String
   year           Int
-  month          Int // 1-12
-  seriesId       String?
+  month          Int
   theme          String?
-  coverImage     String? // Cloudinary public_id
+  coverImage     String?
   spoilerImage   String?
-  isSpoiler      Boolean   @default(false)
+  isSpoiler      Boolean                 @default(false)
   announcedAt    DateTime?
-  actualShipping Decimal?  @db.Decimal(10, 2)
-  boxPrice       Decimal?  @db.Decimal(10, 2)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  actualShipping Decimal?                @db.Decimal(10, 2)
   bookId         String?
+  boxPrice       Decimal?                @db.Decimal(10, 2)
   editionId      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  subscription Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  series       SubscriptionSeries?     @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  books        SubscriptionMonthBook[]
-  userMonths   UserSubBillingPeriod[]
-  skipRecords  UserSkipRecord[]
+  seriesId       String?
+  books          SubscriptionMonthBook[]
+  series         SubscriptionSeries?     @relation(fields: [seriesId], references: [id])
+  subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  skipRecords    UserSkipRecord[]
+  userMonths     UserSubBillingPeriod[]
 
   @@unique([subscriptionId, year, month])
   @@index([subscriptionId])
@@ -520,47 +454,41 @@ model SubscriptionMonth {
 }
 
 model SubscriptionMonthBook {
-  id         String  @id @default(uuid())
+  id         String            @id @default(uuid())
   monthId    String
   bookId     String
   editionId  String?
-  isMainBook Boolean @default(true)
-  sortOrder  Int     @default(0)
-
-  month   SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  book    Book              @relation(fields: [bookId], references: [id])
-  edition BookEdition?      @relation(fields: [editionId], references: [id])
+  isMainBook Boolean           @default(true)
+  sortOrder  Int               @default(0)
+  book       Book              @relation(fields: [bookId], references: [id])
+  edition    BookEdition?      @relation(fields: [editionId], references: [id])
+  month      SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
 
   @@unique([monthId, bookId])
   @@map("subscription_month_books")
 }
 
-// ─────────────────────────────────────────────
-// SALE ANNOUNCEMENTS
-// ─────────────────────────────────────────────
-
 model SaleAnnouncement {
-  id                   String    @id @default(uuid())
+  id                   String                    @id @default(uuid())
   title                String
-  companyId            String?
-  generalSaleDate      DateTime?
-  firstAccessDate      DateTime?
-  earlyAccessDate      DateTime?
-  saleTimezone         String?
-  basePrice            Decimal?  @db.Decimal(10, 2)
-  currency             String?
   description          String?
-  imageUrl             String?
+  companyId            String?
+  isPublished          Boolean                   @default(false)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  basePrice            Decimal?                  @db.Decimal(10, 2)
+  currency             String?
   extraImagesJson      String?
-  isPublished          Boolean   @default(false)
-  isBundle             Boolean   @default(false)
-  availableForPurchase Boolean   @default(false)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  editions       SaleAnnouncementEdition[]
-  interests      UserSaleInterest[]
-  purchaseGroups UserPurchaseGroup[]
+  imageUrl             String?
+  saleTimezone         String?
+  availableForPurchase Boolean                   @default(false)
+  isBundle             Boolean                   @default(false)
+  earlyAccessDate      DateTime?
+  firstAccessDate      DateTime?
+  generalSaleDate      DateTime?
+  editions             SaleAnnouncementEdition[]
+  purchaseGroups       UserPurchaseGroup[]
+  interests            UserSaleInterest[]
 
   @@index([isPublished])
   @@index([companyId])
@@ -569,13 +497,12 @@ model SaleAnnouncement {
 }
 
 model SaleAnnouncementEdition {
-  id        String @id @default(uuid())
-  saleId    String
-  editionId String
-  sortOrder Int    @default(0)
-
-  announcement SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  id           String           @id @default(uuid())
+  editionId    String
+  saleId       String
+  sortOrder    Int              @default(0)
   edition      BookEdition      @relation(fields: [editionId], references: [id])
+  announcement SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@unique([saleId, editionId])
   @@map("sale_announcement_editions")
@@ -584,49 +511,43 @@ model SaleAnnouncementEdition {
 model UserSaleInterest {
   userId         String
   announcementId String
-  createdAt      DateTime @default(now())
-
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  announcement SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, announcementId])
   @@map("user_sale_interests")
 }
 
-// ─────────────────────────────────────────────
-// USER COLLECTION
-// ─────────────────────────────────────────────
-
 model UserBookEntry {
-  id                    String    @id @default(uuid())
+  id                    String                 @id @default(uuid())
   userId                String
   bookId                String
   editionId             String?
-  addedAt               DateTime  @default(now())
-  purchaseGroupId       String?
-  purchaseTransactionId String?
-  allocatedPrice        Decimal?  @db.Decimal(10, 2)
-  condition             String?
-  purchaseDate          DateTime?
-  ownershipStatus       String    @default("OWNED")
-  saleDate              String?
-  salePrice             Decimal?  @db.Decimal(10, 2)
-  saleCurrency          String?
-  saleVenue             String?
-  saleNotes             String?
-  readingStatus         String    @default("UNREAD")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   acquiredAt            DateTime?
-  isWishlist            Boolean   @default(false)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book          Book               @relation(fields: [bookId], references: [id])
-  edition       BookEdition?       @relation(fields: [editionId], references: [id])
-  purchaseGroup UserPurchaseGroup? @relation(fields: [purchaseGroupId], references: [id], onDelete: SetNull)
-  purchaseFees      UserPurchaseFee[]
-  purchaseDiscounts UserPurchaseDiscount[]
-  purchaseRefunds   UserPurchaseRefund[]
+  addedAt               DateTime               @default(now())
+  allocatedPrice        Decimal?               @db.Decimal(10, 2)
+  condition             String?
+  isWishlist            Boolean                @default(false)
+  ownershipStatus       String                 @default("OWNED")
+  purchaseDate          DateTime?
+  purchaseTransactionId String?
+  readingStatus         String                 @default("UNREAD")
+  saleCurrency          String?
+  saleDate              String?
+  saleNotes             String?
+  salePrice             Decimal?               @db.Decimal(10, 2)
+  saleVenue             String?
+  purchaseGroupId       String?
+  book                  Book                   @relation(fields: [bookId], references: [id])
+  edition               BookEdition?           @relation(fields: [editionId], references: [id])
+  purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseDiscounts     UserPurchaseDiscount[]
+  purchaseFees          UserPurchaseFee[]
+  purchaseRefunds       UserPurchaseRefund[]
 
   @@unique([userId, bookId, editionId])
   @@index([userId])
@@ -637,35 +558,34 @@ model UserBookEntry {
 }
 
 model UserSubscriptionEntry {
-  id               String    @id @default(uuid())
-  userId           String
-  subscriptionId   String
-  companyId        String?
-  addedAt          DateTime  @default(now())
-  startDate        String?
-  startingMonth    Int?
-  shippingCost     Decimal?  @db.Decimal(10, 2)
-  shippingCountry  String?  @db.VarChar(2) // override per-subscription shipping country
-  basePrice        Decimal?  @db.Decimal(10, 2) // user's own base price (may differ from subscription's advertised price)
-  taxesAndFees     Decimal?  @db.Decimal(10, 2)
-  active           Boolean   @default(true)
-  renewalDay       Int?
+  id                 String                             @id @default(uuid())
+  userId             String
+  subscriptionId     String
+  startDate          String?
+  createdAt          DateTime                           @default(now())
+  updatedAt          DateTime                           @updatedAt
+  active             Boolean                            @default(true)
+  addedAt            DateTime                           @default(now())
   cancellationDate   String?
-  cancellationReason String?
+  companyId          String?
   firstSkipDate      DateTime?
-  prepaidMonths    Int       @default(1)
-  nextRenewalDate  DateTime?
-  costCurrency     String?   // currency for shippingCost + taxesAndFees (defaults to subscription currency)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription   Subscription                 @relation(fields: [subscriptionId], references: [id])
-  billingPeriods UserSubBillingPeriod[]
-  tags           UserSubEntryTag[]
-  costChanges    UserSubscriptionCostChange[]
-  skipRecords    UserSkipRecord[]
-  feeTemplates   UserSubscriptionEntryFeeTemplate[]
+  renewalDay         Int?
+  shippingCost       Decimal?                           @db.Decimal(10, 2)
+  startingMonth      Int?
+  taxesAndFees       Decimal?                           @db.Decimal(10, 2)
+  nextRenewalDate    DateTime?
+  prepaidMonths      Int                                @default(1)
+  costCurrency       String?
+  basePrice          Decimal?                           @db.Decimal(10, 2)
+  cancellationReason String?
+  shippingCountry    String?                            @db.VarChar(2)
+  skipRecords        UserSkipRecord[]
+  billingPeriods     UserSubBillingPeriod[]
+  tags               UserSubEntryTag[]
+  costChanges        UserSubscriptionCostChange[]
+  subscription       Subscription                       @relation(fields: [subscriptionId], references: [id])
+  user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feeTemplates       UserSubscriptionEntryFeeTemplate[]
 
   @@unique([userId, subscriptionId])
   @@index([userId])
@@ -675,42 +595,40 @@ model UserSubscriptionEntry {
 }
 
 model UserSubBillingPeriod {
-  id                    String    @id @default(uuid())
+  id                    String                 @id @default(uuid())
   entryId               String
-  billedAt              DateTime?
-  baseAmount            Decimal?  @db.Decimal(10, 2)
-  taxesAndFees          Decimal?  @db.Decimal(10, 2)
-  shipping              Decimal?  @db.Decimal(10, 2)
+  monthId               String?
+  baseAmount            Decimal?               @db.Decimal(10, 2)
+  coveredFromMonth      Int                    @default(0)
+  coveredFromYear       Int                    @default(0)
+  monthsCovered         Int                    @default(1)
+  notes                 String?
+  prepayOptionId        String?
   purchaseTransactionId String?
-  monthsCovered         Int       @default(1)
-  coveredFromMonth      Int       @default(0)
-  coveredFromYear       Int       @default(0)
+  shipping              Decimal?               @db.Decimal(10, 2)
+  taxesAndFees          Decimal?               @db.Decimal(10, 2)
   coveredToMonth        Int?
   coveredToYear         Int?
   paidCurrency          String?
-  prepayOptionId        String?
-  notes                 String?
-  monthId               String?
-
-  entry UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  month SubscriptionMonth?    @relation(fields: [monthId], references: [id])
-  purchaseFees      UserPurchaseFee[]
-  purchaseDiscounts UserPurchaseDiscount[]
-  purchaseRefunds   UserPurchaseRefund[]
+  billedAt              DateTime?
+  purchaseDiscounts     UserPurchaseDiscount[]
+  purchaseFees          UserPurchaseFee[]
+  purchaseRefunds       UserPurchaseRefund[]
+  entry                 UserSubscriptionEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  month                 SubscriptionMonth?     @relation(fields: [monthId], references: [id])
 
   @@map("user_sub_billing_periods")
 }
 
 model UserSubscriptionCostChange {
-  id                 String   @id @default(uuid())
+  id                 String                @id @default(uuid())
   entryId            String
   effectiveFromMonth Int
   effectiveFromYear  Int
-  shippingCost       Decimal? @db.Decimal(10, 2)
-  taxesAndFees       Decimal? @db.Decimal(10, 2)
-  recordedAt         DateTime @default(now())
-
-  entry UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  recordedAt         DateTime              @default(now())
+  shippingCost       Decimal?              @db.Decimal(10, 2)
+  taxesAndFees       Decimal?              @db.Decimal(10, 2)
+  entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@map("user_subscription_cost_changes")
 }
@@ -722,22 +640,16 @@ model PurchaseTransaction {
   currency    String
   description String?
   purchasedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("purchase_transactions")
 }
 
-// ─────────────────────────────────────────────
-// FAVORITES & TAGS
-// ─────────────────────────────────────────────
-
 model UserFavoriteBook {
   userId String
   bookId String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, bookId])
   @@map("user_favorite_books")
@@ -746,9 +658,8 @@ model UserFavoriteBook {
 model UserFavoriteAuthor {
   userId   String
   authorId String
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, authorId])
   @@map("user_favorite_authors")
@@ -757,9 +668,8 @@ model UserFavoriteAuthor {
 model UserFavoriteArtist {
   userId   String
   artistId String
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, artistId])
   @@map("user_favorite_artists")
@@ -768,9 +678,8 @@ model UserFavoriteArtist {
 model UserFavoriteEdition {
   userId    String
   editionId String
-
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, editionId])
   @@map("user_favorite_editions")
@@ -779,72 +688,63 @@ model UserFavoriteEdition {
 model UserFavoriteCompany {
   userId    String
   companyId String
-
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, companyId])
   @@map("user_favorite_companies")
 }
 
 model UserEditionTag {
-  id        String @id @default(uuid())
+  id        String      @id @default(uuid())
   userId    String
   editionId String
   tag       String
-
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, editionId, tag])
   @@map("user_edition_tags")
 }
 
 model UserSubEntryTag {
-  id      String @id @default(uuid())
+  id      String                @id @default(uuid())
   userId  String
   entryId String
   tag     String
-
-  user  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entry UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry   UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, entryId, tag])
   @@map("user_sub_entry_tags")
 }
 
-// ─────────────────────────────────────────────
-// SOCIAL
-// ─────────────────────────────────────────────
-
 model UserFollow {
   followerId  String
   followingId String
   createdAt   DateTime @default(now())
-
-  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
   @@map("user_follows")
 }
 
 model Review {
-  id                 String   @id @default(uuid())
+  id                 String          @id @default(uuid())
   userId             String
   bookId             String
   rating             Int
   title              String?
   body               String
-  containsSpoilers   Boolean  @default(false)
-  isVerifiedPurchase Boolean  @default(false)
-  helpfulCount       Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book    Book            @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  helpful ReviewHelpful[]
+  containsSpoilers   Boolean         @default(false)
+  isVerifiedPurchase Boolean         @default(false)
+  helpfulCount       Int             @default(0)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  helpful            ReviewHelpful[]
+  book               Book            @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, bookId])
   @@map("reviews")
@@ -854,9 +754,8 @@ model ReviewHelpful {
   userId    String
   reviewId  String
   createdAt DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, reviewId])
   @@map("review_helpfuls")
@@ -865,26 +764,24 @@ model ReviewHelpful {
 model EditionLike {
   userId    String
   editionId String
-  createdAt DateTime @default(now())
-
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, editionId])
   @@map("edition_likes")
 }
 
 model EditionComment {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   userId    String
   editionId String
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  edition BookEdition   @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  likes   CommentLike[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  likes     CommentLike[]
+  edition   BookEdition   @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("edition_comments")
 }
@@ -892,22 +789,20 @@ model EditionComment {
 model CommentLike {
   userId    String
   commentId String
-  createdAt DateTime @default(now())
-
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment EditionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+  comment   EditionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, commentId])
   @@map("comment_likes")
 }
 
 model Conversation {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members  ConversationMember[]
-  messages Message[]
+  id        String               @id @default(uuid())
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   ConversationMember[]
+  messages  Message[]
 
   @@map("conversations")
 }
@@ -915,31 +810,25 @@ model Conversation {
 model ConversationMember {
   conversationId String
   userId         String
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
   @@map("conversation_members")
 }
 
 model Message {
-  id             String    @id @default(uuid())
+  id             String       @id @default(uuid())
   conversationId String
   senderId       String
   content        String
   readAt         DateTime?
-  createdAt      DateTime  @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }
-
-// ─────────────────────────────────────────────
-// NOTIFICATIONS
-// ─────────────────────────────────────────────
 
 model UserNotification {
   id        String    @id @default(uuid())
@@ -948,19 +837,14 @@ model UserNotification {
   title     String
   body      String?
   link      String?
-  payload   Json?
   readAt    DateTime?
-  expiresAt DateTime?
   createdAt DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payload   Json?
+  expiresAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_notifications")
 }
-
-// ─────────────────────────────────────────────
-// MONETISATION
-// ─────────────────────────────────────────────
 
 model SponsoredSlot {
   id        String            @id @default(uuid())
@@ -973,15 +857,10 @@ model SponsoredSlot {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
-
-  company BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   BookBoxCompany    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("sponsored_slots")
 }
-
-// ─────────────────────────────────────────────
-// APP CONFIG
-// ─────────────────────────────────────────────
 
 model AppSetting {
   key       String   @id
@@ -993,10 +872,10 @@ model AppSetting {
 
 model ExchangeRateCache {
   id           String   @id @default(uuid())
-  fromCurrency String
-  toCurrency   String
   rate         Decimal  @db.Decimal(18, 6)
   fetchedAt    DateTime @default(now())
+  fromCurrency String
+  toCurrency   String
 
   @@unique([fromCurrency, toCurrency])
   @@map("exchange_rate_cache")
@@ -1025,8 +904,7 @@ model AuditLog {
   entityTitle String?
   metadata    Json?
   createdAt   DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
@@ -1035,33 +913,19 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// ─────────────────────────────────────────────
-// USER FEE TEMPLATES & PURCHASE FEES
-// ─────────────────────────────────────────────
-
-enum FeeCategory {
-  VAT
-  CUSTOMS
-  SHIPPING
-  PROCESSING
-  FORWARDING
-  OTHER
-}
-
 /// Reusable fee templates defined by the user (e.g. "Polish Customs VAT", "DHL Processing Fee")
 model UserFeeTemplate {
-  id              String      @id @default(uuid())
-  userId          String
-  name            String
-  category        FeeCategory @default(OTHER)
-  defaultAmount   Decimal?    @db.Decimal(10, 2)
-  defaultCurrency String      @default("PLN")
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchaseFees UserPurchaseFee[]
+  id                  String                             @id @default(uuid())
+  userId              String
+  name                String
+  category            FeeCategory                        @default(OTHER)
+  defaultAmount       Decimal?                           @db.Decimal(10, 2)
+  defaultCurrency     String                             @default("PLN")
+  isActive            Boolean                            @default(true)
+  createdAt           DateTime                           @default(now())
+  updatedAt           DateTime                           @updatedAt
+  user                User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseFees        UserPurchaseFee[]
   subscriptionEntries UserSubscriptionEntryFeeTemplate[]
 
   @@index([userId])
@@ -1074,13 +938,12 @@ model UserSubscriptionEntryFeeTemplate {
   subscriptionEntryId String
   feeTemplateId       String
   /// Optional per-subscription override amount (if null, uses template's defaultAmount)
-  customAmount        Decimal? @db.Decimal(10, 2)
+  customAmount        Decimal?              @db.Decimal(10, 2)
+  createdAt           DateTime              @default(now())
   /// Optional per-subscription override currency (if null, uses template's defaultCurrency)
   customCurrency      String?
-  createdAt           DateTime @default(now())
-
-  entry       UserSubscriptionEntry @relation(fields: [subscriptionEntryId], references: [id], onDelete: Cascade)
-  feeTemplate UserFeeTemplate       @relation(fields: [feeTemplateId], references: [id], onDelete: Cascade)
+  feeTemplate         UserFeeTemplate       @relation(fields: [feeTemplateId], references: [id], onDelete: Cascade)
+  entry               UserSubscriptionEntry @relation(fields: [subscriptionEntryId], references: [id], onDelete: Cascade)
 
   @@id([subscriptionEntryId, feeTemplateId])
   @@index([subscriptionEntryId])
@@ -1089,25 +952,24 @@ model UserSubscriptionEntryFeeTemplate {
 
 /// Individual fee/tax instance linked to a billing period or book entry
 model UserPurchaseFee {
-  id               String      @id @default(uuid())
-  userId           String
-  feeTemplateId    String?
-  name             String
-  amount           Decimal     @db.Decimal(10, 2)
-  currency         String
-  date             DateTime    @db.Date
-  category         FeeCategory @default(OTHER)
-  billingPeriodId  String?
-  userBookEntryId  String?
-  purchaseGroupId  String?
-  notes            String?
-  createdAt        DateTime    @default(now())
-
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  feeTemplate    UserFeeTemplate?      @relation(fields: [feeTemplateId], references: [id], onDelete: SetNull)
-  billingPeriod  UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
-  userBookEntry  UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
-  purchaseGroup  UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  id              String                @id @default(uuid())
+  userId          String
+  feeTemplateId   String?
+  name            String
+  amount          Decimal               @db.Decimal(10, 2)
+  currency        String
+  date            DateTime              @db.Date
+  category        FeeCategory           @default(OTHER)
+  billingPeriodId String?
+  userBookEntryId String?
+  notes           String?
+  createdAt       DateTime              @default(now())
+  purchaseGroupId String?
+  billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+  feeTemplate     UserFeeTemplate?      @relation(fields: [feeTemplateId], references: [id])
+  purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
@@ -1119,22 +981,21 @@ model UserPurchaseFee {
 
 /// One-off discount applied to a billing period or book entry at purchase time
 model UserPurchaseDiscount {
-  id               String   @id @default(uuid())
-  userId           String
-  name             String
-  amount           Decimal  @db.Decimal(10, 2)
-  currency         String
-  date             DateTime @db.Date
-  billingPeriodId  String?
-  userBookEntryId  String?
-  purchaseGroupId  String?
-  notes            String?
-  createdAt        DateTime @default(now())
-
-  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  billingPeriod UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
-  userBookEntry UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
-  purchaseGroup UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  id              String                @id @default(uuid())
+  userId          String
+  name            String
+  amount          Decimal               @db.Decimal(10, 2)
+  currency        String
+  date            DateTime              @db.Date
+  billingPeriodId String?
+  userBookEntryId String?
+  notes           String?
+  createdAt       DateTime              @default(now())
+  purchaseGroupId String?
+  billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+  purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
@@ -1145,22 +1006,21 @@ model UserPurchaseDiscount {
 }
 
 model UserPurchaseRefund {
-  id               String   @id @default(uuid())
-  userId           String
-  amount           Decimal  @db.Decimal(10, 2)
-  currency         String
-  date             DateTime @db.Date
-  billingPeriodId  String?
-  userBookEntryId  String?
-  purchaseGroupId  String?
-  reason           String?
-  notes            String?
-  createdAt        DateTime @default(now())
-
-  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  billingPeriod UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
-  userBookEntry UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
-  purchaseGroup UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  id              String                @id @default(uuid())
+  userId          String
+  amount          Decimal               @db.Decimal(10, 2)
+  currency        String
+  date            DateTime              @db.Date
+  billingPeriodId String?
+  userBookEntryId String?
+  reason          String?
+  notes           String?
+  createdAt       DateTime              @default(now())
+  purchaseGroupId String?
+  billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+  purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
+  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
@@ -1171,24 +1031,23 @@ model UserPurchaseRefund {
 }
 
 model UserPurchaseGroup {
-  id                   String    @id @default(uuid())
-  userId               String
-  saleAnnouncementId   String?
-  title                String?
-  totalAmount          Decimal   @db.Decimal(10, 2)
-  currency             String
-  shippingAmount       Decimal?  @db.Decimal(10, 2)
-  purchasedAt          DateTime
-  notes                String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  saleAnnouncement SaleAnnouncement? @relation(fields: [saleAnnouncementId], references: [id], onDelete: SetNull)
-  bookEntries      UserBookEntry[]
-  fees             UserPurchaseFee[]
-  discounts        UserPurchaseDiscount[]
-  refunds          UserPurchaseRefund[]
+  id                 String                 @id @default(uuid())
+  userId             String
+  saleAnnouncementId String?
+  title              String?
+  totalAmount        Decimal                @db.Decimal(10, 2)
+  currency           String
+  shippingAmount     Decimal?               @db.Decimal(10, 2)
+  purchasedAt        DateTime
+  notes              String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  bookEntries        UserBookEntry[]
+  discounts          UserPurchaseDiscount[]
+  fees               UserPurchaseFee[]
+  saleAnnouncement   SaleAnnouncement?      @relation(fields: [saleAnnouncementId], references: [id])
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refunds            UserPurchaseRefund[]
 
   @@index([userId])
   @@index([userId, purchasedAt])
@@ -1196,22 +1055,39 @@ model UserPurchaseGroup {
   @@map("user_purchase_groups")
 }
 
-// ─────────────────────────────────────────────
-// SUBSCRIPTION WAITLIST
-// ─────────────────────────────────────────────
-
 model SubscriptionWaitlistEntry {
-  id             String    @id @default(uuid())
+  id             String       @id @default(uuid())
   userId         String
   subscriptionId String
-  joinedAt       DateTime  @default(now())
-  leftAt         DateTime? // null = still on list; set to subscription start date when user actually subscribes
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subscriptionId])
   @@index([userId])
   @@index([subscriptionId])
   @@map("subscription_waitlist_entries")
+}
+
+enum Role {
+  ADMIN
+  MODERATOR
+  USER
+  COMPANY_MANAGER
+}
+
+enum SponsoredSlotType {
+  HOMEPAGE_FEATURED
+  COMPANY_PAGE_BANNER
+  NEWSLETTER_SLOT
+}
+
+enum FeeCategory {
+  VAT
+  CUSTOMS
+  SHIPPING
+  PROCESSING
+  FORWARDING
+  OTHER
 }

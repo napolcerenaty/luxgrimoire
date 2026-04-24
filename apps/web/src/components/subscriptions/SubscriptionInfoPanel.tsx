@@ -351,6 +351,28 @@ export default function SubscriptionInfoPanel({
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
         </>
       )}
+      {token && countryFeeHints.length > 0 && (
+        <div className="pt-3 border-t border-stone-700/60">
+          <p className="text-xs text-stone-500 mb-1.5">
+            🌍 Subscribers from {user?.shippingCountry} report:
+          </p>
+          <div className="space-y-1">
+            {countryFeeHints.map(hint => (
+              <div key={hint.category} className="flex items-center justify-between text-xs">
+                <span className="text-stone-500">
+                  {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
+                </span>
+                <span className="text-stone-600">
+                  {hint.count}/{hint.totalSubscribers}
+                  {hint.avgAmount != null && hint.currency && (
+                    <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   ) : null
 
@@ -462,30 +484,7 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {token && countryFeeHints.length > 0 && (
-        <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4">
-          <p className="text-xs text-stone-500 mb-1.5">
-            🌍 Subscribers from {user?.shippingCountry} also report:
-          </p>
-          <div className="space-y-1">
-            {countryFeeHints.map(hint => (
-              <div key={hint.category} className="flex items-center justify-between text-xs">
-                <span className="text-stone-500">
-                  {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
-                </span>
-                <span className="text-stone-600">
-                  {hint.count}/{hint.totalSubscribers}
-                  {hint.avgAmount != null && hint.currency && (
-                    <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {showJoinModal && (
+      {showJoinModal&& (
         <JoinSubscriptionModal
           subscriptionSlug={subscriptionSlug}
           subscriptionCurrency={currency}
