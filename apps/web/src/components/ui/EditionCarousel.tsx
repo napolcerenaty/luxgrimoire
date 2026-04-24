@@ -147,12 +147,12 @@ export function EditionCarousel({ title, viewAllHref, cards }: Props) {
                 </div>
 
                 {/* Info */}
-                <div className="px-2.5 py-2 flex flex-col min-h-[4.5rem]">
+                <div className="px-2.5 pt-2 pb-3 flex flex-col min-h-[5rem]">
                   <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
                     {card.title}
                   </p>
                   {card.subtitle && (
-                    <p className="text-[11px] text-stone-500 mt-auto pt-0.5 line-clamp-1 font-sans">{card.subtitle}</p>
+                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-1 font-sans shrink-0">{card.subtitle}</p>
                   )}
                 </div>
               </Link>
