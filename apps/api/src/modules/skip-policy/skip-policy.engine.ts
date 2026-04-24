@@ -39,7 +39,7 @@ export class SkipPolicyEngine {
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
     const deadline = this.computeDeadline(policy, entry, upcomingMonth ?? null);
-    const skippedMonths = skipRecords.map((r) => ({ year: r.subscriptionMonth.year, month: r.subscriptionMonth.month }));
+    const skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     return this.buildStatus(policy, state, deadline, skippedMonths);
   }
 
@@ -146,9 +146,9 @@ export class SkipPolicyEngine {
     // Fetch fresh skip records after the new record was created
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
-      include: { subscriptionMonth: { select: { year: true, month: true } } },
+      include: { month: { select: { year: true, month: true } } },
     });
-    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.subscriptionMonth.year, month: r.subscriptionMonth.month }));
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     return this.buildStatus(policy, newState, deadline, skippedMonths);
   }
 
@@ -189,9 +189,9 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, { year, month });
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
-      include: { subscriptionMonth: { select: { year: true, month: true } } },
+      include: { month: { select: { year: true, month: true } } },
     });
-    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.subscriptionMonth.year, month: r.subscriptionMonth.month }));
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     return this.buildStatus(policy, updatedState, deadline, skippedMonths);
   }
 
@@ -268,9 +268,9 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, lastMonth);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
-      include: { subscriptionMonth: { select: { year: true, month: true } } },
+      include: { month: { select: { year: true, month: true } } },
     });
-    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.subscriptionMonth.year, month: r.subscriptionMonth.month }));
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     return this.buildStatus(policy, newState, deadline, skippedMonths);
   }
 
@@ -300,9 +300,9 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, null);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
-      include: { subscriptionMonth: { select: { year: true, month: true } } },
+      include: { month: { select: { year: true, month: true } } },
     });
-    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.subscriptionMonth.year, month: r.subscriptionMonth.month }));
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     return this.buildStatus(policy, updatedState, deadline, skippedMonths);
   }
 
@@ -331,7 +331,7 @@ export class SkipPolicyEngine {
 
     const skipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
-      include: { subscriptionMonth: { select: { year: true, month: true } } },
+      include: { month: { select: { year: true, month: true } } },
     });
 
     return { subscription, policy, state, entry: { ...entry, effectiveRenewalDay }, skipRecords };

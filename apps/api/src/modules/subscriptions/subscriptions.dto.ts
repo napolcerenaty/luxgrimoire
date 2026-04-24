@@ -73,6 +73,10 @@ export class CreateSubscriptionDto {
   type?: string;
 
   @IsOptional()
+  @IsString()
+  contentType?: string;
+
+  @IsOptional()
   @IsBoolean()
   bookishMerch?: boolean;
 
@@ -172,6 +176,10 @@ export class UpdateSubscriptionDto {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsString()
+  contentType?: string;
 
   @IsOptional()
   @IsBoolean()

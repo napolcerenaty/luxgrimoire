@@ -346,6 +346,7 @@ model Subscription {
   language             String?
   shipsInternationally Boolean   @default(false)
   type                 String?
+  contentType          String    @default("MIX")
   bookishMerch         Boolean   @default(false)
 
   isCombo              Boolean   @default(false)

@@ -61,6 +61,7 @@ const EMPTY_FORM: SubFormData = {
   price: '',
   language: '',
   type: '',
+  contentType: 'MIX',
   bookishMerch: false,
   renewalDayUserSet: false,
   renewalDay: '',
@@ -92,6 +93,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     price: sub.price ?? '',
     language: sub.language ?? '',
     type: sub.type ?? '',
+    contentType: sub.contentType ?? 'MIX',
     bookishMerch: sub.bookishMerch ?? false,
     renewalDayUserSet: sub.renewalDayUserSet ?? false,
     renewalDay: sub.renewalDay != null ? String(sub.renewalDay) : '',
@@ -123,6 +125,7 @@ function formToCreatePayload(form: SubFormData) {
     price: form.price || undefined,
     language: form.language || undefined,
     type: form.type || undefined,
+    contentType: form.contentType || 'MIX',
     bookishMerch: form.bookishMerch,
     renewalDayUserSet: form.renewalDayUserSet,
     renewalDay: form.renewalDay ? parseInt(form.renewalDay, 10) : undefined,
@@ -148,6 +151,7 @@ function formToUpdatePayload(form: SubFormData) {
     price: form.price || undefined,
     language: form.language || undefined,
     type: form.type || undefined,
+    contentType: form.contentType || 'MIX',
     bookishMerch: form.bookishMerch,
     renewalDayUserSet: form.renewalDayUserSet,
     renewalDay: form.renewalDay ? parseInt(form.renewalDay, 10) : undefined,
@@ -373,6 +377,14 @@ function SubscriptionForm({
             <option value="MONTHLY">Monthly</option>
             <option value="BIMONTHLY">Bi-monthly (every 2 months)</option>
             <option value="QUARTERLY">Quarterly (every 3 months)</option>
+          </select>
+        </div>
+        <div>
+          <label className={LABEL_CLASS}>Content Type</label>
+          <select className={SELECT_CLASS} value={form.contentType} onChange={setStr('contentType')}>
+            <option value="MIX">Mix (months + series)</option>
+            <option value="MONTH">Monthly boxes only</option>
+            <option value="SERIES">Series only</option>
           </select>
         </div>
       </div>
@@ -793,18 +805,22 @@ export default function AdminSubscriptionsPage() {
       label: 'Manage',
       render: (row: ApiSubscription) => (
         <>
-          <Link
-            href={`/admin/subscriptions/${row.slug}/months`}
-            className="text-amber-400 text-xs hover:underline"
-          >
-            View Months →
-          </Link>
-          <Link
-            href={`/admin/subscriptions/${row.slug}/series`}
-            className="text-purple-400 text-xs hover:underline ml-3"
-          >
-            Series →
-          </Link>
+          {row.contentType !== 'SERIES' && (
+            <Link
+              href={`/admin/subscriptions/${row.slug}/months`}
+              className="text-amber-400 text-xs hover:underline"
+            >
+              View Months →
+            </Link>
+          )}
+          {row.contentType !== 'MONTH' && (
+            <Link
+              href={`/admin/subscriptions/${row.slug}/series`}
+              className="text-purple-400 text-xs hover:underline ml-3"
+            >
+              Series →
+            </Link>
+          )}
         </>
       ),
     },

@@ -183,6 +183,7 @@ export interface ApiSubscription {
   isCombo: boolean;
   parentSubscriptionId: string | null;
   type: string | null;
+  contentType: string;
   shipsInternationally: boolean;
   renewalDay: number | null;
   renewalDayUserSet: boolean;
