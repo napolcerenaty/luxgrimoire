@@ -16,10 +16,12 @@ interface CollectionEntry {
   isWishlist: boolean
   condition: string | null
   acquiredAt: string | null
+  purchaseDate: string | null
   ownershipStatus: string
   readingStatus: string
   allocatedPrice: string | null
   priceCurrency: string | null
+  purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
   purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
@@ -287,7 +289,20 @@ export default function CollectionPage() {
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => authFetch<void>(`/collection/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['collection'] })
+      const previous = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
+      queryClient.setQueryData<CollectionEntry[]>(['collection', false], (old) =>
+        old ? old.filter((e) => e.id !== id) : []
+      )
+      return { previous }
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['collection', false], context.previous)
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
     },
@@ -301,7 +316,10 @@ export default function CollectionPage() {
     for (const e of entries) {
       if (!e.allocatedPrice) continue
       const from = e.priceCurrency ?? e.purchaseGroup?.currency
-      const date = e.purchaseGroup?.purchasedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+      const date = e.purchaseGroup?.purchasedAt?.slice(0, 10)
+        ?? e.purchaseDate?.slice(0, 10)
+        ?? e.acquiredAt?.slice(0, 10)
+        ?? new Date().toISOString().slice(0, 10)
       if (from && from !== defaultCurrency) {
         combos.add(`${from}:${defaultCurrency}:${date}`)
       }
@@ -656,15 +674,23 @@ export default function CollectionPage() {
                           {entry.allocatedPrice && (entry.priceCurrency || entry.purchaseGroup?.currency) && (() => {
                             const costCur = entry.priceCurrency ?? entry.purchaseGroup!.currency
                             const dc = user?.preferredCurrency
-                            const purchasedAt = entry.purchaseGroup?.purchasedAt
+                            const dateStr = entry.purchaseGroup?.purchasedAt?.slice(0, 10)
+                              ?? entry.purchaseDate?.slice(0, 10)
+                              ?? entry.acquiredAt?.slice(0, 10)
+                              ?? new Date().toISOString().slice(0, 10)
+                            const fees = entry.purchaseFees ?? []
+                            const feesInCostCur = fees
+                              .filter(f => f.currency === costCur)
+                              .reduce((sum, f) => sum + parseFloat(f.amount), 0)
+                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesInCostCur
                             return (
                               <p className="text-[10px] text-stone-400">
-                                {parseFloat(entry.allocatedPrice).toFixed(2)} {costCur}
-                                {dc && costCur !== dc && purchasedAt && (() => {
-                                  const key = `${costCur}:${dc}:${purchasedAt.slice(0, 10)}`
+                                {totalInCostCur.toFixed(2)} {costCur}
+                                {dc && costCur !== dc && (() => {
+                                  const key = `${costCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · {(parseFloat(entry.allocatedPrice!) * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-stone-500"> · {(totalInCostCur * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )

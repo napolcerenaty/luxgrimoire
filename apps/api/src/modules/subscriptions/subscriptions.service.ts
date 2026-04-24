@@ -746,6 +746,48 @@ export class SubscriptionsService {
               });
             }
           }
+
+          // Distribute shippingCost proportionally across books in this month
+          if (entry.shippingCost && monthBooks.length > 0) {
+            const shippingPerBook = parseFloat(entry.shippingCost.toString()) / monthBooks.length;
+            const existingShipping = await this.prisma.userPurchaseFee.findFirst({
+              where: { userId, userBookEntryId: bookEntry.id, name: 'Shipping' },
+            });
+            if (!existingShipping) {
+              await this.prisma.userPurchaseFee.create({
+                data: {
+                  userId,
+                  name: 'Shipping',
+                  amount: shippingPerBook,
+                  currency: entry.costCurrency ?? 'USD',
+                  date: purchaseDate,
+                  category: 'SHIPPING',
+                  userBookEntryId: bookEntry.id,
+                },
+              });
+            }
+          }
+
+          // Distribute taxesAndFees proportionally across books in this month
+          if (entry.taxesAndFees && monthBooks.length > 0) {
+            const taxPerBook = parseFloat(entry.taxesAndFees.toString()) / monthBooks.length;
+            const existingTax = await this.prisma.userPurchaseFee.findFirst({
+              where: { userId, userBookEntryId: bookEntry.id, name: 'Taxes & Fees' },
+            });
+            if (!existingTax) {
+              await this.prisma.userPurchaseFee.create({
+                data: {
+                  userId,
+                  name: 'Taxes & Fees',
+                  amount: taxPerBook,
+                  currency: entry.costCurrency ?? 'USD',
+                  date: purchaseDate,
+                  category: 'OTHER',
+                  userBookEntryId: bookEntry.id,
+                },
+              });
+            }
+          }
         } catch {
           // skip duplicates silently
         }
