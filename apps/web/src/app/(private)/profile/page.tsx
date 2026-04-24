@@ -13,6 +13,7 @@ interface UpdateProfilePayload {
   displayName?: string
   bio?: string
   avatar?: string
+  preferredCurrency?: string
 }
 
 interface UpdateUsernamePayload {
@@ -31,6 +32,7 @@ export default function ProfilePage() {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [bio, setBio] = useState('')
+  const [preferredCurrency, setPreferredCurrency] = useState(user?.preferredCurrency ?? 'EUR')
   const [newUsername, setNewUsername] = useState(user?.username ?? '')
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [usernameSuccess, setUsernameSuccess] = useState(false)
@@ -112,7 +114,7 @@ export default function ProfilePage() {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault()
-    updateProfileMutation.mutate({ displayName, bio: bio || undefined })
+    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency })
   }
 
   const handleUsernameSave = (e: React.FormEvent) => {
@@ -209,6 +211,35 @@ export default function ProfilePage() {
             rows={3}
             className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors resize-none"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-stone-400 mb-1.5">Preferred Currency</label>
+          <select
+            value={preferredCurrency}
+            onChange={(e) => setPreferredCurrency(e.target.value)}
+            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
+          >
+            {[
+              ['EUR', 'EUR — Euro'],
+              ['USD', 'USD — US Dollar'],
+              ['GBP', 'GBP — British Pound'],
+              ['PLN', 'PLN — Polish Złoty'],
+              ['CHF', 'CHF — Swiss Franc'],
+              ['CZK', 'CZK — Czech Koruna'],
+              ['SEK', 'SEK — Swedish Krona'],
+              ['NOK', 'NOK — Norwegian Krone'],
+              ['DKK', 'DKK — Danish Krone'],
+              ['HUF', 'HUF — Hungarian Forint'],
+              ['RON', 'RON — Romanian Leu'],
+              ['CAD', 'CAD — Canadian Dollar'],
+              ['AUD', 'AUD — Australian Dollar'],
+              ['JPY', 'JPY — Japanese Yen'],
+            ].map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
         </div>
 
         {profileError && (

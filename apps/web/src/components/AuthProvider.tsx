@@ -10,6 +10,7 @@ interface AuthUser {
   managedCompanyId?: string | null
   displayName?: string
   avatar?: string
+  preferredCurrency?: string
 }
 
 interface AuthContextType {
