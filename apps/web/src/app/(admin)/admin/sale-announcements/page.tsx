@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import {
   adminGetSaleAnnouncements,
   adminCreateSaleAnnouncement,
@@ -10,12 +10,22 @@ import {
   adminDeleteSaleAnnouncement,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
+import { authFetch } from '@/lib/authFetch'
+import ImageUpload from '@/components/admin/ImageUpload'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
+const SEL = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+
+const CURRENCIES = [
+  'AED','AUD','BGN','BRL','CAD','CHF','CNY','CZK','DKK','EGP',
+  'EUR','GBP','HKD','HRK','HUF','IDR','ILS','INR','JPY','KRW',
+  'MAD','MXN','MYR','NOK','NZD','PHP','PLN','RON','RUB','SAR',
+  'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
+]
 
 interface FormState {
   title: string
@@ -28,6 +38,7 @@ interface FormState {
   basePrice: string
   currency: string
   imageUrl: string
+  extraImages: string[]
   isPublished: boolean
   isBundle: boolean
   availableForPurchase: boolean
@@ -45,6 +56,7 @@ const EMPTY_FORM: FormState = {
   basePrice: '',
   currency: 'USD',
   imageUrl: '',
+  extraImages: [],
   isPublished: false,
   isBundle: false,
   availableForPurchase: false,
@@ -52,6 +64,10 @@ const EMPTY_FORM: FormState = {
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
+  let extraImages: string[] = []
+  if (a.extraImagesJson) {
+    try { extraImages = JSON.parse(a.extraImagesJson) } catch { extraImages = [] }
+  }
   return {
     title: a.title,
     companyId: a.companyId ?? '',
@@ -63,6 +79,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? 'USD',
     imageUrl: a.imageUrl ?? '',
+    extraImages,
     isPublished: a.isPublished,
     isBundle: a.isBundle,
     availableForPurchase: a.availableForPurchase,
@@ -85,6 +102,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     basePrice: f.basePrice ? Number(f.basePrice) : undefined,
     currency: f.currency || undefined,
     imageUrl: f.imageUrl || undefined,
+    extraImages: f.extraImages.length > 0 ? f.extraImages : undefined,
     isPublished: f.isPublished,
     isBundle: f.isBundle,
     availableForPurchase: f.availableForPurchase,
@@ -99,10 +117,28 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   submitLabel: string
 }) {
   const [form, setForm] = useState<FormState>(initial)
-  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const [companySearch, setCompanySearch] = useState('')
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
   const setCheck = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.checked }))
+
+  const { data: companiesResp } = useQuery({
+    queryKey: ['admin', 'companies'],
+    queryFn: () => authFetch<{ data: ApiBookBoxCompany[] } | ApiBookBoxCompany[]>('/companies?pageSize=100'),
+  })
+  const allCompanies: ApiBookBoxCompany[] = Array.isArray(companiesResp)
+    ? companiesResp
+    : (companiesResp as { data: ApiBookBoxCompany[] })?.data ?? []
+  const filteredCompanies = companySearch
+    ? allCompanies.filter(c => c.name.toLowerCase().includes(companySearch.toLowerCase()))
+    : allCompanies
+
+  const setExtraImage = (i: number, publicId: string) =>
+    setForm(f => { const imgs = [...f.extraImages]; imgs[i] = publicId; return { ...f, extraImages: imgs } })
+  const addExtraImage = () => setForm(f => ({ ...f, extraImages: [...f.extraImages, ''] }))
+  const removeExtraImage = (i: number) =>
+    setForm(f => ({ ...f, extraImages: f.extraImages.filter((_, idx) => idx !== i) }))
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
@@ -117,8 +153,19 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       </div>
 
       <div>
-        <label className={LBL}>Company ID</label>
-        <input className={INP} value={form.companyId} onChange={set('companyId')} placeholder="UUID of company" />
+        <label className={LBL}>Company</label>
+        <input
+          className={`${INP} mb-1`}
+          placeholder="Search companies..."
+          value={companySearch}
+          onChange={e => setCompanySearch(e.target.value)}
+        />
+        <select className={SEL} value={form.companyId} onChange={set('companyId')}>
+          <option value="">-- No company --</option>
+          {filteredCompanies.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -150,13 +197,58 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
         <div>
           <label className={LBL}>Currency</label>
-          <input className={INP} value={form.currency} onChange={set('currency')} placeholder="USD" />
+          <input
+            className={INP}
+            list="sale-currencies"
+            value={form.currency}
+            onChange={set('currency')}
+            placeholder="USD"
+          />
+          <datalist id="sale-currencies">
+            {CURRENCIES.map(c => <option key={c} value={c} />)}
+          </datalist>
         </div>
       </div>
 
+      <ImageUpload
+        label="Cover Image"
+        folder="luxgrimoire/announcements"
+        value={form.imageUrl}
+        onChange={publicId => setForm(f => ({ ...f, imageUrl: publicId }))}
+        aspectRatio="1/1"
+      />
+
       <div>
-        <label className={LBL}>Image URL</label>
-        <input className={INP} value={form.imageUrl} onChange={set('imageUrl')} placeholder="https://..." />
+        <label className={LBL}>Additional Images</label>
+        <div className="flex flex-col gap-3">
+          {form.extraImages.map((img, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <div className="flex-1">
+                <ImageUpload
+                  label={`Image ${i + 1}`}
+                  folder="luxgrimoire/announcements"
+                  value={img}
+                  onChange={publicId => setExtraImage(i, publicId)}
+                  aspectRatio="1/1"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeExtraImage(i)}
+                className="mt-7 text-red-400 hover:text-red-300 text-sm px-2"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addExtraImage}
+            className="self-start text-sm px-3 py-1.5 rounded-lg border border-stone-600 text-stone-400 hover:border-amber-500 hover:text-amber-400 transition-colors"
+          >
+            + Add image
+          </button>
+        </div>
       </div>
 
       <div>
@@ -168,15 +260,15 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       <div className="flex flex-col gap-2">
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.isPublished} onChange={setCheck('isPublished')} className="accent-amber-400" />
-          Published
+          <span>Published <span className="text-stone-500">-- visible to users in the public listing</span></span>
         </label>
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-amber-400" />
-          Is Bundle
+          <span>Is Bundle <span className="text-stone-500">-- multiple editions sold together as a set</span></span>
         </label>
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.availableForPurchase} onChange={setCheck('availableForPurchase')} className="accent-amber-400" />
-          Available for Purchase
+          <span>Available for Purchase <span className="text-stone-500">-- currently on sale / orderable</span></span>
         </label>
       </div>
 
@@ -185,7 +277,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         disabled={submitting}
         className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
       >
-        {submitting ? 'Saving…' : submitLabel}
+        {submitting ? 'Saving...' : submitLabel}
       </button>
     </form>
   )
@@ -201,6 +293,15 @@ export default function AdminSaleAnnouncementsPage() {
     queryKey: ['admin', 'sale-announcements'],
     queryFn: adminGetSaleAnnouncements,
   })
+
+  const { data: companiesResp } = useQuery({
+    queryKey: ['admin', 'companies'],
+    queryFn: () => authFetch<{ data: ApiBookBoxCompany[] } | ApiBookBoxCompany[]>('/companies?pageSize=100'),
+  })
+  const allCompanies: ApiBookBoxCompany[] = Array.isArray(companiesResp)
+    ? companiesResp
+    : (companiesResp as { data: ApiBookBoxCompany[] })?.data ?? []
+  const companyMap = Object.fromEntries(allCompanies.map(c => [c.id, c.name]))
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
@@ -234,12 +335,12 @@ export default function AdminSaleAnnouncementsPage() {
     { key: 'title', label: 'Title', render: (row: ApiSaleAnnouncement) => row.title },
     {
       key: 'company', label: 'Company',
-      render: (row: ApiSaleAnnouncement) => row.companyId ?? '—',
+      render: (row: ApiSaleAnnouncement) => (row.companyId ? companyMap[row.companyId] ?? row.companyId : '--'),
     },
     {
       key: 'generalSaleDate', label: 'Sale Date',
       render: (row: ApiSaleAnnouncement) =>
-        row.generalSaleDate ? new Date(row.generalSaleDate).toLocaleDateString() : '—',
+        row.generalSaleDate ? new Date(row.generalSaleDate).toLocaleDateString() : '--',
     },
     {
       key: 'isPublished', label: 'Published',
@@ -280,7 +381,7 @@ export default function AdminSaleAnnouncementsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-stone-400 py-8 text-center">Loading...</div>
       ) : (
         <DataTable
           columns={columns}

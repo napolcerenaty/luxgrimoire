@@ -55,6 +55,11 @@ export class CreateSaleAnnouncementDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  extraImages?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   editionIds?: string[];
 }
 
@@ -110,6 +115,11 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   availableForPurchase?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  extraImages?: string[];
 
   @IsOptional()
   @IsArray()

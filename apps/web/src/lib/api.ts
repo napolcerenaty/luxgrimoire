@@ -513,6 +513,7 @@ export interface SaleAnnouncementFormData {
   basePrice?: number;
   currency?: string;
   imageUrl?: string;
+  extraImages?: string[];
   isPublished?: boolean;
   isBundle?: boolean;
   availableForPurchase?: boolean;

@@ -62,7 +62,7 @@ export class AnnouncementsService {
   }
 
   async create(dto: CreateSaleAnnouncementDto) {
-    const { editionIds, ...data } = dto;
+    const { editionIds, extraImages, ...data } = dto;
 
     const announcement = await this.prisma.saleAnnouncement.create({
       data: {
@@ -76,6 +76,7 @@ export class AnnouncementsService {
         basePrice: data.basePrice ?? null,
         currency: data.currency ?? null,
         imageUrl: data.imageUrl ?? null,
+        extraImagesJson: extraImages && extraImages.length > 0 ? JSON.stringify(extraImages) : null,
         isPublished: data.isPublished ?? false,
         isBundle: data.isBundle ?? false,
         availableForPurchase: data.availableForPurchase ?? false,
@@ -100,7 +101,7 @@ export class AnnouncementsService {
     const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Sale announcement not found');
 
-    const { editionIds, ...data } = dto;
+    const { editionIds, extraImages, ...data } = dto;
 
     await this.prisma.saleAnnouncement.update({
       where: { id },
@@ -121,6 +122,9 @@ export class AnnouncementsService {
         ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
         ...(data.currency !== undefined && { currency: data.currency }),
         ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+        ...(extraImages !== undefined && {
+          extraImagesJson: extraImages.length > 0 ? JSON.stringify(extraImages) : null,
+        }),
         ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
         ...(data.availableForPurchase !== undefined && {
