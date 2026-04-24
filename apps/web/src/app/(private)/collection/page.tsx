@@ -513,7 +513,7 @@ export default function CollectionPage() {
               </button>
             ))}
             </div>
-          }
+          </div>
 
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-stone-500">
