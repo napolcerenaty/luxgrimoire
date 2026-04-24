@@ -27,6 +27,7 @@ import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
 import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.module';
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
+import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { BookBoxCollectionsModule } from './modules/book-box-collections/book-bo
     AiModule,
     PurchaseGroupsModule,
     BookBoxCollectionsModule,
+    SubscriptionSeriesModule,
   ],
 })
 export class AppModule {}

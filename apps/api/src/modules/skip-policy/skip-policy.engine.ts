@@ -62,9 +62,17 @@ export class SkipPolicyEngine {
     // Find the subscription month
     const subMonth = await this.prisma.subscriptionMonth.findUnique({
       where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
+      include: { series: true },
     });
     if (!subMonth) {
       throw new NotFoundException(`Month ${month}/${year} not found for this subscription`);
+    }
+
+    // If month belongs to a SERIES_ONLY series, require using the series skip endpoint
+    if (subMonth.series && subMonth.series.skipMode === 'SERIES_ONLY') {
+      throw new BadRequestException(
+        `Month ${month}/${year} belongs to series "${subMonth.series.name}" (skip mode: SERIES_ONLY). Use the series skip endpoint instead.`,
+      );
     }
 
     const windowKey = this.computeWindowKey(policy, state, entry);
@@ -165,7 +173,108 @@ export class SkipPolicyEngine {
     return this.buildStatus(policy, updatedState, deadline);
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────
+  async recordSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
+    const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+
+    if (!this.evaluateCanSkip(policy, state)) {
+      throw new ForbiddenException('Skip not allowed under current policy');
+    }
+
+    const series = await this.prisma.subscriptionSeries.findUnique({
+      where: { slug: seriesSlug },
+      include: { months: { orderBy: [{ year: 'asc' }, { month: 'asc' }] } },
+    });
+    if (!series) throw new NotFoundException(`Series '${seriesSlug}' not found`);
+    if (series.subscriptionId !== subscription.id) {
+      throw new BadRequestException('Series does not belong to this subscription');
+    }
+    if (series.months.length === 0) {
+      throw new BadRequestException('Series has no months assigned');
+    }
+
+    const windowKey = this.computeWindowKey(policy, state, entry);
+    const now = new Date();
+    const newWindow = windowKey !== state?.windowKey;
+
+    // Create a skip record for every month in the series
+    for (const m of series.months) {
+      await this.prisma.userSkipRecord.upsert({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: m.id } },
+        create: {
+          userId,
+          userEntryId: entry.id,
+          subscriptionMonthId: m.id,
+          windowKey,
+          skippedAt: now,
+          seriesId: series.id,
+        },
+        update: { windowKey, skippedAt: now, undoneAt: null, seriesId: series.id },
+      });
+    }
+
+    // Series counts as 1 skip in window — consecutiveSkips unchanged for SERIES_ONLY
+    const newState = await this.prisma.userSubscriptionSkipState.upsert({
+      where: { userId_subscriptionId: { userId, subscriptionId: subscription.id } },
+      create: {
+        userId,
+        subscriptionId: subscription.id,
+        windowKey,
+        skipsInWindow: 1,
+        consecutiveSkips: state?.consecutiveSkips ?? 0,
+        totalSkips: 1,
+        lastSkipAt: now,
+      },
+      update: {
+        windowKey,
+        skipsInWindow: newWindow ? 1 : { increment: 1 },
+        // consecutiveSkips intentionally not changed for SERIES_ONLY
+        totalSkips: { increment: 1 },
+        lastSkipAt: now,
+      },
+    });
+
+    if (!entry.firstSkipDate) {
+      await this.prisma.userSubscriptionEntry.update({
+        where: { id: entry.id },
+        data: { firstSkipDate: now },
+      });
+    }
+
+    await this.notifyIfNeeded(userId, subscription.id, policy, newState);
+
+    const lastMonth = series.months[series.months.length - 1];
+    const deadline = this.computeDeadline(policy, entry, lastMonth);
+    return this.buildStatus(policy, newState, deadline);
+  }
+
+  async undoSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
+    const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+
+    const series = await this.prisma.subscriptionSeries.findUnique({
+      where: { slug: seriesSlug },
+      include: { months: true },
+    });
+    if (!series) throw new NotFoundException(`Series '${seriesSlug}' not found`);
+
+    // Soft-delete all active series skip records for this entry
+    const monthIds = series.months.map((m) => m.id);
+    await this.prisma.userSkipRecord.updateMany({
+      where: {
+        userEntryId: entry.id,
+        subscriptionMonthId: { in: monthIds },
+        seriesId: series.id,
+        undoneAt: null,
+      },
+      data: { undoneAt: new Date() },
+    });
+
+    const updatedState = await this.recomputeState(userId, subscription.id, policy);
+
+    const deadline = this.computeDeadline(policy, entry, null);
+    return this.buildStatus(policy, updatedState, deadline);
+  }
+
+
 
   private async loadContext(userId: string, subscriptionSlug: string) {
     const subscription = await this.prisma.subscription.findUnique({

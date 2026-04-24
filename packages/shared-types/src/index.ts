@@ -392,3 +392,47 @@ export interface ApiWaitlistEntry {
     company: { id: string; name: string; slug: string; logoUrl: string | null } | null;
   };
 }
+
+export interface ApiSubscriptionSeries {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  coverImage: string | null;
+  startMonth: number;
+  startYear: number;
+  endMonth: number;
+  endYear: number;
+  /** 'INDIVIDUAL' | 'SERIES_ONLY' */
+  skipMode: string;
+  canCancelDuring: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  subscription: { id: string; slug: string; name: string };
+  months?: Array<{
+    id: string;
+    year: number;
+    month: number;
+    theme: string | null;
+    coverImage: string | null;
+  }>;
+  _count?: { months: number };
+}
+
+  id: string;
+  userId: string;
+  subscriptionId: string;
+  joinedAt: string;
+  leftAt: string | null;
+  daysOnList: number;
+  isActive: boolean;
+  subscription: {
+    id: string;
+    slug: string;
+    name: string;
+    coverImage: string | null;
+    isDiscontinued: boolean;
+    company: { id: string; name: string; slug: string; logoUrl: string | null } | null;
+  };
+}

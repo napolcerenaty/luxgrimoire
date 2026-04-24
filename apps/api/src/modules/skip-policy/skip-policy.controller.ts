@@ -10,9 +10,10 @@ import {
   Request,
   Put,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/auth.decorators';
+import { Roles, Public } from '../../common/decorators/auth.decorators';
 import { SkipPolicyEngine } from './skip-policy.engine';
 import { SkipPolicyAdminService } from './skip-policy-admin.service';
 import { UpsertSkipPolicyDto } from './skip-policy.dto';
@@ -57,7 +58,29 @@ export class SkipPolicyController {
     return this.engine.undoSkip(req.user.id, slug, year, month);
   }
 
-  // ─── Admin endpoints ────────────────────────────────────────────────
+  @Post(':slug/series/:seriesSlug/skip')
+  @ApiOperation({ summary: 'Skip entire series (SERIES_ONLY series)' })
+  @ApiBearerAuth()
+  recordSeriesSkip(
+    @Param('slug') slug: string,
+    @Param('seriesSlug') seriesSlug: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.engine.recordSeriesSkip(req.user.id, slug, seriesSlug);
+  }
+
+  @Delete(':slug/series/:seriesSlug/skip')
+  @ApiOperation({ summary: 'Undo series skip' })
+  @ApiBearerAuth()
+  undoSeriesSkip(
+    @Param('slug') slug: string,
+    @Param('seriesSlug') seriesSlug: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.engine.undoSeriesSkip(req.user.id, slug, seriesSlug);
+  }
+
+
 
   /** PUT /skip-policy/:slug — upsert skip policy for a subscription */
   @Put(':slug')

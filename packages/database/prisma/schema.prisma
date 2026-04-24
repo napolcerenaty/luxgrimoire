@@ -360,6 +360,7 @@ model Subscription {
   parent          Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   variants        Subscription[]               @relation("SubVariants")
   months          SubscriptionMonth[]
+  series          SubscriptionSeries[]
   userEntries     UserSubscriptionEntry[]
   prepayOptions   SubscriptionPrepayOption[]
   comboComponents SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
@@ -402,11 +403,47 @@ model SubscriptionSkipPolicy {
   @@map("subscription_skip_policies")
 }
 
+// ─────────────────────────────────────────────
+// SUBSCRIPTION SERIES
+// ─────────────────────────────────────────────
+// A series groups consecutive months under a named commitment window.
+// skipMode:
+//   INDIVIDUAL  – each month in the series can be skipped independently
+//   SERIES_ONLY – the entire series must be skipped as a single action (1 skip unit)
+// canCancelDuring – when true, users cannot cancel their subscription while the series is active
+
+model SubscriptionSeries {
+  id              String   @id @default(uuid())
+  subscriptionId  String
+  slug            String   @unique
+  name            String
+  description     String?
+  coverImage      String?  // Cloudinary public_id
+  startMonth      Int      // 1–12
+  startYear       Int
+  endMonth        Int
+  endYear         Int
+  // INDIVIDUAL | SERIES_ONLY
+  skipMode        String   @default("INDIVIDUAL")
+  canCancelDuring Boolean  @default(true)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscription Subscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  months       SubscriptionMonth[]
+  skipRecords  UserSkipRecord[]
+
+  @@index([subscriptionId])
+  @@map("subscription_series")
+}
+
 model UserSkipRecord {
   id                  String    @id @default(uuid())
   userId              String
   userEntryId         String
   subscriptionMonthId String
+  seriesId            String?   // set when skip was triggered via series skip endpoint
   skippedAt           DateTime  @default(now())
   windowKey           String? // "2024" for calendar year, "2024-03-15" for from-first-skip, etc.
   undoneAt            DateTime? // TODO: populate when skip reversal is implemented
@@ -414,6 +451,7 @@ model UserSkipRecord {
   user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   userEntry UserSubscriptionEntry @relation(fields: [userEntryId], references: [id], onDelete: Cascade)
   month    SubscriptionMonth     @relation(fields: [subscriptionMonthId], references: [id], onDelete: Cascade)
+  series   SubscriptionSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
 
   @@unique([userEntryId, subscriptionMonthId])
   @@index([userEntryId])
@@ -451,6 +489,7 @@ model SubscriptionMonth {
   subscriptionId String
   year           Int
   month          Int // 1-12
+  seriesId       String?
   theme          String?
   coverImage     String? // Cloudinary public_id
   spoilerImage   String?
@@ -464,6 +503,7 @@ model SubscriptionMonth {
   updatedAt      DateTime  @updatedAt
 
   subscription Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  series       SubscriptionSeries?     @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   books        SubscriptionMonthBook[]
   userMonths   UserSubBillingPeriod[]
   skipRecords  UserSkipRecord[]
