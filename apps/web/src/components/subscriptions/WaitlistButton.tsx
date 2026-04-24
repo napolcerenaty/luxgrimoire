@@ -131,6 +131,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
             ) : (
               <>
                 <span>{joinDate.toLocaleDateString('en-GB')} · {daysOnList}d</span>
+                <span className="flex-1" />
                 <button
                   onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setEditingDate(true) }}
                   className="flex items-center gap-1 text-stone-600 hover:text-stone-400 transition-colors"
