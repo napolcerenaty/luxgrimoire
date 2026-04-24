@@ -309,6 +309,7 @@ export default function CollectionPage() {
   })
 
   // Fetch currency conversion rates for entries with purchase groups or priceCurrency
+  // Includes: costCur→dc (for display) and feeCurrency→costCur (for fee normalization)
   useEffect(() => {
     const defaultCurrency = user?.preferredCurrency
     if (!defaultCurrency || entries.length === 0) return
@@ -320,8 +321,17 @@ export default function CollectionPage() {
         ?? e.purchaseDate?.slice(0, 10)
         ?? e.acquiredAt?.slice(0, 10)
         ?? new Date().toISOString().slice(0, 10)
-      if (from && from !== defaultCurrency) {
-        combos.add(`${from}:${defaultCurrency}:${date}`)
+      if (from) {
+        // costCur → defaultCurrency (for display conversion)
+        if (from !== defaultCurrency) {
+          combos.add(`${from}:${defaultCurrency}:${date}`)
+        }
+        // feeCurrency → costCur (to normalize fees into purchase currency)
+        for (const fee of e.purchaseFees ?? []) {
+          if (fee.currency !== from) {
+            combos.add(`${fee.currency}:${from}:${date}`)
+          }
+        }
       }
     }
     if (combos.size === 0) return
@@ -679,9 +689,15 @@ export default function CollectionPage() {
                               ?? entry.acquiredAt?.slice(0, 10)
                               ?? new Date().toISOString().slice(0, 10)
                             const fees = entry.purchaseFees ?? []
-                            const feesTotal = fees
-                              .reduce((sum, f) => sum + parseFloat(f.amount), 0)
-                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesTotal
+                            // Convert each fee to costCur before summing
+                            const feesInCostCur = fees.reduce((sum, f) => {
+                              const feeAmt = parseFloat(f.amount)
+                              if (f.currency === costCur) return sum + feeAmt
+                              const rateKey = `${f.currency}:${costCur}:${dateStr}`
+                              const rate = conversionRates[rateKey]
+                              return sum + (rate ? feeAmt * rate : feeAmt)
+                            }, 0)
+                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesInCostCur
                             return (
                               <p className="text-[10px] text-stone-400">
                                 {totalInCostCur.toFixed(2)} {costCur}
