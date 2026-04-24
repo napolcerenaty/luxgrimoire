@@ -10,8 +10,15 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 export class SpendingController {
   constructor(private readonly spendingService: SpendingService) {}
 
-  @Get('stats')
-  getStats(
+  @Get('stats/v2')
+  getComprehensiveStats(
+    @CurrentUser() user: { id: string },
+    @Query('currency') currency?: string,
+  ) {
+    return this.spendingService.getComprehensiveStats(user.id, currency ?? 'EUR');
+  }
+
+  @Get('stats')  getStats(
     @CurrentUser() user: { id: string },
     @Query('currency') currency?: string,
   ) {
