@@ -469,6 +469,7 @@ export class SubscriptionsService {
             subscriptionEntryId: entry.id,
             feeTemplateId: t.templateId,
             customAmount: t.customAmount ?? null,
+            customCurrency: t.customCurrency ?? null,
           })),
           skipDuplicates: true,
         });
@@ -588,13 +589,15 @@ export class SubscriptionsService {
               const template = link.feeTemplate;
               const amount = link.customAmount ?? template.defaultAmount;
               if (!amount) continue;
+              // Fee uses its own currency (customCurrency override or template default)
+              const feeCurrency = link.customCurrency ?? template.defaultCurrency;
               await this.prisma.userPurchaseFee.create({
                 data: {
                   userId,
                   feeTemplateId: template.id,
                   name: template.name,
                   amount: parseFloat(amount.toString()),
-                  currency: entry.costCurrency ?? template.defaultCurrency,
+                  currency: feeCurrency,
                   date: purchaseDate,
                   category: template.category,
                   userBookEntryId: bookEntry.id,

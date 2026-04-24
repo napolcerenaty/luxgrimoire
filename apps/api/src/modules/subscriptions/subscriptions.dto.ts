@@ -366,6 +366,11 @@ export class LinkedFeeTemplateDto {
   @IsNumber()
   @Type(() => Number)
   customAmount?: number;
+
+  /** Override currency (if omitted, uses template's defaultCurrency) */
+  @IsOptional()
+  @IsString()
+  customCurrency?: string;
 }
 
 export class JoinSubscriptionDto {
