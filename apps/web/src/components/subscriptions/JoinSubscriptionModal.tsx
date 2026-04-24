@@ -50,6 +50,9 @@ interface JoinResult {
 interface Props {
   subscriptionSlug: string
   subscriptionCurrency: string
+  subscriptionRenewalDay?: number | null
+  subscriptionPrice?: string | null
+  userDefaultTaxRate?: number | null
   onJoined: () => void
   onClose: () => void
 }
@@ -70,34 +73,52 @@ function monthLabel(m: SubscriptionMonth) {
 
 interface Step1Props {
   currency: string
+  subscriptionRenewalDay?: number | null
+  subscriptionPrice?: string | null
+  userDefaultTaxRate?: number | null
   onNext: (data: {
-    startDate: string
+    startDate: string       // YYYY-MM-DD if renewalDay known; YYYY-MM otherwise
     costCurrency: string
+    basePrice: string
     shippingCost: string
     taxesAndFees: string
-    renewalDay: number
+    renewalDay?: number     // only if sub doesn't have one
   }) => void
 }
 
-function Step1({ currency, onNext }: Step1Props) {
-  const now = new Date()
-  const [startYear, setStartYear] = useState(now.getFullYear())
-  const [startMonth, setStartMonth] = useState(now.getMonth() + 1)
+function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, onNext }: Step1Props) {
+  const today = new Date()
+  const todayStr = today.toISOString().slice(0, 10)
+
+  const [firstOrderDate, setFirstOrderDate] = useState(todayStr)
   const [costCurrency, setCostCurrency] = useState(currency)
+  const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
   const [taxesAndFees, setTaxesAndFees] = useState('')
-  const [renewalDay, setRenewalDay] = useState(1)
 
-  const years = Array.from({ length: 10 }, (_, i) => now.getFullYear() - 8 + i)
+  // Auto-compute taxes when basePrice changes (if user has defaultTaxRate)
+  useEffect(() => {
+    if (userDefaultTaxRate && userDefaultTaxRate > 0 && basePrice) {
+      const computed = (parseFloat(basePrice) * userDefaultTaxRate) / 100
+      setTaxesAndFees(isNaN(computed) ? '' : computed.toFixed(2))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basePrice, userDefaultTaxRate])
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    const parts = firstOrderDate.split('-').map(Number)
+    const d = subscriptionRenewalDay != null
+      ? firstOrderDate             // full YYYY-MM-DD
+      : `${parts[0]}-${String(parts[1]).padStart(2, '0')}` // YYYY-MM (no fixed renewal day)
+
     onNext({
-      startDate: `${startYear}-${String(startMonth).padStart(2, '0')}`,
+      startDate: d,
       costCurrency: costCurrency || currency,
+      basePrice,
       shippingCost,
       taxesAndFees,
-      renewalDay,
+      ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate).getDate() }),
     })
   }
 
@@ -105,42 +126,28 @@ function Step1({ currency, onNext }: Step1Props) {
     <form onSubmit={submit} className="space-y-5">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Start date */}
-      <div>
-        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Start month</label>
-        <div className="flex gap-2">
-          <select
-            value={startMonth}
-            onChange={e => setStartMonth(Number(e.target.value))}
-            className="flex-1 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
-          >
-            {MONTH_NAMES.map((name, i) => (
-              <option key={i + 1} value={i + 1}>{name}</option>
-            ))}
-          </select>
-          <select
-            value={startYear}
-            onChange={e => setStartYear(Number(e.target.value))}
-            className="w-28 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
-          >
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Renewal day */}
+      {/* First order date */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
-          Renewal day of month
+          {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
         </label>
         <input
-          type="number"
-          min={1}
-          max={31}
-          value={renewalDay}
-          onChange={e => setRenewalDay(Number(e.target.value))}
-          className="w-24 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+          type="date"
+          value={firstOrderDate}
+          max={todayStr}
+          onChange={e => setFirstOrderDate(e.target.value)}
+          className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
         />
+        {subscriptionRenewalDay != null ? (
+          <p className="text-xs text-stone-500 mt-1">
+            Renewal day: <span className="text-stone-300">{subscriptionRenewalDay}</span> (set by subscription)
+          </p>
+        ) : (
+          <p className="text-xs text-stone-500 mt-1">
+            Renewal day will be set to{' '}
+            <span className="text-stone-300">{new Date(firstOrderDate + 'T00:00:00').getDate()}</span>
+          </p>
+        )}
       </div>
 
       {/* Currency */}
@@ -155,10 +162,24 @@ function Step1({ currency, onNext }: Step1Props) {
         />
       </div>
 
+      {/* Base price */}
+      <div>
+        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Base price ({costCurrency || currency})</label>
+        <input
+          type="number"
+          min={0}
+          step="0.01"
+          value={basePrice}
+          onChange={e => setBasePrice(e.target.value)}
+          placeholder="0.00"
+          className="w-36 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+        />
+      </div>
+
       {/* Shipping + taxes */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping cost</label>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping ({costCurrency || currency})</label>
           <input
             type="number"
             min={0}
@@ -170,7 +191,7 @@ function Step1({ currency, onNext }: Step1Props) {
           />
         </div>
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Taxes &amp; fees</label>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Taxes &amp; fees ({costCurrency || currency})</label>
           <input
             type="number"
             min={0}
@@ -180,6 +201,9 @@ function Step1({ currency, onNext }: Step1Props) {
             placeholder="0.00"
             className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
           />
+          {userDefaultTaxRate && userDefaultTaxRate > 0 && (
+            <p className="text-xs text-stone-500 mt-1">Based on your default tax rate ({userDefaultTaxRate}%)</p>
+          )}
         </div>
       </div>
 
@@ -394,7 +418,15 @@ function MonthRow({ month, checked, onToggle }: {
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 
-export default function JoinSubscriptionModal({ subscriptionSlug, subscriptionCurrency, onJoined, onClose }: Props) {
+export default function JoinSubscriptionModal({
+  subscriptionSlug,
+  subscriptionCurrency,
+  subscriptionRenewalDay,
+  subscriptionPrice,
+  userDefaultTaxRate,
+  onJoined,
+  onClose,
+}: Props) {
   const [step, setStep] = useState<1 | 2 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -403,9 +435,10 @@ export default function JoinSubscriptionModal({ subscriptionSlug, subscriptionCu
   const handleStep1 = useCallback(async (data: {
     startDate: string
     costCurrency: string
+    basePrice: string
     shippingCost: string
     taxesAndFees: string
-    renewalDay: number
+    renewalDay?: number
   }) => {
     setError(null)
     setJoining(true)
@@ -416,6 +449,7 @@ export default function JoinSubscriptionModal({ subscriptionSlug, subscriptionCu
         body: JSON.stringify({
           startDate: data.startDate,
           costCurrency: data.costCurrency,
+          basePrice: data.basePrice || undefined,
           shippingCost: data.shippingCost || undefined,
           taxesAndFees: data.taxesAndFees || undefined,
           renewalDay: data.renewalDay,
@@ -459,7 +493,13 @@ export default function JoinSubscriptionModal({ subscriptionSlug, subscriptionCu
 
         {!joining && step === 1 && (
           <>
-            <Step1 currency={subscriptionCurrency} onNext={handleStep1} />
+            <Step1
+              currency={subscriptionCurrency}
+              subscriptionRenewalDay={subscriptionRenewalDay}
+              subscriptionPrice={subscriptionPrice}
+              userDefaultTaxRate={userDefaultTaxRate}
+              onNext={handleStep1}
+            />
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
           </>
         )}

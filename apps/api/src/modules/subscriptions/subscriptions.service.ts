@@ -410,15 +410,27 @@ export class SubscriptionsService {
       throw new ConflictException('You are already subscribed to this subscription');
     }
 
-    // Resolve renewalDay: dto > sub default
-    const renewalDay = dto.renewalDay ?? (sub as any).renewalDay ?? 1;
-
-    // Parse startDate (YYYY-MM) → first-of-month ISO string
+    // Parse startDate: accepts YYYY-MM-DD or YYYY-MM
     let startDateObj: Date | null = null;
+    let startDateStr: string | null = null;
     if (dto.startDate) {
-      const [y, m] = dto.startDate.split('-').map(Number);
-      startDateObj = new Date(y, m - 1, 1);
+      const parts = dto.startDate.split('-').map(Number);
+      const y = parts[0], m = parts[1], d = parts[2] ?? 1;
+      startDateObj = new Date(y, m - 1, d);
+      startDateStr = dto.startDate.length >= 10
+        ? dto.startDate.slice(0, 10)            // full YYYY-MM-DD
+        : `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-01`;
     }
+
+    // Resolve renewalDay:
+    // - if sub has a fixed renewalDay → use it (don't override with dto.renewalDay)
+    // - if dto provided a full date → derive from that day
+    // - else fallback to dto.renewalDay or 1
+    const subRenewalDay = (sub as any).renewalDay as number | null;
+    const renewalDay = subRenewalDay
+      ?? (startDateObj ? startDateObj.getDate() : null)
+      ?? dto.renewalDay
+      ?? 1;
 
     const entry = await this.prisma.userSubscriptionEntry.upsert({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
@@ -426,7 +438,8 @@ export class SubscriptionsService {
         userId,
         subscriptionId: sub.id,
         active: true,
-        startDate: startDateObj ? startDateObj.toISOString().slice(0, 10) : null,
+        startDate: startDateStr,
+        basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
         taxesAndFees: dto.taxesAndFees ? parseFloat(dto.taxesAndFees) : null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
@@ -435,7 +448,8 @@ export class SubscriptionsService {
       update: {
         active: true,
         cancellationDate: null,
-        startDate: startDateObj ? startDateObj.toISOString().slice(0, 10) : undefined,
+        startDate: startDateStr ?? undefined,
+        basePrice: dto.basePrice !== undefined ? parseFloat(dto.basePrice) : undefined,
         shippingCost: dto.shippingCost !== undefined ? parseFloat(dto.shippingCost) : undefined,
         taxesAndFees: dto.taxesAndFees !== undefined ? parseFloat(dto.taxesAndFees) : undefined,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',

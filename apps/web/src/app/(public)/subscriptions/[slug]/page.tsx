@@ -154,6 +154,7 @@ export default async function SubscriptionPage({ params }: Props) {
             shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
             country={sub.company?.country ?? null}
             skipPolicy={sub.skipPolicy}
+            renewalDay={sub.renewalDay ?? null}
           />
         </div>
       </div>

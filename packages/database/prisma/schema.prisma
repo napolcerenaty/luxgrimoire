@@ -42,6 +42,7 @@ model User {
   managedCompanyId  String?
   preferredCurrency String   @default("EUR")
   timezone          String   @default("UTC")
+  defaultTaxRate    Decimal? @db.Decimal(5, 2) // user's default tax/VAT rate as a percentage (e.g. 21.00)
   avatarUrl         String?
   bio               String?
   createdAt         DateTime @default(now())
@@ -640,6 +641,7 @@ model UserSubscriptionEntry {
   startDate        String?
   startingMonth    Int?
   shippingCost     Decimal?  @db.Decimal(10, 2)
+  basePrice        Decimal?  @db.Decimal(10, 2) // user's own base price (may differ from subscription's advertised price)
   taxesAndFees     Decimal?  @db.Decimal(10, 2)
   active           Boolean   @default(true)
   renewalDay       Int?

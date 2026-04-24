@@ -130,6 +130,7 @@ export class AuthService {
         managedCompanyId: true,
         preferredCurrency: true,
         timezone: true,
+        defaultTaxRate: true,
         avatarUrl: true,
         bio: true,
         createdAt: true,

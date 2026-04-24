@@ -24,6 +24,7 @@ interface Props {
   shipsInternationally: boolean
   country: string | null
   skipPolicy?: SkipPolicy | null
+  renewalDay?: number | null
 }
 
 type MyEntry = {
@@ -99,6 +100,7 @@ export default function SubscriptionInfoPanel({
   shipsInternationally,
   country,
   skipPolicy,
+  renewalDay,
 }: Props) {
   const { user } = useAuth()
   const [token, setToken] = useState<string | null>(null)
@@ -428,6 +430,9 @@ export default function SubscriptionInfoPanel({
         <JoinSubscriptionModal
           subscriptionSlug={subscriptionSlug}
           subscriptionCurrency={currency}
+          subscriptionRenewalDay={renewalDay ?? null}
+          subscriptionPrice={price}
+          userDefaultTaxRate={user?.defaultTaxRate ?? null}
           onJoined={() => {
             setShowJoinModal(false)
             setLoading(true)

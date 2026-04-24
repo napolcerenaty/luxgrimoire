@@ -15,6 +15,7 @@ interface UpdateProfilePayload {
   avatar?: string
   preferredCurrency?: string
   timezone?: string
+  defaultTaxRate?: number
 }
 
 interface UpdateUsernamePayload {
@@ -34,6 +35,9 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [bio, setBio] = useState('')
   const [preferredCurrency, setPreferredCurrency] = useState(user?.preferredCurrency ?? 'EUR')
+  const [defaultTaxRate, setDefaultTaxRate] = useState<number>(
+    user?.defaultTaxRate != null ? Number(user.defaultTaxRate) : 0,
+  )
   const [timezone, setTimezone] = useState(
     user?.timezone && user.timezone !== 'UTC'
       ? user.timezone
@@ -144,7 +148,7 @@ export default function ProfilePage() {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault()
-    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency, timezone })
+    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency, timezone, defaultTaxRate })
   }
 
   const handleUsernameSave = (e: React.FormEvent) => {
@@ -284,6 +288,20 @@ export default function ProfilePage() {
             ))}
           </select>
           <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-stone-400 mb-1.5">Default Tax / VAT Rate (%)</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={0.1}
+            value={defaultTaxRate}
+            onChange={(e) => setDefaultTaxRate(parseFloat(e.target.value) || 0)}
+            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
+          />
+          <p className="text-xs text-stone-500 mt-1">Pre-fills tax estimate when joining a subscription (e.g. 21 for 21% VAT)</p>
         </div>
 
         {profileError && (

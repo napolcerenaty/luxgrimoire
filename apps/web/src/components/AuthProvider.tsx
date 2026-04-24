@@ -12,6 +12,7 @@ interface AuthUser {
   avatar?: string
   preferredCurrency?: string
   timezone?: string
+  defaultTaxRate?: number | null
 }
 
 interface AuthContextType {

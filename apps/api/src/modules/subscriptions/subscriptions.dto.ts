@@ -356,15 +356,19 @@ export class SubscriptionQueryDto {
 }
 
 export class JoinSubscriptionDto {
-  /** Start month in YYYY-MM format, e.g. "2024-01" */
+  /** Start date — YYYY-MM-DD (when subscription has renewalDay) or YYYY-MM */
   @IsOptional()
   @IsString()
   startDate?: string;
 
-  /** Currency for shipping + taxes (defaults to subscription currency) */
+  /** Currency for basePrice, shipping + taxes */
   @IsOptional()
   @IsString()
   costCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  basePrice?: string;
 
   @IsOptional()
   @IsString()
