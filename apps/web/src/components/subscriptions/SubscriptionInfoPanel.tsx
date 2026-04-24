@@ -351,7 +351,7 @@ export default function SubscriptionInfoPanel({
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
         </>
       )}
-      {token && countryFeeHints.length > 0 && (
+      {token && !isSubscriber && countryFeeHints.length > 0 && (
         <div className="pt-3 border-t border-stone-700/60">
           <p className="text-xs text-stone-500 mb-1.5">
             🌍 Subscribers from {user?.shippingCountry} report:
@@ -453,6 +453,13 @@ export default function SubscriptionInfoPanel({
             <p className="text-xs text-stone-500">Reason: {myEntry.cancellationReason}</p>
           )}
           <p className="text-xs text-stone-600 mt-1">You can re-subscribe by clicking the button below.</p>
+          <button
+            type="button"
+            onClick={() => setShowRemoveModal(true)}
+            className="text-xs text-stone-500 hover:text-red-400 transition-colors underline underline-offset-2 mt-1"
+          >
+            Remove from my subscriptions
+          </button>
         </div>
       )}
 
