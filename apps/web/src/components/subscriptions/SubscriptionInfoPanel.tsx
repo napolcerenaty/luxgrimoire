@@ -168,6 +168,127 @@ export default function SubscriptionInfoPanel({
     return s.isActive && curKey >= start && curKey <= end
   })
 
+  // Subscriber cost panel JSX (reused in 2-col layout)
+  const costPanel = price ? (
+    <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4 space-y-2">
+      {loading ? (
+        <div className="text-stone-500 text-sm">Loading price info…</div>
+      ) : isSubscriber ? (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-stone-500 uppercase tracking-wider">Your subscription cost</p>
+            <button
+              type="button"
+              onClick={() => setShowEditCosts(true)}
+              className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+            >
+              ✏️ Edit costs
+            </button>
+          </div>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between items-baseline gap-2">
+              <span className="text-stone-400">Box</span>
+              <span className="text-right">
+                <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {entryCurrency}</span>
+                {priceNum !== null && converted(priceNum) && (
+                  <span className="block text-xs text-stone-500">{converted(priceNum)}</span>
+                )}
+              </span>
+            </div>
+            {shipping !== null && (
+              <div className="flex justify-between items-baseline gap-2">
+                <span className="text-stone-400">Shipping</span>
+                <span className="text-right">
+                  <span className="text-stone-100">{shipping.toFixed(2)} {entryCurrency}</span>
+                  {converted(shipping) && (
+                    <span className="block text-xs text-stone-500">{converted(shipping)}</span>
+                  )}
+                </span>
+              </div>
+            )}
+            {taxes !== null && taxes > 0 && (
+              <div className="flex justify-between items-baseline gap-2">
+                <span className="text-stone-400">Taxes & fees</span>
+                <span className="text-right">
+                  <span className="text-stone-100">{taxes.toFixed(2)} {entryCurrency}</span>
+                  {converted(taxes) && (
+                    <span className="block text-xs text-stone-500">{converted(taxes)}</span>
+                  )}
+                </span>
+              </div>
+            )}
+            {(myEntry?.feeTemplates ?? []).filter(f => f.feeTemplate.isActive).map((link, i) => {
+              const amt = link.customAmount ?? link.feeTemplate.defaultAmount
+              const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
+              return (
+                <div key={i} className="flex justify-between items-baseline gap-2">
+                  <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
+                  <span className="text-right text-xs text-stone-400">
+                    {amt != null
+                      ? <>{parseFloat(amt).toFixed(2)} {feeCur}</>
+                      : <span className="italic text-stone-600">variable</span>
+                    }
+                  </span>
+                </div>
+              )
+            })}
+            {total !== null && (
+              <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
+                <span className="text-stone-300 font-medium">Total / month</span>
+                <span className="text-right">
+                  <span className="text-stone-100 font-semibold">{total.toFixed(2)} {entryCurrency}</span>
+                  {converted(total) && (
+                    <span className="block text-xs text-stone-400 font-medium">{converted(total)}</span>
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="pt-3 border-t border-stone-700/60 space-y-1.5">
+            {myEntry?.nextRenewalDate ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-stone-500">🔄</span>
+                <span className="text-stone-400">Renews on</span>
+                <span className="text-stone-100 font-medium">
+                  {new Date(myEntry.nextRenewalDate).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                </span>
+              </div>
+            ) : myEntry?.renewalDay ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-stone-500">🔄</span>
+                <span className="text-stone-400">Renews on</span>
+                <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : token ? (
+        <>
+          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Base price</p>
+          <p className="text-2xl font-serif font-semibold text-stone-100">
+            {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
+          </p>
+          {convertedRate && userCurrency && (
+            <p className="text-sm text-stone-500 mt-0.5">
+              ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
+            </p>
+          )}
+          <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Starting from</p>
+          <p className="text-2xl font-serif font-semibold text-stone-100">
+            {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
+          </p>
+          <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+        </>
+      )}
+    </div>
+  ) : null
+
   return (
     <div className="space-y-4">
       {/* Metadata row */}
@@ -212,7 +333,7 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Cancellation notice — shown when user had this sub but cancelled it */}
+      {/* Cancellation notice */}
       {myEntry !== null && myEntry !== undefined && !myEntry.active && (
         <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-4 space-y-1">
           <p className="text-sm font-medium text-red-400">
@@ -228,169 +349,44 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Price panel */}
-      {price && (
-        <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4 space-y-2">
-          {loading ? (
-            <div className="text-stone-500 text-sm">Loading price info…</div>
-          ) : isSubscriber ? (
-            /* Subscriber breakdown */
-            <>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-stone-500 uppercase tracking-wider">Your subscription cost</p>
-                <button
-                  type="button"
-                  onClick={() => setShowEditCosts(true)}
-                  className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
-                >
-                  ✏️ Edit costs
-                </button>
-              </div>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between items-baseline gap-2">
-                  <span className="text-stone-400">Box</span>
-                  <span className="text-right">
-                    <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {entryCurrency}</span>
-                    {priceNum !== null && converted(priceNum) && (
-                      <span className="block text-xs text-stone-500">{converted(priceNum)}</span>
-                    )}
-                  </span>
-                </div>
-                {shipping !== null && (
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="text-stone-400">Shipping</span>
-                    <span className="text-right">
-                      <span className="text-stone-100">{shipping.toFixed(2)} {entryCurrency}</span>
-                      {converted(shipping) && (
-                        <span className="block text-xs text-stone-500">{converted(shipping)}</span>
-                      )}
-                    </span>
-                  </div>
-                )}
-                {taxes !== null && taxes > 0 && (
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="text-stone-400">Taxes & fees</span>
-                    <span className="text-right">
-                      <span className="text-stone-100">{taxes.toFixed(2)} {entryCurrency}</span>
-                      {converted(taxes) && (
-                        <span className="block text-xs text-stone-500">{converted(taxes)}</span>
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                {/* Linked fee templates */}
-                {(myEntry?.feeTemplates ?? []).filter(f => f.feeTemplate.isActive).map((link, i) => {
-                  const amt = link.customAmount ?? link.feeTemplate.defaultAmount
-                  const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
-                  return (
-                    <div key={i} className="flex justify-between items-baseline gap-2">
-                      <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
-                      <span className="text-right text-xs text-stone-400">
-                        {amt != null
-                          ? <>{parseFloat(amt).toFixed(2)} {feeCur}</>
-                          : <span className="italic text-stone-600">variable</span>
-                        }
-                      </span>
-                    </div>
-                  )
-                })}
-
-                {total !== null && (
-                  <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
-                    <span className="text-stone-300 font-medium">Total / month</span>
-                    <span className="text-right">
-                      <span className="text-stone-100 font-semibold">{total.toFixed(2)} {entryCurrency}</span>
-                      {converted(total) && (
-                        <span className="block text-xs text-stone-400 font-medium">{converted(total)}</span>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Renewal info */}
-              <div className="pt-3 border-t border-stone-700/60 space-y-1.5">
-                {myEntry?.nextRenewalDate ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-stone-500">🔄</span>
-                    <span className="text-stone-400">Next renewal:</span>
-                    <span className="text-stone-100 font-medium">
-                      {new Date(myEntry.nextRenewalDate).toLocaleDateString('en-GB', {
-                        day: 'numeric', month: 'short', year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                ) : myEntry?.renewalDay ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-stone-500">🔄</span>
-                    <span className="text-stone-400">Renews on</span>
-                    <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : token ? (
-            /* Logged in, not subscriber */
-            <>
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Base price</p>
-              <p className="text-2xl font-serif font-semibold text-stone-100">
-                {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
-              </p>
-              {convertedRate && userCurrency && (
-                <p className="text-sm text-stone-500 mt-0.5">
-                  ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
-                </p>
-              )}
-              <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
-            </>
-          ) : (
-            /* Not logged in */
-            <>
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Starting from</p>
-              <p className="text-2xl font-serif font-semibold text-stone-100">
-                {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
-              </p>
-              <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
-            </>
-          )}
+      {/* Active subscriber: 2-column layout — costs+cancel on left, skip policy on right */}
+      {isSubscriber ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="space-y-4">
+            {costPanel}
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="w-full py-2 px-4 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/40 text-sm font-medium transition-colors"
+            >
+              Cancel subscription
+            </button>
+          </div>
+          <div>
+            <SkipStatusPanel
+              subscriptionSlug={subscriptionSlug}
+              months={months}
+              onSkipSuccess={refreshEntry}
+            />
+          </div>
         </div>
-      )}
-
-      {/* Add to my subscriptions button */}
-      {token && !isSubscriber && myEntry !== undefined && (
-        <button
-          type="button"
-          onClick={() => setShowJoinModal(true)}
-          className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
-        >
-          + Add to my subscriptions
-        </button>
-      )}
-
-      {/* Waitlist — only when user hasn't added this subscription */}
-      {myEntry !== undefined && !isSubscriber && (
-        <WaitlistButton subscriptionSlug={subscriptionSlug} />
-      )}
-
-      {/* Cancel subscription — only for active subscribers */}
-      {isSubscriber && (
-        <button
-          type="button"
-          onClick={() => setShowCancelModal(true)}
-          className="w-full py-2 px-4 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/40 text-sm font-medium transition-colors"
-        >
-          Cancel subscription
-        </button>
-      )}
-
-      {/* Skip panel — only for logged-in subscribers */}
-      {isSubscriber && (
-        <SkipStatusPanel
-          subscriptionSlug={subscriptionSlug}
-          months={months}
-          onSkipSuccess={refreshEntry}
-        />
+      ) : (
+        /* Non-subscriber: single column */
+        <>
+          {costPanel}
+          {token && !isSubscriber && myEntry !== undefined && (
+            <button
+              type="button"
+              onClick={() => setShowJoinModal(true)}
+              className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+            >
+              + Add to my subscriptions
+            </button>
+          )}
+          {myEntry !== undefined && !isSubscriber && (
+            <WaitlistButton subscriptionSlug={subscriptionSlug} />
+          )}
+        </>
       )}
 
       {showJoinModal && (
