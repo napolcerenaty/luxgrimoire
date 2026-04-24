@@ -60,6 +60,15 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0])
 }
 
+function nextRenewalFromDay(renewalDay: number): string {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const candidate = new Date(year, month, renewalDay)
+  const next = candidate > today ? candidate : new Date(year, month + 1, renewalDay)
+  return next.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export default function SubscriptionInfoPanel({
   subscriptionSlug,
   price,
@@ -298,9 +307,8 @@ export default function SubscriptionInfoPanel({
                 ) : myEntry?.renewalDay ? (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-stone-500">🔄</span>
-                    <span className="text-stone-400">Renews on the</span>
-                    <span className="text-stone-100 font-medium">{ordinal(myEntry.renewalDay)}</span>
-                    <span className="text-stone-400">of each month</span>
+                    <span className="text-stone-400">Renews on</span>
+                    <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay)}</span>
                   </div>
                 ) : null}
               </div>
