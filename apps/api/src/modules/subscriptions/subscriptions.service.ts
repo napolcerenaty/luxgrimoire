@@ -18,7 +18,7 @@ import {
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 
-interface CountryFeeHint {
+export interface CountryFeeHint {
   category: string;
   count: number;
   totalSubscribers: number;

@@ -133,6 +133,7 @@ export class AuthService {
         defaultTaxRate: true,
         avatarUrl: true,
         bio: true,
+        shippingCountry: true,
         createdAt: true,
       },
     });
