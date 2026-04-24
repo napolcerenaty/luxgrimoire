@@ -714,7 +714,6 @@ export class SubscriptionsService {
               bookId: mb.bookId,
               editionId: mb.editionId,
               purchaseDate: renewalDate,
-              acquiredAt: renewalDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
               subscriptionEntryId: entry.id,
