@@ -37,7 +37,7 @@ const EMPTY_FORM: SeriesFormData = {
   startYear: new Date().getFullYear(),
   endMonth: 1,
   endYear: new Date().getFullYear(),
-  skipMode: 'INDIVIDUAL',
+  skipMode: 'SERIES_AS_ONE',
   canCancelDuring: true,
   isActive: true,
 }
@@ -111,8 +111,10 @@ function SeriesForm({
       <div>
         <label className={LABEL}>Skip Mode</label>
         <select className={INPUT} value={f.skipMode} onChange={e => set('skipMode', e.target.value)}>
-          <option value="INDIVIDUAL">INDIVIDUAL — each month can be skipped separately</option>
-          <option value="SERIES_ONLY">SERIES_ONLY — skip entire series at once</option>
+          <option value="INDIVIDUAL">INDIVIDUAL — each month skipped separately (1 skip each)</option>
+          <option value="SERIES_AS_ONE">SERIES_AS_ONE — skip entire series at once = 1 skip</option>
+          <option value="SERIES_AS_MANY">SERIES_AS_MANY — skip entire series at once = 1 skip per volume</option>
+          <option value="SERIES_ONLY">SERIES_ONLY — (legacy, same as SERIES_AS_ONE)</option>
         </select>
       </div>
       <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
@@ -268,7 +270,11 @@ function SeriesCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-stone-100 font-semibold">{series.name}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded ${series.skipMode === 'SERIES_ONLY' ? 'bg-purple-500/20 text-purple-300' : 'bg-stone-700 text-stone-400'}`}>
+            <span className={`text-xs px-1.5 py-0.5 rounded ${
+              series.skipMode === 'SERIES_AS_ONE' || series.skipMode === 'SERIES_ONLY' ? 'bg-purple-500/20 text-purple-300' :
+              series.skipMode === 'SERIES_AS_MANY' ? 'bg-blue-500/20 text-blue-300' :
+              'bg-stone-700 text-stone-400'
+            }`}>
               {series.skipMode}
             </span>
             {!series.isActive && <span className="text-xs text-stone-600">Inactive</span>}
