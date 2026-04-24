@@ -107,7 +107,7 @@ export default async function SubscriptionPage({ params }: Props) {
       )}
 
       {/* Header */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-10 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-8 mb-6 items-start">
         <div>
           <div className="flex items-center gap-3 flex-wrap mb-3">
             {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
@@ -136,31 +136,30 @@ export default async function SubscriptionPage({ params }: Props) {
             {sub.startDate && <span>Started: {sub.startDate.slice(0, 7)}</span>}
             {sub.endDate && <span>Ended: {sub.endDate.slice(0, 7)}</span>}
           </div>
-
-          <div className="mt-6">
-          </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          {coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverUrl}
-              alt={sub.name}
-              className="rounded-xl shadow-xl w-full object-cover max-h-80 md:max-h-none"
-            />
-          )}
-          <SubscriptionInfoPanel
-            subscriptionSlug={sub.slug}
-            price={sub.price}
-            currency={sub.currency}
-            type={sub.type}
-            shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
-            country={sub.company?.country ?? null}
-            renewalDay={sub.renewalDay ?? null}
-            months={months}
+        {coverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt={sub.name}
+            className="rounded-xl shadow-xl w-full object-cover max-h-72 md:max-h-none"
           />
-        </div>
+        )}
+      </div>
+
+      {/* Subscription info panel — full width below header to avoid tall right-column gap */}
+      <div className="mb-12">
+        <SubscriptionInfoPanel
+          subscriptionSlug={sub.slug}
+          price={sub.price}
+          currency={sub.currency}
+          type={sub.type}
+          shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
+          country={sub.company?.country ?? null}
+          renewalDay={sub.renewalDay ?? null}
+          months={months}
+        />
       </div>
 
       {/* Featured months (current + upcoming) */}

@@ -23,12 +23,20 @@ export default function SubscriptionList({ subscriptions }: Props) {
   }, [subscriptions])
 
   const genres = useMemo(() => {
-    const all: string[] = []
+    const normalized = new Map<string, string>() // lowercase key → display value
     for (const s of subscriptions) {
-      if (Array.isArray(s.genres)) all.push(...s.genres)
-      if (s.genre) all.push(s.genre)
+      const items: string[] = [
+        ...(Array.isArray(s.genres) ? s.genres : []),
+        ...(s.genre ? [s.genre] : []),
+      ]
+      for (const g of items) {
+        const key = g.toLowerCase()
+        if (!normalized.has(key)) normalized.set(key, g)
+      }
     }
-    return Array.from(new Set(all)).sort()
+    return Array.from(normalized.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, display]) => display)
   }, [subscriptions])
 
   const filtered = useMemo(() => {
@@ -41,7 +49,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
           ...(Array.isArray(s.genres) ? s.genres : []),
           ...(s.genre ? [s.genre] : []),
         ]
-        if (!sGenres.includes(genreFilter)) return false
+        if (!sGenres.some((g) => g.toLowerCase() === genreFilter.toLowerCase())) return false
       }
       return true
     })
