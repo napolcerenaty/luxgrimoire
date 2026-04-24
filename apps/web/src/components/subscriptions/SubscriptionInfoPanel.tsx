@@ -367,16 +367,6 @@ export default function SubscriptionInfoPanel({
           + Add to my subscriptions
         </button>
       )}
-      {!token && (
-        <button
-          type="button"
-          disabled
-          className="w-full py-2.5 px-4 rounded-lg border border-stone-600/60 text-stone-400 text-sm font-medium cursor-not-allowed opacity-60"
-          title="Log in to subscribe"
-        >
-          + Add to my subscriptions
-        </button>
-      )}
 
       {/* Waitlist — only when user hasn't added this subscription */}
       {myEntry !== undefined && !isSubscriber && (
