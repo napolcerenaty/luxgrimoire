@@ -7,8 +7,8 @@
   --color-stone-900: #070f1c;
   --color-stone-800: #0a1828;
   --color-stone-700: #0d1f35;
-  --color-stone-600: #183858;
-  --color-stone-500: #2a5070;
+  --color-stone-600: #2e6080;
+  --color-stone-500: #4a88a8;
   --color-stone-400: #7ab0cc;
   --color-stone-300: #b0cce0;
   --color-stone-200: #c0e4f4;
@@ -44,7 +44,7 @@
   --text:          #c0e4f4;
   --text-bright:   #e8f4ff;
   --text-dim:      #7ab0cc;
-  --text-muted:    #3a7898;
+  --text-muted:    #4a88a8;
   --accent:        #2a9ec4;
   --accent2:       #1a82a8;
   --accent-bright: #4ab8d8;
@@ -54,8 +54,11 @@
   --grad-header:   linear-gradient(135deg, #060d18 0%, #0d1f35 50%, #060d18 100%);
 }
 
-/* Smooth scrolling */
-html { scroll-behavior: smooth; }
+/* Base font size & smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  font-size: 17px;
+}
 
 /* Navbar logo glow effect */
 .nav-logo {
@@ -111,8 +114,7 @@ html { scroll-behavior: smooth; }
   --text:          #0d1f35;
   --text-bright:   #040c18;
   --text-dim:      #1a3a5a;
-  --text-muted:    #1a6888;
-  --accent:        #0d5585;
+  --text-muted:    #1a6888;  --accent:        #0d5585;
   --accent2:       #0878b0;
   --accent-bright: #1a82a8;
   --accent-glow:   rgba(0, 100, 160, 0.15);
