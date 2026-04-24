@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
 import MonthCard from '@/components/subscriptions/MonthCard'
-import WaitlistButton from '@/components/subscriptions/WaitlistButton'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 
 interface Props {
@@ -133,7 +132,6 @@ export default async function SubscriptionPage({ params }: Props) {
 
           <div className="mt-6">
             <SkipStatusPanel subscriptionSlug={sub.slug} months={months} />
-            <WaitlistButton subscriptionSlug={sub.slug} />
           </div>
         </div>
 
@@ -153,7 +151,6 @@ export default async function SubscriptionPage({ params }: Props) {
             type={sub.type}
             shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
             country={sub.company?.country ?? null}
-            skipPolicy={sub.skipPolicy}
             renewalDay={sub.renewalDay ?? null}
           />
         </div>

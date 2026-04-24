@@ -6,14 +6,16 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
+import WaitlistButton from './WaitlistButton'
 
-interface SkipPolicy {
-  type: string
-  maxSkips: number | null
-  maxConsecutive: number | null
-  windowMonths: number | null
-  skipDeadlineDaysBefore: number
-  notes: string | null
+function formatType(type: string): string {
+  const map: Record<string, string> = {
+    monthly: 'Monthly',
+    quarterly: 'Quarterly',
+    biannual: 'Bi-annual',
+    annual: 'Annual',
+  }
+  return map[type.toLowerCase()] ?? type
 }
 
 interface Props {
@@ -23,7 +25,6 @@ interface Props {
   type: string | null
   shipsInternationally: boolean
   country: string | null
-  skipPolicy?: SkipPolicy | null
   renewalDay?: number | null
 }
 
@@ -49,60 +50,10 @@ type MyEntry = {
   feeTemplates: FeeTemplateLink[]
 } | null
 
-function formatSkipPolicy(policy: SkipPolicy): string {
-  if (policy.type === 'NONE') return 'Skipping not allowed'
-  if (policy.type === 'UNLIMITED') return 'Unlimited skips allowed'
-  if (policy.type === 'UNLIMITED_MAX_CONSECUTIVE') {
-    return `Unlimited skips (max ${policy.maxConsecutive} consecutive)`
-  }
-  if (policy.type === 'CALENDAR_YEAR') {
-    return `${policy.maxSkips ?? '?'} skip${(policy.maxSkips ?? 0) !== 1 ? 's' : ''} per calendar year`
-  }
-  if (policy.type === 'FROM_FIRST_SKIP') {
-    return `${policy.maxSkips ?? '?'} skips within ${policy.windowMonths ?? '?'} months of first skip`
-  }
-  if (policy.type === 'FROM_SUB_START') {
-    return `${policy.maxSkips ?? '?'} skips within ${policy.windowMonths ?? '?'} months of subscription start`
-  }
-  return policy.type
-}
-
-function formatType(type: string): string {
-  const map: Record<string, string> = {
-    monthly: 'Monthly',
-    quarterly: 'Quarterly',
-    biannual: 'Bi-annual',
-    annual: 'Annual',
-  }
-  return map[type.toLowerCase()] ?? type
-}
-
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd']
   const v = n % 100
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0])
-}
-
-function getNextMonth(): { year: number; month: number; label: string } {
-  const now = new Date()
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  if (now.getMonth() === 11) {
-    return { year: now.getFullYear() + 1, month: 1, label: `Jan ${now.getFullYear() + 1}` }
-  }
-  const month = now.getMonth() + 2
-  return { year: now.getFullYear(), month, label: `${MONTHS[month - 1]} ${now.getFullYear()}` }
-}
-
-/** Find the series that contains a specific month (year/month), if any */
-function findSeriesForMonth(
-  seriesList: ApiSubscriptionSeries[],
-  year: number,
-  month: number,
-): ApiSubscriptionSeries | null {
-  return seriesList.find(s =>
-    s.isActive &&
-    (s.months ?? []).some(m => m.year === year && m.month === month),
-  ) ?? null
 }
 
 export default function SubscriptionInfoPanel({
@@ -112,15 +63,12 @@ export default function SubscriptionInfoPanel({
   type,
   shipsInternationally,
   country,
-  skipPolicy,
   renewalDay,
 }: Props) {
   const { user } = useAuth()
   const [token, setToken] = useState<string | null>(null)
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
-  const [skipState, setSkipState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [skipError, setSkipError] = useState<string | null>(null)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
   const [seriesList, setSeriesList] = useState<ApiSubscriptionSeries[]>([])
   const [showJoinModal, setShowJoinModal] = useState(false)
@@ -170,13 +118,6 @@ export default function SubscriptionInfoPanel({
     return `≈ ${(amount * convertedRate).toFixed(2)} ${userCurrency}`
   }
 
-  const canSkip = skipPolicy && skipPolicy.type !== 'NONE'
-  const nextMonth = getNextMonth()
-
-  // Find if next month is inside a series
-  const nextMonthSeries = findSeriesForMonth(seriesList, nextMonth.year, nextMonth.month)
-  const isSeriesOnly = nextMonthSeries?.skipMode === 'SERIES_ONLY'
-
   // Active series (for badge display — series whose date range covers current/next month)
   const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const now = new Date()
@@ -186,30 +127,6 @@ export default function SubscriptionInfoPanel({
     const end = s.endYear * 12 + s.endMonth
     return s.isActive && curKey >= start && curKey <= end
   })
-
-  const handleSkipNextMonth = async () => {
-    setSkipState('loading')
-    setSkipError(null)
-    try {
-      if (isSeriesOnly && nextMonthSeries) {
-        await authFetch(`/skip-policy/${subscriptionSlug}/series/${nextMonthSeries.slug}/skip`, {
-          method: 'POST',
-        })
-      } else {
-        await authFetch(`/skip-policy/${subscriptionSlug}/skip/${nextMonth.year}/${nextMonth.month}`, {
-          method: 'POST',
-        })
-      }
-      setSkipState('success')
-      // Refresh entry so nextRenewalDate reflects the billing period shift
-      getMySubscriptionEntry(subscriptionSlug)
-        .then(setMyEntry)
-        .catch(() => {})
-    } catch (e) {
-      setSkipState('error')
-      setSkipError((e as Error).message ?? 'Could not skip month')
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -334,7 +251,7 @@ export default function SubscriptionInfoPanel({
                     <span className="text-stone-500">🔄</span>
                     <span className="text-stone-400">Next renewal:</span>
                     <span className="text-stone-100 font-medium">
-                      {new Date(myEntry.nextRenewalDate).toLocaleDateString(undefined, {
+                      {new Date(myEntry.nextRenewalDate).toLocaleDateString('en-GB', {
                         day: 'numeric', month: 'short', year: 'numeric',
                       })}
                     </span>
@@ -347,48 +264,6 @@ export default function SubscriptionInfoPanel({
                     <span className="text-stone-400">of each month</span>
                   </div>
                 ) : null}
-
-                {/* Skip button — series-aware */}
-                {canSkip && (
-                  <div className="pt-1">
-                    {skipState === 'success' ? (
-                      <p className="text-xs text-emerald-400 font-medium">
-                        ✓ {isSeriesOnly && nextMonthSeries ? `"${nextMonthSeries.name}" series skipped` : `${nextMonth.label} skipped`}
-                      </p>
-                    ) : (
-                      <>
-                        {isSeriesOnly && nextMonthSeries ? (
-                          <div className="space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => void handleSkipNextMonth()}
-                              disabled={skipState === 'loading'}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-purple-500/40 text-purple-300 hover:border-purple-400/70 hover:text-purple-200 disabled:opacity-50 transition-colors"
-                            >
-                              {skipState === 'loading' ? 'Skipping…' : `⏭ Skip series: "${nextMonthSeries.name}"`}
-                            </button>
-                            <p className="text-[10px] text-stone-600">
-                              Skips all {nextMonthSeries._count?.months ?? nextMonthSeries.months?.length ?? ''} months of this series
-                            </p>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => void handleSkipNextMonth()}
-                            disabled={skipState === 'loading'}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-600 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 disabled:opacity-50 transition-colors"
-                          >
-                            {skipState === 'loading' ? 'Skipping…' : `Skip ${nextMonth.label}`}
-                            {nextMonthSeries && <span className="ml-1 text-stone-500 text-[10px]">({nextMonthSeries.name})</span>}
-                          </button>
-                        )}
-                        {skipState === 'error' && skipError && (
-                          <p className="text-xs text-red-400 mt-1">{skipError}</p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             </>
           ) : token ? (
@@ -437,6 +312,11 @@ export default function SubscriptionInfoPanel({
         >
           + Add to my subscriptions
         </button>
+      )}
+
+      {/* Waitlist — only when user hasn't added this subscription */}
+      {myEntry !== undefined && !isSubscriber && (
+        <WaitlistButton subscriptionSlug={subscriptionSlug} />
       )}
 
       {showJoinModal && (

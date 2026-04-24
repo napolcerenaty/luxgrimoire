@@ -60,7 +60,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
       : `${status.totalSkips} skip${status.totalSkips !== 1 ? 's' : ''} used`
 
   const deadlineLabel = status.nextDeadline
-    ? new Date(status.nextDeadline).toLocaleDateString(undefined, {
+    ? new Date(status.nextDeadline).toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric',
       })
     : null
@@ -82,7 +82,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
 
       {deadlineLabel && (
         <p className={`text-xs font-medium ${status.isPastDeadline ? 'text-amber-400' : 'text-stone-400'}`}>
-          {status.isPastDeadline ? '⚠️ Deadline minął (tracking)' : '⏰ Skip deadline:'}{' '}
+          {status.isPastDeadline ? '⚠️ Deadline passed (tracking)' : '⏰ Skip deadline:'}{' '}
           {deadlineLabel}
         </p>
       )}
@@ -97,7 +97,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
 
       {status.canSkip && upcoming.length > 0 && (
         <div>
-          <p className="text-xs text-stone-400 mb-1">Skip a month:</p>
+          <p className="text-xs text-stone-400 mb-1">Track skip of:</p>
           <div className="flex flex-wrap gap-2">
             {upcoming.map((m) => (
               <button
