@@ -697,7 +697,7 @@ export default function AdminSubscriptionsPage() {
     queryKey: ['admin', 'subscriptions', isManager ? managerCompanyId : null],
     queryFn: () => {
       const companyFilter = isManager && managerCompanyId ? `&companyId=${managerCompanyId}` : ''
-      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=1&pageSize=100${companyFilter}`)
+      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=1&pageSize=100&includeHidden=true${companyFilter}`)
     },
     enabled: user !== null,
   })

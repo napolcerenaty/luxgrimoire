@@ -679,10 +679,9 @@ export default function CollectionPage() {
                               ?? entry.acquiredAt?.slice(0, 10)
                               ?? new Date().toISOString().slice(0, 10)
                             const fees = entry.purchaseFees ?? []
-                            const feesInCostCur = fees
-                              .filter(f => f.currency === costCur)
+                            const feesTotal = fees
                               .reduce((sum, f) => sum + parseFloat(f.amount), 0)
-                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesInCostCur
+                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesTotal
                             return (
                               <p className="text-[10px] text-stone-400">
                                 {totalInCostCur.toFixed(2)} {costCur}
@@ -690,7 +689,7 @@ export default function CollectionPage() {
                                   const key = `${costCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · {(totalInCostCur * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-stone-500"> · ~{(totalInCostCur * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )

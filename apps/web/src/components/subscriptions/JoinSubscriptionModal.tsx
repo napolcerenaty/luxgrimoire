@@ -342,6 +342,19 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
     eligibleMonths.forEach(m => { init[m.id] = 'selected' })
     return init
   })
+  // key = `${monthId}:${editionId}` → price string
+  const [bookPrices, setBookPrices] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    for (const m of eligibleMonths) {
+      const books = m.books.filter(b => b.editionId)
+      if (books.length > 1) {
+        books.forEach(b => {
+          if (b.editionId) init[`${m.id}:${b.editionId}`] = ''
+        })
+      }
+    }
+    return init
+  })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -363,10 +376,20 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
     try {
       const selectedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'selected').map(m => m.id)
       const skippedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'skipped').map(m => m.id)
+      const bookPricesPayload = Object.entries(bookPrices)
+        .filter(([, v]) => v !== '' && !isNaN(parseFloat(v)))
+        .map(([key, v]) => {
+          const [monthId, editionId] = key.split(':')
+          return { monthId, editionId, price: parseFloat(v) }
+        })
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedMonthIds, skippedMonthIds }),
+        body: JSON.stringify({
+          selectedMonthIds,
+          skippedMonthIds,
+          ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
+        }),
       })
       onDone()
     } catch (e: unknown) {
@@ -445,14 +468,14 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
               {series!.name}
             </div>
             {months.map(m => (
-              <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} />
+              <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
             ))}
           </div>
         ))}
 
         {/* Standalone months */}
         {standalone.map(m => (
-          <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} />
+          <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
         ))}
       </div>
 
@@ -478,44 +501,76 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
   )
 }
 
-function MonthRow({ month, checked, onToggle }: {
+function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
   month: SubscriptionMonth
   checked: boolean
   onToggle: () => void
+  bookPrices: Record<string, string>
+  onPriceChange: (key: string, val: string) => void
 }) {
   const mainBook = month.books.find(b => b.isMainBook && b.edition) ?? month.books.find(b => b.edition)
-  const otherBooks = month.books.filter(b => b !== mainBook && b.edition)
+  const allBooks = month.books.filter(b => b.edition)
   const authorName = mainBook?.edition?.book?.authors?.[0]?.author?.name
+  const isMultiBook = allBooks.length > 1
 
   return (
-    <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-stone-800/40 border-b border-stone-700/40 last:border-0">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
-      />
-      {mainBook?.edition?.coverImage && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={cloudinaryUrl(mainBook.edition.coverImage, 'w_40,h_56,c_fill,q_auto,f_auto') ?? ''}
-          alt=""
-          width={40}
-          height={56}
-          className="rounded object-cover flex-shrink-0"
+    <div className="border-b border-stone-700/40 last:border-0">
+      <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-stone-800/40">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
         />
-      )}
-      <div className="min-w-0">
-        <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
-        <p className="text-sm text-stone-100 leading-snug truncate">
-          {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
-        </p>
-        {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
-        {otherBooks.length > 0 && (
-          <p className="text-xs text-stone-500 mt-0.5">+{otherBooks.length} more</p>
+        {mainBook?.edition?.coverImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cloudinaryUrl(mainBook.edition.coverImage, 'w_40,h_56,c_fill,q_auto,f_auto') ?? ''}
+            alt=""
+            width={40}
+            height={56}
+            className="rounded object-cover flex-shrink-0"
+          />
         )}
-      </div>
-    </label>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
+          <p className="text-sm text-stone-100 leading-snug truncate">
+            {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
+          </p>
+          {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
+          {!isMultiBook && allBooks.length > 1 && (
+            <p className="text-xs text-stone-500 mt-0.5">+{allBooks.length - 1} more</p>
+          )}
+        </div>
+      </label>
+
+      {/* Per-book price inputs for multi-book months */}
+      {isMultiBook && checked && (
+        <div className="px-3 pb-3 space-y-1.5">
+          <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-1">Price per book</p>
+          {allBooks.map(b => {
+            if (!b.editionId) return null
+            const key = `${month.id}:${b.editionId}`
+            const title = b.edition?.book?.title ?? b.edition?.title ?? b.editionId
+            return (
+              <div key={b.editionId} className="flex items-center gap-2">
+                <span className="text-xs text-stone-400 flex-1 truncate">{title}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="auto"
+                  value={bookPrices[key] ?? ''}
+                  onChange={e => onPriceChange(key, e.target.value)}
+                  className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+              </div>
+            )
+          })}
+          <p className="text-[10px] text-stone-600">Leave blank to split equally</p>
+        </div>
+      )}
+    </div>
   )
 }
 

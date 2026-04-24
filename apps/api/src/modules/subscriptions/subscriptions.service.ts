@@ -133,7 +133,7 @@ export class SubscriptionsService {
     const pageSize = Math.min(query.pageSize ?? 20, 100);
     const skip = (page - 1) * pageSize;
 
-    const where: Record<string, unknown> = { isHidden: false };
+    const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false };
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
@@ -703,9 +703,12 @@ export class SubscriptionsService {
 
       for (const mb of monthBooks) {
         if (!mb.editionId || !mb.bookId) continue;
-        const pricePerBook = entry.basePrice && monthBooks.length > 0
-          ? parseFloat(entry.basePrice.toString()) / monthBooks.length
-          : null;
+        const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId)
+        const pricePerBook = override != null
+          ? override.price
+          : (entry.basePrice && monthBooks.length > 0
+            ? parseFloat(entry.basePrice.toString()) / monthBooks.length
+            : null);
         try {
           const bookEntry = await this.prisma.userBookEntry.upsert({
             where: { userId_bookId_editionId: { userId, bookId: mb.bookId, editionId: mb.editionId } },

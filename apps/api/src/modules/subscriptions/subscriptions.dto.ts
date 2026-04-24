@@ -371,6 +371,11 @@ export class SubscriptionQueryDto {
   @Transform(({ value }) => value === 'true')
   @IsBoolean()
   shipsInternationally?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  includeHidden?: boolean;
 }
 
 export class LinkedFeeTemplateDto {
@@ -427,6 +432,18 @@ export class JoinSubscriptionDto {
   linkedFeeTemplates?: LinkedFeeTemplateDto[];
 }
 
+export class BookPriceOverrideDto {
+  @IsString()
+  monthId!: string;
+
+  @IsString()
+  editionId!: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  price!: number;
+}
+
 export class BackfillSubscriptionDto {
   /** Month IDs the user received (creates UserBookEntry per edition) */
   @IsArray()
@@ -437,6 +454,13 @@ export class BackfillSubscriptionDto {
   @IsArray()
   @IsString({ each: true })
   skippedMonthIds!: string[];
+
+  /** Optional per-book price overrides for months with multiple books */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookPriceOverrideDto)
+  bookPrices?: BookPriceOverrideDto[];
 }
 
 export class CancelMyEntryDto {
