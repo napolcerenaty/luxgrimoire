@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { createPurchaseGroup, getPurchaseGroups } from '@/lib/api'
@@ -9,12 +9,17 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
 import { Plus, Trash2, BookOpen, Package } from 'lucide-react'
+import { useAuth } from '@/components/AuthProvider'
 
 interface CollectionEntry {
   id: string
   isWishlist: boolean
   condition: string | null
   acquiredAt: string | null
+  ownershipStatus: string
+  readingStatus: string
+  allocatedPrice: string | null
+  purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
     slug: string
@@ -242,11 +247,21 @@ type FilterMode = 'ALL' | 'SERIES' | 'YEAR'
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = () => setOpenDropdown(null)
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
@@ -271,6 +286,40 @@ export default function CollectionPage() {
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
     },
   })
+
+  // Fetch currency conversion rates for entries with purchase groups
+  useEffect(() => {
+    const defaultCurrency = user?.preferredCurrency
+    if (!defaultCurrency || entries.length === 0) return
+    const combos = new Set<string>()
+    for (const e of entries) {
+      if (e.purchaseGroup && e.allocatedPrice) {
+        const from = e.purchaseGroup.currency
+        const date = e.purchaseGroup.purchasedAt.slice(0, 10)
+        if (from !== defaultCurrency) {
+          combos.add(`${from}:${defaultCurrency}:${date}`)
+        }
+      }
+    }
+    if (combos.size === 0) return
+    void Promise.all(
+      Array.from(combos).map(async (key) => {
+        const [from, to, date] = key.split(':')
+        try {
+          const res = await authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${to}&date=${date}`)
+          return [key, res.rate] as [string, number]
+        } catch {
+          return null
+        }
+      })
+    ).then((results) => {
+      const map: Record<string, number> = {}
+      for (const r of results) {
+        if (r) map[r[0]] = r[1]
+      }
+      setConversionRates(map)
+    })
+  }, [entries, user?.preferredCurrency])
 
   const filtered = entries.filter((e) => {
     if (filter === 'SERIES') return !!e.edition.book.seriesName
@@ -498,12 +547,112 @@ export default function CollectionPage() {
                         </button>
                       }
                       footer={
-                        <div className="flex items-center gap-1 mt-1 flex-wrap">
-                          {entry.condition && (
-                            <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
-                              {entry.condition.replace('_', ' ')}
-                            </Badge>
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {/* Ownership status badge */}
+                            <div
+                              className="relative"
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <span
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
+                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                  entry.ownershipStatus === 'OWNED' ? 'text-green-400 bg-green-900/30 border-green-800/50' :
+                                  entry.ownershipStatus === 'PREORDER' ? 'text-amber-400 bg-amber-900/30 border-amber-800/50' :
+                                  entry.ownershipStatus === 'TO_SELL' ? 'text-purple-400 bg-purple-900/30 border-purple-800/50' :
+                                  (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-400 bg-blue-900/30 border-blue-800/50' :
+                                  'text-stone-400 bg-stone-800 border-stone-700'
+                                }`}
+                              >
+                                {entry.ownershipStatus}
+                              </span>
+                              {openDropdown === `${entry.id}-ownership` && (
+                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                  {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        void authFetch(`/collection/${entry.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ ownershipStatus: val }),
+                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        setOpenDropdown(null)
+                                      }}
+                                      className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Reading status badge */}
+                            <div
+                              className="relative"
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <span
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
+                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                  entry.readingStatus === 'READ' ? 'text-teal-400 bg-teal-900/30 border-teal-800/50' :
+                                  'text-stone-400 bg-stone-800 border-stone-700'
+                                }`}
+                              >
+                                {entry.readingStatus}
+                              </span>
+                              {openDropdown === `${entry.id}-reading` && (
+                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                  {(['READ', 'UNREAD'] as const).map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        void authFetch(`/collection/${entry.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ readingStatus: val }),
+                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        setOpenDropdown(null)
+                                      }}
+                                      className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {entry.condition && (
+                              <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
+                                {entry.condition.replace('_', ' ')}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Cost display */}
+                          {entry.allocatedPrice && entry.purchaseGroup && (
+                            <p className="text-[10px] text-stone-400">
+                              {parseFloat(entry.allocatedPrice).toFixed(2)} {entry.purchaseGroup.currency}
+                              {(() => {
+                                const dc = user?.preferredCurrency
+                                if (!dc || entry.purchaseGroup.currency === dc) return null
+                                const key = `${entry.purchaseGroup.currency}:${dc}:${entry.purchaseGroup.purchasedAt.slice(0, 10)}`
+                                const rate = conversionRates[key]
+                                if (!rate) return null
+                                const converted = (parseFloat(entry.allocatedPrice) * rate).toFixed(2)
+                                return <span className="text-stone-500"> · {converted} {dc}</span>
+                              })()}
+                            </p>
                           )}
+
                           {entry.acquiredAt && (
                             <p className="text-[10px] text-stone-500">
                               {new Date(entry.acquiredAt).toLocaleDateString()}

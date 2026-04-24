@@ -63,7 +63,7 @@ export function EditionCard({
         {companyName && (
           <div
             className="absolute bottom-0 left-0 right-0 px-2 py-1 text-center"
-            style={{ background: 'rgba(5,10,18,0.82)', borderTop: '1px solid rgba(180,120,40,0.35)' }}
+            style={{ background: 'rgba(5,10,18,0.82)' }}
           >
             <span className="text-[9px] font-serif font-semibold uppercase tracking-widest text-amber-400 line-clamp-1">
               {companyName}

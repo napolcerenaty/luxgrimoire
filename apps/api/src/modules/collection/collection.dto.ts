@@ -8,6 +8,7 @@ export const OWNERSHIP_STATUSES = [
   'LENDED',
   'SOLD',
   'GIFTED_AWAY',
+  'TO_SELL',
 ] as const;
 
 export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];

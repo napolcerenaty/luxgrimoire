@@ -23,6 +23,7 @@ export class CollectionService {
               },
             },
           },
+          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
