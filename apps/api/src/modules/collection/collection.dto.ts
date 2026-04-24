@@ -1,16 +1,31 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn } from 'class-validator';
+
+export const OWNERSHIP_STATUSES = [
+  'PREORDER',
+  'SHIPPING',
+  'OWNED',
+  'BORROWED',
+  'LENDED',
+  'SOLD',
+  'GIFTED_AWAY',
+] as const;
+
+export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];
+
+export const READING_STATUSES = ['UNREAD', 'READ'] as const;
+export type ReadingStatus = typeof READING_STATUSES[number];
 
 export class AddToCollectionDto {
   @IsString() bookEditionId!: string;
   @IsOptional() @IsString() condition?: string;
   @IsOptional() @IsBoolean() isWishlist?: boolean;
-  @IsOptional() @IsString() ownershipStatus?: string;
-  @IsOptional() @IsString() readingStatus?: string;
+  @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
+  @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
 }
 
 export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() condition?: string;
   @IsOptional() @IsBoolean() isWishlist?: boolean;
-  @IsOptional() @IsString() ownershipStatus?: string;
-  @IsOptional() @IsString() readingStatus?: string;
+  @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
+  @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
 }

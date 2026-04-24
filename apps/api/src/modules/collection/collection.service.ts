@@ -42,7 +42,8 @@ export class CollectionService {
         bookId: edition.bookId,
         editionId: dto.bookEditionId,
         condition: dto.condition,
-        ownershipStatus: 'OWNED',
+        ownershipStatus: dto.ownershipStatus ?? 'OWNED',
+        readingStatus: dto.readingStatus ?? 'UNREAD',
       },
     });
   }

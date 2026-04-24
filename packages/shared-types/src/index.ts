@@ -2,6 +2,36 @@
 
 export type Role = 'ADMIN' | 'MODERATOR' | 'COMPANY_MANAGER' | 'USER';
 
+export const OWNERSHIP_STATUSES = [
+  'PREORDER',
+  'SHIPPING',
+  'OWNED',
+  'BORROWED',
+  'LENDED',
+  'SOLD',
+  'GIFTED_AWAY',
+] as const;
+export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];
+
+export const READING_STATUSES = ['UNREAD', 'READ'] as const;
+export type ReadingStatus = typeof READING_STATUSES[number];
+
+export const OWNERSHIP_STATUS_LABELS: Record<OwnershipStatus, string> = {
+  PREORDER: 'Pre-order',
+  SHIPPING: 'Shipping',
+  OWNED: 'Owned',
+  BORROWED: 'Borrowed',
+  LENDED: 'Lended out',
+  SOLD: 'Sold',
+  GIFTED_AWAY: 'Gifted away',
+};
+
+export const OWNERSHIP_GROUPS: { label: string; statuses: OwnershipStatus[] }[] = [
+  { label: 'In transit', statuses: ['PREORDER', 'SHIPPING'] },
+  { label: 'In possession', statuses: ['OWNED', 'BORROWED'] },
+  { label: 'Gone', statuses: ['LENDED', 'SOLD', 'GIFTED_AWAY'] },
+];
+
 export interface ApiUser {
   id: string;
   username: string;
