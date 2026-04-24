@@ -25,11 +25,8 @@ export default function SubscriptionList({ subscriptions }: Props) {
   const genres = useMemo(() => {
     const all: string[] = []
     for (const s of subscriptions) {
-      if (Array.isArray(s.genres)) {
-        all.push(...s.genres)
-      } else if (s.genre) {
-        all.push(s.genre)
-      }
+      if (Array.isArray(s.genres)) all.push(...s.genres)
+      if (s.genre) all.push(s.genre)
     }
     return Array.from(new Set(all)).sort()
   }, [subscriptions])
@@ -40,7 +37,10 @@ export default function SubscriptionList({ subscriptions }: Props) {
       if (q && !s.name.toLowerCase().includes(q) && !s.company?.name.toLowerCase().includes(q)) return false
       if (companyFilter && s.company?.name !== companyFilter) return false
       if (genreFilter) {
-        const sGenres: string[] = Array.isArray(s.genres) ? s.genres : s.genre ? [s.genre] : []
+        const sGenres: string[] = [
+          ...(Array.isArray(s.genres) ? s.genres : []),
+          ...(s.genre ? [s.genre] : []),
+        ]
         if (!sGenres.includes(genreFilter)) return false
       }
       return true
