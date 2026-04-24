@@ -104,7 +104,6 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
   const [costCurrency, setCostCurrency] = useState(currency)
   const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
-  const [taxesManual, setTaxesManual] = useState('')
 
   // Fee templates
   const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
@@ -147,8 +146,8 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
     ? linkedFees.reduce((sum, f) => { const a = parseFloat(f.customAmount); return sum + (isNaN(a) ? 0 : a) }, 0)
     : null
 
-  // taxesAndFees: manual override first, then auto-sum only when all fees are in same currency
-  const taxesAndFees = taxesManual !== '' ? taxesManual : (feesTotal != null ? feesTotal.toFixed(2) : '')
+  // taxesAndFees: auto-sum when all fees share the same currency
+  const taxesAndFees = feesTotal != null ? feesTotal.toFixed(2) : ''
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -306,18 +305,6 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
           <p className="text-xs text-stone-600 mb-2">Loading…</p>
         )}
 
-        {/* Manual override for taxesAndFees total on the entry (subscription currency) */}
-        <div className="flex items-center gap-2">
-          <input
-            type="number" min={0} step="0.01"
-            value={taxesManual}
-            onChange={e => setTaxesManual(e.target.value)}
-            placeholder={feesTotal != null ? feesTotal.toFixed(2) : '0.00'}
-            className="w-28 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
-          />
-          <span className="text-xs text-stone-400">{cur}</span>
-          <span className="text-xs text-stone-500">— reference total for price breakdown</span>
-        </div>
         {userDefaultTaxRate != null && userDefaultTaxRate > 0 && (
           <p className="text-xs text-stone-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
         )}
