@@ -81,7 +81,17 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
         </span>
       </div>
 
-      <p className="text-xs text-stone-400">{limitText}</p>
+      <p className="text-xs text-stone-400">
+        {limitText}
+        {status.skippedMonths && status.skippedMonths.length > 0 && (
+          <span className="text-stone-500">
+            {' '}({status.skippedMonths
+              .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+              .map((s) => `${MONTH_NAMES[s.month]} ${s.year}`)
+              .join(', ')})
+          </span>
+        )}
+      </p>
 
       {deadlineLabel && (
         <p className={`text-xs font-medium ${status.isPastDeadline ? 'text-amber-400' : 'text-stone-400'}`}>
