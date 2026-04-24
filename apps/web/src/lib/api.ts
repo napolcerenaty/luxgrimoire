@@ -308,6 +308,23 @@ export async function cancelMySubscriptionEntry(
   if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
 }
 
+export async function removeMySubscriptionEntry(
+  slug: string,
+  opts: { removeBooks: boolean; removeSpending: boolean },
+): Promise<void> {
+  const token = localStorage.getItem('luxgrimoire_token')
+  if (!token) throw new Error('Not authenticated')
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message ?? 'Failed to remove subscription')
+  }
+}
+
 export async function updateMyEntryCosts(
   slug: string,
   data: {

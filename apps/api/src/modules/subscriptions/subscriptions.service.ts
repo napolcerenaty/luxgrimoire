@@ -448,6 +448,46 @@ export class SubscriptionsService {
     });
   }
 
+  async removeMySubscription(
+    userId: string,
+    slug: string,
+    opts: { removeBooks: boolean; removeSpending: boolean },
+  ) {
+    const sub = await this.findBySlug(slug);
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+      include: {
+        billingPeriods: { select: { id: true, purchaseTransactionId: true } },
+      },
+    });
+    if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
+
+    if (opts.removeSpending) {
+      const txIds = entry.billingPeriods
+        .map((p) => p.purchaseTransactionId)
+        .filter((id): id is string => id != null);
+      if (txIds.length) {
+        await this.prisma.purchaseTransaction.deleteMany({ where: { id: { in: txIds } } });
+      }
+    }
+
+    if (opts.removeBooks) {
+      const txIds = entry.billingPeriods
+        .map((p) => p.purchaseTransactionId)
+        .filter((id): id is string => id != null);
+      if (txIds.length) {
+        await this.prisma.userBookEntry.deleteMany({
+          where: { userId, purchaseTransactionId: { in: txIds } },
+        });
+      }
+    }
+
+    // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags)
+    await this.prisma.userSubscriptionEntry.delete({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+  }
+
   async updateMyEntryCosts(
     userId: string,
     slug: string,

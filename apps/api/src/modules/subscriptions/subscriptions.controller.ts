@@ -22,6 +22,7 @@ import {
   BackfillSubscriptionDto,
   CancelMyEntryDto,
   UpdateMyEntryCostsDto,
+  RemoveMyEntryDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -206,6 +207,19 @@ export class SubscriptionsController {
     @Body() dto: UpdateMyEntryCostsDto,
   ) {
     return this.subscriptionsService.updateMyEntryCosts(user.id, slug, dto);
+  }
+
+  @ApiBearerAuth()
+  @Delete(':slug/my-entry')
+  removeMyEntry(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: RemoveMyEntryDto,
+  ) {
+    return this.subscriptionsService.removeMySubscription(user.id, slug, {
+      removeBooks: dto.removeBooks ?? false,
+      removeSpending: dto.removeSpending ?? false,
+    });
   }
 
   @ApiBearerAuth()

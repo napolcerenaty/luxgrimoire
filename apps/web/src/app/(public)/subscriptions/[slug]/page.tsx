@@ -156,6 +156,7 @@ export default async function SubscriptionPage({ params }: Props) {
       <div className="mb-12">
         <SubscriptionInfoPanel
           subscriptionSlug={sub.slug}
+          name={sub.name}
           price={sub.price}
           currency={sub.currency}
           type={sub.type}

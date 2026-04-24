@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
+import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints, removeMySubscriptionEntry } from '@/lib/api'
 import type { CountryFeeHint } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -22,6 +22,7 @@ function formatType(type: string): string {
 
 interface Props {
   subscriptionSlug: string
+  name: string
   price: string | null
   currency: string
   type: string | null
@@ -88,6 +89,7 @@ function formatFeeCategory(cat: string): string {
 
 export default function SubscriptionInfoPanel({
   subscriptionSlug,
+  name,
   price,
   currency,
   type,
@@ -107,6 +109,7 @@ export default function SubscriptionInfoPanel({
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showEditCosts, setShowEditCosts] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
 
   const userCurrency = user?.preferredCurrency
@@ -176,11 +179,11 @@ export default function SubscriptionInfoPanel({
   const entryCurrency = myEntry?.costCurrency ?? currency
 
   useEffect(() => {
-    if (!myEntry?.active || !user?.shippingCountry) return
+    if (!token || !user?.shippingCountry) return
     getCountryFeeHints(subscriptionSlug, user.shippingCountry)
       .then(setCountryFeeHints)
       .catch(() => {})
-  }, [myEntry?.active, subscriptionSlug, user?.shippingCountry])
+  }, [token, subscriptionSlug, user?.shippingCountry])
   const priceNum = isSubscriber && myEntry?.basePrice ? parseFloat(myEntry.basePrice) : (price ? parseFloat(price) : null)
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
   const feeTotal = isSubscriber
@@ -294,28 +297,6 @@ export default function SubscriptionInfoPanel({
                 </div>
               )
             })}
-            {countryFeeHints.length > 0 && (
-              <div className="pt-2 border-t border-stone-700/60">
-                <p className="text-xs text-stone-500 mb-1.5">
-                  🌍 Subscribers from {user?.shippingCountry} also report:
-                </p>
-                <div className="space-y-1">
-                  {countryFeeHints.map(hint => (
-                    <div key={hint.category} className="flex items-center justify-between text-xs">
-                      <span className="text-stone-500">
-                        {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
-                      </span>
-                      <span className="text-stone-600">
-                        {hint.count}/{hint.totalSubscribers}
-                        {hint.avgAmount != null && hint.currency && (
-                          <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             {total !== null && (
               <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
                 <span className="text-stone-300 font-medium">Total / month</span>
@@ -398,13 +379,22 @@ export default function SubscriptionInfoPanel({
           )}
         </div>
         {isSubscriber && (
-          <button
-            type="button"
-            onClick={() => setShowCancelModal(true)}
-            className="text-xs text-red-500/70 hover:text-red-400 transition-colors border border-red-900/40 hover:border-red-900/70 rounded-lg px-3 py-1"
-          >
-            Cancel subscription
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="text-xs text-red-500/70 hover:text-red-400 transition-colors border border-red-900/40 hover:border-red-900/70 rounded-lg px-3 py-1"
+            >
+              Cancel subscription
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRemoveModal(true)}
+              className="text-xs text-stone-600 hover:text-red-400 transition-colors underline underline-offset-2"
+            >
+              Remove from my subscriptions
+            </button>
+          </div>
         )}
       </div>
 
@@ -472,6 +462,29 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
+      {token && countryFeeHints.length > 0 && (
+        <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4">
+          <p className="text-xs text-stone-500 mb-1.5">
+            🌍 Subscribers from {user?.shippingCountry} also report:
+          </p>
+          <div className="space-y-1">
+            {countryFeeHints.map(hint => (
+              <div key={hint.category} className="flex items-center justify-between text-xs">
+                <span className="text-stone-500">
+                  {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
+                </span>
+                <span className="text-stone-600">
+                  {hint.count}/{hint.totalSubscribers}
+                  {hint.avgAmount != null && hint.currency && (
+                    <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {showJoinModal && (
         <JoinSubscriptionModal
           subscriptionSlug={subscriptionSlug}
@@ -502,6 +515,15 @@ export default function SubscriptionInfoPanel({
           subscriptionSlug={subscriptionSlug}
           onCancelled={() => { setShowCancelModal(false); refreshEntry() }}
           onClose={() => setShowCancelModal(false)}
+        />
+      )}
+
+      {showRemoveModal && (
+        <RemoveSubscriptionModal
+          subscriptionSlug={subscriptionSlug}
+          subscriptionName={name}
+          onRemoved={() => { setShowRemoveModal(false); refreshEntry() }}
+          onClose={() => setShowRemoveModal(false)}
         />
       )}
     </div>
@@ -817,6 +839,97 @@ function CancelSubscriptionModal({
             className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
           >
             {saving ? 'Cancelling…' : 'Confirm cancellation'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Remove Subscription Modal ─────────────────────────────────────────────────
+
+function RemoveSubscriptionModal({
+  subscriptionSlug,
+  subscriptionName,
+  onRemoved,
+  onClose,
+}: {
+  subscriptionSlug: string
+  subscriptionName: string
+  onRemoved: () => void
+  onClose: () => void
+}) {
+  const [removeBooks, setRemoveBooks] = useState(false)
+  const [removeSpending, setRemoveSpending] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleRemove() {
+    setRemoving(true)
+    setError(null)
+    try {
+      await removeMySubscriptionEntry(subscriptionSlug, { removeBooks, removeSpending })
+      onRemoved()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to remove')
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-sm">
+        <div className="p-5 border-b border-stone-800">
+          <h2 className="text-stone-100 font-semibold">Remove subscription</h2>
+          <p className="text-xs text-stone-400 mt-1">Remove <span className="text-stone-200">{subscriptionName}</span> from your tracked subscriptions.</p>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-stone-500">Your subscription entry and all related data (skip history, cost changes) will be permanently deleted.</p>
+
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={removeBooks}
+              onChange={e => setRemoveBooks(e.target.checked)}
+              className="mt-0.5 accent-amber-600"
+            />
+            <div>
+              <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove books from my collection</span>
+              <p className="text-xs text-stone-600 mt-0.5">Books acquired through this subscription will be removed from your library.</p>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={removeSpending}
+              onChange={e => setRemoveSpending(e.target.checked)}
+              className="mt-0.5 accent-amber-600"
+            />
+            <div>
+              <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove spending history</span>
+              <p className="text-xs text-stone-600 mt-0.5">Payment transactions linked to this subscription will be deleted.</p>
+            </div>
+          </label>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+        <div className="flex gap-3 p-5 border-t border-stone-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={removing}
+            className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {removing ? 'Removing…' : 'Remove'}
           </button>
         </div>
       </div>

@@ -451,6 +451,11 @@ export class CancelMyEntryDto {
   cancellationReason?: string;
 }
 
+export class RemoveMyEntryDto {
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+}
+
 export class UpdateMyEntryCostsDto {
   @IsOptional()
   @IsString()
