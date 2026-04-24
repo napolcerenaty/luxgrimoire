@@ -41,6 +41,7 @@ model User {
   role              Role     @default(USER)
   managedCompanyId  String?
   preferredCurrency String   @default("EUR")
+  shippingCountry  String?  @db.VarChar(2) // ISO 3166-1 alpha-2, e.g. "PL", "DE"
   timezone          String   @default("UTC")
   defaultTaxRate    Decimal? @db.Decimal(5, 2) // user's default tax/VAT rate as a percentage (e.g. 21.00)
   avatarUrl         String?
@@ -82,6 +83,7 @@ model User {
   purchaseGroups      UserPurchaseGroup[]
   waitlistEntries     SubscriptionWaitlistEntry[]
 
+  @@index([shippingCountry])
   @@map("users")
 }
 
@@ -643,6 +645,7 @@ model UserSubscriptionEntry {
   startDate        String?
   startingMonth    Int?
   shippingCost     Decimal?  @db.Decimal(10, 2)
+  shippingCountry  String?  @db.VarChar(2) // override per-subscription shipping country
   basePrice        Decimal?  @db.Decimal(10, 2) // user's own base price (may differ from subscription's advertised price)
   taxesAndFees     Decimal?  @db.Decimal(10, 2)
   active           Boolean   @default(true)
@@ -667,6 +670,7 @@ model UserSubscriptionEntry {
   @@unique([userId, subscriptionId])
   @@index([userId])
   @@index([userId, active])
+  @@index([subscriptionId, shippingCountry])
   @@map("user_subscription_entries")
 }
 

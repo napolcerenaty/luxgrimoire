@@ -36,6 +36,7 @@ export class ProfileService {
         ...(dto.preferredCurrency !== undefined && { preferredCurrency: dto.preferredCurrency }),
         ...(dto.timezone !== undefined && { timezone: dto.timezone }),
         ...(dto.defaultTaxRate !== undefined && { defaultTaxRate: dto.defaultTaxRate }),
+        ...(dto.shippingCountry !== undefined && { shippingCountry: dto.shippingCountry.toUpperCase() }),
       },
       select: {
         id: true,
@@ -46,6 +47,7 @@ export class ProfileService {
         preferredCurrency: true,
         timezone: true,
         defaultTaxRate: true,
+        shippingCountry: true,
         createdAt: true,
         updatedAt: true,
       },

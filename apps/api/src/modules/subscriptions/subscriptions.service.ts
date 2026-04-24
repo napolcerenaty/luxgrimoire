@@ -18,12 +18,22 @@ import {
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 
+interface CountryFeeHint {
+  category: string;
+  count: number;
+  totalSubscribers: number;
+  avgAmount: number | null;
+  currency: string | null;
+}
+
 @Injectable()
 export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
   ) {}
+
+  private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
   async create(dto: CreateSubscriptionDto) {
     const company = await this.prisma.bookBoxCompany.findUnique({
@@ -806,5 +816,73 @@ export class SubscriptionsService {
       where: { userId_subscriptionId: { userId, subscriptionId } },
       data: { leftAt: resolvedAt },
     });
+  }
+
+  async getCountryFeeHints(slug: string, country: string): Promise<CountryFeeHint[]> {
+    const key = `${slug}:${country.toUpperCase()}`;
+    const cached = this.countryFeeCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+    const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
+    if (!subscription) return [];
+
+    const countryUpper = country.toUpperCase();
+
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: {
+        subscriptionId: subscription.id,
+        active: true,
+        OR: [
+          { shippingCountry: countryUpper },
+          { shippingCountry: null, user: { shippingCountry: countryUpper } },
+        ],
+      },
+      select: {
+        id: true,
+        feeTemplates: {
+          select: {
+            customAmount: true,
+            customCurrency: true,
+            feeTemplate: {
+              select: {
+                category: true,
+                defaultAmount: true,
+                defaultCurrency: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!entries.length) return [];
+
+    const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
+    for (const entry of entries) {
+      for (const link of entry.feeTemplates) {
+        const cat = link.feeTemplate.category as string;
+        const amt = link.customAmount ?? link.feeTemplate.defaultAmount;
+        const cur = link.customCurrency ?? link.feeTemplate.defaultCurrency;
+        if (!byCategory.has(cat)) byCategory.set(cat, { count: 0, amounts: [], currency: cur });
+        const agg = byCategory.get(cat)!;
+        agg.count++;
+        if (amt != null) agg.amounts.push(Number(amt));
+        if (agg.currency !== cur) agg.currency = null;
+      }
+    }
+
+    const totalEntries = entries.length;
+    const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
+      category,
+      count: agg.count,
+      totalSubscribers: totalEntries,
+      avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
+      currency: agg.currency,
+    }));
+
+    data.sort((a, b) => b.count - a.count);
+
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3600_000 });
+    return data;
   }
 }

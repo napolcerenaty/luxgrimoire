@@ -172,6 +172,17 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get(':slug/country-fees')
+  getCountryFeeHints(
+    @Param('slug') slug: string,
+    @CurrentUser() user: CurrentUserType,
+    @Query('country') country?: string,
+  ) {
+    if (!country) return [];
+    return this.subscriptionsService.getCountryFeeHints(slug, country);
+  }
+
+  @ApiBearerAuth()
   @Get(':slug/my-entry')
   getMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
     return this.subscriptionsService.getMySubscriptionEntry(user.id, slug);

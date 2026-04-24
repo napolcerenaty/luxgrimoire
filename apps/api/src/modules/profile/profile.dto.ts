@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min, Max, Length } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateProfileDto {
@@ -7,6 +7,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() preferredCurrency?: string;
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsNumber() @Min(0) @Max(100) @Type(() => Number) defaultTaxRate?: number;
+  @IsOptional() @IsString() @Length(2, 2) shippingCountry?: string;
 }
 
 export class ChangeUsernameDto {

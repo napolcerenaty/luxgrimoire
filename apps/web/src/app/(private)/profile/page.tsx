@@ -16,6 +16,7 @@ interface UpdateProfilePayload {
   preferredCurrency?: string
   timezone?: string
   defaultTaxRate?: number
+  shippingCountry?: string
 }
 
 interface UpdateUsernamePayload {
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [bio, setBio] = useState('')
   const [preferredCurrency, setPreferredCurrency] = useState(user?.preferredCurrency ?? 'EUR')
+  const [shippingCountry, setShippingCountry] = useState(user?.shippingCountry ?? '')
   const [defaultTaxRate, setDefaultTaxRate] = useState<number>(
     user?.defaultTaxRate != null ? Number(user.defaultTaxRate) : 0,
   )
@@ -148,7 +150,7 @@ export default function ProfilePage() {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault()
-    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency, timezone, defaultTaxRate })
+    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency, timezone, defaultTaxRate, shippingCountry: shippingCountry.toUpperCase() || undefined })
   }
 
   const handleUsernameSave = (e: React.FormEvent) => {
@@ -274,6 +276,20 @@ export default function ProfilePage() {
             ))}
           </select>
           <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-400 mb-1">
+            Default shipping country (ISO code, e.g. PL, DE, GB)
+          </label>
+          <input
+            type="text"
+            maxLength={2}
+            value={shippingCountry}
+            onChange={e => setShippingCountry(e.target.value.toUpperCase())}
+            placeholder="e.g. PL"
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          />
         </div>
 
         <div>

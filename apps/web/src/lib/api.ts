@@ -419,6 +419,28 @@ export async function getPurchaseGroup(id: string): Promise<import('@luxgrimoire
   return res.json();
 }
 
+// ─────────────────────────────────────────────
+// Country Fee Hints
+// ─────────────────────────────────────────────
+
+export interface CountryFeeHint {
+  category: string
+  count: number
+  totalSubscribers: number
+  avgAmount: number | null
+  currency: string | null
+}
+
+export async function getCountryFeeHints(slug: string, country: string): Promise<CountryFeeHint[]> {
+  const token = localStorage.getItem('luxgrimoire_token')
+  if (!token) return []
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/country-fees?country=${country}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  return res.json()
+}
+
 export async function createPurchaseGroup(data: CreatePurchaseGroupData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles`, {

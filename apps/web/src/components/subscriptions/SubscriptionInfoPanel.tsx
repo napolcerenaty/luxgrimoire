@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry } from '@/lib/api'
+import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
+import type { CountryFeeHint } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
@@ -77,6 +78,14 @@ function nextRenewalFromDay(renewalDay: number, skippedMonths: { year: number; m
   return candidate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+function formatFeeCategory(cat: string): string {
+  const labels: Record<string, string> = {
+    VAT: 'VAT', CUSTOMS: 'Customs duty', SHIPPING: 'Extra shipping',
+    PROCESSING: 'Processing fee', FORWARDING: 'Forwarding fee', OTHER: 'Other fee',
+  }
+  return labels[cat] ?? cat
+}
+
 export default function SubscriptionInfoPanel({
   subscriptionSlug,
   price,
@@ -98,6 +107,7 @@ export default function SubscriptionInfoPanel({
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showEditCosts, setShowEditCosts] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
 
   const userCurrency = user?.preferredCurrency
   const showConversion = !!userCurrency && userCurrency !== currency
@@ -161,6 +171,13 @@ export default function SubscriptionInfoPanel({
       setFeeRates(rates)
     })
   }, [myEntry?.feeTemplates, myEntry?.costCurrency, currency])
+
+  useEffect(() => {
+    if (!isSubscriber || !user?.shippingCountry) return
+    getCountryFeeHints(subscriptionSlug, user.shippingCountry)
+      .then(setCountryFeeHints)
+      .catch(() => {})
+  }, [isSubscriber, subscriptionSlug, user?.shippingCountry])
 
   const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
   const entryCurrency = myEntry?.costCurrency ?? currency
@@ -277,6 +294,26 @@ export default function SubscriptionInfoPanel({
                 </div>
               )
             })}
+            {countryFeeHints.length > 0 && (
+              <div className="pt-2 border-t border-stone-700/60">
+                <p className="text-xs text-stone-500 mb-1.5">
+                  🌍 Subscribers from {user?.shippingCountry} also report:
+                </p>
+                <div className="space-y-1">
+                  {countryFeeHints.map(hint => (
+                    <div key={hint.category} className="flex items-center justify-between text-xs">
+                      <span className="text-stone-500">{formatFeeCategory(hint.category)}</span>
+                      <span className="text-stone-600">
+                        {hint.count}/{hint.totalSubscribers} subscribers
+                        {hint.avgAmount != null && hint.currency && (
+                          <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {total !== null && (
               <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
                 <span className="text-stone-300 font-medium">Total / month</span>

@@ -13,6 +13,7 @@ interface AuthUser {
   preferredCurrency?: string
   timezone?: string
   defaultTaxRate?: number | null
+  shippingCountry?: string | null
 }
 
 interface AuthContextType {
