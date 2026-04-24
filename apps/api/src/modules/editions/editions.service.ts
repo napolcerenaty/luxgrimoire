@@ -88,6 +88,7 @@ export class EditionsService {
           book: { include: { authors: { include: { author: true } } } },
           artists: { include: { artist: true } },
           bookBoxCompany: { select: { name: true, slug: true } },
+          collection: { select: { id: true, name: true, slug: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),

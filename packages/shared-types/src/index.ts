@@ -65,12 +65,28 @@ export interface ApiBookEdition {
   editionName: string | null;
   bookBoxCompanyCustomName: string | null;
   bookBoxCompany?: { name: string; slug: string } | null;
+  collection?: { id: string; name: string; slug: string } | null;
+  collectionId?: string | null;
   artists: Array<{ artist: ApiArtist; role: string }>;
   verifiedAt: string | null;
   submittedByUserId: string | null;
   book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'coverImage' | 'seriesName' | 'volumeNumber'> & {
     authors?: ApiAuthor[];
   };
+}
+
+export interface ApiBookBoxCollection {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  coverImage: string | null;
+  isActive: boolean;
+  companyId: string;
+  company?: { id: string; slug: string; name: string; logoUrl: string | null };
+  _count?: { editions: number };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApiBookBoxCompany {
@@ -90,6 +106,7 @@ export interface ApiBookBoxCompany {
   bluesky: string | null;
   iossImplemented: boolean;
   subscriptions?: ApiSubscription[];
+  collections?: ApiBookBoxCollection[];
   sponsoredSlots?: ApiSponsoredSlot[];
 }
 

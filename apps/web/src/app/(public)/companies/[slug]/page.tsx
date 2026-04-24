@@ -39,6 +39,7 @@ export default async function CompanyPage({ params }: Props) {
 
   const logoUrl = cloudinaryUrl(company.logoUrl, 'w_200,h_200,c_fill,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
+  const collections = (company.collections ?? []).filter((c) => c.isActive)
   const hasActiveSponsored = company.sponsoredSlots?.some((s) => s.isActive) ?? false
   const hasBanner = company.sponsoredSlots?.some(
     (s) => s.isActive && s.type === 'COMPANY_PAGE_BANNER',
@@ -114,6 +115,44 @@ export default async function CompanyPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* Collections */}
+      {collections.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Collections</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {collections.map((col) => (
+              <a
+                key={col.id}
+                href={`/companies/${company.slug}/collections/${col.slug}`}
+                className="group rounded-xl overflow-hidden border border-stone-800 hover:border-amber-700/50 transition-colors"
+                style={{ background: 'var(--bg-raised)' }}
+              >
+                {col.coverImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={cloudinaryUrl(col.coverImage ?? null, 'w_600,h_200,c_fill,q_auto,f_auto') ?? ''}
+                    alt={col.name}
+                    className="w-full aspect-[3/1] object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full aspect-[3/1] bg-stone-800 flex items-center justify-center">
+                    <span className="text-stone-600 text-sm font-serif">{col.name}</span>
+                  </div>
+                )}
+                <div className="p-4">
+                  <h3 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors">
+                    {col.name}
+                  </h3>
+                  {col.description && (
+                    <p className="text-stone-500 text-xs mt-1 line-clamp-2">{col.description}</p>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Subscriptions */}
       {subscriptions.length > 0 && (

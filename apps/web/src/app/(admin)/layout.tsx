@@ -16,12 +16,14 @@ import {
   Sparkles,
   Bell,
   Megaphone,
+  LibraryBig,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const COMPANY_MANAGER_LINKS = [
   { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
   { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+  { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
   { href: '/admin/books', label: 'Books', icon: BookOpen },
   { href: '/admin/editions', label: 'Editions', icon: Layers },
 ]
@@ -30,6 +32,7 @@ const MODERATOR_LINKS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
   { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+  { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
   { href: '/admin/books', label: 'Books', icon: BookOpen },
   { href: '/admin/editions', label: 'Editions', icon: Layers },
   { href: '/admin/authors', label: 'Authors', icon: Users },

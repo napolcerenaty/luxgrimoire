@@ -256,6 +256,7 @@ model BookEdition {
 
   book         Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
   bookBoxCompany BookBoxCompany?         @relation(fields: [bookBoxCompanyId], references: [id])
+  collection   BookBoxCollection?        @relation(fields: [collectionId], references: [id])
   submittedBy  User?                     @relation("SubmittedEditions", fields: [submittedByUserId], references: [id])
   artists      ArtistContribution[]
   monthBooks   SubscriptionMonthBook[]
@@ -310,11 +311,18 @@ model BookBoxCompany {
 }
 
 model BookBoxCollection {
-  id        String @id @default(uuid())
-  companyId String
-  name      String
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  slug        String   @unique
+  description String?
+  coverImage  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  company BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company  BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  editions BookEdition[]
 
   @@map("book_box_collections")
 }

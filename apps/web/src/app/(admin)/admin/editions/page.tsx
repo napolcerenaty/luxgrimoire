@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { ApiBookEdition, ApiBookBoxCompany, ApiBookBoxCollection, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -18,6 +18,7 @@ const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 interface EditionFormData {
   bookId: string
   bookBoxCompanyId: string
+  collectionId: string
   publisher: string
   publishYear: string
   coverImage: string
@@ -38,6 +39,7 @@ function editionToForm(edition: ApiBookEdition): EditionFormData {
   return {
     bookId: edition.bookId,
     bookBoxCompanyId: (edition as ApiBookEdition & { bookBoxCompanyId?: string }).bookBoxCompanyId ?? '',
+    collectionId: edition.collectionId ?? '',
     publisher: edition.publisher ?? '',
     publishYear: edition.publishYear != null ? String(edition.publishYear) : '',
     coverImage: edition.coverImage ?? '',
@@ -51,6 +53,7 @@ function formToPayload(form: EditionFormData) {
   return {
     bookId: form.bookId,
     bookBoxCompanyId: form.bookBoxCompanyId || undefined,
+    collectionId: form.collectionId || undefined,
     publisher: form.publisher || undefined,
     publishYear: form.publishYear ? Number(form.publishYear) : undefined,
     coverImage: form.coverImage || undefined,
@@ -68,6 +71,17 @@ function EditionForm({ initial, onSubmit, submitting, submitLabel, lockCompany }
   const set = (field: keyof EditionFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => setForm((f) => ({ ...f, [field]: e.target.value }))
+
+  // Fetch collections when company is selected
+  const { data: collectionsData } = useQuery({
+    queryKey: ['edition-form-collections', form.bookBoxCompanyId],
+    queryFn: () =>
+      authFetch<PaginatedResponse<ApiBookBoxCollection>>(
+        `/book-box-collections?companyId=${form.bookBoxCompanyId}&pageSize=100`,
+      ),
+    enabled: !!form.bookBoxCompanyId,
+  })
+  const collections = collectionsData?.data ?? []
 
   return (
     <form
@@ -91,6 +105,17 @@ function EditionForm({ initial, onSubmit, submitting, submitLabel, lockCompany }
           placeholder={lockCompany ? 'Auto-set to your company' : 'Optional'}
         />
       </div>
+      {form.bookBoxCompanyId && (
+        <div>
+          <label className={LABEL_CLASS}>Collection (optional)</label>
+          <select className={INPUT_CLASS} value={form.collectionId} onChange={set('collectionId')}>
+            <option value="">— None (standalone exclusive) —</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Publisher</label>
@@ -200,6 +225,7 @@ export default function AdminEditionsPage() {
   const emptyForm: EditionFormData = {
     bookId: '',
     bookBoxCompanyId: managedCompanyId,
+    collectionId: '',
     publisher: '',
     publishYear: '',
     coverImage: '',

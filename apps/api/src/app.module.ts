@@ -26,6 +26,7 @@ import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
 import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.module';
+import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.
     CurrencyModule,
     AiModule,
     PurchaseGroupsModule,
+    BookBoxCollectionsModule,
   ],
 })
 export class AppModule {}
