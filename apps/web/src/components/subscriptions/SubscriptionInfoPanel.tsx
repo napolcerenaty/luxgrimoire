@@ -186,6 +186,22 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
+      {/* Cancellation notice — shown when user had this sub but cancelled it */}
+      {myEntry !== null && myEntry !== undefined && !myEntry.active && (
+        <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-4 space-y-1">
+          <p className="text-sm font-medium text-red-400">
+            You cancelled this subscription
+            {myEntry.cancellationDate && (
+              <> on {new Date(myEntry.cancellationDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+            )}
+          </p>
+          {myEntry.cancellationReason && (
+            <p className="text-xs text-stone-500">Reason: {myEntry.cancellationReason}</p>
+          )}
+          <p className="text-xs text-stone-600 mt-1">You can re-subscribe by clicking the button below.</p>
+        </div>
+      )}
+
       {/* Price panel */}
       {price && (
         <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4 space-y-2">

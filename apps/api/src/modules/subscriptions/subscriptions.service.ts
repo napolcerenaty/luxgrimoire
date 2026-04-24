@@ -524,6 +524,7 @@ export class SubscriptionsService {
       update: {
         active: true,
         cancellationDate: null,
+        cancellationReason: null,
         startDate: startDateStr ?? undefined,
         basePrice: dto.basePrice !== undefined ? parseFloat(dto.basePrice) : undefined,
         shippingCost: dto.shippingCost !== undefined ? parseFloat(dto.shippingCost) : undefined,

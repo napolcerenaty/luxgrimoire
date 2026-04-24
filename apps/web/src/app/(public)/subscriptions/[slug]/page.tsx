@@ -118,6 +118,14 @@ export default async function SubscriptionPage({ params }: Props) {
           </div>
 
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">
+            {sub.company?.slug && (
+              <Link
+                href={`/companies/${sub.company.slug}`}
+                className="block text-sm font-sans font-normal text-stone-400 hover:text-amber-400 transition-colors mb-1"
+              >
+                {sub.company.name}
+              </Link>
+            )}
             {sub.name}
           </h1>
 
