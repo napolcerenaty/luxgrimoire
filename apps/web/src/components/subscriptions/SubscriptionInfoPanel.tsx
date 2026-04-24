@@ -172,15 +172,15 @@ export default function SubscriptionInfoPanel({
     })
   }, [myEntry?.feeTemplates, myEntry?.costCurrency, currency])
 
+  const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
+  const entryCurrency = myEntry?.costCurrency ?? currency
+
   useEffect(() => {
-    if (!isSubscriber || !user?.shippingCountry) return
+    if (!myEntry?.active || !user?.shippingCountry) return
     getCountryFeeHints(subscriptionSlug, user.shippingCountry)
       .then(setCountryFeeHints)
       .catch(() => {})
-  }, [isSubscriber, subscriptionSlug, user?.shippingCountry])
-
-  const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
-  const entryCurrency = myEntry?.costCurrency ?? currency
+  }, [myEntry?.active, subscriptionSlug, user?.shippingCountry])
   const priceNum = isSubscriber && myEntry?.basePrice ? parseFloat(myEntry.basePrice) : (price ? parseFloat(price) : null)
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
   const feeTotal = isSubscriber
@@ -302,9 +302,11 @@ export default function SubscriptionInfoPanel({
                 <div className="space-y-1">
                   {countryFeeHints.map(hint => (
                     <div key={hint.category} className="flex items-center justify-between text-xs">
-                      <span className="text-stone-500">{formatFeeCategory(hint.category)}</span>
+                      <span className="text-stone-500">
+                        {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
+                      </span>
                       <span className="text-stone-600">
-                        {hint.count}/{hint.totalSubscribers} subscribers
+                        {hint.count}/{hint.totalSubscribers}
                         {hint.avgAmount != null && hint.currency && (
                           <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
                         )}

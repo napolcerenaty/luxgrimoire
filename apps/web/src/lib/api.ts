@@ -429,6 +429,9 @@ export interface CountryFeeHint {
   totalSubscribers: number
   avgAmount: number | null
   currency: string | null
+  avgShipping: number | null
+  shippingCurrency: string | null
+  shippingCount: number
 }
 
 export async function getCountryFeeHints(slug: string, country: string): Promise<CountryFeeHint[]> {

@@ -24,6 +24,9 @@ export interface CountryFeeHint {
   totalSubscribers: number;
   avgAmount: number | null;
   currency: string | null;
+  avgShipping: number | null;
+  shippingCurrency: string | null;
+  shippingCount: number;
 }
 
 @Injectable()
@@ -839,6 +842,8 @@ export class SubscriptionsService {
       },
       select: {
         id: true,
+        shippingCost: true,
+        costCurrency: true,
         feeTemplates: {
           select: {
             customAmount: true,
@@ -857,6 +862,20 @@ export class SubscriptionsService {
 
     if (!entries.length) return [];
 
+    // Aggregate shipping costs
+    const shippingAmounts: number[] = [];
+    let shippingCurrency: string | null = null;
+    let shippingMixed = false;
+    for (const entry of entries) {
+      if (entry.shippingCost != null) {
+        const cur = entry.costCurrency ?? null;
+        shippingAmounts.push(Number(entry.shippingCost));
+        if (shippingCurrency === null) shippingCurrency = cur;
+        else if (shippingCurrency !== cur) shippingMixed = true;
+      }
+    }
+    if (shippingMixed) shippingCurrency = null;
+
     const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
     for (const entry of entries) {
       for (const link of entry.feeTemplates) {
@@ -872,17 +891,39 @@ export class SubscriptionsService {
     }
 
     const totalEntries = entries.length;
+    const avgShipping = shippingAmounts.length > 0
+      ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
+      : null;
+
     const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
       category,
       count: agg.count,
       totalSubscribers: totalEntries,
       avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
       currency: agg.currency,
+      avgShipping,
+      shippingCurrency,
+      shippingCount: shippingAmounts.length,
     }));
+
+    // Add a synthetic "shipping" entry if there's shipping data but no SHIPPING fee category
+    const hasShippingCat = data.some(d => d.category === 'SHIPPING');
+    if (!hasShippingCat && avgShipping !== null) {
+      data.push({
+        category: '__shipping__',
+        count: shippingAmounts.length,
+        totalSubscribers: totalEntries,
+        avgAmount: avgShipping,
+        currency: shippingCurrency,
+        avgShipping,
+        shippingCurrency,
+        shippingCount: shippingAmounts.length,
+      });
+    }
 
     data.sort((a, b) => b.count - a.count);
 
-    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3600_000 });
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 86_400_000 }); // 24h TTL
     return data;
   }
 }
