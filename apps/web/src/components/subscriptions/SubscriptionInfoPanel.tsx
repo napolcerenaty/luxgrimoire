@@ -291,24 +291,35 @@ export default function SubscriptionInfoPanel({
   return (
     <div className="space-y-4">
       {/* Metadata row */}
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-stone-400">
-        {type && (
-          <span className="flex items-center gap-1.5">
-            <span className="text-stone-500">📦</span>
-            <span>{formatType(type)}</span>
-          </span>
-        )}
-        {country && (
-          <span className="flex items-center gap-1.5">
-            <span className="text-stone-500">📍</span>
-            <span>{country}</span>
-          </span>
-        )}
-        {shipsInternationally && (
-          <span className="flex items-center gap-1.5">
-            <span className="text-stone-500">✈️</span>
-            <span>Ships internationally</span>
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-y-2 text-sm text-stone-400">
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {type && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-stone-500">📦</span>
+              <span>{formatType(type)}</span>
+            </span>
+          )}
+          {country && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-stone-500">📍</span>
+              <span>{country}</span>
+            </span>
+          )}
+          {shipsInternationally && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-stone-500">✈️</span>
+              <span>Ships internationally</span>
+            </span>
+          )}
+        </div>
+        {isSubscriber && (
+          <button
+            type="button"
+            onClick={() => setShowCancelModal(true)}
+            className="text-xs text-red-500/70 hover:text-red-400 transition-colors border border-red-900/40 hover:border-red-900/70 rounded-lg px-3 py-1"
+          >
+            Cancel subscription
+          </button>
         )}
       </div>
 
@@ -350,25 +361,15 @@ export default function SubscriptionInfoPanel({
 
       {/* Active subscriber: 2-column layout — costs on left, skip policy on right */}
       {isSubscriber ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <div>{costPanel}</div>
-            <div>
-              <SkipStatusPanel
-                subscriptionSlug={subscriptionSlug}
-                months={months}
-                onSkipSuccess={refreshEntry}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div>{costPanel}</div>
+          <div>
+            <SkipStatusPanel
+              subscriptionSlug={subscriptionSlug}
+              months={months}
+              onSkipSuccess={refreshEntry}
+            />
           </div>
-          {/* Cancel full-width below both columns */}
-          <button
-            type="button"
-            onClick={() => setShowCancelModal(true)}
-            className="w-full py-2 px-4 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/40 text-sm font-medium transition-colors"
-          >
-            Cancel subscription
-          </button>
         </div>
       ) : (
         /* Non-subscriber: compact single column, max-w-sm */
