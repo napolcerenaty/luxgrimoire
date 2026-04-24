@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
-import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiSponsoredSlot, ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +17,7 @@ async function getHomeData() {
   const [featuredSlots, announcementsRes, editionsRes] = await Promise.all([
     apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?pageSize=10').catch(() => null),
-    apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=10').catch(() => null),
+    apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
   ])
   return {
     featuredSlots: Array.isArray(featuredSlots) ? featuredSlots : [],
@@ -42,6 +41,20 @@ export default async function HomePage() {
         ? new Date(a.generalSaleDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : null,
       badge: 'Sale',
+    }
+  })
+
+  const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
+    const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
+    return {
+      id: e.id,
+      href: e.book?.slug ? `/books/${e.book.slug}` : '#',
+      coverImage: e.coverImage ?? null,
+      title: e.book?.title ?? 'Unknown',
+      subtitle: e.book?.seriesName
+        ? `${e.book.seriesName}${e.book.volumeNumber != null ? ` #${e.book.volumeNumber}` : ''}`
+        : authors,
+      ribbon: e.bookBoxCompanyCustomName ?? e.bookBoxCompany?.name ?? null,
     }
   })
 
@@ -86,26 +99,12 @@ export default async function HomePage() {
       {/* Recent Announcements carousel */}
       <EditionCarousel title="Recent Announcements" cards={announcementCards} />
 
-      {/* Recently Added Editions grid */}
-      {recentEditions.length > 0 && (
-        <section className="container mx-auto px-4 py-10">
-          <h2 className="text-xl font-serif font-semibold text-stone-100 tracking-wide mb-6">Recently Added Editions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {recentEditions.map((e) => (
-              <EditionCard
-                key={e.id}
-                href={e.book?.slug ? `/books/${e.book.slug}` : '#'}
-                coverImage={e.coverImage ?? null}
-                companyName={e.bookBoxCompanyCustomName ?? e.bookBoxCompany?.name ?? null}
-                seriesName={e.book?.seriesName ?? null}
-                volumeNumber={e.book?.volumeNumber ?? null}
-                title={e.book?.title ?? 'Unknown'}
-                authors={e.book?.authors ?? []}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Recently Added Editions carousel */}
+      <EditionCarousel
+        title="Recently Added Editions"
+        viewAllHref="/books"
+        cards={recentEditionCards}
+      />
 
       {/* Featured Partners (sponsored) */}
       {featuredSlots.length > 0 && (
