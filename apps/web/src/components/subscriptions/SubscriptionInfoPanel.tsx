@@ -590,50 +590,83 @@ function EditEntryCostsModal({
           </div>
 
           {/* Fee templates */}
-          {allTemplates.length > 0 && (
-            <div>
-              <p className="text-xs text-stone-400 mb-2">Fee templates</p>
-              <div className="space-y-2">
-                {allTemplates.map(t => {
-                  const linked = feeLinks.find(f => f.templateId === t.id)
+          <div>
+            <p className="text-xs text-stone-400 mb-2">Fees</p>
+
+            {/* Linked fees */}
+            {feeLinks.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {feeLinks.map(link => {
+                  const tpl = allTemplates.find(t => t.id === link.templateId)
+                  const defaultAmt = tpl?.defaultAmount != null ? String(tpl.defaultAmount) : ''
+                  const defaultCur = tpl?.defaultCurrency ?? costCurrency
                   return (
-                    <div key={t.id} className="flex items-start gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleTemplate(t)}
-                        className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs transition-colors ${
-                          linked ? 'bg-amber-600 border-amber-600 text-white' : 'border-stone-600 text-transparent'
-                        }`}
-                      >✓</button>
+                    <div key={link.templateId} className="bg-stone-800/60 rounded-lg px-3 py-2 flex gap-2 items-start">
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm text-stone-300">{t.name}</span>
-                        {linked && (
-                          <div className="flex gap-2 mt-1">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={linked.customAmount}
-                              onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === t.id ? { ...f, customAmount: e.target.value } : f))}
-                              placeholder="amount"
-                              className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100"
-                            />
-                            <input
-                              type="text"
-                              value={linked.customCurrency}
-                              onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === t.id ? { ...f, customCurrency: e.target.value.toUpperCase() } : f))}
-                              maxLength={3}
-                              className="w-14 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase"
-                            />
-                          </div>
-                        )}
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-sm text-stone-200">{link.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setFeeLinks(prev => prev.filter(f => f.templateId !== link.templateId))}
+                            className="text-stone-600 hover:text-red-400 text-xs transition-colors flex-shrink-0"
+                          >✕ Remove</button>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={link.customAmount}
+                            onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customAmount: e.target.value } : f))}
+                            placeholder={defaultAmt || 'amount'}
+                            className="w-28 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100"
+                          />
+                          <input
+                            type="text"
+                            value={link.customCurrency}
+                            onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customCurrency: e.target.value.toUpperCase() } : f))}
+                            placeholder={defaultCur}
+                            maxLength={3}
+                            className="w-14 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase"
+                          />
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Available (unlinked) templates */}
+            {allTemplates.filter(t => !feeLinks.find(f => f.templateId === t.id)).length > 0 && (
+              <div>
+                <p className="text-xs text-stone-600 mb-1.5">Add from your templates:</p>
+                <div className="flex flex-wrap gap-2">
+                  {allTemplates
+                    .filter(t => !feeLinks.find(f => f.templateId === t.id))
+                    .map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => toggleTemplate(t)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-amber-600 hover:text-amber-400 transition-colors"
+                      >
+                        <span>+</span>
+                        <span>{t.name}</span>
+                        {t.defaultAmount != null && (
+                          <span className="text-stone-600">({t.defaultAmount} {t.defaultCurrency})</span>
+                        )}
+                      </button>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
+
+            {allTemplates.length === 0 && (
+              <p className="text-xs text-stone-600 italic">No fee templates defined in settings.</p>
+            )}
+          </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
