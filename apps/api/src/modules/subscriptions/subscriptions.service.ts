@@ -344,6 +344,11 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     return this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+      include: {
+        feeTemplates: {
+          include: { feeTemplate: true },
+        },
+      },
     });
   }
 

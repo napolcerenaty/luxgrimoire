@@ -47,10 +47,12 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
     )
   }
 
-  const upcoming = months.filter((m) => {
-    const d = new Date()
-    return m.year > d.getFullYear() || (m.year === d.getFullYear() && m.month >= d.getMonth() + 1)
-  })
+  const upcoming = months
+    .filter((m) => {
+      const d = new Date()
+      return m.year > d.getFullYear() || (m.year === d.getFullYear() && m.month >= d.getMonth() + 1)
+    })
+    .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
   const limitText =
     status.maxSkips !== null
@@ -95,7 +97,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months }: Props) {
 
       {status.canSkip && upcoming.length > 0 && (
         <div>
-          <p className="text-xs text-stone-400 mb-1">Skip an upcoming month:</p>
+          <p className="text-xs text-stone-400 mb-1">Skip a month:</p>
           <div className="flex flex-wrap gap-2">
             {upcoming.map((m) => (
               <button

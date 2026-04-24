@@ -256,10 +256,21 @@ export async function updateWaitlistDate(slug: string, joinedAt: string): Promis
 export async function getMySubscriptionEntry(slug: string): Promise<{
   shippingCost: string | null;
   taxesAndFees: string | null;
+  costCurrency: string | null;
   active: boolean;
   prepaidMonths: number;
   renewalDay: number | null;
   nextRenewalDate: string | null;
+  feeTemplates: Array<{
+    customAmount: string | null;
+    customCurrency: string | null;
+    feeTemplate: {
+      name: string;
+      defaultAmount: string | null;
+      defaultCurrency: string;
+      isActive: boolean;
+    };
+  }>;
 } | null> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   if (!token) return null;

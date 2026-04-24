@@ -27,13 +27,26 @@ interface Props {
   renewalDay?: number | null
 }
 
+type FeeTemplateLink = {
+  customAmount: string | null
+  customCurrency: string | null
+  feeTemplate: {
+    name: string
+    defaultAmount: string | null
+    defaultCurrency: string
+    isActive: boolean
+  }
+}
+
 type MyEntry = {
   shippingCost: string | null
   taxesAndFees: string | null
+  costCurrency: string | null
   active: boolean
   prepaidMonths: number
   renewalDay: number | null
   nextRenewalDate: string | null
+  feeTemplates: FeeTemplateLink[]
 } | null
 
 function formatSkipPolicy(policy: SkipPolicy): string {
@@ -145,6 +158,7 @@ export default function SubscriptionInfoPanel({
   }, [showConversion, currency, userCurrency, price])
 
   const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
+  const entryCurrency = myEntry?.costCurrency ?? currency
   const priceNum = price ? parseFloat(price) : null
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
   const taxes = isSubscriber && myEntry?.taxesAndFees ? parseFloat(myEntry.taxesAndFees) : null
@@ -241,25 +255,6 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Skip policy */}
-      {skipPolicy && skipPolicy.type !== 'NONE' && (
-        <div className="text-sm text-stone-400">
-          <span className="text-stone-500 mr-1.5">⏭️</span>
-          {skipPolicy.notes ?? formatSkipPolicy(skipPolicy)}
-          {skipPolicy.skipDeadlineDaysBefore > 0 && (
-            <span className="ml-1 text-stone-500">
-              (deadline: {skipPolicy.skipDeadlineDaysBefore}d before renewal)
-            </span>
-          )}
-        </div>
-      )}
-      {skipPolicy && skipPolicy.type === 'NONE' && (
-        <div className="text-sm text-stone-500">
-          <span className="mr-1.5">⏭️</span>
-          Skipping not allowed
-        </div>
-      )}
-
       {/* Price panel */}
       {price && (
         <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4 space-y-2">
@@ -273,7 +268,7 @@ export default function SubscriptionInfoPanel({
                 <div className="flex justify-between items-baseline gap-2">
                   <span className="text-stone-400">Box</span>
                   <span className="text-right">
-                    <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {currency}</span>
+                    <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {entryCurrency}</span>
                     {priceNum !== null && converted(priceNum) && (
                       <span className="block text-xs text-stone-500">{converted(priceNum)}</span>
                     )}
@@ -283,7 +278,7 @@ export default function SubscriptionInfoPanel({
                   <div className="flex justify-between items-baseline gap-2">
                     <span className="text-stone-400">Shipping</span>
                     <span className="text-right">
-                      <span className="text-stone-100">{shipping.toFixed(2)} {currency}</span>
+                      <span className="text-stone-100">{shipping.toFixed(2)} {entryCurrency}</span>
                       {converted(shipping) && (
                         <span className="block text-xs text-stone-500">{converted(shipping)}</span>
                       )}
@@ -294,18 +289,36 @@ export default function SubscriptionInfoPanel({
                   <div className="flex justify-between items-baseline gap-2">
                     <span className="text-stone-400">Taxes & fees</span>
                     <span className="text-right">
-                      <span className="text-stone-100">{taxes.toFixed(2)} {currency}</span>
+                      <span className="text-stone-100">{taxes.toFixed(2)} {entryCurrency}</span>
                       {converted(taxes) && (
                         <span className="block text-xs text-stone-500">{converted(taxes)}</span>
                       )}
                     </span>
                   </div>
                 )}
+
+                {/* Linked fee templates */}
+                {(myEntry?.feeTemplates ?? []).filter(f => f.feeTemplate.isActive).map((link, i) => {
+                  const amt = link.customAmount ?? link.feeTemplate.defaultAmount
+                  const feeCur = link.customCurrency ?? link.feeTemplate.defaultCurrency
+                  return (
+                    <div key={i} className="flex justify-between items-baseline gap-2">
+                      <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
+                      <span className="text-right text-xs text-stone-400">
+                        {amt != null
+                          ? <>{parseFloat(amt).toFixed(2)} {feeCur}</>
+                          : <span className="italic text-stone-600">variable</span>
+                        }
+                      </span>
+                    </div>
+                  )
+                })}
+
                 {total !== null && (
                   <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
                     <span className="text-stone-300 font-medium">Total / month</span>
                     <span className="text-right">
-                      <span className="text-stone-100 font-semibold">{total.toFixed(2)} {currency}</span>
+                      <span className="text-stone-100 font-semibold">{total.toFixed(2)} {entryCurrency}</span>
                       {converted(total) && (
                         <span className="block text-xs text-stone-400 font-medium">{converted(total)}</span>
                       )}
