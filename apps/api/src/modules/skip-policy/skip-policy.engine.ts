@@ -70,6 +70,9 @@ export class SkipPolicyEngine {
     const windowKey = this.computeWindowKey(policy, state, entry);
     const now = new Date();
 
+    // Check if the previous month was also skipped (for consecutive counting)
+    const newConsecutive = await this.computeNewConsecutive(entry.id, subscription.id, year, month, state);
+
     // Create skip record (idempotent via upsert)
     await this.prisma.userSkipRecord.upsert({
       where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: subMonth.id } },
@@ -99,7 +102,7 @@ export class SkipPolicyEngine {
       update: {
         windowKey,
         skipsInWindow: newWindow ? 1 : { increment: 1 },
-        consecutiveSkips: { increment: 1 },
+        consecutiveSkips: newConsecutive,
         totalSkips: { increment: 1 },
         lastSkipAt: now,
       },
@@ -419,6 +422,39 @@ export class SkipPolicyEngine {
     });
   }
 
+  /**
+   * Computes the consecutive skip count for the skip being recorded right now.
+   * Checks if the month immediately before (year, month) was already skipped.
+   * If yes → current consecutive + 1. If no → 1 (new streak starts).
+   */
+  private async computeNewConsecutive(
+    entryId: string,
+    subscriptionId: string,
+    year: number,
+    month: number,
+    state: { consecutiveSkips: number } | null,
+  ): Promise<number> {
+    // Compute previous month
+    const prevDate = new Date(year, month - 2); // month is 1-based, so month-2 = prev month as 0-based
+    const prevYear = prevDate.getFullYear();
+    const prevMonth = prevDate.getMonth() + 1;
+
+    const prevSubMonth = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId, year: prevYear, month: prevMonth } },
+    });
+
+    if (!prevSubMonth) return 1; // No prev month record → new streak
+
+    const prevSkip = await this.prisma.userSkipRecord.findUnique({
+      where: { userEntryId_subscriptionMonthId: { userEntryId: entryId, subscriptionMonthId: prevSubMonth.id } },
+    });
+
+    if (prevSkip && !prevSkip.undoneAt) {
+      return (state?.consecutiveSkips ?? 0) + 1;
+    }
+    return 1;
+  }
+
   private async recomputeState(
     userId: string,
     subscriptionId: string,
@@ -430,6 +466,7 @@ export class SkipPolicyEngine {
 
     const allRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry!.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
       orderBy: { skippedAt: 'asc' },
     });
 
@@ -442,16 +479,32 @@ export class SkipPolicyEngine {
       });
     }
 
-    // Recount window skips based on current window key
+    // Sort by actual subscription month (year, month) ascending
+    allRecords.sort((a, b) => {
+      if (!a.month || !b.month) return 0;
+      if (a.month.year !== b.month.year) return a.month.year - b.month.year;
+      return a.month.month - b.month.month;
+    });
+
+    // Recount window skips based on the latest window key
     const latestWindowKey = allRecords[allRecords.length - 1].windowKey;
     const skipsInWindow = allRecords.filter((r) => r.windowKey === latestWindowKey).length;
 
-    // Recount consecutive (simplified: count from end of sorted list)
-    // TODO: improve with proper month-adjacency check
-    let consecutive = 0;
-    for (let i = allRecords.length - 1; i >= 0; i--) {
-      consecutive++;
-      // If there's a gap between records we'd break here — simplified for now
+    // Recount consecutive: walk backward from most recent, count adjacent months
+    let consecutive = 1;
+    for (let i = allRecords.length - 2; i >= 0; i--) {
+      const curr = allRecords[i + 1].month; // more recent
+      const prev = allRecords[i].month;     // less recent
+      if (!curr || !prev) break;
+
+      const expectedPrevYear = curr.month === 1 ? curr.year - 1 : curr.year;
+      const expectedPrevMonth = curr.month === 1 ? 12 : curr.month - 1;
+
+      if (prev.year === expectedPrevYear && prev.month === expectedPrevMonth) {
+        consecutive++;
+      } else {
+        break;
+      }
     }
 
     return this.prisma.userSubscriptionSkipState.upsert({
