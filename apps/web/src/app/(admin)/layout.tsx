@@ -18,6 +18,7 @@ import {
   Megaphone,
   LibraryBig,
   Bug,
+  Lightbulb,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -41,6 +42,7 @@ const MODERATOR_LINKS = [
   { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
+  { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
 ]
 
 const ADMIN_LINKS = [

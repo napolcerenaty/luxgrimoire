@@ -409,6 +409,20 @@ export interface ApiSaleAnnouncement {
   }>;
 }
 
+export interface ApiFeatureRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  adminNote: string | null;
+  userId: string | null;
+  user?: { id: string; username: string; email?: string } | null;
+  voteCount: number;
+  userHasVoted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiWaitlistEntry {
   id: string;
   userId: string;

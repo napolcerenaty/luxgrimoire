@@ -15,6 +15,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
+  { href: '/feature-requests', label: 'Feature Requests' },
 ]
 
 const USER_NAV_LINKS = [

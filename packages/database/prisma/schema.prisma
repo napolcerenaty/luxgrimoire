@@ -56,6 +56,8 @@ model User {
   subEntryTags        UserSubEntryTag[]
   subscriptionEntries UserSubscriptionEntry[]
   bugReports          BugReport[]
+  featureRequests     FeatureRequest[]
+  featureVotes        FeatureVote[]
   managedCompany      BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
 
   @@index([shippingCountry])
@@ -933,6 +935,35 @@ model BugReport {
   @@index([status])
   @@index([createdAt])
   @@map("bug_reports")
+}
+
+model FeatureRequest {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  status      String         @default("pending") @db.VarChar(20)
+  adminNote   String?
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  votes       FeatureVote[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("feature_requests")
+}
+
+model FeatureVote {
+  id               String         @id @default(uuid())
+  featureRequestId String
+  userId           String
+  featureRequest   FeatureRequest @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([featureRequestId, userId])
+  @@map("feature_votes")
 }
 
 /// Reusable fee templates defined by the user (e.g. "Polish Customs VAT", "DHL Processing Fee")

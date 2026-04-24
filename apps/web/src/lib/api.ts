@@ -576,3 +576,77 @@ export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimo
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
+// ─── Feature Requests ─────────────────────────────────────────────────────────
+export async function submitFeatureRequest(data: { title: string; description: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/feature-requests`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function getFeatureRequests(params?: { page?: number; pageSize?: number }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  const res = await fetch(`${API_URL}/feature-requests?${qs}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function getMyFeatureRequests(): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest[]> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/feature-requests/my`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function voteFeatureRequest(id: string): Promise<{ voted: boolean }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/feature-requests/${id}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminGetFeatureRequests(params?: { page?: number; status?: string }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.status) qs.set('status', params.status);
+  const res = await fetch(`${API_URL}/feature-requests/admin?${qs}`, {
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminReviewFeatureRequest(id: string, data: { status: 'accepted' | 'rejected'; adminNote?: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/feature-requests/${id}/review`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminDeleteFeatureRequest(id: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/feature-requests/${id}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}

@@ -29,6 +29,7 @@ import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
 import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
+import { FeatureRequestsModule } from './modules/feature-requests/feature-requests.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
     BookBoxCollectionsModule,
     SubscriptionSeriesModule,
     BugReportsModule,
+    FeatureRequestsModule,
   ],
 })
 export class AppModule {}
