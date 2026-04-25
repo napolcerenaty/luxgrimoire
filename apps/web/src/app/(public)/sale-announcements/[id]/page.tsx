@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   try {
     const sale = await apiFetch<ApiSaleAnnouncement>(`/announcements/${id}`)
-    return { title: sale.title, description: sale.description ?? undefined }
+    return { title: sale.title }
   } catch {
     return { title: 'Sale not found' }
   }
@@ -69,9 +69,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             {sale.title}
           </h1>
 
-          {sale.description && (
-            <p className="text-stone-300 leading-relaxed mb-6">{sale.description}</p>
-          )}
+          {/* description removed */}
 
           {sale.expectedShipping && (
             <p className="text-stone-400 text-sm mb-6">

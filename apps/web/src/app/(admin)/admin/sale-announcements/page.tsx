@@ -300,7 +300,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
 interface FormState {
   title: string
   companyId: string
-  description: string
   generalSaleDate: string
   firstAccessDate: string
   earlyAccessDate: string
@@ -316,7 +315,6 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   title: '',
   companyId: '',
-  description: '',
   generalSaleDate: '',
   firstAccessDate: '',
   earlyAccessDate: '',
@@ -352,7 +350,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
   return {
     title: a.title,
     companyId: a.companyId ?? '',
-    description: a.description ?? '',
     generalSaleDate: toDatetimeLocal(a.generalSaleDate),
     firstAccessDate: toDatetimeLocal(a.firstAccessDate),
     earlyAccessDate: toDatetimeLocal(a.earlyAccessDate),
@@ -370,7 +367,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   return {
     title: f.title,
     companyId: f.companyId || undefined,
-    description: f.description || undefined,
     generalSaleDate: f.generalSaleDate || undefined,
     firstAccessDate: f.firstAccessDate || undefined,
     earlyAccessDate: f.earlyAccessDate || undefined,
@@ -418,12 +414,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       <div>
         <label className={LBL}>Title *</label>
         <input required className={INP} value={form.title} onChange={set('title')} />
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className={LBL}>Description</label>
-        <textarea rows={3} className={INP} value={form.description} onChange={set('description')} />
       </div>
 
       {/* Company */}

@@ -570,7 +570,6 @@ export async function deleteSaleGroup(id: string): Promise<void> {
 export interface SaleAnnouncementFormData {
   title: string;
   companyId?: string;
-  description?: string;
   generalSaleDate?: string;
   firstAccessDate?: string;
   earlyAccessDate?: string;

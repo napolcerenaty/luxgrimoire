@@ -435,7 +435,6 @@ export interface ApiSaleAnnouncement {
   slug: string;
   title: string;
   companyId: string | null;
-  description: string | null;
   generalSaleDate: string | null;
   firstAccessDate: string | null;
   earlyAccessDate: string | null;

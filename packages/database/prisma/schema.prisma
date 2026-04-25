@@ -485,7 +485,6 @@ model SubscriptionMonthBook {
 model SaleAnnouncement {
   id                   String                    @id @default(uuid())
   title                String
-  description          String?
   companyId            String?
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt

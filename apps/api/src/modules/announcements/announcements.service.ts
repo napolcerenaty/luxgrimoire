@@ -129,7 +129,6 @@ export class AnnouncementsService {
       data: {
         title: data.title,
         companyId: data.companyId ?? null,
-        description: data.description ?? null,
         generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
         firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
         earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
@@ -168,7 +167,6 @@ export class AnnouncementsService {
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.companyId !== undefined && { companyId: data.companyId }),
-        ...(data.description !== undefined && { description: data.description }),
         ...(data.generalSaleDate !== undefined && {
           generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
         }),

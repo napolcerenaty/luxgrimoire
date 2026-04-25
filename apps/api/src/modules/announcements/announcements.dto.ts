@@ -10,10 +10,6 @@ export class CreateSaleAnnouncementDto {
 
   @IsOptional()
   @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
   generalSaleDate?: string;
 
   @IsOptional()
@@ -67,14 +63,6 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   companyId?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string;
 
   @IsOptional()
   @IsString()
