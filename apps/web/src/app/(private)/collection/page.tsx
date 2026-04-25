@@ -1063,14 +1063,15 @@ export default function CollectionPage() {
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                   entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                                  entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
-                                {entry.readingStatus}
+                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'Read' : 'Unread'}
                               </span>
                               {openDropdown === `${entry.id}-reading` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['READ', 'UNREAD'] as const).map((val) => (
+                                  {(['READ', 'UNREAD', 'DNF'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
@@ -1086,7 +1087,7 @@ export default function CollectionPage() {
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                     >
-                                      {val}
+                                      {val === 'DNF' ? 'DNF (Did Not Finish)' : val === 'READ' ? 'Read' : 'Unread'}
                                     </button>
                                   ))}
                                 </div>

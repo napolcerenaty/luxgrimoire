@@ -13,7 +13,7 @@ export const OWNERSHIP_STATUSES = [
 
 export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];
 
-export const READING_STATUSES = ['UNREAD', 'READ'] as const;
+export const READING_STATUSES = ['UNREAD', 'READ', 'DNF'] as const;
 export type ReadingStatus = typeof READING_STATUSES[number];
 
 export class AddToCollectionDto {

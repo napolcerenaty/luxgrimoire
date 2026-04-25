@@ -13,8 +13,14 @@ export const OWNERSHIP_STATUSES = [
 ] as const;
 export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];
 
-export const READING_STATUSES = ['UNREAD', 'READ'] as const;
+export const READING_STATUSES = ['UNREAD', 'READ', 'DNF'] as const;
 export type ReadingStatus = typeof READING_STATUSES[number];
+
+export const READING_STATUS_LABELS: Record<ReadingStatus, string> = {
+  UNREAD: 'Unread',
+  READ: 'Read',
+  DNF: 'DNF',
+};
 
 export const OWNERSHIP_STATUS_LABELS: Record<OwnershipStatus, string> = {
   PREORDER: 'Pre-order',

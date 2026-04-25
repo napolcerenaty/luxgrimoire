@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
@@ -239,6 +239,18 @@ function BookEntryRow({ entry, isOwner, updating, onUpdateStatus }: BookEntryRow
   const ownershipColor = OWNERSHIP_STATUS_COLORS[entry.ownershipStatus] ?? 'bg-stone-800 text-stone-400 border-stone-700'
   const isUpdatingOwnership = updating === entry.id + 'ownershipStatus'
   const isUpdatingReading = updating === entry.id + 'readingStatus'
+  const [readingDropdownOpen, setReadingDropdownOpen] = useState(false)
+  const readingRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (readingRef.current && !readingRef.current.contains(e.target as Node)) {
+        setReadingDropdownOpen(false)
+      }
+    }
+    if (readingDropdownOpen) document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [readingDropdownOpen])
 
   return (
     <div className="flex items-center gap-4 p-3 rounded-xl bg-stone-900/60 border border-stone-800 hover:border-stone-700 transition-colors">
@@ -263,32 +275,52 @@ function BookEntryRow({ entry, isOwner, updating, onUpdateStatus }: BookEntryRow
         {authors && <p className="text-stone-500 text-xs mt-0.5 line-clamp-1">{authors}</p>}
       </div>
 
-      {/* Read/Unread badge + toggle */}
-      <div className="shrink-0">
+      {/* Reading status badge */}
+      <div className="shrink-0 relative" ref={readingRef}>
         {isOwner ? (
-          <button
-            disabled={isUpdatingReading}
-            onClick={() =>
-              onUpdateStatus(entry.id, 'readingStatus', entry.readingStatus === 'READ' ? 'UNREAD' : 'READ')
-            }
-            className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
-              entry.readingStatus === 'READ'
-                ? 'bg-amber-900/40 text-amber-300 border-amber-700/50 hover:bg-amber-900/60'
-                : 'bg-stone-800 text-stone-500 border-stone-700 hover:bg-stone-700'
-            } ${isUpdatingReading ? 'opacity-50 cursor-wait' : ''}`}
-            title="Toggle read/unread"
-          >
-            {entry.readingStatus === 'READ' ? 'Read' : 'Unread'}
-          </button>
+          <>
+            <button
+              disabled={isUpdatingReading}
+              onClick={() => setReadingDropdownOpen((o) => !o)}
+              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                entry.readingStatus === 'READ'
+                  ? 'bg-amber-900/40 text-amber-300 border-amber-700/50 hover:bg-amber-900/60'
+                  : entry.readingStatus === 'DNF'
+                  ? 'bg-rose-900/30 text-rose-400 border-rose-700/50 hover:bg-rose-900/50'
+                  : 'bg-stone-800 text-stone-500 border-stone-700 hover:bg-stone-700'
+              } ${isUpdatingReading ? 'opacity-50 cursor-wait' : ''}`}
+            >
+              {entry.readingStatus === 'READ' ? 'Read' : entry.readingStatus === 'DNF' ? 'DNF' : 'Unread'}
+            </button>
+            {readingDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                {(['READ', 'UNREAD', 'DNF'] as const).map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(entry.id, 'readingStatus', val)
+                      setReadingDropdownOpen(false)
+                    }}
+                    className="w-full text-left text-xs px-3 py-1.5 hover:bg-stone-700 text-stone-200 transition-colors"
+                  >
+                    {val === 'DNF' ? 'DNF (Did Not Finish)' : val === 'READ' ? 'Read' : 'Unread'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <span
             className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
               entry.readingStatus === 'READ'
                 ? 'bg-amber-900/40 text-amber-300 border-amber-700/50'
+                : entry.readingStatus === 'DNF'
+                ? 'bg-rose-900/30 text-rose-400 border-rose-700/50'
                 : 'bg-stone-800 text-stone-500 border-stone-700'
             }`}
           >
-            {entry.readingStatus === 'READ' ? 'Read' : 'Unread'}
+            {entry.readingStatus === 'READ' ? 'Read' : entry.readingStatus === 'DNF' ? 'DNF' : 'Unread'}
           </span>
         )}
       </div>
