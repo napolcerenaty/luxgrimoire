@@ -273,11 +273,28 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-stone-100 font-semibold">{monthLabel}</span>
-            {month.signatureType && month.signatureType !== "unsigned" && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-                {month.signatureType === "signed" ? "✍️ Signed" : "🖨️ Digitally Signed"}
-              </span>
-            )}
+            {(() => {
+              // Build effective signature type for each book
+              const counts: Record<string, number> = {}
+              for (const mb of month.books) {
+                const t = mb.signatureType ?? month.signatureType
+                if (t) counts[t] = (counts[t] ?? 0) + 1
+              }
+              const entries = Object.entries(counts)
+              if (entries.length === 0 && month.signatureType) {
+                // No books yet but month has a default — show it
+                const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : 'Unsigned'
+                return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
+              }
+              return entries.map(([type, count]) => {
+                const label = type === 'signed' ? '✍️ Signed' : type === 'digitally_signed' ? '🖨️ Digital' : 'Unsigned'
+                return (
+                  <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                    {label}{month.books.length > 1 ? ` ×${count}` : ''}
+                  </span>
+                )
+              })
+            })()}
           </div>
           {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
           <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
