@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import { ArtistLink } from '@/components/ui/ArtistLink'
+import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -56,15 +56,15 @@ interface Props { params: Promise<{ slug: string }> }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const ROLE_COLORS: Record<string, string> = {
-  cover: 'bg-amber-700/80 text-amber-100',
-  illustration: 'bg-violet-700/80 text-violet-100',
-  map: 'bg-teal-700/80 text-teal-100',
-  typography: 'bg-sky-700/80 text-sky-100',
-  design: 'bg-pink-700/80 text-pink-100',
+const ROLE_DOTS: Record<string, string> = {
+  cover:        'bg-amber-500',
+  illustration: 'bg-violet-500',
+  map:          'bg-teal-500',
+  typography:   'bg-sky-500',
+  design:       'bg-pink-500',
 }
-function roleColor(role: string) {
-  return ROLE_COLORS[role.toLowerCase()] ?? 'bg-stone-700/80 text-stone-100'
+function roleDot(role: string) {
+  return ROLE_DOTS[role.toLowerCase()] ?? 'bg-stone-500'
 }
 
 function formatDate(dateStr: string | null | undefined) {
@@ -108,12 +108,18 @@ export default async function EditionPage({ params }: Props) {
   }
 
   const book = edition.book
-  const coverUrl = cloudinaryUrl(edition.coverImage ?? book?.coverImage ?? null, 'w_600,c_fill,q_auto,f_auto')
-  const additionalImages = Array.isArray(edition.additionalImages) ? edition.additionalImages : []
   const features = Array.isArray(edition.features) ? edition.features : []
   const artists = edition.artists ?? []
-
   const editionLabel = edition.editionName ?? edition.bookBoxCompanyCustomName ?? edition.bookBoxCompany?.name ?? null
+
+  // Build all carousel images: cover first, then additional
+  const allImages: string[] = []
+  const coverUrl = cloudinaryUrl(edition.coverImage ?? book?.coverImage ?? null, 'w_600,c_fill,q_auto,f_auto')
+  if (coverUrl) allImages.push(coverUrl)
+  for (const img of (Array.isArray(edition.additionalImages) ? edition.additionalImages : [])) {
+    const url = cloudinaryUrl(img, 'w_600,c_fill,q_auto,f_auto')
+    if (url) allImages.push(url)
+  }
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -131,44 +137,32 @@ export default async function EditionPage({ params }: Props) {
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden border-b border-stone-800 bg-gradient-to-b from-stone-950 to-stone-900">
         <div className="container mx-auto px-4 py-10 max-w-5xl">
-          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-10 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-10 items-start">
 
-            {/* Cover */}
-            <div className="flex flex-col items-center md:items-start gap-4">
-              <div className="relative w-full max-w-[240px]">
-                {coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={coverUrl}
-                    alt={book?.title ?? 'Edition cover'}
-                    className="rounded-xl shadow-2xl w-full object-cover ring-1 ring-stone-700/50"
-                  />
-                ) : (
-                  <div className="w-full aspect-[2/3] rounded-xl bg-stone-800 flex items-center justify-center text-stone-600">
-                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                )}
+            {/* ── Left: Carousel + company name ── */}
+            <div className="flex flex-col items-center md:items-start gap-3">
+              {allImages.length > 0 ? (
+                <ImageCarousel images={allImages} alt={book?.title ?? 'Edition'} />
+              ) : (
+                <div className="w-full aspect-[2/3] rounded-xl bg-stone-800 flex items-center justify-center text-stone-600 ring-1 ring-stone-700/50">
+                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+              )}
 
-                {/* Book box company ribbon */}
-                {edition.bookBoxCompany && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 px-2 py-2 rounded-b-xl text-center"
-                    style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
-                  >
-                    <span
-                      className="font-serif font-semibold uppercase tracking-widest leading-none text-white block"
-                      style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
-                    >
-                      {edition.bookBoxCompany.name}
-                    </span>
-                  </div>
-                )}
-              </div>
+              {/* Book box company name below carousel */}
+              {edition.bookBoxCompany && (
+                <Link
+                  href={`/companies/${edition.bookBoxCompany.slug}`}
+                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-amber-400 transition-colors text-base leading-snug"
+                >
+                  {edition.bookBoxCompany.name}
+                </Link>
+              )}
             </div>
 
-            {/* Info */}
+            {/* ── Right: Info ── */}
             <div>
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm text-stone-500 mb-4 flex-wrap">
@@ -199,33 +193,33 @@ export default async function EditionPage({ params }: Props) {
               {/* Title */}
               {book && (
                 <Link href={`/books/${book.slug}`} className="group">
-                  <h1 className="text-4xl font-serif font-bold text-stone-100 mb-2 leading-tight group-hover:text-amber-400 transition-colors">
+                  <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-amber-400 transition-colors">
                     {book.title}
                   </h1>
                 </Link>
               )}
 
-              {/* Edition label */}
-              {editionLabel && (
-                <p className="text-lg text-amber-500/90 font-medium mb-3">{editionLabel}</p>
-              )}
-              {edition.alternativeTitle && (
-                <p className="text-stone-400 text-sm italic mb-3">{edition.alternativeTitle}</p>
-              )}
-
-              {/* Authors */}
+              {/* Authors — directly below title */}
               {book?.authors && book.authors.length > 0 && (
-                <p className="text-stone-300 mb-5">
+                <p className="text-stone-400 text-sm mb-3">
                   by{' '}
                   {book.authors.map((author, i) => (
                     <span key={author.id}>
                       {i > 0 && ', '}
-                      <Link href={`/authors/${author.slug}`} className="text-amber-400 hover:underline">
+                      <Link href={`/authors/${author.slug}`} className="text-stone-300 hover:text-amber-400 hover:underline transition-colors">
                         {author.name}
                       </Link>
                     </span>
                   ))}
                 </p>
+              )}
+
+              {/* Edition label */}
+              {editionLabel && (
+                <p className="text-lg text-amber-500/90 font-medium mb-2">{editionLabel}</p>
+              )}
+              {edition.alternativeTitle && (
+                <p className="text-stone-400 text-sm italic mb-3">{edition.alternativeTitle}</p>
               )}
 
               {/* Badges */}
@@ -245,23 +239,23 @@ export default async function EditionPage({ params }: Props) {
               </div>
 
               {/* Meta grid */}
-              <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
                 {edition.publisher && (
                   <>
                     <dt className="text-stone-500">Publisher</dt>
-                    <dd className="text-stone-200 col-span-2 sm:col-span-2">{edition.publisher}</dd>
+                    <dd className="text-stone-200">{edition.publisher}</dd>
                   </>
                 )}
                 {edition.publishYear && (
                   <>
                     <dt className="text-stone-500">Year</dt>
-                    <dd className="text-stone-200 col-span-2 sm:col-span-2">{edition.publishYear}</dd>
+                    <dd className="text-stone-200">{edition.publishYear}</dd>
                   </>
                 )}
                 {edition.bookBoxCompany && (
                   <>
                     <dt className="text-stone-500">Book Box</dt>
-                    <dd className="col-span-2 sm:col-span-2">
+                    <dd>
                       <Link href={`/companies/${edition.bookBoxCompany.slug}`} className="text-amber-400 hover:underline">
                         {edition.bookBoxCompany.name}
                       </Link>
@@ -271,7 +265,7 @@ export default async function EditionPage({ params }: Props) {
                 {edition.collection && (
                   <>
                     <dt className="text-stone-500">Collection</dt>
-                    <dd className="col-span-2 sm:col-span-2">
+                    <dd>
                       <Link href={`/collections/${edition.collection.slug}`} className="text-amber-400 hover:underline">
                         {edition.collection.name}
                       </Link>
@@ -281,36 +275,28 @@ export default async function EditionPage({ params }: Props) {
                 {edition.basePrice && (
                   <>
                     <dt className="text-stone-500">Base Price</dt>
-                    <dd className="text-stone-200 col-span-2 sm:col-span-2">
-                      {edition.basePrice} {edition.currency ?? ''}
-                    </dd>
+                    <dd className="text-stone-200">{edition.basePrice} {edition.currency ?? ''}</dd>
+                  </>
+                )}
+                {edition.firstAccessDate && (
+                  <>
+                    <dt className="text-stone-500">First Access</dt>
+                    <dd className="text-stone-200">{formatDate(edition.firstAccessDate)}</dd>
+                  </>
+                )}
+                {edition.earlyAccessDate && (
+                  <>
+                    <dt className="text-stone-500">Early Access</dt>
+                    <dd className="text-stone-200">{formatDate(edition.earlyAccessDate)}</dd>
+                  </>
+                )}
+                {edition.generalSaleDate && (
+                  <>
+                    <dt className="text-stone-500">General Sale</dt>
+                    <dd className="text-stone-200">{formatDate(edition.generalSaleDate)}</dd>
                   </>
                 )}
               </dl>
-
-              {/* Access dates */}
-              {(edition.firstAccessDate || edition.earlyAccessDate || edition.generalSaleDate) && (
-                <div className="mt-5 space-y-1.5">
-                  {edition.firstAccessDate && (
-                    <div className="flex gap-3 text-sm">
-                      <span className="text-stone-500 w-36 shrink-0">First Access</span>
-                      <span className="text-stone-200">{formatDate(edition.firstAccessDate)}</span>
-                    </div>
-                  )}
-                  {edition.earlyAccessDate && (
-                    <div className="flex gap-3 text-sm">
-                      <span className="text-stone-500 w-36 shrink-0">Early Access</span>
-                      <span className="text-stone-200">{formatDate(edition.earlyAccessDate)}</span>
-                    </div>
-                  )}
-                  {edition.generalSaleDate && (
-                    <div className="flex gap-3 text-sm">
-                      <span className="text-stone-500 w-36 shrink-0">General Sale</span>
-                      <span className="text-stone-200">{formatDate(edition.generalSaleDate)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Notes */}
               {edition.notes && (
@@ -342,62 +328,44 @@ export default async function EditionPage({ params }: Props) {
         {artists.length > 0 && (
           <section>
             <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Artists</h2>
-            <div className="flex flex-wrap gap-3">
-              {artists.map((c) => (
-                <div
-                  key={c.artist.id}
-                  className="flex items-center gap-2.5 bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5"
-                >
-                  {c.artist.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cloudinaryUrl(c.artist.photoUrl, 'w_64,h_64,c_fill,q_auto,f_auto') ?? ''}
-                      alt={c.artist.name}
-                      className="w-8 h-8 rounded-full object-cover ring-1 ring-stone-700"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">
-                      {c.artist.name[0]}
-                    </div>
-                  )}
-                  <div>
-                    <ArtistLink artist={c.artist} className="text-sm font-medium text-stone-200 hover:text-amber-400 transition-colors" />
-                    <p className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide inline-block ${roleColor(c.role)}`}>
-                      {c.role}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+            <div className="flex flex-wrap gap-4">
+              {artists.map((c) => {
+                const cleanName = c.artist.name.startsWith('@') ? c.artist.name.slice(1) : c.artist.name
+                const photoUrl = cloudinaryUrl(c.artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
+                return (
+                  <Link
+                    key={c.artist.id}
+                    href={`/artists/${c.artist.slug}`}
+                    className="flex items-center gap-3 group"
+                  >
+                    {/* Avatar */}
+                    {photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photoUrl}
+                        alt={cleanName}
+                        className="w-10 h-10 rounded-full object-cover ring-1 ring-stone-700 group-hover:ring-amber-500/50 transition-all shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 font-serif text-base shrink-0 ring-1 ring-stone-700 group-hover:ring-amber-500/50 transition-all">
+                        {cleanName[0]?.toUpperCase()}
+                      </div>
+                    )}
 
-        {/* ── Additional images ────────────────────────────────────────────── */}
-        {additionalImages.length > 0 && (
-          <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Gallery</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {additionalImages.map((img, i) => {
-                const url = cloudinaryUrl(img, 'w_400,c_fill,q_auto,f_auto')
-                return url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`${book?.title ?? 'Edition'} — image ${i + 1}`}
-                    className="rounded-lg object-cover aspect-square w-full ring-1 ring-stone-800 hover:ring-amber-700/40 transition-all"
-                  />
-                ) : null
+                    {/* Name + role */}
+                    <div>
+                      <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight">
+                        {cleanName}
+                      </p>
+                      <p className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${roleDot(c.role)}`} />
+                        {c.role}
+                      </p>
+                    </div>
+                  </Link>
+                )
               })}
             </div>
-          </section>
-        )}
-
-        {/* ── Book description (fallback info) ─────────────────────────────── */}
-        {book?.description && (
-          <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">About the Book</h2>
-            <p className="text-stone-300 leading-relaxed whitespace-pre-line">{book.description}</p>
           </section>
         )}
 
