@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { useTheme } from '@/components/ThemeProvider'
 import { useLanguage, LANGUAGES } from '@/components/LanguageProvider'
@@ -29,6 +30,7 @@ export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
   const { language, setLanguage } = useLanguage()
 
@@ -52,6 +54,7 @@ export function Navbar() {
 
   const handleLogout = () => {
     logout()
+    queryClient.clear()   // wipe all cached data so next user doesn't see stale data
     setDropdownOpen(false)
     router.push('/')
   }
