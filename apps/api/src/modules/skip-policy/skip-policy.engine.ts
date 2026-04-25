@@ -40,7 +40,7 @@ export class SkipPolicyEngine {
     });
     const deadline = this.computeDeadline(policy, entry, upcomingMonth ?? null);
     const skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, state, deadline, skippedMonths);
+    return this.buildStatus(policy, state, deadline, skippedMonths, upcomingMonth ?? null);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
@@ -150,7 +150,7 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, newState, deadline, skippedMonths);
+    return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
   }
 
   async undoSkip(
@@ -193,7 +193,7 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, updatedState, deadline, skippedMonths);
+    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month });
   }
 
   async recordSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
@@ -274,7 +274,7 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, newState, deadline, skippedMonths);
+    return this.buildStatus(policy, newState, deadline, skippedMonths, lastMonth ?? null);
   }
 
   async undoSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
@@ -405,6 +405,7 @@ export class SkipPolicyEngine {
     } | null,
     deadline: Date | null = null,
     skippedMonths: { year: number; month: number }[] = [],
+    deadlineMonth: { year: number; month: number } | null = null,
   ): SkipStatus {
     const policyType = policy?.type ?? 'NONE';
     const totalSkips = state?.totalSkips ?? 0;
@@ -418,7 +419,11 @@ export class SkipPolicyEngine {
     const warnings = this.computeWarnings(policyType, skipsInWindow, maxSkips, consecutiveSkips, maxConsecutive);
 
     if (isPastDeadline && policyType !== 'NONE') {
-      warnings.unshift('The skip deadline for this period has passed — recording for tracking purposes.');
+      const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const monthLabel = deadlineMonth
+        ? `${MONTHS[deadlineMonth.month - 1]} ${deadlineMonth.year}`
+        : 'this period';
+      warnings.unshift(`The skip deadline for ${monthLabel} has passed — recording for tracking purposes.`);
     }
 
     return {
