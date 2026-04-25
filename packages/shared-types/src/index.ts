@@ -94,12 +94,21 @@ export interface ApiBookEdition {
   notes: string | null;
   editionName: string | null;
   bookBoxCompanyCustomName: string | null;
+  bookBoxCompanyId?: string | null;
   bookBoxCompany?: { name: string; slug: string } | null;
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
   artists: Array<{ artist: ApiArtist; role: string }>;
   verifiedAt: string | null;
   submittedByUserId: string | null;
+  // Edition commerce / access fields
+  basePrice?: string | null;
+  currency?: string | null;
+  language?: string | null;
+  features?: string[];
+  firstAccessDate?: string | null;
+  earlyAccessDate?: string | null;
+  generalSaleDate?: string | null;
   book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'coverImage' | 'seriesName' | 'volumeNumber'> & {
     authors?: ApiAuthor[];
   };
