@@ -496,7 +496,7 @@ const CONDITION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | '
   POOR: 'destructive',
 }
 
-type FilterMode = 'ALL' | 'SERIES' | 'YEAR'
+type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR'
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
@@ -651,6 +651,16 @@ export default function CollectionPage() {
   })
 
   const grouped: CollectionEntry[][] = (() => {
+    if (filter === 'BOOK') {
+      const map = new Map<string, CollectionEntry[]>()
+      for (const e of filtered) {
+        const key = e.edition.book.id
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      }
+      // Sort: books with multiple editions first
+      return Array.from(map.values()).sort((a, b) => b.length - a.length)
+    }
     if (filter === 'SERIES') {
       const map = new Map<string, CollectionEntry[]>()
       for (const e of filtered) {
@@ -880,83 +890,83 @@ export default function CollectionPage() {
       ) : (
         /* ─── Books tab ─── */
         <>
-          {/* Search + Filters */}
-          <div className="flex flex-col gap-3 mb-6">
+          {/* Search + Filters — all inline */}
+          <div className="flex gap-2 flex-wrap items-center mb-6">
             <input
               type="text"
               value={bookFilter}
               onChange={e => setBookFilter(e.target.value)}
-              placeholder="Filter by book title…"
-              className="w-full max-w-sm bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+              placeholder="Search by title…"
+              className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
             />
-            <div className="flex gap-2 flex-wrap items-center">
-              {/* Group by */}
+
+            {/* Group by */}
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value as FilterMode)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Group: All</option>
+              <option value="BOOK">Group: By Book</option>
+              <option value="SERIES">Group: By Series</option>
+              <option value="YEAR">Group: By Year</option>
+            </select>
+
+            {/* Signature */}
+            <select
+              value={sigFilter}
+              onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Signature: Any</option>
+              <option value="UNSIGNED">Unsigned</option>
+              <option value="SIGNED">✍️ Signed</option>
+              <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
+            </select>
+
+            {/* Ownership status */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Status: Any</option>
+              <option value="OWNED">Owned</option>
+              <option value="PREORDER">Pre-order</option>
+              <option value="TO_SELL">To Sell</option>
+              <option value="SHIPPING">Shipping</option>
+              <option value="BORROWED">Borrowed</option>
+              <option value="LENDED">Lent Out</option>
+              <option value="SOLD">Sold</option>
+              <option value="GIFTED_AWAY">Gifted Away</option>
+            </select>
+
+            {/* Company */}
+            {companies.length > 0 && (
               <select
-                value={filter}
-                onChange={e => setFilter(e.target.value as FilterMode)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                value={companyFilter}
+                onChange={e => setCompanyFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
-                <option value="ALL">Group: All</option>
-                <option value="SERIES">Group: By Series</option>
-                <option value="YEAR">Group: By Year</option>
+                <option value="ALL">Box: Any</option>
+                {companies.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+            )}
 
-              {/* Signature */}
-              <select
-                value={sigFilter}
-                onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            {/* Reset all */}
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+              <button
+                type="button"
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
-                <option value="ALL">Signature: Any</option>
-                <option value="UNSIGNED">Unsigned</option>
-                <option value="SIGNED">✍️ Signed</option>
-                <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
-              </select>
+                ✕ Clear
+              </button>
+            )}
 
-              {/* Ownership status */}
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-              >
-                <option value="ALL">Status: Any</option>
-                <option value="OWNED">Owned</option>
-                <option value="PREORDER">Pre-order</option>
-                <option value="TO_SELL">To Sell</option>
-                <option value="SHIPPING">Shipping</option>
-                <option value="BORROWED">Borrowed</option>
-                <option value="LENDED">Lent Out</option>
-                <option value="SOLD">Sold</option>
-                <option value="GIFTED_AWAY">Gifted Away</option>
-              </select>
-
-              {/* Company */}
-              {companies.length > 0 && (
-                <select
-                  value={companyFilter}
-                  onChange={e => setCompanyFilter(e.target.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-                >
-                  <option value="ALL">Box: Any</option>
-                  {companies.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              )}
-
-              {/* Reset all */}
-              {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
-                <button
-                  type="button"
-                  onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
-                  className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
-                >
-                  ✕ Clear
-                </button>
-              )}
-
-              <span className="text-xs text-stone-600 ml-auto">
-                {filtered.length}/{entries.length}
-              </span>
-            </div>
+            <span className="text-xs text-stone-600 ml-auto">
+              {filtered.length}/{entries.length}
+            </span>
           </div>
 
           {entries.length === 0 ? (
@@ -969,7 +979,9 @@ export default function CollectionPage() {
             <div className="space-y-8">
               {grouped.map((group, gi) => {
                 const groupLabel =
-                  filter === 'SERIES'
+                  filter === 'BOOK'
+                    ? (group[0]?.edition.book.title ?? null)
+                    : filter === 'SERIES'
                     ? (group[0]?.edition.book.seriesName ?? 'Standalone')
                     : filter === 'YEAR'
                       ? (group[0]?.acquiredAt
@@ -980,15 +992,23 @@ export default function CollectionPage() {
                 return (
                   <div key={gi}>
                     {groupLabel && (
-                      <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2">
-                        {groupLabel}
+                      <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2 flex items-center gap-2">
+                        {filter === 'BOOK' && group[0] && (
+                          <a href={`/books/${group[0].edition.book.slug}`} className="hover:text-amber-400 transition-colors">
+                            {groupLabel}
+                          </a>
+                        )}
+                        {filter !== 'BOOK' && groupLabel}
+                        {filter === 'BOOK' && group.length > 1 && (
+                          <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5">{group.length} editions</span>
+                        )}
                       </h2>
                     )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {group.map((entry) => (
                     <EditionCard
                       key={entry.id}
-                      href={`/books/${entry.edition.book.slug}`}
+                      href={`/editions/${entry.edition.slug}`}
                       coverImage={entry.edition.coverImage}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
