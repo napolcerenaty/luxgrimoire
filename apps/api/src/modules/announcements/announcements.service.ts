@@ -79,8 +79,6 @@ export class AnnouncementsService {
         extraImagesJson: extraImages && extraImages.length > 0 ? JSON.stringify(extraImages) : null,
         isPublished: data.isPublished ?? false,
         isBundle: data.isBundle ?? false,
-        saleStatus: data.saleStatus ?? 'announcement',
-        availableForPurchase: data.saleStatus === 'available',
       },
     });
 
@@ -128,10 +126,6 @@ export class AnnouncementsService {
         }),
         ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
-        ...(data.saleStatus !== undefined && {
-          saleStatus: data.saleStatus,
-          availableForPurchase: data.saleStatus === 'available',
-        }),
       },
     });
 

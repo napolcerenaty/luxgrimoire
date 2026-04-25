@@ -516,7 +516,6 @@ export interface SaleAnnouncementFormData {
   extraImages?: string[];
   isPublished?: boolean;
   isBundle?: boolean;
-  saleStatus?: string;
   editionIds?: string[];
 }
 

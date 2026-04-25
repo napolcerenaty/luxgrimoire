@@ -1,6 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsIn } from 'class-validator';
-
-const SALE_STATUSES = ['announcement', 'available', 'sold_out'];
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray } from 'class-validator';
 
 export class CreateSaleAnnouncementDto {
   @IsString()
@@ -49,10 +47,6 @@ export class CreateSaleAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   isBundle?: boolean;
-
-  @IsOptional()
-  @IsIn(SALE_STATUSES)
-  saleStatus?: string;
 
   @IsOptional()
   @IsArray()
@@ -113,10 +107,6 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   isBundle?: boolean;
-
-  @IsOptional()
-  @IsIn(SALE_STATUSES)
-  saleStatus?: string;
 
   @IsOptional()
   @IsArray()

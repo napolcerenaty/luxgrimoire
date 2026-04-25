@@ -402,7 +402,6 @@ interface FormState {
   allImages: string[]
   isPublished: boolean
   isBundle: boolean
-  saleStatus: string
   linkedEditions: LinkedEdition[]
 }
 
@@ -419,7 +418,6 @@ const EMPTY_FORM: FormState = {
   allImages: [],
   isPublished: false,
   isBundle: false,
-  saleStatus: 'announcement',
   linkedEditions: [],
 }
 
@@ -456,7 +454,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     allImages,
     isPublished: a.isPublished,
     isBundle: a.isBundle,
-    saleStatus: a.saleStatus ?? 'announcement',
     linkedEditions,
   }
 }
@@ -476,7 +473,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isPublished: f.isPublished,
     isBundle: f.isBundle,
-    saleStatus: f.saleStatus,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
 }
@@ -602,16 +598,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </label>
       </div>
 
-      {/* Sale Status */}
-      <div>
-        <label className={LBL}>Sale Status</label>
-        <select className={SEL} value={form.saleStatus} onChange={set('saleStatus')}>
-          <option value="announcement">Announcement — just announced, not yet for sale</option>
-          <option value="available">Available — currently on sale / orderable</option>
-          <option value="sold_out">Sold Out — was available, now sold out</option>
-        </select>
-      </div>
-
       <button type="submit" disabled={submitting}
         className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
@@ -621,17 +607,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-const STATUS_LABELS: Record<string, string> = {
-  announcement: 'Announcement',
-  available: 'Available',
-  sold_out: 'Sold Out',
-}
-const STATUS_COLORS: Record<string, string> = {
-  announcement: 'bg-stone-700 text-stone-300',
-  available: 'bg-green-900/40 text-green-400',
-  sold_out: 'bg-red-900/40 text-red-400',
-}
-
 export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
@@ -680,17 +655,6 @@ export default function AdminSaleAnnouncementsPage() {
       key: 'generalSaleDate', label: 'Sale Date',
       render: (row: ApiSaleAnnouncement) =>
         row.generalSaleDate ? new Date(row.generalSaleDate).toLocaleString() : '--',
-    },
-    {
-      key: 'saleStatus', label: 'Status',
-      render: (row: ApiSaleAnnouncement) => {
-        const status = row.saleStatus ?? 'announcement'
-        return (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[status] ?? 'bg-stone-700 text-stone-300'}`}>
-            {STATUS_LABELS[status] ?? status}
-          </span>
-        )
-      },
     },
     {
       key: 'isPublished', label: 'Published',
