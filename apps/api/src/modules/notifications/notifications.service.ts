@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   OnModuleInit,
@@ -11,6 +12,7 @@ const DEFAULT_TTL_DAYS = 30;
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
+  private readonly logger = new Logger(NotificationsService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
@@ -102,7 +104,7 @@ export class NotificationsService implements OnModuleInit {
     const ttlDays = expiresInDays ?? (await this.getDefaultTtlDays());
     const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
 
-    // Direct list of user IDs — send in one batch
+    // Direct list of user IDs — send in one synchronous batch
     if (targetType === 'users') {
       if (!userIds?.length) return { sent: 0 };
       await this.prisma.userNotification.createMany({
@@ -111,41 +113,48 @@ export class NotificationsService implements OnModuleInit {
       return { sent: userIds.length };
     }
 
-    // For 'role' and 'all': stream users in batches of 1000 to avoid loading all IDs into memory
+    // For 'role' and 'all': fire-and-forget background fanout so the HTTP request returns immediately
     const BATCH_SIZE = 1000;
     const whereClause = targetType === 'role' && role ? { role: role as any } : {};
-    let skip = 0;
-    let totalSent = 0;
 
-    while (true) {
-      const batch = await this.prisma.user.findMany({
-        where: whereClause,
-        select: { id: true },
-        skip,
-        take: BATCH_SIZE,
-        orderBy: { createdAt: 'asc' },
-      });
+    // Estimate count to return in the immediate response
+    const estimatedCount = await this.prisma.user.count({ where: whereClause });
 
-      if (batch.length === 0) break;
+    setImmediate(async () => {
+      let skip = 0;
+      while (true) {
+        try {
+          const batch = await this.prisma.user.findMany({
+            where: whereClause,
+            select: { id: true },
+            skip,
+            take: BATCH_SIZE,
+            orderBy: { createdAt: 'asc' },
+          });
 
-      await this.prisma.userNotification.createMany({
-        data: batch.map((u) => ({
-          userId: u.id,
-          type,
-          title,
-          body: body ?? null,
-          link: link ?? null,
-          expiresAt,
-        })),
-      });
+          if (batch.length === 0) break;
 
-      totalSent += batch.length;
-      skip += BATCH_SIZE;
+          await this.prisma.userNotification.createMany({
+            data: batch.map((u) => ({
+              userId: u.id,
+              type,
+              title,
+              body: body ?? null,
+              link: link ?? null,
+              expiresAt,
+            })),
+          });
 
-      if (batch.length < BATCH_SIZE) break;
-    }
+          skip += batch.length;
+          if (batch.length < BATCH_SIZE) break;
+        } catch (err) {
+          this.logger.error(`Background notification fanout error at skip=${skip}: ${err}`);
+          break;
+        }
+      }
+    });
 
-    return { sent: totalSent };
+    return { sent: estimatedCount, queued: true };
   }
 
   async cleanupExpired() {

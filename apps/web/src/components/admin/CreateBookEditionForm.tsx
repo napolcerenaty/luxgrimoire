@@ -17,7 +17,7 @@ const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ArtistEntry = { id?: string; name: string; role: string }
-type Company = { id: string; name: string; slug: string }
+type Company = { id: string; name: string; slug: string; defaultCurrency?: string | null }
 
 interface AiParseResult {
   book?: {
@@ -456,7 +456,12 @@ export default function CreateBookEditionForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Company (book box)</label>
-          <select value={companyId} onChange={e => setCompanyId(e.target.value)} className={INP}>
+          <select value={companyId} onChange={e => {
+              const id = e.target.value
+              setCompanyId(id)
+              const co = companies.find(c => c.id === id)
+              if (co?.defaultCurrency) setCurrency(co.defaultCurrency)
+            }} className={INP}>
             <option value="">— none —</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>

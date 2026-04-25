@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -24,7 +24,94 @@ interface Props {
 
 const CARD_WIDTH = 160
 
-export function EditionCarousel({ title, viewAllHref, cards }: Props) {
+const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: CarouselCard }) {
+  const imgUrl = card.coverImage
+    ? cloudinaryUrl(card.coverImage, 'w_320,h_480,c_fill,q_auto,f_auto')
+    : null
+
+  return (
+    <Link
+      key={card.id}
+      href={card.href}
+      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250"
+      style={{ background: 'var(--bg-raised)' }}
+    >
+      {/* Cover */}
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ aspectRatio: '2/3', background: 'var(--bg-surface)' }}
+      >
+        {imgUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imgUrl}
+            alt={card.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-4xl font-serif text-amber-700/50">{card.title.charAt(0)}</span>
+          </div>
+        )}
+
+        {/* Top badge */}
+        {card.badge && (
+          <span
+            className="absolute top-1.5 left-1.5 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded"
+            style={{
+              background: 'rgba(5,10,18,0.85)',
+              border: '1px solid var(--border)',
+              color: 'var(--accent2)',
+            }}
+          >
+            {card.badge}
+          </span>
+        )}
+
+        {/* Bottom ribbon — book box company name */}
+        {card.ribbon && (
+          <div
+            className="absolute bottom-0 left-0 right-0 px-2 py-2 text-center"
+            style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
+          >
+            <span
+              className="font-serif font-semibold uppercase tracking-widest leading-none line-clamp-1 text-white"
+              style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+            >
+              {card.ribbon}
+            </span>
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        <div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex items-end"
+          style={{ background: 'linear-gradient(to top, rgba(4,10,20,0.7) 0%, transparent 50%)' }}
+        />
+      </div>
+
+      {/* Info */}
+      <div className="px-2.5 pt-2 pb-2">
+        {/* Title – fixed 2-line slot so cards align regardless of title length */}
+        <div className="h-[2.25rem] overflow-hidden mb-1">
+          <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+            {card.title}
+          </p>
+        </div>
+        {/* Series / subtitle – always rendered for height consistency */}
+        <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
+          {card.subtitle || '\u00A0'}
+        </p>
+        {/* Author – always rendered for height consistency */}
+        <p className="text-[10px] text-stone-400 line-clamp-1 font-sans leading-tight mt-0.5">
+          {card.author || '\u00A0'}
+        </p>
+      </div>
+    </Link>
+  )
+})
+
+export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHref, cards }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (dir: 'left' | 'right') => {
@@ -84,94 +171,9 @@ export function EditionCarousel({ title, viewAllHref, cards }: Props) {
           className="flex gap-4 overflow-x-auto pb-3 scroll-smooth"
           style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
         >
-          {cards.map((card) => {
-            const imgUrl = card.coverImage
-              ? cloudinaryUrl(card.coverImage, 'w_320,h_480,c_fill,q_auto,f_auto')
-              : null
-
-            return (
-              <Link
-                key={card.id}
-                href={card.href}
-                className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250"
-                style={{ background: 'var(--bg-raised)' }}
-              >
-                {/* Cover */}
-                <div
-                  className="relative w-full overflow-hidden"
-                  style={{ aspectRatio: '2/3', background: 'var(--bg-surface)' }}
-                >
-                  {imgUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={imgUrl}
-                      alt={card.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-4xl font-serif text-amber-700/50">{card.title.charAt(0)}</span>
-                    </div>
-                  )}
-
-                  {/* Top badge */}
-                  {card.badge && (
-                    <span
-                      className="absolute top-1.5 left-1.5 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded"
-                      style={{
-                        background: 'rgba(5,10,18,0.85)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--accent2)',
-                      }}
-                    >
-                      {card.badge}
-                    </span>
-                  )}
-
-                  {/* Bottom ribbon — book box company name */}
-                  {card.ribbon && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 px-2 py-2 text-center"
-                      style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
-                    >
-                      <span
-                        className="font-serif font-semibold uppercase tracking-widest leading-none line-clamp-1 text-white"
-                        style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
-                      >
-                        {card.ribbon}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Hover overlay */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex items-end"
-                    style={{ background: 'linear-gradient(to top, rgba(4,10,20,0.7) 0%, transparent 50%)' }}
-                  />
-                </div>
-
-                {/* Info */}
-                <div className="px-2.5 pt-2 pb-2">
-                  {/* Title – fixed 2-line slot so cards align regardless of title length */}
-                  <div className="h-[2.25rem] overflow-hidden mb-1">
-                    <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
-                      {card.title}
-                    </p>
-                  </div>
-                  {/* Series / subtitle – always rendered for height consistency */}
-                  <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
-                    {card.subtitle || '\u00A0'}
-                  </p>
-                  {/* Author – always rendered for height consistency */}
-                  <p className="text-[10px] text-stone-400 line-clamp-1 font-sans leading-tight mt-0.5">
-                    {card.author || '\u00A0'}
-                  </p>
-                </div>
-              </Link>
-            )
-          })}
+          {cards.map((card) => <CarouselCardItem key={card.id} card={card} />)}
         </div>
       </div>
     </section>
   )
-}
+})

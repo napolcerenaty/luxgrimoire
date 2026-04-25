@@ -421,7 +421,11 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         <label className={LBL}>Company</label>
         <input className={`${INP} mb-1`} placeholder="Search companies…"
           value={companySearch} onChange={e => setCompanySearch(e.target.value)} />
-        <select className={SEL} value={form.companyId} onChange={set('companyId')}>
+        <select className={SEL} value={form.companyId} onChange={e => {
+          const id = e.target.value
+          const company = allCompanies.find(c => c.id === id)
+          setForm(f => ({ ...f, companyId: id, ...(company?.defaultCurrency ? { currency: company.defaultCurrency } : {}) }))
+        }}>
           <option value="">-- No company --</option>
           {filteredCompanies.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
@@ -975,23 +979,27 @@ function AnnouncementCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="text-stone-100 font-medium truncate">{announcement.title}</h3>
-              {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
-              {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {announcement.isBundle && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>
-              )}
+              {/* Signature + bundle badges */}
               {(() => {
                 const types = new Set(
                   (announcement.editions ?? []).flatMap(e => (e.variants ?? []).map(v => v.signatureType))
                 )
-                if (types.has('signed'))
-                  return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
-                if (types.has('digitally_signed'))
-                  return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digital</span>
-                return null
+                const signedBadge = types.has('signed')
+                  ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
+                  : types.has('digitally_signed')
+                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digital</span>
+                    : null
+                return (announcement.isBundle || signedBadge) ? (
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {announcement.isBundle && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>}
+                    {signedBadge}
+                  </div>
+                ) : null
               })()}
+              {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
+              {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
                 className="text-amber-400 hover:text-amber-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-amber-400/50 transition-colors">
                 Edit
