@@ -99,38 +99,53 @@ export class NotificationsService implements OnModuleInit {
   }) {
     const { targetType, userIds, role, title, body, link, type = 'admin', expiresInDays } = dto;
 
-    let targetUserIds: string[] = [];
-
-    if (targetType === 'users' && userIds?.length) {
-      targetUserIds = userIds;
-    } else if (targetType === 'role' && role) {
-      const users = await this.prisma.user.findMany({
-        where: { role: role as any },
-        select: { id: true },
-      });
-      targetUserIds = users.map((u) => u.id);
-    } else if (targetType === 'all') {
-      const users = await this.prisma.user.findMany({ select: { id: true } });
-      targetUserIds = users.map((u) => u.id);
-    }
-
-    if (!targetUserIds.length) return { sent: 0 };
-
     const ttlDays = expiresInDays ?? (await this.getDefaultTtlDays());
     const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
 
-    await this.prisma.userNotification.createMany({
-      data: targetUserIds.map((uid) => ({
-        userId: uid,
-        type,
-        title,
-        body: body ?? null,
-        link: link ?? null,
-        expiresAt,
-      })),
-    });
+    // Direct list of user IDs — send in one batch
+    if (targetType === 'users') {
+      if (!userIds?.length) return { sent: 0 };
+      await this.prisma.userNotification.createMany({
+        data: userIds.map((uid) => ({ userId: uid, type, title, body: body ?? null, link: link ?? null, expiresAt })),
+      });
+      return { sent: userIds.length };
+    }
 
-    return { sent: targetUserIds.length };
+    // For 'role' and 'all': stream users in batches of 1000 to avoid loading all IDs into memory
+    const BATCH_SIZE = 1000;
+    const whereClause = targetType === 'role' && role ? { role: role as any } : {};
+    let skip = 0;
+    let totalSent = 0;
+
+    while (true) {
+      const batch = await this.prisma.user.findMany({
+        where: whereClause,
+        select: { id: true },
+        skip,
+        take: BATCH_SIZE,
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (batch.length === 0) break;
+
+      await this.prisma.userNotification.createMany({
+        data: batch.map((u) => ({
+          userId: u.id,
+          type,
+          title,
+          body: body ?? null,
+          link: link ?? null,
+          expiresAt,
+        })),
+      });
+
+      totalSent += batch.length;
+      skip += BATCH_SIZE;
+
+      if (batch.length < BATCH_SIZE) break;
+    }
+
+    return { sent: totalSent };
   }
 
   async cleanupExpired() {

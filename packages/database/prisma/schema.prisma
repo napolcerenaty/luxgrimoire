@@ -78,6 +78,7 @@ model Session {
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -91,6 +92,7 @@ model Account {
   user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -101,6 +103,7 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@map("password_reset_tokens")
 }
 
@@ -289,6 +292,7 @@ model BookBoxCollection {
   company     BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
   editions    BookEdition[]
 
+  @@index([companyId])
   @@map("book_box_collections")
 }
 
@@ -473,6 +477,8 @@ model SubscriptionMonthBook {
   month         SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
 
   @@unique([monthId, bookId])
+  @@index([bookId])
+  @@index([editionId])
   @@map("subscription_month_books")
 }
 
@@ -515,6 +521,7 @@ model SaleAnnouncementEdition {
   variants     SaleAnnouncementEditionVariant[]
 
   @@unique([saleId, editionId])
+  @@index([editionId])
   @@map("sale_announcement_editions")
 }
 
@@ -600,6 +607,7 @@ model UserBookEntry {
   @@index([userId])
   @@index([userId, ownershipStatus])
   @@index([userId, readingStatus])
+  @@index([userId, ownershipStatus, readingStatus])
   @@index([purchaseGroupId])
   @@map("user_book_entries")
 }
@@ -665,6 +673,8 @@ model UserSubBillingPeriod {
   entry                 UserSubscriptionEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
   month                 SubscriptionMonth?     @relation(fields: [monthId], references: [id])
 
+  @@index([entryId])
+  @@index([monthId])
   @@map("user_sub_billing_periods")
 }
 
@@ -690,6 +700,7 @@ model PurchaseTransaction {
   purchasedAt DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("purchase_transactions")
 }
 
@@ -795,6 +806,7 @@ model Review {
   user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, bookId])
+  @@index([bookId])
   @@map("reviews")
 }
 
@@ -806,6 +818,7 @@ model ReviewHelpful {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, reviewId])
+  @@index([reviewId])
   @@map("review_helpfuls")
 }
 
@@ -817,6 +830,7 @@ model EditionLike {
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, editionId])
+  @@index([editionId])
   @@map("edition_likes")
 }
 
@@ -831,6 +845,8 @@ model EditionComment {
   edition   BookEdition   @relation(fields: [editionId], references: [id], onDelete: Cascade)
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([editionId])
+  @@index([userId])
   @@map("edition_comments")
 }
 
@@ -842,6 +858,7 @@ model CommentLike {
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, commentId])
+  @@index([commentId])
   @@map("comment_likes")
 }
 
@@ -862,6 +879,7 @@ model ConversationMember {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
+  @@index([userId])
   @@map("conversation_members")
 }
 
@@ -875,6 +893,9 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
   @@map("messages")
 }
 
@@ -891,6 +912,8 @@ model UserNotification {
   expiresAt DateTime?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, createdAt])
   @@map("user_notifications")
 }
 
@@ -907,6 +930,8 @@ model SponsoredSlot {
   updatedAt DateTime          @updatedAt
   company   BookBoxCompany    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId])
+  @@index([isActive])
   @@map("sponsored_slots")
 }
 

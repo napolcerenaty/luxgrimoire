@@ -767,33 +767,49 @@ export class SubscriptionsService {
     let booksAdded = 0;
     let skipsRecorded = 0;
 
-    // Create book entries for selected months
+    // Batch-load ALL months with their books in a single query
+    const monthRecords = await this.prisma.subscriptionMonth.findMany({
+      where: { id: { in: dto.selectedMonthIds } },
+      select: {
+        id: true,
+        year: true,
+        month: true,
+        signatureType: true,
+        books: {
+          select: { editionId: true, bookId: true, signatureType: true },
+        },
+      },
+    });
+    const monthMap = new Map(monthRecords.map(m => [m.id, m]));
+
+    // Build all fee records in memory first
+    const feesToCreate: {
+      userId: string; feeTemplateId?: string; name: string; amount: number;
+      currency: string; date: Date; category: any; userBookEntryId: string;
+    }[] = [];
+
     for (const monthId of dto.selectedMonthIds) {
-      const monthRecord = await this.prisma.subscriptionMonth.findUnique({ where: { id: monthId }, select: { year: true, month: true, signatureType: true } });
+      const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
       const renewalDate = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
-
-      const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
-        where: { monthId },
-        select: { editionId: true, bookId: true, signatureType: true },
-      });
+      const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
       for (const mb of monthBooks) {
-        if (!mb.editionId || !mb.bookId) continue;
-        const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId)
+        const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
         const pricePerBook = override != null
           ? override.price
           : (entry.basePrice && monthBooks.length > 0
             ? parseFloat(entry.basePrice.toString()) / monthBooks.length
             : null);
+
         try {
           const bookEntry = await this.prisma.userBookEntry.upsert({
-            where: { userId_bookId_editionId: { userId, bookId: mb.bookId, editionId: mb.editionId } },
+            where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
             create: {
               userId,
-              bookId: mb.bookId,
-              editionId: mb.editionId,
+              bookId: mb.bookId!,
+              editionId: mb.editionId!,
               purchaseDate: renewalDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
@@ -806,69 +822,45 @@ export class SubscriptionsService {
           });
           booksAdded++;
 
-          // Create UserPurchaseFee records for each linked fee template
-          if ((entry as any).feeTemplates?.length > 0) {
-            for (const link of (entry as any).feeTemplates) {
-              const template = link.feeTemplate;
-              const amount = link.customAmount ?? template.defaultAmount;
-              if (!amount) continue;
-              // Fee uses its own currency (customCurrency override or template default)
-              const feeCurrency = link.customCurrency ?? template.defaultCurrency;
-              await this.prisma.userPurchaseFee.create({
-                data: {
-                  userId,
-                  feeTemplateId: template.id,
-                  name: template.name,
-                  amount: parseFloat(amount.toString()),
-                  currency: feeCurrency,
-                  date: renewalDate,
-                  category: template.category,
-                  userBookEntryId: bookEntry.id,
-                },
-              });
-            }
+          // Accumulate fee records instead of creating one by one
+          for (const link of (entry as any).feeTemplates ?? []) {
+            const template = link.feeTemplate;
+            const amount = link.customAmount ?? template.defaultAmount;
+            if (!amount) continue;
+            feesToCreate.push({
+              userId,
+              feeTemplateId: template.id,
+              name: template.name,
+              amount: parseFloat(amount.toString()),
+              currency: link.customCurrency ?? template.defaultCurrency,
+              date: renewalDate,
+              category: template.category,
+              userBookEntryId: bookEntry.id,
+            });
           }
 
-          // Distribute shippingCost proportionally across books in this month
           if (entry.shippingCost && monthBooks.length > 0) {
-            const shippingPerBook = parseFloat(entry.shippingCost.toString()) / monthBooks.length;
-            const existingShipping = await this.prisma.userPurchaseFee.findFirst({
-              where: { userId, userBookEntryId: bookEntry.id, name: 'Shipping' },
+            feesToCreate.push({
+              userId,
+              name: 'Shipping',
+              amount: parseFloat(entry.shippingCost.toString()) / monthBooks.length,
+              currency: entry.costCurrency ?? 'USD',
+              date: renewalDate,
+              category: 'SHIPPING',
+              userBookEntryId: bookEntry.id,
             });
-            if (!existingShipping) {
-              await this.prisma.userPurchaseFee.create({
-                data: {
-                  userId,
-                  name: 'Shipping',
-                  amount: shippingPerBook,
-                  currency: entry.costCurrency ?? 'USD',
-                  date: renewalDate,
-                  category: 'SHIPPING',
-                  userBookEntryId: bookEntry.id,
-                },
-              });
-            }
           }
 
-          // Distribute taxesAndFees proportionally across books in this month
           if (entry.taxesAndFees && monthBooks.length > 0) {
-            const taxPerBook = parseFloat(entry.taxesAndFees.toString()) / monthBooks.length;
-            const existingTax = await this.prisma.userPurchaseFee.findFirst({
-              where: { userId, userBookEntryId: bookEntry.id, name: 'Taxes & Fees' },
+            feesToCreate.push({
+              userId,
+              name: 'Taxes & Fees',
+              amount: parseFloat(entry.taxesAndFees.toString()) / monthBooks.length,
+              currency: entry.costCurrency ?? 'USD',
+              date: renewalDate,
+              category: 'OTHER',
+              userBookEntryId: bookEntry.id,
             });
-            if (!existingTax) {
-              await this.prisma.userPurchaseFee.create({
-                data: {
-                  userId,
-                  name: 'Taxes & Fees',
-                  amount: taxPerBook,
-                  currency: entry.costCurrency ?? 'USD',
-                  date: renewalDate,
-                  category: 'OTHER',
-                  userBookEntryId: bookEntry.id,
-                },
-              });
-            }
           }
         } catch {
           // skip duplicates silently
@@ -876,21 +868,30 @@ export class SubscriptionsService {
       }
     }
 
-    // Create skip records for skipped months
-    for (const monthId of dto.skippedMonthIds) {
-      try {
-        await this.prisma.userSkipRecord.upsert({
-          where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: monthId } },
-          create: { userId, userEntryId: entry.id, subscriptionMonthId: monthId, skippedAt: new Date() },
-          update: {},
-        });
-        skipsRecorded++;
-      } catch {
-        // skip duplicates silently
-      }
+    // Single batch insert for all fees
+    if (feesToCreate.length > 0) {
+      await this.prisma.userPurchaseFee.createMany({
+        data: feesToCreate,
+        skipDuplicates: true,
+      });
     }
 
-    // Recompute skip state counters
+    // Batch-create all skip records in one query
+    if (dto.skippedMonthIds?.length) {
+      const skipData = dto.skippedMonthIds.map(monthId => ({
+        userId,
+        userEntryId: entry.id,
+        subscriptionMonthId: monthId,
+        skippedAt: new Date(),
+      }));
+      const result = await this.prisma.userSkipRecord.createMany({
+        data: skipData,
+        skipDuplicates: true,
+      });
+      skipsRecorded = result.count;
+    }
+
+    // Recompute skip state counters once at the end
     if (skipsRecorded > 0) {
       await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
     }
