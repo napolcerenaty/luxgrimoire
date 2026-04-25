@@ -9,6 +9,7 @@ import {
   IsDateString,
   IsNumber,
   ValidateNested,
+  IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -274,6 +275,10 @@ export class CreateMonthDto {
   @IsOptional()
   @IsString()
   boxPrice?: string;
+
+  @IsOptional()
+  @IsIn(['unsigned', 'signed', 'digitally_signed'])
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed';
 }
 
 export class UpdateMonthDto {
@@ -312,6 +317,10 @@ export class UpdateMonthDto {
   @IsOptional()
   @IsString()
   boxPrice?: string;
+
+  @IsOptional()
+  @IsIn(['unsigned', 'signed', 'digitally_signed'])
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | null;
 }
 
 export class AddMonthBookDto {

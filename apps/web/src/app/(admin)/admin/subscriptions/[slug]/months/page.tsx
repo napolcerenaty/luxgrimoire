@@ -52,7 +52,7 @@ type Month = {
   id: string; year: number; month: number
   theme: string | null; coverImage: string | null
   books: MonthBook[]
-}
+  signatureType: string | null}
 
 // ─── Book Search component ────────────────────────────────────────────────────
 interface BookSearchProps {
@@ -227,6 +227,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const [editing, setEditing] = useState(false)
   const [editTheme, setEditTheme] = useState(month.theme ?? '')
   const [editCover, setEditCover] = useState(month.coverImage ?? '')
+  const [editSignatureType, setEditSignatureType] = useState<string>(month.signatureType ?? '')
   const [booksOpen, setBooksOpen] = useState(false)
 
   const monthLabel = `${MONTH_NAMES[month.month - 1]} ${month.year}`
@@ -234,7 +235,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const updateMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}`, {
       method: 'PATCH',
-      body: JSON.stringify({ theme: editTheme || undefined, coverImage: editCover || undefined }),
+      body: JSON.stringify({ theme: editTheme || undefined, coverImage: editCover || undefined, signatureType: editSignatureType || null }),
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); setEditing(false) },
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -261,6 +262,11 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-stone-100 font-semibold">{monthLabel}</span>
+            {month.signatureType && month.signatureType !== "unsigned" && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                {month.signatureType === "signed" ? "✍️ Signed" : "🖨️ Digitally Signed"}
+              </span>
+            )}
           </div>
           {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
           <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
@@ -294,6 +300,14 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
           </div>
           <ImageUpload label="Cover image" folder="luxgrimoire/subscription-months"
             value={editCover} onChange={setEditCover} aspectRatio="1/1" />
+          <div>
+            <label className={LABEL}>Signature type</label>
+            <select value={editSignatureType} onChange={e => setEditSignatureType(e.target.value)} className={INPUT}>
+              <option value="">None / Unsigned</option>
+              <option value="signed">✍️ Signed</option>
+              <option value="digitally_signed">🖨️ Digitally Signed</option>
+            </select>
+          </div>
           <button type="button"disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}
@@ -360,6 +374,7 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
       body: JSON.stringify({
         year: parseInt(year), month: parseInt(month),
         theme: theme || undefined, coverImage: cover || undefined,
+        signatureType: signatureType || undefined,
       }),
     }),
     onSuccess: () => { onSuccess(); setOpen(false); setTheme(''); setCover('') },
@@ -397,6 +412,14 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
         <label className={LABEL}>Theme / title</label>
         <input value={theme} onChange={e => setTheme(e.target.value)}
           placeholder="e.g. Dark Academia, The Midnight Library…" className={INPUT} />
+      </div>
+      <<div>
+        <label className={LABEL}>Signature type</label>
+        <select value={signatureType} onChange={e => setSignatureType(e.target.value)} className={INPUT}>
+          <option value="">None / Unsigned</option>
+          <option value="signed">✍️ Signed</option>
+          <option value="digitally_signed">🖨️ Digitally Signed</option>
+        </select>
       </div>
       <ImageUpload label="Cover image" folder="luxgrimoire/subscription-months"
         value={cover} onChange={setCover} aspectRatio="1/1" />

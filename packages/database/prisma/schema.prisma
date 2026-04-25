@@ -444,6 +444,7 @@ model SubscriptionMonth {
   boxPrice       Decimal?                @db.Decimal(10, 2)
   editionId      String?
   seriesId       String?
+  signatureType  SignatureType?
   books          SubscriptionMonthBook[]
   series         SubscriptionSeries?     @relation(fields: [seriesId], references: [id])
   subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
