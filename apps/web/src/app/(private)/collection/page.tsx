@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
@@ -286,6 +286,17 @@ function AddSaleForm({
     e.edition.book.title.toLowerCase().includes(saleBookSearch.toLowerCase())
   )
 
+  // Always show selected entries + up to 20 non-selected when search is empty
+  const MAX_VISIBLE = 20
+  const visibleEntries = useMemo(() => {
+    const selected = filteredEntries.filter(e => saleSelectedEntries.includes(e.id))
+    const unselected = filteredEntries.filter(e => !saleSelectedEntries.includes(e.id))
+    const cappedUnselected = saleBookSearch ? unselected : unselected.slice(0, MAX_VISIBLE)
+    return [...selected, ...cappedUnselected]
+  }, [filteredEntries, saleSelectedEntries, saleBookSearch])
+
+  const hiddenCount = saleBookSearch ? 0 : Math.max(0, filteredEntries.filter(e => !saleSelectedEntries.includes(e.id)).length - MAX_VISIBLE)
+
   const toggleEntry = (id: string) => {
     setSaleSelectedEntries(
       saleSelectedEntries.includes(id)
@@ -382,10 +393,10 @@ function AddSaleForm({
         <label className={LBL}>Books *</label>
         <input className={`${INP} mb-2`} value={saleBookSearch} onChange={e => setSaleBookSearch(e.target.value)} placeholder="Filter by title…" />
         <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
-          {filteredEntries.length === 0 && (
+          {visibleEntries.length === 0 && (
             <p className="text-stone-500 text-sm px-3 py-2">No books found</p>
           )}
-          {filteredEntries.map(e => (
+          {visibleEntries.map(e => (
             <button
               key={e.id}
               type="button"
@@ -403,6 +414,9 @@ function AddSaleForm({
               )}
             </button>
           ))}
+          {hiddenCount > 0 && (
+            <p className="text-stone-600 text-xs px-3 py-2 italic">+{hiddenCount} more — type to search</p>
+          )}
         </div>
         {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
       </div>
@@ -490,6 +504,8 @@ export default function CollectionPage() {
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [bookFilter, setBookFilter] = useState('')
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<string>('ALL')
+  const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tab, setTab] = useState<'books' | 'bundles' | 'sales'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
@@ -614,12 +630,22 @@ export default function CollectionPage() {
     })
   }, [entries, user?.preferredCurrency])
 
+  const companies = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) {
+      if (e.edition.bookBoxCompany?.name) set.add(e.edition.bookBoxCompany.name)
+    }
+    return Array.from(set).sort()
+  }, [entries])
+
   const filtered = entries.filter((e) => {
     if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
-    if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (sigFilter === 'UNSIGNED' && e.signatureType) return false
     if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
     if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
+    if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
+    if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
+    if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
   })
@@ -867,40 +893,73 @@ export default function CollectionPage() {
               placeholder="Filter by book title…"
               className="w-full max-w-sm bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
             />
-            <div className="flex gap-2 flex-wrap">
-              {(['ALL', 'SERIES', 'YEAR'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
-                  filter === f
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                    : 'text-stone-400 border-stone-700 hover:border-stone-500'
-                }`}
+            <div className="flex gap-2 flex-wrap items-center">
+              {/* Group by */}
+              <select
+                value={filter}
+                onChange={e => setFilter(e.target.value as FilterMode)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
-                {f === 'ALL' ? 'All' : f === 'SERIES' ? 'By Series' : 'By Year'}
-              </button>
-            ))}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {([
-                { val: 'ALL' as const, label: 'All Signatures' },
-                { val: 'UNSIGNED' as const, label: 'Unsigned' },
-                { val: 'SIGNED' as const, label: '✍️ Signed' },
-                { val: 'DIGITALLY_SIGNED' as const, label: '🖨️ Digitally Signed' },
-              ]).map(({ val, label }) => (
-                <button
-                  key={val}
-                  onClick={() => setSigFilter(val)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
-                    sigFilter === val
-                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
-                      : 'text-stone-400 border-stone-700 hover:border-stone-500'
-                  }`}
+                <option value="ALL">Group: All</option>
+                <option value="SERIES">Group: By Series</option>
+                <option value="YEAR">Group: By Year</option>
+              </select>
+
+              {/* Signature */}
+              <select
+                value={sigFilter}
+                onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Signature: Any</option>
+                <option value="UNSIGNED">Unsigned</option>
+                <option value="SIGNED">✍️ Signed</option>
+                <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
+              </select>
+
+              {/* Ownership status */}
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Status: Any</option>
+                <option value="OWNED">Owned</option>
+                <option value="PREORDER">Pre-order</option>
+                <option value="TO_SELL">To Sell</option>
+                <option value="SHIPPING">Shipping</option>
+                <option value="BORROWED">Borrowed</option>
+                <option value="LENDED">Lent Out</option>
+                <option value="SOLD">Sold</option>
+                <option value="GIFTED_AWAY">Gifted Away</option>
+              </select>
+
+              {/* Company */}
+              {companies.length > 0 && (
+                <select
+                  value={companyFilter}
+                  onChange={e => setCompanyFilter(e.target.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
                 >
-                  {label}
+                  <option value="ALL">Box: Any</option>
+                  {companies.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+
+              {/* Reset all */}
+              {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                  className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
+                >
+                  ✕ Clear
                 </button>
-              ))}
+              )}
+
+              <span className="text-xs text-stone-600 ml-auto">
+                {filtered.length}/{entries.length}
+              </span>
             </div>
           </div>
 
