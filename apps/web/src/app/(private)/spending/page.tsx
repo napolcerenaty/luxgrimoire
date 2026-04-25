@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { TrendingUp, BookOpen, DollarSign, Truck, Receipt, Tag, BarChart2, Award, Calendar } from 'lucide-react'
+import { TrendingUp, BookOpen, DollarSign, Truck, Receipt, Tag, BarChart2, Award, Calendar, ShoppingBag, TrendingDown } from 'lucide-react'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CHF', 'CAD', 'AUD']
 
@@ -25,6 +25,11 @@ interface ComprehensiveStats {
   byMonth: Array<{ month: string; amount: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
   topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
+  totalSalesRevenue: number
+  totalSalesProfit: number | null
+  totalBooksSold: number
+  salesByPlatform: Array<{ platform: string; amount: number; count: number }>
+  salesByMonth: Array<{ month: string; amount: number }>
 }
 
 function fmt(amount: number, currency: string) {
@@ -112,6 +117,48 @@ function CategoryBar({ label, amount, total, currency, color }: {
       <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
       </div>
+    </div>
+  )
+}
+
+/** Dual bar chart — spending (amber) vs sales revenue (green) per month */
+function DualMonthChart({
+  spending, sales, currency,
+}: {
+  spending: Array<{ month: string; amount: number }>
+  sales: Array<{ month: string; amount: number }>
+  currency: string
+}) {
+  const months = spending.slice(-12)
+  const salesSlice = sales.slice(-12)
+  const max = Math.max(...months.map((d, i) => Math.max(d.amount, salesSlice[i]?.amount ?? 0)), 1)
+  return (
+    <div className="flex items-end gap-1 h-32 w-full">
+      {months.map((d, i) => {
+        const sale = salesSlice[i] ?? { amount: 0 }
+        const spPct = (d.amount / max) * 100
+        const salePct = (sale.amount / max) * 100
+        const monthName = new Date(d.month + '-01').toLocaleString('en', { month: 'short' })
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] text-stone-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none space-y-0.5">
+              <div><span className="text-amber-400">📚 {fmt(d.amount, currency)}</span></div>
+              {sale.amount > 0 && <div><span className="text-green-400">💰 {fmt(sale.amount, currency)}</span></div>}
+            </div>
+            <div className="w-full flex items-end gap-px" style={{ height: '100%' }}>
+              <div
+                className="flex-1 rounded-t-sm bg-amber-500/70 transition-all"
+                style={{ height: `${Math.max(spPct, d.amount > 0 ? 4 : 0)}%`, minHeight: d.amount > 0 ? '3px' : '0' }}
+              />
+              <div
+                className="flex-1 rounded-t-sm bg-green-500/70 transition-all"
+                style={{ height: `${Math.max(salePct, sale.amount > 0 ? 4 : 0)}%`, minHeight: sale.amount > 0 ? '3px' : '0' }}
+              />
+            </div>
+            <span className="text-[9px] text-stone-600">{monthName}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -289,6 +336,95 @@ export default function SpendingPage() {
                 </p>
               </div>
             </div>
+          )}
+
+          {/* ── Sales section ─────────────────────────────────────────── */}
+          {stats.totalBooksSold > 0 && (
+            <>
+              <div className="flex items-center gap-3 pt-2">
+                <div className="h-px flex-1 bg-stone-800" />
+                <span className="text-xs uppercase tracking-widest text-stone-500 flex items-center gap-1.5">
+                  <ShoppingBag size={12} /> Sales
+                </span>
+                <div className="h-px flex-1 bg-stone-800" />
+              </div>
+
+              {/* Sales summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <StatCard
+                  label="Total Revenue"
+                  value={fmt(stats.totalSalesRevenue, currency)}
+                  sub={`${stats.totalBooksSold} book${stats.totalBooksSold !== 1 ? 's' : ''} sold`}
+                  icon={ShoppingBag}
+                />
+                {stats.totalSalesProfit != null && (
+                  <div className={`rounded-2xl p-5 border flex flex-col gap-2 ${stats.totalSalesProfit >= 0 ? 'bg-emerald-950/20 border-emerald-700/30' : 'bg-red-950/20 border-red-700/30'}`}>
+                    <div className="flex items-center gap-2">
+                      {stats.totalSalesProfit >= 0
+                        ? <TrendingUp size={14} className="text-emerald-400" />
+                        : <TrendingDown size={14} className="text-red-400" />}
+                      <span className="text-xs uppercase tracking-wider text-stone-500">Net P&amp;L</span>
+                    </div>
+                    <p className={`text-2xl font-serif font-bold ${stats.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {stats.totalSalesProfit >= 0 ? '+' : ''}{fmt(stats.totalSalesProfit, currency)}
+                    </p>
+                    <p className="text-xs text-stone-500">revenue − purchase cost</p>
+                  </div>
+                )}
+                <StatCard
+                  label="Spent vs Sold"
+                  value={fmt(stats.totalAllTime - stats.totalSalesRevenue, currency)}
+                  sub="net books investment"
+                  icon={DollarSign}
+                />
+              </div>
+
+              {/* Spending vs Sales dual chart + Platform breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <BarChart2 size={14} className="text-amber-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending vs Sales (12m)</h2>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-stone-500">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500/70 inline-block" /> Spending</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/70 inline-block" /> Sales</span>
+                    </div>
+                  </div>
+                  <DualMonthChart spending={stats.byMonth} sales={stats.salesByMonth} currency={currency} />
+                </div>
+
+                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Tag size={14} className="text-green-400" />
+                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Sales by Platform</h2>
+                  </div>
+                  {stats.salesByPlatform.length === 0 ? (
+                    <p className="text-stone-600 text-sm text-center py-8">No data</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {stats.salesByPlatform.map((p) => (
+                        <div key={p.platform} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-stone-300 font-medium capitalize">{p.platform}</span>
+                            <span className="text-stone-400">
+                              {fmt(p.amount, currency)} <span className="text-stone-600">· {p.count} book{p.count !== 1 ? 's' : ''}</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-green-500/60 transition-all duration-500"
+                              style={{ width: `${stats.totalSalesRevenue > 0 ? (p.amount / stats.totalSalesRevenue) * 100 : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

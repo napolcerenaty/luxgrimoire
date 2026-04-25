@@ -127,19 +127,37 @@ export class SpendingService {
     const thisMonth = now.getMonth() + 1;
 
     // Load all book entries with fees, purchase group and subscription info
-    const entries = await this.prisma.userBookEntry.findMany({
-      where: { userId },
-      include: {
-        purchaseFees: true,
-        purchaseDiscounts: true,
-        purchaseRefunds: true,
-        purchaseGroup: { select: { id: true, currency: true, purchasedAt: true } },
-        subscriptionEntry: {
-          include: { subscription: { select: { name: true, slug: true } } },
+    const [entries, saleGroups] = await Promise.all([
+      this.prisma.userBookEntry.findMany({
+        where: { userId },
+        include: {
+          purchaseFees: true,
+          purchaseDiscounts: true,
+          purchaseRefunds: true,
+          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true } },
+          subscriptionEntry: {
+            include: { subscription: { select: { name: true, slug: true } } },
+          },
+          edition: { include: { book: { select: { title: true, slug: true, authors: { include: { author: { select: { name: true } } } } } } } },
         },
-        edition: { include: { book: { select: { title: true, slug: true, authors: { include: { author: { select: { name: true } } } } } } } },
-      },
-    });
+      }),
+      this.prisma.userSaleGroup.findMany({
+        where: { userId },
+        include: {
+          entries: {
+            include: {
+              userBookEntry: {
+                select: {
+                  allocatedPrice: true,
+                  priceCurrency: true,
+                  purchaseGroup: { select: { currency: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
 
     // Helper: convert amount on date to target currency (best-effort, returns 0 on failure)
     const convert = async (amount: number, fromCurrency: string, date: Date): Promise<number> => {
@@ -261,6 +279,61 @@ export class SpendingService {
       byMonth.push({ month: key, amount: Math.round((byMonthMap[key] ?? 0) * 100) / 100 });
     }
 
+    // ── Sales stats ──────────────────────────────────────────────────────────
+    let totalSalesRevenue = 0;
+    let totalSalesProfit = 0;
+    let salesProfitKnown = false;
+    let totalBooksSold = 0;
+
+    const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
+    const salesByMonthMap: Record<string, number> = {};
+
+    for (const group of saleGroups) {
+      const soldDate = new Date(group.soldAt);
+      const revenue = await convert(Number(group.totalAmount), group.currency, soldDate);
+      totalSalesRevenue += revenue;
+      totalBooksSold += group.entries.length;
+
+      // By platform
+      const platform = (group.platform as string | null) || 'other';
+      if (!salesByPlatformMap[platform]) salesByPlatformMap[platform] = { platform, amount: 0, count: 0 };
+      salesByPlatformMap[platform].amount += revenue;
+      salesByPlatformMap[platform].count += group.entries.length;
+
+      // By month (last 24m)
+      const soldYear = soldDate.getFullYear();
+      const soldMonth = soldDate.getMonth() + 1;
+      const diffM = (thisYear - soldYear) * 12 + (thisMonth - soldMonth);
+      if (diffM >= 0 && diffM < 24) {
+        const key = `${soldYear}-${String(soldMonth).padStart(2, '0')}`;
+        salesByMonthMap[key] = (salesByMonthMap[key] ?? 0) + revenue;
+      }
+
+      // Profit/loss per group
+      let purchaseCost = 0;
+      let hasCost = false;
+      for (const e of group.entries) {
+        if (e.userBookEntry?.allocatedPrice) {
+          const eCurrency = (e.userBookEntry as any).priceCurrency
+            ?? (e.userBookEntry as any).purchaseGroup?.currency ?? null;
+          if (eCurrency) {
+            purchaseCost += await convert(Number(e.userBookEntry.allocatedPrice), eCurrency, soldDate);
+            hasCost = true;
+          }
+        }
+      }
+      if (hasCost) {
+        totalSalesProfit += revenue - purchaseCost;
+        salesProfitKnown = true;
+      }
+    }
+
+    // Build salesByMonth aligned to the same 24-month window as byMonth
+    const salesByMonth = byMonth.map((m) => ({
+      month: m.month,
+      amount: Math.round((salesByMonthMap[m.month] ?? 0) * 100) / 100,
+    }));
+
     return {
       currency: tgt,
       totalAllTime: Math.round(totalAllTime * 100) / 100,
@@ -282,6 +355,14 @@ export class SpendingService {
         .map((s) => ({ ...s, amount: Math.round(s.amount * 100) / 100 }))
         .sort((a, b) => b.amount - a.amount),
       topExpensive: top10,
+      // Sales
+      totalSalesRevenue: Math.round(totalSalesRevenue * 100) / 100,
+      totalSalesProfit: salesProfitKnown ? Math.round(totalSalesProfit * 100) / 100 : null,
+      totalBooksSold,
+      salesByPlatform: Object.values(salesByPlatformMap)
+        .map((p) => ({ ...p, amount: Math.round(p.amount * 100) / 100 }))
+        .sort((a, b) => b.amount - a.amount),
+      salesByMonth,
     };
   }
 }
