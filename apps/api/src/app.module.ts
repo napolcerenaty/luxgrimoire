@@ -31,6 +31,8 @@ import { SubscriptionSeriesModule } from './modules/subscription-series/subscrip
 import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
 import { FeatureRequestsModule } from './modules/feature-requests/feature-requests.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { DataRequestsModule } from './modules/data-requests/data-requests.module';
+import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
 
 @Module({
   imports: [
@@ -66,6 +68,8 @@ import { SalesModule } from './modules/sales/sales.module';
     BugReportsModule,
     FeatureRequestsModule,
     SalesModule,
+    DataRequestsModule,
+    SaleAnnouncementRequestsModule,
   ],
 })
 export class AppModule {}

@@ -59,6 +59,8 @@ model User {
   bugReports          BugReport[]
   featureRequests     FeatureRequest[]
   featureVotes        FeatureVote[]
+  dataRequests        DataRequest[]
+  saleAnnouncementRequests SaleAnnouncementRequest[]
   managedCompany      BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
 
   @@index([shippingCountry])
@@ -1220,4 +1222,36 @@ model UserSaleEntry {
   @@unique([saleGroupId, userBookEntryId])
   @@index([userBookEntryId])
   @@map("user_sale_entries")
+}
+
+model DataRequest {
+  id           String   @id @default(uuid())
+  userId       String?
+  type         String   @db.VarChar(30)
+  name         String
+  description  String?
+  referenceUrl String?
+  status       String   @default("pending") @db.VarChar(20)
+  adminNote    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("data_requests")
+}
+
+model SaleAnnouncementRequest {
+  id        String   @id @default(uuid())
+  userId    String?
+  url       String
+  notes     String?
+  status    String   @default("pending") @db.VarChar(20)
+  adminNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("sale_announcement_requests")
 }
