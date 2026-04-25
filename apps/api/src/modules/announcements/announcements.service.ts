@@ -19,6 +19,10 @@ const editionsInclude = {
   },
 };
 
+const regionsInclude = {
+  orderBy: { createdAt: 'asc' as const },
+};
+
 @Injectable()
 export class AnnouncementsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -36,7 +40,7 @@ export class AnnouncementsService {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { editions: editionsInclude },
+        include: { editions: editionsInclude, regions: regionsInclude },
       }),
       this.prisma.saleAnnouncement.count({ where }),
     ]);
@@ -47,7 +51,7 @@ export class AnnouncementsService {
   async findById(id: string) {
     const announcement = await this.prisma.saleAnnouncement.findUnique({
       where: { id },
-      include: { editions: editionsInclude },
+      include: { editions: editionsInclude, regions: regionsInclude },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
     return announcement;
@@ -56,7 +60,7 @@ export class AnnouncementsService {
   async adminFindAll() {
     return this.prisma.saleAnnouncement.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { editions: editionsInclude },
+      include: { editions: editionsInclude, regions: regionsInclude },
     });
   }
 
@@ -201,5 +205,42 @@ export class AnnouncementsService {
     const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Sale announcement not found');
     await this.prisma.saleAnnouncement.delete({ where: { id } });
+  }
+
+  async adminUpsertRegion(saleId: string, data: {
+    id?: string;
+    name: string;
+    countryCodes?: string;
+    isDefault?: boolean;
+    generalSaleDate?: string | null;
+    firstAccessDate?: string | null;
+    earlyAccessDate?: string | null;
+    endsAt?: string | null;
+    saleTimezone?: string | null;
+    basePrice?: number | null;
+    currency?: string | null;
+  }) {
+    const { id, ...fields } = data;
+    const payload = {
+      saleId,
+      name: fields.name,
+      countryCodes: fields.countryCodes ?? '[]',
+      isDefault: fields.isDefault ?? false,
+      generalSaleDate: fields.generalSaleDate ? new Date(fields.generalSaleDate) : null,
+      firstAccessDate: fields.firstAccessDate ? new Date(fields.firstAccessDate) : null,
+      earlyAccessDate: fields.earlyAccessDate ? new Date(fields.earlyAccessDate) : null,
+      endsAt: fields.endsAt ? new Date(fields.endsAt) : null,
+      saleTimezone: fields.saleTimezone ?? null,
+      basePrice: fields.basePrice ?? null,
+      currency: fields.currency ?? null,
+    };
+    if (id) {
+      return this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload });
+    }
+    return this.prisma.saleAnnouncementRegion.create({ data: payload });
+  }
+
+  async adminDeleteRegion(saleId: string, regionId: string) {
+    await this.prisma.saleAnnouncementRegion.deleteMany({ where: { id: regionId, saleId } });
   }
 }

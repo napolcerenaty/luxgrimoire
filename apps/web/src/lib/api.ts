@@ -615,6 +615,38 @@ export async function adminRemoveAnnouncementVariant(
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
+export async function adminUpsertAnnouncementRegion(saleId: string, data: {
+  id?: string;
+  name: string;
+  countryCodes?: string;
+  isDefault?: boolean;
+  generalSaleDate?: string | null;
+  firstAccessDate?: string | null;
+  earlyAccessDate?: string | null;
+  endsAt?: string | null;
+  saleTimezone?: string | null;
+  basePrice?: number | null;
+  currency?: string | null;
+}): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminDeleteAnnouncementRegion(saleId: string, regionId: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions/${regionId}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
 export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/${id}`, {
     headers: { 'Content-Type': 'application/json' },

@@ -491,6 +491,7 @@ model SaleAnnouncement {
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?
   editions             SaleAnnouncementEdition[]
+  regions              SaleAnnouncementRegion[]
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
 
@@ -523,6 +524,26 @@ model SaleAnnouncementEditionVariant {
 
   @@unique([saleAnnouncementEditionId, signatureType])
   @@map("sale_announcement_edition_variants")
+}
+
+model SaleAnnouncementRegion {
+  id              String           @id @default(uuid())
+  saleId          String
+  name            String
+  countryCodes    String           @default("[]")
+  isDefault       Boolean          @default(false)
+  generalSaleDate DateTime?
+  firstAccessDate DateTime?
+  earlyAccessDate DateTime?
+  endsAt          DateTime?
+  saleTimezone    String?
+  basePrice       Decimal?         @db.Decimal(10, 2)
+  currency        String?          @db.VarChar(3)
+  createdAt       DateTime         @default(now())
+  announcement    SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_announcement_regions")
 }
 
 model UserSaleInterest {

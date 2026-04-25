@@ -88,6 +88,20 @@ export class AnnouncementsController {
     return this.announcementsService.adminRemoveVariant(id, editionId, signatureType);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/regions')
+  adminUpsertRegion(@Param('id') id: string, @Body() body: any) {
+    return this.announcementsService.adminUpsertRegion(id, body);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/regions/:regionId')
+  adminDeleteRegion(@Param('id') id: string, @Param('regionId') regionId: string) {
+    return this.announcementsService.adminDeleteRegion(id, regionId);
+  }
+
   @Public()
   @Get(':id')
   findById(@Param('id') id: string) {

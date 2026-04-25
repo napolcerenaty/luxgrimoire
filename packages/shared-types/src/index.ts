@@ -413,6 +413,19 @@ export interface ApiSaleAnnouncement {
       currency: string | null;
     }>;
   }>;
+  regions?: Array<{
+    id: string;
+    name: string;
+    countryCodes: string; // JSON string array
+    isDefault: boolean;
+    generalSaleDate: string | null;
+    firstAccessDate: string | null;
+    earlyAccessDate: string | null;
+    endsAt: string | null;
+    saleTimezone: string | null;
+    basePrice: number | null;
+    currency: string | null;
+  }>;
 }
 
 export interface ApiFeatureRequest {

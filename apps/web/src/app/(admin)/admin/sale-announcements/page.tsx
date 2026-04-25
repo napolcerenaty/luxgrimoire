@@ -12,6 +12,8 @@ import {
   adminRemoveAnnouncementEdition,
   adminSetAnnouncementVariant,
   adminRemoveAnnouncementVariant,
+  adminUpsertAnnouncementRegion,
+  adminDeleteAnnouncementRegion,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -628,8 +630,226 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   )
 }
 
-// ─── Announcement Books Panel ─────────────────────────────────────────────────
-const SIGNATURE_TYPES = [
+// ─── Region helpers ───────────────────────────────────────────────────────────
+interface RegionFormData {
+  id?: string
+  name: string
+  countryCodes: string
+  isDefault: boolean
+  generalSaleDate: string
+  firstAccessDate: string
+  earlyAccessDate: string
+  endsAt: string
+  saleTimezone: string
+  basePrice: string
+  currency: string
+}
+
+const EMPTY_REGION: RegionFormData = {
+  name: '', countryCodes: '', isDefault: false,
+  generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
+  saleTimezone: 'UTC', basePrice: '', currency: '',
+}
+
+function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): RegionFormData {
+  let codes: string[] = []
+  try { codes = JSON.parse(r.countryCodes) } catch {}
+  return {
+    id: r.id,
+    name: r.name,
+    countryCodes: codes.join(', '),
+    isDefault: r.isDefault,
+    generalSaleDate: r.generalSaleDate ? new Date(r.generalSaleDate).toISOString().slice(0, 16) : '',
+    firstAccessDate: r.firstAccessDate ? new Date(r.firstAccessDate).toISOString().slice(0, 16) : '',
+    earlyAccessDate: r.earlyAccessDate ? new Date(r.earlyAccessDate).toISOString().slice(0, 16) : '',
+    endsAt: r.endsAt ? new Date(r.endsAt).toISOString().slice(0, 16) : '',
+    saleTimezone: r.saleTimezone ?? 'UTC',
+    basePrice: r.basePrice != null ? String(r.basePrice) : '',
+    currency: r.currency ?? '',
+  }
+}
+
+// ─── Announcement Regions Panel ───────────────────────────────────────────────
+function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [editingRegion, setEditingRegion] = useState<RegionFormData | null>(null)
+  const [addingRegion, setAddingRegion] = useState(false)
+
+  const regions = announcement.regions ?? []
+
+  const upsertMutation = useMutation({
+    mutationFn: (form: RegionFormData) => {
+      const codes = form.countryCodes.split(/[,\s]+/).map(c => c.trim().toUpperCase()).filter(Boolean)
+      return adminUpsertAnnouncementRegion(announcement.id, {
+        id: form.id,
+        name: form.name,
+        countryCodes: JSON.stringify(codes),
+        isDefault: form.isDefault,
+        generalSaleDate: form.generalSaleDate || null,
+        firstAccessDate: form.firstAccessDate || null,
+        earlyAccessDate: form.earlyAccessDate || null,
+        endsAt: form.endsAt || null,
+        saleTimezone: form.saleTimezone || null,
+        basePrice: form.basePrice ? Number(form.basePrice) : null,
+        currency: form.currency || null,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+      setEditingRegion(null)
+      setAddingRegion(false)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (regionId: string) => adminDeleteAnnouncementRegion(announcement.id, regionId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const RegionFormUI = ({ form, onSave, onCancel }: {
+    form: RegionFormData
+    onSave: (f: RegionFormData) => void
+    onCancel: () => void
+  }) => {
+    const [f, setF] = useState(form)
+    const s = (key: keyof RegionFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setF(prev => ({ ...prev, [key]: e.target.value }))
+    return (
+      <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Region Name *</label>
+            <input required className={INP} value={f.name} onChange={s('name')} placeholder="UK + International" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Country Codes <span className="text-stone-600">(comma-separated)</span></label>
+            <input className={INP} value={f.countryCodes} onChange={s('countryCodes')} placeholder="GB, AU, DE, FR…" />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+          <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-amber-400" />
+          Default region (catch-all for unmatched countries)
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">General Sale</label>
+            <input type="datetime-local" className={INP} value={f.generalSaleDate} onChange={s('generalSaleDate')} />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">First Access</label>
+            <input type="datetime-local" className={INP} value={f.firstAccessDate} onChange={s('firstAccessDate')} />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Early Access</label>
+            <input type="datetime-local" className={INP} value={f.earlyAccessDate} onChange={s('earlyAccessDate')} />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Ends At</label>
+            <input type="datetime-local" className={INP} value={f.endsAt} onChange={s('endsAt')} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+          <TimezonePicker value={f.saleTimezone} onChange={v => setF(p => ({ ...p, saleTimezone: v }))} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Price</label>
+            <input type="number" step="0.01" className={INP} value={f.basePrice} onChange={s('basePrice')} placeholder="Override price" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Currency</label>
+            <input className={INP} list="sale-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => onSave(f)} disabled={!f.name || upsertMutation.isPending}
+            className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+            {upsertMutation.isPending ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" onClick={onCancel} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-t border-stone-700">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 text-sm text-stone-400">
+          Regional Windows
+          {regions.length > 0 && (
+            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">{regions.length}</span>
+          )}
+        </span>
+        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          {regions.map(r => {
+            let codes: string[] = []
+            try { codes = JSON.parse(r.countryCodes) } catch {}
+            const isEditing = editingRegion?.id === r.id
+
+            if (isEditing) {
+              return <RegionFormUI key={r.id} form={editingRegion!} onSave={f => upsertMutation.mutate(f)} onCancel={() => setEditingRegion(null)} />
+            }
+
+            return (
+              <div key={r.id} className="bg-stone-800/50 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-stone-200 font-medium">{r.name}</span>
+                      {r.isDefault && <span className="text-xs bg-stone-600/60 text-stone-400 px-1.5 py-0.5 rounded">default</span>}
+                    </div>
+                    {codes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {codes.map(c => (
+                          <span key={c} className="text-xs bg-stone-700 text-stone-400 px-1.5 py-0.5 rounded">{c}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-xs text-stone-500 mt-1 space-y-0.5">
+                      {r.generalSaleDate && <div>General: {new Date(r.generalSaleDate).toLocaleString()} {r.saleTimezone && `(${r.saleTimezone})`}</div>}
+                      {r.firstAccessDate && <div>First: {new Date(r.firstAccessDate).toLocaleString()}</div>}
+                      {r.earlyAccessDate && <div>Early: {new Date(r.earlyAccessDate).toLocaleString()}</div>}
+                      {r.basePrice != null && <div className="text-amber-500/70">{r.basePrice} {r.currency}</div>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button type="button" onClick={() => setEditingRegion(regionToForm(r))}
+                      className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1 rounded hover:bg-stone-700 transition-colors">Edit</button>
+                    <button type="button" onClick={() => deleteMutation.mutate(r.id)}
+                      className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">Delete</button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {addingRegion ? (
+            <RegionFormUI form={EMPTY_REGION} onSave={f => upsertMutation.mutate(f)} onCancel={() => setAddingRegion(false)} />
+          ) : (
+            <button type="button" onClick={() => setAddingRegion(true)}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              + Add Region
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Announcement Books Panel ─────────────────────────────────────────────────const SIGNATURE_TYPES = [
   { value: 'unsigned', label: 'Unsigned' },
   { value: 'signed', label: 'Signed' },
   { value: 'digitally_signed', label: 'Digitally Signed' },
@@ -864,6 +1084,7 @@ function AnnouncementCard({
         </div>
       </div>
       <AnnouncementBooksPanel announcement={announcement} />
+      <AnnouncementRegionsPanel announcement={announcement} />
     </div>
   )
 }

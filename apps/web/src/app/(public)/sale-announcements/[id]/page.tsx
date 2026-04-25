@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { AddToCollectionButton } from './AddToCollectionButton'
+import SaleDateSelector from './SaleDateSelector'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -18,11 +19,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   } catch {
     return { title: 'Sale not found' }
   }
-}
-
-function formatDate(d: string | null | undefined) {
-  if (!d) return null
-  return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 export default async function SaleAnnouncementPage({ params }: Props) {
@@ -80,37 +76,21 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             <p className="text-stone-300 leading-relaxed mb-6">{sale.description}</p>
           )}
 
-          {/* Dates */}
-          <div className="space-y-2 mb-6">
-            {sale.generalSaleDate && (
-              <p className="text-sm text-stone-400">
-                <span className="text-stone-500">General Sale:</span>{' '}
-                <span className="text-stone-200">{formatDate(sale.generalSaleDate)}</span>
-              </p>
-            )}
-            {sale.firstAccessDate && (
-              <p className="text-sm text-stone-400">
-                <span className="text-stone-500">First Access:</span>{' '}
-                <span className="text-stone-200">{formatDate(sale.firstAccessDate)}</span>
-              </p>
-            )}
-            {sale.earlyAccessDate && (
-              <p className="text-sm text-stone-400">
-                <span className="text-stone-500">Early Access:</span>{' '}
-                <span className="text-stone-200">{formatDate(sale.earlyAccessDate)}</span>
-              </p>
-            )}
-            {sale.saleTimezone && (
-              <p className="text-sm text-stone-500">Timezone: {sale.saleTimezone}</p>
-            )}
+          {/* Dates + Region Selector */}
+          <div className="mb-6">
+            <SaleDateSelector
+              regions={sale.regions ?? []}
+              fallback={{
+                generalSaleDate: sale.generalSaleDate,
+                firstAccessDate: sale.firstAccessDate,
+                earlyAccessDate: sale.earlyAccessDate,
+                saleTimezone: sale.saleTimezone,
+                basePrice: sale.basePrice,
+                currency: sale.currency,
+              }}
+              userCountry={null}
+            />
           </div>
-
-          {/* Price */}
-          {sale.basePrice != null && (
-            <p className="text-2xl font-bold text-amber-400 mb-6">
-              {sale.basePrice} {sale.currency ?? ''}
-            </p>
-          )}
 
           {/* Add to collection button */}
           {sale.availableForPurchase && (
