@@ -50,6 +50,20 @@ export class AnnouncementsController {
     return this.announcementsService.delete(id);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/editions')
+  adminAddEdition(@Param('id') id: string, @Body('editionId') editionId: string) {
+    return this.announcementsService.adminAddEdition(id, editionId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/editions/:editionId')
+  adminRemoveEdition(@Param('id') id: string, @Param('editionId') editionId: string) {
+    return this.announcementsService.adminRemoveEdition(id, editionId);
+  }
+
   @Public()
   @Get(':id')
   findById(@Param('id') id: string) {

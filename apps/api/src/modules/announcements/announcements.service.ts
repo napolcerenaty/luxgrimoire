@@ -56,9 +56,37 @@ export class AnnouncementsService {
     return this.prisma.saleAnnouncement.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { editions: true } },
+        editions: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            edition: {
+              include: {
+                book: true,
+              },
+            },
+          },
+        },
       },
     });
+  }
+
+  async adminAddEdition(id: string, editionId: string) {
+    const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Sale announcement not found');
+    const maxOrder = await this.prisma.saleAnnouncementEdition.aggregate({
+      where: { saleId: id },
+      _max: { sortOrder: true },
+    });
+    await this.prisma.saleAnnouncementEdition.upsert({
+      where: { saleId_editionId: { saleId: id, editionId } },
+      create: { saleId: id, editionId, sortOrder: (maxOrder._max.sortOrder ?? -1) + 1 },
+      update: {},
+    });
+    return this.findById(id);
+  }
+
+  async adminRemoveEdition(id: string, editionId: string) {
+    await this.prisma.saleAnnouncementEdition.deleteMany({ where: { saleId: id, editionId } });
   }
 
   async create(dto: CreateSaleAnnouncementDto) {

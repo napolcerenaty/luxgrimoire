@@ -568,6 +568,26 @@ export async function adminDeleteSaleAnnouncement(id: string): Promise<void> {
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
+export async function adminAddAnnouncementEdition(id: string, editionId: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ editionId }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminRemoveAnnouncementEdition(id: string, editionId: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
 export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/${id}`, {
     headers: { 'Content-Type': 'application/json' },

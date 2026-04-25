@@ -8,10 +8,11 @@ import {
   adminCreateSaleAnnouncement,
   adminUpdateSaleAnnouncement,
   adminDeleteSaleAnnouncement,
+  adminAddAnnouncementEdition,
+  adminRemoveAnnouncementEdition,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
-import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
@@ -625,6 +626,166 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   )
 }
 
+// ─── Announcement Books Panel ─────────────────────────────────────────────────
+function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [addMode, setAddMode] = useState(false)
+
+  const editions = announcement.editions ?? []
+
+  const addMutation = useMutation({
+    mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+      setAddMode(false)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: (editionId: string) => adminRemoveAnnouncementEdition(announcement.id, editionId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="border-t border-stone-700 mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 text-sm text-stone-400">
+          Linked Books
+          {editions.length > 0 && (
+            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{editions.length}</span>
+          )}
+        </span>
+        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {editions.length === 0 && (
+            <p className="text-stone-500 text-xs py-2">No linked books yet.</p>
+          )}
+          {editions.map(e => {
+            const thumb = e.edition?.coverImage ? cloudThumb(e.edition.coverImage, 48, 60) : null
+            return (
+              <div key={e.editionId} className="flex items-center gap-3 bg-stone-800/50 rounded-lg px-3 py-2">
+                {thumb
+                  ? <img src={thumb} className="w-9 h-11 object-cover rounded" />
+                  : <div className="w-9 h-11 bg-stone-700 rounded flex items-center justify-center text-stone-500 text-xs">?</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-stone-200 truncate">{e.edition?.book?.title ?? 'Unknown'}</div>
+                  {e.edition?.editionName && (
+                    <div className="text-xs text-stone-400 truncate">{e.edition.editionName}</div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeMutation.mutate(e.editionId)}
+                  disabled={removeMutation.isPending}
+                  className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            )
+          })}
+
+          {addMode ? (
+            <div className="pt-2">
+              <EditionPicker
+                linked={editions.map(e => ({
+                  editionId: e.editionId,
+                  bookTitle: e.edition?.book?.title ?? '',
+                  editionName: e.edition?.editionName ?? null,
+                  coverImage: e.edition?.coverImage ?? null,
+                }))}
+                onAdd={linked => addMutation.mutate(linked.editionId)}
+                onRemove={editionId => removeMutation.mutate(editionId)}
+              />
+              <button
+                type="button"
+                onClick={() => setAddMode(false)}
+                className="mt-2 text-xs text-stone-400 hover:text-stone-300"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddMode(true)}
+              className="text-xs text-amber-400 hover:text-amber-300 transition-colors pt-1"
+            >
+              + Add Book
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Announcement Card ────────────────────────────────────────────────────────
+function AnnouncementCard({
+  announcement,
+  companyMap,
+  onEdit,
+  onDelete,
+}: {
+  announcement: ApiSaleAnnouncement
+  companyMap: Record<string, string>
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
+  const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
+  const saleDate = announcement.generalSaleDate
+    ? new Date(announcement.generalSaleDate).toLocaleString()
+    : null
+
+  return (
+    <div className="bg-stone-900 border border-stone-700 rounded-xl overflow-hidden">
+      <div className="flex items-start gap-4 p-4">
+        {thumb
+          ? <img src={thumb} className="w-12 h-15 object-cover rounded-lg flex-shrink-0" style={{ height: '60px', width: '48px' }} />
+          : <div className="w-12 bg-stone-700 rounded-lg flex-shrink-0 flex items-center justify-center text-stone-500 text-xs" style={{ height: '60px', width: '48px' }}>—</div>
+        }
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-stone-100 font-medium truncate">{announcement.title}</h3>
+              {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
+              {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {announcement.isPublished && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-900/40 text-green-400">Published</span>
+              )}
+              {announcement.isBundle && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>
+              )}
+              <button onClick={onEdit}
+                className="text-amber-400 hover:text-amber-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-amber-400/50 transition-colors">
+                Edit
+              </button>
+              <button onClick={onDelete}
+                className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-red-400/50 transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <AnnouncementBooksPanel announcement={announcement} />
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
@@ -664,33 +825,6 @@ export default function AdminSaleAnnouncementsPage() {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
-  const columns = [
-    { key: 'title', label: 'Title', render: (row: ApiSaleAnnouncement) => row.title },
-    {
-      key: 'company', label: 'Company',
-      render: (row: ApiSaleAnnouncement) => (row.companyId ? companyMap[row.companyId] ?? row.companyId : '--'),
-    },
-    {
-      key: 'generalSaleDate', label: 'Sale Date',
-      render: (row: ApiSaleAnnouncement) =>
-        row.generalSaleDate ? new Date(row.generalSaleDate).toLocaleString() : '--',
-    },
-    {
-      key: 'isPublished', label: 'Published',
-      render: (row: ApiSaleAnnouncement) => (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${row.isPublished ? 'bg-green-900/40 text-green-400' : 'bg-stone-700 text-stone-400'}`}>
-          {row.isPublished ? 'Yes' : 'No'}
-        </span>
-      ),
-    },
-    {
-      key: 'isBundle', label: 'Bundle',
-      render: (row: ApiSaleAnnouncement) => row.isBundle
-        ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>
-        : null,
-    },
-  ]
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -703,8 +837,20 @@ export default function AdminSaleAnnouncementsPage() {
 
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
+      ) : announcements.length === 0 ? (
+        <div className="text-stone-500 py-8 text-center">No sale announcements yet.</div>
       ) : (
-        <DataTable columns={columns} data={announcements} onEdit={row => setEditItem(row)} onDelete={row => setDeleteItem(row)} />
+        <div className="flex flex-col gap-3">
+          {announcements.map(a => (
+            <AnnouncementCard
+              key={a.id}
+              announcement={a}
+              companyMap={companyMap}
+              onEdit={() => setEditItem(a)}
+              onDelete={() => setDeleteItem(a)}
+            />
+          ))}
+        </div>
       )}
 
       <FormModal open={createOpen} title="Add Sale Announcement" onClose={() => setCreateOpen(false)}>
