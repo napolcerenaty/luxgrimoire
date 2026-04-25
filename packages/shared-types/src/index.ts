@@ -400,11 +400,18 @@ export interface ApiSaleAnnouncement {
   createdAt: string;
   updatedAt: string;
   editions?: Array<{
+    id: string;
     edition: (ApiBookEdition & { book: ApiBook }) | null;
     editionId: string;
     sortOrder: number;
     price: number | null;
     currency: string;
+    variants: Array<{
+      id: string;
+      signatureType: 'unsigned' | 'signed' | 'digitally_signed';
+      price: number | null;
+      currency: string | null;
+    }>;
   }>;
 }
 

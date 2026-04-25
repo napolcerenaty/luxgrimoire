@@ -10,6 +10,8 @@ import {
   adminDeleteSaleAnnouncement,
   adminAddAnnouncementEdition,
   adminRemoveAnnouncementEdition,
+  adminSetAnnouncementVariant,
+  adminRemoveAnnouncementVariant,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -627,6 +629,12 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
 }
 
 // ─── Announcement Books Panel ─────────────────────────────────────────────────
+const SIGNATURE_TYPES = [
+  { value: 'unsigned', label: 'Unsigned' },
+  { value: 'signed', label: 'Signed' },
+  { value: 'digitally_signed', label: 'Digitally Signed' },
+] as const
+
 function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -649,6 +657,26 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const setVariantMutation = useMutation({
+    mutationFn: ({ editionId, signatureType, price, currency }: {
+      editionId: string
+      signatureType: 'unsigned' | 'signed' | 'digitally_signed'
+      price?: number | null
+      currency?: string | null
+    }) => adminSetAnnouncementVariant(announcement.id, editionId, signatureType, price, currency),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const removeVariantMutation = useMutation({
+    mutationFn: ({ editionId, signatureType }: {
+      editionId: string
+      signatureType: 'unsigned' | 'signed' | 'digitally_signed'
+    }) => adminRemoveAnnouncementVariant(announcement.id, editionId, signatureType),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   return (
     <div className="border-t border-stone-700 mt-3">
       <button
@@ -665,32 +693,86 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
         <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-2">
+        <div className="px-4 pb-4 space-y-3">
           {editions.length === 0 && (
             <p className="text-stone-500 text-xs py-2">No linked books yet.</p>
           )}
           {editions.map(e => {
             const thumb = e.edition?.coverImage ? cloudThumb(e.edition.coverImage, 48, 60) : null
+            const activeVariants = new Set((e.variants ?? []).map(v => v.signatureType))
             return (
-              <div key={e.editionId} className="flex items-center gap-3 bg-stone-800/50 rounded-lg px-3 py-2">
-                {thumb
-                  ? <img src={thumb} className="w-9 h-11 object-cover rounded" />
-                  : <div className="w-9 h-11 bg-stone-700 rounded flex items-center justify-center text-stone-500 text-xs">?</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-stone-200 truncate">{e.edition?.book?.title ?? 'Unknown'}</div>
-                  {e.edition?.editionName && (
-                    <div className="text-xs text-stone-400 truncate">{e.edition.editionName}</div>
-                  )}
+              <div key={e.editionId} className="bg-stone-800/50 rounded-lg p-3">
+                <div className="flex items-center gap-3 mb-3">
+                  {thumb
+                    ? <img src={thumb} className="w-9 object-cover rounded flex-shrink-0" style={{ height: '44px' }} />
+                    : <div className="w-9 bg-stone-700 rounded flex-shrink-0 flex items-center justify-center text-stone-500 text-xs" style={{ height: '44px' }}>?</div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-stone-200 truncate">{e.edition?.book?.title ?? 'Unknown'}</div>
+                    {e.edition?.editionName && (
+                      <div className="text-xs text-stone-400 truncate">{e.edition.editionName}</div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMutation.mutate(e.editionId)}
+                    disabled={removeMutation.isPending}
+                    className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-400/10 transition-colors flex-shrink-0"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeMutation.mutate(e.editionId)}
-                  disabled={removeMutation.isPending}
-                  className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
-                >
-                  Remove
-                </button>
+                <div className="flex flex-col gap-1.5 pl-1">
+                  {SIGNATURE_TYPES.map(sig => {
+                    const checked = activeVariants.has(sig.value)
+                    const variant = (e.variants ?? []).find(v => v.signatureType === sig.value)
+                    return (
+                      <div key={sig.value} className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer min-w-[140px]">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            className="accent-amber-400"
+                            onChange={ev => {
+                              if (ev.target.checked) {
+                                setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value })
+                              } else {
+                                removeVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value })
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-stone-300">{sig.label}</span>
+                        </label>
+                        {checked && (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="Price"
+                              defaultValue={variant?.price ?? ''}
+                              className="w-20 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                              onBlur={ev => {
+                                const price = ev.target.value ? Number(ev.target.value) : null
+                                setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, price })
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Currency"
+                              list="sale-currencies"
+                              defaultValue={variant?.currency ?? ''}
+                              className="w-16 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                              onBlur={ev => {
+                                setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, currency: ev.target.value || null })
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )
           })}

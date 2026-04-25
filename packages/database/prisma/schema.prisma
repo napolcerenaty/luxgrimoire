@@ -500,15 +500,28 @@ model SaleAnnouncement {
 }
 
 model SaleAnnouncementEdition {
-  id           String           @id @default(uuid())
+  id           String                          @id @default(uuid())
   editionId    String
   saleId       String
-  sortOrder    Int              @default(0)
-  edition      BookEdition      @relation(fields: [editionId], references: [id])
-  announcement SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sortOrder    Int                             @default(0)
+  edition      BookEdition                     @relation(fields: [editionId], references: [id])
+  announcement SaleAnnouncement               @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variants     SaleAnnouncementEditionVariant[]
 
   @@unique([saleId, editionId])
   @@map("sale_announcement_editions")
+}
+
+model SaleAnnouncementEditionVariant {
+  id                        String                  @id @default(uuid())
+  saleAnnouncementEditionId String
+  signatureType             SignatureType
+  price                     Decimal?                @db.Decimal(10, 2)
+  currency                  String?                 @db.VarChar(3)
+  saleAnnouncementEdition   SaleAnnouncementEdition @relation(fields: [saleAnnouncementEditionId], references: [id], onDelete: Cascade)
+
+  @@unique([saleAnnouncementEditionId, signatureType])
+  @@map("sale_announcement_edition_variants")
 }
 
 model UserSaleInterest {
@@ -546,6 +559,7 @@ model UserBookEntry {
   saleVenue             String?
   purchaseGroupId       String?
   subscriptionEntryId   String?
+  signatureType         SignatureType?
   book                  Book                   @relation(fields: [bookId], references: [id])
   edition               BookEdition?           @relation(fields: [editionId], references: [id])
   purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
@@ -1127,6 +1141,12 @@ enum Role {
   MODERATOR
   USER
   COMPANY_MANAGER
+}
+
+enum SignatureType {
+  unsigned
+  signed
+  digitally_signed
 }
 
 enum SponsoredSlotType {

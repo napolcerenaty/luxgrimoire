@@ -64,6 +64,30 @@ export class AnnouncementsController {
     return this.announcementsService.adminRemoveEdition(id, editionId);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/editions/:editionId/variants')
+  adminSetVariant(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+    @Body('price') price?: number,
+    @Body('currency') currency?: string,
+  ) {
+    return this.announcementsService.adminSetVariant(id, editionId, signatureType, price, currency);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/editions/:editionId/variants/:signatureType')
+  adminRemoveVariant(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Param('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+  ) {
+    return this.announcementsService.adminRemoveVariant(id, editionId, signatureType);
+  }
+
   @Public()
   @Get(':id')
   findById(@Param('id') id: string) {

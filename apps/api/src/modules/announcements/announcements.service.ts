@@ -5,6 +5,7 @@ import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announce
 const editionsInclude = {
   orderBy: { sortOrder: 'asc' as const },
   include: {
+    variants: true,
     edition: {
       include: {
         book: {
@@ -55,18 +56,7 @@ export class AnnouncementsService {
   async adminFindAll() {
     return this.prisma.saleAnnouncement.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        editions: {
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            edition: {
-              include: {
-                book: true,
-              },
-            },
-          },
-        },
-      },
+      include: { editions: editionsInclude },
     });
   }
 
@@ -87,6 +77,39 @@ export class AnnouncementsService {
 
   async adminRemoveEdition(id: string, editionId: string) {
     await this.prisma.saleAnnouncementEdition.deleteMany({ where: { saleId: id, editionId } });
+  }
+
+  async adminSetVariant(
+    id: string,
+    editionId: string,
+    signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+    price?: number | null,
+    currency?: string | null,
+  ) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEditionVariant.upsert({
+      where: { saleAnnouncementEditionId_signatureType: { saleAnnouncementEditionId: link.id, signatureType } },
+      create: { saleAnnouncementEditionId: link.id, signatureType, price: price ?? null, currency: currency ?? null },
+      update: { price: price ?? null, currency: currency ?? null },
+    });
+    return this.findById(id);
+  }
+
+  async adminRemoveVariant(
+    id: string,
+    editionId: string,
+    signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+  ) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEditionVariant.deleteMany({
+      where: { saleAnnouncementEditionId: link.id, signatureType },
+    });
   }
 
   async create(dto: CreateSaleAnnouncementDto) {

@@ -588,6 +588,33 @@ export async function adminRemoveAnnouncementEdition(id: string, editionId: stri
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
+export async function adminSetAnnouncementVariant(
+  id: string, editionId: string,
+  signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+  price?: number | null, currency?: string | null,
+): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ signatureType, price, currency }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminRemoveAnnouncementVariant(
+  id: string, editionId: string,
+  signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants/${signatureType}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
 export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/${id}`, {
     headers: { 'Content-Type': 'application/json' },
