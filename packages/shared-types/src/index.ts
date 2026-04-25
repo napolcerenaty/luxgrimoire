@@ -445,7 +445,7 @@ export interface ApiSaleAnnouncement {
   currency: string | null;
   imageUrl: string | null;
   extraImagesJson: string | null;
-  isPublished: boolean;
+
   isBundle: boolean;
   expectedShipping: string | null;
   availableForPurchase: boolean;

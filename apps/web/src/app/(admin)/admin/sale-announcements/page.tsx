@@ -308,7 +308,6 @@ interface FormState {
   basePrice: string
   currency: string
   allImages: string[]
-  isPublished: boolean
   isBundle: boolean
   expectedShipping: string
   linkedEditions: LinkedEdition[]
@@ -325,7 +324,6 @@ const EMPTY_FORM: FormState = {
   basePrice: '',
   currency: 'USD',
   allImages: [],
-  isPublished: false,
   isBundle: false,
   expectedShipping: '',
   linkedEditions: [],
@@ -362,7 +360,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? 'USD',
     allImages,
-    isPublished: a.isPublished,
     isBundle: a.isBundle,
     expectedShipping: (a as any).expectedShipping ?? '',
     linkedEditions,
@@ -382,7 +379,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     currency: f.currency || undefined,
     imageUrl: f.allImages[0] || undefined,
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
-    isPublished: f.isPublished,
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
@@ -533,10 +529,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
 
       {/* Flags */}
       <div className="flex flex-col gap-2">
-        <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-          <input type="checkbox" checked={form.isPublished} onChange={setCheck('isPublished')} className="accent-amber-400" />
-          <span>Published <span className="text-stone-500">— visible to users in the public listing</span></span>
-        </label>
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-amber-400" />
           <span>Is Bundle <span className="text-stone-500">— multiple editions sold together as a set</span></span>
@@ -997,9 +989,6 @@ function AnnouncementCard({
               {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {announcement.isPublished && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-900/40 text-green-400">Published</span>
-              )}
               {announcement.isBundle && (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>
               )}

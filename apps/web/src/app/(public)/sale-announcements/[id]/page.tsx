@@ -63,9 +63,6 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             {sale.availableForPurchase && (
               <Badge variant="success">Available Now</Badge>
             )}
-            {!sale.isPublished && (
-              <Badge variant="outline">Draft</Badge>
-            )}
           </div>
 
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">

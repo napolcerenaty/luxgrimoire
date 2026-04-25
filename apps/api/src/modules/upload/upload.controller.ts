@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Delete, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
 import { Roles } from '../../common/decorators/auth.decorators';
@@ -27,9 +27,9 @@ export class UploadController {
   }
 
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
-  @Delete('image/:publicId')
+  @Delete('image')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteImage(@Param('publicId') publicId: string) {
-    await this.uploadService.deleteImage(publicId);
+  async deleteImage(@Body() dto: { publicId: string }) {
+    await this.uploadService.deleteImage(dto.publicId);
   }
 }

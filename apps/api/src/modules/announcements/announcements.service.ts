@@ -35,7 +35,7 @@ export class AnnouncementsService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const where: Record<string, unknown> = { isPublished: true };
+    const where: Record<string, unknown> = { editions: { some: {} } };
     if (query.upcoming) {
       where.generalSaleDate = { gte: today };
     }
@@ -138,7 +138,6 @@ export class AnnouncementsService {
         currency: data.currency ?? null,
         imageUrl: data.imageUrl ?? null,
         extraImagesJson: extraImages && extraImages.length > 0 ? JSON.stringify(extraImages) : null,
-        isPublished: data.isPublished ?? false,
         isBundle: data.isBundle ?? false,
         expectedShipping: data.expectedShipping ?? null,
       },
@@ -186,7 +185,6 @@ export class AnnouncementsService {
         ...(extraImages !== undefined && {
           extraImagesJson: extraImages.length > 0 ? JSON.stringify(extraImages) : null,
         }),
-        ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
         ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
       },

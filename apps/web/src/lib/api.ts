@@ -579,7 +579,7 @@ export interface SaleAnnouncementFormData {
   currency?: string;
   imageUrl?: string;
   extraImages?: string[];
-  isPublished?: boolean;
+
   isBundle?: boolean;
   expectedShipping?: string;
   editionIds?: string[];

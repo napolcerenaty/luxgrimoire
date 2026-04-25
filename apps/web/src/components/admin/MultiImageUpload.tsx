@@ -32,6 +32,19 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   return json.publicId
 }
 
+export async function deleteImage(publicId: string): Promise<void> {
+  if (!publicId || publicId.startsWith('http')) return
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
+  await fetch(`${API_BASE}/upload/image`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ publicId }),
+  })
+}
+
 interface Props {
   images: string[]
   folder: string
@@ -128,7 +141,7 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
                   </span>
                 )}
                 <button type="button"
-                  onClick={() => onChange(images.filter((_, j) => j !== i))}
+                  onClick={() => { deleteImage(img); onChange(images.filter((_, j) => j !== i)) }}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   ✕
                 </button>

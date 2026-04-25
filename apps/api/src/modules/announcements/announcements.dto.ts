@@ -42,10 +42,6 @@ export class CreateSaleAnnouncementDto {
 
   @IsOptional()
   @IsBoolean()
-  isPublished?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   isBundle?: boolean;
 
   @IsOptional()
@@ -103,10 +99,6 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isPublished?: boolean;
 
   @IsOptional()
   @IsBoolean()

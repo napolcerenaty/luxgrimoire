@@ -487,7 +487,6 @@ model SaleAnnouncement {
   title                String
   description          String?
   companyId            String?
-  isPublished          Boolean                   @default(false)
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   basePrice            Decimal?                  @db.Decimal(10, 2)
@@ -506,7 +505,6 @@ model SaleAnnouncement {
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
 
-  @@index([isPublished])
   @@index([companyId])
   @@index([generalSaleDate])
   @@map("sale_announcements")
