@@ -17,6 +17,7 @@ import {
   CreateMonthDto,
   UpdateMonthDto,
   AddMonthBookDto,
+  UpdateMonthBookDto,
   SubscriptionQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
@@ -164,6 +165,19 @@ export class SubscriptionsController {
     @Param('bookId') bookId: string,
   ) {
     return this.subscriptionsService.removeBookFromMonth(slug, parseInt(year, 10), parseInt(month, 10), bookId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @Patch(':slug/months/:year/:month/books/:bookId')
+  updateMonthBook(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Param('bookId') bookId: string,
+    @Body() dto: UpdateMonthBookDto,
+  ) {
+    return this.subscriptionsService.updateMonthBook(slug, parseInt(year, 10), parseInt(month, 10), bookId, dto);
   }
 
   @ApiBearerAuth()

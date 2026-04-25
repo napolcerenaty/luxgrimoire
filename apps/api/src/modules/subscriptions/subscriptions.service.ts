@@ -11,6 +11,7 @@ import {
   CreateMonthDto,
   UpdateMonthDto,
   AddMonthBookDto,
+  UpdateMonthBookDto,
   SubscriptionQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
@@ -332,6 +333,7 @@ export class SubscriptionsService {
           editionId: dto.editionId,
           isMainBook: dto.isMainBook ?? true,
           sortOrder: dto.sortOrder ?? 0,
+          signatureType: dto.signatureType ?? null,
         },
       });
     } catch {
@@ -350,6 +352,22 @@ export class SubscriptionsService {
 
     return this.prisma.subscriptionMonthBook.delete({
       where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
+    });
+  }
+
+  async updateMonthBook(
+    subscriptionSlug: string,
+    year: number,
+    month: number,
+    bookId: string,
+    dto: UpdateMonthBookDto,
+  ) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    return this.prisma.subscriptionMonthBook.update({
+      where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
+      data: { signatureType: dto.signatureType ?? null },
     });
   }
 
@@ -751,14 +769,14 @@ export class SubscriptionsService {
 
     // Create book entries for selected months
     for (const monthId of dto.selectedMonthIds) {
-      const monthRecord = await this.prisma.subscriptionMonth.findUnique({ where: { id: monthId } });
+      const monthRecord = await this.prisma.subscriptionMonth.findUnique({ where: { id: monthId }, select: { year: true, month: true, signatureType: true } });
       if (!monthRecord) continue;
 
       const renewalDate = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
 
       const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
         where: { monthId },
-        select: { editionId: true, bookId: true },
+        select: { editionId: true, bookId: true, signatureType: true },
       });
 
       for (const mb of monthBooks) {
@@ -780,6 +798,7 @@ export class SubscriptionsService {
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
               subscriptionEntryId: entry.id,
+              signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
               ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
               ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
             },

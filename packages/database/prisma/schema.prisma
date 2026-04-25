@@ -458,15 +458,16 @@ model SubscriptionMonth {
 }
 
 model SubscriptionMonthBook {
-  id         String            @id @default(uuid())
-  monthId    String
-  bookId     String
-  editionId  String?
-  isMainBook Boolean           @default(true)
-  sortOrder  Int               @default(0)
-  book       Book              @relation(fields: [bookId], references: [id])
-  edition    BookEdition?      @relation(fields: [editionId], references: [id])
-  month      SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  id            String            @id @default(uuid())
+  monthId       String
+  bookId        String
+  editionId     String?
+  isMainBook    Boolean           @default(true)
+  sortOrder     Int               @default(0)
+  signatureType SignatureType?
+  book          Book              @relation(fields: [bookId], references: [id])
+  edition       BookEdition?      @relation(fields: [editionId], references: [id])
+  month         SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
 
   @@unique([monthId, bookId])
   @@map("subscription_month_books")

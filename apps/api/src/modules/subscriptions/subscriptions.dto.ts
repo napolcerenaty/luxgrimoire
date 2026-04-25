@@ -339,6 +339,16 @@ export class AddMonthBookDto {
   @IsInt()
   @Type(() => Number)
   sortOrder?: number;
+
+  @IsOptional()
+  @IsIn(['unsigned', 'signed', 'digitally_signed'])
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed';
+}
+
+export class UpdateMonthBookDto {
+  @IsOptional()
+  @IsIn(['unsigned', 'signed', 'digitally_signed', null])
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | null;
 }
 
 export class SubscriptionQueryDto {

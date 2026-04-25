@@ -46,6 +46,7 @@ type BookInfo = {
 }
 type MonthBook = {
   bookId: string; editionId: string | null; isMainBook: boolean
+  signatureType: string | null
   book: BookInfo; edition: EditionInfo | null
 }
 type Month = {
@@ -254,6 +255,16 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const updateBookSignatureMutation = useMutation({
+    mutationFn: ({ bookId, signatureType }: { bookId: string; signatureType: string | null }) =>
+      authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${bookId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ signatureType: signatureType || null }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
       {/* Header row */}
@@ -336,6 +347,17 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     }
                     {mb.isMainBook && <span className="text-xs text-amber-500">main book</span>}
                   </div>
+                  <select
+                    value={mb.signatureType ?? ''}
+                    onChange={e => updateBookSignatureMutation.mutate({ bookId: mb.bookId, signatureType: e.target.value || null })}
+                    className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-400"
+                    title="Signature type override for this book"
+                  >
+                    <option value="">—</option>
+                    <option value="unsigned">Unsigned</option>
+                    <option value="signed">✍️ Signed</option>
+                    <option value="digitally_signed">🖨️ Digital</option>
+                  </select>
                   <button onClick={() => removeBookMutation.mutate(mb.bookId)}
                     disabled={removeBookMutation.isPending}
                     className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors disabled:opacity-50">
@@ -413,7 +435,7 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
         <input value={theme} onChange={e => setTheme(e.target.value)}
           placeholder="e.g. Dark Academia, The Midnight Library…" className={INPUT} />
       </div>
-      <<div>
+      <div>
         <label className={LABEL}>Signature type</label>
         <select value={signatureType} onChange={e => setSignatureType(e.target.value)} className={INPUT}>
           <option value="">None / Unsigned</option>
