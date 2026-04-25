@@ -32,10 +32,6 @@ export class CreateEditionDto {
 
   @IsOptional()
   @IsString()
-  format?: string;
-
-  @IsOptional()
-  @IsString()
   coverImage?: string;
 
   @IsOptional()
@@ -109,10 +105,6 @@ export class UpdateEditionDto {
   @IsOptional()
   @IsString()
   alternativeTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  format?: string;
 
   @IsOptional()
   @IsString()
@@ -219,10 +211,6 @@ export class EditionQueryDto {
   @IsOptional()
   @IsString()
   language?: string;
-
-  @IsOptional()
-  @IsString()
-  format?: string;
 
   @IsOptional()
   @IsString()

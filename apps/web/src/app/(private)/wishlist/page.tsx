@@ -15,7 +15,6 @@ interface CollectionEntry {
     slug: string
     coverImage: string | null
     publisher: string | null
-    format: string | null
     bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
       id: string

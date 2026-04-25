@@ -29,7 +29,6 @@ export class EditionsService {
         publisher: dto.publisher,
         language: dto.language,
         alternativeTitle: dto.alternativeTitle,
-        format: dto.format,
         coverImage: dto.coverImage,
         additionalImages: dto.additionalImages ?? [],
         isSpecial: dto.isSpecial ?? false,
@@ -64,7 +63,6 @@ export class EditionsService {
     if (query.companyId) where.bookBoxCompanyId = query.companyId;
     if (query.subscriptionId) where.subscriptionId = query.subscriptionId;
     if (query.language) where.language = query.language;
-    if (query.format) where.format = query.format;
     if (query.needsVerification === true) where.verifiedAt = null;
     if (query.search) {
       const s = query.search;

@@ -13,7 +13,6 @@ interface Props {
 
 interface FormState {
   publisher: string
-  format: string
   language: string
   generalSaleDate: string
   price: string
@@ -45,7 +44,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [artists, setArtists] = useState<PersonEntry[]>([])
   const [form, setForm] = useState<FormState>({
-    publisher: '', format: '',
+    publisher: '',
     language: 'EN', generalSaleDate: '', price: '', currency: 'EUR', notes: '',
   })
 
@@ -56,7 +55,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
       setForm(prev => ({ ...prev, [k]: e.target.value }))
 
   const reset = () => {
-    setForm({ publisher: '', format: '', language: 'EN', generalSaleDate: '', price: '', currency: 'EUR', notes: '' })
+    setForm({ publisher: '', language: 'EN', generalSaleDate: '', price: '', currency: 'EUR', notes: '' })
     setCoverFile(null)
     setCoverPreview(null)
     setArtists([])
@@ -74,7 +73,6 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
         body: JSON.stringify({
           bookId,
           publisher: form.publisher || undefined,
-          format: form.format || undefined,
           language: form.language || undefined,
           generalSaleDate: form.generalSaleDate || undefined,
           basePrice: form.price || undefined,
@@ -138,10 +136,6 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
           <div>
             <label className={labelCls}>Publisher</label>
             <input value={form.publisher} onChange={set('publisher')} placeholder="Publisher" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Format</label>
-            <input value={form.format} onChange={set('format')} placeholder="Hardcover, Paperback…" className={inputCls} />
           </div>
           <div>
             <label className={labelCls}>Language</label>

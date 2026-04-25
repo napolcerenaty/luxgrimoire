@@ -206,7 +206,6 @@ model BookEdition {
   bookId                   String
   publisher                String?
 
-  format                   String?
   coverImage               String?
   additionalImages         String[]
   isSpecial                Boolean                   @default(false)
