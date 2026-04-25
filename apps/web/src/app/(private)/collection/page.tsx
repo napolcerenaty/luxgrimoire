@@ -22,6 +22,7 @@ interface CollectionEntry {
   allocatedPrice: string | null
   priceCurrency: string | null
   purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
+  signatureType: string | null
   purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
@@ -253,6 +254,7 @@ export default function CollectionPage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [bookFilter, setBookFilter] = useState('')
+  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED'>('ALL')
   const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
@@ -357,6 +359,9 @@ export default function CollectionPage() {
   const filtered = entries.filter((e) => {
     if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
+    if (sigFilter === 'UNSIGNED' && e.signatureType) return false
+    if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
+    if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
   })
@@ -541,6 +546,26 @@ export default function CollectionPage() {
               </button>
             ))}
             </div>
+            <div className="flex gap-2 flex-wrap">
+              {([
+                { val: 'ALL' as const, label: 'All Signatures' },
+                { val: 'UNSIGNED' as const, label: 'Unsigned' },
+                { val: 'SIGNED' as const, label: '✍️ Signed' },
+                { val: 'DIGITALLY_SIGNED' as const, label: '🖨️ Digitally Signed' },
+              ]).map(({ val, label }) => (
+                <button
+                  key={val}
+                  onClick={() => setSigFilter(val)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                    sigFilter === val
+                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                      : 'text-stone-400 border-stone-700 hover:border-stone-500'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {entries.length === 0 ? (
@@ -677,6 +702,15 @@ export default function CollectionPage() {
                               <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
                                 {entry.condition.replace('_', ' ')}
                               </Badge>
+                            )}
+                            {entry.signatureType && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                                entry.signatureType === 'signed'
+                                  ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
+                                  : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
+                              }`}>
+                                {entry.signatureType === 'signed' ? '✍️ Signed' : '🖨️ Digital'}
+                              </span>
                             )}
                           </div>
 
