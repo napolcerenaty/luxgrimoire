@@ -312,30 +312,36 @@ export class SkipPolicyEngine {
 
 
   private async loadContext(userId: string, subscriptionSlug: string) {
+    // Merge 4 sequential queries into 2: subscription+entry+skipRecords in one, state in parallel after
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug: subscriptionSlug },
-      include: { skipPolicy: true },
+      include: {
+        skipPolicy: true,
+        userEntries: {
+          where: { userId },
+          take: 1,
+          include: {
+            skipRecords: {
+              where: { undoneAt: null },
+              include: { month: { select: { year: true, month: true } } },
+            },
+          },
+        },
+      },
     });
     if (!subscription) throw new NotFoundException(`Subscription '${subscriptionSlug}' not found`);
 
     const policy = subscription.skipPolicy;
-
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: subscription.id } },
-    });
+    const entry = subscription.userEntries[0] ?? null;
     if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
 
+    // skipState keyed by (userId, subscriptionId) — fetch now that we have subscriptionId
     const state = await this.prisma.userSubscriptionSkipState.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: subscription.id } },
     });
 
-    // Effective renewal day: user entry's renewalDay if set, else subscription's default
+    const skipRecords = entry.skipRecords;
     const effectiveRenewalDay = entry.renewalDay ?? subscription.renewalDay ?? null;
-
-    const skipRecords = await this.prisma.userSkipRecord.findMany({
-      where: { userEntryId: entry.id, undoneAt: null },
-      include: { month: { select: { year: true, month: true } } },
-    });
 
     return { subscription, policy, state, entry: { ...entry, effectiveRenewalDay }, skipRecords };
   }

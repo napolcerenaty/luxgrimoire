@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Query, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Query, Param, Body, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
 @ApiTags('announcements')
 @Controller('announcements')
@@ -10,6 +11,7 @@ export class AnnouncementsController {
   constructor(private readonly announcementsService: AnnouncementsService) {}
 
   @Public()
+  @UseInterceptors(new CacheControlInterceptor('public, max-age=30, stale-while-revalidate=60'))
   @Get()
   findAll(
     @Query('page') page?: string,
