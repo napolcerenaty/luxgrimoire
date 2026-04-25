@@ -49,6 +49,10 @@ export class CreateSaleAnnouncementDto {
   isBundle?: boolean;
 
   @IsOptional()
+  @IsString()
+  expectedShipping?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   extraImages?: string[];
@@ -107,6 +111,10 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   isBundle?: boolean;
+
+  @IsOptional()
+  @IsString()
+  expectedShipping?: string;
 
   @IsOptional()
   @IsArray()

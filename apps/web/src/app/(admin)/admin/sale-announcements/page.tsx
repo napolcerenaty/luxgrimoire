@@ -413,6 +413,7 @@ interface FormState {
   allImages: string[]
   isPublished: boolean
   isBundle: boolean
+  expectedShipping: string
   linkedEditions: LinkedEdition[]
 }
 
@@ -429,6 +430,7 @@ const EMPTY_FORM: FormState = {
   allImages: [],
   isPublished: false,
   isBundle: false,
+  expectedShipping: '',
   linkedEditions: [],
 }
 
@@ -465,6 +467,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     allImages,
     isPublished: a.isPublished,
     isBundle: a.isBundle,
+    expectedShipping: (a as any).expectedShipping ?? '',
     linkedEditions,
   }
 }
@@ -484,6 +487,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isPublished: f.isPublished,
     isBundle: f.isBundle,
+    expectedShipping: f.expectedShipping || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
 }
@@ -576,6 +580,17 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <input className={INP} list="sale-currencies" value={form.currency} onChange={set('currency')} placeholder="USD" />
           <datalist id="sale-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
         </div>
+      </div>
+
+      {/* Expected Shipping */}
+      <div>
+        <label className={LBL}>Expected Shipping</label>
+        <input
+          className={INP}
+          value={form.expectedShipping}
+          onChange={set('expectedShipping')}
+          placeholder="e.g. January/February 2026"
+        />
       </div>
 
       {/* Images */}

@@ -76,6 +76,13 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             <p className="text-stone-300 leading-relaxed mb-6">{sale.description}</p>
           )}
 
+          {sale.expectedShipping && (
+            <p className="text-stone-400 text-sm mb-6">
+              <span className="text-stone-500">Expected shipping: </span>
+              <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
+            </p>
+          )}
+
           {/* Dates + Region Selector */}
           <div className="mb-6">
             <SaleDateSelector

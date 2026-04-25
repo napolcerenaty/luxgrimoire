@@ -497,6 +497,7 @@ model SaleAnnouncement {
   saleTimezone         String?
   availableForPurchase Boolean                   @default(false)
   isBundle             Boolean                   @default(false)
+  expectedShipping     String?
   earlyAccessDate      DateTime?
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?
