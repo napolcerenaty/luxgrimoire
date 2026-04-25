@@ -111,10 +111,18 @@ export class EditionsService {
       include: {
         book: { include: { authors: { include: { author: true } } } },
         artists: { include: { artist: true } },
+        bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+        collection: { select: { id: true, slug: true, name: true, coverImage: true } },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
-    return edition;
+    // Flatten authors on nested book
+    return {
+      ...edition,
+      book: edition.book
+        ? { ...edition.book, authors: edition.book.authors.map((ba: { author: unknown }) => ba.author) }
+        : edition.book,
+    };
   }
 
   async verify(slug: string) {

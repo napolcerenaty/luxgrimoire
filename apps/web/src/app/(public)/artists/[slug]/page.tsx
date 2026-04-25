@@ -198,7 +198,7 @@ export default async function ArtistPage({ params }: Props) {
                 return (
                   <Link
                     key={c.id}
-                    href={`/books/${book?.slug ?? '#'}`}
+                    href={`/editions/${c.edition.slug}`}
                     className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
                   >
                     {/* Cover image with overlays */}

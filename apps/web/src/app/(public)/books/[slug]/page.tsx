@@ -152,7 +152,7 @@ export default async function BookPage({ params }: Props) {
             {editions.map((edition) => (
               <EditionCard
                 key={edition.id}
-                href={`/books/${book.slug}`}
+                href={`/editions/${edition.slug}`}
                 coverImage={edition.coverImage}
                 companyName={(edition as any).bookBoxCompany?.name}
                 seriesName={book.seriesName}
