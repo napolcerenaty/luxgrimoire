@@ -19,7 +19,6 @@ export class EditionsService {
     const slug = generateSlugFromParts(
       book.title,
       dto.editionName ?? dto.publisher,
-      dto.publishYear?.toString(),
     );
 
     return this.prisma.bookEdition.create({
@@ -30,7 +29,6 @@ export class EditionsService {
         publisher: dto.publisher,
         language: dto.language,
         alternativeTitle: dto.alternativeTitle,
-        publishYear: dto.publishYear,
         format: dto.format,
         coverImage: dto.coverImage,
         additionalImages: dto.additionalImages ?? [],
@@ -113,6 +111,24 @@ export class EditionsService {
         artists: { include: { artist: true } },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true, coverImage: true } },
+        monthBooks: {
+          include: {
+            month: {
+              select: {
+                id: true, year: true, month: true, theme: true,
+                subscription: { select: { id: true, slug: true, name: true } },
+                series: { select: { id: true, slug: true, name: true } },
+              },
+            },
+          },
+        },
+        saleEditions: {
+          include: {
+            announcement: {
+              select: { id: true, title: true, isBundle: true },
+            },
+          },
+        },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);

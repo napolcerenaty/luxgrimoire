@@ -9,6 +9,18 @@ import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface EditionMonthBook {
+  month: {
+    id: string; year: number; month: number; theme: string | null
+    subscription: { id: string; slug: string; name: string }
+    series: { id: string; slug: string; name: string } | null
+  }
+}
+
+interface EditionSaleEdition {
+  announcement: { id: string; title: string; isBundle: boolean }
+}
+
 interface EditionArtist {
   artist: ApiArtist
   role: string
@@ -23,7 +35,6 @@ interface EditionDetail {
   bookBoxCompanyCustomName: string | null
   bookBoxCompanyId?: string | null
   publisher: string | null
-  publishYear: number | null
   format: string | null
   coverImage: string | null
   additionalImages: string[]
@@ -42,6 +53,8 @@ interface EditionDetail {
   subscriptionId?: string | null
   subscriptionMonthId?: string | null
   artists: EditionArtist[]
+  monthBooks?: EditionMonthBook[]
+  saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   book?: {
@@ -110,7 +123,11 @@ export default async function EditionPage({ params }: Props) {
   const book = edition.book
   const features = Array.isArray(edition.features) ? edition.features : []
   const artists = edition.artists ?? []
-  const editionLabel = edition.editionName ?? edition.bookBoxCompanyCustomName ?? edition.bookBoxCompany?.name ?? null
+  // Only show editionLabel if it's a custom name distinct from the company name
+  const editionLabel = edition.editionName ?? edition.bookBoxCompanyCustomName ?? null
+  const monthBooks = edition.monthBooks ?? []
+  const saleEditions = edition.saleEditions ?? []
+  const bundles = saleEditions.filter(se => se.announcement.isBundle)
 
   // Build all carousel images: cover first, then additional
   const allImages: string[] = []
@@ -139,8 +156,18 @@ export default async function EditionPage({ params }: Props) {
         <div className="container mx-auto px-4 py-10 max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-10 items-start">
 
-            {/* ── Left: Carousel + company name ── */}
+            {/* ── Left: Company name + Carousel ── */}
             <div className="flex flex-col items-center md:items-start gap-3">
+              {/* Book box company name above carousel */}
+              {edition.bookBoxCompany && (
+                <Link
+                  href={`/companies/${edition.bookBoxCompany.slug}`}
+                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-amber-400 transition-colors text-base leading-snug"
+                >
+                  {edition.bookBoxCompany.name}
+                </Link>
+              )}
+
               {allImages.length > 0 ? (
                 <ImageCarousel images={allImages} alt={book?.title ?? 'Edition'} />
               ) : (
@@ -149,16 +176,6 @@ export default async function EditionPage({ params }: Props) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-              )}
-
-              {/* Book box company name below carousel */}
-              {edition.bookBoxCompany && (
-                <Link
-                  href={`/companies/${edition.bookBoxCompany.slug}`}
-                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-amber-400 transition-colors text-base leading-snug"
-                >
-                  {edition.bookBoxCompany.name}
-                </Link>
               )}
             </div>
 
@@ -186,7 +203,6 @@ export default async function EditionPage({ params }: Props) {
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}
-                  <span className="ml-1 text-xs text-stone-500">→ series</span>
                 </Link>
               )}
 
@@ -214,8 +230,8 @@ export default async function EditionPage({ params }: Props) {
                 </p>
               )}
 
-              {/* Edition label */}
-              {editionLabel && (
+              {/* Edition label — only if it's a custom name (not just company name) */}
+              {editionLabel && editionLabel !== edition.bookBoxCompany?.name && (
                 <p className="text-lg text-amber-500/90 font-medium mb-2">{editionLabel}</p>
               )}
               {edition.alternativeTitle && (
@@ -244,22 +260,6 @@ export default async function EditionPage({ params }: Props) {
                   <>
                     <dt className="text-stone-500">Publisher</dt>
                     <dd className="text-stone-200">{edition.publisher}</dd>
-                  </>
-                )}
-                {edition.publishYear && (
-                  <>
-                    <dt className="text-stone-500">Year</dt>
-                    <dd className="text-stone-200">{edition.publishYear}</dd>
-                  </>
-                )}
-                {edition.bookBoxCompany && (
-                  <>
-                    <dt className="text-stone-500">Book Box</dt>
-                    <dd>
-                      <Link href={`/companies/${edition.bookBoxCompany.slug}`} className="text-amber-400 hover:underline">
-                        {edition.bookBoxCompany.name}
-                      </Link>
-                    </dd>
                   </>
                 )}
                 {edition.collection && (
@@ -296,6 +296,41 @@ export default async function EditionPage({ params }: Props) {
                     <dd className="text-stone-200">{formatDate(edition.generalSaleDate)}</dd>
                   </>
                 )}
+                {/* Subscription info */}
+                {monthBooks.map((mb) => (
+                  <>
+                    <dt key={`sub-dt-${mb.month.id}`} className="text-stone-500">Subscription</dt>
+                    <dd key={`sub-dd-${mb.month.id}`}>
+                      <Link
+                        href={`/subscriptions/${mb.month.subscription.slug}`}
+                        className="text-amber-400 hover:underline"
+                      >
+                        {mb.month.subscription.name}
+                      </Link>
+                      {mb.month.series && (
+                        <span className="text-stone-400 ml-1">· {mb.month.series.name}</span>
+                      )}
+                      <span className="text-stone-500 ml-1 text-xs">
+                        {new Date(mb.month.year, mb.month.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        {mb.month.theme ? ` · ${mb.month.theme}` : ''}
+                      </span>
+                    </dd>
+                  </>
+                ))}
+                {/* Bundle info */}
+                {bundles.map((se) => (
+                  <>
+                    <dt key={`bundle-dt-${se.announcement.id}`} className="text-stone-500">Bundle</dt>
+                    <dd key={`bundle-dd-${se.announcement.id}`}>
+                      <Link
+                        href={`/sale-announcements?bundle=${se.announcement.id}`}
+                        className="text-amber-400 hover:underline"
+                      >
+                        {se.announcement.title}
+                      </Link>
+                    </dd>
+                  </>
+                ))}
               </dl>
 
               {/* Notes */}
@@ -353,13 +388,13 @@ export default async function EditionPage({ params }: Props) {
                     )}
 
                     {/* Name + role */}
-                    <div>
-                      <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
                       <p className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${roleDot(c.role)}`} />
-                        {c.role}
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${roleDot(c.role)}`} />
+                        <span className="line-clamp-1 max-w-[140px]" title={c.role}>{c.role}</span>
                       </p>
                     </div>
                   </Link>
