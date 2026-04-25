@@ -36,7 +36,6 @@ interface EditionDetail {
   bookBoxCompanyCustomName: string | null
   bookBoxCompanyId?: string | null
   publisher: string | null
-  format: string | null
   coverImage: string | null
   additionalImages: string[]
   isSpecial: boolean
@@ -247,15 +246,6 @@ export default async function EditionPage({ params }: Props) {
                 {edition.isSpecial && (
                   <Badge variant="default">Special Edition</Badge>
                 )}
-                {edition.format && (
-                  <Badge variant="outline">
-                    {edition.format}
-                    {edition.language ? ` · ${edition.language.toUpperCase()}` : ''}
-                  </Badge>
-                )}
-                {!edition.format && edition.language && (
-                  <Badge variant="outline">{edition.language.toUpperCase()}</Badge>
-                )}
               </div>
 
               {/* Meta grid */}
@@ -280,6 +270,12 @@ export default async function EditionPage({ params }: Props) {
                   <>
                     <dt className="text-stone-500">Base Price</dt>
                     <dd className="text-stone-200">{edition.basePrice} {edition.currency ?? ''}</dd>
+                  </>
+                )}
+                {edition.language && (
+                  <>
+                    <dt className="text-stone-500">Language</dt>
+                    <dd className="text-stone-200">{edition.language.toUpperCase()}</dd>
                   </>
                 )}
                 {edition.firstAccessDate && (
@@ -396,9 +392,9 @@ export default async function EditionPage({ params }: Props) {
                       <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
-                      <p className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${roleDot(c.role)}`} />
-                        <span>{c.role}</span>
+                      <p className="text-sm text-stone-400 flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${roleDot(c.role)}`} />
+                        {c.role}
                       </p>
                     </div>
                   </Link>
