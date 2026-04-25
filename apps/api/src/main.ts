@@ -13,6 +13,13 @@ async function bootstrap() {
     new FastifyAdapter({ bodyLimit: 20 * 1024 * 1024 }), // 20 MB for base64 image uploads
   );
 
+  // Gzip/Brotli compression for all responses
+  await app.register(require('@fastify/compress'), {
+    global: true,
+    threshold: 1024, // only compress responses > 1 KB
+    encodings: ['gzip', 'deflate'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
   );

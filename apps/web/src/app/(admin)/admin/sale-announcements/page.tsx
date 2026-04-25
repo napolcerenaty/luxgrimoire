@@ -982,6 +982,16 @@ function AnnouncementCard({
               {announcement.isBundle && (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>
               )}
+              {(() => {
+                const types = new Set(
+                  (announcement.editions ?? []).flatMap(e => (e.variants ?? []).map(v => v.signatureType))
+                )
+                if (types.has('signed'))
+                  return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
+                if (types.has('digitally_signed'))
+                  return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digital</span>
+                return null
+              })()}
               <button onClick={onEdit}
                 className="text-amber-400 hover:text-amber-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-amber-400/50 transition-colors">
                 Edit

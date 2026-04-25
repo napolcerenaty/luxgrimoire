@@ -72,18 +72,18 @@ export class CollectionService {
   }
 
   async getStats(userId: string) {
-    const [totalOwned, uniqueEditions] = await Promise.all([
+    const [totalOwned, groupResult] = await Promise.all([
       this.prisma.userBookEntry.count({ where: { userId } }),
-      this.prisma.userBookEntry.findMany({
+      this.prisma.userBookEntry.groupBy({
+        by: ['editionId'],
         where: { userId, editionId: { not: null } },
-        select: { editionId: true },
-        distinct: ['editionId'],
+        _count: { editionId: true },
       }),
     ]);
     return {
       totalOwned,
       totalWishlist: 0,
-      totalEditions: uniqueEditions.length,
+      totalEditions: groupResult.length,
     };
   }
 }

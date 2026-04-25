@@ -575,7 +575,7 @@ export default function CreateBookEditionForm({
           className={saved
             ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white transition-colors'
             : BTN_PRIMARY}>
-          {saved ? '✓ Added to month!' : busy ? 'Saving…' : existingBookId ? 'Create Edition & Link' : 'Create & Link to Month'}
+          {saved ? '✓ Added!' : busy ? 'Saving…' : existingBookId ? 'Create Edition & Link' : 'Create & Link to Month'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
       </div>

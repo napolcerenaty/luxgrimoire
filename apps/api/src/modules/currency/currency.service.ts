@@ -1,15 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+interface CacheEntry { rate: number; expiresAt: number }
+
 @Injectable()
 export class CurrencyService {
   private readonly logger = new Logger(CurrencyService.name);
+  /** In-memory cache: key = `FROM:TO:YYYY-MM-DD`, TTL = 1h for today, 24h for past */
+  private readonly rateCache = new Map<string, CacheEntry>();
 
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Get exchange rate for a specific date.
-   * Checks ExchangeRateHistory first; fetches from Frankfurter API if missing.
+   * Checks in-memory cache first, then DB (ExchangeRateHistory), then Frankfurter API.
    * ECB only publishes on business days — weekend dates fall back to the last available rate.
    */
   async getRateForDate(fromCurrency: string, toCurrency: string, date: Date): Promise<number> {
@@ -17,9 +21,15 @@ export class CurrencyService {
 
     const from = fromCurrency.toUpperCase();
     const to = toCurrency.toUpperCase();
-    const targetDate = new Date(date.toISOString().slice(0, 10) + 'T00:00:00.000Z');
+    const dateStr = date.toISOString().slice(0, 10);
+    const targetDate = new Date(dateStr + 'T00:00:00.000Z');
+    const cacheKey = `${from}:${to}:${dateStr}`;
 
-    // 1. Check local history — closest record on or before target date (covers weekends/holidays)
+    // 0. In-memory cache
+    const mem = this.rateCache.get(cacheKey);
+    if (mem && Date.now() < mem.expiresAt) return mem.rate;
+
+    // 1. Check local DB history — closest record on or before target date
     const cached = await this.prisma.exchangeRateHistory.findFirst({
       where: { fromCurrency: from, toCurrency: to, date: { lte: targetDate } },
       orderBy: { date: 'desc' },
@@ -28,11 +38,17 @@ export class CurrencyService {
     // Use cached rate if it's within 7 days (handles weekends + short gaps)
     if (cached) {
       const diffDays = (targetDate.getTime() - cached.date.getTime()) / 86_400_000;
-      if (diffDays <= 7) return Number(cached.rate);
+      if (diffDays <= 7) {
+        const rate = Number(cached.rate);
+        this.setCache(cacheKey, rate, dateStr);
+        return rate;
+      }
     }
 
-    // 2. Fetch from Frankfurter
-    return this.fetchAndCache(from, to, targetDate);
+    // 2. Fetch from Frankfurter API
+    const rate = await this.fetchAndCache(from, to, targetDate);
+    this.setCache(cacheKey, rate, dateStr);
+    return rate;
   }
 
   /** Convert amount between currencies on a given date. */
@@ -83,10 +99,23 @@ export class CurrencyService {
       ),
     );
 
+    // Warm up in-memory cache
+    for (const e of entries) {
+      const ds = e.date.toISOString().slice(0, 10);
+      this.setCache(`${from}:${to}:${ds}`, e.rate, ds);
+    }
+
     return entries.length;
   }
 
   // ─── Private ────────────────────────────────────────────────────────────────
+
+  private setCache(key: string, rate: number, dateStr: string): void {
+    const today = new Date().toISOString().slice(0, 10);
+    // Today's rate expires in 1 hour (may update); past rates expire in 24 hours
+    const ttl = dateStr === today ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    this.rateCache.set(key, { rate, expiresAt: Date.now() + ttl });
+  }
 
   private async fetchAndCache(from: string, to: string, date: Date): Promise<number> {
     const dateStr = date.toISOString().slice(0, 10);

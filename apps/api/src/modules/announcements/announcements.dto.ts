@@ -66,6 +66,10 @@ export class UpdateSaleAnnouncementDto {
 
   @IsOptional()
   @IsString()
+  generalSaleDate?: string;
+
+  @IsOptional()
+  @IsString()
   firstAccessDate?: string;
 
   @IsOptional()
