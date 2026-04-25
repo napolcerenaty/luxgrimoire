@@ -708,7 +708,7 @@ export default function CollectionPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
           <p className="text-2xl font-serif font-bold text-amber-400">{stats?.totalOwned ?? entries.length}</p>
@@ -722,12 +722,8 @@ export default function CollectionPage() {
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Authors</p>
           <p className="text-2xl font-serif font-bold text-stone-100">
-            {new Set(entries.flatMap((e) => e.edition.book.authors.map((a) => a.id))).size}
+            {new Set(entries.flatMap((e) => e.edition.book.authors.map((a) => (a as any).author?.id ?? a.id))).size}
           </p>
-        </div>
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
-          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Bundles</p>
-          <p className="text-2xl font-serif font-bold text-stone-100">{bundles.length}</p>
         </div>
       </div>
 
