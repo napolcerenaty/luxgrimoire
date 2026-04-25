@@ -19,6 +19,7 @@ import {
   LibraryBig,
   Bug,
   Lightbulb,
+  Database,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -43,6 +44,8 @@ const MODERATOR_LINKS = [
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
   { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
+  { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
+  { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
 ]
 
 const ADMIN_LINKS = [

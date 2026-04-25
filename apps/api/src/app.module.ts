@@ -30,9 +30,9 @@ import { BookBoxCollectionsModule } from './modules/book-box-collections/book-bo
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
 import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
 import { FeatureRequestsModule } from './modules/feature-requests/feature-requests.module';
-import { SalesModule } from './modules/sales/sales.module';
 import { DataRequestsModule } from './modules/data-requests/data-requests.module';
 import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
   imports: [
@@ -67,9 +67,9 @@ import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requ
     SubscriptionSeriesModule,
     BugReportsModule,
     FeatureRequestsModule,
-    SalesModule,
     DataRequestsModule,
     SaleAnnouncementRequestsModule,
+    SalesModule,
   ],
 })
 export class AppModule {}

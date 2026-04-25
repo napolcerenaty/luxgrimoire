@@ -16,6 +16,8 @@ const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
   { href: '/feature-requests', label: 'Feature Requests' },
+  { href: '/data-requests', label: 'Request Data' },
+  { href: '/sale-announcement-requests', label: 'Report Sale' },
 ]
 
 const USER_NAV_LINKS = [
