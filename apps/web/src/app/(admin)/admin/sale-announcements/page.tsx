@@ -218,10 +218,13 @@ interface EditionInfo {
   publishYear?: number | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
+  defaultFirstAccessDate?: string | null
+  defaultEarlyAccessDate?: string | null
+  defaultGeneralSaleDate?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -284,6 +287,9 @@ function EditionPicker({ linked, onAdd, onRemove }: {
       <div className="border border-stone-700 rounded-lg p-3 mt-2">
         <CreateBookEditionForm
           existingBookId={selectedBook.id}
+          defaultFirstAccessDate={defaultFirstAccessDate}
+          defaultEarlyAccessDate={defaultEarlyAccessDate}
+          defaultGeneralSaleDate={defaultGeneralSaleDate}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -605,6 +611,9 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
               linked={form.linkedEditions}
               onAdd={e => setForm(f => ({ ...f, linkedEditions: [...f.linkedEditions, e] }))}
               onRemove={id => setForm(f => ({ ...f, linkedEditions: f.linkedEditions.filter(e => e.editionId !== id) }))}
+              defaultFirstAccessDate={form.firstAccessDate ? form.firstAccessDate.slice(0, 10) : null}
+              defaultEarlyAccessDate={form.earlyAccessDate ? form.earlyAccessDate.slice(0, 10) : null}
+              defaultGeneralSaleDate={form.generalSaleDate ? form.generalSaleDate.slice(0, 10) : null}
             />
           </div>
         )}
@@ -863,6 +872,13 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
 
   const editions = announcement.editions ?? []
 
+  // Use default region dates if available, otherwise fall back to announcement dates
+  const defaultRegion = announcement.regions?.find(r => r.isDefault) ?? announcement.regions?.[0]
+  const dateSource = defaultRegion ?? announcement
+  const defaultFirstAccessDate = dateSource.firstAccessDate ? dateSource.firstAccessDate.slice(0, 10) : null
+  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? dateSource.earlyAccessDate.slice(0, 10) : null
+  const defaultGeneralSaleDate = dateSource.generalSaleDate ? dateSource.generalSaleDate.slice(0, 10) : null
+
   const addMutation = useMutation({
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
     onSuccess: () => {
@@ -1009,6 +1025,9 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 }))}
                 onAdd={linked => addMutation.mutate(linked.editionId)}
                 onRemove={editionId => removeMutation.mutate(editionId)}
+                defaultFirstAccessDate={defaultFirstAccessDate}
+                defaultEarlyAccessDate={defaultEarlyAccessDate}
+                defaultGeneralSaleDate={defaultGeneralSaleDate}
               />
               <button
                 type="button"

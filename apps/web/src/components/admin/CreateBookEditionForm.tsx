@@ -265,6 +265,10 @@ export interface CreateBookEditionFormProps {
   renewalDay?: number | null
   monthYear?: number
   monthMonth?: number
+  /** Pre-fill date fields from a sale announcement context */
+  defaultFirstAccessDate?: string | null
+  defaultEarlyAccessDate?: string | null
+  defaultGeneralSaleDate?: string | null
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
@@ -276,7 +280,9 @@ export interface CreateBookEditionFormProps {
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
   defaultPrice, renewalDay,
-  monthYear, monthMonth, existingBookId, bookOnly, onSuccess, onCancel,
+  monthYear, monthMonth, existingBookId, bookOnly,
+  defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
+  onSuccess, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
   const startStep = existingBookId ? 2 : 1
@@ -300,9 +306,10 @@ export default function CreateBookEditionForm({
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState('')
   const [publishYear, setPublishYear] = useState(monthYear != null ? String(monthYear) : '')
-  const [firstAccessDate, setFirstAccessDate] = useState('')
-  const [earlyAccessDate, setEarlyAccessDate] = useState('')
+  const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
+  const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
+    if (defaultGeneralSaleDate) return defaultGeneralSaleDate
     if (renewalDay == null || monthMonth == null || monthYear == null) return ''
     const mm = String(monthMonth).padStart(2, '0')
     const dd = String(renewalDay).padStart(2, '0')
