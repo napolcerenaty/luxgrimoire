@@ -108,7 +108,6 @@ interface EditionInfo {
   editionName?: string | null
   coverImage?: string | null
   publisher?: string | null
-  publishYear?: number | null
 }
 
 function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate }: {
@@ -252,7 +251,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 }
                 <div>
                   <div className="text-stone-100 text-xs">{ed.editionName ?? 'Standard'}</div>
-                  <div className="text-stone-500 text-xs">{[ed.publisher, ed.publishYear].filter(Boolean).join(' · ')}</div>
+                  <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
               </button>
             ))}

@@ -14,7 +14,7 @@ interface BookBoxCompanySnippet {
 
 interface EditionSnippet {
   id: string; slug: string; coverImage: string | null; editionName: string | null
-  publisher: string | null; publishYear: number | null
+  publisher: string | null
   bookBoxCompany: BookBoxCompanySnippet | null
   book: (Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & { authors: ApiAuthor[] }) | null
 }

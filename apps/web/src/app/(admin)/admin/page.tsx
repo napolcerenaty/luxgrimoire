@@ -362,7 +362,7 @@ export default function AdminDashboard() {
                       {edition.editionName && <span className="text-stone-400 ml-1">· {edition.editionName}</span>}
                     </p>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      {[edition.publisher, edition.format, edition.publishYear].filter(Boolean).join(' · ')}
+                      {[edition.publisher, edition.format].filter(Boolean).join(' · ')}
                     </p>
                     {edition.book?.authors && edition.book.authors.length > 0 && (
                       <p className="text-xs text-amber-600/80 mt-0.5">

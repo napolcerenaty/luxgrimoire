@@ -92,7 +92,6 @@ export interface ApiBookEdition {
   slug: string;
   bookId: string;
   publisher: string | null;
-  publishYear: number | null;
   format: string | null;
   coverImage: string | null;
   additionalImages: string[];

@@ -192,7 +192,6 @@ export default function CreateBookEditionForm({
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState('')
-  const [publishYear, setPublishYear] = useState(monthYear != null ? String(monthYear) : '')
   const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
@@ -305,7 +304,6 @@ export default function CreateBookEditionForm({
           bookBoxCompanyId: companyId || undefined,
           subscriptionId: subscriptionId || undefined,
           publisher: publisher.trim() || undefined,
-          publishYear: publishYear ? Number(publishYear) : undefined,
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
@@ -484,11 +482,6 @@ export default function CreateBookEditionForm({
           <label className={LBL}>Publisher</label>
           <input value={publisher} onChange={e => setPublisher(e.target.value)}
             placeholder="e.g. Fairyloot Exclusive" className={INP} />
-        </div>
-        <div>
-          <label className={LBL}>Edition year</label>
-          <input type="number" value={publishYear} onChange={e => setPublishYear(e.target.value)}
-            placeholder={String(monthYear)} min={1900} max={2100} className={INP} />
         </div>
       </div>
 

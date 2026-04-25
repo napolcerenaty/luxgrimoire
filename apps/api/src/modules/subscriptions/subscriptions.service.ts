@@ -189,7 +189,6 @@ export class SubscriptionsService {
                     slug: true,
                     editionName: true,
                     publisher: true,
-                    publishYear: true,
                     coverImage: true,
                   },
                 },

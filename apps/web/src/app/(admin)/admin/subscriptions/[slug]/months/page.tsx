@@ -38,7 +38,7 @@ function Cover({ id, size = 56 }: { id?: string | null; size?: number }) {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EditionInfo = {
   id: string; slug: string; coverImage: string | null
-  editionName: string | null; publisher: string | null; publishYear: number | null
+  editionName: string | null; publisher: string | null
 }
 type BookInfo = {
   id: string; title: string; slug: string; coverImage: string | null
@@ -167,7 +167,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
               <Cover id={ed.coverImage} size={36} />
               <div>
                 <div className="text-stone-100 text-xs">{ed.editionName ?? 'Standard'}</div>
-                <div className="text-stone-500 text-xs">{[ed.publisher, ed.publishYear].filter(Boolean).join(' · ')}</div>
+                <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
               </div>
             </button>
           ))}
@@ -358,7 +358,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
                           {mb.edition.editionName ?? 'Standard'}
-                          {(mb.edition.publisher || mb.edition.publishYear) && ` · ${[mb.edition.publisher, mb.edition.publishYear].filter(Boolean).join(' ')}`}
+                          {mb.edition.publisher && ` · ${mb.edition.publisher}`}
                         </div>
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }

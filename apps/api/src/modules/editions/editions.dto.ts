@@ -31,11 +31,6 @@ export class CreateEditionDto {
   alternativeTitle?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  publishYear?: number;
-
-  @IsOptional()
   @IsString()
   format?: string;
 
@@ -114,11 +109,6 @@ export class UpdateEditionDto {
   @IsOptional()
   @IsString()
   alternativeTitle?: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  publishYear?: number;
 
   @IsOptional()
   @IsString()

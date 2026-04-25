@@ -29,7 +29,6 @@ interface CollectionEntry {
     slug: string
     coverImage: string | null
     publisher: string | null
-    publishYear: number | null
     format: string | null
     bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
@@ -48,7 +47,6 @@ interface EditionSearchResult {
   slug: string
   coverImage: string | null
   publisher: string | null
-  publishYear: number | null
   book: {
     id: string
     title: string
@@ -192,7 +190,7 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
                     )}
                     <div>
                       <p className="text-stone-200">{ed.book.title}</p>
-                      <p className="text-stone-500 text-xs">{ed.publisher ?? ''} {ed.publishYear ?? ''}</p>
+                      <p className="text-stone-500 text-xs">{ed.publisher ?? ''}</p>
                     </div>
                   </button>
                 ))}

@@ -205,7 +205,7 @@ model BookEdition {
   slug                     String                    @unique
   bookId                   String
   publisher                String?
-  publishYear              Int?
+
   format                   String?
   coverImage               String?
   additionalImages         String[]

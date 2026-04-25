@@ -210,7 +210,6 @@ export default function AdminEditionsPage() {
       render: (row: ApiBookEdition) => (
         <div>
           <div className="text-stone-300 text-sm">{row.publisher ?? '—'}</div>
-          {row.publishYear && <div className="text-stone-500 text-xs">{row.publishYear}</div>}
         </div>
       ),
     },
