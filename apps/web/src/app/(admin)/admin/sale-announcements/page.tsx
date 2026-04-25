@@ -849,7 +849,8 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
   )
 }
 
-// ─── Announcement Books Panel ─────────────────────────────────────────────────const SIGNATURE_TYPES = [
+// ─── Announcement Books Panel ─────────────────────────────────────────────────
+const SIGNATURE_TYPES = [
   { value: 'unsigned', label: 'Unsigned' },
   { value: 'signed', label: 'Signed' },
   { value: 'digitally_signed', label: 'Digitally Signed' },

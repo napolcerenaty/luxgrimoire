@@ -31,6 +31,7 @@ interface SubFormData {
   price: string
   language: string
   type: string
+  contentType: string
   bookishMerch: boolean
   renewalDayUserSet: boolean
   renewalDay: string

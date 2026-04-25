@@ -499,6 +499,71 @@ export async function deletePurchaseGroup(id: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────
+// Sale Groups (selling books)
+// ─────────────────────────────────────────────
+
+export interface CreateSaleGroupData {
+  title?: string;
+  totalAmount: number;
+  currency: string;
+  platform?: string;
+  soldAt: string;
+  notes?: string;
+  priceDistribution: 'EQUAL' | 'CUSTOM';
+  entryIds: string[];
+  customAmounts?: Record<string, number>;
+}
+
+export interface UpdateSaleGroupData {
+  title?: string;
+  totalAmount?: number;
+  currency?: string;
+  platform?: string;
+  soldAt?: string;
+  notes?: string;
+}
+
+export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup[]> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/sales`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function createSaleGroup(data: CreateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/sales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function updateSaleGroup(id: string, data: UpdateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/sales/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function deleteSaleGroup(id: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
+  const res = await fetch(`${API_URL}/sales/${id}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
+// ─────────────────────────────────────────────
 // Sale Announcements (Admin + Public)
 // ─────────────────────────────────────────────
 

@@ -419,6 +419,7 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
   const [month, setMonth] = useState(String(new Date().getMonth() + 1))
   const [theme, setTheme] = useState('')
   const [cover, setCover] = useState('')
+  const [signatureType, setSignatureType] = useState('')
   const [open, setOpen] = useState(false)
 
   const mutation = useMutation({

@@ -379,6 +379,42 @@ export interface ApiPurchaseGroup {
   perBookCost?: number;
 }
 
+export interface ApiSaleEntry {
+  id: string;
+  saleGroupId: string;
+  userBookEntryId: string;
+  allocatedAmount: number;
+  userBookEntry?: {
+    id: string;
+    ownershipStatus: string;
+    allocatedPrice?: number | null;
+    priceCurrency?: string | null;
+    edition?: {
+      id: string;
+      coverImage?: string | null;
+      book: { id: string; title: string; slug: string };
+      bookBoxCompany?: { id: string; name: string } | null;
+    } | null;
+  } | null;
+}
+
+export interface ApiSaleGroup {
+  id: string;
+  userId: string;
+  title: string | null;
+  totalAmount: number;
+  currency: string;
+  platform: string;
+  soldAt: string;
+  notes: string | null;
+  priceDistribution: string;
+  createdAt: string;
+  updatedAt: string;
+  entries: ApiSaleEntry[];
+  totalPurchaseCost: number;
+  profitLoss: number | null;
+}
+
 export interface ApiSaleAnnouncement {
   id: string;
   slug: string;

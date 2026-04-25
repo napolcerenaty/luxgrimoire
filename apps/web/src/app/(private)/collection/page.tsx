@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
-import { createPurchaseGroup, getPurchaseGroups } from '@/lib/api'
-import type { ApiPurchaseGroup } from '@luxgrimoire/shared-types'
+import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, Package } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Package, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 
 interface CollectionEntry {
@@ -232,6 +232,241 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
   )
 }
 
+const SALE_PLATFORMS = [
+  { value: 'vinted', label: '🛍️ Vinted' },
+  { value: 'ebay', label: '🛒 eBay' },
+  { value: 'facebook', label: '📘 Facebook' },
+  { value: 'instagram', label: '📷 Instagram' },
+  { value: 'depop', label: '👗 Depop' },
+  { value: 'whatnot', label: '🎉 Whatnot' },
+  { value: 'local', label: '🤝 Local / In-person' },
+  { value: 'other', label: '✏️ Other (custom)' },
+]
+
+interface AddSaleFormProps {
+  entries: CollectionEntry[]
+  onClose: () => void
+  onSuccess: () => void
+  saleTitle: string; setSaleTitle: (v: string) => void
+  salePlatform: string; setSalePlatform: (v: string) => void
+  saleCustomPlatform: string; setSaleCustomPlatform: (v: string) => void
+  saleTotalAmount: string; setSaleTotalAmount: (v: string) => void
+  saleCurrency: string; setSaleCurrency: (v: string) => void
+  saleSoldAt: string; setSaleSoldAt: (v: string) => void
+  saleNotes: string; setSaleNotes: (v: string) => void
+  saleDistribution: 'EQUAL' | 'CUSTOM'; setSaleDistribution: (v: 'EQUAL' | 'CUSTOM') => void
+  saleSelectedEntries: string[]; setSaleSelectedEntries: (v: string[]) => void
+  saleCustomAmounts: Record<string, string>; setSaleCustomAmounts: (v: Record<string, string>) => void
+  saleBookSearch: string; setSaleBookSearch: (v: string) => void
+}
+
+function AddSaleForm({
+  entries, onSuccess,
+  saleTitle, setSaleTitle,
+  salePlatform, setSalePlatform,
+  saleCustomPlatform, setSaleCustomPlatform,
+  saleTotalAmount, setSaleTotalAmount,
+  saleCurrency, setSaleCurrency,
+  saleSoldAt, setSaleSoldAt,
+  saleNotes, setSaleNotes,
+  saleDistribution, setSaleDistribution,
+  saleSelectedEntries, setSaleSelectedEntries,
+  saleCustomAmounts, setSaleCustomAmounts,
+  saleBookSearch, setSaleBookSearch,
+}: AddSaleFormProps) {
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const total = parseFloat(saleTotalAmount) || 0
+  const count = saleSelectedEntries.length
+  const perBook = count > 0 ? (total / count).toFixed(2) : '0.00'
+
+  const filteredEntries = entries.filter(e =>
+    e.edition.book.title.toLowerCase().includes(saleBookSearch.toLowerCase())
+  )
+
+  const toggleEntry = (id: string) => {
+    setSaleSelectedEntries(
+      saleSelectedEntries.includes(id)
+        ? saleSelectedEntries.filter(x => x !== id)
+        : [...saleSelectedEntries, id]
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (saleSelectedEntries.length === 0) { setError('Select at least one book'); return }
+    if (!saleTotalAmount || total <= 0) { setError('Enter a valid total amount'); return }
+    if (!saleSoldAt) { setError('Enter the sale date'); return }
+    const platform = salePlatform === 'other' ? saleCustomPlatform : salePlatform
+
+    const customAmounts: Record<string, number> | undefined =
+      saleDistribution === 'CUSTOM'
+        ? Object.fromEntries(Object.entries(saleCustomAmounts).map(([k, v]) => [k, parseFloat(v) || 0]))
+        : undefined
+
+    setPending(true)
+    try {
+      await createSaleGroup({
+        entryIds: saleSelectedEntries,
+        title: saleTitle || undefined,
+        platform: platform || undefined,
+        totalAmount: total,
+        currency: saleCurrency,
+        soldAt: saleSoldAt,
+        notes: saleNotes || undefined,
+        priceDistribution: saleDistribution,
+        customAmounts,
+      })
+      setSuccess(true)
+      setTimeout(onSuccess, 1200)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="text-center py-6">
+        <div className="text-4xl mb-3">✓</div>
+        <p className="text-green-400 font-semibold">Sale recorded!</p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
+      <div>
+        <label className={LBL}>Sale title (optional)</label>
+        <input className={INP} value={saleTitle} onChange={e => setSaleTitle(e.target.value)} placeholder="e.g. The Broken Binding series set" />
+      </div>
+
+      <div>
+        <label className={LBL}>Platform</label>
+        <select className={INP} value={salePlatform} onChange={e => setSalePlatform(e.target.value)}>
+          <option value="">— Select platform —</option>
+          {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </select>
+        {salePlatform === 'other' && (
+          <input className={`${INP} mt-2`} value={saleCustomPlatform} onChange={e => setSaleCustomPlatform(e.target.value)} placeholder="Platform name…" />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LBL}>Total sold for *</label>
+          <input required type="number" step="0.01" min="0.01" className={INP} value={saleTotalAmount} onChange={e => setSaleTotalAmount(e.target.value)} />
+        </div>
+        <div>
+          <label className={LBL}>Currency</label>
+          <input className={INP} value={saleCurrency} onChange={e => setSaleCurrency(e.target.value)} placeholder="GBP" />
+        </div>
+      </div>
+
+      <div>
+        <label className={LBL}>Sale date *</label>
+        <input required type="date" className={INP} value={saleSoldAt} onChange={e => setSaleSoldAt(e.target.value)} />
+      </div>
+
+      <div>
+        <label className={LBL}>Notes</label>
+        <input className={INP} value={saleNotes} onChange={e => setSaleNotes(e.target.value)} placeholder="Any notes…" />
+      </div>
+
+      {/* Book selector */}
+      <div>
+        <label className={LBL}>Books *</label>
+        <input className={`${INP} mb-2`} value={saleBookSearch} onChange={e => setSaleBookSearch(e.target.value)} placeholder="Filter by title…" />
+        <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
+          {filteredEntries.length === 0 && (
+            <p className="text-stone-500 text-sm px-3 py-2">No books found</p>
+          )}
+          {filteredEntries.map(e => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => toggleEntry(e.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+                saleSelectedEntries.includes(e.id) ? 'bg-amber-500/10 text-amber-400' : 'text-stone-300 hover:bg-stone-800'
+              }`}
+            >
+              <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
+                {saleSelectedEntries.includes(e.id) ? '✓' : ''}
+              </span>
+              <span className="flex-1 truncate">{e.edition.book.title}</span>
+              {e.allocatedPrice && (
+                <span className="text-stone-500 text-xs shrink-0">{e.allocatedPrice} {e.priceCurrency}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
+      </div>
+
+      {/* Price distribution */}
+      {count > 0 && total > 0 && (
+        <div>
+          <label className={LBL}>Price split</label>
+          <div className="flex gap-2">
+            {(['EQUAL', 'CUSTOM'] as const).map(d => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setSaleDistribution(d)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  saleDistribution === d ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'
+                }`}
+              >
+                {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
+              </button>
+            ))}
+          </div>
+          {saleDistribution === 'EQUAL' && count > 0 && (
+            <p className="text-xs text-stone-400 mt-1">{perBook} {saleCurrency} per book</p>
+          )}
+          {saleDistribution === 'CUSTOM' && (
+            <div className="mt-2 flex flex-col gap-2">
+              {saleSelectedEntries.map(eid => {
+                const entry = entries.find(e => e.id === eid)
+                if (!entry) return null
+                return (
+                  <div key={eid} className="flex items-center gap-2">
+                    <span className="flex-1 text-sm text-stone-300 truncate">{entry.edition.book.title}</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
+                      value={saleCustomAmounts[eid] ?? ''}
+                      onChange={e => setSaleCustomAmounts({ ...saleCustomAmounts, [eid]: e.target.value })}
+                      placeholder="0.00"
+                    />
+                    <span className="text-xs text-stone-500">{saleCurrency}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+      >
+        {pending ? 'Saving…' : 'Record Sale'}
+      </button>
+    </form>
+  )
+}
+
 interface CollectionStats {
   totalOwned: number
   totalWishlist?: number
@@ -255,7 +490,7 @@ export default function CollectionPage() {
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [bookFilter, setBookFilter] = useState('')
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED'>('ALL')
-  const [tab, setTab] = useState<'books' | 'bundles'>('books')
+  const [tab, setTab] = useState<'books' | 'bundles' | 'sales'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -287,6 +522,29 @@ export default function CollectionPage() {
   const { data: bundles = [] } = useQuery({
     queryKey: ['purchase-groups'],
     queryFn: getPurchaseGroups,
+  })
+
+  const { data: saleGroups = [] } = useQuery({
+    queryKey: ['sale-groups'],
+    queryFn: getSaleGroups,
+  })
+
+  const [addSaleOpen, setAddSaleOpen] = useState(false)
+  const [saleTitle, setSaleTitle] = useState('')
+  const [salePlatform, setSalePlatform] = useState('')
+  const [saleCustomPlatform, setSaleCustomPlatform] = useState('')
+  const [saleTotalAmount, setSaleTotalAmount] = useState('')
+  const [saleCurrency, setSaleCurrency] = useState('GBP')
+  const [saleSoldAt, setSaleSoldAt] = useState('')
+  const [saleNotes, setSaleNotes] = useState('')
+  const [saleDistribution, setSaleDistribution] = useState<'EQUAL' | 'CUSTOM'>('EQUAL')
+  const [saleSelectedEntries, setSaleSelectedEntries] = useState<string[]>([])
+  const [saleCustomAmounts, setSaleCustomAmounts] = useState<Record<string, string>>({})
+  const [saleBookSearch, setSaleBookSearch] = useState('')
+
+  const deleteSaleMut = useMutation({
+    mutationFn: (id: string) => deleteSaleGroup(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sale-groups'] }),
   })
 
   const removeMutation = useMutation({
@@ -469,6 +727,16 @@ export default function CollectionPage() {
         >
           Bundles {bundles.length > 0 && <span className="ml-1 text-xs">({bundles.length})</span>}
         </button>
+        <button
+          onClick={() => setTab('sales')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'sales'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          Sales {saleGroups.length > 0 && <span className="ml-1 text-xs">({saleGroups.length})</span>}
+        </button>
       </div>
 
       {tab === 'bundles' ? (
@@ -514,6 +782,74 @@ export default function CollectionPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : tab === 'sales' ? (
+        /* ─── Sales tab ─── */
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-stone-400">{saleGroups.length} sale{saleGroups.length !== 1 ? 's' : ''}</p>
+            <button
+              onClick={() => setAddSaleOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
+            >
+              <Plus size={14} /> New Sale
+            </button>
+          </div>
+          {saleGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <ShoppingBag size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">No sales yet</p>
+              <p className="text-sm mt-1">Track books you have sold — individually or as a set</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {saleGroups.map((sg) => (
+                <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-stone-200 font-medium">
+                        {sg.title ?? new Date(sg.soldAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                      {sg.platform && (
+                        <span className="text-xs text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full mt-1 inline-block">
+                          {sg.platform}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
+                        {sg.entries?.length ?? 0} book{(sg.entries?.length ?? 0) !== 1 ? 's' : ''}
+                      </span>
+                      <button
+                        onClick={() => deleteSaleMut.mutate(sg.id)}
+                        className="ml-1 p-1 text-stone-500 hover:text-red-400 transition-colors"
+                        title="Delete sale"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-3">
+                    <div>
+                      <p className="text-xs text-stone-500">Sold for</p>
+                      <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
+                    </div>
+                    {sg.profitLoss != null && (
+                      <div>
+                        <p className="text-xs text-stone-500">P&amp;L</p>
+                        <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {sg.soldAt && (
+                    <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -786,6 +1122,30 @@ export default function CollectionPage() {
       </Modal>
 
       <AddBundleModal open={addBundleOpen} onClose={() => setAddBundleOpen(false)} />
+
+      {/* ─── Add Sale Modal ─── */}
+      <Modal open={addSaleOpen} onClose={() => setAddSaleOpen(false)} title="Record a Sale">
+        <AddSaleForm
+          entries={entries.filter(e => e.ownershipStatus !== 'SOLD')}
+          onClose={() => setAddSaleOpen(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+            queryClient.invalidateQueries({ queryKey: ['collection'] })
+            setAddSaleOpen(false)
+          }}
+          saleTitle={saleTitle} setSaleTitle={setSaleTitle}
+          salePlatform={salePlatform} setSalePlatform={setSalePlatform}
+          saleCustomPlatform={saleCustomPlatform} setSaleCustomPlatform={setSaleCustomPlatform}
+          saleTotalAmount={saleTotalAmount} setSaleTotalAmount={setSaleTotalAmount}
+          saleCurrency={saleCurrency} setSaleCurrency={setSaleCurrency}
+          saleSoldAt={saleSoldAt} setSaleSoldAt={setSaleSoldAt}
+          saleNotes={saleNotes} setSaleNotes={setSaleNotes}
+          saleDistribution={saleDistribution} setSaleDistribution={setSaleDistribution}
+          saleSelectedEntries={saleSelectedEntries} setSaleSelectedEntries={setSaleSelectedEntries}
+          saleCustomAmounts={saleCustomAmounts} setSaleCustomAmounts={setSaleCustomAmounts}
+          saleBookSearch={saleBookSearch} setSaleBookSearch={setSaleBookSearch}
+        />
+      </Modal>
     </div>
   )
 }
