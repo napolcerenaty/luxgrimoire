@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -247,9 +248,12 @@ export default async function EditionPage({ params }: Props) {
                   <Badge variant="default">Special Edition</Badge>
                 )}
                 {edition.format && (
-                  <Badge variant="outline">{edition.format}</Badge>
+                  <Badge variant="outline">
+                    {edition.format}
+                    {edition.language ? ` · ${edition.language.toUpperCase()}` : ''}
+                  </Badge>
                 )}
-                {edition.language && (
+                {!edition.format && edition.language && (
                   <Badge variant="outline">{edition.language.toUpperCase()}</Badge>
                 )}
               </div>
@@ -292,15 +296,15 @@ export default async function EditionPage({ params }: Props) {
                 )}
                 {edition.generalSaleDate && (
                   <>
-                    <dt className="text-stone-500">General Sale</dt>
+                    <dt className="text-stone-500">Sale Date</dt>
                     <dd className="text-stone-200">{formatDate(edition.generalSaleDate)}</dd>
                   </>
                 )}
                 {/* Subscription info */}
                 {monthBooks.map((mb) => (
-                  <>
-                    <dt key={`sub-dt-${mb.month.id}`} className="text-stone-500">Subscription</dt>
-                    <dd key={`sub-dd-${mb.month.id}`}>
+                  <Fragment key={mb.month.id}>
+                    <dt className="text-stone-500">Subscription</dt>
+                    <dd>
                       <Link
                         href={`/subscriptions/${mb.month.subscription.slug}`}
                         className="text-amber-400 hover:underline"
@@ -315,13 +319,13 @@ export default async function EditionPage({ params }: Props) {
                         {mb.month.theme ? ` · ${mb.month.theme}` : ''}
                       </span>
                     </dd>
-                  </>
+                  </Fragment>
                 ))}
                 {/* Bundle info */}
                 {bundles.map((se) => (
-                  <>
-                    <dt key={`bundle-dt-${se.announcement.id}`} className="text-stone-500">Bundle</dt>
-                    <dd key={`bundle-dd-${se.announcement.id}`}>
+                  <Fragment key={se.announcement.id}>
+                    <dt className="text-stone-500">Bundle</dt>
+                    <dd>
                       <Link
                         href={`/sale-announcements?bundle=${se.announcement.id}`}
                         className="text-amber-400 hover:underline"
@@ -329,7 +333,7 @@ export default async function EditionPage({ params }: Props) {
                         {se.announcement.title}
                       </Link>
                     </dd>
-                  </>
+                  </Fragment>
                 ))}
               </dl>
 
@@ -394,7 +398,7 @@ export default async function EditionPage({ params }: Props) {
                       </p>
                       <p className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
                         <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${roleDot(c.role)}`} />
-                        <span className="line-clamp-1 max-w-[140px]" title={c.role}>{c.role}</span>
+                        <span>{c.role}</span>
                       </p>
                     </div>
                   </Link>

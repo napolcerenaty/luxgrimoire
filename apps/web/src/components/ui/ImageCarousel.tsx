@@ -117,34 +117,38 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             </div>
           )}
 
-          {/* Image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={images[current]}
-            alt={`${alt} — ${current + 1}`}
-            className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
+          {/* Image + arrows overlay */}
+          <div
+            className="relative flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
-          />
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[current]}
+              alt={`${alt} — ${current + 1}`}
+              className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
+            />
 
-          {/* Prev / Next in lightbox */}
-          {total > 1 && (
-            <>
-              <button
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-800 text-stone-300 hover:text-amber-400 hover:bg-stone-700 transition-all"
-                onClick={(e) => { e.stopPropagation(); prev() }}
-                aria-label="Previous"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-800 text-stone-300 hover:text-amber-400 hover:bg-stone-700 transition-all"
-                onClick={(e) => { e.stopPropagation(); next() }}
-                aria-label="Next"
-              >
-                <ChevronRight size={24} />
-              </button>
-            </>
-          )}
+            {/* Prev / Next — overlaid on image edges */}
+            {total > 1 && (
+              <>
+                <button
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 hover:bg-stone-950 transition-all"
+                  onClick={(e) => { e.stopPropagation(); prev() }}
+                  aria-label="Previous"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 hover:bg-stone-950 transition-all"
+                  onClick={(e) => { e.stopPropagation(); next() }}
+                  aria-label="Next"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </>
