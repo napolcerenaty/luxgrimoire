@@ -345,7 +345,21 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                         </div>
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }
-                    {mb.isMainBook && <span className="text-xs text-amber-500">main book</span>}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      {mb.isMainBook && <span className="text-xs text-amber-500">main book</span>}
+                      {(() => {
+                        const effective = mb.signatureType ?? month.signatureType
+                        if (!effective) return null
+                        const isOverride = !!mb.signatureType
+                        const label = effective === 'signed' ? '✍️ Signed' : effective === 'digitally_signed' ? '🖨️ Digital' : 'Unsigned'
+                        return (
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${isOverride ? 'bg-purple-500/20 text-purple-300' : 'bg-stone-700 text-stone-400'}`}
+                            title={isOverride ? 'Book override' : 'From month default'}>
+                            {label}
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </div>
                   <select
                     value={mb.signatureType ?? ''}
