@@ -66,6 +66,10 @@ export class AuthService {
     return this.signToken(user.id, user.email, user.role, user.username, user.managedCompanyId);
   }
 
+  async logout(userId: string, jti: string) {
+    await this.prisma.session.deleteMany({ where: { id: jti, userId } });
+  }
+
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -141,9 +145,27 @@ export class AuthService {
     return user;
   }
 
-  private signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
-    const payload = { sub: id, email, role, username, managedCompanyId: managedCompanyId ?? null };
+  private async signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
+    const expiresInMs = this.parseExpiresIn(process.env.JWT_EXPIRES_IN ?? '7d');
+    const session = await this.prisma.session.create({
+      data: {
+        userId: id,
+        token: randomBytes(32).toString('hex'), // opaque token for reference
+        expiresAt: new Date(Date.now() + expiresInMs),
+      },
+    });
+
+    const payload = { sub: id, email, role, username, managedCompanyId: managedCompanyId ?? null, jti: session.id };
     const token = this.jwt.sign(payload);
     return { accessToken: token, userId: id, role, username, managedCompanyId: managedCompanyId ?? null };
+  }
+
+  private parseExpiresIn(val: string): number {
+    const match = val.match(/^(\d+)([smhd])$/);
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
+    const n = parseInt(match[1], 10);
+    const unit = match[2];
+    const ms: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+    return n * (ms[unit] ?? 1000);
   }
 }

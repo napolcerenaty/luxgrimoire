@@ -333,10 +333,7 @@ function toDatetimeLocal(iso: string | null): string {
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
-  let extraImages: string[] = []
-  if (a.extraImagesJson) {
-    try { extraImages = JSON.parse(a.extraImagesJson) } catch { extraImages = [] }
-  }
+  const extraImages: string[] = Array.isArray(a.extraImagesJson) ? a.extraImagesJson : []
   const allImages = [
     ...(a.imageUrl ? [a.imageUrl] : []),
     ...extraImages,

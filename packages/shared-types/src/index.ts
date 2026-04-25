@@ -443,7 +443,7 @@ export interface ApiSaleAnnouncement {
   basePrice: number | null;
   currency: string | null;
   imageUrl: string | null;
-  extraImagesJson: string | null;
+  extraImagesJson: string[] | null;
 
   isBundle: boolean;
   expectedShipping: string | null;

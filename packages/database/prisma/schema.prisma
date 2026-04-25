@@ -490,7 +490,7 @@ model SaleAnnouncement {
   updatedAt            DateTime                  @updatedAt
   basePrice            Decimal?                  @db.Decimal(10, 2)
   currency             String?
-  extraImagesJson      String?
+  extraImagesJson      Json?
   imageUrl             String?
   saleTimezone         String?
   availableForPurchase Boolean                   @default(false)
@@ -539,7 +539,7 @@ model SaleAnnouncementRegion {
   id              String           @id @default(uuid())
   saleId          String
   name            String
-  countryCodes    String           @default("[]")
+  countryCodes    Json             @default("[]")
   isDefault       Boolean          @default(false)
   generalSaleDate DateTime?
   firstAccessDate DateTime?

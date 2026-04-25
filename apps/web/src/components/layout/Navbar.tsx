@@ -52,9 +52,17 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Revoke session on server (fire-and-forget — don't block UI)
+    const token = localStorage.getItem('luxgrimoire_token')
+    if (token) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => { /* ignore network errors on logout */ })
+    }
     logout()
-    queryClient.clear()   // wipe all cached data so next user doesn't see stale data
+    queryClient.clear()
     setDropdownOpen(false)
     router.push('/')
   }

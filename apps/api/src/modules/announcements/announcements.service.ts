@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 
@@ -136,7 +137,7 @@ export class AnnouncementsService {
         basePrice: data.basePrice ?? null,
         currency: data.currency ?? null,
         imageUrl: data.imageUrl ?? null,
-        extraImagesJson: extraImages && extraImages.length > 0 ? JSON.stringify(extraImages) : null,
+        extraImagesJson: extraImages && extraImages.length > 0 ? extraImages : Prisma.DbNull,
         isBundle: data.isBundle ?? false,
         expectedShipping: data.expectedShipping ?? null,
       },
@@ -181,7 +182,7 @@ export class AnnouncementsService {
         ...(data.currency !== undefined && { currency: data.currency }),
         ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
         ...(extraImages !== undefined && {
-          extraImagesJson: extraImages.length > 0 ? JSON.stringify(extraImages) : null,
+          extraImagesJson: extraImages.length > 0 ? extraImages : Prisma.DbNull,
         }),
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
         ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
@@ -228,7 +229,7 @@ export class AnnouncementsService {
     const payload = {
       saleId,
       name: fields.name,
-      countryCodes: fields.countryCodes ?? '[]',
+      countryCodes: fields.countryCodes ? JSON.parse(fields.countryCodes) : [],
       isDefault: fields.isDefault ?? false,
       generalSaleDate: fields.generalSaleDate ? new Date(fields.generalSaleDate) : null,
       firstAccessDate: fields.firstAccessDate ? new Date(fields.firstAccessDate) : null,

@@ -1,10 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -12,8 +13,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; email: string; role: string; username: string; managedCompanyId?: string | null }) {
+  async validate(payload: { sub: string; email: string; role: string; username: string; managedCompanyId?: string | null; jti?: string }) {
     if (!payload.sub) throw new UnauthorizedException();
-    return { id: payload.sub, email: payload.email, role: payload.role, username: payload.username, managedCompanyId: payload.managedCompanyId ?? null };
+
+    // If token has a session ID (jti), verify session still exists and is not expired
+    if (payload.jti) {
+      const session = await this.prisma.session.findFirst({
+        where: { id: payload.jti, userId: payload.sub, expiresAt: { gt: new Date() } },
+        select: { id: true },
+      });
+      if (!session) throw new UnauthorizedException('Session expired or revoked');
+    }
+
+    return { id: payload.sub, email: payload.email, role: payload.role, username: payload.username, managedCompanyId: payload.managedCompanyId ?? null, jti: payload.jti ?? null };
   }
 }
