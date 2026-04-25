@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -14,6 +14,97 @@ import ImageUpload from '@/components/admin/ImageUpload'
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
+
+const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+function cloudThumb(id: string | null | undefined) {
+  if (!id) return null
+  if (id.startsWith('http')) return id
+  return `https://res.cloudinary.com/${CLOUD}/image/upload/w_64,h_80,c_fill,q_auto,f_auto/${id}`
+}
+
+interface BookSearchResult {
+  id: string
+  title: string
+  coverImage?: string | null
+  authors?: Array<{ author: { name: string } }>
+}
+
+function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
+  defaultCompanyId?: string
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  const [selectedBook, setSelectedBook] = useState<BookSearchResult | null>(null)
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { data: bookResults, isFetching: searching } = useQuery({
+    queryKey: ['book-search', debounced],
+    queryFn: () => authFetch<{ data: BookSearchResult[] }>(`/books?search=${encodeURIComponent(debounced)}&pageSize=10`),
+    enabled: debounced.length >= 2,
+  })
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setDebounced(val), 350)
+  }
+
+  if (selectedBook) {
+    return (
+      <CreateBookEditionForm
+        existingBookId={selectedBook.id}
+        defaultCompanyId={defaultCompanyId}
+        onSuccess={onSuccess}
+        onCancel={() => setSelectedBook(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={LABEL_CLASS}>Search book</label>
+        <input
+          autoFocus
+          className={INPUT_CLASS}
+          placeholder="Start typing title…"
+          value={search}
+          onChange={e => handleSearchChange(e.target.value)}
+        />
+      </div>
+      {searching && <div className="text-stone-500 text-sm">Searching…</div>}
+      {debounced.length >= 2 && !searching && bookResults && (
+        <div className="space-y-1 max-h-72 overflow-y-auto">
+          {bookResults.data.length === 0
+            ? <div className="text-stone-500 text-sm px-2">No books found</div>
+            : bookResults.data.map(book => (
+              <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
+                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stone-800 hover:bg-stone-700 transition-colors"
+              >
+                {cloudThumb(book.coverImage)
+                  ? <img src={cloudThumb(book.coverImage)!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
+                  : <div className="w-8 h-10 bg-stone-700 rounded shrink-0" />
+                }
+                <div>
+                  <div className="text-stone-100 text-sm font-medium">{book.title}</div>
+                  {book.authors && book.authors.length > 0 && (
+                    <div className="text-stone-500 text-xs">{book.authors.map(a => a.author.name).join(', ')}</div>
+                  )}
+                </div>
+              </button>
+            ))
+          }
+        </div>
+      )}
+      <button type="button" onClick={onCancel}
+        className="text-stone-500 hover:text-stone-300 text-sm transition-colors">
+        Cancel
+      </button>
+    </div>
+  )
+}
 
 interface EditionFormData {
   bookId: string
@@ -396,7 +487,7 @@ export default function AdminEditionsPage() {
       )}
 
       <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>
-        <CreateBookEditionForm
+        <AddEditionFlow
           defaultCompanyId={isManager ? managedCompanyId : undefined}
           onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setCreateOpen(false) }}
           onCancel={() => setCreateOpen(false)}

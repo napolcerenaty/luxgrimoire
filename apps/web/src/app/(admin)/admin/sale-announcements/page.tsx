@@ -486,6 +486,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
 }) {
   const [form, setForm] = useState<FormState>(initial)
   const [companySearch, setCompanySearch] = useState('')
+  const [editionsOpen, setEditionsOpen] = useState(initial.linkedEditions.length > 0)
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
   const setCheck = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -576,14 +577,32 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         />
       </div>
 
-      {/* Editions */}
-      <div>
-        <label className={LBL}>Linked Editions</label>
-        <EditionPicker
-          linked={form.linkedEditions}
-          onAdd={e => setForm(f => ({ ...f, linkedEditions: [...f.linkedEditions, e] }))}
-          onRemove={id => setForm(f => ({ ...f, linkedEditions: f.linkedEditions.filter(e => e.editionId !== id) }))}
-        />
+      {/* Linked Books — collapsible */}
+      <div className="border border-stone-700 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setEditionsOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-stone-800/60 hover:bg-stone-800 transition-colors text-left"
+        >
+          <span className="flex items-center gap-2 text-sm text-stone-300 font-medium">
+            Linked Books
+            {form.linkedEditions.length > 0 && (
+              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                {form.linkedEditions.length}
+              </span>
+            )}
+          </span>
+          <span className="text-stone-500 text-xs">{editionsOpen ? '▲' : '▼'}</span>
+        </button>
+        {editionsOpen && (
+          <div className="p-4 border-t border-stone-700">
+            <EditionPicker
+              linked={form.linkedEditions}
+              onAdd={e => setForm(f => ({ ...f, linkedEditions: [...f.linkedEditions, e] }))}
+              onRemove={id => setForm(f => ({ ...f, linkedEditions: f.linkedEditions.filter(e => e.editionId !== id) }))}
+            />
+          </div>
+        )}
       </div>
 
       {/* Flags */}
