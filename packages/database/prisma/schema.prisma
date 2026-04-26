@@ -8,61 +8,61 @@ datasource db {
 }
 
 model User {
-  id                  String                      @id @default(uuid())
-  username            String                      @unique
-  email               String                      @unique
-  emailVerified       Boolean                     @default(false)
-  passwordHash        String?
-  role                Role                        @default(USER)
-  preferredCurrency   String                      @default("EUR")
-  avatarUrl           String?
-  bio                 String?
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
-  managedCompanyId    String?
-  timezone            String                      @default("UTC")
-  timeFormat          String                      @default("24h")
-  defaultTaxRate      Decimal?                    @db.Decimal(5, 2)
-  shippingCountry     String?                     @db.VarChar(2)
-  accounts            Account[]
-  auditLogs           AuditLog[]
-  submittedEditions   BookEdition[]               @relation("SubmittedEditions")
-  commentLikes        CommentLike[]
-  conversationMembers ConversationMember[]
-  editionComments     EditionComment[]
-  editionLikes        EditionLike[]
-  sentMessages        Message[]                   @relation("SentMessages")
-  purchases           PurchaseTransaction[]
-  reviewHelpfuls      ReviewHelpful[]
-  reviews             Review[]
-  sessions            Session[]
-  waitlistEntries     SubscriptionWaitlistEntry[]
-  bookEntries         UserBookEntry[]
-  editionTags         UserEditionTag[]
-  favoriteArtists     UserFavoriteArtist[]
-  favoriteAuthors     UserFavoriteAuthor[]
-  favoriteBooks       UserFavoriteBook[]
-  favoriteCompanies   UserFavoriteCompany[]
-  favoriteEditions    UserFavoriteEdition[]
-  feeTemplates        UserFeeTemplate[]
-  following           UserFollow[]                @relation("Follower")
-  followers           UserFollow[]                @relation("Following")
-  notifications       UserNotification[]
-  purchaseDiscounts   UserPurchaseDiscount[]
-  purchaseFees        UserPurchaseFee[]
-  purchaseGroups      UserPurchaseGroup[]
-  purchaseRefunds     UserPurchaseRefund[]
-  saleInterests       UserSaleInterest[]
-  saleGroups          UserSaleGroup[]
-  skipRecords         UserSkipRecord[]
-  subEntryTags        UserSubEntryTag[]
-  subscriptionEntries UserSubscriptionEntry[]
-  bugReports          BugReport[]
-  featureRequests     FeatureRequest[]
-  featureVotes        FeatureVote[]
-  dataRequests        DataRequest[]
+  id                       String                      @id @default(uuid())
+  username                 String                      @unique
+  email                    String                      @unique
+  emailVerified            Boolean                     @default(false)
+  passwordHash             String?
+  role                     Role                        @default(USER)
+  preferredCurrency        String                      @default("EUR")
+  avatarUrl                String?
+  bio                      String?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  managedCompanyId         String?
+  timezone                 String                      @default("UTC")
+  timeFormat               String                      @default("24h")
+  defaultTaxRate           Decimal?                    @db.Decimal(5, 2)
+  shippingCountry          String?                     @db.VarChar(2)
+  accounts                 Account[]
+  auditLogs                AuditLog[]
+  submittedEditions        BookEdition[]               @relation("SubmittedEditions")
+  commentLikes             CommentLike[]
+  conversationMembers      ConversationMember[]
+  editionComments          EditionComment[]
+  editionLikes             EditionLike[]
+  sentMessages             Message[]                   @relation("SentMessages")
+  purchases                PurchaseTransaction[]
+  reviewHelpfuls           ReviewHelpful[]
+  reviews                  Review[]
+  sessions                 Session[]
+  waitlistEntries          SubscriptionWaitlistEntry[]
+  bookEntries              UserBookEntry[]
+  editionTags              UserEditionTag[]
+  favoriteArtists          UserFavoriteArtist[]
+  favoriteAuthors          UserFavoriteAuthor[]
+  favoriteBooks            UserFavoriteBook[]
+  favoriteCompanies        UserFavoriteCompany[]
+  favoriteEditions         UserFavoriteEdition[]
+  feeTemplates             UserFeeTemplate[]
+  following                UserFollow[]                @relation("Follower")
+  followers                UserFollow[]                @relation("Following")
+  notifications            UserNotification[]
+  purchaseDiscounts        UserPurchaseDiscount[]
+  purchaseFees             UserPurchaseFee[]
+  purchaseGroups           UserPurchaseGroup[]
+  purchaseRefunds          UserPurchaseRefund[]
+  saleInterests            UserSaleInterest[]
+  saleGroups               UserSaleGroup[]
+  skipRecords              UserSkipRecord[]
+  subEntryTags             UserSubEntryTag[]
+  subscriptionEntries      UserSubscriptionEntry[]
+  bugReports               BugReport[]
+  featureRequests          FeatureRequest[]
+  featureVotes             FeatureVote[]
+  dataRequests             DataRequest[]
   saleAnnouncementRequests SaleAnnouncementRequest[]
-  managedCompany      BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
+  managedCompany           BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
 
   @@index([shippingCountry])
   @@map("users")
@@ -205,10 +205,10 @@ model ArtistContribution {
 }
 
 model BookEdition {
-  id                       String                    @id @default(uuid())
-  slug                     String                    @unique
-  bookId                   String
-  publisher                String?
+  id        String  @id @default(uuid())
+  slug      String  @unique
+  bookId    String
+  publisher String?
 
   coverImage               String?
   additionalImages         String[]
@@ -257,30 +257,30 @@ model BookEdition {
 }
 
 model BookBoxCompany {
-  id              String                @id @default(uuid())
-  slug            String                @unique
-  name            String
-  description     String?
-  logoUrl         String?
-  website         String?
-  country         String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  bluesky         String?
-  defaultCurrency String?
-  facebook        String?
-  instagram       String?
-  iossImplemented Boolean               @default(false)
-  threads         String?
-  tiktok          String?
-  x               String?
-  collections     BookBoxCollection[]
-  editions        BookEdition[]
-  sponsoredSlots  SponsoredSlot[]
+  id                String                @id @default(uuid())
+  slug              String                @unique
+  name              String
+  description       String?
+  logoUrl           String?
+  website           String?
+  country           String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  bluesky           String?
+  defaultCurrency   String?
+  facebook          String?
+  instagram         String?
+  iossImplemented   Boolean               @default(false)
+  threads           String?
+  tiktok            String?
+  x                 String?
+  collections       BookBoxCollection[]
+  editions          BookEdition[]
+  sponsoredSlots    SponsoredSlot[]
   saleAnnouncements SaleAnnouncement[]
-  subscriptions   Subscription[]
-  favoriteBy      UserFavoriteCompany[]
-  managers        User[]                @relation("CompanyManagers")
+  subscriptions     Subscription[]
+  favoriteBy        UserFavoriteCompany[]
+  managers          User[]                @relation("CompanyManagers")
 
   @@index([country])
   @@map("book_box_companies")
@@ -516,16 +516,17 @@ model SaleAnnouncement {
 
   @@index([companyId])
   @@index([generalSaleDate])
+  @@index([createdAt])
   @@map("sale_announcements")
 }
 
 model SaleAnnouncementEdition {
-  id           String                          @id @default(uuid())
+  id           String                           @id @default(uuid())
   editionId    String
   saleId       String
-  sortOrder    Int                             @default(0)
-  edition      BookEdition                     @relation(fields: [editionId], references: [id])
-  announcement SaleAnnouncement               @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sortOrder    Int                              @default(0)
+  edition      BookEdition                      @relation(fields: [editionId], references: [id])
+  announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
   variants     SaleAnnouncementEditionVariant[]
 
   @@unique([saleId, editionId])
@@ -619,6 +620,9 @@ model UserBookEntry {
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
   @@index([purchaseGroupId])
+  @@index([editionId])
+  @@index([bookId])
+  @@index([userId, createdAt])
   @@map("user_book_entries")
 }
 
@@ -796,6 +800,8 @@ model UserFollow {
   following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
   @@map("user_follows")
 }
 
@@ -817,6 +823,8 @@ model Review {
 
   @@unique([userId, bookId])
   @@index([bookId])
+  @@index([userId])
+  @@index([bookId, createdAt])
   @@map("reviews")
 }
 
@@ -906,6 +914,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 
@@ -994,6 +1003,8 @@ model AuditLog {
   @@index([entityType])
   @@index([entityId])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
 }
 
@@ -1014,16 +1025,16 @@ model BugReport {
 }
 
 model FeatureRequest {
-  id          String         @id @default(uuid())
+  id          String        @id @default(uuid())
   title       String
   description String
-  status      String         @default("pending") @db.VarChar(20)
+  status      String        @default("pending") @db.VarChar(20)
   adminNote   String?
   userId      String?
-  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   votes       FeatureVote[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@index([status])
   @@index([createdAt])
