@@ -110,6 +110,9 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [editUser, setEditUser] = useState<ApiAdminUser | null>(null)
+  const [deleteUser, setDeleteUser] = useState<ApiAdminUser | null>(null)
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users', search, page],
@@ -131,6 +134,29 @@ export default function AdminUsersPage() {
       setEditUser(null)
     },
   })
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) =>
+      authFetch(`/admin/users/${userId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      setDeleteUser(null)
+      setDeleteConfirmEmail('')
+      setDeleteError('')
+    },
+    onError: () => {
+      setDeleteError('Failed to delete user. Please try again.')
+    },
+  })
+
+  const handleDeleteConfirm = () => {
+    if (!deleteUser) return
+    if (deleteConfirmEmail.trim().toLowerCase() !== deleteUser.email.toLowerCase()) {
+      setDeleteError('Email does not match. Please enter the exact email address.')
+      return
+    }
+    deleteUserMutation.mutate(deleteUser.id)
+  }
 
   const users = data?.data ?? []
   const totalPages = data?.totalPages ?? 1
@@ -195,12 +221,20 @@ export default function AdminUsersPage() {
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setEditUser(u)}
-                        className="text-xs px-3 py-1 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors"
-                      >
-                        Assign Role
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setEditUser(u)}
+                          className="text-xs px-3 py-1 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors"
+                        >
+                          Assign Role
+                        </button>
+                        <button
+                          onClick={() => { setDeleteUser(u); setDeleteConfirmEmail(''); setDeleteError('') }}
+                          className="text-xs px-3 py-1 rounded-lg border border-red-900 text-red-400 hover:border-red-500 hover:bg-red-950/40 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -242,6 +276,52 @@ export default function AdminUsersPage() {
               assignRoleMutation.mutate({ userId: editUser.id, role, managedCompanyId })
             }
           />
+        )}
+      </FormModal>
+
+      {/* Delete user confirmation modal */}
+      <FormModal
+        open={deleteUser !== null}
+        title="Delete User"
+        onClose={() => { setDeleteUser(null); setDeleteConfirmEmail(''); setDeleteError('') }}
+      >
+        {deleteUser && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-red-950/30 border border-red-900/50 rounded-lg p-3">
+              <p className="text-red-400 text-sm font-semibold mb-1">⚠ This action is irreversible</p>
+              <p className="text-stone-400 text-xs">
+                Deleting <span className="text-stone-200 font-medium">{deleteUser.username}</span> will permanently remove
+                all their data: collection, subscriptions, reviews, fees, and all other records.
+              </p>
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>
+                Type the user&apos;s email address to confirm:
+                <span className="text-stone-200 ml-1">{deleteUser.email}</span>
+              </label>
+              <input
+                className={INPUT_CLASS}
+                type="email"
+                placeholder={deleteUser.email}
+                value={deleteConfirmEmail}
+                onChange={(e) => { setDeleteConfirmEmail(e.target.value); setDeleteError('') }}
+                autoComplete="off"
+              />
+            </div>
+
+            {deleteError && (
+              <p className="text-red-400 text-xs">{deleteError}</p>
+            )}
+
+            <button
+              onClick={handleDeleteConfirm}
+              disabled={deleteUserMutation.isPending || !deleteConfirmEmail}
+              className="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+            >
+              {deleteUserMutation.isPending ? 'Deleting…' : 'Delete User and All Data'}
+            </button>
+          </div>
         )}
       </FormModal>
     </div>

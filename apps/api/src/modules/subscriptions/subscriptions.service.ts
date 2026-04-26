@@ -851,6 +851,19 @@ export class SubscriptionsService {
     });
     const monthMap = new Map(monthRecords.map(m => [m.id, m]));
 
+    // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
+    const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    let earliestMonthId: string | null = null;
+    if (paymentOnStartup && entry.startDate) {
+      let earliest: { year: number; month: number; id: string } | null = null;
+      for (const m of monthRecords) {
+        if (!earliest || m.year < earliest.year || (m.year === earliest.year && m.month < earliest.month)) {
+          earliest = m;
+        }
+      }
+      earliestMonthId = earliest?.id ?? null;
+    }
+
     // Build all fee records in memory first
     const feesToCreate: {
       userId: string; feeTemplateId?: string; name: string; amount: number;
@@ -861,7 +874,9 @@ export class SubscriptionsService {
       const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
-      const renewalDate = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
+      const renewalDate = (earliestMonthId === monthId && entry.startDate)
+        ? new Date(entry.startDate)
+        : new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
       const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
       for (const mb of monthBooks) {

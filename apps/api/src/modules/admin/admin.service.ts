@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
 import { Role } from '@prisma/client';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   async getAuditLogs(query: AuditLogQueryDto) {
     const page = query.page ?? 1;
@@ -187,4 +191,39 @@ export class AdminService {
     ]);
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
-}
+
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, username: true, avatarUrl: true },
+    });
+    if (!user) throw new Error('User not found');
+
+    // Delete avatar from Cloudinary before removing the DB record
+    if (user.avatarUrl) {
+      const publicId = this.extractCloudinaryPublicId(user.avatarUrl);
+      if (publicId) {
+        try {
+          await this.uploadService.deleteImage(publicId);
+        } catch {
+          // Non-fatal: proceed with user deletion even if Cloudinary fails
+        }
+      }
+    }
+
+    await this.prisma.user.delete({ where: { id: userId } });
+    return { deleted: true, email: user.email, username: user.username };
+  }
+
+  /**
+   * Extracts Cloudinary public_id from a secure URL.
+   * e.g. https://res.cloudinary.com/cloud/image/upload/v123/folder/file.jpg → folder/file
+   */
+  private extractCloudinaryPublicId(url: string): string | null {
+    try {
+      const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z]{2,4})?$/i);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  }

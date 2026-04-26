@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { AdminService } from './admin.service';
@@ -36,5 +36,15 @@ export class AdminController {
   @Patch('users/:userId/role')
   assignRole(@Param('userId') userId: string, @Body() dto: AssignRoleDto) {
     return this.adminService.assignRole(userId, dto);
+  }
+
+  @Roles('ADMIN')
+  @Delete('users/:userId')
+  async deleteUser(@Param('userId') userId: string) {
+    try {
+      return await this.adminService.deleteUser(userId);
+    } catch {
+      throw new NotFoundException('User not found');
+    }
   }
 }
