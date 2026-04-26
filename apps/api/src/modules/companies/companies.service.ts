@@ -65,6 +65,31 @@ export class CompaniesService {
         subscriptions: true,
         collections: true,
         sponsoredSlots: { where: { isActive: true } },
+        editions: {
+          select: {
+            id: true,
+            slug: true,
+            coverImage: true,
+            editionName: true,
+            collectionId: true,
+            subscriptionId: true,
+            collection: { select: { id: true, name: true, slug: true } },
+            book: {
+              select: {
+                id: true,
+                slug: true,
+                title: true,
+                coverImage: true,
+                authors: {
+                  select: {
+                    author: { select: { id: true, name: true, slug: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);

@@ -132,6 +132,23 @@ export interface ApiBookBoxCollection {
   updatedAt?: string;
 }
 
+export interface ApiCompanyEdition {
+  id: string;
+  slug: string;
+  coverImage: string | null;
+  editionName: string | null;
+  collectionId: string | null;
+  subscriptionId: string | null;
+  collection: { id: string; name: string; slug: string } | null;
+  book: {
+    id: string;
+    slug: string;
+    title: string;
+    coverImage: string | null;
+    authors: { author: { id: string; name: string; slug: string } }[];
+  };
+}
+
 export interface ApiBookBoxCompany {
   id: string;
   slug: string;
@@ -151,6 +168,7 @@ export interface ApiBookBoxCompany {
   subscriptions?: ApiSubscription[];
   collections?: ApiBookBoxCollection[];
   sponsoredSlots?: ApiSponsoredSlot[];
+  editions?: ApiCompanyEdition[];
 }
 
 export interface ApiSubscriptionSkipPolicy {

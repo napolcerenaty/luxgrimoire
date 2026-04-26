@@ -4,10 +4,65 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
+import type { ApiBookBoxCompany, ApiCompanyEdition } from '@luxgrimoire/shared-types'
+
+// Minimal inline SVG icons for social platforms
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+    </svg>
+  )
+}
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  )
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  )
+}
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.78a4.85 4.85 0 01-1.01-.09z" />
+    </svg>
+  )
+}
+
+function ThreadsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.452-1.768.94-.980 1.443-2.405 1.443-4.101 0-1.715-.507-3.145-1.469-4.131-.505-.518-1.109-.882-1.764-1.073.13 1.08.114 2.157-.055 3.153-.291 1.681-1.056 2.97-2.252 3.764-1.037.685-2.36.994-3.935.916-1.302-.064-2.477-.444-3.403-1.1-.986-.695-1.613-1.72-1.77-2.88-.14-1.02.115-2.01.724-2.87.62-.88 1.558-1.54 2.76-1.965 1.131-.4 2.43-.575 3.857-.519.596.024 1.162.075 1.695.148-.028-.352-.094-.679-.199-.977-.352-1.006-1.186-1.529-2.479-1.529-1.085 0-2.098.416-2.855 1.172l-1.44-1.44C8.5 4.72 10.007 4.029 11.76 4.029c1.94 0 3.453.72 4.37 2.083.617.925.93 2.115.93 3.536 0 .109-.002.217-.007.325.84.283 1.607.739 2.275 1.347 1.374 1.27 2.096 3.113 2.096 5.326 0 2.338-.697 4.236-2.014 5.491C18.11 23.3 15.5 24 12.186 24z" />
+    </svg>
+  )
+}
+
+function BlueskyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 01-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.204-.659-.299-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z" />
+    </svg>
+  )
+}
 
 interface Props {
   params: Promise<{ slug: string }>
+}
+
+type EditionGroup = {
+  label: string
+  href: string | null
+  editions: ApiCompanyEdition[]
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -37,13 +92,77 @@ export default async function CompanyPage({ params }: Props) {
     notFound()
   }
 
-  const logoUrl = cloudinaryUrl(company.logoUrl, 'w_200,h_200,c_fill,q_auto,f_auto')
+  const logoUrl = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fit,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
   const collections = (company.collections ?? []).filter((c) => c.isActive)
   const hasActiveSponsored = company.sponsoredSlots?.some((s) => s.isActive) ?? false
   const hasBanner = company.sponsoredSlots?.some(
     (s) => s.isActive && s.type === 'COMPANY_PAGE_BANNER',
   ) ?? false
+
+  // Group editions by subscription → collection → standalone
+  const editions = company.editions ?? []
+  const editionGroups: EditionGroup[] = []
+  const bySubscription = new Map<string, EditionGroup>()
+  const byCollection = new Map<string, EditionGroup>()
+  const standalone: ApiCompanyEdition[] = []
+
+  for (const edition of editions) {
+    if (edition.subscriptionId) {
+      const sub = subscriptions.find((s) => s.id === edition.subscriptionId)
+      const key = edition.subscriptionId
+      if (!bySubscription.has(key)) {
+        bySubscription.set(key, {
+          label: sub?.name ?? 'Subscription',
+          href: sub ? `/subscriptions/${sub.slug}` : null,
+          editions: [],
+        })
+      }
+      bySubscription.get(key)!.editions.push(edition)
+    } else if (edition.collection) {
+      const key = edition.collection.id
+      if (!byCollection.has(key)) {
+        byCollection.set(key, {
+          label: edition.collection.name,
+          href: `/companies/${company.slug}/collections/${edition.collection.slug}`,
+          editions: [],
+        })
+      }
+      byCollection.get(key)!.editions.push(edition)
+    } else {
+      standalone.push(edition)
+    }
+  }
+
+  bySubscription.forEach((g) => editionGroups.push(g))
+  byCollection.forEach((g) => editionGroups.push(g))
+  if (standalone.length > 0) {
+    editionGroups.push({ label: 'Exclusive Editions', href: null, editions: standalone })
+  }
+
+  const socials = [
+    company.website
+      ? { label: 'Website', href: company.website, icon: 'website' as const }
+      : null,
+    company.instagram
+      ? { label: 'Instagram', href: `https://instagram.com/${company.instagram.replace(/^@/, '')}`, icon: 'instagram' as const }
+      : null,
+    company.facebook
+      ? { label: 'Facebook', href: company.facebook.startsWith('http') ? company.facebook : `https://facebook.com/${company.facebook}`, icon: 'facebook' as const }
+      : null,
+    company.x
+      ? { label: 'X / Twitter', href: `https://x.com/${company.x.replace(/^@/, '')}`, icon: 'x' as const }
+      : null,
+    company.tiktok
+      ? { label: 'TikTok', href: `https://tiktok.com/@${company.tiktok.replace(/^@/, '')}`, icon: 'tiktok' as const }
+      : null,
+    company.threads
+      ? { label: 'Threads', href: `https://threads.net/@${company.threads.replace(/^@/, '')}`, icon: 'threads' as const }
+      : null,
+    company.bluesky
+      ? { label: 'Bluesky', href: `https://bsky.app/profile/${company.bluesky.replace(/^@/, '')}`, icon: 'bluesky' as const }
+      : null,
+  ].filter(Boolean) as { label: string; href: string; icon: 'website' | 'instagram' | 'facebook' | 'x' | 'tiktok' | 'threads' | 'bluesky' }[]
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -78,12 +197,14 @@ export default async function CompanyPage({ params }: Props) {
       {/* Company header */}
       <div className="flex flex-col sm:flex-row gap-8 items-start mb-12">
         {logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt={company.name}
-            className="w-24 h-24 rounded-xl object-cover shadow-lg ring-2 ring-amber-700/30 shrink-0"
-          />
+          <div className="w-40 h-20 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center shrink-0 overflow-hidden p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt={company.name}
+              className="w-full h-full object-contain"
+            />
+          </div>
         )}
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap mb-2">
@@ -94,24 +215,42 @@ export default async function CompanyPage({ params }: Props) {
           </div>
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3">{company.name}</h1>
 
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            {company.country && (
-              <span className="text-sm text-stone-400">{company.country}</span>
-            )}
-            {company.website && (
-              <a
-                href={company.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-amber-500 hover:text-amber-400 transition-colors hover:underline"
-              >
-                {company.website.replace(/^https?:\/\//, '')} ↗
-              </a>
-            )}
-          </div>
+          {company.country && (
+            <span className="text-sm text-stone-400 mb-3 block">{company.country}</span>
+          )}
 
           {company.description && (
-            <p className="text-stone-300 leading-relaxed max-w-2xl">{company.description}</p>
+            <p className="text-stone-300 leading-relaxed max-w-2xl mb-4">{company.description}</p>
+          )}
+
+          {/* Social links */}
+          {socials.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {socials.map((s) => (
+                <a
+                  key={s.icon}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={s.label}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors text-xs font-medium"
+                >
+                  {s.icon === 'instagram' && <InstagramIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'facebook' && <FacebookIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'x' && <XIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'tiktok' && <TikTokIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'threads' && <ThreadsIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'bluesky' && <BlueskyIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'website' && (
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
+                    </svg>
+                  )}
+                  {s.label}
+                </a>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -156,7 +295,7 @@ export default async function CompanyPage({ params }: Props) {
 
       {/* Subscriptions */}
       {subscriptions.length > 0 && (
-        <section>
+        <section className="mt-12">
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
             Subscriptions
           </h2>
@@ -199,8 +338,79 @@ export default async function CompanyPage({ params }: Props) {
         </section>
       )}
 
-      {subscriptions.length === 0 && (
-        <p className="text-stone-500 text-sm">No subscriptions found for this company.</p>
+      {/* Books grouped by subscription/collection/standalone */}
+      {editionGroups.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-8">Books</h2>
+          <div className="space-y-10">
+            {editionGroups.map((group) => (
+              <div key={group.label}>
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="text-lg font-serif font-semibold text-stone-200">{group.label}</h3>
+                  {group.href && (
+                    <Link
+                      href={group.href}
+                      className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
+                    >
+                      View →
+                    </Link>
+                  )}
+                  <span className="text-xs text-stone-600 ml-auto">
+                    {group.editions.length} edition{group.editions.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {group.editions.map((edition) => {
+                    const cover = cloudinaryUrl(
+                      edition.coverImage ?? edition.book.coverImage,
+                      'w_300,h_450,c_fill,q_auto,f_auto',
+                    )
+                    const authors = edition.book.authors
+                      .map((a) => a.author.name)
+                      .join(', ')
+                    return (
+                      <Link
+                        key={edition.id}
+                        href={`/editions/${edition.slug}`}
+                        className="group flex flex-col"
+                      >
+                        <div className="aspect-[2/3] rounded-lg overflow-hidden bg-stone-800 mb-2">
+                          {cover ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={cover}
+                              alt={edition.book.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-2">
+                              <span className="text-stone-600 text-xs text-center font-serif leading-tight">
+                                {edition.book.title}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-tight">
+                          {edition.book.title}
+                        </p>
+                        {edition.editionName && (
+                          <p className="text-xs text-amber-600/80 mt-0.5 line-clamp-1">{edition.editionName}</p>
+                        )}
+                        {authors && (
+                          <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{authors}</p>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {subscriptions.length === 0 && editions.length === 0 && (
+        <p className="text-stone-500 text-sm">No content found for this company.</p>
       )}
     </div>
   )
