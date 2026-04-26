@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
@@ -8,7 +8,7 @@ import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, Package, ShoppingBag } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 
 interface CollectionEntry {
@@ -23,6 +23,7 @@ interface CollectionEntry {
   priceCurrency: string | null
   purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
   signatureType: string | null
+  tags: string[]
   purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
@@ -483,6 +484,147 @@ interface CollectionStats {
   totalWishlist?: number
 }
 
+// ── Tag Editor ─────────────────────────────────────────────────────────────
+function TagEditor({
+  entryId,
+  editionId,
+  tags,
+  allTags,
+  onSaved,
+}: {
+  entryId: string
+  editionId: string
+  tags: string[]
+  allTags: string[]
+  onSaved: (editionId: string, tags: string[]) => void
+}) {
+  const [input, setInput] = useState('')
+  const [open, setOpen] = useState(false)
+  const [localTags, setLocalTags] = useState<string[]>(tags)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Keep local in sync when parent re-queries
+  useEffect(() => { setLocalTags(tags) }, [tags])
+
+  const suggestions = useMemo(() => {
+    if (!input.trim()) return allTags.filter(t => !localTags.includes(t))
+    return allTags.filter(t => t.toLowerCase().includes(input.toLowerCase()) && !localTags.includes(t))
+  }, [input, allTags, localTags])
+
+  const save = useCallback(async (nextTags: string[]) => {
+    setLocalTags(nextTags)
+    const saved = await authFetch<string[]>(`/collection/edition/${editionId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tags: nextTags }),
+    })
+    onSaved(editionId, saved)
+  }, [editionId, onSaved])
+
+  const addTag = (tag: string) => {
+    const t = tag.trim()
+    if (!t || localTags.includes(t)) return
+    void save([...localTags, t])
+    setInput('')
+  }
+
+  const removeTag = (tag: string) => {
+    void save(localTags.filter(t => t !== tag))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addTag(input)
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="mt-1.5" onClick={e => { e.preventDefault(); e.stopPropagation() }}>
+      {/* Existing tag chips */}
+      {localTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {localTags.map(t => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-0.5 text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/25 px-1.5 py-0.5 rounded-full"
+            >
+              {t}
+              <button
+                type="button"
+                onClick={() => removeTag(t)}
+                className="ml-0.5 hover:text-red-400 transition-colors"
+              >
+                <X size={9} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Add tag trigger */}
+      {open ? (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            autoFocus
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Add tag…"
+            className="w-full bg-stone-800 border border-amber-500/40 rounded-lg px-2 py-1 text-[11px] text-stone-100 placeholder:text-stone-600 focus:outline-none"
+          />
+          {(suggestions.length > 0 || input.trim()) && (
+            <div className="absolute top-full left-0 right-0 mt-0.5 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl overflow-hidden max-h-32 overflow-y-auto">
+              {input.trim() && !localTags.includes(input.trim()) && !suggestions.includes(input.trim()) && (
+                <button
+                  type="button"
+                  onClick={() => addTag(input)}
+                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-amber-400 transition-colors"
+                >
+                  + Add &ldquo;{input.trim()}&rdquo;
+                </button>
+              )}
+              {suggestions.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => addTag(t)}
+                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-stone-300 transition-colors"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 text-[10px] text-stone-600 hover:text-amber-400 transition-colors"
+        >
+          <Tag size={10} />
+          {localTags.length === 0 ? 'Add tag' : 'Edit tags'}
+        </button>
+      )}
+    </div>
+  )
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 const CONDITION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'default'> = {
   MINT: 'success',
   NEAR_MINT: 'success',
@@ -503,12 +645,15 @@ export default function CollectionPage() {
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
+  const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [tab, setTab] = useState<'books' | 'bundles' | 'sales'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
+  // Local tag state per editionId (updated optimistically after saves)
+  const [tagOverrides, setTagOverrides] = useState<Record<string, string[]>>({})
 
   // Close dropdowns on outside click (but not when clicking inside a dropdown)
   useEffect(() => {
@@ -527,6 +672,11 @@ export default function CollectionPage() {
       authFetch<{ data: CollectionEntry[]; total: number }>('/collection').then((r) => r.data),
   })
 
+  const { data: allUserTags = [] } = useQuery({
+    queryKey: ['collection-tags'],
+    queryFn: () => authFetch<string[]>('/collection/tags'),
+  })
+
   const { data: stats } = useQuery({
     queryKey: ['collection-stats'],
     queryFn: () => authFetch<CollectionStats>('/collection/stats'),
@@ -541,6 +691,12 @@ export default function CollectionPage() {
     queryKey: ['sale-groups'],
     queryFn: getSaleGroups,
   })
+
+  // Called by TagEditor when tags are saved — update local override + re-fetch allUserTags
+  const handleTagsSaved = useCallback((editionId: string, tags: string[]) => {
+    setTagOverrides(prev => ({ ...prev, [editionId]: tags }))
+    void queryClient.invalidateQueries({ queryKey: ['collection-tags'] })
+  }, [queryClient])
 
   const [addSaleOpen, setAddSaleOpen] = useState(false)
   const [saleTitle, setSaleTitle] = useState('')
@@ -642,6 +798,10 @@ export default function CollectionPage() {
     if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
     if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
     if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
+    if (tagFilter !== 'ALL') {
+      const entryTags = e.edition?.id ? (tagOverrides[e.edition.id] ?? e.tags) : e.tags
+      if (!entryTags.includes(tagFilter)) return false
+    }
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
@@ -950,11 +1110,23 @@ export default function CollectionPage() {
               </select>
             )}
 
+            {/* Tag filter */}
+            {allUserTags.length > 0 && (
+              <select
+                value={tagFilter}
+                onChange={e => setTagFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Tag: Any</option>
+                {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            )}
+
             {/* Reset all */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
               <button
                 type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
                 className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
                 ✕ Clear
@@ -1158,6 +1330,17 @@ export default function CollectionPage() {
                             <p className="text-[10px] text-stone-500">
                               {new Date(entry.acquiredAt).toLocaleDateString()}
                             </p>
+                          )}
+
+                          {/* Tags */}
+                          {entry.edition?.id && (
+                            <TagEditor
+                              entryId={entry.id}
+                              editionId={entry.edition.id}
+                              tags={tagOverrides[entry.edition.id] ?? entry.tags ?? []}
+                              allTags={allUserTags}
+                              onSaved={handleTagsSaved}
+                            />
                           )}
                         </div>
                       }

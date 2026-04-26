@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('collection')
@@ -13,6 +13,11 @@ export class CollectionController {
   @Get('stats')
   getStats(@CurrentUser() user: { id: string }) {
     return this.collectionService.getStats(user.id);
+  }
+
+  @Get('tags')
+  getUserTags(@CurrentUser() user: { id: string }) {
+    return this.collectionService.getUserTags(user.id);
   }
 
   @Get()
@@ -45,5 +50,14 @@ export class CollectionController {
   @Delete(':id')
   removeFromCollection(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.collectionService.removeFromCollection(user.id, id);
+  }
+
+  @Put('edition/:editionId/tags')
+  setEditionTags(
+    @CurrentUser() user: { id: string },
+    @Param('editionId') editionId: string,
+    @Body() dto: SetEditionTagsDto,
+  ) {
+    return this.collectionService.setEditionTags(user.id, editionId, dto.tags);
   }
 }

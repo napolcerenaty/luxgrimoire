@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn, IsArray } from 'class-validator';
 
 export const OWNERSHIP_STATUSES = [
   'PREORDER',
@@ -29,4 +29,10 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsBoolean() isWishlist?: boolean;
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
+}
+
+export class SetEditionTagsDto {
+  @IsArray()
+  @IsString({ each: true })
+  tags!: string[];
 }

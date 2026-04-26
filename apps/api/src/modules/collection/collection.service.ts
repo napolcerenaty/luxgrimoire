@@ -21,6 +21,10 @@ export class CollectionService {
                   authors: { include: { author: true } },
                 },
               },
+              tags: {
+                where: { userId },
+                select: { tag: true },
+              },
             },
           },
           purchaseGroup: { select: { id: true, currency: true, purchasedAt: true } },
@@ -32,7 +36,41 @@ export class CollectionService {
       }),
       this.prisma.userBookEntry.count({ where }),
     ]);
-    return { data, total, page, pageSize };
+    // Flatten tags to string[]
+    const dataWithTags = data.map((entry) => ({
+      ...entry,
+      tags: (entry.edition?.tags ?? []).map((t) => t.tag),
+      edition: entry.edition
+        ? { ...entry.edition, tags: undefined }
+        : entry.edition,
+    }));
+    return { data: dataWithTags, total, page, pageSize };
+  }
+
+  async getUserTags(userId: string): Promise<string[]> {
+    const rows = await this.prisma.userEditionTag.findMany({
+      where: { userId },
+      select: { tag: true },
+      distinct: ['tag'],
+      orderBy: { tag: 'asc' },
+    });
+    return rows.map((r) => r.tag);
+  }
+
+  async setEditionTags(userId: string, editionId: string, tags: string[]): Promise<string[]> {
+    const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+    await this.prisma.$transaction([
+      this.prisma.userEditionTag.deleteMany({ where: { userId, editionId } }),
+      ...(cleaned.length > 0
+        ? [
+            this.prisma.userEditionTag.createMany({
+              data: cleaned.map((tag) => ({ userId, editionId, tag })),
+              skipDuplicates: true,
+            }),
+          ]
+        : []),
+    ]);
+    return cleaned;
   }
 
   async addToCollection(userId: string, dto: AddToCollectionDto) {
