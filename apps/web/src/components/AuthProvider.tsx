@@ -12,6 +12,7 @@ interface AuthUser {
   avatar?: string
   preferredCurrency?: string
   timezone?: string
+  timeFormat?: string
   defaultTaxRate?: number | null
   shippingCountry?: string | null
 }

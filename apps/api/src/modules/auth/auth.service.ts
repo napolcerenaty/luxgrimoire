@@ -134,6 +134,7 @@ export class AuthService {
         managedCompanyId: true,
         preferredCurrency: true,
         timezone: true,
+        timeFormat: true,
         defaultTaxRate: true,
         avatarUrl: true,
         bio: true,

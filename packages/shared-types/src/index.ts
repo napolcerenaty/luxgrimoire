@@ -45,6 +45,7 @@ export interface ApiUser {
   role: Role;
   preferredCurrency: string;
   timezone: string;
+  timeFormat: string;
   avatarUrl: string | null;
   bio: string | null;
   createdAt: string;

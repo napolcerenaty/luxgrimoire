@@ -540,19 +540,19 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       {/* Dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LBL}>General Sale Date &amp; Time</label>
-          <input type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
-        </div>
-        <div>
           <label className={LBL}>First Access Date &amp; Time</label>
           <input type="datetime-local" className={INP} value={form.firstAccessDate} onChange={set('firstAccessDate')} />
+        </div>
+        <div>
+          <label className={LBL}>Early Access Date &amp; Time</label>
+          <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LBL}>Early Access Date &amp; Time</label>
-          <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
+          <label className={LBL}>General Sale Date &amp; Time</label>
+          <input type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
         </div>
         <div>
           <label className={LBL}>Timezone</label>
@@ -766,16 +766,16 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         </label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">General Sale</label>
-            <input type="datetime-local" className={INP} value={f.generalSaleDate} onChange={s('generalSaleDate')} />
-          </div>
-          <div>
             <label className="block text-xs text-stone-400 mb-1">First Access</label>
             <input type="datetime-local" className={INP} value={f.firstAccessDate} onChange={s('firstAccessDate')} />
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Early Access</label>
             <input type="datetime-local" className={INP} value={f.earlyAccessDate} onChange={s('earlyAccessDate')} />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">General Sale</label>
+            <input type="datetime-local" className={INP} value={f.generalSaleDate} onChange={s('generalSaleDate')} />
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Ends At</label>

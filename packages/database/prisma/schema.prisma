@@ -21,6 +21,7 @@ model User {
   updatedAt           DateTime                    @updatedAt
   managedCompanyId    String?
   timezone            String                      @default("UTC")
+  timeFormat          String                      @default("24h")
   defaultTaxRate      Decimal?                    @db.Decimal(5, 2)
   shippingCountry     String?                     @db.VarChar(2)
   accounts            Account[]

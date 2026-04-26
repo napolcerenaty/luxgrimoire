@@ -15,6 +15,7 @@ interface UpdateProfilePayload {
   avatar?: string
   preferredCurrency?: string
   timezone?: string
+  timeFormat?: string
   shippingCountry?: string
 }
 
@@ -72,6 +73,7 @@ export default function ProfilePage() {
       ? user.timezone
       : Intl.DateTimeFormat().resolvedOptions().timeZone
   )
+  const [timeFormat, setTimeFormat] = useState(user?.timeFormat ?? '24h')
   const [newUsername, setNewUsername] = useState(user?.username ?? '')
 
   const [profileSuccess, setProfileSuccess] = useState(false)
@@ -122,7 +124,7 @@ export default function ProfilePage() {
         login(token ?? '', { ...user, ...data.user })
       }
       void queryClient.invalidateQueries({ queryKey: ['me'] })
-      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables) {
+      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables || 'timeFormat' in variables) {
         setPrefsSuccess(true)
         setPrefsError(null)
         setTimeout(() => setPrefsSuccess(false), 3000)
@@ -133,7 +135,7 @@ export default function ProfilePage() {
       }
     },
     onError: (e: Error, variables) => {
-      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables) {
+      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables || 'timeFormat' in variables) {
         setPrefsError(e.message)
       } else {
         setProfileError(e.message)
@@ -322,7 +324,7 @@ export default function ProfilePage() {
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            updateProfileMutation.mutate({ preferredCurrency, timezone, shippingCountry: shippingCountry.toUpperCase() || undefined })
+            updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
           }}
           className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
         >
@@ -369,6 +371,25 @@ export default function ProfilePage() {
               ))}
             </select>
             <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+          </div>
+          <div>
+            <label className={LABEL}>Time Format</label>
+            <div className="flex gap-3">
+              {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
+                <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                  timeFormat === val
+                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                    : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
+                }`}>
+                  <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
+                    onChange={() => setTimeFormat(val)} className="accent-amber-400" />
+                  <div>
+                    <div className="text-sm font-medium">{val.toUpperCase()}</div>
+                    <div className="text-xs text-stone-500">{desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
           {prefsError && (
             <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>

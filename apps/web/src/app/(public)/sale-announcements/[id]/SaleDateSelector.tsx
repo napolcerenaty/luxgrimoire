@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import { useAuth } from '@/components/AuthProvider'
 
 type Region = NonNullable<ApiSaleAnnouncement['regions']>[0]
 
@@ -35,11 +36,12 @@ function findRegion(regions: Region[], countryCode: string | null | undefined): 
   return regions.find(r => r.isDefault) ?? null
 }
 
-function formatDateInTz(isoDate: string, tz: string | null | undefined, userTz?: string) {
+function formatDateInTz(isoDate: string, tz: string | null | undefined, userTz?: string, hour12?: boolean) {
   const date = new Date(isoDate)
   const opts: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+    hour12: hour12 ?? false,
   }
   try {
     return date.toLocaleString(undefined, { ...opts, timeZone: userTz || tz || undefined })
@@ -82,6 +84,8 @@ function Countdown({ ms }: { ms: number | null }) {
 }
 
 export default function SaleDateSelector({ regions, fallback, userCountry }: Props) {
+  const { user } = useAuth()
+  const hour12 = user?.timeFormat === '12h'
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [selectedAccess, setSelectedAccess] = useState<'earlyAccess' | 'firstAccess' | 'general'>('general')
   const [userTz, setUserTz] = useState<string | null>(null)
@@ -166,7 +170,7 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
         <div>
           <p className="text-xs text-stone-500">{ACCESS_LABELS[selectedAccess]} opens:</p>
           <p className="text-stone-100 font-medium text-sm mt-0.5">
-            {formatDateInTz(targetDate, tz, userTz ?? undefined)}
+            {formatDateInTz(targetDate, tz, userTz ?? undefined, hour12)}
           </p>
           {tz && tz !== userTz && (
             <p className="text-xs text-stone-600 mt-0.5">Sale timezone: {tz}</p>
