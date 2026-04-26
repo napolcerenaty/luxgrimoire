@@ -49,6 +49,12 @@ export class CompaniesService {
           subscriptions: {
             select: { id: true, slug: true, name: true, isDiscontinued: true },
           },
+          _count: {
+            select: {
+              collections: true,
+              editions: { where: { collectionId: null } },
+            },
+          },
         },
         orderBy: { name: 'asc' },
       }),

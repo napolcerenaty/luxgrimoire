@@ -171,6 +171,7 @@ export interface ApiBookBoxCompany {
   collections?: ApiBookBoxCollection[];
   sponsoredSlots?: ApiSponsoredSlot[];
   editions?: ApiCompanyEdition[];
+  _count?: { collections: number; editions: number };
 }
 
 export interface ApiSubscriptionSkipPolicy {
