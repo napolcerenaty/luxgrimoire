@@ -12,10 +12,18 @@ import { RolesGuard } from '../../common/guards/roles.guard';
   imports: [
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_SECRET ?? 'dev-secret',
-        signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as any },
-      }),
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret || secret.length < 32) {
+          throw new Error(
+            'JWT_SECRET environment variable is required and must be at least 32 characters long',
+          );
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as any },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

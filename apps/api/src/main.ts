@@ -13,6 +13,17 @@ async function bootstrap() {
     new FastifyAdapter({ bodyLimit: 20 * 1024 * 1024 }), // 20 MB for base64 image uploads
   );
 
+  // Security headers (helmet for Fastify)
+  await app.register(require('@fastify/helmet'), {
+    contentSecurityPolicy: false, // API is not HTML, CSP belongs on the web app
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  });
+
   // Gzip/Brotli compression for all responses
   await app.register(require('@fastify/compress'), {
     global: true,
@@ -21,7 +32,11 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true }),
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
   );
 
   app.enableCors({
@@ -29,6 +44,7 @@ async function bootstrap() {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    maxAge: 86400, // cache preflight for 24h to reduce OPTIONS load
   });
 
   app.setGlobalPrefix('api');

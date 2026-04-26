@@ -3,7 +3,9 @@ import {
   Body, Param, Query, HttpCode, HttpStatus, Request,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { FeatureRequestsService } from './feature-requests.service';
+import { CreateFeatureRequestDto } from './feature-requests.dto';
 import { Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 
 @ApiTags('feature-requests')
@@ -14,9 +16,10 @@ export class FeatureRequestsController {
   /** Submit a new feature request — auth optional */
   @Post()
   @OptionalAuth()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
   submit(
-    @Body() body: { title: string; description: string },
+    @Body() body: CreateFeatureRequestDto,
     @Request() req: any,
   ) {
     return this.service.submit({

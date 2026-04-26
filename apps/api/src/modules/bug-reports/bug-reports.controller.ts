@@ -4,7 +4,9 @@ import {
   Request,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { BugReportsService } from './bug-reports.service';
+import { CreateBugReportDto } from './bug-reports.dto';
 import { Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 
 @ApiTags('bug-reports')
@@ -15,9 +17,10 @@ export class BugReportsController {
   /** Anyone can submit — auth optional (userId captured when logged in) */
   @Post()
   @OptionalAuth()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.CREATED)
   create(
-    @Body() body: { title: string; description: string; pageUrl?: string; category?: string },
+    @Body() body: CreateBugReportDto,
     @Request() req: any,
   ) {
     return this.bugReportsService.create({

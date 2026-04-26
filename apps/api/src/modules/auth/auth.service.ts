@@ -85,8 +85,8 @@ export class AuthService {
       data: { userId: user.id, token, expiresAt },
     });
 
-    // TODO: send email via Brevo
-    console.log(`[Auth] Password reset token for ${user.email}: ${token}`);
+    // TODO: send email via Brevo. Token is intentionally NOT logged to avoid leaking it
+    // through application logs / log aggregation systems (full account-takeover risk).
 
     return { message: 'If that email exists, a reset link was sent.' };
   }

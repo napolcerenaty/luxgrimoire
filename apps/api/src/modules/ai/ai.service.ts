@@ -104,6 +104,35 @@ export class AiService {
       throw new BadRequestException('Provide either text or imageUrl');
     }
 
+    // SSRF guard: never let users force the OpenAI vision endpoint to fetch
+    // an internal/loopback/metadata URL on our behalf.
+    if (input.imageUrl) {
+      let url: URL;
+      try {
+        url = new URL(input.imageUrl);
+      } catch {
+        throw new BadRequestException('Invalid imageUrl');
+      }
+      if (url.protocol !== 'https:') {
+        throw new BadRequestException('imageUrl must use https://');
+      }
+      const host = url.hostname.toLowerCase();
+      const blocked =
+        host === 'localhost' ||
+        host === '0.0.0.0' ||
+        host === '::1' ||
+        host.endsWith('.local') ||
+        host.endsWith('.internal') ||
+        /^127\./.test(host) ||
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^169\.254\./.test(host) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+      if (blocked) {
+        throw new BadRequestException('imageUrl points to a disallowed host');
+      }
+    }
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
     ];
