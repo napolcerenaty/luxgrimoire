@@ -380,6 +380,8 @@ export default async function CompanyPage({ params }: Props) {
                         href={`/editions/${edition.slug}`}
                         coverImage={edition.coverImage ?? edition.book.coverImage}
                         title={edition.book.title}
+                        seriesName={edition.book.seriesName}
+                        volumeNumber={edition.book.volumeNumber}
                         authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
                       />
                     ))}

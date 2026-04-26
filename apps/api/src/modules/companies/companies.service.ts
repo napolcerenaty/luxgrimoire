@@ -80,6 +80,8 @@ export class CompaniesService {
                 slug: true,
                 title: true,
                 coverImage: true,
+                seriesName: true,
+                volumeNumber: true,
                 authors: {
                   select: {
                     author: { select: { id: true, name: true, slug: true } },

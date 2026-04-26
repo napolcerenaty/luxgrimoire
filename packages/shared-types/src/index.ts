@@ -145,6 +145,8 @@ export interface ApiCompanyEdition {
     slug: string;
     title: string;
     coverImage: string | null;
+    seriesName: string | null;
+    volumeNumber: number | null;
     authors: { author: { id: string; name: string; slug: string } }[];
   };
 }
