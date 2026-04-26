@@ -46,8 +46,8 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: query.upcoming ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
-        include: { editions: editionsInclude, regions: regionsInclude },
+        orderBy: { createdAt: 'desc' },
+        include: { editions: editionsInclude, regions: regionsInclude, company: true },
       }),
       this.prisma.saleAnnouncement.count({ where }),
     ]);

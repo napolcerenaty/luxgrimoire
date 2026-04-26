@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 async function getHomeData() {
   const [featuredSlots, announcementsRes, editionsRes] = await Promise.all([
     apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
-    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?pageSize=12').catch(() => null),
+    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
   ])
   return {

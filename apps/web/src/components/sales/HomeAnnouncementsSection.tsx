@@ -15,6 +15,30 @@ interface Props {
   viewAllHref?: string
 }
 
+function daysUntil(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null
+  const now = new Date()
+  const target = new Date(dateStr)
+  const diff = Math.ceil((target.getTime() - now.getTime()) / 86400000)
+  return diff
+}
+
+function DaysBadge({ dateStr }: { dateStr: string | null | undefined }) {
+  const days = daysUntil(dateStr)
+  if (days === null) return null
+  const label = days <= 0 ? 'Today!' : days === 1 ? '1 day' : `${days} days`
+  const color = days <= 0
+    ? 'bg-green-600/90 text-white'
+    : days <= 3
+    ? 'bg-amber-500/90 text-stone-900'
+    : 'bg-stone-800/90 text-stone-300 border border-stone-600'
+  return (
+    <span className={`absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight ${color}`}>
+      {label}
+    </span>
+  )
+}
+
 const AnnouncementCardItem = memo(function AnnouncementCardItem({
   sale,
   onClick,
@@ -26,10 +50,9 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   const raw = sale.imageUrl ?? firstEdition?.coverImage ?? null
   const imgUrl = raw ? cloudinaryUrl(raw, 'w_320,h_480,c_fill,q_auto,f_auto') : null
 
-  const subtitle = sale.generalSaleDate
-    ? new Date(sale.generalSaleDate).toLocaleDateString('en-GB', {
-        day: 'numeric', month: 'short', year: 'numeric',
-      })
+  const companyName = (sale as any).company?.name ?? null
+  const companyLogo = (sale as any).company?.logoUrl
+    ? cloudinaryUrl((sale as any).company.logoUrl, 'w_48,h_48,c_fill,q_auto,f_auto')
     : null
 
   return (
@@ -54,6 +77,9 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           </div>
         )}
 
+        {/* Days badge */}
+        <DaysBadge dateStr={sale.generalSaleDate} />
+
         {/* Hover overlay */}
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex items-end"
@@ -63,15 +89,25 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
 
       {/* Info */}
       <div className="px-2.5 pt-2 pb-2 flex flex-col">
-        <p className="text-[10px] text-amber-600 font-medium tracking-wide truncate leading-tight min-h-[1em]">
-          {subtitle || '\u00A0'}
-        </p>
         <div className="h-[2.25rem] overflow-hidden my-0.5">
           <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
             {sale.title}
           </p>
         </div>
-        <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">{'\u00A0'}</p>
+        {/* Company ribbon */}
+        {companyName && (
+          <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-stone-700/60">
+            {companyLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={companyLogo} alt={companyName} className="w-4 h-4 rounded-sm object-cover shrink-0" />
+            ) : (
+              <span className="w-4 h-4 rounded-sm bg-stone-700 flex items-center justify-center shrink-0 text-[8px] text-amber-500 font-bold">
+                {companyName.charAt(0)}
+              </span>
+            )}
+            <span className="text-[10px] text-stone-400 truncate leading-tight">{companyName}</span>
+          </div>
+        )}
       </div>
     </button>
   )

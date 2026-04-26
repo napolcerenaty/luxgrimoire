@@ -271,6 +271,7 @@ model BookBoxCompany {
   collections     BookBoxCollection[]
   editions        BookEdition[]
   sponsoredSlots  SponsoredSlot[]
+  saleAnnouncements SaleAnnouncement[]
   subscriptions   Subscription[]
   favoriteBy      UserFavoriteCompany[]
   managers        User[]                @relation("CompanyManagers")
@@ -503,6 +504,7 @@ model SaleAnnouncement {
   generalSaleDate      DateTime?
   editions             SaleAnnouncementEdition[]
   regions              SaleAnnouncementRegion[]
+  company              BookBoxCompany?           @relation(fields: [companyId], references: [id])
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
 
