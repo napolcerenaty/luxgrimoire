@@ -612,6 +612,14 @@ export class SubscriptionsService {
       },
     });
 
+    // Propagate currency to book entries that are missing it
+    if (dto.costCurrency) {
+      await this.prisma.userBookEntry.updateMany({
+        where: { subscriptionEntryId: entry.id, priceCurrency: null },
+        data: { priceCurrency: dto.costCurrency },
+      });
+    }
+
     if (dto.linkedFeeTemplates !== undefined) {
       // Replace all fee template links for this entry
       await this.prisma.userSubscriptionEntryFeeTemplate.deleteMany({
@@ -841,7 +849,10 @@ export class SubscriptionsService {
             ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
             ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
           },
-          update: {},
+          update: {
+            ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
+            ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
+          },
         });
 
         // Fee templates
@@ -983,7 +994,10 @@ export class SubscriptionsService {
               ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
               ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
             },
-            update: {},
+            update: {
+              ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
+              ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
+            },
           });
           booksAdded++;
 
