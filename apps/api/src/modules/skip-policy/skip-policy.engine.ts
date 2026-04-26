@@ -11,6 +11,8 @@ export interface SkipStatus {
   canSkip: boolean;
   warnings: string[];
   notes: string | null;
+  /** How to submit a skip request to the subscription company */
+  skipHow: string | null;
   /** ISO date string of skip deadline for the next upcoming month, or null if no deadline */
   nextDeadline: string | null;
   isPastDeadline: boolean;
@@ -403,6 +405,7 @@ export class SkipPolicyEngine {
       maxSkips: number | null;
       maxConsecutive: number | null;
       notes: string | null;
+      skipHow: string | null;
     } | null,
     state: {
       totalSkips: number;
@@ -442,6 +445,7 @@ export class SkipPolicyEngine {
       canSkip,
       warnings,
       notes: policy?.notes ?? null,
+      skipHow: policy?.skipHow ?? null,
       nextDeadline: deadline ? deadline.toISOString() : null,
       isPastDeadline,
       skippedMonths,

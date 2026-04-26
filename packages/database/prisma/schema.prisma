@@ -359,6 +359,7 @@ model SubscriptionSkipPolicy {
   maxConsecutive         Int?
   windowMonths           Int?
   notes                  String?
+  skipHow                String?
   skipDeadlineDaysBefore Int          @default(0)
   subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 

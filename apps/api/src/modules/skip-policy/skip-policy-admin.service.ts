@@ -43,6 +43,7 @@ export class SkipPolicyAdminService {
         windowMonths: dto.windowMonths ?? null,
         skipDeadlineDaysBefore: dto.skipDeadlineDaysBefore ?? 0,
         notes: dto.notes ?? null,
+        skipHow: dto.skipHow ?? null,
       },
       update: {
         type: dto.type,
@@ -51,6 +52,7 @@ export class SkipPolicyAdminService {
         windowMonths: dto.windowMonths ?? null,
         skipDeadlineDaysBefore: dto.skipDeadlineDaysBefore ?? 0,
         notes: dto.notes ?? null,
+        skipHow: dto.skipHow ?? null,
       },
     });
   }

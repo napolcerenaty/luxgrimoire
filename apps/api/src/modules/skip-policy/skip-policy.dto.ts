@@ -38,6 +38,11 @@ export class UpsertSkipPolicyDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** How to submit a skip (e.g. "Email support@example.com with subject 'Skip Month Year'") */
+  @IsOptional()
+  @IsString()
+  skipHow?: string;
 }
 
 export class RecordSkipDto {

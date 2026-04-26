@@ -51,6 +51,7 @@ interface SubFormData {
   skipWindowMonths: string
   skipDeadlineDaysBefore: string
   skipNotes: string
+  skipHow: string
 }
 
 const EMPTY_FORM: SubFormData = {
@@ -82,6 +83,7 @@ const EMPTY_FORM: SubFormData = {
   skipWindowMonths: '',
   skipDeadlineDaysBefore: '0',
   skipNotes: '',
+  skipHow: '',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
@@ -115,6 +117,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     skipWindowMonths: p?.windowMonths != null ? String(p.windowMonths) : '',
     skipDeadlineDaysBefore: p?.skipDeadlineDaysBefore != null ? String(p.skipDeadlineDaysBefore) : '0',
     skipNotes: p?.notes ?? '',
+    skipHow: (p as any)?.skipHow ?? '',
   }
 }
 
@@ -650,6 +653,17 @@ function SubscriptionForm({
           />
         </div>
 
+        <div>
+          <label className={LABEL_CLASS}>How to submit a skip request (shown to users)</label>
+          <textarea
+            rows={2}
+            className={INPUT_CLASS}
+            value={form.skipHow}
+            onChange={setStr('skipHow')}
+            placeholder="e.g. Email support@example.com with subject 'Skip [Month Year]' before the deadline."
+          />
+        </div>
+
         {form.skipPolicyType !== 'NONE' && (
           <div>
             <label className={LABEL_CLASS}>
@@ -732,6 +746,7 @@ export default function AdminSubscriptionsPage() {
             windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
             skipDeadlineDaysBefore: parseInt(form.skipDeadlineDaysBefore || '0', 10),
             notes: form.skipNotes || undefined,
+            skipHow: form.skipHow || undefined,
           }),
         })
       }
@@ -759,6 +774,7 @@ export default function AdminSubscriptionsPage() {
           windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
           skipDeadlineDaysBefore: parseInt(form.skipDeadlineDaysBefore || '0', 10),
           notes: form.skipNotes || undefined,
+          skipHow: form.skipHow || undefined,
         }),
       })
       return sub

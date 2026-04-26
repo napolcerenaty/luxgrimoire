@@ -62,12 +62,6 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       ? `${status.skipsInWindow} / ${status.maxSkips} skips used`
       : `${status.totalSkips} skip${status.totalSkips !== 1 ? 's' : ''} used`
 
-  const deadlineLabel = status.nextDeadline
-    ? new Date(status.nextDeadline).toLocaleDateString('en-GB', {
-        day: 'numeric', month: 'short', year: 'numeric',
-      })
-    : null
-
   return (
     <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -94,6 +88,33 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       </p>
 
       {status.notes && <p className="text-xs text-stone-500 italic">{status.notes}</p>}
+
+      {/* Deadline banner */}
+      {status.nextDeadline && (
+        <div className={`text-xs rounded px-3 py-2 flex flex-col gap-0.5 ${
+          status.isPastDeadline
+            ? 'bg-red-950/40 text-red-300'
+            : 'bg-stone-800 text-stone-300'
+        }`}>
+          <span>
+            {status.isPastDeadline ? '⛔ Deadline passed — ' : '⏳ Skip deadline: '}
+            <span className="font-semibold">
+              {new Date(status.nextDeadline).toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              })}
+            </span>
+            {!status.isPastDeadline && (() => {
+              const days = Math.ceil((new Date(status.nextDeadline).getTime() - Date.now()) / 86_400_000)
+              return days > 0 ? <span className="text-stone-400"> ({days} day{days !== 1 ? 's' : ''} left)</span> : null
+            })()}
+          </span>
+          {status.skipHow && (
+            <span className="text-stone-400">
+              How to skip: <span className="text-stone-200">{status.skipHow}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {status.warnings.map((w, i) => (
         <div key={i} className="text-xs text-amber-400 bg-amber-950/30 rounded px-2 py-1">

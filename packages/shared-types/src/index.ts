@@ -172,6 +172,7 @@ export interface ApiSkipStatus {
   canSkip: boolean;
   warnings: string[];
   notes: string | null;
+  skipHow: string | null;
   nextDeadline: string | null;
   isPastDeadline: boolean;
   skippedMonths: { year: number; month: number }[];
