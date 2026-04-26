@@ -45,7 +45,7 @@ export class SkipPolicyEngine {
     const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
     const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
 
-    let targetMonth: { year: number; month: number } | null = null;
+    let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
 
     if (skipWindowOpen) {
       // Find the first subscription month ≥ next calendar month that the user hasn't skipped yet
@@ -57,6 +57,7 @@ export class SkipPolicyEngine {
             { year: nextYear, month: { gte: nextMonth } },
           ],
         },
+        select: { id: true, year: true, month: true, seriesId: true },
         orderBy: [{ year: 'asc' }, { month: 'asc' }],
         take: 6,
       });
@@ -65,6 +66,33 @@ export class SkipPolicyEngine {
         if (!skippedSet.has(`${m.year}-${m.month}`)) {
           targetMonth = m;
           break;
+        }
+      }
+    }
+
+    // Edge case: cannot skip the first box or the first series.
+    // The user's first deliverable month is the earliest subscription month >= entry.startDate.
+    // If targetMonth IS that first month, or belongs to the same series as that first month → block.
+    if (targetMonth && entry.startDate) {
+      const [startYear, startMonth] = entry.startDate.split('-').map(Number);
+      const firstMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: {
+          subscriptionId: subscription.id,
+          OR: [
+            { year: { gt: startYear } },
+            { year: startYear, month: { gte: startMonth } },
+          ],
+        },
+        select: { id: true, year: true, month: true, seriesId: true },
+        orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      });
+
+      if (firstMonth) {
+        const sameMonth = targetMonth.year === firstMonth.year && targetMonth.month === firstMonth.month;
+        const sameFirstSeries =
+          firstMonth.seriesId !== null && targetMonth.seriesId === firstMonth.seriesId;
+        if (sameMonth || sameFirstSeries) {
+          targetMonth = null;
         }
       }
     }
