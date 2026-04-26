@@ -122,6 +122,10 @@ export class CreateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  paymentOnStartup?: boolean;
 }
 
 export class UpdateSubscriptionDto {
@@ -226,6 +230,10 @@ export class UpdateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  paymentOnStartup?: boolean;
 }
 
 export class CreatePrepayOptionDto {

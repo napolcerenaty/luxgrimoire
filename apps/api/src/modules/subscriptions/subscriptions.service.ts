@@ -71,6 +71,7 @@ export class SubscriptionsService {
         renewalDayUserSet: dto.renewalDayUserSet ?? false,
         startingMonth: dto.startingMonth,
         shippingCountries: dto.shippingCountries ?? [],
+        paymentOnStartup: dto.paymentOnStartup ?? false,
       },
     });
 
@@ -691,6 +692,12 @@ export class SubscriptionsService {
     // Compute eligible past months: from startDate+1 to current month (inclusive)
     const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
 
+    // If paymentOnStartup: register the first upcoming month's books as preorders
+    const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    if (paymentOnStartup && startDateObj) {
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
+    }
+
     return { entry, eligibleMonths };
   }
 
@@ -746,6 +753,69 @@ export class SubscriptionsService {
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
+  }
+
+  /**
+   * When paymentOnStartup=true: find the first subscription month at or after startDate
+   * and add all its books as PREORDER entries in the user's collection.
+   */
+  private async recordFirstMonthAsPreorder(
+    entryId: string,
+    userId: string,
+    subscriptionId: string,
+    startDateObj: Date,
+    entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; taxesAndFees: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
+  ) {
+    const startYear = startDateObj.getFullYear();
+    const startMonth = startDateObj.getMonth() + 1;
+
+    // Find the first subscription month >= startDate
+    const firstMonth = await this.prisma.subscriptionMonth.findFirst({
+      where: {
+        subscriptionId,
+        OR: [
+          { year: { gt: startYear } },
+          { year: startYear, month: { gte: startMonth } },
+        ],
+      },
+      include: {
+        books: { select: { editionId: true, bookId: true, signatureType: true } },
+      },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    if (!firstMonth || firstMonth.books.length === 0) return;
+
+    const renewalDay = entry.renewalDay ?? 1;
+    const purchaseDate = new Date(Date.UTC(firstMonth.year, firstMonth.month - 1, renewalDay));
+    const monthBooks = firstMonth.books.filter(mb => mb.editionId && mb.bookId);
+
+    for (const mb of monthBooks) {
+      const pricePerBook = entry.basePrice && monthBooks.length > 0
+        ? parseFloat((entry.basePrice as any).toString()) / monthBooks.length
+        : null;
+
+      try {
+        await this.prisma.userBookEntry.upsert({
+          where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
+          create: {
+            userId,
+            bookId: mb.bookId!,
+            editionId: mb.editionId!,
+            purchaseDate,
+            ownershipStatus: 'PREORDER',
+            readingStatus: 'UNREAD',
+            subscriptionEntryId: entryId,
+            signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
+            ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
+            ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
+          },
+          update: {},
+        });
+      } catch {
+        // skip if already exists
+      }
+    }
   }
 
   async backfillSubscription(userId: string, slug: string, dto: BackfillSubscriptionDto) {

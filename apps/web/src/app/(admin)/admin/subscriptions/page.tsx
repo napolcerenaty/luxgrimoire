@@ -42,6 +42,7 @@ interface SubFormData {
   componentIds: string[]
   isDiscontinued: boolean
   isHidden: boolean
+  paymentOnStartup: boolean
   startDate: string
   endDate: string
   // Skip policy (saved separately via PUT /skip-policy/:slug)
@@ -75,6 +76,7 @@ const EMPTY_FORM: SubFormData = {
   componentIds: [],
   isDiscontinued: false,
   isHidden: false,
+  paymentOnStartup: false,
   startDate: '',
   endDate: '',
   skipPolicyType: 'NONE',
@@ -109,6 +111,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     componentIds: (sub as any).componentIds ?? [],
     isDiscontinued: sub.isDiscontinued,
     isHidden: sub.isHidden ?? false,
+    paymentOnStartup: (sub as any).paymentOnStartup ?? false,
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
     skipPolicyType: p?.type ?? 'NONE',
@@ -143,6 +146,7 @@ function formToCreatePayload(form: SubFormData) {
     componentIds: form.componentIds.length > 0 ? form.componentIds : undefined,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
+    paymentOnStartup: form.paymentOnStartup,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -169,6 +173,7 @@ function formToUpdatePayload(form: SubFormData) {
     componentIds: form.componentIds,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
+    paymentOnStartup: form.paymentOnStartup,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -573,6 +578,17 @@ function SubscriptionForm({
           className="accent-amber-400 w-4 h-4"
         />
         Hidden (not visible on public pages — for drafts/historical data)
+      </label>
+
+      {/* Payment on startup */}
+      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.paymentOnStartup}
+          onChange={(e) => setField('paymentOnStartup', e.target.checked)}
+          className="accent-amber-400 w-4 h-4"
+        />
+        Payment on signup (first box charged immediately at signup, not on renewal day)
       </label>
 
       {/* ── Skip Policy ──────────────────────────────────────────── */}
