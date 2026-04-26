@@ -21,8 +21,7 @@ export default async function SubscriptionsPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      <h1 className="text-4xl font-serif font-bold text-stone-100 mb-2">Subscriptions</h1>
-      <p className="text-stone-400 mb-8">All book subscription boxes on LuxGrimoire.</p>
+      <h1 className="text-4xl font-serif font-bold text-stone-100 mb-6">Subscriptions</h1>
 
       {subscriptions.length === 0 ? (
         <p className="text-stone-500">No subscriptions found.</p>

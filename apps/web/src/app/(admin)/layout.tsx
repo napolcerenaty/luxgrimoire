@@ -23,35 +23,78 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
-const COMPANY_MANAGER_LINKS = [
-  { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
-  { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
-  { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
-  { href: '/admin/books', label: 'Books', icon: BookOpen },
-  { href: '/admin/editions', label: 'Editions', icon: Layers },
+type NavItem = { href: string; label: string; icon: React.ElementType }
+type NavGroup = { heading: string; items: NavItem[] }
+
+const COMPANY_MANAGER_GROUPS: NavGroup[] = [
+  {
+    heading: 'Book Boxes',
+    items: [
+      { href: '/admin/companies', label: 'Companies', icon: Building2 },
+      { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+      { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
+    ],
+  },
+  {
+    heading: 'Catalogue',
+    items: [
+      { href: '/admin/books', label: 'Books', icon: BookOpen },
+      { href: '/admin/editions', label: 'Editions', icon: Layers },
+    ],
+  },
 ]
 
-const MODERATOR_LINKS = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/companies', label: 'Book Boxes', icon: Building2 },
-  { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
-  { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
-  { href: '/admin/books', label: 'Books', icon: BookOpen },
-  { href: '/admin/editions', label: 'Editions', icon: Layers },
-  { href: '/admin/authors', label: 'Authors', icon: Users },
-  { href: '/admin/artists', label: 'Artists', icon: Brush },
-  { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
-  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
-  { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
-  { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
-  { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
-  { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
+const MODERATOR_GROUPS: NavGroup[] = [
+  {
+    heading: 'Overview',
+    items: [
+      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    heading: 'Book Boxes',
+    items: [
+      { href: '/admin/companies', label: 'Companies', icon: Building2 },
+      { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
+      { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
+    ],
+  },
+  {
+    heading: 'Catalogue',
+    items: [
+      { href: '/admin/books', label: 'Books', icon: BookOpen },
+      { href: '/admin/editions', label: 'Editions', icon: Layers },
+      { href: '/admin/authors', label: 'Authors', icon: Users },
+      { href: '/admin/artists', label: 'Artists', icon: Brush },
+    ],
+  },
+  {
+    heading: 'Sales & Marketing',
+    items: [
+      { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
+      { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
+    ],
+  },
+  {
+    heading: 'Community',
+    items: [
+      { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+      { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
+      { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
+      { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
+    ],
+  },
 ]
 
-const ADMIN_LINKS = [
-  ...MODERATOR_LINKS,
-  { href: '/admin/users', label: 'Users', icon: ShieldCheck },
-  { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
+const ADMIN_GROUPS: NavGroup[] = [
+  ...MODERATOR_GROUPS,
+  {
+    heading: 'System',
+    items: [
+      { href: '/admin/users', label: 'Users', icon: ShieldCheck },
+      { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
+    ],
+  },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -78,14 +121,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!isAuthorized) return null
 
-  const navLinks =
-    user.role === 'ADMIN' ? ADMIN_LINKS :
-    user.role === 'MODERATOR' ? MODERATOR_LINKS :
-    COMPANY_MANAGER_LINKS
+  const navGroups =
+    user.role === 'ADMIN' ? ADMIN_GROUPS :
+    user.role === 'MODERATOR' ? MODERATOR_GROUPS :
+    COMPANY_MANAGER_GROUPS
 
   return (
     <div className="flex min-h-screen bg-stone-950">
-      {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 bg-stone-950 border-r border-stone-800">
         <div className="px-6 py-5 border-b border-stone-800">
           <Link href="/admin" className="text-amber-400 font-bold text-lg tracking-wide">
@@ -93,34 +135,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <p className="text-stone-500 text-xs mt-0.5">Admin Panel</p>
         </div>
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
-          {navLinks.map(({ href, label, icon: Icon }) => {
-            const isActive =
-              href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={clsx(
-                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
-                )}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
+          {navGroups.map((group) => (
+            <div key={group.heading}>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">
+                {group.heading}
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const isActive =
+                    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={clsx(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
+                      )}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="px-4 py-4 border-t border-stone-800">
           <p className="text-stone-500 text-xs truncate">{user.email}</p>
           <p className="text-amber-400/70 text-xs mt-0.5">{user.role}</p>
         </div>
       </aside>
-
-      {/* Main content */}
       <main className="flex-1 overflow-auto">
         <div className="p-6 md:p-8">{children}</div>
       </main>

@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { Camera, Loader2, Check } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 
@@ -27,10 +27,23 @@ interface UploadResponse {
   url: string
 }
 
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions'
+
+const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'account', label: 'Account', icon: Settings },
+  { id: 'preferences', label: 'Preferences', icon: CreditCard },
+  { id: 'subscriptions', label: 'Subscriptions & Fees', icon: BookOpen },
+]
+
+const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+const LABEL = 'block text-xs font-medium text-stone-400 mb-1.5'
+
 export default function ProfilePage() {
   const { user, login } = useAuth()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('profile')
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [bio, setBio] = useState('')
@@ -42,7 +55,18 @@ export default function ProfilePage() {
       : Intl.DateTimeFormat().resolvedOptions().timeZone
   )
   const [newUsername, setNewUsername] = useState(user?.username ?? '')
+
   const [profileSuccess, setProfileSuccess] = useState(false)
+  const [prefsSuccess, setPrefsSuccess] = useState(false)
+  const [usernameSuccess, setUsernameSuccess] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [prefsError, setPrefsError] = useState<string | null>(null)
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user?.avatar ? cloudinaryUrl(user.avatar, 'w_200,h_200,c_fill,q_auto,f_auto') : null,
+  )
 
   const timezoneOptions = useMemo(() => {
     const now = new Date()
@@ -67,14 +91,37 @@ export default function ProfilePage() {
       })
       .sort((a, b) => a.offsetNum - b.offsetNum || a.tz.localeCompare(b.tz))
   }, [])
-  const [usernameSuccess, setUsernameSuccess] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [profileError, setProfileError] = useState<string | null>(null)
-  const [usernameError, setUsernameError] = useState<string | null>(null)
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatar ? cloudinaryUrl(user.avatar, 'w_200,h_200,c_fill,q_auto,f_auto') : null,
-  )
+  const updateProfileMutation = useMutation({
+    mutationFn: (payload: UpdateProfilePayload) =>
+      authFetch<{ user: typeof user }>('/profile', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: (data, variables) => {
+      if (data?.user && user) {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
+        login(token ?? '', { ...user, ...data.user })
+      }
+      void queryClient.invalidateQueries({ queryKey: ['me'] })
+      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables) {
+        setPrefsSuccess(true)
+        setPrefsError(null)
+        setTimeout(() => setPrefsSuccess(false), 3000)
+      } else {
+        setProfileSuccess(true)
+        setProfileError(null)
+        setTimeout(() => setProfileSuccess(false), 3000)
+      }
+    },
+    onError: (e: Error, variables) => {
+      if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables) {
+        setPrefsError(e.message)
+      } else {
+        setProfileError(e.message)
+      }
+    },
+  })
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -99,25 +146,6 @@ export default function ProfilePage() {
     onError: (e: Error) => setUploadError(e.message),
   })
 
-  const updateProfileMutation = useMutation({
-    mutationFn: (payload: UpdateProfilePayload) =>
-      authFetch<{ user: typeof user }>('/profile', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }),
-    onSuccess: (data) => {
-      if (data?.user && user) {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
-        login(token ?? '', { ...user, ...data.user })
-      }
-      void queryClient.invalidateQueries({ queryKey: ['me'] })
-      setProfileSuccess(true)
-      setProfileError(null)
-      setTimeout(() => setProfileSuccess(false), 3000)
-    },
-    onError: (e: Error) => setProfileError(e.message),
-  })
-
   const updateUsernameMutation = useMutation({
     mutationFn: (payload: UpdateUsernamePayload) =>
       authFetch<{ user: typeof user }>('/profile/username', {
@@ -139,20 +167,8 @@ export default function ProfilePage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const preview = URL.createObjectURL(file)
-    setAvatarPreview(preview)
+    setAvatarPreview(URL.createObjectURL(file))
     uploadMutation.mutate(file)
-  }
-
-  const handleProfileSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    updateProfileMutation.mutate({ displayName, bio: bio || undefined, preferredCurrency, timezone, shippingCountry: shippingCountry.toUpperCase() || undefined })
-  }
-
-  const handleUsernameSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newUsername.trim()) return
-    updateUsernameMutation.mutate({ username: newUsername.trim() })
   }
 
   if (!user) return null
@@ -161,213 +177,192 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-stone-100">Profile</h1>
-        <p className="text-stone-400 text-sm mt-1">Manage your account details</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-serif font-bold text-stone-100">Settings</h1>
       </div>
 
-      {/* Avatar */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 mb-6">
-        <h2 className="font-serif font-semibold text-stone-100 mb-4">Avatar</h2>
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-800 border-2 border-stone-700">
-              {avatarPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarPreview} alt={user.username} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xl font-serif font-bold text-amber-400">
-                  {initials}
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-stone-900 border border-stone-800 rounded-2xl p-1 mb-6">
+        {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+              activeTab === id
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+            }`}
+          >
+            <Icon size={14} />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Profile tab */}
+      {activeTab === 'profile' && (
+        <div className="space-y-6">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+            <h2 className="font-serif font-semibold text-stone-100 mb-4">Avatar</h2>
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-800 border-2 border-stone-700">
+                  {avatarPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarPreview} alt={user.username} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl font-serif font-bold text-amber-400">
+                      {initials}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {uploadMutation.isPending && (
-              <div className="absolute inset-0 bg-stone-950/70 rounded-full flex items-center justify-center">
-                <Loader2 size={20} className="text-amber-400 animate-spin" />
+                {uploadMutation.isPending && (
+                  <div className="absolute inset-0 bg-stone-950/70 rounded-full flex items-center justify-center">
+                    <Loader2 size={20} className="text-amber-400 animate-spin" />
+                  </div>
+                )}
               </div>
+              <div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadMutation.isPending}
+                  className="flex items-center gap-2 border border-stone-600 hover:border-amber-400 text-stone-300 hover:text-amber-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
+                >
+                  <Camera size={14} />
+                  {uploadMutation.isPending ? 'Uploading...' : 'Change Avatar'}
+                </button>
+                {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
+                <p className="text-xs text-stone-500 mt-1">JPG, PNG or WEBP, max 5MB</p>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              updateProfileMutation.mutate({ displayName, bio: bio || undefined })
+            }}
+            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4"
+          >
+            <h2 className="font-serif font-semibold text-stone-100">Public Info</h2>
+            <div>
+              <label className={LABEL}>Display Name</label>
+              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" className={INPUT} />
+            </div>
+            <div>
+              <label className={LABEL}>Bio</label>
+              <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself..." rows={3} className={`${INPUT} resize-none`} />
+            </div>
+            {profileError && (
+              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{profileError}</p>
             )}
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : profileSuccess ? <><Check size={14} /> Saved!</> : 'Save Changes'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Account tab */}
+      {activeTab === 'account' && (
+        <div className="space-y-6">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+            <h2 className="font-serif font-semibold text-stone-100 mb-4">Email</h2>
+            <p className="text-xs text-stone-500 mb-3">Your email address cannot be changed here.</p>
+            <input type="email" disabled value={user.email} className="w-full bg-stone-800 border border-stone-700 text-stone-500 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed" />
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!newUsername.trim()) return
+              updateUsernameMutation.mutate({ username: newUsername.trim() })
+            }}
+            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4"
+          >
+            <div>
+              <h2 className="font-serif font-semibold text-stone-100">Change Username</h2>
+              <p className="text-xs text-stone-400 mt-1">Changing your username may break existing links to your profile.</p>
+            </div>
+            <div>
+              <label className={LABEL}>Username</label>
+              <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder={user.username} className={INPUT} />
+            </div>
+            {usernameError && (
+              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{usernameError}</p>
+            )}
+            <button type="submit" disabled={updateUsernameMutation.isPending || newUsername === user.username} className="flex items-center gap-2 border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              {updateUsernameMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Updating...</> : usernameSuccess ? <><Check size={14} /> Updated!</> : 'Update Username'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Preferences tab */}
+      {activeTab === 'preferences' && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            updateProfileMutation.mutate({ preferredCurrency, timezone, shippingCountry: shippingCountry.toUpperCase() || undefined })
+          }}
+          className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
+        >
+          <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
+          <div>
+            <label className={LABEL}>Preferred Currency</label>
+            <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
+              {[
+                ['EUR', 'EUR - Euro'],
+                ['USD', 'USD - US Dollar'],
+                ['GBP', 'GBP - British Pound'],
+                ['PLN', 'PLN - Polish Zloty'],
+                ['CHF', 'CHF - Swiss Franc'],
+                ['CZK', 'CZK - Czech Koruna'],
+                ['SEK', 'SEK - Swedish Krona'],
+                ['NOK', 'NOK - Norwegian Krone'],
+                ['DKK', 'DKK - Danish Krone'],
+                ['HUF', 'HUF - Hungarian Forint'],
+                ['RON', 'RON - Romanian Leu'],
+                ['CAD', 'CAD - Canadian Dollar'],
+                ['AUD', 'AUD - Australian Dollar'],
+                ['JPY', 'JPY - Japanese Yen'],
+              ].map(([code, label]) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
           </div>
           <div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMutation.isPending}
-              className="flex items-center gap-2 border border-stone-600 hover:border-amber-400 text-stone-300 hover:text-amber-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
-            >
-              <Camera size={14} />
-              {uploadMutation.isPending ? 'Uploading…' : 'Change Avatar'}
-            </button>
-            {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
-            <p className="text-xs text-stone-500 mt-1">JPG, PNG or WEBP, max 5MB</p>
+            <label className={LABEL}>Default Shipping Country</label>
+            <input type="text" maxLength={2} value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value.toUpperCase())} placeholder="e.g. PL, DE, GB" className={INPUT} />
+            <p className="text-xs text-stone-500 mt-1">ISO 3166-1 alpha-2 country code</p>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarChange}
-          />
-        </div>
-      </div>
-
-      {/* Profile form */}
-      <form onSubmit={handleProfileSave} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 mb-6 space-y-4">
-        <h2 className="font-serif font-semibold text-stone-100">Profile Info</h2>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Email</label>
-          <input
-            type="email"
-            disabled
-            value={user.email}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-500 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Display Name</label>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your display name"
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Bio</label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Tell us about yourself…"
-            rows={3}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors resize-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Preferred Currency</label>
-          <select
-            value={preferredCurrency}
-            onChange={(e) => setPreferredCurrency(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
-          >
-            {[
-              ['EUR', 'EUR — Euro'],
-              ['USD', 'USD — US Dollar'],
-              ['GBP', 'GBP — British Pound'],
-              ['PLN', 'PLN — Polish Złoty'],
-              ['CHF', 'CHF — Swiss Franc'],
-              ['CZK', 'CZK — Czech Koruna'],
-              ['SEK', 'SEK — Swedish Krona'],
-              ['NOK', 'NOK — Norwegian Krone'],
-              ['DKK', 'DKK — Danish Krone'],
-              ['HUF', 'HUF — Hungarian Forint'],
-              ['RON', 'RON — Romanian Leu'],
-              ['CAD', 'CAD — Canadian Dollar'],
-              ['AUD', 'AUD — Australian Dollar'],
-              ['JPY', 'JPY — Japanese Yen'],
-            ].map(([code, label]) => (
-              <option key={code} value={code}>{label}</option>
-            ))}
-          </select>
-          <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-stone-400 mb-1">
-            Default shipping country (ISO code, e.g. PL, DE, GB)
-          </label>
-          <input
-            type="text"
-            maxLength={2}
-            value={shippingCountry}
-            onChange={e => setShippingCountry(e.target.value.toUpperCase())}
-            placeholder="e.g. PL"
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Timezone</label>
-          <select
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
-          >
-            {timezoneOptions.map(({ tz, label }) => (
-              <option key={tz} value={tz}>{label}</option>
-            ))}
-          </select>
-          <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
-        </div>
-
-          {profileError && (
-          <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">
-            {profileError}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={updateProfileMutation.isPending}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          {updateProfileMutation.isPending ? (
-            <><Loader2 size={14} className="animate-spin" /> Saving…</>
-          ) : profileSuccess ? (
-            <><Check size={14} /> Saved!</>
-          ) : (
-            'Save Changes'
+          <div>
+            <label className={LABEL}>Timezone</label>
+            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={INPUT}>
+              {timezoneOptions.map(({ tz, label }) => (
+                <option key={tz} value={tz}>{label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+          </div>
+          {prefsError && (
+            <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
           )}
-        </button>
-      </form>
+          <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
+          </button>
+        </form>
+      )}
 
-      {/* Change username */}
-      <form onSubmit={handleUsernameSave} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4 mb-6">
-        <div>
-          <h2 className="font-serif font-semibold text-stone-100">Change Username</h2>
-          <p className="text-xs text-stone-400 mt-1">
-            Changing your username may break existing links to your profile.
-          </p>
+      {/* Subscriptions & Fees tab */}
+      {activeTab === 'subscriptions' && (
+        <div className="space-y-6">
+          <FeeTemplateManager />
+          <WaitlistPanel />
         </div>
-
-        <div>
-          <label className="block text-xs font-medium text-stone-400 mb-1.5">Username</label>
-          <input
-            type="text"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-            placeholder={user.username}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
-          />
-        </div>
-
-        {usernameError && (
-          <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">
-            {usernameError}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={updateUsernameMutation.isPending || newUsername === user.username}
-          className="flex items-center gap-2 border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          {updateUsernameMutation.isPending ? (
-            <><Loader2 size={14} className="animate-spin" /> Updating…</>
-          ) : usernameSuccess ? (
-            <><Check size={14} /> Updated!</>
-          ) : (
-            'Update Username'
-          )}
-        </button>
-      </form>
-      {/* Fee Templates */}
-      <FeeTemplateManager />
-
-      {/* Waitlist */}
-      <WaitlistPanel />
+      )}
     </div>
   )
 }
