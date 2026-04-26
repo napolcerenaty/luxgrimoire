@@ -391,9 +391,14 @@ export class SubscriptionsService {
     const type = (sub as any).type as string | null;
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
+    const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    const subStartDate = (sub as any).startDate as Date | null;
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
 
-    const nextRenewalDate = this.computeNextRenewalDate(renewalDay, type, startingMonth, userStartDate, skippedMonths);
+    const nextRenewalDate = this.computeNextRenewalDate(
+      renewalDay, type, startingMonth, userStartDate, skippedMonths,
+      paymentOnStartup ? subStartDate : null,
+    );
 
     const { skipRecords: _sr, ...entryWithoutSkips } = entry;
     return { ...entryWithoutSkips, nextRenewalDate: nextRenewalDate ? nextRenewalDate.toISOString() : null };
@@ -405,6 +410,11 @@ export class SubscriptionsService {
     startingMonth: number | null,
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
+    /**
+     * When provided (paymentOnStartup=true), the billing cycle month that contains this date
+     * was already paid at signup — skip it and start from the NEXT cycle month.
+     */
+    paidUpFrontDate: Date | null = null,
   ): Date | null {
     const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
     const now = new Date();
@@ -417,6 +427,16 @@ export class SubscriptionsService {
       if (interval > 1 && startingMonth != null) {
         const offset = ((candMonth - startingMonth) % 12 + 12) % 12;
         if (offset % interval !== 0) {
+          [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
+          continue;
+        }
+      }
+
+      // Skip the first billing cycle month if it was already paid at startup
+      if (paidUpFrontDate) {
+        const paidYear = paidUpFrontDate.getFullYear();
+        const paidMonth = paidUpFrontDate.getMonth() + 1;
+        if (candYear === paidYear && candMonth === paidMonth) {
           [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
           continue;
         }

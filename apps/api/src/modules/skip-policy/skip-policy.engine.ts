@@ -49,18 +49,15 @@ export class SkipPolicyEngine {
     let subscriptionStarted = true; // assume started unless proven otherwise
 
     if (skipWindowOpen) {
-      // Determine the user's first deliverable month (and its series, if any).
-      // Works even if entry.startDate is null — falls back to first month in the subscription.
-      const firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
-
-      // Edge case: subscription hasn't started yet (first deliverable month is still in the future).
-      // You cannot skip anything — the first box hasn't even been received yet.
-      subscriptionStarted =
-        !firstMonthInfo ||
-        firstMonthInfo.year < currentYear ||
-        (firstMonthInfo.year === currentYear && firstMonthInfo.month <= currentMonth);
+      // Use subscription.startDate to determine if subscription has started yet.
+      // This is set by admins to the first day of the first delivery month.
+      const subStartDate = (subscription as any).startDate as Date | null;
+      subscriptionStarted = !subStartDate || subStartDate <= now;
 
       if (subscriptionStarted) {
+        // Determine the user's first deliverable month (and its series, if any) for blocking logic.
+        const firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
+
         // Find the first upcoming month the user CAN skip:
         // - must be >= next calendar month
         // - must not already be skipped
