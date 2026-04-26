@@ -172,9 +172,6 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
           <p className="text-stone-100 font-medium text-sm mt-0.5">
             {formatDateInTz(targetDate, tz, userTz ?? undefined, hour12)}
           </p>
-          {tz && tz !== userTz && (
-            <p className="text-xs text-stone-600 mt-0.5">Sale timezone: {tz}</p>
-          )}
           <Countdown ms={countdown} />
         </div>
       )}

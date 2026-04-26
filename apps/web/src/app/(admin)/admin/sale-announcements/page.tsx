@@ -89,6 +89,17 @@ function tzLocalToUtcIso(localStr: string, tz: string): string {
   } catch { return '' }
 }
 
+/** Format a stored UTC ISO date for display in the admin UI (no browser-local conversion). */
+function fmtAdminDate(iso: string | null | undefined, tz: string): string {
+  if (!iso) return ''
+  const local = utcIsoToTzLocal(iso, tz)
+  if (!local) return ''
+  const [datePart, timePart] = local.split('T')
+  const [year, month, day] = datePart.split('-')
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${parseInt(day)} ${MONTHS[parseInt(month) - 1]} ${year} · ${timePart} ${tz}`
+}
+
 // Timezone abbreviations (code → display label)
 const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: 'UTC',   label: 'UTC – Coordinated Universal Time (UTC+0)' },
@@ -965,9 +976,9 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                       </div>
                     )}
                     <div className="text-xs text-stone-500 mt-1 space-y-0.5">
-                      {r.generalSaleDate && <div>General: {new Date(r.generalSaleDate).toLocaleString()} {r.saleTimezone && `(${r.saleTimezone})`}</div>}
-                      {r.firstAccessDate && <div>First: {new Date(r.firstAccessDate).toLocaleString()}</div>}
-                      {r.earlyAccessDate && <div>Early: {new Date(r.earlyAccessDate).toLocaleString()}</div>}
+                      {r.generalSaleDate && <div>General: {fmtAdminDate(r.generalSaleDate, r.saleTimezone ?? 'UTC')}</div>}
+                      {r.firstAccessDate && <div>First: {fmtAdminDate(r.firstAccessDate, r.saleTimezone ?? 'UTC')}</div>}
+                      {r.earlyAccessDate && <div>Early: {fmtAdminDate(r.earlyAccessDate, r.saleTimezone ?? 'UTC')}</div>}
                       {r.basePrice != null && <div className="text-amber-500/70">{r.basePrice} {r.currency}</div>}
                     </div>
                   </div>
@@ -1207,7 +1218,7 @@ function AnnouncementCard({
   const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
   const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
   const saleDate = announcement.generalSaleDate
-    ? new Date(announcement.generalSaleDate).toLocaleString()
+    ? fmtAdminDate(announcement.generalSaleDate, announcement.saleTimezone ?? 'UTC')
     : null
 
   return (
