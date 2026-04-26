@@ -875,27 +875,87 @@ export class SubscriptionsService {
       });
     }
 
-    // Batch-create all skip records in one query
-    if (dto.skippedMonthIds?.length) {
-      const skipData = dto.skippedMonthIds.map(monthId => ({
-        userId,
-        userEntryId: entry.id,
-        subscriptionMonthId: monthId,
-        skippedAt: new Date(),
-      }));
-      const result = await this.prisma.userSkipRecord.createMany({
-        data: skipData,
-        skipDuplicates: true,
-      });
-      skipsRecorded = result.count;
+    // Auto-derive skipped months: eligible months with books that were NOT selected as received
+    const selectedSet = new Set(dto.selectedMonthIds);
+    const startDateObj = entry.startDate ? new Date(entry.startDate) : null;
+
+    const subWithPolicy = await this.prisma.subscription.findUnique({
+      where: { id: sub.id },
+      include: { skipPolicy: true },
+    });
+    const policy = subWithPolicy?.skipPolicy ?? null;
+
+    if (startDateObj) {
+      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
+      const skippableMonths = eligibleMonths
+        .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
+        .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+
+      let firstSkipDateInWindow: Date | null = null;
+
+      for (const m of skippableMonths) {
+        const windowKey = this.computeWindowKeyForBackfill(policy, firstSkipDateInWindow, entry.startDate, m.year, m.month);
+        const skippedAt = new Date(m.year, m.month - 1, renewalDay);
+
+        await this.prisma.userSkipRecord.upsert({
+          where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: m.id } },
+          create: { userId, userEntryId: entry.id, subscriptionMonthId: m.id, windowKey, skippedAt },
+          update: { windowKey, skippedAt, undoneAt: null },
+        });
+        skipsRecorded++;
+
+        if (firstSkipDateInWindow === null) {
+          firstSkipDateInWindow = skippedAt;
+          if (!entry.firstSkipDate) {
+            await this.prisma.userSubscriptionEntry.update({
+              where: { id: entry.id },
+              data: { firstSkipDate: skippedAt },
+            });
+          }
+        }
+      }
     }
 
-    // Recompute skip state counters once at the end
-    if (skipsRecorded > 0) {
-      await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
-    }
+    // Always recompute skip state after backfill to keep counters consistent
+    await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
 
     return { booksAdded, skipsRecorded };
+  }
+
+  private computeWindowKeyForBackfill(
+    policy: { type: string; windowMonths: number | null } | null,
+    firstSkipDateInWindow: Date | null,
+    entryStartDate: string | null,
+    year: number,
+    month: number,
+  ): string | null {
+    if (!policy) return null;
+
+    switch (policy.type) {
+      case 'CALENDAR_YEAR':
+        return String(year);
+
+      case 'FROM_FIRST_SKIP': {
+        if (!firstSkipDateInWindow) {
+          return `${year}-${String(month).padStart(2, '0')}-01`;
+        }
+        const windowMonths = policy.windowMonths ?? 12;
+        const windowEnd = new Date(firstSkipDateInWindow);
+        windowEnd.setMonth(windowEnd.getMonth() + windowMonths);
+        if (new Date(year, month - 1, 1) < windowEnd) {
+          return firstSkipDateInWindow.toISOString().slice(0, 10);
+        }
+        return `${year}-${String(month).padStart(2, '0')}-01`;
+      }
+
+      case 'FROM_SUB_START': {
+        const ref = entryStartDate ? new Date(entryStartDate) : new Date(year, month - 1, 1);
+        return ref.toISOString().slice(0, 10);
+      }
+
+      default:
+        return null;
+    }
   }
 
   async joinWaitlist(userId: string, subscriptionSlug: string, joinedAt?: string) {

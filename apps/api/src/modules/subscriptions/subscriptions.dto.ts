@@ -469,10 +469,14 @@ export class BackfillSubscriptionDto {
   @IsString({ each: true })
   selectedMonthIds!: string[];
 
-  /** Month IDs the user skipped (creates UserSkipRecord) */
+  /**
+   * @deprecated Skipped months are now auto-derived from eligibleMonths minus selectedMonthIds.
+   * This field is accepted for backward compatibility but ignored.
+   */
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  skippedMonthIds!: string[];
+  skippedMonthIds?: string[];
 
   /** Optional per-book price overrides for months with multiple books */
   @IsOptional()
