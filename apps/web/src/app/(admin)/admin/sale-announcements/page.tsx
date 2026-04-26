@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import {
@@ -26,7 +26,6 @@ const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
-const SEL = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 
 const CURRENCIES = [
   'AED','AUD','BGN','BRL','CAD','CHF','CNY','CZK','DKK','EGP',
@@ -35,56 +34,167 @@ const CURRENCIES = [
   'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
 ]
 
-const ALL_TIMEZONES: string[] = typeof Intl !== 'undefined' && 'supportedValuesOf' in Intl
-  ? (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf('timeZone')
-  : [
-    'Africa/Cairo','Africa/Johannesburg','Africa/Lagos','America/Anchorage',
-    'America/Argentina/Buenos_Aires','America/Bogota','America/Chicago',
-    'America/Denver','America/Los_Angeles','America/Mexico_City',
-    'America/New_York','America/Phoenix','America/Sao_Paulo','America/Toronto',
-    'Asia/Bangkok','Asia/Colombo','Asia/Dubai','Asia/Hong_Kong','Asia/Jakarta',
-    'Asia/Karachi','Asia/Kolkata','Asia/Kuala_Lumpur','Asia/Manila',
-    'Asia/Riyadh','Asia/Seoul','Asia/Shanghai','Asia/Singapore',
-    'Asia/Taipei','Asia/Tehran','Asia/Tokyo','Australia/Adelaide',
-    'Australia/Brisbane','Australia/Melbourne','Australia/Sydney',
-    'Europe/Amsterdam','Europe/Athens','Europe/Berlin','Europe/Brussels',
-    'Europe/Bucharest','Europe/Budapest','Europe/Copenhagen','Europe/Dublin',
-    'Europe/Helsinki','Europe/Istanbul','Europe/Kiev','Europe/Lisbon',
-    'Europe/London','Europe/Madrid','Europe/Moscow','Europe/Oslo',
-    'Europe/Paris','Europe/Prague','Europe/Rome','Europe/Stockholm',
-    'Europe/Vienna','Europe/Warsaw','Europe/Zurich','Pacific/Auckland',
-    'Pacific/Honolulu','Pacific/Sydney','UTC',
-  ]
+// Timezone abbreviations (code → display label)
+const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'UTC',   label: 'UTC – Coordinated Universal Time (UTC+0)' },
+  { value: 'GMT',   label: 'GMT – Greenwich Mean Time (UTC+0)' },
+  { value: 'BST',   label: 'BST – British Summer Time (UTC+1)' },
+  { value: 'WET',   label: 'WET – Western European Time (UTC+0)' },
+  { value: 'WEST',  label: 'WEST – Western European Summer Time (UTC+1)' },
+  { value: 'CET',   label: 'CET – Central European Time (UTC+1)' },
+  { value: 'CEST',  label: 'CEST – Central European Summer Time (UTC+2)' },
+  { value: 'EET',   label: 'EET – Eastern European Time (UTC+2)' },
+  { value: 'EEST',  label: 'EEST – Eastern European Summer Time (UTC+3)' },
+  { value: 'MSK',   label: 'MSK – Moscow Standard Time (UTC+3)' },
+  { value: 'TRT',   label: 'TRT – Turkey Time (UTC+3)' },
+  { value: 'GST',   label: 'GST – Gulf Standard Time (UTC+4)' },
+  { value: 'PKT',   label: 'PKT – Pakistan Standard Time (UTC+5)' },
+  { value: 'IST',   label: 'IST – India Standard Time (UTC+5:30)' },
+  { value: 'BST_BD',label: 'BST (BD) – Bangladesh Standard Time (UTC+6)' },
+  { value: 'ICT',   label: 'ICT – Indochina Time (UTC+7)' },
+  { value: 'SGT',   label: 'SGT – Singapore Time (UTC+8)' },
+  { value: 'HKT',   label: 'HKT – Hong Kong Time (UTC+8)' },
+  { value: 'CST',   label: 'CST – China Standard Time (UTC+8)' },
+  { value: 'JST',   label: 'JST – Japan Standard Time (UTC+9)' },
+  { value: 'KST',   label: 'KST – Korea Standard Time (UTC+9)' },
+  { value: 'ACST',  label: 'ACST – Australian Central Standard Time (UTC+9:30)' },
+  { value: 'ACDT',  label: 'ACDT – Australian Central Daylight Time (UTC+10:30)' },
+  { value: 'AEST',  label: 'AEST – Australian Eastern Standard Time (UTC+10)' },
+  { value: 'AEDT',  label: 'AEDT – Australian Eastern Daylight Time (UTC+11)' },
+  { value: 'NZST',  label: 'NZST – New Zealand Standard Time (UTC+12)' },
+  { value: 'NZDT',  label: 'NZDT – New Zealand Daylight Time (UTC+13)' },
+  { value: 'HST',   label: 'HST – Hawaii Standard Time (UTC-10)' },
+  { value: 'AKST',  label: 'AKST – Alaska Standard Time (UTC-9)' },
+  { value: 'AKDT',  label: 'AKDT – Alaska Daylight Time (UTC-8)' },
+  { value: 'PST',   label: 'PST – Pacific Standard Time (UTC-8)' },
+  { value: 'PDT',   label: 'PDT – Pacific Daylight Time (UTC-7)' },
+  { value: 'MST',   label: 'MST – Mountain Standard Time (UTC-7)' },
+  { value: 'MDT',   label: 'MDT – Mountain Daylight Time (UTC-6)' },
+  { value: 'CST_US',label: 'CST (US) – Central Standard Time (UTC-6)' },
+  { value: 'CDT',   label: 'CDT – Central Daylight Time (UTC-5)' },
+  { value: 'EST',   label: 'EST – Eastern Standard Time (UTC-5)' },
+  { value: 'EDT',   label: 'EDT – Eastern Daylight Time (UTC-4)' },
+  { value: 'AST',   label: 'AST – Atlantic Standard Time (UTC-4)' },
+  { value: 'ADT',   label: 'ADT – Atlantic Daylight Time (UTC-3)' },
+  { value: 'BRT',   label: 'BRT – Brasilia Time (UTC-3)' },
+  { value: 'ART',   label: 'ART – Argentina Time (UTC-3)' },
+]
+
+// ─── ComboBox ──────────────────────────────────────────────────────────────────
+function ComboBox({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select…',
+  allowFreeform = false,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+  allowFreeform?: boolean
+}) {
+  const [inputText, setInputText] = useState('')
+  const [open, setOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Derive display text from current value
+  const selectedLabel = options.find(o => o.value === value)?.label ?? value
+
+  // When not focused, show the selected label; when focused, show what user is typing
+  const displayText = focused ? inputText : selectedLabel
+
+  const filtered = inputText
+    ? options.filter(o =>
+        o.label.toLowerCase().includes(inputText.toLowerCase()) ||
+        o.value.toLowerCase().includes(inputText.toLowerCase())
+      )
+    : options
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setFocused(false)
+        setInputText('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleFocus = () => {
+    setFocused(true)
+    setInputText('')
+    setOpen(true)
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value)
+    setOpen(true)
+    if (allowFreeform) onChange(e.target.value)
+  }
+
+  const handleSelect = (opt: { value: string; label: string }) => {
+    onChange(opt.value)
+    setInputText('')
+    setFocused(false)
+    setOpen(false)
+  }
+
+  const handleBlur = () => {
+    // Delay to allow click on option to fire first
+    setTimeout(() => {
+      setFocused(false)
+      setInputText('')
+      setOpen(false)
+    }, 150)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { setOpen(false); setFocused(false); setInputText('') }
+    if (e.key === 'Enter' && filtered.length === 1) { handleSelect(filtered[0]); e.preventDefault() }
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        className={INP}
+        value={displayText}
+        placeholder={placeholder}
+        onFocus={handleFocus}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-stone-800 border border-stone-600 rounded-lg shadow-xl max-h-56 overflow-y-auto">
+          {filtered.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onMouseDown={() => handleSelect(opt)}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-stone-700 transition-colors ${opt.value === value ? 'text-amber-400 bg-stone-700/50' : 'text-stone-200'}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 
 function cloudThumb(id: string, w = 80, h = 100) {
   if (!id) return null
   if (id.startsWith('http')) return id
   return `https://res.cloudinary.com/${CLOUD}/image/upload/w_${w},h_${h},c_fill,q_auto,f_auto/${id}`
-}
-
-// ─── Timezone picker ──────────────────────────────────────────────────────────
-function TimezonePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [search, setSearch] = useState('')
-  const filtered = search
-    ? ALL_TIMEZONES.filter(tz => tz.toLowerCase().includes(search.toLowerCase()))
-    : ALL_TIMEZONES
-
-  return (
-    <div>
-      <input
-        className={`${INP} mb-1`}
-        placeholder="Filter timezones…"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-      />
-      <select className={SEL} value={value} onChange={e => onChange(e.target.value)}>
-        <option value="">-- No timezone --</option>
-        {filtered.map(tz => (
-          <option key={tz} value={tz}>{tz}</option>
-        ))}
-      </select>
-    </div>
-  )
 }
 
 // ─── Edition picker ───────────────────────────────────────────────────────────
@@ -389,7 +499,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   submitLabel: string
 }) {
   const [form, setForm] = useState<FormState>(initial)
-  const [companySearch, setCompanySearch] = useState('')
   const [editionsOpen, setEditionsOpen] = useState(initial.linkedEditions.length > 0)
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
@@ -403,9 +512,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   const allCompanies: ApiBookBoxCompany[] = Array.isArray(companiesResp)
     ? companiesResp
     : (companiesResp as { data: ApiBookBoxCompany[] })?.data ?? []
-  const filteredCompanies = companySearch
-    ? allCompanies.filter(c => c.name.toLowerCase().includes(companySearch.toLowerCase()))
-    : allCompanies
+  const companyOptions = allCompanies.map(c => ({ value: c.id, label: c.name }))
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
@@ -419,18 +526,15 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       {/* Company */}
       <div>
         <label className={LBL}>Company</label>
-        <input className={`${INP} mb-1`} placeholder="Search companies…"
-          value={companySearch} onChange={e => setCompanySearch(e.target.value)} />
-        <select className={SEL} value={form.companyId} onChange={e => {
-          const id = e.target.value
-          const company = allCompanies.find(c => c.id === id)
-          setForm(f => ({ ...f, companyId: id, ...(company?.defaultCurrency ? { currency: company.defaultCurrency } : {}) }))
-        }}>
-          <option value="">-- No company --</option>
-          {filteredCompanies.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <ComboBox
+          value={form.companyId}
+          options={[{ value: '', label: '— No company —' }, ...companyOptions]}
+          placeholder="Search or select company…"
+          onChange={id => {
+            const company = allCompanies.find(c => c.id === id)
+            setForm(f => ({ ...f, companyId: id, ...(company?.defaultCurrency ? { currency: company.defaultCurrency } : {}) }))
+          }}
+        />
       </div>
 
       {/* Dates */}
@@ -452,7 +556,12 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
         <div>
           <label className={LBL}>Timezone</label>
-          <TimezonePicker value={form.saleTimezone} onChange={v => setForm(f => ({ ...f, saleTimezone: v }))} />
+          <ComboBox
+            value={form.saleTimezone}
+            options={TIMEZONE_OPTIONS}
+            placeholder="Select timezone…"
+            onChange={v => setForm(f => ({ ...f, saleTimezone: v }))}
+          />
         </div>
       </div>
 
@@ -675,7 +784,12 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         </div>
         <div>
           <label className="block text-xs text-stone-400 mb-1">Timezone</label>
-          <TimezonePicker value={f.saleTimezone} onChange={v => setF(p => ({ ...p, saleTimezone: v }))} />
+          <ComboBox
+            value={f.saleTimezone}
+            options={TIMEZONE_OPTIONS}
+            placeholder="Select timezone…"
+            onChange={v => setF(p => ({ ...p, saleTimezone: v }))}
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
