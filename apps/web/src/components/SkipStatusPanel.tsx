@@ -52,9 +52,19 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
   const upcoming = months
     .filter((m) => {
       const d = new Date()
-      return m.year > d.getFullYear() || (m.year === d.getFullYear() && m.month >= d.getMonth() + 1)
+      // Only show months from NEXT calendar month onwards (current month is not skippable)
+      const nextMonth = d.getMonth() + 2 // getMonth() is 0-indexed, +1 for 1-indexed, +1 for next
+      const nextYear = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()
+      const normalizedNext = d.getMonth() === 11 ? 1 : d.getMonth() + 2
+      return m.year > nextYear || (m.year === nextYear && m.month >= normalizedNext)
     })
     .filter((m) => !status?.skippedMonths?.some((s) => s.year === m.year && s.month === m.month))
+    .filter((m) => {
+      // Exclude user's first deliverable month (cannot skip first box/series)
+      const fdm = status?.firstDeliverableMonth
+      if (!fdm) return true
+      return !(m.year === fdm.year && m.month === fdm.month)
+    })
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
   const limitText =

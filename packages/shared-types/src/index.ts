@@ -197,6 +197,7 @@ export interface ApiSkipStatus {
   nextDeadline: string | null;
   isPastDeadline: boolean;
   skippedMonths: { year: number; month: number }[];
+  firstDeliverableMonth: { year: number; month: number } | null;
 }
 
 export interface ApiSubscription {

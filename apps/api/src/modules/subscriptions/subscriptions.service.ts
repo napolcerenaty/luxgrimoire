@@ -392,12 +392,29 @@ export class SubscriptionsService {
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
-    const subStartDate = (sub as any).startDate as Date | null;
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+
+    // For paymentOnStartup: compute the actual first paid month based on join date + renewalDay
+    // (not the subscription's global startDate, which is unrelated to this user's join)
+    let paidUpFrontDate: Date | null = null;
+    if (paymentOnStartup && userStartDate) {
+      const joinDate = new Date(userStartDate);
+      const joinYear = joinDate.getUTCFullYear();
+      const joinMonth = joinDate.getUTCMonth() + 1;
+      const joinDay = joinDate.getUTCDate();
+      // If renewal day already passed this month, user starts from next month
+      const renewalPassedThisMonth = renewalDay < joinDay;
+      let paidYear = joinYear;
+      let paidMonth = joinMonth;
+      if (renewalPassedThisMonth) {
+        [paidYear, paidMonth] = this.incrementMonth(joinYear, joinMonth);
+      }
+      paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
+    }
 
     const nextRenewalDate = this.computeNextRenewalDate(
       renewalDay, type, startingMonth, userStartDate, skippedMonths,
-      paymentOnStartup ? subStartDate : null,
+      paidUpFrontDate,
     );
 
     const { skipRecords: _sr, ...entryWithoutSkips } = entry;

@@ -18,6 +18,8 @@ export interface SkipStatus {
   isPastDeadline: boolean;
   /** Months the user has already skipped (active, not undone) */
   skippedMonths: { year: number; month: number }[];
+  /** The user's first deliverable month — cannot be skipped */
+  firstDeliverableMonth: { year: number; month: number } | null;
 }
 
 @Injectable()
@@ -47,6 +49,7 @@ export class SkipPolicyEngine {
 
     let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
     let subscriptionStarted = true; // assume started unless proven otherwise
+    let firstMonthInfo: { firstMonthId: string; firstSeriesId: string | null; year: number; month: number } | null = null;
 
     if (skipWindowOpen) {
       // Use subscription.startDate to determine if subscription has started yet.
@@ -56,7 +59,7 @@ export class SkipPolicyEngine {
 
       if (subscriptionStarted) {
         // Determine the user's first deliverable month (and its series, if any) for blocking logic.
-        const firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
+        firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
 
         // Find the first upcoming month the user CAN skip:
         // - must be >= next calendar month
@@ -91,8 +94,9 @@ export class SkipPolicyEngine {
     }
 
     const deadline = this.computeDeadline(policy, entry, targetMonth);
+    const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
-    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false);
+    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
@@ -488,6 +492,7 @@ export class SkipPolicyEngine {
     deadlineMonth: { year: number; month: number } | null = null,
     /** Override canSkip to false (e.g. subscription not yet started) */
     forceCanSkip?: boolean,
+    firstDeliverableMonth: { year: number; month: number } | null = null,
   ): SkipStatus {
     const policyType = policy?.type ?? 'NONE';
     const totalSkips = state?.totalSkips ?? 0;
@@ -522,6 +527,7 @@ export class SkipPolicyEngine {
       nextDeadline: deadline ? deadline.toISOString() : null,
       isPastDeadline,
       skippedMonths,
+      firstDeliverableMonth,
     };
   }
 
