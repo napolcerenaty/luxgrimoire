@@ -620,6 +620,7 @@ export class SubscriptionsService {
     await this.prisma.userSubscriptionEntry.delete({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
     });
+    return { success: true };
   }
 
   async updateMyEntryCosts(
