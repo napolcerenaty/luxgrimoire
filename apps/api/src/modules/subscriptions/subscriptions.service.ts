@@ -784,8 +784,9 @@ export class SubscriptionsService {
   }
 
   /**
-   * When paymentOnStartup=true: find the first subscription month at or after startDate
-   * and add all its books as PREORDER entries in the user's collection.
+   * When paymentOnStartup=true: find the first subscription month whose renewal date
+   * is >= the join date (startDateObj). If this month's renewal day has already passed,
+   * the user missed it and starts from the next month.
    */
   private async recordFirstMonthAsPreorder(
     entryId: string,
@@ -796,14 +797,30 @@ export class SubscriptionsService {
   ) {
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
+    const joinDay = startDateObj.getDate();
+    const renewalDay = entry.renewalDay ?? 1;
 
-    // Find the first subscription month >= startDate
+    // If this month's renewal day has already passed on the join date,
+    // the user missed it — start from the next month.
+    const renewalPassedThisMonth = renewalDay < joinDay;
+    let firstEligibleYear = startYear;
+    let firstEligibleMonth = startMonth;
+    if (renewalPassedThisMonth) {
+      if (startMonth === 12) {
+        firstEligibleYear = startYear + 1;
+        firstEligibleMonth = 1;
+      } else {
+        firstEligibleMonth = startMonth + 1;
+      }
+    }
+
+    // Find the first subscription month at or after the first eligible month
     const firstMonth = await this.prisma.subscriptionMonth.findFirst({
       where: {
         subscriptionId,
         OR: [
-          { year: { gt: startYear } },
-          { year: startYear, month: { gte: startMonth } },
+          { year: { gt: firstEligibleYear } },
+          { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
         ],
       },
       include: {
@@ -814,7 +831,6 @@ export class SubscriptionsService {
 
     if (!firstMonth || firstMonth.books.length === 0) return;
 
-    const renewalDay = entry.renewalDay ?? 1;
     const purchaseDate = new Date(Date.UTC(firstMonth.year, firstMonth.month - 1, renewalDay));
     const monthBooks = firstMonth.books.filter(mb => mb.editionId && mb.bookId);
 
