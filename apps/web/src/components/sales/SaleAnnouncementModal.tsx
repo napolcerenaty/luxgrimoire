@@ -10,6 +10,7 @@ import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/Ad
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
+import { resolveSaleDates } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -118,7 +119,11 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                 View full page <ExternalLink size={11} />
               </Link>
               <div className="mt-3 flex items-center gap-2">
-                <SaleInterestButton announcementId={sale.id} firstAccessDate={sale.firstAccessDate} earlyAccessDate={sale.earlyAccessDate} />
+                <SaleInterestButton
+                  announcementId={sale.id}
+                  dates={resolveSaleDates(sale)}
+                  hasRegions={(sale.regions?.length ?? 0) > 0}
+                />
                 {isInterested && (
                   <button
                     type="button"

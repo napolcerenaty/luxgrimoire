@@ -8,6 +8,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementModal } from '@/components/sales/SaleAnnouncementModal'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
+import { resolveSaleDates } from '@/lib/saleDates'
 
 const CARD_WIDTH = 160
 
@@ -110,7 +111,12 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           </p>
         </div>
         <div className="flex justify-end mt-1" onClick={e => e.stopPropagation()}>
-          <SaleInterestButton announcementId={sale.id} compact firstAccessDate={sale.firstAccessDate} earlyAccessDate={sale.earlyAccessDate} />
+          <SaleInterestButton
+            announcementId={sale.id}
+            compact
+            dates={resolveSaleDates(sale)}
+            hasRegions={(sale.regions?.length ?? 0) > 0}
+          />
         </div>
       </div>
     </div>

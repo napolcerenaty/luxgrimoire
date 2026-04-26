@@ -4,31 +4,33 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Bell, BellOff, Loader2 } from 'lucide-react'
 import { useSaleInterest, type SaleTier } from '@/hooks/useSaleInterest'
+import { formatTierDate } from '@/lib/saleDates'
 
-const ALL_TIERS: { value: SaleTier; label: string; desc: string }[] = [
-  { value: 'FA', label: 'First Access', desc: 'FA' },
-  { value: 'EA', label: 'Early Access', desc: 'EA' },
-  { value: 'GS', label: 'General Sale', desc: 'GS' },
+const ALL_TIERS: { value: SaleTier; label: string }[] = [
+  { value: 'FA', label: 'First Access' },
+  { value: 'EA', label: 'Early Access' },
+  { value: 'GS', label: 'General Sale' },
 ]
 
 interface Props {
   announcementId: string
   /** compact mode: just an icon button (for cards). full mode: wider pill with text */
   compact?: boolean
-  firstAccessDate?: string | null
-  earlyAccessDate?: string | null
+  /** Resolved dates for each tier — user sees them in the picker */
+  dates?: { FA?: string | null; EA?: string | null; GS?: string | null }
+  /** True when the sale has multiple regions with potentially different dates */
+  hasRegions?: boolean
 }
 
-export function SaleInterestButton({ announcementId, compact = false, firstAccessDate, earlyAccessDate }: Props) {
+export function SaleInterestButton({ announcementId, compact = false, dates, hasRegions }: Props) {
   const { isInterested, tier, loading, setInterest, removeInterest } = useSaleInterest(announcementId)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
-  // Only show tiers that have dates (GS always shown)
   const availableTiers = ALL_TIERS.filter(t => {
-    if (t.value === 'FA') return !!firstAccessDate
-    if (t.value === 'EA') return !!earlyAccessDate
+    if (t.value === 'FA') return !!(dates?.FA)
+    if (t.value === 'EA') return !!(dates?.EA)
     return true
   })
   const onlyGS = availableTiers.length === 1
@@ -36,7 +38,6 @@ export function SaleInterestButton({ announcementId, compact = false, firstAcces
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onlyGS) {
-      // Toggle directly — no picker needed
       if (isInterested) removeInterest()
       else setInterest('GS')
       return
@@ -77,34 +78,44 @@ export function SaleInterestButton({ announcementId, compact = false, firstAcces
         )}
       </button>
 
-      {/* Tier picker — rendered in portal to escape overflow:hidden */}
       {open && dropdownPos && typeof document !== 'undefined' && createPortal(
         <>
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[101] w-52 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
+            className="fixed z-[101] w-64 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
             style={{ top: dropdownPos.top, right: dropdownPos.right }}
             onClick={e => e.stopPropagation()}
           >
             <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5">
-              Which sale tier?
+              When are you planning to buy?
             </p>
-            {availableTiers.map(t => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={async () => { await setInterest(t.value); setOpen(false) }}
-                className={`
-                  w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors
-                  ${tier === t.value && isInterested
-                    ? 'bg-violet-800/60 text-violet-200'
-                    : 'hover:bg-stone-800 text-stone-300'}
-                `}
-              >
-                <span>{t.label}</span>
-                <span className="text-xs text-stone-500 font-mono">{t.desc}</span>
-              </button>
-            ))}
+            {availableTiers.map(t => {
+              const formattedDate = formatTierDate(dates?.[t.value])
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={async () => { await setInterest(t.value); setOpen(false) }}
+                  className={`
+                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
+                    ${tier === t.value && isInterested
+                      ? 'bg-violet-800/60 text-violet-200'
+                      : 'hover:bg-stone-800 text-stone-300'}
+                  `}
+                >
+                  <span className="font-medium">{t.label}</span>
+                  {formattedDate
+                    ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
+                    : <span className="text-xs text-stone-600 font-mono">–</span>
+                  }
+                </button>
+              )
+            })}
+            {hasRegions && (
+              <p className="text-[10px] text-stone-600 px-3 pt-1.5 pb-1 border-t border-stone-800 mt-1">
+                Dates shown for default region
+              </p>
+            )}
             {isInterested && (
               <>
                 <div className="my-1.5 border-t border-stone-700" />
