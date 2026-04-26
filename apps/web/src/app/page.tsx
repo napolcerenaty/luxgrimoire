@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
+import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
 import type { ApiSponsoredSlot, ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
 
 export const dynamic = 'force-dynamic'
@@ -28,20 +29,6 @@ async function getHomeData() {
 
 export default async function HomePage() {
   const { featuredSlots, announcements, recentEditions } = await getHomeData()
-
-  const announcementCards: CarouselCard[] = announcements.map((a) => {
-    const firstEdition = a.editions?.[0]?.edition
-    const cover = firstEdition?.coverImage ?? (a.imageUrl ?? null)
-    return {
-      id: a.id,
-      href: '#',
-      coverImage: cover,
-      title: a.title,
-      subtitle: a.generalSaleDate
-        ? new Date(a.generalSaleDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-        : null,
-    }
-  })
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -96,12 +83,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Recent Announcements carousel */}
-      <EditionCarousel
-        title="Recent Announcements"
+      {/* Recent Announcements carousel — clicking a card opens modal */}
+      <HomeAnnouncementsSection
+        announcements={announcements}
         viewAllHref="/sale-announcements"
-        cards={announcementCards}
-        centered
       />
 
       {/* CTA below announcements */}
