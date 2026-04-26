@@ -87,14 +87,6 @@ function resolveInterestDate(interest: SaleInterest): string | null {
   return interest.tier === 'FA' ? FA : interest.tier === 'EA' ? EA : GS
 }
 
-function resolveInterestTimezone(interest: SaleInterest): string | null {
-  const a = interest.announcement
-  const region = interest.regionId
-    ? a.regions?.find(r => r.id === interest.regionId) ?? null
-    : null
-  return region?.saleTimezone ?? a.saleTimezone ?? null
-}
-
 export default function CalendarPage() {
   const today = new Date()
   const [viewDate, setViewDate] = useState(
@@ -162,6 +154,7 @@ export default function CalendarPage() {
       .map(e => ({
         id: e.id,
         label: e.subscription.name,
+        companyName: e.subscription.company?.name ?? null,
         slug: e.subscription.slug,
         hue: strHue(e.subscription.slug),
         logoUrl: e.subscription.logoUrl ?? e.subscription.coverImage,
@@ -181,17 +174,15 @@ export default function CalendarPage() {
         if (dateStr) {
           try {
             const d = new Date(dateStr)
-            const saleTz = resolveInterestTimezone(i)
-            const localTime = d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false })
-            const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-            const sameZone = !saleTz || saleTz === localTz
-            time = sameZone ? localTime
-              : `${localTime} (${d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: saleTz! })} sale tz)`
+            const h = String(d.getHours()).padStart(2, '0')
+            const m = String(d.getMinutes()).padStart(2, '0')
+            time = `${h}:${m}`
           } catch { /* ignore */ }
         }
         return {
           id: i.announcementId,
           label: i.announcement.title,
+          companyName: i.announcement.company?.name ?? null,
           tier: i.tier,
           time,
           href: `/sale-announcements/${i.announcementId}`,
@@ -287,25 +278,30 @@ export default function CalendarPage() {
                     <Link
                       key={r.id}
                       href={`/subscriptions/${r.slug}`}
-                      className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                      className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
                       style={{
                         background: `hsla(${r.hue},55%,45%,0.18)`,
                         color: `hsl(${r.hue},70%,70%)`,
                         border: `1px solid hsla(${r.hue},55%,45%,0.35)`,
                       }}
-                      onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal')}
+                      onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                       onMouseLeave={scheduleClose}
                     >
-                      {thumb ? (
-                        <img
-                          src={thumb}
-                          alt=""
-                          className="w-3.5 h-3.5 rounded-sm object-contain shrink-0"
-                        />
-                      ) : (
-                        <span className="shrink-0 text-[10px]">🔄</span>
+                      <span className="flex items-center gap-1 truncate">
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt=""
+                            className="w-3.5 h-3.5 rounded-sm object-contain shrink-0"
+                          />
+                        ) : (
+                          <span className="shrink-0 text-[10px]">🔄</span>
+                        )}
+                        <span className="truncate">{r.label}</span>
+                      </span>
+                      {r.companyName && (
+                        <span className="truncate opacity-60 pl-4">{r.companyName}</span>
                       )}
-                      <span className="truncate">{r.label}</span>
                     </Link>
                   )
                 })}
@@ -314,7 +310,7 @@ export default function CalendarPage() {
                   <Link
                     key={s.id}
                     href={s.href}
-                    className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                    className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
                     style={{
                       background: 'rgba(109,40,217,0.18)',
                       color: 'rgb(196,168,255)',
@@ -325,12 +321,17 @@ export default function CalendarPage() {
                       s.label,
                       270,
                       'sale',
-                      `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}`,
+                      `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                     )}
                     onMouseLeave={scheduleClose}
                   >
-                    <Bell size={9} className="shrink-0" />
-                    <span className="truncate">{s.label}</span>
+                    <span className="flex items-center gap-1 truncate">
+                      <Bell size={9} className="shrink-0" />
+                      <span className="truncate">{s.label}</span>
+                    </span>
+                    {s.companyName && (
+                      <span className="truncate opacity-60 pl-3">{s.companyName}</span>
+                    )}
                   </Link>
                 ))}
               </div>

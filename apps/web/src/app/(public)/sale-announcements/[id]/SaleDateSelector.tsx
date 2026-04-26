@@ -21,8 +21,8 @@ interface Props {
 }
 
 const ACCESS_LABELS: Record<string, string> = {
-  earlyAccess: '⚡ Early Access',
   firstAccess: '🔑 First Access',
+  earlyAccess: '⚡ Early Access',
   general: '🛒 General Sale',
 }
 
@@ -112,8 +112,8 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
   const currency = region?.currency ?? fallback.currency
 
   useEffect(() => {
-    if (dates.earlyAccess) setSelectedAccess('earlyAccess')
-    else if (dates.firstAccess) setSelectedAccess('firstAccess')
+    if (dates.firstAccess) setSelectedAccess('firstAccess')
+    else if (dates.earlyAccess) setSelectedAccess('earlyAccess')
     else setSelectedAccess('general')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRegionId, dates.earlyAccess, dates.firstAccess])
@@ -159,8 +159,8 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
             onChange={e => setSelectedAccess(e.target.value as typeof selectedAccess)}
             className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
           >
-            {dates.earlyAccess && <option value="earlyAccess">{ACCESS_LABELS.earlyAccess}</option>}
             {dates.firstAccess && <option value="firstAccess">{ACCESS_LABELS.firstAccess}</option>}
+            {dates.earlyAccess && <option value="earlyAccess">{ACCESS_LABELS.earlyAccess}</option>}
             {dates.general && <option value="general">{ACCESS_LABELS.general}</option>}
           </select>
         </div>
