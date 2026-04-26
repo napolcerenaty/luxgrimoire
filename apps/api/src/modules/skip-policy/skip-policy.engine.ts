@@ -166,8 +166,6 @@ export class SkipPolicyEngine {
       });
     }
 
-    await this.notifyIfNeeded(userId, subscription.id, policy, newState);
-
     // If prepaid subscription, extend the billing period by 1 month
     if (entry.prepaidMonths > 1) {
       await this.adjustPrepaidBillingPeriod(entry.id, 1, entry.effectiveRenewalDay ?? 1);
@@ -294,8 +292,6 @@ export class SkipPolicyEngine {
         data: { firstSkipDate: now },
       });
     }
-
-    await this.notifyIfNeeded(userId, subscription.id, policy, newState);
 
     const lastMonth = series.months[series.months.length - 1];
     const deadline = this.computeDeadline(policy, entry, lastMonth);
@@ -536,33 +532,6 @@ export class SkipPolicyEngine {
     }
 
     return warnings;
-  }
-
-  private async notifyIfNeeded(
-    userId: string,
-    subscriptionId: string,
-    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null; notes: string | null } | null,
-    state: { skipsInWindow: number; consecutiveSkips: number },
-  ) {
-    if (!policy) return;
-    const warnings = this.computeWarnings(
-      policy.type,
-      state.skipsInWindow,
-      policy.maxSkips,
-      state.consecutiveSkips,
-      policy.maxConsecutive,
-    );
-    if (!warnings.length) return;
-
-    await this.prisma.userNotification.create({
-      data: {
-        userId,
-        type: 'SKIP_WARNING',
-        title: 'Skip limit warning',
-        body: warnings.join(' '),
-        payload: { subscriptionId, warnings },
-      },
-    });
   }
 
   /**
