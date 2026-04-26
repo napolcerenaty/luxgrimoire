@@ -87,7 +87,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
         )}
       </p>
 
-      {status.notes && <p className="text-xs text-stone-500 italic">{status.notes}</p>}
+      {status.notes && <p className="text-xs text-stone-500 italic whitespace-pre-line">{status.notes}</p>}
 
       {/* Deadline banner */}
       {status.nextDeadline && (

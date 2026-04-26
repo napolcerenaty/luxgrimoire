@@ -48,7 +48,14 @@ export class SkipPolicyEngine {
     let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
 
     if (skipWindowOpen) {
-      // Find the first subscription month ≥ next calendar month that the user hasn't skipped yet
+      // Determine the user's first deliverable month (and its series, if any).
+      // Works even if entry.startDate is null — falls back to first month in the subscription.
+      const firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
+
+      // Find the first upcoming month the user CAN skip:
+      // - must be >= next calendar month
+      // - must not already be skipped
+      // - must NOT be the first standalone box, or any month in the first series
       const candidates = await this.prisma.subscriptionMonth.findMany({
         where: {
           subscriptionId: subscription.id,
@@ -59,41 +66,20 @@ export class SkipPolicyEngine {
         },
         select: { id: true, year: true, month: true, seriesId: true },
         orderBy: [{ year: 'asc' }, { month: 'asc' }],
-        take: 6,
+        take: 12,
       });
 
       for (const m of candidates) {
-        if (!skippedSet.has(`${m.year}-${m.month}`)) {
-          targetMonth = m;
-          break;
-        }
-      }
-    }
+        if (skippedSet.has(`${m.year}-${m.month}`)) continue;
 
-    // Edge case: cannot skip the first box or the first series.
-    // The user's first deliverable month is the earliest subscription month >= entry.startDate.
-    // If targetMonth IS that first month, or belongs to the same series as that first month → block.
-    if (targetMonth && entry.startDate) {
-      const [startYear, startMonth] = entry.startDate.split('-').map(Number);
-      const firstMonth = await this.prisma.subscriptionMonth.findFirst({
-        where: {
-          subscriptionId: subscription.id,
-          OR: [
-            { year: { gt: startYear } },
-            { year: startYear, month: { gte: startMonth } },
-          ],
-        },
-        select: { id: true, year: true, month: true, seriesId: true },
-        orderBy: [{ year: 'asc' }, { month: 'asc' }],
-      });
-
-      if (firstMonth) {
-        const sameMonth = targetMonth.year === firstMonth.year && targetMonth.month === firstMonth.month;
-        const sameFirstSeries =
-          firstMonth.seriesId !== null && targetMonth.seriesId === firstMonth.seriesId;
-        if (sameMonth || sameFirstSeries) {
-          targetMonth = null;
+        // Cannot skip first box (standalone) or any month in the first series
+        if (firstMonthInfo) {
+          if (firstMonthInfo.firstSeriesId !== null && m.seriesId === firstMonthInfo.firstSeriesId) continue;
+          if (firstMonthInfo.firstSeriesId === null && m.id === firstMonthInfo.firstMonthId) continue;
         }
+
+        targetMonth = m;
+        break;
       }
     }
 
@@ -363,7 +349,27 @@ export class SkipPolicyEngine {
     return this.buildStatus(policy, updatedState, deadline, skippedMonths);
   }
 
-
+  /** Returns the first subscription month for this user (and its seriesId if it's part of a series).
+   *  Used to block skipping the first box or first series.
+   *  Falls back to the overall first month if entry.startDate is not set. */
+  private async getFirstDeliverableMonthInfo(
+    subscriptionId: string,
+    startDate: string | null,
+  ): Promise<{ firstMonthId: string; firstSeriesId: string | null } | null> {
+    const dateFilter = startDate
+      ? (() => {
+          const [y, m] = startDate.split('-').map(Number);
+          return { OR: [{ year: { gt: y } as const }, { year: y, month: { gte: m } }] };
+        })()
+      : {};
+    const firstMonth = await this.prisma.subscriptionMonth.findFirst({
+      where: { subscriptionId, ...dateFilter },
+      select: { id: true, seriesId: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+    if (!firstMonth) return null;
+    return { firstMonthId: firstMonth.id, firstSeriesId: firstMonth.seriesId };
+  }
 
   private async loadContext(userId: string, subscriptionSlug: string) {
     // Merge 4 sequential queries into 2: subscription+entry+skipRecords in one, state in parallel after
