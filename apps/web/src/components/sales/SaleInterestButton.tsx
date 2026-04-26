@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, BellOff, Loader2 } from 'lucide-react'
+import { Bell, BellOff, Loader2, MapPin } from 'lucide-react'
 import { useSaleInterest, type SaleTier } from '@/hooks/useSaleInterest'
 import { formatTierDate } from '@/lib/saleDates'
+import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+
+type Region = NonNullable<ApiSaleAnnouncement['regions']>[0]
 
 const ALL_TIERS: { value: SaleTier; label: string }[] = [
   { value: 'FA', label: 'First Access' },
@@ -12,34 +15,65 @@ const ALL_TIERS: { value: SaleTier; label: string }[] = [
   { value: 'GS', label: 'General Sale' },
 ]
 
-interface Props {
-  announcementId: string
-  /** compact mode: just an icon button (for cards). full mode: wider pill with text */
-  compact?: boolean
-  /** Resolved dates for each tier — user sees them in the picker */
-  dates?: { FA?: string | null; EA?: string | null; GS?: string | null }
-  /** True when the sale has multiple regions with potentially different dates */
-  hasRegions?: boolean
+function findDefaultRegion(regions: Region[]): Region | null {
+  return regions.find(r => r.isDefault) ?? regions[0] ?? null
 }
 
-export function SaleInterestButton({ announcementId, compact = false, dates, hasRegions }: Props) {
-  const { isInterested, tier, loading, setInterest, removeInterest } = useSaleInterest(announcementId)
+function resolveDates(
+  sale: Pick<ApiSaleAnnouncement, 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate'>,
+  region: Region | null,
+) {
+  return {
+    FA: region?.firstAccessDate ?? sale.firstAccessDate ?? null,
+    EA: region?.earlyAccessDate ?? sale.earlyAccessDate ?? null,
+    GS: region?.generalSaleDate ?? sale.generalSaleDate ?? null,
+  }
+}
+
+interface Props {
+  sale: Pick<ApiSaleAnnouncement, 'id' | 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate' | 'regions'>
+  compact?: boolean
+}
+
+export function SaleInterestButton({ sale, compact = false }: Props) {
+  const { isInterested, tier, regionId: savedRegionId, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
+  const regions = (sale.regions ?? []) as Region[]
+  const hasRegions = regions.length > 1
+
+  // Selected region: saved from DB → localStorage → default
+  const lsKey = `sale-interest-region-${sale.id}`
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem(lsKey) ?? null
+    return null
+  })
+
+  // Sync selectedRegionId from DB when interest loads
+  useEffect(() => {
+    if (savedRegionId) {
+      setSelectedRegionId(savedRegionId)
+      if (typeof window !== 'undefined') localStorage.setItem(lsKey, savedRegionId)
+    }
+  }, [savedRegionId, lsKey])
+
+  const effectiveRegion = regions.find(r => r.id === selectedRegionId) ?? findDefaultRegion(regions)
+  const dates = resolveDates(sale, effectiveRegion)
+
   const availableTiers = ALL_TIERS.filter(t => {
-    if (t.value === 'FA') return !!(dates?.FA)
-    if (t.value === 'EA') return !!(dates?.EA)
+    if (t.value === 'FA') return !!dates.FA
+    if (t.value === 'EA') return !!dates.EA
     return true
   })
   const onlyGS = availableTiers.length === 1
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (onlyGS) {
+    if (onlyGS && !hasRegions) {
       if (isInterested) removeInterest()
-      else setInterest('GS')
+      else setInterest('GS', effectiveRegion?.id ?? null)
       return
     }
     if (btnRef.current) {
@@ -47,6 +81,16 @@ export function SaleInterestButton({ announcementId, compact = false, dates, has
       setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
     }
     setOpen(v => !v)
+  }
+
+  const pickTier = async (t: SaleTier) => {
+    await setInterest(t, effectiveRegion?.id ?? null)
+    setOpen(false)
+  }
+
+  const changeRegion = (regionId: string) => {
+    setSelectedRegionId(regionId)
+    if (typeof window !== 'undefined') localStorage.setItem(lsKey, regionId)
   }
 
   if (loading && !isInterested) {
@@ -82,20 +126,41 @@ export function SaleInterestButton({ announcementId, compact = false, dates, has
         <>
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[101] w-64 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
+            className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
             style={{ top: dropdownPos.top, right: dropdownPos.right }}
             onClick={e => e.stopPropagation()}
           >
-            <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5">
+            {/* Region selector */}
+            {hasRegions && (
+              <div className="px-2 pb-2 mb-1 border-b border-stone-800">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <MapPin size={11} className="text-stone-500" />
+                  <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your region</span>
+                </div>
+                <select
+                  value={effectiveRegion?.id ?? ''}
+                  onChange={e => changeRegion(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-200 text-xs focus:outline-none focus:border-violet-500"
+                >
+                  {regions.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5 pt-0.5">
               When are you planning to buy?
             </p>
+
             {availableTiers.map(t => {
-              const formattedDate = formatTierDate(dates?.[t.value])
+              const formattedDate = formatTierDate(dates[t.value])
               return (
                 <button
                   key={t.value}
                   type="button"
-                  onClick={async () => { await setInterest(t.value); setOpen(false) }}
+                  onClick={() => pickTier(t.value)}
                   className={`
                     w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
                     ${tier === t.value && isInterested
@@ -111,11 +176,7 @@ export function SaleInterestButton({ announcementId, compact = false, dates, has
                 </button>
               )
             })}
-            {hasRegions && (
-              <p className="text-[10px] text-stone-600 px-3 pt-1.5 pb-1 border-t border-stone-800 mt-1">
-                Dates shown for default region
-              </p>
-            )}
+
             {isInterested && (
               <>
                 <div className="my-1.5 border-t border-stone-700" />

@@ -5,11 +5,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class SaleInterestsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsert(userId: string, announcementId: string, tier: string) {
+  async upsert(userId: string, announcementId: string, tier: string, regionId?: string | null) {
     return this.prisma.userSaleInterest.upsert({
       where: { userId_announcementId: { userId, announcementId } },
-      create: { userId, announcementId, tier },
-      update: { tier },
+      create: { userId, announcementId, tier, regionId: regionId ?? null },
+      update: { tier, regionId: regionId ?? null },
     });
   }
 
@@ -32,7 +32,20 @@ export class SaleInterestsService {
             firstAccessDate: true,
             earlyAccessDate: true,
             generalSaleDate: true,
+            saleTimezone: true,
             company: { select: { id: true, name: true, logoUrl: true } },
+            regions: {
+              select: {
+                id: true,
+                name: true,
+                isDefault: true,
+                countryCodes: true,
+                firstAccessDate: true,
+                earlyAccessDate: true,
+                generalSaleDate: true,
+                saleTimezone: true,
+              },
+            },
           },
         },
       },

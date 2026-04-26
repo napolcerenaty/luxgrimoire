@@ -28,7 +28,7 @@ async function authFetch(path: string, options?: RequestInit) {
 // All hook instances for the same announcementId share state.
 // When any instance writes, all others update immediately (no re-fetch needed).
 
-interface CachedState { isInterested: boolean; tier: SaleTier | null }
+interface CachedState { isInterested: boolean; tier: SaleTier | null; regionId: string | null }
 type Listener = (s: CachedState) => void
 
 const cache = new Map<string, CachedState>()
@@ -51,6 +51,7 @@ export function useSaleInterest(announcementId: string | null) {
   const [state, setState] = useState<CachedState & { loading: boolean }>({
     isInterested: false,
     tier: null,
+    regionId: null,
     loading: false,
   })
 
@@ -73,12 +74,12 @@ export function useSaleInterest(announcementId: string | null) {
       authFetch(`/sale-interests/${announcementId}`)
         .then(data => {
           const next: CachedState = data?.announcementId
-            ? { isInterested: true, tier: data.tier as SaleTier }
-            : { isInterested: false, tier: null }
+            ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
+            : { isInterested: false, tier: null, regionId: null }
           broadcast(announcementId, next)
         })
         .catch(() => {
-          const next: CachedState = { isInterested: false, tier: null }
+          const next: CachedState = { isInterested: false, tier: null, regionId: null }
           broadcast(announcementId, next)
         })
     }
@@ -86,32 +87,30 @@ export function useSaleInterest(announcementId: string | null) {
     return unsub
   }, [announcementId])
 
-  const setInterest = useCallback(async (tier: SaleTier) => {
+  const setInterest = useCallback(async (tier: SaleTier, regionId?: string | null) => {
     if (!announcementId) return
-    // Optimistic update — all instances see it immediately
-    broadcast(announcementId, { isInterested: true, tier })
+    broadcast(announcementId, { isInterested: true, tier, regionId: regionId ?? null })
     try {
       await authFetch(`/sale-interests/${announcementId}`, {
         method: 'POST',
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, regionId: regionId ?? null }),
       })
     } catch {
-      // rollback
-      broadcast(announcementId, { isInterested: false, tier: null })
+      broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
     }
   }, [announcementId])
 
   const removeInterest = useCallback(async () => {
     if (!announcementId) return
-    broadcast(announcementId, { isInterested: false, tier: null })
+    broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
     try {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
     } catch {
       // rollback — refetch to get real state
       authFetch(`/sale-interests/${announcementId}`).then(data => {
         const next: CachedState = data?.announcementId
-          ? { isInterested: true, tier: data.tier as SaleTier }
-          : { isInterested: false, tier: null }
+          ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
+          : { isInterested: false, tier: null, regionId: null }
         broadcast(announcementId, next)
       }).catch(() => {})
     }

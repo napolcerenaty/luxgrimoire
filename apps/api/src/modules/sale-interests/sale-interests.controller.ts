@@ -23,9 +23,9 @@ export class SaleInterestsController {
   upsert(
     @CurrentUser() user: { id: string },
     @Param('announcementId') announcementId: string,
-    @Body() body: { tier?: string },
+    @Body() body: { tier?: string; regionId?: string | null },
   ) {
-    return this.service.upsert(user.id, announcementId, body.tier ?? 'GS');
+    return this.service.upsert(user.id, announcementId, body.tier ?? 'GS', body.regionId);
   }
 
   @Delete(':announcementId')

@@ -26,6 +26,7 @@ interface CalEntry {
 interface SaleInterest {
   announcementId: string
   tier: 'FA' | 'EA' | 'GS'
+  regionId: string | null
   announcement: {
     id: string
     title: string
@@ -35,6 +36,13 @@ interface SaleInterest {
     generalSaleDate: string | null
     saleTimezone: string | null
     company: { id: string; name: string; logoUrl: string | null } | null
+    regions: Array<{
+      id: string
+      firstAccessDate: string | null
+      earlyAccessDate: string | null
+      generalSaleDate: string | null
+      saleTimezone: string | null
+    }>
   }
 }
 
@@ -65,40 +73,26 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   return null
 }
 
-/** Get the date (day-of-month) for a sale interest in a given year/month */
-function saleInterestDay(interest: SaleInterest, year: number, month0: number): number | null {
+/** Resolve tier date for a sale interest, using stored regionId if available */
+function resolveInterestDate(interest: SaleInterest): string | null {
   const a = interest.announcement
-  const dateStr =
-    interest.tier === 'FA' ? a.firstAccessDate
-    : interest.tier === 'EA' ? a.earlyAccessDate
-    : a.generalSaleDate
+  const region = interest.regionId
+    ? a.regions?.find(r => r.id === interest.regionId) ?? null
+    : null
 
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (d.getFullYear() === year && d.getMonth() === month0) return d.getDate()
-  return null
+  const FA = region?.firstAccessDate ?? a.firstAccessDate
+  const EA = region?.earlyAccessDate ?? a.earlyAccessDate
+  const GS = region?.generalSaleDate ?? a.generalSaleDate
+
+  return interest.tier === 'FA' ? FA : interest.tier === 'EA' ? EA : GS
 }
 
-/** Format sale time in the user's local timezone, e.g. "14:00 (your time)" */
-function saleInterestTime(interest: SaleInterest): string | null {
+function resolveInterestTimezone(interest: SaleInterest): string | null {
   const a = interest.announcement
-  const dateStr =
-    interest.tier === 'FA' ? a.firstAccessDate
-    : interest.tier === 'EA' ? a.earlyAccessDate
-    : a.generalSaleDate
-  if (!dateStr) return null
-  try {
-    const d = new Date(dateStr)
-    const localTime = d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false })
-    const saleTime = a.saleTimezone
-      ? d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: a.saleTimezone })
-      : null
-    const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const sameZone = !a.saleTimezone || a.saleTimezone === localTz
-    return sameZone ? localTime : `${localTime} (${saleTime} sale tz)`
-  } catch {
-    return null
-  }
+  const region = interest.regionId
+    ? a.regions?.find(r => r.id === interest.regionId) ?? null
+    : null
+  return region?.saleTimezone ?? a.saleTimezone ?? null
 }
 
 export default function CalendarPage() {
@@ -175,16 +169,34 @@ export default function CalendarPage() {
 
   const salesForDay = (day: number) =>
     interests
-      .filter(i => saleInterestDay(i, year, month0) === day)
-      .map(i => ({
-        id: i.announcementId,
-        label: i.announcement.title,
-        tier: i.tier,
-        time: saleInterestTime(i),
-        href: `/sale-announcements/${i.announcementId}`,
-        logoUrl: i.announcement.imageUrl ?? null,
-        companyName: i.announcement.company?.name ?? null,
-      }))
+      .filter(i => {
+        const dateStr = resolveInterestDate(i)
+        if (!dateStr) return false
+        const d = new Date(dateStr)
+        return d.getFullYear() === year && d.getMonth() === month0 && d.getDate() === day
+      })
+      .map(i => {
+        const dateStr = resolveInterestDate(i)
+        let time: string | null = null
+        if (dateStr) {
+          try {
+            const d = new Date(dateStr)
+            const saleTz = resolveInterestTimezone(i)
+            const localTime = d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false })
+            const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+            const sameZone = !saleTz || saleTz === localTz
+            time = sameZone ? localTime
+              : `${localTime} (${d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: saleTz! })} sale tz)`
+          } catch { /* ignore */ }
+        }
+        return {
+          id: i.announcementId,
+          label: i.announcement.title,
+          tier: i.tier,
+          time,
+          href: `/sale-announcements/${i.announcementId}`,
+        }
+      })
 
   const isToday = (day: number) =>
     day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
