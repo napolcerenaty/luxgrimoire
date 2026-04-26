@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, Ban, Trash2 } from 'lucide-react'
 
 interface MySubscriptionEntry {
   id: string
@@ -129,9 +129,9 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
 
   return (
     <>
-      <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors">
-        {/* Main clickable row */}
-        <Link href={`/subscriptions/${sub.slug}`} className="flex group">
+      <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
+        {/* Main clickable area */}
+        <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
           {/* Logo — stretches full height of the row */}
           <div className="relative shrink-0 w-24 self-stretch bg-stone-800">
             {blurBg && (
@@ -201,23 +201,25 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           </div>
         </Link>
 
-        {/* Action buttons */}
-        <div className="flex gap-2 px-4 py-2 border-t border-stone-800/80 bg-stone-950/40">
+        {/* Right actions panel — mirroring logo panel, rare destructive actions */}
+        <div className="shrink-0 border-l border-stone-800 flex flex-col items-center justify-center gap-2 px-2 bg-stone-900/60 self-stretch">
           {entry.active && (
             <button
               type="button"
+              title="Cancel subscription"
               onClick={() => setShowCancelConfirm(true)}
-              className="text-xs text-stone-400 hover:text-amber-400 transition-colors px-2 py-1 rounded hover:bg-stone-800"
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
             >
-              Cancel subscription
+              <Ban size={15} />
             </button>
           )}
           <button
             type="button"
+            title="Remove from my subscriptions"
             onClick={() => setShowRemoveConfirm(true)}
-            className="text-xs text-red-400/70 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-stone-800 ml-auto"
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
           >
-            Remove from my subscriptions
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
