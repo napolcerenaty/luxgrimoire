@@ -28,21 +28,49 @@ export class SkipPolicyEngine {
 
   async getStatus(userId: string, subscriptionSlug: string): Promise<SkipStatus> {
     const { subscription, policy, state, entry, skipRecords } = await this.loadContext(userId, subscriptionSlug);
-    // Find next upcoming month for deadline calculation
     const now = new Date();
-    const upcomingMonth = await this.prisma.subscriptionMonth.findFirst({
-      where: {
-        subscriptionId: subscription.id,
-        OR: [
-          { year: { gt: now.getFullYear() } },
-          { year: now.getFullYear(), month: { gte: now.getMonth() + 1 } },
-        ],
-      },
-      orderBy: [{ year: 'asc' }, { month: 'asc' }],
-    });
-    const deadline = this.computeDeadline(policy, entry, upcomingMonth ?? null);
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
     const skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, state, deadline, skippedMonths, upcomingMonth ?? null);
+    const skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+
+    // Deadline targets the NEXT month, not current month.
+    // The skip window for month M opens after M-1's renewal day passes.
+    // If today hasn't reached the current month's renewal day yet, the window is not open.
+    const renewalDay = entry.effectiveRenewalDay;
+    const skipWindowOpen = !renewalDay || now.getDate() >= renewalDay;
+
+    // "Next month" in calendar terms
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+
+    let targetMonth: { year: number; month: number } | null = null;
+
+    if (skipWindowOpen) {
+      // Find the first subscription month ≥ next calendar month that the user hasn't skipped yet
+      const candidates = await this.prisma.subscriptionMonth.findMany({
+        where: {
+          subscriptionId: subscription.id,
+          OR: [
+            { year: { gt: nextYear } },
+            { year: nextYear, month: { gte: nextMonth } },
+          ],
+        },
+        orderBy: [{ year: 'asc' }, { month: 'asc' }],
+        take: 6,
+      });
+
+      for (const m of candidates) {
+        if (!skippedSet.has(`${m.year}-${m.month}`)) {
+          targetMonth = m;
+          break;
+        }
+      }
+    }
+
+    const deadline = this.computeDeadline(policy, entry, targetMonth);
+    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
