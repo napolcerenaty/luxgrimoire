@@ -584,9 +584,19 @@ export interface SaleAnnouncementFormData {
   editionIds?: string[];
 }
 
-export async function adminGetSaleAnnouncements(): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement[]> {
+export async function adminGetSaleAnnouncements(params?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  companyId?: string;
+}): Promise<{ data: import('@luxgrimoire/shared-types').ApiSaleAnnouncement[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  if (params?.search) qs.set('search', params.search);
+  if (params?.companyId) qs.set('companyId', params.companyId);
   const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
-  const res = await fetch(`${API_URL}/announcements/admin`, {
+  const res = await fetch(`${API_URL}/announcements/admin?${qs}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

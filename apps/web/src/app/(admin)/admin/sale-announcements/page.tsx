@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import {
   adminGetSaleAnnouncements,
@@ -1275,10 +1275,23 @@ export default function AdminSaleAnnouncementsPage() {
   const [editItem, setEditItem] = useState<ApiSaleAnnouncement | null>(null)
   const [deleteItem, setDeleteItem] = useState<ApiSaleAnnouncement | null>(null)
 
-  const { data: announcements = [], isLoading } = useQuery({
-    queryKey: ['admin', 'sale-announcements'],
-    queryFn: adminGetSaleAnnouncements,
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const { data: saData, isLoading } = useQuery({
+    queryKey: ['admin', 'sale-announcements', page, debouncedSearch, companyFilter],
+    queryFn: () => adminGetSaleAnnouncements({ page, pageSize: 10, search: debouncedSearch || undefined, companyId: companyFilter || undefined }),
+    placeholderData: keepPreviousData,
   })
+  const announcements = saData?.data ?? []
+  const totalPages = saData?.totalPages ?? 1
 
   const { data: companiesResp } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -1317,6 +1330,29 @@ export default function AdminSaleAnnouncementsPage() {
         </button>
       </div>
 
+      {/* Search + filter bar */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <input
+          type="search"
+          placeholder="Search announcements…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-64 text-sm"
+        />
+        <select
+          value={companyFilter}
+          onChange={e => { setCompanyFilter(e.target.value); setPage(1) }}
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400 text-sm"
+        >
+          <option value="">All companies</option>
+          {allCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {(search || companyFilter) && (
+          <button onClick={() => { setSearch(''); setCompanyFilter(''); setPage(1) }}
+            className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2">Clear</button>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : announcements.length === 0 ? (
@@ -1332,6 +1368,20 @@ export default function AdminSaleAnnouncementsPage() {
               onDelete={() => setDeleteItem(a)}
             />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2 mt-4">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">
+            ← Prev
+          </button>
+          <span className="text-stone-500 text-sm">Page {page} / {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">
+            Next →
+          </button>
         </div>
       )}
 

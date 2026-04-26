@@ -64,11 +64,32 @@ export class AnnouncementsService {
     return announcement;
   }
 
-  async adminFindAll() {
-    return this.prisma.saleAnnouncement.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { editions: editionsInclude, regions: regionsInclude },
-    });
+  async adminFindAll(query: { page?: number; pageSize?: number; search?: string; companyId?: string }) {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 10, 50);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.SaleAnnouncementWhereInput = {};
+    if (query.companyId) where.companyId = query.companyId;
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { company: { name: { contains: query.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.saleAnnouncement.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: { editions: editionsInclude, regions: regionsInclude, company: { select: { id: true, name: true, slug: true, logoUrl: true } } },
+      }),
+      this.prisma.saleAnnouncement.count({ where }),
+    ]);
+
+    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   async adminAddEdition(id: string, editionId: string) {

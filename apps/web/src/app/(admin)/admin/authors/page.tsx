@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiAuthor, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
@@ -121,18 +121,16 @@ export default function AdminAuthorsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editAuthor, setEditAuthor] = useState<ApiAuthor | null>(null)
   const [deleteAuthor, setDeleteAuthor] = useState<ApiAuthor | null>(null)
+  const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'authors'],
+    queryKey: ['admin', 'authors', page],
     queryFn: () =>
-      authFetch<PaginatedResponse<ApiAuthor> | ApiAuthor[]>('/authors?page=1&pageSize=20'),
+      authFetch<PaginatedResponse<ApiAuthor>>(`/authors?page=${page}&pageSize=15`),
+    placeholderData: keepPreviousData,
   })
 
-  const authors = data
-    ? Array.isArray(data)
-      ? data
-      : data.data
-    : []
+  const authors = data?.data ?? []
 
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
@@ -169,12 +167,6 @@ export default function AdminAuthorsPage() {
         </a>
       ),
     },
-    {
-      key: 'bio',
-      label: 'Bio',
-      render: (row: ApiAuthor) =>
-        row.bio ? `${row.bio.slice(0, 60)}${row.bio.length > 60 ? '…' : ''}` : '—',
-    },
   ]
 
   return (
@@ -192,12 +184,23 @@ export default function AdminAuthorsPage() {
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={authors}
-          onEdit={(row) => setEditAuthor(row)}
-          onDelete={(row) => setDeleteAuthor(row)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={authors}
+            onEdit={(row) => setEditAuthor(row)}
+            onDelete={(row) => setDeleteAuthor(row)}
+          />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center gap-2 mt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
+              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Author" onClose={() => setCreateOpen(false)}>

@@ -29,8 +29,18 @@ export class AnnouncementsController {
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
   @Get('admin')
-  adminFindAll() {
-    return this.announcementsService.adminFindAll();
+  adminFindAll(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+    @Query('companyId') companyId?: string,
+  ) {
+    return this.announcementsService.adminFindAll({
+      page: page ? parseInt(page, 10) : undefined,
+      pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
+      search,
+      companyId,
+    });
   }
 
   @ApiBearerAuth()

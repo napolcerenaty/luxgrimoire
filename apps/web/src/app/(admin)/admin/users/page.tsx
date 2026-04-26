@@ -117,7 +117,7 @@ export default function AdminUsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users', search, page],
     queryFn: () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: '20' })
+      const params = new URLSearchParams({ page: String(page), pageSize: '15' })
       if (search) params.set('search', search)
       return authFetch<PaginatedResponse<ApiAdminUser>>(`/admin/users?${params}`)
     },

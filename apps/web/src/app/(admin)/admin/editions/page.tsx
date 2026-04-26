@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -123,14 +123,19 @@ export default function AdminEditionsPage() {
   const [companyFilter, setCompanyFilter] = useState('')
   const [unverifiedOnly, setUnverifiedOnly] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)
     return () => clearTimeout(t)
   }, [search])
 
+  useEffect(() => {
+    setPage(1)
+  }, [companyFilter, unverifiedOnly])
+
   const buildParams = () => {
-    const p = new URLSearchParams({ page: '1', pageSize: '50' })
+    const p = new URLSearchParams({ page: String(page), pageSize: '20' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (unverifiedOnly) p.set('needsVerification', 'true')
     if (isManager && managedCompanyId) {
@@ -142,11 +147,12 @@ export default function AdminEditionsPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'editions', debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly],
+    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly],
     queryFn: () =>
       authFetch<PaginatedResponse<ApiBookEdition>>(
         `/editions?${buildParams()}`,
       ),
+    placeholderData: keepPreviousData,
   })
 
   const editions = data?.data ?? []
@@ -302,12 +308,23 @@ export default function AdminEditionsPage() {
       ) : editions.length === 0 ? (
         <div className="text-stone-500 py-8 text-center">No editions found{search || companyFilter ? ' matching your filters' : ''}.</div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={editions}
-          onEdit={(row) => setEditEdition(row)}
-          onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={editions}
+            onEdit={(row) => setEditEdition(row)}
+            onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
+          />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center gap-2 mt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
+              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>

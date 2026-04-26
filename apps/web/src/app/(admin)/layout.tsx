@@ -20,6 +20,7 @@ import {
   Bug,
   Lightbulb,
   Database,
+  ScrollText,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -49,6 +50,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
     heading: 'Overview',
     items: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
     ],
   },
   {
@@ -92,6 +94,7 @@ const ADMIN_GROUPS: NavGroup[] = [
     heading: 'System',
     items: [
       { href: '/admin/users', label: 'Users', icon: ShieldCheck },
+      { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
       { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
     ],
   },

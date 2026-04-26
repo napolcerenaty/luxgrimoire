@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBook, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -135,22 +135,28 @@ export default function AdminBooksPage() {
   const [search, setSearch] = useState('')
   const [seriesFilter, setSeriesFilter] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)
     return () => clearTimeout(t)
   }, [search])
 
+  useEffect(() => {
+    setPage(1)
+  }, [seriesFilter])
+
   const buildParams = () => {
-    const p = new URLSearchParams({ page: '1', pageSize: '50' })
+    const p = new URLSearchParams({ page: String(page), pageSize: '20' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (seriesFilter) p.set('seriesName', seriesFilter)
     return p.toString()
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'books', debouncedSearch, seriesFilter],
+    queryKey: ['admin', 'books', page, debouncedSearch, seriesFilter],
     queryFn: () => authFetch<PaginatedResponse<RawBook>>(`/books?${buildParams()}`),
+    placeholderData: keepPreviousData,
   })
   const books = data?.data ?? []
 
@@ -278,9 +284,20 @@ export default function AdminBooksPage() {
       ) : books.length === 0 ? (
         <div className="text-stone-500 py-8 text-center">No books found{search || seriesFilter ? ' matching your filters' : ''}.</div>
       ) : (
-        <DataTable columns={columns} data={books}
-          onEdit={row => setEditBook(row)}
-          onDelete={isManager ? undefined : row => setDeleteBook(row)} />
+        <>
+          <DataTable columns={columns} data={books}
+            onEdit={row => setEditBook(row)}
+            onDelete={isManager ? undefined : row => setDeleteBook(row)} />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center gap-2 mt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
+              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Book" onClose={() => setCreateOpen(false)}>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiArtist, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
@@ -121,18 +121,16 @@ export default function AdminArtistsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editArtist, setEditArtist] = useState<ApiArtist | null>(null)
   const [deleteArtist, setDeleteArtist] = useState<ApiArtist | null>(null)
+  const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'artists'],
+    queryKey: ['admin', 'artists', page],
     queryFn: () =>
-      authFetch<PaginatedResponse<ApiArtist> | ApiArtist[]>('/artists?page=1&pageSize=20'),
+      authFetch<PaginatedResponse<ApiArtist>>(`/artists?page=${page}&pageSize=15`),
+    placeholderData: keepPreviousData,
   })
 
-  const artists = data
-    ? Array.isArray(data)
-      ? data
-      : data.data
-    : []
+  const artists = data?.data ?? []
 
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
@@ -169,12 +167,6 @@ export default function AdminArtistsPage() {
         </a>
       ),
     },
-    {
-      key: 'bio',
-      label: 'Bio',
-      render: (row: ApiArtist) =>
-        row.bio ? `${row.bio.slice(0, 60)}${row.bio.length > 60 ? '…' : ''}` : '—',
-    },
   ]
 
   return (
@@ -192,12 +184,23 @@ export default function AdminArtistsPage() {
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={artists}
-          onEdit={(row) => setEditArtist(row)}
-          onDelete={(row) => setDeleteArtist(row)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={artists}
+            onEdit={(row) => setEditArtist(row)}
+            onDelete={(row) => setDeleteArtist(row)}
+          />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center gap-2 mt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
+              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Artist" onClose={() => setCreateOpen(false)}>
