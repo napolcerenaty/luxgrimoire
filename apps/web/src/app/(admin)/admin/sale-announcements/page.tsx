@@ -34,6 +34,61 @@ const CURRENCIES = [
   'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
 ]
 
+// UTC offsets in minutes for each timezone abbreviation
+const TZ_OFFSETS: Record<string, number> = {
+  'UTC': 0, 'GMT': 0, 'WET': 0,
+  'BST': 60, 'WEST': 60, 'CET': 60,
+  'CEST': 120, 'EET': 120,
+  'EEST': 180, 'MSK': 180, 'TRT': 180,
+  'GST': 240,
+  'PKT': 300,
+  'IST': 330,
+  'BST_BD': 360,
+  'ICT': 420,
+  'SGT': 480, 'HKT': 480, 'CST': 480,
+  'JST': 540, 'KST': 540,
+  'ACST': 570,
+  'AEST': 600,
+  'ACDT': 630,
+  'AEDT': 660,
+  'NZST': 720,
+  'NZDT': 780,
+  'HST': -600,
+  'AKST': -540,
+  'AKDT': -480,
+  'PST': -480, 'PDT': -420,
+  'MST': -420, 'MDT': -360,
+  'CST_US': -360, 'CDT': -300,
+  'EST': -300, 'EDT': -240,
+  'AST': -240, 'ADT': -180,
+  'BRT': -180, 'ART': -180,
+}
+
+/**
+ * Convert a UTC ISO string to a "YYYY-MM-DDTHH:mm" value for datetime-local input,
+ * expressed in the given sale timezone abbreviation.
+ */
+function utcIsoToTzLocal(iso: string | null | undefined, tz: string): string {
+  if (!iso) return ''
+  try {
+    const offsetMs = (TZ_OFFSETS[tz] ?? 0) * 60_000
+    return new Date(new Date(iso).getTime() + offsetMs).toISOString().slice(0, 16)
+  } catch { return '' }
+}
+
+/**
+ * Convert a datetime-local input value ("YYYY-MM-DDTHH:mm") expressed in the given
+ * sale timezone abbreviation to a full UTC ISO string.
+ */
+function tzLocalToUtcIso(localStr: string, tz: string): string {
+  if (!localStr) return ''
+  try {
+    const offsetMs = (TZ_OFFSETS[tz] ?? 0) * 60_000
+    // Treat the localStr as UTC, then subtract offset to get real UTC
+    return new Date(new Date(localStr + ':00Z').getTime() - offsetMs).toISOString()
+  } catch { return '' }
+}
+
 // Timezone abbreviations (code → display label)
 const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: 'UTC',   label: 'UTC – Coordinated Universal Time (UTC+0)' },
@@ -440,12 +495,8 @@ const EMPTY_FORM: FormState = {
   linkedEditions: [],
 }
 
-function toDatetimeLocal(iso: string | null): string {
-  if (!iso) return ''
-  try { return new Date(iso).toISOString().slice(0, 16) } catch { return '' }
-}
-
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
+  const tz = a.saleTimezone ?? 'UTC'
   const extraImages: string[] = Array.isArray(a.extraImagesJson) ? a.extraImagesJson : []
   const allImages = [
     ...(a.imageUrl ? [a.imageUrl] : []),
@@ -460,9 +511,9 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
   return {
     title: a.title,
     companyId: a.companyId ?? '',
-    generalSaleDate: toDatetimeLocal(a.generalSaleDate),
-    firstAccessDate: toDatetimeLocal(a.firstAccessDate),
-    earlyAccessDate: toDatetimeLocal(a.earlyAccessDate),
+    generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
+    firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
+    earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
     saleTimezone: a.saleTimezone ?? 'UTC',
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? 'USD',
@@ -474,12 +525,13 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
 }
 
 function formToData(f: FormState): SaleAnnouncementFormData {
+  const tz = f.saleTimezone || 'UTC'
   return {
     title: f.title,
     companyId: f.companyId || undefined,
-    generalSaleDate: f.generalSaleDate || undefined,
-    firstAccessDate: f.firstAccessDate || undefined,
-    earlyAccessDate: f.earlyAccessDate || undefined,
+    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : undefined,
+    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : undefined,
+    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : undefined,
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? Number(f.basePrice) : undefined,
     currency: f.currency || undefined,
@@ -726,12 +778,13 @@ const EMPTY_REGION: RegionFormData = {
 }
 
 function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
+  const tz = (a as any).saleTimezone ?? 'UTC'
   return {
     ...EMPTY_REGION,
-    generalSaleDate: a.generalSaleDate ? new Date(a.generalSaleDate).toISOString().slice(0, 16) : '',
-    firstAccessDate: a.firstAccessDate ? new Date(a.firstAccessDate).toISOString().slice(0, 16) : '',
-    earlyAccessDate: a.earlyAccessDate ? new Date(a.earlyAccessDate).toISOString().slice(0, 16) : '',
-    saleTimezone: (a as any).saleTimezone ?? 'UTC',
+    generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
+    firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
+    earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
+    saleTimezone: tz,
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? '',
     isDefault: true,
@@ -741,16 +794,17 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
 function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): RegionFormData {
   let codes: string[] = []
   try { codes = JSON.parse(r.countryCodes) } catch {}
+  const tz = r.saleTimezone ?? 'UTC'
   return {
     id: r.id,
     name: r.name,
     countryCodes: codes.join(', '),
     isDefault: r.isDefault,
-    generalSaleDate: r.generalSaleDate ? new Date(r.generalSaleDate).toISOString().slice(0, 16) : '',
-    firstAccessDate: r.firstAccessDate ? new Date(r.firstAccessDate).toISOString().slice(0, 16) : '',
-    earlyAccessDate: r.earlyAccessDate ? new Date(r.earlyAccessDate).toISOString().slice(0, 16) : '',
-    endsAt: r.endsAt ? new Date(r.endsAt).toISOString().slice(0, 16) : '',
-    saleTimezone: r.saleTimezone ?? 'UTC',
+    generalSaleDate: utcIsoToTzLocal(r.generalSaleDate, tz),
+    firstAccessDate: utcIsoToTzLocal(r.firstAccessDate, tz),
+    earlyAccessDate: utcIsoToTzLocal(r.earlyAccessDate, tz),
+    endsAt: utcIsoToTzLocal(r.endsAt, tz),
+    saleTimezone: tz,
     basePrice: r.basePrice != null ? String(r.basePrice) : '',
     currency: r.currency ?? '',
   }
@@ -768,15 +822,16 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
   const upsertMutation = useMutation({
     mutationFn: (form: RegionFormData) => {
       const codes = form.countryCodes.split(/[,\s]+/).map(c => c.trim().toUpperCase()).filter(Boolean)
+      const rTz = form.saleTimezone || 'UTC'
       return adminUpsertAnnouncementRegion(announcement.id, {
         id: form.id,
         name: form.name,
         countryCodes: JSON.stringify(codes),
         isDefault: form.isDefault,
-        generalSaleDate: form.generalSaleDate || null,
-        firstAccessDate: form.firstAccessDate || null,
-        earlyAccessDate: form.earlyAccessDate || null,
-        endsAt: form.endsAt || null,
+        generalSaleDate: form.generalSaleDate ? tzLocalToUtcIso(form.generalSaleDate, rTz) : null,
+        firstAccessDate: form.firstAccessDate ? tzLocalToUtcIso(form.firstAccessDate, rTz) : null,
+        earlyAccessDate: form.earlyAccessDate ? tzLocalToUtcIso(form.earlyAccessDate, rTz) : null,
+        endsAt: form.endsAt ? tzLocalToUtcIso(form.endsAt, rTz) : null,
         saleTimezone: form.saleTimezone || null,
         basePrice: form.basePrice ? Number(form.basePrice) : null,
         currency: form.currency || null,
