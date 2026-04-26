@@ -79,11 +79,10 @@ export function EditionCard({
 
       <div className="p-3 flex flex-col flex-1">
         <div className="flex-1 flex flex-col gap-1">
-          {seriesName && (
-            <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate">
-              {seriesName}{volumeNumber != null ? ` #${volumeNumber}` : ''}
-            </p>
-          )}
+          {/* Always reserve series line height so title aligns across cards */}
+          <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
+            {seriesName ? `${seriesName}${volumeNumber != null ? ` #${volumeNumber}` : ''}` : '\u00A0'}
+          </p>
           <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
             {title}
           </p>
