@@ -51,9 +51,6 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   const imgUrl = raw ? cloudinaryUrl(raw, 'w_320,h_480,c_fill,q_auto,f_auto') : null
 
   const companyName = (sale as any).company?.name ?? null
-  const companyLogo = (sale as any).company?.logoUrl
-    ? cloudinaryUrl((sale as any).company.logoUrl, 'w_48,h_48,c_fill,q_auto,f_auto')
-    : null
 
   return (
     <button
@@ -80,6 +77,21 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
         {/* Days badge */}
         <DaysBadge dateStr={sale.generalSaleDate} />
 
+        {/* Company ribbon — same style as EditionCarousel */}
+        {companyName && (
+          <div
+            className="absolute bottom-0 left-0 right-0 px-2 py-2 text-center"
+            style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
+          >
+            <span
+              className="font-serif font-semibold uppercase tracking-widest leading-none line-clamp-1 text-white"
+              style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+            >
+              {companyName}
+            </span>
+          </div>
+        )}
+
         {/* Hover overlay */}
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex items-end"
@@ -94,20 +106,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
             {sale.title}
           </p>
         </div>
-        {/* Company ribbon */}
-        {companyName && (
-          <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-stone-700/60">
-            {companyLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogo} alt={companyName} className="w-4 h-4 rounded-sm object-cover shrink-0" />
-            ) : (
-              <span className="w-4 h-4 rounded-sm bg-stone-700 flex items-center justify-center shrink-0 text-[8px] text-amber-500 font-bold">
-                {companyName.charAt(0)}
-              </span>
-            )}
-            <span className="text-[10px] text-stone-400 truncate leading-tight">{companyName}</span>
-          </div>
-        )}
+
       </div>
     </button>
   )
