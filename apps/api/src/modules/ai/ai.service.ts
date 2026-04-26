@@ -58,7 +58,7 @@ SIGNATURE RULES (read before artist rules):
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
 - Keep the @ prefix in the name exactly as written (e.g. "@artistname")
-- The "role" field MUST include the FULL description of what this person created. This means capturing the complete phrase from the start of the bullet/sentence up to and including the work noun right before "by @handle" — NOT just the last word.
+- The "role" field MUST include the FULL description of what this person created. This means capturing the complete phrase from the start of the bullet/sentence up to and including the work noun right before "by @handle" — NOT just the last word. KEEP all parenthetical text in parentheses — e.g. "(no dust jacket)", "(collector's edition)" — they are part of the description and must not be removed or paraphrased.
   Example 1: "An exclusive redesigned naked hardcover (no dust jacket) with illustrations by @nophie.blue"
     → name: "@nophie.blue", role: "An exclusive redesigned naked hardcover (no dust jacket) with illustrations"
   Example 2: "An exclusive redesigned naked hardcover (no dust jacket) with illustration by @celestarly and typography and foiling by @francesandferndesigns"
@@ -73,6 +73,7 @@ ARTIST EXTRACTION RULES:
 FEATURES RULES:
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
+- Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - Do NOT put artist credits in features — those go in artists array
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
