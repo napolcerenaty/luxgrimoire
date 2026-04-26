@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 
+// Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
   orderBy: { sortOrder: 'asc' as const },
   include: {
@@ -15,6 +16,23 @@ const editionsInclude = {
           },
         },
         artists: { include: { artist: true } },
+      },
+    },
+  },
+};
+
+// Lightweight include — used for admin list; skips authors/artists (not shown in admin SA cards)
+const editionsIncludeAdmin = {
+  orderBy: { sortOrder: 'asc' as const },
+  include: {
+    variants: true,
+    edition: {
+      select: {
+        editionName: true,
+        coverImage: true,
+        book: {
+          select: { id: true, title: true, slug: true },
+        },
       },
     },
   },
@@ -84,7 +102,7 @@ export class AnnouncementsService {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { editions: editionsInclude, regions: regionsInclude, company: { select: { id: true, name: true, slug: true, logoUrl: true } } },
+        include: { editions: editionsIncludeAdmin, regions: regionsInclude, company: { select: { id: true, name: true, slug: true, logoUrl: true } } },
       }),
       this.prisma.saleAnnouncement.count({ where }),
     ]);
