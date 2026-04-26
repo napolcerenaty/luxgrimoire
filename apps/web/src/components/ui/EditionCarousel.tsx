@@ -128,17 +128,37 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
   return (
     <section className="container mx-auto px-4 py-10">
       {/* Header */}
-      <div className={`flex items-center mb-4 ${centered ? 'justify-center' : 'justify-between'}`}>
-        <h2 className={`text-xl font-serif font-semibold text-stone-100 tracking-wide ${centered ? 'text-center' : ''}`}>{title}</h2>
-        {!centered && viewAllHref && (
-          <Link
-            href={viewAllHref}
-            className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
-          >
-            View all →
-          </Link>
-        )}
-      </div>
+      {centered ? (
+        <div className="flex flex-col items-center mb-6 gap-3">
+          <div className="flex items-center gap-4 w-full">
+            <span className="flex-1 h-px bg-stone-700" />
+            <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest text-center whitespace-nowrap">
+              {title}
+            </h2>
+            <span className="flex-1 h-px bg-stone-700" />
+          </div>
+          {viewAllHref && (
+            <Link
+              href={viewAllHref}
+              className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
+            >
+              View all →
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest">{title}</h2>
+          {viewAllHref && (
+            <Link
+              href={viewAllHref}
+              className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
+            >
+              View all →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Scroll area with side arrows */}
       <div className="relative group/carousel">
