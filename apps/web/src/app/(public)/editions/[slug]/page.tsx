@@ -387,9 +387,9 @@ export default async function EditionPage({ params }: Props) {
                       <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
-                      <p className="text-sm text-stone-400 mt-0.5">
-                        {roles.join(' · ')}
-                      </p>
+                      {roles.map((r) => (
+                          <p key={r} className="text-sm text-stone-400">{r}</p>
+                        ))}
                     </div>
                   </Link>
                 )
