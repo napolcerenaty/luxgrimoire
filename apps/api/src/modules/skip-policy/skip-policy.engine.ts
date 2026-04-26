@@ -519,8 +519,10 @@ export class SkipPolicyEngine {
     const maxSkips = policy?.maxSkips ?? null;
     const maxConsecutive = policy?.maxConsecutive ?? null;
     const isPastDeadline = deadline ? new Date() > deadline : false;
-    // Deadline is informational — does not block canSkip (app is for tracking, user may log late)
-    const canSkip = forceCanSkip !== undefined ? forceCanSkip : this.evaluateCanSkip(policy, state);
+    // canSkip = false if no valid target month exists (nothing to skip), or forced false, or policy disallows
+    const canSkip = forceCanSkip !== undefined
+      ? forceCanSkip
+      : (deadlineMonth !== null && this.evaluateCanSkip(policy, state));
     const warnings = this.computeWarnings(policyType, skipsInWindow, maxSkips, consecutiveSkips, maxConsecutive);
 
     if (isPastDeadline && policyType !== 'NONE') {
