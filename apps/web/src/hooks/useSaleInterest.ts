@@ -24,51 +24,96 @@ async function authFetch(path: string, options?: RequestInit) {
   return res.ok ? res.json() : null
 }
 
-interface SaleInterestState {
-  isInterested: boolean
-  tier: SaleTier | null
-  loading: boolean
+// ─── Shared module-level cache ───────────────────────────────────────────────
+// All hook instances for the same announcementId share state.
+// When any instance writes, all others update immediately (no re-fetch needed).
+
+interface CachedState { isInterested: boolean; tier: SaleTier | null }
+type Listener = (s: CachedState) => void
+
+const cache = new Map<string, CachedState>()
+const listeners = new Map<string, Set<Listener>>()
+
+function broadcast(id: string, state: CachedState) {
+  cache.set(id, state)
+  listeners.get(id)?.forEach(fn => fn(state))
 }
 
+function subscribe(id: string, fn: Listener) {
+  if (!listeners.has(id)) listeners.set(id, new Set())
+  listeners.get(id)!.add(fn)
+  return () => { listeners.get(id)?.delete(fn) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function useSaleInterest(announcementId: string | null) {
-  const [state, setState] = useState<SaleInterestState>({ isInterested: false, tier: null, loading: false })
+  const [state, setState] = useState<CachedState & { loading: boolean }>({
+    isInterested: false,
+    tier: null,
+    loading: false,
+  })
 
   useEffect(() => {
-    if (!announcementId || !getToken()) return
-    setState(s => ({ ...s, loading: true }))
-    authFetch(`/sale-interests/${announcementId}`)
-      .then(data => {
-        if (data?.announcementId) {
-          setState({ isInterested: true, tier: data.tier as SaleTier, loading: false })
-        } else {
-          setState({ isInterested: false, tier: null, loading: false })
-        }
-      })
-      .catch(() => setState({ isInterested: false, tier: null, loading: false }))
+    if (!announcementId) return
+
+    // If we already have cached data, use it immediately (no spinner)
+    const cached = cache.get(announcementId)
+    if (cached) {
+      setState({ ...cached, loading: false })
+    }
+
+    // Subscribe to broadcasts from other instances
+    const unsub = subscribe(announcementId, s => setState({ ...s, loading: false }))
+
+    // Fetch from server only if no cache yet
+    if (!cached) {
+      if (!getToken()) { unsub(); return }
+      setState(s => ({ ...s, loading: true }))
+      authFetch(`/sale-interests/${announcementId}`)
+        .then(data => {
+          const next: CachedState = data?.announcementId
+            ? { isInterested: true, tier: data.tier as SaleTier }
+            : { isInterested: false, tier: null }
+          broadcast(announcementId, next)
+        })
+        .catch(() => {
+          const next: CachedState = { isInterested: false, tier: null }
+          broadcast(announcementId, next)
+        })
+    }
+
+    return unsub
   }, [announcementId])
 
   const setInterest = useCallback(async (tier: SaleTier) => {
     if (!announcementId) return
-    setState(s => ({ ...s, loading: true }))
+    // Optimistic update — all instances see it immediately
+    broadcast(announcementId, { isInterested: true, tier })
     try {
       await authFetch(`/sale-interests/${announcementId}`, {
         method: 'POST',
         body: JSON.stringify({ tier }),
       })
-      setState({ isInterested: true, tier, loading: false })
     } catch {
-      setState(s => ({ ...s, loading: false }))
+      // rollback
+      broadcast(announcementId, { isInterested: false, tier: null })
     }
   }, [announcementId])
 
   const removeInterest = useCallback(async () => {
     if (!announcementId) return
-    setState(s => ({ ...s, loading: true }))
+    broadcast(announcementId, { isInterested: false, tier: null })
     try {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
-      setState({ isInterested: false, tier: null, loading: false })
     } catch {
-      setState(s => ({ ...s, loading: false }))
+      // rollback — refetch to get real state
+      authFetch(`/sale-interests/${announcementId}`).then(data => {
+        const next: CachedState = data?.announcementId
+          ? { isInterested: true, tier: data.tier as SaleTier }
+          : { isInterested: false, tier: null }
+        broadcast(announcementId, next)
+      }).catch(() => {})
     }
   }, [announcementId])
 

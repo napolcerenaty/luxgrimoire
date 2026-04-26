@@ -33,8 +33,15 @@ interface SaleInterest {
     firstAccessDate: string | null
     earlyAccessDate: string | null
     generalSaleDate: string | null
+    saleTimezone: string | null
     company: { id: string; name: string; logoUrl: string | null } | null
   }
+}
+
+const TIER_LABELS: Record<'FA' | 'EA' | 'GS', string> = {
+  FA: 'First Access',
+  EA: 'Early Access',
+  GS: 'General Sale',
 }
 
 // Deterministic hue from a string (same as old-approach)
@@ -72,6 +79,28 @@ function saleInterestDay(interest: SaleInterest, year: number, month0: number): 
   return null
 }
 
+/** Format sale time in the user's local timezone, e.g. "14:00 (your time)" */
+function saleInterestTime(interest: SaleInterest): string | null {
+  const a = interest.announcement
+  const dateStr =
+    interest.tier === 'FA' ? a.firstAccessDate
+    : interest.tier === 'EA' ? a.earlyAccessDate
+    : a.generalSaleDate
+  if (!dateStr) return null
+  try {
+    const d = new Date(dateStr)
+    const localTime = d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false })
+    const saleTime = a.saleTimezone
+      ? d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: a.saleTimezone })
+      : null
+    const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const sameZone = !a.saleTimezone || a.saleTimezone === localTz
+    return sameZone ? localTime : `${localTime} (${saleTime} sale tz)`
+  } catch {
+    return null
+  }
+}
+
 export default function CalendarPage() {
   const today = new Date()
   const [viewDate, setViewDate] = useState(
@@ -79,6 +108,7 @@ export default function CalendarPage() {
   )
   const [tooltip, setTooltip] = useState<{
     label: string
+    subtitle?: string
     hue: number
     type: 'renewal' | 'sale'
     x: number
@@ -150,6 +180,7 @@ export default function CalendarPage() {
         id: i.announcementId,
         label: i.announcement.title,
         tier: i.tier,
+        time: saleInterestTime(i),
         href: `/sale-announcements/${i.announcementId}`,
         logoUrl: i.announcement.imageUrl ?? null,
         companyName: i.announcement.company?.name ?? null,
@@ -158,10 +189,10 @@ export default function CalendarPage() {
   const isToday = (day: number) =>
     day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
 
-  const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale') => {
+  const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale', subtitle?: string) => {
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ label, hue, type, x: rect.left, y: rect.bottom + 6 })
+    setTooltip({ label, subtitle, hue, type, x: rect.left, y: rect.bottom + 6 })
   }
   const scheduleClose = () => {
     tooltipTimer.current = setTimeout(() => setTooltip(null), 150)
@@ -277,7 +308,13 @@ export default function CalendarPage() {
                       color: 'rgb(196,168,255)',
                       border: '1px solid rgba(109,40,217,0.4)',
                     }}
-                    onMouseEnter={e => openTooltip(e, `${s.label} (${s.tier})`, 270, 'sale')}
+                    onMouseEnter={e => openTooltip(
+                      e,
+                      s.label,
+                      270,
+                      'sale',
+                      `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}`,
+                    )}
                     onMouseLeave={scheduleClose}
                   >
                     <Bell size={9} className="shrink-0" />
@@ -346,8 +383,8 @@ export default function CalendarPage() {
             {tooltip.type === 'sale' ? <Bell size={12} className="inline mr-1" /> : '🔄 '}
             {tooltip.label}
           </span>
-          <p className="text-[10px] text-stone-500 mt-0.5">
-            {tooltip.type === 'sale' ? 'Sale' : 'Renewal'}
+          <p className="text-[10px] text-stone-400 mt-0.5">
+            {tooltip.subtitle ?? (tooltip.type === 'sale' ? 'Sale' : 'Renewal')}
           </p>
         </div>
       )}
