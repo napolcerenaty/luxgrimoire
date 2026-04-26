@@ -110,7 +110,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           </p>
         </div>
         <div className="flex justify-end mt-1" onClick={e => e.stopPropagation()}>
-          <SaleInterestButton announcementId={sale.id} compact />
+          <SaleInterestButton announcementId={sale.id} compact firstAccessDate={sale.firstAccessDate} earlyAccessDate={sale.earlyAccessDate} />
         </div>
       </div>
     </div>

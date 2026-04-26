@@ -118,7 +118,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                 View full page <ExternalLink size={11} />
               </Link>
               <div className="mt-3 flex items-center gap-2">
-                <SaleInterestButton announcementId={sale.id} />
+                <SaleInterestButton announcementId={sale.id} firstAccessDate={sale.firstAccessDate} earlyAccessDate={sale.earlyAccessDate} />
                 {isInterested && (
                   <button
                     type="button"

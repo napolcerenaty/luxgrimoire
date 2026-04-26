@@ -7,6 +7,7 @@ import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { AddToCollectionButton } from './AddToCollectionButton'
 import SaleDateSelector from './SaleDateSelector'
+import { SaleInterestSection } from './SaleInterestSection'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -104,6 +105,9 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               currency={sale.currency ?? 'USD'}
             />
           )}
+
+          {/* Interest / preorder */}
+          <SaleInterestSection sale={sale} />
         </div>
       </div>
 
