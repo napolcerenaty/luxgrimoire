@@ -180,8 +180,8 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     if (r.edition?.artists?.length) {
       setArtists(prev => {
         const normalize = (s: string) => s.toLowerCase().replace(/^@/, '')
-        const existing = new Set(prev.map(a => normalize(a.name)))
-        const toAdd = r.edition!.artists!.filter(a => !existing.has(normalize(a.name)))
+        const existing = new Set(prev.map(a => `${normalize(a.name)}|${a.role.toLowerCase()}`))
+        const toAdd = r.edition!.artists!.filter(a => !existing.has(`${normalize(a.name)}|${a.role.toLowerCase()}`))
         return [...prev, ...toAdd.map(a => ({ name: a.name, role: a.role }))]
       })
     }
