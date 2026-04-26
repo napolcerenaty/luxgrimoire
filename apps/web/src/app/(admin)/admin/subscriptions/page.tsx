@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -720,17 +720,20 @@ export default function AdminSubscriptionsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 15
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
 
   const { data: subsData, isLoading: subsLoading } = useQuery({
-    queryKey: ['admin', 'subscriptions', isManager ? managerCompanyId : null],
+    queryKey: ['admin', 'subscriptions', page, isManager ? managerCompanyId : null],
     queryFn: () => {
       const companyFilter = isManager && managerCompanyId ? `&companyId=${managerCompanyId}` : ''
-      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=1&pageSize=100&includeHidden=true${companyFilter}`)
+      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}`)
     },
     enabled: user !== null,
+    placeholderData: keepPreviousData,
   })
 
   const { data: companiesData } = useQuery({
@@ -892,12 +895,35 @@ export default function AdminSubscriptionsPage() {
       {subsLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={subs}
-          onEdit={(row) => setEditSub(row)}
-          onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={subs}
+            onEdit={(row) => setEditSub(row)}
+            onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
+          />
+          {(subsData?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
+              <span>Page {page} of {subsData?.totalPages ?? 1} ({subsData?.total ?? 0} total)</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(subsData?.totalPages ?? 1, p + 1))}
+                  disabled={page >= (subsData?.totalPages ?? 1)}
+                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Subscription" onClose={() => setCreateOpen(false)}>

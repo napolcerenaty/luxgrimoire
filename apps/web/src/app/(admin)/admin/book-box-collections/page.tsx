@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookBoxCollection, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
@@ -122,6 +122,8 @@ export default function AdminBookBoxCollectionsPage() {
   const [editItem, setEditItem] = useState<ApiBookBoxCollection | null>(null)
   const [deleteItem, setDeleteItem] = useState<ApiBookBoxCollection | null>(null)
   const [companyFilter, setCompanyFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 15
 
   const { data: companiesData } = useQuery({
     queryKey: ['admin', 'companies-all'],
@@ -130,14 +132,17 @@ export default function AdminBookBoxCollectionsPage() {
   const companies: ApiBookBoxCompany[] = companiesData?.data ?? []
 
   const buildParams = () => {
-    const p = new URLSearchParams({ pageSize: '100' })
+    const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
     if (companyFilter) p.set('companyId', companyFilter)
     return p.toString()
   }
 
+  useEffect(() => { setPage(1) }, [companyFilter])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'book-box-collections', companyFilter],
+    queryKey: ['admin', 'book-box-collections', page, companyFilter],
     queryFn: () => authFetch<PaginatedResponse<ApiBookBoxCollection>>(`/book-box-collections?${buildParams()}`),
+    placeholderData: keepPreviousData,
   })
   const collections = data?.data ?? []
 
@@ -225,7 +230,30 @@ export default function AdminBookBoxCollectionsPage() {
       ) : collections.length === 0 ? (
         <div className="text-stone-500 py-8 text-center">No collections found.</div>
       ) : (
-        <DataTable columns={columns} data={collections} onEdit={(row) => setEditItem(row)} onDelete={(row) => setDeleteItem(row)} />
+        <>
+          <DataTable columns={columns} data={collections} onEdit={(row) => setEditItem(row)} onDelete={(row) => setDeleteItem(row)} />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
+              <span>Page {page} of {data?.totalPages ?? 1} ({data?.total ?? 0} total)</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                  disabled={page >= (data?.totalPages ?? 1)}
+                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <FormModal open={createOpen} title="Add Collection" onClose={() => setCreateOpen(false)}>

@@ -135,7 +135,7 @@ export default function AdminEditionsPage() {
   }, [companyFilter, unverifiedOnly])
 
   const buildParams = () => {
-    const p = new URLSearchParams({ page: String(page), pageSize: '20' })
+    const p = new URLSearchParams({ page: String(page), pageSize: '10' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (unverifiedOnly) p.set('needsVerification', 'true')
     if (isManager && managedCompanyId) {

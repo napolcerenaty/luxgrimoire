@@ -154,6 +154,7 @@ model Author {
   favoriteBy  UserFavoriteAuthor[]
 
   @@index([nationality])
+  @@index([name])
   @@map("authors")
 }
 
@@ -185,6 +186,7 @@ model Artist {
   favoriteBy    UserFavoriteArtist[]
 
   @@index([specialty])
+  @@index([name])
   @@map("artists")
 }
 

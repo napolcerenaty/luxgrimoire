@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -77,9 +76,6 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-stone-100 mb-1">Dashboard</h1>
           <p className="text-stone-400 text-sm">Monitor content changes and recent activity</p>
         </div>
-        <Link href="/admin/audit-logs" className="text-sm text-stone-400 hover:text-amber-400 border border-stone-700 px-3 py-1.5 rounded-lg transition-colors">
-          Audit Log →
-        </Link>
       </div>
 
       {/* Stats cards */}
