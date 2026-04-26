@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { CheckCircle2, XCircle, ExternalLink } from 'lucide-react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface MySubscriptionEntry {
   id: string
@@ -15,6 +15,9 @@ interface MySubscriptionEntry {
   basePrice: string | null
   shippingCost: string | null
   taxesAndFees: string | null
+  nextRenewalDate: string | null
+  nextRenewalAmount: string | null
+  nextRenewalCurrency: string | null
   subscription: {
     slug: string
     name: string
@@ -27,9 +30,9 @@ interface MySubscriptionEntry {
   }
 }
 
-function formatMoney(amount: string | null, currency: string | null) {
-  if (!amount || !currency) return null
-  const n = parseFloat(amount)
+function formatMoney(amount: string | number | null, currency: string | null) {
+  if (amount === null || amount === undefined || !currency) return null
+  const n = typeof amount === 'string' ? parseFloat(amount) : amount
   if (isNaN(n)) return null
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(n)
 }
@@ -97,71 +100,91 @@ export default function MySubscriptionsPage() {
 
 function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
-  const thumb = sub.coverImage
-    ? cloudinaryUrl(sub.coverImage, 'w_80,h_80,c_fill,q_auto,f_auto')
+  const logoUrl = sub.logoUrl
+    ? cloudinaryUrl(sub.logoUrl, 'w_160,h_160,c_pad,q_auto,f_auto')
+    : null
+  const bgUrl = sub.logoUrl
+    ? cloudinaryUrl(sub.logoUrl, 'w_400,h_120,c_fill,q_auto,f_auto')
     : null
 
-  const cur = entry.costCurrency ?? sub.currency
-  const base = formatMoney(entry.basePrice ?? sub.price, cur)
-  const shipping = formatMoney(entry.shippingCost, cur)
-  const taxes = formatMoney(entry.taxesAndFees, cur)
-  const since = formatDate(entry.startDate)
+  const renewalLabel = formatDate(entry.nextRenewalDate)
+  const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
 
   return (
-    <div className="flex gap-4 bg-stone-900 border border-stone-800 rounded-xl p-4 hover:border-stone-700 transition-colors">
-      {/* Thumbnail */}
-      <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-stone-800">
-        {thumb ? (
-          <img src={thumb} alt={sub.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-stone-600 text-2xl font-serif">
-            {sub.name[0]}
+    <Link
+      href={`/subscriptions/${sub.slug}`}
+      className="block bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/50 transition-colors group"
+    >
+      {/* Logo with blur background */}
+      <div className="relative h-24 overflow-hidden bg-stone-800">
+        {bgUrl && (
+          <img
+            src={bgUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-40"
+            aria-hidden
+          />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={sub.name}
+              className="h-16 max-w-[180px] object-contain drop-shadow-lg"
+            />
+          ) : (
+            <span className="text-3xl font-serif text-stone-400">{sub.name[0]}</span>
+          )}
+        </div>
+        {/* Status badge */}
+        <div className="absolute top-2 right-2">
+          {entry.active ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-stone-900/80 rounded-full px-2 py-0.5">
+              <CheckCircle2 size={12} /> Active
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs font-medium text-stone-400 bg-stone-900/80 rounded-full px-2 py-0.5">
+              <XCircle size={12} /> Cancelled
+            </span>
+          )}
+        </div>
+        {sub.isDiscontinued && (
+          <div className="absolute top-2 left-2">
+            <span className="text-xs text-amber-600 bg-stone-900/80 border border-amber-700/40 rounded px-1.5 py-0.5">
+              Discontinued
+            </span>
           </div>
         )}
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-stone-500">{sub.company.name}</p>
-            <h3 className="font-semibold text-stone-100 leading-tight">{sub.name}</h3>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {entry.active ? (
-              <span className="flex items-center gap-1 text-xs text-emerald-400">
-                <CheckCircle2 size={14} /> Active
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-xs text-stone-500">
-                <XCircle size={14} /> Cancelled
-              </span>
-            )}
-            {sub.isDiscontinued && (
-              <span className="text-xs text-amber-600/80 border border-amber-700/40 rounded px-1.5 py-0.5">
-                Discontinued
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="p-4">
+        <p className="text-xs text-stone-500">{sub.company.name}</p>
+        <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors">
+          {sub.name}
+        </h3>
 
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-400">
-          {since && <span>Since {since}</span>}
-          {entry.renewalDay && <span>Renews on day {entry.renewalDay}</span>}
-          {base && <span>Base {base}</span>}
-          {shipping && <span>+ {shipping} shipping</span>}
-          {taxes && <span>+ {taxes} taxes/fees</span>}
+        <div className="mt-3 flex flex-wrap gap-4">
+          {entry.active && renewalLabel && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
+              <p className="text-sm font-medium text-stone-200">{renewalLabel}</p>
+            </div>
+          )}
+          {entry.active && renewalAmount && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Renewal amount</p>
+              <p className="text-sm font-medium text-amber-400">{renewalAmount}</p>
+            </div>
+          )}
+          {!entry.active && entry.startDate && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Subscribed since</p>
+              <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Link */}
-      <Link
-        href={`/subscriptions/${sub.slug}`}
-        className="shrink-0 self-start text-stone-500 hover:text-amber-400 transition-colors mt-0.5"
-        title="View subscription"
-      >
-        <ExternalLink size={16} />
-      </Link>
-    </div>
+    </Link>
   )
 }

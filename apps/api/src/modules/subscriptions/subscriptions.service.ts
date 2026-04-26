@@ -481,7 +481,7 @@ export class SubscriptionsService {
   }
 
   async getMySubscriptions(userId: string) {
-    return this.prisma.userSubscriptionEntry.findMany({
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
       where: { userId },
       orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
       select: {
@@ -493,6 +493,10 @@ export class SubscriptionsService {
         basePrice: true,
         shippingCost: true,
         taxesAndFees: true,
+        skipRecords: {
+          where: { undoneAt: null },
+          include: { month: { select: { year: true, month: true } } },
+        },
         subscription: {
           select: {
             slug: true,
@@ -502,10 +506,63 @@ export class SubscriptionsService {
             currency: true,
             price: true,
             isDiscontinued: true,
+            paymentOnStartup: true,
+            renewalDay: true,
+            type: true,
+            startingMonth: true,
             company: { select: { name: true, slug: true } },
           },
         },
       },
+    });
+
+    return entries.map((entry) => {
+      const sub = entry.subscription as any;
+      const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
+      const skippedMonths = entry.skipRecords.map((r: any) => ({ year: r.month.year, month: r.month.month }));
+
+      // Compute first paid month for paymentOnStartup
+      let paidUpFrontDate: Date | null = null;
+      if (sub.paymentOnStartup && entry.startDate) {
+        const joinDate = new Date(entry.startDate);
+        const joinDay = joinDate.getUTCDate();
+        const joinYear = joinDate.getUTCFullYear();
+        const joinMonth = joinDate.getUTCMonth() + 1;
+        const renewalPassedThisMonth = renewalDay < joinDay;
+        let paidYear = joinYear;
+        let paidMonth = joinMonth;
+        if (renewalPassedThisMonth) {
+          [paidYear, paidMonth] = paidMonth === 12 ? [paidYear + 1, 1] : [paidYear, paidMonth + 1];
+        }
+        paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
+      }
+
+      const nextRenewalDate = this.computeNextRenewalDate(
+        renewalDay,
+        sub.type ?? null,
+        sub.startingMonth ?? null,
+        entry.startDate ?? null,
+        skippedMonths,
+        paidUpFrontDate,
+      );
+
+      // Compute total renewal amount
+      const cur = entry.costCurrency ?? sub.currency ?? null;
+      const base = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
+      const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+      const taxes = entry.taxesAndFees ? parseFloat(entry.taxesAndFees.toString()) : null;
+      const nextRenewalAmount = base !== null
+        ? (base + (shipping ?? 0) + (taxes ?? 0))
+        : null;
+
+      const { skipRecords: _sr, ...entryWithoutSkips } = entry;
+      return {
+        ...entryWithoutSkips,
+        subscription: { ...sub },
+        nextRenewalDate: nextRenewalDate ? nextRenewalDate.toISOString() : null,
+        nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
+        nextRenewalCurrency: cur,
+      };
     });
   }
 
