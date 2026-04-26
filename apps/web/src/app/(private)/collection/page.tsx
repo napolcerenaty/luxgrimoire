@@ -1252,7 +1252,7 @@ export default function CollectionPage() {
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
-                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'Read' : 'Unread'}
+                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : 'UNREAD'}
                               </span>
                               {openDropdown === `${entry.id}-reading` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
@@ -1290,7 +1290,7 @@ export default function CollectionPage() {
                                   ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
                                   : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                               }`}>
-                                {entry.signatureType === 'signed' ? '✍️ Signed' : '🖨️ Digital'}
+                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : '🖨️ DIGITAL'}
                               </span>
                             )}
                           </div>

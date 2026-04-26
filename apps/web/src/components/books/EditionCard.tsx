@@ -33,11 +33,11 @@ export function EditionCard({
   return (
     <Link
       href={href}
-      className={`group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${
+      className={`group flex flex-col rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${
         unverified ? 'border-amber-800/50' : 'border-stone-800'
       }`}
     >
-      <div className="relative aspect-[2/3] bg-stone-800 overflow-hidden">
+      <div className="relative aspect-[2/3] bg-stone-800 overflow-hidden rounded-t-2xl">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -77,21 +77,23 @@ export function EditionCard({
         {imageActions}
       </div>
 
-      <div className="p-3 flex flex-col gap-1 flex-1">
-        {seriesName && (
-          <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate">
-            {seriesName}{volumeNumber != null ? ` #${volumeNumber}` : ''}
+      <div className="p-3 flex flex-col flex-1">
+        <div className="flex-1 flex flex-col gap-1">
+          {seriesName && (
+            <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate">
+              {seriesName}{volumeNumber != null ? ` #${volumeNumber}` : ''}
+            </p>
+          )}
+          <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+            {title}
           </p>
-        )}
-        <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
-          {title}
-        </p>
-        {authors && authors.length > 0 && (
-          <p className="text-[11px] text-stone-500 truncate">
-            {authors.map(a => a.name).join(', ')}
-          </p>
-        )}
-        {footer}
+          {authors && authors.length > 0 && (
+            <p className="text-[11px] text-stone-500 truncate">
+              {authors.map(a => a.name).join(', ')}
+            </p>
+          )}
+        </div>
+        {footer && <div className="mt-2">{footer}</div>}
       </div>
     </Link>
   )
