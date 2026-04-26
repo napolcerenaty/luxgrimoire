@@ -100,11 +100,13 @@ export default function MySubscriptionsPage() {
 
 function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
-  const logoUrl = sub.logoUrl
-    ? cloudinaryUrl(sub.logoUrl, 'w_160,h_160,c_pad,q_auto,f_auto')
+  const imageSource = sub.logoUrl ?? sub.coverImage
+
+  const logoThumb = imageSource
+    ? cloudinaryUrl(imageSource, 'w_120,h_120,c_pad,b_auto,q_auto,f_auto')
     : null
-  const bgUrl = sub.logoUrl
-    ? cloudinaryUrl(sub.logoUrl, 'w_400,h_120,c_fill,q_auto,f_auto')
+  const blurBg = imageSource
+    ? cloudinaryUrl(imageSource, 'w_200,h_200,c_fill,q_auto,f_auto')
     : null
 
   const renewalLabel = formatDate(entry.nextRenewalDate)
@@ -113,58 +115,59 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   return (
     <Link
       href={`/subscriptions/${sub.slug}`}
-      className="block bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/50 transition-colors group"
+      className="flex gap-4 bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/50 transition-colors group"
     >
-      {/* Logo with blur background */}
-      <div className="relative h-24 overflow-hidden bg-stone-800">
-        {bgUrl && (
+      {/* Logo square with blur bg */}
+      <div className="relative shrink-0 w-24 h-24 bg-stone-800 overflow-hidden">
+        {blurBg && (
           <img
-            src={bgUrl}
+            src={blurBg}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-40"
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-50"
             aria-hidden
           />
         )}
-        <div className="absolute inset-0 flex items-center justify-center">
-          {logoUrl ? (
+        <div className="absolute inset-0 flex items-center justify-center p-2">
+          {logoThumb ? (
             <img
-              src={logoUrl}
+              src={logoThumb}
               alt={sub.name}
-              className="h-16 max-w-[180px] object-contain drop-shadow-lg"
+              className="w-full h-full object-contain drop-shadow-md"
             />
           ) : (
             <span className="text-3xl font-serif text-stone-400">{sub.name[0]}</span>
           )}
         </div>
-        {/* Status badge */}
-        <div className="absolute top-2 right-2">
-          {entry.active ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-stone-900/80 rounded-full px-2 py-0.5">
-              <CheckCircle2 size={12} /> Active
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs font-medium text-stone-400 bg-stone-900/80 rounded-full px-2 py-0.5">
-              <XCircle size={12} /> Cancelled
-            </span>
-          )}
-        </div>
-        {sub.isDiscontinued && (
-          <div className="absolute top-2 left-2">
-            <span className="text-xs text-amber-600 bg-stone-900/80 border border-amber-700/40 rounded px-1.5 py-0.5">
-              Discontinued
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Info */}
-      <div className="p-4">
-        <p className="text-xs text-stone-500">{sub.company.name}</p>
-        <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors">
-          {sub.name}
-        </h3>
+      <div className="flex-1 min-w-0 py-3 pr-4 flex flex-col justify-center">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
+            <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors truncate">
+              {sub.name}
+            </h3>
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-1">
+            {entry.active ? (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                <CheckCircle2 size={12} /> Active
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
+                <XCircle size={12} /> Cancelled
+              </span>
+            )}
+            {sub.isDiscontinued && (
+              <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5">
+                Discontinued
+              </span>
+            )}
+          </div>
+        </div>
 
-        <div className="mt-3 flex flex-wrap gap-4">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {entry.active && renewalLabel && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
@@ -173,13 +176,13 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           )}
           {entry.active && renewalAmount && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-stone-500">Renewal amount</p>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Amount</p>
               <p className="text-sm font-medium text-amber-400">{renewalAmount}</p>
             </div>
           )}
           {!entry.active && entry.startDate && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-stone-500">Subscribed since</p>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
               <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
             </div>
           )}
