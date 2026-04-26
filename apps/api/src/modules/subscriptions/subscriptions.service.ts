@@ -17,6 +17,7 @@ import {
   BackfillSubscriptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { computeNextRenewalDate, refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 
 export interface CountryFeeHint {
@@ -395,9 +396,6 @@ export class SubscriptionsService {
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
 
     // For paymentOnStartup: find the ACTUAL first subscription month that was paid at signup.
-    // This is the first subscription month at or after the user's first eligible billing month.
-    // We must look it up in the DB rather than computing purely from dates, because the
-    // subscription may start in a future month (e.g., no box in May → first box is June).
     let paidUpFrontDate: Date | null = null;
     if (paymentOnStartup && userStartDate) {
       const joinDate = new Date(userStartDate);
@@ -442,53 +440,9 @@ export class SubscriptionsService {
     startingMonth: number | null,
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
-    /**
-     * When provided (paymentOnStartup=true), the billing cycle month that contains this date
-     * was already paid at signup — skip it and start from the NEXT cycle month.
-     */
     paidUpFrontDate: Date | null = null,
   ): Date | null {
-    const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
-    const now = new Date();
-
-    let candYear = now.getFullYear();
-    let candMonth = now.getMonth() + 1; // 1-indexed
-
-    for (let i = 0; i < 24; i++) {
-      // For BIMONTHLY/QUARTERLY, skip months not in the cycle
-      if (interval > 1 && startingMonth != null) {
-        const offset = ((candMonth - startingMonth) % 12 + 12) % 12;
-        if (offset % interval !== 0) {
-          [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
-          continue;
-        }
-      }
-
-      // Skip the first billing cycle month if it was already paid at startup
-      if (paidUpFrontDate) {
-        const paidYear = paidUpFrontDate.getFullYear();
-        const paidMonth = paidUpFrontDate.getMonth() + 1;
-        if (candYear === paidYear && candMonth === paidMonth) {
-          [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
-          continue;
-        }
-      }
-
-      const candDate = new Date(Date.UTC(candYear, candMonth - 1, renewalDay));
-
-      const isSkipped = skippedMonths.some((s) => s.year === candYear && s.month === candMonth);
-      if (!isSkipped && candDate > now) {
-        if (userStartDate) {
-          const startD = new Date(userStartDate);
-          if (candDate >= startD) return candDate;
-        } else {
-          return candDate;
-        }
-      }
-
-      [candYear, candMonth] = this.incrementMonth(candYear, candMonth);
-    }
-    return null;
+    return computeNextRenewalDate(renewalDay, type, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {
@@ -504,6 +458,7 @@ export class SubscriptionsService {
         active: true,
         startDate: true,
         renewalDay: true,
+        nextRenewalDate: true,
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
@@ -534,47 +489,18 @@ export class SubscriptionsService {
 
     return Promise.all(entries.map(async (entry) => {
       const sub = entry.subscription as any;
-      const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-      const skippedMonths = entry.skipRecords.map((r: any) => ({ year: r.month.year, month: r.month.month }));
 
-      // Compute first paid month for paymentOnStartup: look up actual first subscription month
-      let paidUpFrontDate: Date | null = null;
-      if (sub.paymentOnStartup && entry.startDate) {
-        const joinDate = new Date(entry.startDate);
-        const joinDay = joinDate.getUTCDate();
-        const joinYear = joinDate.getUTCFullYear();
-        const joinMonth = joinDate.getUTCMonth() + 1;
-        const renewalPassedThisMonth = renewalDay < joinDay;
-        let firstEligibleYear = joinYear;
-        let firstEligibleMonth = joinMonth;
-        if (renewalPassedThisMonth) {
-          [firstEligibleYear, firstEligibleMonth] = [firstEligibleMonth === 12 ? firstEligibleYear + 1 : firstEligibleYear, firstEligibleMonth === 12 ? 1 : firstEligibleMonth + 1];
-        }
-        const firstSubMonth = await this.prisma.subscriptionMonth.findFirst({
-          where: {
-            subscriptionId: sub.id,
-            OR: [
-              { year: { gt: firstEligibleYear } },
-              { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
-            ],
-          },
-          orderBy: [{ year: 'asc' }, { month: 'asc' }],
-          select: { year: true, month: true },
+      // Use stored nextRenewalDate from DB; fall back to computing if not yet populated
+      let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
+      if (!storedRenewalDate && entry.active) {
+        // Lazy backfill: compute and save if missing
+        await refreshNextRenewalDate(this.prisma, entry.id);
+        const fresh = await this.prisma.userSubscriptionEntry.findUnique({
+          where: { id: entry.id },
+          select: { nextRenewalDate: true },
         });
-        const paidYear = firstSubMonth?.year ?? firstEligibleYear;
-        const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
-        paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
+        storedRenewalDate = fresh?.nextRenewalDate ?? null;
       }
-
-
-      const nextRenewalDate = this.computeNextRenewalDate(
-        renewalDay,
-        sub.type ?? null,
-        sub.startingMonth ?? null,
-        entry.startDate ?? null,
-        skippedMonths,
-        paidUpFrontDate,
-      );
 
       // Compute total renewal amount
       const cur = entry.costCurrency ?? sub.currency ?? null;
@@ -589,7 +515,7 @@ export class SubscriptionsService {
       return {
         ...entryWithoutSkips,
         subscription: { ...sub },
-        nextRenewalDate: nextRenewalDate ? nextRenewalDate.toISOString() : null,
+        nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null,
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
         nextRenewalCurrency: cur,
       };
@@ -644,6 +570,7 @@ export class SubscriptionsService {
       where: { id: entry.id },
       data: {
         active: false,
+        nextRenewalDate: null,
         cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
         cancellationReason: dto.cancellationReason ?? null,
       },
@@ -829,6 +756,9 @@ export class SubscriptionsService {
     if (paymentOnStartup && startDateObj) {
       await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
     }
+
+    // Persist nextRenewalDate so cron jobs can query it
+    await refreshNextRenewalDate(this.prisma, entry.id);
 
     return { entry, eligibleMonths };
   }

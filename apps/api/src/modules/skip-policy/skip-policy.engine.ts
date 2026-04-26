@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 
 export interface SkipStatus {
   policyType: string;
@@ -222,6 +223,8 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    // Update persisted nextRenewalDate so cron jobs see the correct date
+    await refreshNextRenewalDate(this.prisma, entry.id);
     return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
   }
 
@@ -265,6 +268,8 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    // Update persisted nextRenewalDate so cron jobs see the correct date
+    await refreshNextRenewalDate(this.prisma, entry.id);
     return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month });
   }
 

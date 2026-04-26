@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
 import { Role } from '@prisma/client';
 import { UploadService } from '../upload/upload.service';
+import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 
 @Injectable()
 export class AdminService {
@@ -226,5 +227,24 @@ export class AdminService {
     } catch {
       return null;
     }
+  }
+
+  /** Backfill nextRenewalDate for all active subscription entries that don't have it set. */
+  async backfillNextRenewalDates(): Promise<{ processed: number; skipped: number }> {
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { active: true },
+      select: { id: true, nextRenewalDate: true },
+    });
+    let processed = 0;
+    let skipped = 0;
+    for (const entry of entries) {
+      if (entry.nextRenewalDate) {
+        skipped++;
+        continue;
+      }
+      await refreshNextRenewalDate(this.prisma, entry.id);
+      processed++;
+    }
+    return { processed, skipped };
   }
 }

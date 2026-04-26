@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { AdminService } from './admin.service';
@@ -46,5 +46,11 @@ export class AdminController {
     } catch {
       throw new NotFoundException('User not found');
     }
+  }
+
+  @Post('backfill-renewal-dates')
+  @Roles('ADMIN')
+  backfillRenewalDates() {
+    return this.adminService.backfillNextRenewalDates();
   }
 }
