@@ -20,6 +20,7 @@ interface Props {
   title: string
   viewAllHref?: string
   cards: CarouselCard[]
+  centered?: boolean
 }
 
 const CARD_WIDTH = 160
@@ -111,7 +112,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
   )
 })
 
-export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHref, cards }: Props) {
+export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHref, cards, centered }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (dir: 'left' | 'right') => {
@@ -127,9 +128,9 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
   return (
     <section className="container mx-auto px-4 py-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-serif font-semibold text-stone-100 tracking-wide">{title}</h2>
-        {viewAllHref && (
+      <div className={`flex items-center mb-4 ${centered ? 'justify-center' : 'justify-between'}`}>
+        <h2 className={`text-xl font-serif font-semibold text-stone-100 tracking-wide ${centered ? 'text-center' : ''}`}>{title}</h2>
+        {!centered && viewAllHref && (
           <Link
             href={viewAllHref}
             className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
@@ -145,7 +146,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
         <button
           onClick={() => scroll('left')}
           aria-label="Scroll left"
-          className="absolute left-0 top-0 bottom-3 z-10 w-10 flex items-center justify-center
+          className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-r from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
                      text-stone-400 hover:text-amber-400"
@@ -157,7 +158,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
         <button
           onClick={() => scroll('right')}
           aria-label="Scroll right"
-          className="absolute right-0 top-0 bottom-3 z-10 w-10 flex items-center justify-center
+          className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-l from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
                      text-stone-400 hover:text-amber-400"
@@ -168,8 +169,8 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
         {/* Cards strip */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-3 scroll-smooth"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
+          className="flex gap-4 overflow-x-auto scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {cards.map((card) => <CarouselCardItem key={card.id} card={card} />)}
         </div>

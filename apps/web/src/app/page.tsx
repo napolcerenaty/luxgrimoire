@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 async function getHomeData() {
   const [featuredSlots, announcementsRes, editionsRes] = await Promise.all([
     apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
-    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?pageSize=10').catch(() => null),
+    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?pageSize=12').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
   ])
   return {
@@ -40,7 +40,6 @@ export default async function HomePage() {
       subtitle: a.generalSaleDate
         ? new Date(a.generalSaleDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : null,
-      badge: 'Sale',
     }
   })
 
@@ -48,7 +47,7 @@ export default async function HomePage() {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
     return {
       id: e.id,
-      href: e.book?.slug ? `/books/${e.book.slug}` : '#',
+      href: `/editions/${e.slug}`,
       coverImage: e.coverImage ?? null,
       title: e.book?.title ?? 'Unknown',
       subtitle: e.book?.seriesName
@@ -102,10 +101,11 @@ export default async function HomePage() {
         title="Recent Announcements"
         viewAllHref="/sale-announcements"
         cards={announcementCards}
+        centered
       />
 
       {/* CTA below announcements */}
-      <div className="container mx-auto px-4 -mt-4 mb-2">
+      <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
         <p className="text-xs text-stone-500">
           Have you seen an announcement?{' '}
           <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors">
@@ -117,8 +117,8 @@ export default async function HomePage() {
       {/* Recently Added Editions carousel */}
       <EditionCarousel
         title="Recently Added Editions"
-        viewAllHref="/books"
         cards={recentEditionCards}
+        centered
       />
 
       {/* Featured Partners (sponsored) */}
