@@ -198,6 +198,7 @@ model ArtistContribution {
   edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   @@unique([editionId, artistId, role])
+  @@index([artistId])
   @@map("artist_contributions")
 }
 
@@ -247,6 +248,9 @@ model BookEdition {
   @@index([subscriptionMonthId])
   @@index([language])
   @@index([generalSaleDate])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([verifiedAt])
   @@map("book_editions")
 }
 
@@ -986,6 +990,7 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([entityType])
+  @@index([entityId])
   @@index([createdAt])
   @@map("audit_logs")
 }

@@ -78,17 +78,16 @@ export class BooksService {
   }
 
   async findGenres(search?: string): Promise<string[]> {
-    // Aggregate all genres arrays and return distinct values
-    const books = await this.prisma.book.findMany({
-      select: { genres: true },
-      where: { genres: { isEmpty: false } },
-    });
-    const all = Array.from(new Set(books.flatMap(b => b.genres)));
+    // Use raw SQL to aggregate all genres efficiently without loading full records
+    const rows = await this.prisma.$queryRaw<{ genre: string }[]>`
+      SELECT DISTINCT unnest(genres) AS genre FROM books WHERE array_length(genres, 1) > 0 ORDER BY genre LIMIT 200
+    `;
+    const all = rows.map(r => r.genre);
     if (search) {
       const q = search.toLowerCase();
-      return all.filter(g => g.toLowerCase().includes(q)).sort().slice(0, 30);
+      return all.filter(g => g.toLowerCase().includes(q)).slice(0, 30);
     }
-    return all.sort().slice(0, 50);
+    return all.slice(0, 50);
   }
 
   async findBySlug(slug: string) {

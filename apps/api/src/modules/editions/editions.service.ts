@@ -81,8 +81,20 @@ export class EditionsService {
         skip,
         take: pageSize,
         include: {
-          book: { include: { authors: { include: { author: true } } } },
-          artists: { include: { artist: true } },
+          book: {
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              altTitle: true,
+              seriesName: true,
+              volumeNumber: true,
+              coverImage: true,
+              language: true,
+              authors: { select: { author: { select: { id: true, name: true, slug: true } } } },
+            },
+          },
+          artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
           bookBoxCompany: { select: { name: true, slug: true } },
           collection: { select: { id: true, name: true, slug: true } },
         },

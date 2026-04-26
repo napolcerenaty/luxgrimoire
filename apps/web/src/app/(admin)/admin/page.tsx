@@ -129,7 +129,7 @@ export default function AdminDashboard() {
 
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
     queryKey: ['admin', 'pending-editions'],
-    queryFn: () => authFetch<PaginatedResponse<RecentEdition>>('/editions?needsVerification=true&pageSize=100'),
+    queryFn: () => authFetch<PaginatedResponse<RecentEdition>>('/editions?needsVerification=true&pageSize=50'),
     enabled: tab === 'pending',
   })
 
@@ -149,6 +149,7 @@ export default function AdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: () => authFetch<ApiAdminStats>('/admin/stats'),
+    staleTime: 1000 * 60 * 5, // 5 minutes — counts don't need live updates
   })
 
   const STAT_CARDS = [
