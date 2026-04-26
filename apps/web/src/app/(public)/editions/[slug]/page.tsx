@@ -353,13 +353,19 @@ export default async function EditionPage({ params }: Props) {
           <section>
             <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Artists</h2>
             <div className="flex flex-wrap gap-4">
-              {artists.map((c) => {
-                const cleanName = c.artist.name.startsWith('@') ? c.artist.name.slice(1) : c.artist.name
-                const photoUrl = cloudinaryUrl(c.artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
+              {Object.values(
+                artists.reduce<Record<string, { artist: EditionArtist['artist']; roles: string[] }>>((acc, c) => {
+                  if (!acc[c.artist.id]) acc[c.artist.id] = { artist: c.artist, roles: [] }
+                  acc[c.artist.id].roles.push(c.role)
+                  return acc
+                }, {})
+              ).map(({ artist, roles }) => {
+                const cleanName = artist.name.startsWith('@') ? artist.name.slice(1) : artist.name
+                const photoUrl = cloudinaryUrl(artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
                 return (
                   <Link
-                    key={c.artist.id}
-                    href={`/artists/${c.artist.slug}`}
+                    key={artist.id}
+                    href={`/artists/${artist.slug}`}
                     className="flex items-center gap-3 group"
                   >
                     {/* Avatar */}
@@ -376,13 +382,13 @@ export default async function EditionPage({ params }: Props) {
                       </div>
                     )}
 
-                    {/* Name + role */}
+                    {/* Name + roles */}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
                       <p className="text-sm text-stone-400 mt-0.5">
-                        {c.role}
+                        {roles.join(' · ')}
                       </p>
                     </div>
                   </Link>
