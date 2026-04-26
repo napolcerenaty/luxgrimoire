@@ -394,21 +394,36 @@ export class SubscriptionsService {
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
 
-    // For paymentOnStartup: compute the actual first paid month based on join date + renewalDay
-    // (not the subscription's global startDate, which is unrelated to this user's join)
+    // For paymentOnStartup: find the ACTUAL first subscription month that was paid at signup.
+    // This is the first subscription month at or after the user's first eligible billing month.
+    // We must look it up in the DB rather than computing purely from dates, because the
+    // subscription may start in a future month (e.g., no box in May → first box is June).
     let paidUpFrontDate: Date | null = null;
     if (paymentOnStartup && userStartDate) {
       const joinDate = new Date(userStartDate);
       const joinYear = joinDate.getUTCFullYear();
       const joinMonth = joinDate.getUTCMonth() + 1;
       const joinDay = joinDate.getUTCDate();
-      // If renewal day already passed this month, user starts from next month
       const renewalPassedThisMonth = renewalDay < joinDay;
-      let paidYear = joinYear;
-      let paidMonth = joinMonth;
+      let firstEligibleYear = joinYear;
+      let firstEligibleMonth = joinMonth;
       if (renewalPassedThisMonth) {
-        [paidYear, paidMonth] = this.incrementMonth(joinYear, joinMonth);
+        [firstEligibleYear, firstEligibleMonth] = this.incrementMonth(joinYear, joinMonth);
       }
+      // Look up the actual first subscription month (same logic as recordFirstMonthAsPreorder)
+      const firstSubMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: {
+          subscriptionId: sub.id,
+          OR: [
+            { year: { gt: firstEligibleYear } },
+            { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
+          ],
+        },
+        orderBy: [{ year: 'asc' }, { month: 'asc' }],
+        select: { year: true, month: true },
+      });
+      const paidYear = firstSubMonth?.year ?? firstEligibleYear;
+      const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
       paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
     }
 
@@ -499,6 +514,7 @@ export class SubscriptionsService {
         },
         subscription: {
           select: {
+            id: true,
             slug: true,
             name: true,
             coverImage: true,
@@ -515,13 +531,13 @@ export class SubscriptionsService {
         },
       },
     });
-
-    return entries.map((entry) => {
+
+    return Promise.all(entries.map(async (entry) => {
       const sub = entry.subscription as any;
       const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
       const skippedMonths = entry.skipRecords.map((r: any) => ({ year: r.month.year, month: r.month.month }));
 
-      // Compute first paid month for paymentOnStartup
+      // Compute first paid month for paymentOnStartup: look up actual first subscription month
       let paidUpFrontDate: Date | null = null;
       if (sub.paymentOnStartup && entry.startDate) {
         const joinDate = new Date(entry.startDate);
@@ -529,13 +545,27 @@ export class SubscriptionsService {
         const joinYear = joinDate.getUTCFullYear();
         const joinMonth = joinDate.getUTCMonth() + 1;
         const renewalPassedThisMonth = renewalDay < joinDay;
-        let paidYear = joinYear;
-        let paidMonth = joinMonth;
+        let firstEligibleYear = joinYear;
+        let firstEligibleMonth = joinMonth;
         if (renewalPassedThisMonth) {
-          [paidYear, paidMonth] = paidMonth === 12 ? [paidYear + 1, 1] : [paidYear, paidMonth + 1];
+          [firstEligibleYear, firstEligibleMonth] = [firstEligibleMonth === 12 ? firstEligibleYear + 1 : firstEligibleYear, firstEligibleMonth === 12 ? 1 : firstEligibleMonth + 1];
         }
+        const firstSubMonth = await this.prisma.subscriptionMonth.findFirst({
+          where: {
+            subscriptionId: sub.id,
+            OR: [
+              { year: { gt: firstEligibleYear } },
+              { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
+            ],
+          },
+          orderBy: [{ year: 'asc' }, { month: 'asc' }],
+          select: { year: true, month: true },
+        });
+        const paidYear = firstSubMonth?.year ?? firstEligibleYear;
+        const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
         paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
       }
+
 
       const nextRenewalDate = this.computeNextRenewalDate(
         renewalDay,
@@ -563,7 +593,7 @@ export class SubscriptionsService {
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
         nextRenewalCurrency: cur,
       };
-    });
+    }));
   }
 
   async cancelMySubscription(userId: string, slug: string, dto: { cancellationDate?: string; cancellationReason?: string } = {}) {
