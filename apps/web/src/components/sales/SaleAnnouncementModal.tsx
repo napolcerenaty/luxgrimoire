@@ -10,6 +10,7 @@ import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/Ad
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
+import { isOpenForPurchase } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -19,7 +20,8 @@ interface Props {
 export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [showPurchase, setShowPurchase] = useState(false)
-  const { isInterested, tier } = useSaleInterest(sale?.id ?? null)
+  const { isInterested, tier, regionId } = useSaleInterest(sale?.id ?? null)
+  const saleOpen = sale ? isOpenForPurchase(sale, regionId) : false
 
   // Close on Escape
   useEffect(() => {
@@ -119,7 +121,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               </Link>
               <div className="mt-3 flex items-center gap-2">
                 <SaleInterestButton sale={sale} />
-                {isInterested && (
+                {isInterested && saleOpen && (
                   <button
                     type="button"
                     onClick={() => setShowPurchase(true)}

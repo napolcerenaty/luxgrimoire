@@ -5,6 +5,7 @@ import { ShoppingBag } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
+import { isOpenForPurchase } from '@/lib/saleDates'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -12,14 +13,16 @@ interface Props {
 }
 
 export function SaleInterestSection({ sale }: Props) {
-  const { isInterested, tier } = useSaleInterest(sale.id)
+  const { isInterested, tier, regionId } = useSaleInterest(sale.id)
   const [showPurchase, setShowPurchase] = useState(false)
+
+  const saleOpen = isOpenForPurchase(sale, regionId)
 
   return (
     <>
       <div className="flex items-center gap-2 mt-4">
         <SaleInterestButton sale={sale} />
-        {isInterested && (
+        {isInterested && saleOpen && (
           <button
             type="button"
             onClick={() => setShowPurchase(true)}

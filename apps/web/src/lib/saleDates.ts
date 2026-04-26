@@ -45,3 +45,17 @@ export function formatTierDate(isoDate: string | null | undefined): string | nul
     return null
   }
 }
+
+/**
+ * Returns true when the sale is open for purchase for the given user.
+ * A sale is considered open when the earliest available date (FA → EA → GS) is in the past.
+ */
+export function isOpenForPurchase(
+  sale: ApiSaleAnnouncement,
+  regionId?: string | null,
+): boolean {
+  const { FA, EA, GS } = resolveSaleDates(sale, regionId)
+  const earliest = FA ?? EA ?? GS
+  if (!earliest) return false
+  return Date.now() >= new Date(earliest).getTime()
+}
