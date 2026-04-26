@@ -203,6 +203,7 @@ export interface ApiSubscription {
   name: string;
   description: string | null;
   coverImage: string | null;
+  logoUrl: string | null;
   genre: string | null;
   genres: string[];
   startDate: string | null;

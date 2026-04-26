@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany, ApiCompanyEdition } from '@luxgrimoire/shared-types'
+import { EditionCard } from '@/components/books/EditionCard'
 
 // Minimal inline SVG icons for social platforms
 function InstagramIcon({ className }: { className?: string }) {
@@ -301,25 +302,34 @@ export default async function CompanyPage({ params }: Props) {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {subscriptions.map((sub) => {
-              const cover = cloudinaryUrl(sub.coverImage, 'w_600,h_400,c_fill,q_auto,f_auto')
+              const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,h_400,c_fill,q_auto,f_auto')
+              const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_300,h_200,c_fit,q_auto,f_auto')
               return (
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
                   className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
                 >
-                  <div className="aspect-[3/2] overflow-hidden bg-stone-800">
-                    {cover ? (
+                  {/* Blurred bg + centred logo */}
+                  <div className="relative aspect-[3/2] overflow-hidden bg-stone-800 flex items-center justify-center">
+                    {bgImage && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={cover}
+                        src={bgImage}
+                        alt=""
+                        aria-hidden
+                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-40"
+                      />
+                    )}
+                    {logoImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logoImage}
                         alt={sub.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="relative z-10 max-w-[70%] max-h-[70%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-600 text-sm">
-                        No image
-                      </div>
+                      <span className="relative z-10 text-stone-400 text-sm font-serif">{sub.name}</span>
                     )}
                   </div>
                   <div className="p-4">
@@ -343,68 +353,50 @@ export default async function CompanyPage({ params }: Props) {
         <section className="mt-12">
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-8">Books</h2>
           <div className="space-y-10">
-            {editionGroups.map((group) => (
-              <div key={group.label}>
-                <div className="flex items-center gap-3 mb-4">
-                  <h3 className="text-lg font-serif font-semibold text-stone-200">{group.label}</h3>
-                  {group.href && (
-                    <Link
-                      href={group.href}
-                      className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
-                    >
-                      View →
-                    </Link>
-                  )}
-                  <span className="text-xs text-stone-600 ml-auto">
-                    {group.editions.length} edition{group.editions.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {group.editions.map((edition) => {
-                    const cover = cloudinaryUrl(
-                      edition.coverImage ?? edition.book.coverImage,
-                      'w_300,h_450,c_fill,q_auto,f_auto',
-                    )
-                    const authors = edition.book.authors
-                      .map((a) => a.author.name)
-                      .join(', ')
-                    return (
+            {editionGroups.map((group) => {
+              const VISIBLE = 20
+              const visibleEditions = group.editions.slice(0, VISIBLE)
+              const remaining = group.editions.length - VISIBLE
+              return (
+                <div key={group.label}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h3 className="text-lg font-serif font-semibold text-stone-200">{group.label}</h3>
+                    {group.href && (
                       <Link
+                        href={group.href}
+                        className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
+                      >
+                        View all →
+                      </Link>
+                    )}
+                    <span className="text-xs text-stone-600 ml-auto">
+                      {group.editions.length} edition{group.editions.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {visibleEditions.map((edition) => (
+                      <EditionCard
                         key={edition.id}
                         href={`/editions/${edition.slug}`}
-                        className="group flex flex-col"
+                        coverImage={edition.coverImage ?? edition.book.coverImage}
+                        title={edition.book.title}
+                        authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
+                      />
+                    ))}
+                  </div>
+                  {remaining > 0 && group.href && (
+                    <div className="mt-4 text-center">
+                      <Link
+                        href={group.href}
+                        className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-400 transition-colors"
                       >
-                        <div className="aspect-[2/3] rounded-lg overflow-hidden bg-stone-800 mb-2">
-                          {cover ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={cover}
-                              alt={edition.book.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-2">
-                              <span className="text-stone-600 text-xs text-center font-serif leading-tight">
-                                {edition.book.title}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs font-medium text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-tight">
-                          {edition.book.title}
-                        </p>
-                        {edition.editionName && (
-                          <p className="text-xs text-amber-600/80 mt-0.5 line-clamp-1">{edition.editionName}</p>
-                        )}
-                        {authors && (
-                          <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{authors}</p>
-                        )}
+                        + {remaining} more edition{remaining !== 1 ? 's' : ''} — View all →
                       </Link>
-                    )
-                  })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}

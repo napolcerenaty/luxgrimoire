@@ -89,6 +89,7 @@ export class CompaniesService {
             },
           },
           orderBy: { createdAt: 'desc' },
+          take: 100,
         },
       },
     });
