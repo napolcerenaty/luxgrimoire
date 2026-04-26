@@ -48,6 +48,13 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
   }
 }
 
+SIGNATURE RULES (read before artist rules):
+- If the text contains phrases like "signed by @...", "digitally signed by @...", "signed copy by @...", "@signature by @...", "author signed", or similar — this means the edition IS SIGNED. In that case:
+  - Add "signed" (or "signed bookplate", "digitally signed", etc. as appropriate) to the features array
+  - Do NOT add the signer as an artist entry — being a signer is NOT an artistic contribution
+  - Example: "signed by @authorname" → features: ["signed"], no artist entry for @authorname
+  - Example: "digitally signed by @illustrator" → features: ["digitally signed"], no artist entry for @illustrator
+
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
 - Keep the @ prefix in the name exactly as written (e.g. "@artistname")

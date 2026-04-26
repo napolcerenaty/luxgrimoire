@@ -196,7 +196,7 @@ model ArtistContribution {
   artist     Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
   edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
-  @@unique([editionId, artistId])
+  @@unique([editionId, artistId, role])
   @@map("artist_contributions")
 }
 

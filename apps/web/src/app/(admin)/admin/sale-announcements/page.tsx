@@ -455,7 +455,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       {/* Price */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LBL}>Base Price</label>
+          <label className={LBL}>Price</label>
           <input type="number" step="0.01" min="0" className={INP} value={form.basePrice} onChange={set('basePrice')} />
         </div>
         <div>

@@ -69,17 +69,6 @@ interface Props { params: Promise<{ slug: string }> }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const ROLE_DOTS: Record<string, string> = {
-  cover:        'bg-amber-500',
-  illustration: 'bg-violet-500',
-  map:          'bg-teal-500',
-  typography:   'bg-sky-500',
-  design:       'bg-pink-500',
-}
-function roleDot(role: string) {
-  return ROLE_DOTS[role.toLowerCase()] ?? 'bg-stone-500'
-}
-
 function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return null
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -268,14 +257,14 @@ export default async function EditionPage({ params }: Props) {
                 )}
                 {edition.basePrice && (
                   <>
-                    <dt className="text-stone-500">Base Price</dt>
+                    <dt className="text-stone-500">Price</dt>
                     <dd className="text-stone-200">{edition.basePrice} {edition.currency ?? ''}</dd>
                   </>
                 )}
                 {edition.language && (
                   <>
                     <dt className="text-stone-500">Language</dt>
-                    <dd className="text-stone-200">{edition.language.toUpperCase()}</dd>
+                    <dd className="text-stone-200">{edition.language.charAt(0).toUpperCase() + edition.language.slice(1).toLowerCase()}</dd>
                   </>
                 )}
                 {edition.firstAccessDate && (
@@ -392,8 +381,7 @@ export default async function EditionPage({ params }: Props) {
                       <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
-                      <p className="text-sm text-stone-400 flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${roleDot(c.role)}`} />
+                      <p className="text-sm text-stone-400 mt-0.5">
                         {c.role}
                       </p>
                     </div>

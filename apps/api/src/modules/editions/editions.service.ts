@@ -167,22 +167,23 @@ export class EditionsService {
 
   async addArtist(slug: string, dto: AddArtistDto) {
     const edition = await this.findBySlug(slug);
+    const role = dto.role ?? 'cover';
     return this.prisma.artistContribution.upsert({
-      where: { editionId_artistId: { editionId: edition.id, artistId: dto.artistId } },
+      where: { editionId_artistId_role: { editionId: edition.id, artistId: dto.artistId, role } },
       create: {
         editionId: edition.id,
         artistId: dto.artistId,
         artistName: dto.artistName,
-        role: dto.role ?? 'cover',
+        role,
       },
-      update: { role: dto.role ?? 'cover', artistName: dto.artistName },
+      update: { artistName: dto.artistName },
     });
   }
 
   async removeArtist(slug: string, artistId: string) {
     const edition = await this.findBySlug(slug);
-    return this.prisma.artistContribution.delete({
-      where: { editionId_artistId: { editionId: edition.id, artistId } },
+    return this.prisma.artistContribution.deleteMany({
+      where: { editionId: edition.id, artistId },
     });
   }
 }
