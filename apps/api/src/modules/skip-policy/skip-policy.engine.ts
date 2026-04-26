@@ -166,9 +166,7 @@ export class SkipPolicyEngine {
       });
     }
 
-    await this.notifyIfNeeded(userId, subscription.id, policy, newState);
-
-    // If prepaid subscription, extend the billing period by 1 month
+    // If prepaidsubscription, extend the billing period by 1 month
     if (entry.prepaidMonths > 1) {
       await this.adjustPrepaidBillingPeriod(entry.id, 1, entry.effectiveRenewalDay ?? 1);
     }
@@ -294,8 +292,6 @@ export class SkipPolicyEngine {
         data: { firstSkipDate: now },
       });
     }
-
-    await this.notifyIfNeeded(userId, subscription.id, policy, newState);
 
     const lastMonth = series.months[series.months.length - 1];
     const deadline = this.computeDeadline(policy, entry, lastMonth);
@@ -453,15 +449,6 @@ export class SkipPolicyEngine {
     const isPastDeadline = deadline ? new Date() > deadline : false;
     // Deadline is informational — does not block canSkip (app is for tracking, user may log late)
     const canSkip = this.evaluateCanSkip(policy, state);
-    const warnings = this.computeWarnings(policyType, skipsInWindow, maxSkips, consecutiveSkips, maxConsecutive);
-
-    if (isPastDeadline && policyType !== 'NONE') {
-      const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-      const monthLabel = deadlineMonth
-        ? `${MONTHS[deadlineMonth.month - 1]} ${deadlineMonth.year}`
-        : 'this period';
-      warnings.unshift(`The skip deadline for ${monthLabel} has passed — recording for tracking purposes.`);
-    }
 
     return {
       policyType,
@@ -471,7 +458,7 @@ export class SkipPolicyEngine {
       maxSkips,
       maxConsecutive,
       canSkip,
-      warnings,
+      warnings: [],
       notes: policy?.notes ?? null,
       skipHow: policy?.skipHow ?? null,
       nextDeadline: deadline ? deadline.toISOString() : null,
@@ -506,63 +493,6 @@ export class SkipPolicyEngine {
     }
 
     return renewal;
-  }
-
-  private computeWarnings(
-    policyType: string,
-    skipsInWindow: number,
-    maxSkips: number | null,
-    consecutiveSkips: number,
-    maxConsecutive: number | null,
-  ): string[] {
-    const warnings: string[] = [];
-
-    if (maxSkips !== null) {
-      const remaining = maxSkips - skipsInWindow;
-      if (remaining === 1) {
-        warnings.push(`You have 1 skip remaining in this period. Using it will exhaust your allowance.`);
-      } else if (remaining <= 0) {
-        warnings.push(`You have used all ${maxSkips} skips allowed in this period.`);
-      }
-    }
-
-    if (policyType === 'UNLIMITED_MAX_CONSEC' && maxConsecutive !== null) {
-      const remaining = maxConsecutive - consecutiveSkips;
-      if (remaining === 1) {
-        warnings.push(`Warning: one more consecutive skip will cancel your subscription.`);
-      } else if (remaining <= 0) {
-        warnings.push(`You have exceeded the maximum consecutive skips. Your subscription may be cancelled.`);
-      }
-    }
-
-    return warnings;
-  }
-
-  private async notifyIfNeeded(
-    userId: string,
-    subscriptionId: string,
-    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null; notes: string | null } | null,
-    state: { skipsInWindow: number; consecutiveSkips: number },
-  ) {
-    if (!policy) return;
-    const warnings = this.computeWarnings(
-      policy.type,
-      state.skipsInWindow,
-      policy.maxSkips,
-      state.consecutiveSkips,
-      policy.maxConsecutive,
-    );
-    if (!warnings.length) return;
-
-    await this.prisma.userNotification.create({
-      data: {
-        userId,
-        type: 'SKIP_WARNING',
-        title: 'Skip limit warning',
-        body: warnings.join(' '),
-        payload: { subscriptionId, warnings },
-      },
-    });
   }
 
   /**
