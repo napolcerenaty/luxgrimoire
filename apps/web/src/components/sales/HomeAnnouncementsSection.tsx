@@ -54,10 +54,12 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   const companyName = (sale as any).company?.name ?? null
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(sale)}
-      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left"
+      onKeyDown={(e) => e.key === 'Enter' && onClick(sale)}
+      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left cursor-pointer"
       style={{ background: 'var(--bg-raised)' }}
     >
       {/* Cover */}
@@ -111,7 +113,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           <SaleInterestButton announcementId={sale.id} compact />
         </div>
       </div>
-    </button>
+    </div>
   )
 })
 
