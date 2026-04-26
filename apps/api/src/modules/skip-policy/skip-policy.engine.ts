@@ -58,8 +58,26 @@ export class SkipPolicyEngine {
       subscriptionStarted = !subStartDate || subStartDate <= now;
 
       if (subscriptionStarted) {
+        // Determine the user's actual first deliverable month.
+        // For paymentOnStartup subscriptions: if renewalDay already passed on join date,
+        // the user's first month is the NEXT month (same logic as recordFirstMonthAsPreorder).
+        let effectiveStartDate = entry.startDate;
+        const paymentOnStartup = (subscription as any).paymentOnStartup as boolean;
+        if (paymentOnStartup && entry.startDate && entry.effectiveRenewalDay) {
+          const joinDate = new Date(entry.startDate);
+          const joinDay = joinDate.getDate();
+          const renewalD = entry.effectiveRenewalDay;
+          if (renewalD < joinDay) {
+            // Renewal already passed this month — first deliverable is next month
+            const joinYear = joinDate.getFullYear();
+            const joinMonth = joinDate.getMonth() + 1;
+            const [nextY, nextM] = joinMonth === 12 ? [joinYear + 1, 1] : [joinYear, joinMonth + 1];
+            effectiveStartDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
+          }
+        }
+
         // Determine the user's first deliverable month (and its series, if any) for blocking logic.
-        firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
+        firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, effectiveStartDate);
 
         // Find the first upcoming month the user CAN skip:
         // - must be >= next calendar month
