@@ -52,34 +52,43 @@ export class SkipPolicyEngine {
       // Works even if entry.startDate is null — falls back to first month in the subscription.
       const firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, entry.startDate);
 
-      // Find the first upcoming month the user CAN skip:
-      // - must be >= next calendar month
-      // - must not already be skipped
-      // - must NOT be the first standalone box, or any month in the first series
-      const candidates = await this.prisma.subscriptionMonth.findMany({
-        where: {
-          subscriptionId: subscription.id,
-          OR: [
-            { year: { gt: nextYear } },
-            { year: nextYear, month: { gte: nextMonth } },
-          ],
-        },
-        select: { id: true, year: true, month: true, seriesId: true },
-        orderBy: [{ year: 'asc' }, { month: 'asc' }],
-        take: 12,
-      });
+      // Edge case: subscription hasn't started yet (first deliverable month is still in the future).
+      // You cannot skip anything — the first box hasn't even been received. Suppress deadline entirely.
+      const subscriptionStarted =
+        !firstMonthInfo ||
+        firstMonthInfo.year < currentYear ||
+        (firstMonthInfo.year === currentYear && firstMonthInfo.month <= currentMonth);
 
-      for (const m of candidates) {
-        if (skippedSet.has(`${m.year}-${m.month}`)) continue;
+      if (subscriptionStarted) {
+        // Find the first upcoming month the user CAN skip:
+        // - must be >= next calendar month
+        // - must not already be skipped
+        // - must NOT be the first standalone box, or any month in the first series
+        const candidates = await this.prisma.subscriptionMonth.findMany({
+          where: {
+            subscriptionId: subscription.id,
+            OR: [
+              { year: { gt: nextYear } },
+              { year: nextYear, month: { gte: nextMonth } },
+            ],
+          },
+          select: { id: true, year: true, month: true, seriesId: true },
+          orderBy: [{ year: 'asc' }, { month: 'asc' }],
+          take: 12,
+        });
 
-        // Cannot skip first box (standalone) or any month in the first series
-        if (firstMonthInfo) {
-          if (firstMonthInfo.firstSeriesId !== null && m.seriesId === firstMonthInfo.firstSeriesId) continue;
-          if (firstMonthInfo.firstSeriesId === null && m.id === firstMonthInfo.firstMonthId) continue;
+        for (const m of candidates) {
+          if (skippedSet.has(`${m.year}-${m.month}`)) continue;
+
+          // Cannot skip first box (standalone) or any month in the first series
+          if (firstMonthInfo) {
+            if (firstMonthInfo.firstSeriesId !== null && m.seriesId === firstMonthInfo.firstSeriesId) continue;
+            if (firstMonthInfo.firstSeriesId === null && m.id === firstMonthInfo.firstMonthId) continue;
+          }
+
+          targetMonth = m;
+          break;
         }
-
-        targetMonth = m;
-        break;
       }
     }
 
@@ -355,7 +364,7 @@ export class SkipPolicyEngine {
   private async getFirstDeliverableMonthInfo(
     subscriptionId: string,
     startDate: string | null,
-  ): Promise<{ firstMonthId: string; firstSeriesId: string | null } | null> {
+  ): Promise<{ firstMonthId: string; firstSeriesId: string | null; year: number; month: number } | null> {
     const dateFilter = startDate
       ? (() => {
           const [y, m] = startDate.split('-').map(Number);
@@ -364,11 +373,16 @@ export class SkipPolicyEngine {
       : {};
     const firstMonth = await this.prisma.subscriptionMonth.findFirst({
       where: { subscriptionId, ...dateFilter },
-      select: { id: true, seriesId: true },
+      select: { id: true, seriesId: true, year: true, month: true },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
     if (!firstMonth) return null;
-    return { firstMonthId: firstMonth.id, firstSeriesId: firstMonth.seriesId };
+    return {
+      firstMonthId: firstMonth.id,
+      firstSeriesId: firstMonth.seriesId,
+      year: firstMonth.year,
+      month: firstMonth.month,
+    };
   }
 
   private async loadContext(userId: string, subscriptionSlug: string) {
