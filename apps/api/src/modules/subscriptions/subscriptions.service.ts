@@ -103,31 +103,38 @@ export class SubscriptionsService {
     });
     if (!source) throw new NotFoundException(`Source subscription '${sourceSlug}' not found`);
 
-    for (const month of source.months) {
-      const newMonth = await this.prisma.subscriptionMonth.create({
-        data: {
-          subscriptionId: targetSubscriptionId,
-          year: month.year,
-          month: month.month,
-          theme: month.theme,
-          coverImage: month.coverImage,
-          spoilerImage: month.spoilerImage,
-          isSpoiler: month.isSpoiler,
-          actualShipping: month.actualShipping ?? undefined,
-          boxPrice: month.boxPrice ?? undefined,
-        },
-      });
-      if (month.books.length) {
-        await this.prisma.subscriptionMonthBook.createMany({
-          data: month.books.map((b) => ({
-            monthId: newMonth.id,
-            bookId: b.bookId,
-            editionId: b.editionId,
-            isMainBook: b.isMainBook,
-            sortOrder: b.sortOrder,
-          })),
-        });
-      }
+    // Create all months in parallel, then bulk-insert all month_books in a single
+    // query. With 12 months × 10 books this drops 24 sequential round-trips → 2.
+    const newMonths = await Promise.all(
+      source.months.map((month) =>
+        this.prisma.subscriptionMonth.create({
+          data: {
+            subscriptionId: targetSubscriptionId,
+            year: month.year,
+            month: month.month,
+            theme: month.theme,
+            coverImage: month.coverImage,
+            spoilerImage: month.spoilerImage,
+            isSpoiler: month.isSpoiler,
+            actualShipping: month.actualShipping ?? undefined,
+            boxPrice: month.boxPrice ?? undefined,
+          },
+        }),
+      ),
+    );
+
+    const allBooks = newMonths.flatMap((newMonth, idx) =>
+      source.months[idx].books.map((b) => ({
+        monthId: newMonth.id,
+        bookId: b.bookId,
+        editionId: b.editionId,
+        isMainBook: b.isMainBook,
+        sortOrder: b.sortOrder,
+      })),
+    );
+
+    if (allBooks.length) {
+      await this.prisma.subscriptionMonthBook.createMany({ data: allBooks });
     }
   }
 

@@ -128,11 +128,18 @@ export class AdminService {
       this.prisma.bookEdition.count({ where }),
     ]);
 
-    // Enrich with last audit log action per edition
+    // Enrich with last audit log action per edition.
+    // distinct + ORDER BY across the whole table is expensive: bound the scan
+    // with a 90-day window so PostgreSQL can use the (createdAt) index.
     const editionIds = data.map((e) => e.id);
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
     const lastAuditLogs = editionIds.length
       ? await this.prisma.auditLog.findMany({
-          where: { entityId: { in: editionIds }, entityType: 'edition' },
+          where: {
+            entityId: { in: editionIds },
+            entityType: 'edition',
+            createdAt: { gte: new Date(Date.now() - NINETY_DAYS_MS) },
+          },
           orderBy: { createdAt: 'desc' },
           distinct: ['entityId'],
           select: { entityId: true, action: true, username: true, userId: true, createdAt: true },

@@ -10,23 +10,35 @@ export class FavoritesService {
     if (entityType) {
       return this.getFavoritesByType(userId, entityType);
     }
+    // For the "all" view we only need a preview per category — without a cap a
+    // user with thousands of favourites would download the entire collection
+    // (response sizes 500KB+, browser parse stalls).
+    const PREVIEW_LIMIT = 50;
     const [books, authors, artists, companies, editions] = await Promise.all([
-      this.prisma.userFavoriteBook.findMany({ where: { userId } }),
-      this.prisma.userFavoriteAuthor.findMany({ where: { userId } }),
-      this.prisma.userFavoriteArtist.findMany({ where: { userId } }),
-      this.prisma.userFavoriteCompany.findMany({ where: { userId } }),
-      this.prisma.userFavoriteEdition.findMany({ where: { userId } }),
+      this.prisma.userFavoriteBook.findMany({ where: { userId }, take: PREVIEW_LIMIT }),
+      this.prisma.userFavoriteAuthor.findMany({ where: { userId }, take: PREVIEW_LIMIT }),
+      this.prisma.userFavoriteArtist.findMany({ where: { userId }, take: PREVIEW_LIMIT }),
+      this.prisma.userFavoriteCompany.findMany({ where: { userId }, take: PREVIEW_LIMIT }),
+      this.prisma.userFavoriteEdition.findMany({ where: { userId }, take: PREVIEW_LIMIT }),
     ]);
     return { BOOK: books, AUTHOR: authors, ARTIST: artists, COMPANY: companies, EDITION: editions };
   }
 
-  private async getFavoritesByType(userId: string, entityType: FavoriteEntityType) {
+  private async getFavoritesByType(
+    userId: string,
+    entityType: FavoriteEntityType,
+    page = 1,
+    pageSize = 50,
+  ) {
+    const safePageSize = Math.min(Math.max(pageSize, 1), 100);
+    const skip = (Math.max(page, 1) - 1) * safePageSize;
+    const opts = { where: { userId }, skip, take: safePageSize };
     switch (entityType) {
-      case 'BOOK': return this.prisma.userFavoriteBook.findMany({ where: { userId } });
-      case 'AUTHOR': return this.prisma.userFavoriteAuthor.findMany({ where: { userId } });
-      case 'ARTIST': return this.prisma.userFavoriteArtist.findMany({ where: { userId } });
-      case 'COMPANY': return this.prisma.userFavoriteCompany.findMany({ where: { userId } });
-      case 'EDITION': return this.prisma.userFavoriteEdition.findMany({ where: { userId } });
+      case 'BOOK': return this.prisma.userFavoriteBook.findMany(opts);
+      case 'AUTHOR': return this.prisma.userFavoriteAuthor.findMany(opts);
+      case 'ARTIST': return this.prisma.userFavoriteArtist.findMany(opts);
+      case 'COMPANY': return this.prisma.userFavoriteCompany.findMany(opts);
+      case 'EDITION': return this.prisma.userFavoriteEdition.findMany(opts);
     }
   }
 

@@ -119,17 +119,23 @@ export class ReviewsService {
   }
 
   async getBookRatingSummary(bookId: string) {
-    const reviews = await this.prisma.review.findMany({
-      where: { bookId },
-      select: { rating: true },
-    });
+    // Aggregate in the database instead of loading every Review row.
+    // At 100k books × ~10 reviews this avoids materialising 1M rows in JS.
+    const [grouped, count] = await Promise.all([
+      this.prisma.review.groupBy({
+        by: ['rating'],
+        where: { bookId },
+        _count: { rating: true },
+      }),
+      this.prisma.review.count({ where: { bookId } }),
+    ]);
 
-    const count = reviews.length;
     const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let sum = 0;
-    for (const r of reviews) {
-      distribution[r.rating] = (distribution[r.rating] ?? 0) + 1;
-      sum += r.rating;
+    for (const g of grouped) {
+      const c = g._count.rating;
+      distribution[g.rating] = (distribution[g.rating] ?? 0) + c;
+      sum += g.rating * c;
     }
     const average = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
 

@@ -122,6 +122,8 @@ export class NotificationsService implements OnModuleInit {
 
     setImmediate(async () => {
       let skip = 0;
+      let consecutiveFailures = 0;
+      const MAX_CONSECUTIVE_FAILURES = 3;
       while (true) {
         try {
           const batch = await this.prisma.user.findMany({
@@ -145,13 +147,25 @@ export class NotificationsService implements OnModuleInit {
             })),
           });
 
+          consecutiveFailures = 0;
           skip += batch.length;
           if (batch.length < BATCH_SIZE) break;
         } catch (err) {
-          this.logger.error(`Background notification fanout error at skip=${skip}: ${err}`);
-          break;
+          consecutiveFailures++;
+          this.logger.error(
+            `Background notification fanout error at skip=${skip} (failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${err}`,
+          );
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            this.logger.error(
+              `Aborting notification fanout after ${consecutiveFailures} consecutive failures at skip=${skip}`,
+            );
+            break;
+          }
+          // Exponential backoff before retrying same offset.
+          await new Promise((r) => setTimeout(r, 1000 * 2 ** consecutiveFailures));
         }
       }
+      this.logger.log(`Notification fanout finished, processed ${skip} users`);
     });
 
     return { sent: estimatedCount, queued: true };
