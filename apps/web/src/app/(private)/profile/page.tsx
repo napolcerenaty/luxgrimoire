@@ -39,6 +39,24 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1.5'
 
+const COUNTRIES: [string, string][] = [
+  ['AL', 'Albania'], ['AD', 'Andorra'], ['AT', 'Austria'], ['BY', 'Belarus'],
+  ['BE', 'Belgium'], ['BA', 'Bosnia and Herzegovina'], ['BG', 'Bulgaria'],
+  ['HR', 'Croatia'], ['CY', 'Cyprus'], ['CZ', 'Czech Republic'],
+  ['DK', 'Denmark'], ['EE', 'Estonia'], ['FI', 'Finland'], ['FR', 'France'],
+  ['DE', 'Germany'], ['GR', 'Greece'], ['HU', 'Hungary'], ['IS', 'Iceland'],
+  ['IE', 'Ireland'], ['IT', 'Italy'], ['LV', 'Latvia'], ['LI', 'Liechtenstein'],
+  ['LT', 'Lithuania'], ['LU', 'Luxembourg'], ['MT', 'Malta'], ['MD', 'Moldova'],
+  ['MC', 'Monaco'], ['ME', 'Montenegro'], ['NL', 'Netherlands'], ['MK', 'North Macedonia'],
+  ['NO', 'Norway'], ['PL', 'Poland'], ['PT', 'Portugal'], ['RO', 'Romania'],
+  ['RU', 'Russia'], ['SM', 'San Marino'], ['RS', 'Serbia'], ['SK', 'Slovakia'],
+  ['SI', 'Slovenia'], ['ES', 'Spain'], ['SE', 'Sweden'], ['CH', 'Switzerland'],
+  ['UA', 'Ukraine'], ['GB', 'United Kingdom'], ['VA', 'Vatican City'],
+  ['AU', 'Australia'], ['CA', 'Canada'], ['CN', 'China'], ['IN', 'India'],
+  ['JP', 'Japan'], ['MX', 'Mexico'], ['NZ', 'New Zealand'], ['US', 'United States'],
+  ['AR', 'Argentina'], ['BR', 'Brazil'], ['ZA', 'South Africa'],
+]
+
 export default function ProfilePage() {
   const { user, login } = useAuth()
   const queryClient = useQueryClient()
@@ -335,8 +353,13 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className={LABEL}>Default Shipping Country</label>
-            <input type="text" maxLength={2} value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value.toUpperCase())} placeholder="e.g. PL, DE, GB" className={INPUT} />
-            <p className="text-xs text-stone-500 mt-1">ISO 3166-1 alpha-2 country code</p>
+            <select value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} className={INPUT}>
+              <option value="">— None —</option>
+              {COUNTRIES.map(([code, name]) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
           </div>
           <div>
             <label className={LABEL}>Timezone</label>
@@ -366,3 +389,5 @@ export default function ProfilePage() {
     </div>
   )
 }
+
+
