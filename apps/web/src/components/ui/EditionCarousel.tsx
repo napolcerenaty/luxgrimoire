@@ -92,19 +92,19 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
       </div>
 
       {/* Info */}
-      <div className="px-2.5 pt-2 pb-2">
+      <div className="px-2.5 pt-2 pb-2 flex flex-col">
+        {/* Series / subtitle – always rendered for height consistency, amber like EditionCard */}
+        <p className="text-[10px] text-amber-600 font-medium tracking-wide truncate leading-tight min-h-[1em]">
+          {card.subtitle || '\u00A0'}
+        </p>
         {/* Title – fixed 2-line slot so cards align regardless of title length */}
-        <div className="h-[2.25rem] overflow-hidden mb-1">
+        <div className="h-[2.25rem] overflow-hidden my-0.5">
           <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
             {card.title}
           </p>
         </div>
-        {/* Series / subtitle – always rendered for height consistency */}
-        <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
-          {card.subtitle || '\u00A0'}
-        </p>
         {/* Author – always rendered for height consistency */}
-        <p className="text-[10px] text-stone-400 line-clamp-1 font-sans leading-tight mt-0.5">
+        <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
           {card.author || '\u00A0'}
         </p>
       </div>
