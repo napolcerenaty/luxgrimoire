@@ -9,7 +9,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useLanguage, LANGUAGES } from '@/components/LanguageProvider'
 import {
   Search, ChevronDown, User, BookOpen, Heart, DollarSign,
-  Settings, LogOut, LayoutDashboard, Sun, Moon,
+  Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
@@ -24,6 +24,7 @@ const USER_NAV_LINKS = [
   { href: '/collection', label: 'Collection', icon: BookOpen },
   { href: '/favorites', label: 'Favorites', icon: Heart },
   { href: '/spending', label: 'Spending', icon: DollarSign },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ]
 
 export function Navbar() {
@@ -197,10 +198,11 @@ export function Navbar() {
 
                   <div className="py-1">
                     {[
-                      { href: '/collection', icon: BookOpen, label: 'Collection' },
-                      { href: '/favorites',  icon: Heart,    label: 'Favorites' },
-                      { href: '/spending',   icon: DollarSign, label: 'Spending' },
-                      { href: '/profile',    icon: Settings, label: 'Settings' },
+                      { href: '/collection', icon: BookOpen,     label: 'Collection' },
+                      { href: '/favorites',  icon: Heart,         label: 'Favorites' },
+                      { href: '/spending',   icon: DollarSign,    label: 'Spending' },
+                      { href: '/calendar',   icon: CalendarDays,  label: 'Calendar' },
+                      { href: '/profile',    icon: Settings,      label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
                         key={href}
