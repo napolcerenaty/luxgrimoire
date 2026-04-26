@@ -116,7 +116,13 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
         </div>
       )}
 
-      {status.canSkip&& upcoming.length > 0 && (
+      {status.warnings.map((w, i) => (
+        <div key={i} className="text-xs text-amber-400 bg-amber-950/30 rounded px-2 py-1">
+          ⚠ {w}
+        </div>
+      ))}
+
+      {status.canSkip && upcoming.length > 0 && (
         <div>
           <p className="text-xs text-stone-400 mb-1">Track skip of:</p>
           <div className="flex flex-wrap gap-2">
