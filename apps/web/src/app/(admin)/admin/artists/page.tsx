@@ -161,7 +161,14 @@ export default function AdminArtistsPage() {
   })
 
   const columns = [
-    { key: 'name', label: 'Name', render: (row: ApiArtist) => row.name },
+    {
+      key: 'name', label: 'Name',
+      render: (row: ApiArtist) => (
+        <a href={`/artists/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">
+          {row.name}
+        </a>
+      ),
+    },
     {
       key: 'bio',
       label: 'Bio',

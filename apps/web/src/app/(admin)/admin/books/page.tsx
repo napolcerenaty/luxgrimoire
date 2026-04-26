@@ -207,7 +207,14 @@ export default function AdminBooksPage() {
   })
 
   const columns = [
-    { key: 'title', label: 'Title', render: (row: RawBook) => row.title },
+    {
+      key: 'title', label: 'Title',
+      render: (row: RawBook) => (
+        <a href={`/books/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">
+          {row.title}
+        </a>
+      ),
+    },
     {
       key: 'series', label: 'Series',
       render: (row: RawBook) => row.seriesName

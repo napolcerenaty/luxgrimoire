@@ -247,7 +247,6 @@ export default function AdminDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-800 text-stone-400 text-left">
-                  <th className="px-4 py-3 font-semibold">Cover</th>
                   <th className="px-4 py-3 font-semibold">Book</th>
                   <th className="px-4 py-3 font-semibold">Edition</th>
                   <th className="px-4 py-3 font-semibold">Company</th>
@@ -260,34 +259,28 @@ export default function AdminDashboard() {
                 {editionsLoading
                   ? Array.from({ length: 8 }).map((_, i) => (
                       <tr key={i} className="border-b border-stone-800">
-                        {Array.from({ length: 7 }).map((__, j) => (
+                        {Array.from({ length: 6 }).map((__, j) => (
                           <td key={j} className="px-4 py-3"><Skeleton className="h-5 w-full" /></td>
                         ))}
                       </tr>
                     ))
                   : editions.length === 0
                   ? (
-                    <tr><td colSpan={7} className="px-4 py-10 text-center text-stone-500">No editions found</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-500">No editions found</td></tr>
                   )
                   : editions.map((edition) => (
                     <tr key={edition.id} className="border-b border-stone-800 hover:bg-stone-800/40 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="w-9 h-13 rounded overflow-hidden bg-stone-800 shrink-0">
-                          {edition.coverImage
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={edition.coverImage} alt="" className="w-full h-full object-cover" />
-                            : <div className="w-9 h-13 flex items-center justify-center text-stone-600 text-xs">?</div>
-                          }
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-semibold text-stone-200 line-clamp-1">{edition.book?.title ?? '—'}</span>
+                        {edition.book?.slug
+                          ? <a href={`/books/${edition.book.slug}`} target="_blank" rel="noreferrer" className="font-semibold text-amber-400 hover:text-amber-300 line-clamp-1">{edition.book.title}</a>
+                          : <span className="font-semibold text-stone-200 line-clamp-1">{edition.book?.title ?? '—'}</span>
+                        }
                         {edition.book?.authors?.[0] && (
                           <span className="text-xs text-stone-500 block">{edition.book.authors[0].name}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-stone-300 font-mono text-xs">{edition.slug}</span>
+                        <a href={`/editions/${edition.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-mono text-xs">{edition.slug}</a>
                         {edition.editionName && <span className="text-stone-500 block text-xs">{edition.editionName}</span>}
                       </td>
                       <td className="px-4 py-3 text-stone-400 text-xs">

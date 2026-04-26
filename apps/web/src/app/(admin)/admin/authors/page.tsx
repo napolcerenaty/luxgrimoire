@@ -161,7 +161,14 @@ export default function AdminAuthorsPage() {
   })
 
   const columns = [
-    { key: 'name', label: 'Name', render: (row: ApiAuthor) => row.name },
+    {
+      key: 'name', label: 'Name',
+      render: (row: ApiAuthor) => (
+        <a href={`/authors/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">
+          {row.name}
+        </a>
+      ),
+    },
     {
       key: 'bio',
       label: 'Bio',

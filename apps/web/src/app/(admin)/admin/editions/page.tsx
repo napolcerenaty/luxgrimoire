@@ -186,7 +186,10 @@ export default function AdminEditionsPage() {
       label: 'Book',
       render: (row: ApiBookEdition) => (
         <div>
-          <div className="text-stone-100 font-medium">{row.book?.title ?? '—'}</div>
+          {row.book?.slug
+            ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">{row.book.title}</a>
+            : <div className="text-stone-100 font-medium">{row.book?.title ?? '—'}</div>
+          }
           {row.book?.seriesName && (
             <div className="text-stone-500 text-xs">
               {row.book.seriesName}{row.book.volumeNumber != null ? ` #${row.book.volumeNumber}` : ''}
@@ -209,7 +212,7 @@ export default function AdminEditionsPage() {
       label: 'Publisher / Edition',
       render: (row: ApiBookEdition) => (
         <div>
-          <div className="text-stone-300 text-sm">{row.publisher ?? '—'}</div>
+          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.publisher ?? row.slug}</a>
         </div>
       ),
     },

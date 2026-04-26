@@ -666,9 +666,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <label className={LBL}>Early Access Date &amp; Time</label>
           <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>General Sale Date &amp; Time</label>
           <input type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
@@ -886,7 +883,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-amber-400" />
           Default region (catch-all for unmatched countries)
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
           <div>
             <label className="block text-xs text-stone-400 mb-1">First Access</label>
             <input type="datetime-local" className={INP} value={f.firstAccessDate} onChange={s('firstAccessDate')} />
@@ -976,9 +973,9 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                       </div>
                     )}
                     <div className="text-xs text-stone-500 mt-1 space-y-0.5">
-                      {r.generalSaleDate && <div>General: {fmtAdminDate(r.generalSaleDate, r.saleTimezone ?? 'UTC')}</div>}
-                      {r.firstAccessDate && <div>First: {fmtAdminDate(r.firstAccessDate, r.saleTimezone ?? 'UTC')}</div>}
-                      {r.earlyAccessDate && <div>Early: {fmtAdminDate(r.earlyAccessDate, r.saleTimezone ?? 'UTC')}</div>}
+                      {r.firstAccessDate && <div>First Access: {fmtAdminDate(r.firstAccessDate, r.saleTimezone ?? 'UTC')}</div>}
+                      {r.earlyAccessDate && <div>Early Access: {fmtAdminDate(r.earlyAccessDate, r.saleTimezone ?? 'UTC')}</div>}
+                      {r.generalSaleDate && <div>General Sale: {fmtAdminDate(r.generalSaleDate, r.saleTimezone ?? 'UTC')}</div>}
                       {r.basePrice != null && <div className="text-amber-500/70">{r.basePrice} {r.currency}</div>}
                     </div>
                   </div>
