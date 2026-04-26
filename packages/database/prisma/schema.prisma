@@ -562,6 +562,7 @@ model SaleAnnouncementRegion {
 model UserSaleInterest {
   userId         String
   announcementId String
+  tier           String           @default("GS") @db.VarChar(2)
   createdAt      DateTime         @default(now())
   announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)

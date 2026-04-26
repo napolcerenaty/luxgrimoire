@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Bell } from 'lucide-react'
 import Link from 'next/link'
 
 interface CalEntry {
@@ -20,6 +20,20 @@ interface CalEntry {
     startingMonth: number
     renewalDay: number | null
     company: { name: string; slug: string }
+  }
+}
+
+interface SaleInterest {
+  announcementId: string
+  tier: 'FA' | 'EA' | 'GS'
+  announcement: {
+    id: string
+    title: string
+    imageUrl: string | null
+    firstAccessDate: string | null
+    earlyAccessDate: string | null
+    generalSaleDate: string | null
+    company: { id: string; name: string; logoUrl: string | null } | null
   }
 }
 
@@ -44,6 +58,20 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   return null
 }
 
+/** Get the date (day-of-month) for a sale interest in a given year/month */
+function saleInterestDay(interest: SaleInterest, year: number, month0: number): number | null {
+  const a = interest.announcement
+  const dateStr =
+    interest.tier === 'FA' ? a.firstAccessDate
+    : interest.tier === 'EA' ? a.earlyAccessDate
+    : a.generalSaleDate
+
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (d.getFullYear() === year && d.getMonth() === month0) return d.getDate()
+  return null
+}
+
 export default function CalendarPage() {
   const today = new Date()
   const [viewDate, setViewDate] = useState(
@@ -52,6 +80,7 @@ export default function CalendarPage() {
   const [tooltip, setTooltip] = useState<{
     label: string
     hue: number
+    type: 'renewal' | 'sale'
     x: number
     y: number
   } | null>(null)
@@ -60,6 +89,11 @@ export default function CalendarPage() {
   const { data: entries = [] } = useQuery<CalEntry[]>({
     queryKey: ['my-subscriptions'],
     queryFn: () => authFetch('/subscriptions/my/subscriptions'),
+  })
+
+  const { data: interests = [] } = useQuery<SaleInterest[]>({
+    queryKey: ['sale-interests'],
+    queryFn: () => authFetch('/sale-interests'),
   })
 
   const activeEntries = useMemo(
@@ -109,13 +143,25 @@ export default function CalendarPage() {
         logoUrl: e.subscription.logoUrl ?? e.subscription.coverImage,
       }))
 
+  const salesForDay = (day: number) =>
+    interests
+      .filter(i => saleInterestDay(i, year, month0) === day)
+      .map(i => ({
+        id: i.announcementId,
+        label: i.announcement.title,
+        tier: i.tier,
+        href: `/sale-announcements/${i.announcementId}`,
+        logoUrl: i.announcement.imageUrl ?? null,
+        companyName: i.announcement.company?.name ?? null,
+      }))
+
   const isToday = (day: number) =>
     day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
 
-  const openTooltip = (e: React.MouseEvent, label: string, hue: number) => {
+  const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale') => {
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ label, hue, x: rect.left, y: rect.bottom + 6 })
+    setTooltip({ label, hue, type, x: rect.left, y: rect.bottom + 6 })
   }
   const scheduleClose = () => {
     tooltipTimer.current = setTimeout(() => setTooltip(null), 150)
@@ -165,6 +211,7 @@ export default function CalendarPage() {
         <div className="grid grid-cols-7 divide-x divide-y divide-stone-800/60">
           {cells.map((cell, idx) => {
             const renewals = cell.current ? renewalsForDay(cell.day) : []
+            const sales = cell.current ? salesForDay(cell.day) : []
             return (
               <div
                 key={idx}
@@ -203,7 +250,7 @@ export default function CalendarPage() {
                         color: `hsl(${r.hue},70%,70%)`,
                         border: `1px solid hsla(${r.hue},55%,45%,0.35)`,
                       }}
-                      onMouseEnter={e => openTooltip(e, r.label, r.hue)}
+                      onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal')}
                       onMouseLeave={scheduleClose}
                     >
                       {thumb ? (
@@ -219,6 +266,24 @@ export default function CalendarPage() {
                     </Link>
                   )
                 })}
+
+                {sales.map(s => (
+                  <Link
+                    key={s.id}
+                    href={s.href}
+                    className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                    style={{
+                      background: 'rgba(109,40,217,0.18)',
+                      color: 'rgb(196,168,255)',
+                      border: '1px solid rgba(109,40,217,0.4)',
+                    }}
+                    onMouseEnter={e => openTooltip(e, `${s.label} (${s.tier})`, 270, 'sale')}
+                    onMouseLeave={scheduleClose}
+                  >
+                    <Bell size={9} className="shrink-0" />
+                    <span className="truncate">{s.label}</span>
+                  </Link>
+                ))}
               </div>
             )
           })}
@@ -226,34 +291,41 @@ export default function CalendarPage() {
       </div>
 
       {/* Legend */}
-      {activeEntries.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {activeEntries.map(e => {
-            const hue = strHue(e.subscription.slug)
-            const src = e.subscription.logoUrl ?? e.subscription.coverImage
-            const thumb = src ? cloudinaryUrl(src, 'w_24,h_24,c_pad,q_auto,f_auto') : null
-            return (
-              <Link
-                key={e.id}
-                href={`/subscriptions/${e.subscription.slug}`}
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-opacity hover:opacity-80"
-                style={{
-                  background: `hsla(${hue},55%,45%,0.18)`,
-                  color: `hsl(${hue},70%,70%)`,
-                  border: `1px solid hsla(${hue},55%,45%,0.35)`,
-                }}
-              >
-                {thumb && (
-                  <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain" />
-                )}
-                {e.subscription.name}
-              </Link>
-            )
-          })}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {activeEntries.map(e => {
+          const hue = strHue(e.subscription.slug)
+          const src = e.subscription.logoUrl ?? e.subscription.coverImage
+          const thumb = src ? cloudinaryUrl(src, 'w_24,h_24,c_pad,q_auto,f_auto') : null
+          return (
+            <Link
+              key={e.id}
+              href={`/subscriptions/${e.subscription.slug}`}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-opacity hover:opacity-80"
+              style={{
+                background: `hsla(${hue},55%,45%,0.18)`,
+                color: `hsl(${hue},70%,70%)`,
+                border: `1px solid hsla(${hue},55%,45%,0.35)`,
+              }}
+            >
+              {thumb && (
+                <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain" />
+              )}
+              {e.subscription.name}
+            </Link>
+          )
+        })}
+        {interests.length > 0 && (
+          <span
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+            style={{ background: 'rgba(109,40,217,0.18)', color: 'rgb(196,168,255)', border: '1px solid rgba(109,40,217,0.4)' }}
+          >
+            <Bell size={11} />
+            Sale interest
+          </span>
+        )}
+      </div>
 
-      {activeEntries.length === 0 && (
+      {activeEntries.length === 0 && interests.length === 0 && (
         <p className="text-center text-stone-500 py-8 text-sm">
           No active subscriptions.{' '}
           <Link href="/subscriptions" className="text-amber-400 underline">
@@ -267,13 +339,19 @@ export default function CalendarPage() {
         <div
           className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg border border-stone-700 bg-stone-900 shadow-xl text-sm"
           style={{ top: tooltip.y, left: Math.max(8, tooltip.x) }}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
         >
           <span className="font-medium" style={{ color: `hsl(${tooltip.hue},70%,70%)` }}>
-            🔄 {tooltip.label}
+            {tooltip.type === 'sale' ? <Bell size={12} className="inline mr-1" /> : '🔄 '}
+            {tooltip.label}
           </span>
-          <p className="text-[10px] text-stone-500 mt-0.5">Renewal</p>
+          <p className="text-[10px] text-stone-500 mt-0.5">
+            {tooltip.type === 'sale' ? 'Sale' : 'Renewal'}
+          </p>
         </div>
       )}
     </div>
   )
 }
+

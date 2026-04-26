@@ -24,6 +24,7 @@ import { SponsoredModule } from './modules/sponsored/sponsored.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SocialModule } from './modules/social/social.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -64,6 +65,7 @@ import { SalesModule } from './modules/sales/sales.module';
     ReviewsModule,
     SocialModule,
     AnnouncementsModule,
+    SaleInterestsModule,
     SkipPolicyModule,
     CurrencyModule,
     AiModule,

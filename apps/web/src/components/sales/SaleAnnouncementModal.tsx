@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, ShoppingBag } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
+import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
+import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
+import { useSaleInterest } from '@/hooks/useSaleInterest'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -15,6 +18,8 @@ interface Props {
 
 export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const [showPurchase, setShowPurchase] = useState(false)
+  const { isInterested, tier } = useSaleInterest(sale?.id ?? null)
 
   // Close on Escape
   useEffect(() => {
@@ -41,7 +46,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
     : null
 
   return (
-    /* Backdrop */
+    <>
+    {/* Backdrop */}
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -111,6 +117,19 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               >
                 View full page <ExternalLink size={11} />
               </Link>
+              <div className="mt-3 flex items-center gap-2">
+                <SaleInterestButton announcementId={sale.id} />
+                {isInterested && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPurchase(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-600 text-xs font-medium transition-colors"
+                  >
+                    <ShoppingBag size={13} />
+                    Confirm Purchase
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -195,5 +214,14 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
         </div>
       </div>
     </div>
+
+    {showPurchase && (
+      <ConfirmPurchaseModal
+        sale={sale}
+        preselectedTier={tier ?? 'GS'}
+        onClose={() => setShowPurchase(false)}
+      />
+    )}
+  </>
   )
 }
