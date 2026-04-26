@@ -110,13 +110,15 @@ interface EditionInfo {
   publisher?: string | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
   defaultFirstAccessDate?: string | null
   defaultEarlyAccessDate?: string | null
   defaultGeneralSaleDate?: string | null
+  defaultPrice?: number | null
+  defaultCurrency?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -186,6 +188,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultFirstAccessDate={defaultFirstAccessDate}
           defaultEarlyAccessDate={defaultEarlyAccessDate}
           defaultGeneralSaleDate={defaultGeneralSaleDate}
+          defaultPrice={defaultPrice}
+          defaultCurrency={defaultCurrency}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -512,6 +516,8 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
               defaultFirstAccessDate={form.firstAccessDate ? form.firstAccessDate.slice(0, 10) : null}
               defaultEarlyAccessDate={form.earlyAccessDate ? form.earlyAccessDate.slice(0, 10) : null}
               defaultGeneralSaleDate={form.generalSaleDate ? form.generalSaleDate.slice(0, 10) : null}
+              defaultPrice={form.basePrice ? Number(form.basePrice) : null}
+              defaultCurrency={form.currency || null}
             />
           </div>
         )}
@@ -552,6 +558,19 @@ const EMPTY_REGION: RegionFormData = {
   name: '', countryCodes: '', isDefault: false,
   generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
   saleTimezone: 'UTC', basePrice: '', currency: '',
+}
+
+function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
+  return {
+    ...EMPTY_REGION,
+    generalSaleDate: a.generalSaleDate ? new Date(a.generalSaleDate).toISOString().slice(0, 16) : '',
+    firstAccessDate: a.firstAccessDate ? new Date(a.firstAccessDate).toISOString().slice(0, 16) : '',
+    earlyAccessDate: a.earlyAccessDate ? new Date(a.earlyAccessDate).toISOString().slice(0, 16) : '',
+    saleTimezone: (a as any).saleTimezone ?? 'UTC',
+    basePrice: a.basePrice != null ? String(a.basePrice) : '',
+    currency: a.currency ?? '',
+    isDefault: true,
+  }
 }
 
 function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): RegionFormData {
@@ -739,7 +758,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           })}
 
           {addingRegion ? (
-            <RegionFormUI form={EMPTY_REGION} onSave={f => upsertMutation.mutate(f)} onCancel={() => setAddingRegion(false)} />
+            <RegionFormUI form={announcementToDefaultRegion(announcement)} onSave={f => upsertMutation.mutate(f)} onCancel={() => setAddingRegion(false)} />
           ) : (
             <button type="button" onClick={() => setAddingRegion(true)}
               className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
@@ -922,6 +941,8 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 defaultFirstAccessDate={defaultFirstAccessDate}
                 defaultEarlyAccessDate={defaultEarlyAccessDate}
                 defaultGeneralSaleDate={defaultGeneralSaleDate}
+                defaultPrice={announcement.basePrice ?? null}
+                defaultCurrency={announcement.currency ?? null}
               />
               <button
                 type="button"

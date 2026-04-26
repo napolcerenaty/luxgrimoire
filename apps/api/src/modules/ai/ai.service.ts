@@ -69,6 +69,7 @@ ARTIST EXTRACTION RULES:
 - For the FIRST artist in a line/bullet: start the role from the beginning of that line/clause
 - For SUBSEQUENT artists in the same line (after "and … by @next"): the role = only their portion of the sentence
 - If multiple artists are mentioned in separate lines/bullets, list each separately
+- IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
 
 FEATURES RULES:
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { AddToCollectionButton } from './AddToCollectionButton'
@@ -43,7 +44,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
           {sale.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={sale.imageUrl}
+              src={cloudinaryUrl(sale.imageUrl, 'w_560,h_560,c_fill,q_auto,f_auto') ?? sale.imageUrl}
               alt={sale.title}
               className="rounded-xl shadow-2xl w-full object-cover"
             />
@@ -119,6 +120,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               const book = edition.book
               const authors = book?.authors ?? []
               const coverUrl = edition.coverImage ?? book?.coverImage
+              const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
               const bookSlug = book?.slug
 
               return (
@@ -127,10 +129,10 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                   href={bookSlug ? `/books/${bookSlug}` : '#'}
                   className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/30 transition-colors"
                 >
-                  {coverUrl ? (
+                  {coverSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={coverUrl}
+                      src={coverSrc}
                       alt={book?.title ?? 'Edition'}
                       className="w-full aspect-[2/3] object-cover"
                     />
