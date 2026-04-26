@@ -810,13 +810,24 @@ export class SubscriptionsService {
     const purchaseDate = new Date(Date.UTC(firstMonth.year, firstMonth.month - 1, renewalDay));
     const monthBooks = firstMonth.books.filter(mb => mb.editionId && mb.bookId);
 
+    // Fetch fee templates for this entry (they were just saved before calling this function)
+    const feeTemplateLinks = await this.prisma.userSubscriptionEntryFeeTemplate.findMany({
+      where: { subscriptionEntryId: entryId },
+      include: { feeTemplate: true },
+    });
+
+    const feesToCreate: {
+      userId: string; feeTemplateId?: string; name: string; amount: number;
+      currency: string; date: Date; category: any; userBookEntryId: string;
+    }[] = [];
+
     for (const mb of monthBooks) {
       const pricePerBook = entry.basePrice && monthBooks.length > 0
         ? parseFloat((entry.basePrice as any).toString()) / monthBooks.length
         : null;
 
       try {
-        await this.prisma.userBookEntry.upsert({
+        const bookEntry = await this.prisma.userBookEntry.upsert({
           where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
           create: {
             userId,
@@ -832,9 +843,59 @@ export class SubscriptionsService {
           },
           update: {},
         });
+
+        // Fee templates
+        for (const link of feeTemplateLinks) {
+          const template = link.feeTemplate;
+          const amount = link.customAmount ?? template.defaultAmount;
+          if (!amount) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: template.id,
+            name: template.name,
+            amount: parseFloat(amount.toString()),
+            currency: link.customCurrency ?? template.defaultCurrency,
+            date: purchaseDate,
+            category: template.category,
+            userBookEntryId: bookEntry.id,
+          });
+        }
+
+        // Shipping cost (split across books)
+        if (entry.shippingCost && monthBooks.length > 0) {
+          feesToCreate.push({
+            userId,
+            name: 'Shipping',
+            amount: parseFloat((entry.shippingCost as any).toString()) / monthBooks.length,
+            currency: entry.costCurrency ?? 'USD',
+            date: purchaseDate,
+            category: 'SHIPPING',
+            userBookEntryId: bookEntry.id,
+          });
+        }
+
+        // Taxes & fees (split across books)
+        if (entry.taxesAndFees && monthBooks.length > 0) {
+          feesToCreate.push({
+            userId,
+            name: 'Taxes & Fees',
+            amount: parseFloat((entry.taxesAndFees as any).toString()) / monthBooks.length,
+            currency: entry.costCurrency ?? 'USD',
+            date: purchaseDate,
+            category: 'OTHER',
+            userBookEntryId: bookEntry.id,
+          });
+        }
       } catch {
         // skip if already exists
       }
+    }
+
+    if (feesToCreate.length > 0) {
+      await this.prisma.userPurchaseFee.createMany({
+        data: feesToCreate,
+        skipDuplicates: true,
+      });
     }
   }
 
