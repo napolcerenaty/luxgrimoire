@@ -6,7 +6,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { useTheme } from '@/components/ThemeProvider'
-import { useLanguage, LANGUAGES } from '@/components/LanguageProvider'
 import {
   Search, ChevronDown, User, BookOpen, Heart, DollarSign,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays,
@@ -33,20 +32,14 @@ export function Navbar() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
-  const { language, setLanguage } = useLanguage()
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [langOpen, setLangOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const langRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)
-      }
-      if (langRef.current && !langRef.current.contains(e.target as Node)) {
-        setLangOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -70,8 +63,6 @@ export function Navbar() {
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
-
-  const currentLang = LANGUAGES.find(l => l.code === language) ?? LANGUAGES[0]
 
   return (
     <header className="sticky top-0 z-50">
@@ -120,47 +111,6 @@ export function Navbar() {
         </Link>
 
         <div className="relative z-10 ml-auto flex items-center gap-1 sm:gap-2">
-
-          {/* Language dropdown */}
-          <div ref={langRef} className="relative">
-            <button
-              onClick={() => setLangOpen(o => !o)}
-              className="flex items-center gap-1 p-1.5 rounded-lg text-stone-400 hover:text-amber-400 transition-colors"
-              title={currentLang.label}
-            >
-              <img
-                src={`https://flagcdn.com/20x15/${currentLang.country}.png`}
-                width={20} height={15}
-                alt={currentLang.label}
-                className="rounded-sm"
-              />
-              <ChevronDown size={10} className={`transition-transform ${langOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {langOpen && (
-              <div className="absolute right-0 mt-2 w-44 rounded-xl border border-stone-700 bg-stone-800 shadow-2xl overflow-hidden z-[200]">
-                {LANGUAGES.map(lang => (
-                  <button
-                    key={lang.code}
-                    onClick={() => { setLanguage(lang.code); setLangOpen(false) }}
-                    className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-sm transition-colors text-left
-                      ${language === lang.code
-                        ? 'text-amber-400 bg-stone-700'
-                        : 'text-stone-300 hover:bg-stone-700 hover:text-amber-400'
-                      }`}
-                  >
-                    <img
-                      src={`https://flagcdn.com/20x15/${lang.country}.png`}
-                      width={20} height={15}
-                      alt={lang.label}
-                      className="rounded-sm flex-shrink-0"
-                    />
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Theme toggle */}
           <button
