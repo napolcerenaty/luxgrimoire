@@ -154,7 +154,6 @@ function formToCreatePayload(form: SubFormData) {
 
 function formToUpdatePayload(form: SubFormData) {
   return {
-    companyId: form.companyId,
     name: form.name,
     description: form.description || undefined,
     genres: form.genres,
