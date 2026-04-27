@@ -7,7 +7,6 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscription, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
-import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import ImageUpload from '@/components/admin/ImageUpload'
 
@@ -215,399 +214,262 @@ function SubscriptionForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => setField(field, e.target.value as SubFormData[typeof field])
 
-  // Unique genres from all subscriptions (across genres arrays)
   const genreOptions = Array.from(
     new Set(allSubscriptions.flatMap((s) => s.genres ?? []).filter(Boolean)),
   ).sort()
 
-  // Component subscription helpers
   const addComponent = (id: string) => {
-    if (id && !form.componentIds.includes(id)) {
-      setField('componentIds', [...form.componentIds, id])
-    }
+    if (id && !form.componentIds.includes(id)) setField('componentIds', [...form.componentIds, id])
   }
   const removeComponent = (id: string) =>
     setField('componentIds', form.componentIds.filter((c) => c !== id))
-
-  const availableComponents = allSubscriptions.filter(
-    (s) => !form.componentIds.includes(s.id),
-  )
+  const availableComponents = allSubscriptions.filter((s) => !form.componentIds.includes(s.id))
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSubmit(form)
-      }}
-      className="flex flex-col gap-4"
-    >
-      {/* Company */}
-      <div>
-        <label className={LABEL_CLASS}>Company *</label>
-        <select
-          required
-          disabled={isManager}
-          className={`${SELECT_CLASS} disabled:opacity-60 disabled:cursor-not-allowed`}
-          value={form.companyId}
-          onChange={setStr('companyId')}
-        >
-          <option value="">— Select company —</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="space-y-6">
+
+      {/* ── 2-column main grid ── */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+
+        {/* LEFT: identity */}
+        <div className="space-y-4">
+          <div>
+            <label className={LABEL_CLASS}>Company *</label>
+            <select required disabled={isManager}
+              className={`${SELECT_CLASS} disabled:opacity-60 disabled:cursor-not-allowed`}
+              value={form.companyId} onChange={setStr('companyId')}>
+              <option value="">— Select company —</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Name *</label>
+            <input required className={INPUT_CLASS} value={form.name} onChange={setStr('name')} />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Description</label>
+            <textarea rows={4} className={INPUT_CLASS} value={form.description} onChange={setStr('description')} />
+          </div>
+          <ImageUpload label="Cover Image" folder="luxgrimoire/subscriptions"
+            value={form.coverImage} onChange={(id) => setField('coverImage', id)} aspectRatio="2/3" />
+        </div>
+
+        {/* RIGHT: settings */}
+        <div className="space-y-4">
+          {/* Price / Currency / Language */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={LABEL_CLASS}>Price</label>
+              <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Currency</label>
+              <input list="currency-datalist" className={INPUT_CLASS} value={form.currency} onChange={setStr('currency')} placeholder="EUR" />
+              <datalist id="currency-datalist">
+                {['EUR','USD','GBP','PLN','CAD','AUD','CHF','SEK','NOK','DKK','CZK','HUF'].map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Language</label>
+              <input list="language-datalist" className={INPUT_CLASS} value={form.language} onChange={setStr('language')} placeholder="EN" />
+              <datalist id="language-datalist">
+                {LANGUAGES.map((l) => <option key={l} value={l} />)}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Type / Content type */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLASS}>Type</label>
+              <select className={SELECT_CLASS} value={form.type} onChange={setStr('type')}>
+                <option value="">— Select type —</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="BIMONTHLY">Bi-monthly</option>
+                <option value="QUARTERLY">Quarterly</option>
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Content Type</label>
+              <select className={SELECT_CLASS} value={form.contentType} onChange={setStr('contentType')}>
+                <option value="MIX">Mix (months + series)</option>
+                <option value="MONTH">Monthly boxes only</option>
+                <option value="SERIES">Series only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Start / End date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLASS}>Start Date</label>
+              <input type="date" className={INPUT_CLASS} value={form.startDate} onChange={setStr('startDate')} />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>End Date</label>
+              <input type="date" className={INPUT_CLASS} value={form.endDate} onChange={setStr('endDate')} />
+            </div>
+          </div>
+
+          {/* Renewal settings */}
+          <div className="border border-stone-700 rounded-lg p-3 space-y-3">
+            <p className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Renewal</p>
+            <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.renewalDayUserSet}
+                onChange={(e) => setField('renewalDayUserSet', e.target.checked)}
+                className="accent-amber-400 w-4 h-4" />
+              Use subscriber's sign-up day
+            </label>
+            {!form.renewalDayUserSet && (
+              <div>
+                <label className={LABEL_CLASS}>Fixed renewal day (1–28)</label>
+                <input type="number" min={1} max={28} className={INPUT_CLASS}
+                  value={form.renewalDay} onChange={setStr('renewalDay')} placeholder="e.g. 15" />
+              </div>
+            )}
+            {(form.type === 'BIMONTHLY' || form.type === 'QUARTERLY') && (
+              <div>
+                <label className={LABEL_CLASS}>Starting month of cycle</label>
+                <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
+                  <option value="">— Select month —</option>
+                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                    <option key={i + 1} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Flags */}
+          <div className="border border-stone-700 rounded-lg p-3 space-y-2">
+            <p className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Flags</p>
+            {([
+              { field: 'bookishMerch', label: 'Bookish Merch included' },
+              { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
+              { field: 'isDiscontinued', label: 'Discontinued' },
+              { field: 'isHidden', label: 'Hidden (draft / historical data)' },
+            ] as { field: keyof SubFormData; label: string }[]).map(({ field, label }) => (
+              <label key={field} className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+                <input type="checkbox" checked={form[field] as boolean}
+                  onChange={(e) => setField(field, e.target.checked)}
+                  className="accent-amber-400 w-4 h-4" />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Name */}
-      <div>
-        <label className={LABEL_CLASS}>Name *</label>
-        <input
-          required
-          className={INPUT_CLASS}
-          value={form.name}
-          onChange={setStr('name')}
-        />
-      </div>
+      {/* ── Full-width sections ── */}
 
-      {/* Description */}
+      {/* Genres */}
       <div>
-        <label className={LABEL_CLASS}>Description</label>
-        <textarea
-          rows={3}
-          className={INPUT_CLASS}
-          value={form.description}
-          onChange={setStr('description')}
-        />
-      </div>
-
-      {/* Genres (multi-tag) | Start Date | End Date */}
-      <div className="flex flex-col gap-2">
         <label className={LABEL_CLASS}>Genres</label>
-        <div className="flex flex-wrap gap-1 mb-1">
+        <div className="flex flex-wrap gap-1 mb-2">
           {form.genres.map((g) => (
             <span key={g} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-0.5 rounded-full">
               {g}
-              <button type="button" onClick={() => setField('genres', form.genres.filter((x) => x !== g))} className="text-stone-400 hover:text-red-400 leading-none">×</button>
+              <button type="button" onClick={() => setField('genres', form.genres.filter((x) => x !== g))}
+                className="text-stone-400 hover:text-red-400 leading-none">×</button>
             </span>
           ))}
         </div>
-        <div className="flex gap-2">
-          <input
-            list="genres-datalist"
-            className={INPUT_CLASS + ' flex-1'}
-            placeholder="Add genre (Enter or comma)"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault()
-                const val = e.currentTarget.value.trim()
-                if (val && !form.genres.includes(val)) setField('genres', [...form.genres, val])
-                e.currentTarget.value = ''
-              }
-            }}
-            onBlur={(e) => {
-              const val = e.target.value.trim()
+        <input list="genres-datalist" className={INPUT_CLASS}
+          placeholder="Add genre — press Enter or comma"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              const val = e.currentTarget.value.trim()
               if (val && !form.genres.includes(val)) setField('genres', [...form.genres, val])
-              e.target.value = ''
-            }}
-          />
-        </div>
+              e.currentTarget.value = ''
+            }
+          }}
+          onBlur={(e) => {
+            const val = e.target.value.trim()
+            if (val && !form.genres.includes(val)) setField('genres', [...form.genres, val])
+            e.target.value = ''
+          }} />
         <datalist id="genres-datalist">
-          {genreOptions.map((g) => (
-            <option key={g} value={g} />
-          ))}
+          {genreOptions.map((g) => <option key={g} value={g} />)}
         </datalist>
       </div>
 
-      {/* Start Date | End Date */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Variant of | Copy from */}
+      <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className={LABEL_CLASS}>Start Date</label>
-          <input
-            type="date"
-            className={INPUT_CLASS}
-            value={form.startDate}
-            onChange={setStr('startDate')}
-          />
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>End Date</label>
-          <input
-            type="date"
-            className={INPUT_CLASS}
-            value={form.endDate}
-            onChange={setStr('endDate')}
-          />
-        </div>
-      </div>
-
-      {/* Price | Currency | Language | Type */}
-      <div className="grid grid-cols-4 gap-3">
-        <div>
-          <label className={LABEL_CLASS}>Price</label>
-          <input
-            className={INPUT_CLASS}
-            value={form.price}
-            onChange={setStr('price')}
-            placeholder="59.99"
-          />
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>Currency</label>
-          <input
-            list="currency-datalist"
-            className={INPUT_CLASS}
-            value={form.currency}
-            onChange={setStr('currency')}
-            placeholder="EUR"
-          />
-          <datalist id="currency-datalist">
-            {['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF'].map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>Language</label>
-          <input
-            list="language-datalist"
-            className={INPUT_CLASS}
-            value={form.language}
-            onChange={setStr('language')}
-            placeholder="EN"
-          />
-          <datalist id="language-datalist">
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l} />
-            ))}
-          </datalist>
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>Type</label>
-          <select className={SELECT_CLASS} value={form.type} onChange={setStr('type')}>
-            <option value="">— Select type —</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="BIMONTHLY">Bi-monthly (every 2 months)</option>
-            <option value="QUARTERLY">Quarterly (every 3 months)</option>
+          <label className={LABEL_CLASS}>Variant of</label>
+          <select className={SELECT_CLASS} value={form.parentSubscriptionId} onChange={setStr('parentSubscriptionId')}>
+            <option value="">— None —</option>
+            {allSubscriptions.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
           </select>
         </div>
         <div>
-          <label className={LABEL_CLASS}>Content Type</label>
-          <select className={SELECT_CLASS} value={form.contentType} onChange={setStr('contentType')}>
-            <option value="MIX">Mix (months + series)</option>
-            <option value="MONTH">Monthly boxes only</option>
-            <option value="SERIES">Series only</option>
+          <label className={LABEL_CLASS}>Copy months from</label>
+          <select className={SELECT_CLASS} value={form.copyFromSlug} onChange={setStr('copyFromSlug')}>
+            <option value="">— None —</option>
+            {allSubscriptions.map((s) => <option key={s.id} value={s.slug}>{s.name} ({s.slug})</option>)}
           </select>
+          <p className="text-xs text-stone-500 mt-1">Copies all months and books from the selected subscription</p>
         </div>
       </div>
 
-      {/* Renewal Settings */}
-      <div className="border border-stone-700 rounded-lg p-3 flex flex-col gap-3">
-        <p className="text-sm text-stone-400 font-semibold">Renewal Settings</p>
-        <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.renewalDayUserSet}
-            onChange={(e) => setField('renewalDayUserSet', e.target.checked)}
-            className="accent-amber-400 w-4 h-4"
-          />
-          Use subscriber's sign-up day as renewal day
+      {/* Combo / Bundle */}
+      <div>
+        <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer mb-2">
+          <input type="checkbox" checked={form.isCombo}
+            onChange={(e) => setField('isCombo', e.target.checked)}
+            className="accent-amber-400 w-4 h-4" />
+          Combo / Bundle subscription
         </label>
-        {!form.renewalDayUserSet && (
-          <div className="w-40">
-            <label className={LABEL_CLASS}>Fixed renewal day (1–28)</label>
-            <input
-              type="number"
-              min={1}
-              max={28}
-              className={INPUT_CLASS}
-              value={form.renewalDay}
-              onChange={setStr('renewalDay')}
-              placeholder="e.g. 15"
-            />
-          </div>
-        )}
-        {(form.type === 'BIMONTHLY' || form.type === 'QUARTERLY') && (
-          <div className="w-48">
-            <label className={LABEL_CLASS}>Starting month of cycle</label>
-            <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
-              <option value="">— Select month —</option>
-              {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
-                <option key={i + 1} value={i + 1}>{m}</option>
-              ))}
+        {form.isCombo && (
+          <div className="border border-stone-700 rounded-lg p-3 space-y-2">
+            <label className={LABEL_CLASS}>Component subscriptions</label>
+            {form.componentIds.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {form.componentIds.map((id) => {
+                  const sub = allSubscriptions.find((s) => s.id === id)
+                  return (
+                    <span key={id} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-1 rounded-full">
+                      {sub ? sub.name : id}
+                      <button type="button" onClick={() => removeComponent(id)}
+                        className="text-stone-400 hover:text-red-400 leading-none" aria-label="Remove">×</button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            <select className={SELECT_CLASS} value=""
+              onChange={(e) => { addComponent(e.target.value); e.target.value = '' }}>
+              <option value="">+ Add component…</option>
+              {availableComponents.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
             </select>
           </div>
         )}
       </div>
 
-      {/* Cover Image */}
-      <ImageUpload
-        label="Cover Image"
-        folder="luxgrimoire/subscriptions"
-        value={form.coverImage}
-        onChange={(id) => setField('coverImage', id)}
-        aspectRatio="2/3"
-      />
-
-      {/* Bookish Merch */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.bookishMerch}
-          onChange={(e) => setField('bookishMerch', e.target.checked)}
-          className="accent-amber-400 w-4 h-4"
-        />
-        Bookish Merch included
-      </label>
-
-      {/* Variant of (parentSubscriptionId) */}
-      <div>
-        <label className={LABEL_CLASS}>Variant of</label>
-        <select
-          className={SELECT_CLASS}
-          value={form.parentSubscriptionId}
-          onChange={setStr('parentSubscriptionId')}
-        >
-          <option value="">— None —</option>
-          {allSubscriptions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} ({s.slug})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Copy months from (copyFromSlug) */}
-      <div>
-        <label className={LABEL_CLASS}>Copy months from</label>
-        <select
-          className={SELECT_CLASS}
-          value={form.copyFromSlug}
-          onChange={setStr('copyFromSlug')}
-        >
-          <option value="">— None —</option>
-          {allSubscriptions.map((s) => (
-            <option key={s.id} value={s.slug}>
-              {s.name} ({s.slug})
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-stone-500 mt-1">
-          Copies all months and books from the selected subscription
-        </p>
-      </div>
-
-      {/* isCombo + component picker */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.isCombo}
-          onChange={(e) => setField('isCombo', e.target.checked)}
-          className="accent-amber-400 w-4 h-4"
-        />
-        Combo / Bundle subscription
-      </label>
-
-      {form.isCombo && (
-        <div className="border border-stone-700 rounded-lg p-3 flex flex-col gap-2">
-          <label className={LABEL_CLASS}>Component subscriptions</label>
-
-          {/* Selected tags */}
-          {form.componentIds.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {form.componentIds.map((id) => {
-                const sub = allSubscriptions.find((s) => s.id === id)
-                return (
-                  <span
-                    key={id}
-                    className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-1 rounded-full"
-                  >
-                    {sub ? sub.name : id}
-                    <button
-                      type="button"
-                      onClick={() => removeComponent(id)}
-                      className="text-stone-400 hover:text-red-400 leading-none"
-                      aria-label="Remove"
-                    >
-                      ×
-                    </button>
-                  </span>
-                )
-              })}
+      {/* Skip Policy */}
+      <div className="border border-stone-700 rounded-lg p-4 space-y-4">
+        <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={LABEL_CLASS}>Policy type</label>
+            <select className={SELECT_CLASS} value={form.skipPolicyType} onChange={setStr('skipPolicyType')}>
+              <option value="NONE">No skips allowed</option>
+              <option value="UNLIMITED">Unlimited skips</option>
+              <option value="UNLIMITED_MAX_CONSEC">Unlimited (max consecutive)</option>
+              <option value="CALENDAR_YEAR">X skips per calendar year</option>
+              <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
+              <option value="FROM_SUB_START">X skips from subscription start</option>
+            </select>
+          </div>
+          {form.skipPolicyType !== 'NONE' && (
+            <div>
+              <label className={LABEL_CLASS}>Deadline — days before renewal</label>
+              <input type="number" min={0} max={60} className={INPUT_CLASS}
+                value={form.skipDeadlineDaysBefore} onChange={setStr('skipDeadlineDaysBefore')} placeholder="0" />
+              <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
             </div>
           )}
-
-          {/* Add component dropdown */}
-          <select
-            className={SELECT_CLASS}
-            value=""
-            onChange={(e) => {
-              addComponent(e.target.value)
-              e.target.value = ''
-            }}
-          >
-            <option value="">+ Add component…</option>
-            {availableComponents.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.slug})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Discontinued */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.isDiscontinued}
-          onChange={(e) => setField('isDiscontinued', e.target.checked)}
-          className="accent-amber-400 w-4 h-4"
-        />
-        Discontinued
-      </label>
-
-      {/* Hidden */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.isHidden}
-          onChange={(e) => setField('isHidden', e.target.checked)}
-          className="accent-amber-400 w-4 h-4"
-        />
-        Hidden (not visible on public pages — for drafts/historical data)
-      </label>
-
-      {/* Payment on startup */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.paymentOnStartup}
-          onChange={(e) => setField('paymentOnStartup', e.target.checked)}
-          className="accent-amber-400 w-4 h-4"
-        />
-        Payment on signup (first box charged immediately at signup, not on renewal day)
-      </label>
-
-      {/* ── Skip Policy ──────────────────────────────────────────── */}
-      <div className="border border-stone-700 rounded-lg p-4 flex flex-col gap-3">
-        <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
-
-        <div>
-          <label className={LABEL_CLASS}>Policy type</label>
-          <select
-            className={SELECT_CLASS}
-            value={form.skipPolicyType}
-            onChange={setStr('skipPolicyType')}
-          >
-            <option value="NONE">No skips allowed</option>
-            <option value="UNLIMITED">Unlimited skips</option>
-            <option value="UNLIMITED_MAX_CONSEC">Unlimited (max consecutive)</option>
-            <option value="CALENDAR_YEAR">X skips per calendar year</option>
-            <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
-            <option value="FROM_SUB_START">X skips from user's subscription start</option>
-          </select>
         </div>
 
         {form.skipPolicyType !== 'NONE' && form.skipPolicyType !== 'UNLIMITED' && (
@@ -615,96 +477,43 @@ function SubscriptionForm({
             {form.skipPolicyType !== 'UNLIMITED_MAX_CONSEC' && (
               <div>
                 <label className={LABEL_CLASS}>Max skips</label>
-                <input
-                  type="number"
-                  min={1}
-                  className={INPUT_CLASS}
-                  value={form.skipMaxSkips}
-                  onChange={setStr('skipMaxSkips')}
-                  placeholder="e.g. 2"
-                />
+                <input type="number" min={1} className={INPUT_CLASS}
+                  value={form.skipMaxSkips} onChange={setStr('skipMaxSkips')} placeholder="e.g. 2" />
               </div>
             )}
-
             {form.skipPolicyType === 'UNLIMITED_MAX_CONSEC' && (
               <div>
                 <label className={LABEL_CLASS}>Max consecutive</label>
-                <input
-                  type="number"
-                  min={1}
-                  className={INPUT_CLASS}
-                  value={form.skipMaxConsecutive}
-                  onChange={setStr('skipMaxConsecutive')}
-                  placeholder="e.g. 3"
-                />
+                <input type="number" min={1} className={INPUT_CLASS}
+                  value={form.skipMaxConsecutive} onChange={setStr('skipMaxConsecutive')} placeholder="e.g. 3" />
               </div>
             )}
-
-            {(form.skipPolicyType === 'FROM_FIRST_SKIP' ||
-              form.skipPolicyType === 'FROM_SUB_START') && (
+            {(form.skipPolicyType === 'FROM_FIRST_SKIP' || form.skipPolicyType === 'FROM_SUB_START') && (
               <div>
                 <label className={LABEL_CLASS}>Window (months)</label>
-                <input
-                  type="number"
-                  min={1}
-                  className={INPUT_CLASS}
-                  value={form.skipWindowMonths}
-                  onChange={setStr('skipWindowMonths')}
-                  placeholder="e.g. 12"
-                />
+                <input type="number" min={1} className={INPUT_CLASS}
+                  value={form.skipWindowMonths} onChange={setStr('skipWindowMonths')} placeholder="e.g. 12" />
               </div>
             )}
           </div>
         )}
 
-        <div>
-          <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
-          <textarea
-            rows={2}
-            className={INPUT_CLASS}
-            value={form.skipNotes}
-            onChange={setStr('skipNotes')}
-            placeholder="e.g. You can skip up to 2 boxes per calendar year without losing your spot."
-          />
-        </div>
-
-        <div>
-          <label className={LABEL_CLASS}>How to submit a skip request (shown to users)</label>
-          <textarea
-            rows={2}
-            className={INPUT_CLASS}
-            value={form.skipHow}
-            onChange={setStr('skipHow')}
-            placeholder="e.g. Email support@example.com with subject 'Skip [Month Year]' before the deadline."
-          />
-        </div>
-
-        {form.skipPolicyType !== 'NONE' && (
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={LABEL_CLASS}>
-              Skip deadline — days before renewal (0 = day of renewal, default)
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={60}
-              className={INPUT_CLASS}
-              value={form.skipDeadlineDaysBefore}
-              onChange={setStr('skipDeadlineDaysBefore')}
-              placeholder="0"
-            />
-            <p className="text-xs text-stone-500 mt-1">
-              e.g. 3 → skip window closes 3 days before the renewal date. Requires renewal day to be set on the subscription.
-            </p>
+            <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
+            <textarea rows={2} className={INPUT_CLASS} value={form.skipNotes} onChange={setStr('skipNotes')}
+              placeholder="e.g. You can skip up to 2 boxes per calendar year." />
           </div>
-        )}
+          <div>
+            <label className={LABEL_CLASS}>How to submit a skip request</label>
+            <textarea rows={2} className={INPUT_CLASS} value={form.skipHow} onChange={setStr('skipHow')}
+              placeholder="e.g. Email support@example.com before the deadline." />
+          </div>
+        </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
-      >
+      <button type="submit" disabled={submitting}
+        className="bg-amber-400 text-stone-950 font-semibold px-6 py-2.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
       </button>
     </form>
@@ -880,16 +689,54 @@ export default function AdminSubscriptionsPage() {
   ]
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-stone-100">Subscriptions</h1>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
-        >
-          Add Subscription
-        </button>
+        {!createOpen && !editSub && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          >
+            + Add Subscription
+          </button>
+        )}
       </div>
+
+      {/* Inline Create panel */}
+      {createOpen && (
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-stone-100">Add Subscription</h2>
+            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+          </div>
+          <SubscriptionForm
+            {...commonFormProps}
+            initial={EMPTY_FORM}
+            submitLabel="Create Subscription"
+            submitting={createMutation.isPending}
+            onSubmit={(form) => createMutation.mutate(form)}
+          />
+        </div>
+      )}
+
+      {/* Inline Edit panel */}
+      {editSub && (
+        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-stone-100">Edit — {editSub.name}</h2>
+            <button onClick={() => setEditSub(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+          </div>
+          <SubscriptionForm
+            key={editSub.id}
+            {...commonFormProps}
+            initial={subToForm(editSub)}
+            submitLabel="Save Changes"
+            submitting={editMutation.isPending}
+            onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form })}
+          />
+        </div>
+      )}
 
       {subsLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
@@ -898,7 +745,7 @@ export default function AdminSubscriptionsPage() {
           <DataTable
             columns={columns}
             data={subs}
-            onEdit={(row) => setEditSub(row)}
+            onEdit={(row) => { setEditSub(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
           {(subsData?.totalPages ?? 1) > 1 && (
@@ -924,34 +771,6 @@ export default function AdminSubscriptionsPage() {
           )}
         </>
       )}
-
-      <FormModal open={createOpen} title="Add Subscription" onClose={() => setCreateOpen(false)}>
-        <SubscriptionForm
-          {...commonFormProps}
-          initial={EMPTY_FORM}
-          submitLabel="Create Subscription"
-          submitting={createMutation.isPending}
-          onSubmit={(form) => createMutation.mutate(form)}
-        />
-      </FormModal>
-
-      <FormModal
-        open={editSub !== null}
-        title="Edit Subscription"
-        onClose={() => setEditSub(null)}
-      >
-        {editSub && (
-          <SubscriptionForm
-            {...commonFormProps}
-            initial={subToForm(editSub)}
-            submitLabel="Save Changes"
-            submitting={editMutation.isPending}
-            onSubmit={(form) =>
-              editMutation.mutate({ slug: editSub.slug, form })
-            }
-          />
-        )}
-      </FormModal>
 
       <ConfirmDialog
         open={deleteSub !== null}
