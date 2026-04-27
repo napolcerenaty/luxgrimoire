@@ -390,17 +390,17 @@ export class SubscriptionQueryDto {
   type?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   isDiscontinued?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   shipsInternationally?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   includeHidden?: boolean;
 }
