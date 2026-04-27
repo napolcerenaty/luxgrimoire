@@ -529,7 +529,9 @@ export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  // API now returns paginated { data, total, page, pageSize } — extract data array
+  return Array.isArray(json) ? json : (json.data ?? json);
 }
 
 export async function createSaleGroup(data: CreateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {

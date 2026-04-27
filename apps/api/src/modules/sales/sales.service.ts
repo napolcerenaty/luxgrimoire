@@ -57,13 +57,26 @@ export class SalesService {
     };
   }
 
-  async getSaleGroups(userId: string) {
-    const groups = await this.prisma.userSaleGroup.findMany({
-      where: { userId },
-      include: { entries: { include: this.entryInclude } },
-      orderBy: { soldAt: "desc" },
-    });
-    return (groups as unknown as SaleGroupWithEntries[]).map((g) => this.withProfit(g));
+  async getSaleGroups(userId: string, page = 1, pageSize = 20) {
+    const skip = (page - 1) * pageSize;
+    const where = { userId };
+    const [groups, total] = await Promise.all([
+      this.prisma.userSaleGroup.findMany({
+        where,
+        include: { entries: { include: this.entryInclude } },
+        orderBy: { soldAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.userSaleGroup.count({ where }),
+    ]);
+    return {
+      data: (groups as unknown as SaleGroupWithEntries[]).map((g) => this.withProfit(g)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async getSaleGroup(userId: string, groupId: string) {

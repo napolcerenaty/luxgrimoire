@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Bell } from 'lucide-react'
 import Link from 'next/link'
 
@@ -358,7 +359,7 @@ export default function CalendarPage() {
               }}
             >
               {thumb && (
-                <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain" />
+                <Image src={thumb} alt="" width={14} height={14} className="rounded-sm object-contain" unoptimized />
               )}
               {e.subscription.name}
             </Link>

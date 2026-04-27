@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -43,9 +44,8 @@ export default async function CollectionPage({ params }: Props) {
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Collection header */}
       {coverUrl && (
-        <div className="w-full rounded-2xl overflow-hidden mb-8 aspect-[3/1]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverUrl} alt={collection.name} className="w-full h-full object-cover" />
+        <div className="relative w-full rounded-2xl overflow-hidden mb-8 aspect-[3/1]">
+          <Image src={coverUrl} alt={collection.name} fill className="object-cover" unoptimized />
         </div>
       )}
 

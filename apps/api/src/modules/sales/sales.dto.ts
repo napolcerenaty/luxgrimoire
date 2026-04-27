@@ -1,4 +1,19 @@
 import { IsString, IsNumber, IsOptional, IsArray, IsDateString, IsIn, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class SaleGroupsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number;
+}
 
 export class CreateSaleGroupDto {
   @IsString()

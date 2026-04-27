@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
@@ -126,12 +127,11 @@ export default async function HomePage() {
                   style={{ background: 'var(--bg-raised)' }}
                 >
                   <div
-                    className="w-16 h-16 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
+                    className="relative w-16 h-16 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
                     style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
                   >
                     {logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logo} alt={slot.company.name} className="w-full h-full object-cover" />
+                      <Image src={logo} alt={slot.company.name} fill className="object-cover" unoptimized />
                     ) : (
                       <span className="text-2xl font-serif text-amber-500">{slot.company.name.charAt(0)}</span>
                     )}

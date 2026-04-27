@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
@@ -39,7 +40,7 @@ export function SearchContent() {
   const [activeTab, setActiveTab] = useState<SearchTab>('all')
 
   const doSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setResults(null)
       return
     }
@@ -155,10 +156,9 @@ export function SearchContent() {
                       href={`/books/${book.slug}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
                     >
-                      <div className="w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
+                      <div className="relative w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
                         {cover ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={cover} alt={book.title} className="w-full h-full object-cover" />
+                          <Image src={cover} alt={book.title} fill className="object-cover" unoptimized />
                         ) : (
                           <div className="w-full h-full bg-stone-700" />
                         )}
@@ -195,10 +195,9 @@ export function SearchContent() {
                       href={`/authors/${author.slug}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
                     >
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
                         {photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={photo} alt={author.name} className="w-full h-full object-cover" />
+                          <Image src={photo} alt={author.name} fill className="object-cover" unoptimized />
                         ) : (
                           <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
                             {author.name.charAt(0)}
@@ -230,10 +229,9 @@ export function SearchContent() {
                       href={`/artists/${artist.slug}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
                     >
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
                         {photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={photo} alt={artist.name} className="w-full h-full object-cover" />
+                          <Image src={photo} alt={artist.name} fill className="object-cover" unoptimized />
                         ) : (
                           <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
                             {artist.name.charAt(0)}
@@ -265,10 +263,9 @@ export function SearchContent() {
                       href={`/companies/${company.slug}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
                     >
-                      <div className="w-10 h-10 rounded overflow-hidden bg-stone-800 shrink-0">
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-stone-800 shrink-0">
                         {logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={logo} alt={company.name} className="w-full h-full object-cover" />
+                          <Image src={logo} alt={company.name} fill className="object-cover" unoptimized />
                         ) : (
                           <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
                             {company.name.charAt(0)}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
+import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { CheckCircle2, XCircle, Ban, Trash2 } from 'lucide-react'
 
@@ -135,16 +136,18 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           {/* Logo — stretches full height of the row */}
           <div className="relative shrink-0 w-24 self-stretch bg-stone-800">
             {blurBg && (
-              <img
+              <Image
                 src={blurBg}
                 alt=""
-                className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-50"
+                fill
+                className="object-cover scale-110 blur-md opacity-50"
                 aria-hidden
+                unoptimized
               />
             )}
             <div className="absolute inset-0 flex items-center justify-center p-2">
               {logoThumb ? (
-                <img src={logoThumb} alt={sub.name} className="w-full h-full object-contain drop-shadow-md" />
+                <Image src={logoThumb} alt={sub.name} fill className="object-contain drop-shadow-md" unoptimized />
               ) : (
                 <span className="text-3xl font-serif text-stone-400">{sub.name[0]}</span>
               )}

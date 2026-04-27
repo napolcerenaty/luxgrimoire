@@ -17,8 +17,14 @@ export class CollectionService {
             include: {
               bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
               book: {
-                include: {
-                  authors: { include: { author: true } },
+                select: {
+                  id: true, slug: true, title: true, altTitle: true,
+                  seriesName: true, volumeNumber: true, coverImage: true, language: true,
+                  authors: {
+                    select: {
+                      author: { select: { id: true, name: true, slug: true, photoUrl: true } },
+                    },
+                  },
                 },
               },
               tags: {

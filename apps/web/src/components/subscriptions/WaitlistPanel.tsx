@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Clock, X, Loader2, History } from 'lucide-react'
 import { getMyWaitlist, leaveWaitlist } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -90,8 +91,7 @@ function WaitlistRow({
   return (
     <div className="flex items-center gap-3 bg-stone-800/60 border border-stone-700/50 rounded-xl px-4 py-3 group">
       {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt={sub.company?.name ?? ''} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        <Image src={logoUrl} alt={sub.company?.name ?? ''} width={32} height={32} className="w-8 h-8 rounded-lg object-cover shrink-0" unoptimized />
       ) : (
         <div className="w-8 h-8 rounded-lg bg-stone-700 shrink-0" />
       )}
@@ -133,8 +133,7 @@ function WaitlistHistoryRow({ entry }: { entry: ApiWaitlistEntry }) {
   return (
     <div className="flex items-center gap-3 bg-stone-800/30 border border-stone-800 rounded-xl px-4 py-3 opacity-70">
       {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt={sub.company?.name ?? ''} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        <Image src={logoUrl} alt={sub.company?.name ?? ''} width={32} height={32} className="w-8 h-8 rounded-lg object-cover shrink-0" unoptimized />
       ) : (
         <div className="w-8 h-8 rounded-lg bg-stone-700 shrink-0" />
       )}

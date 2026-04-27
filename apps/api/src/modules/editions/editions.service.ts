@@ -117,12 +117,27 @@ export class EditionsService {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
       include: {
-        book: { include: { authors: { include: { author: true } } } },
-        artists: { include: { artist: true } },
+        book: {
+          select: {
+            id: true, slug: true, title: true, altTitle: true,
+            seriesName: true, volumeNumber: true, coverImage: true, language: true,
+            authors: {
+              select: {
+                author: { select: { id: true, name: true, slug: true, nationality: true } },
+              },
+            },
+          },
+        },
+        artists: {
+          select: {
+            id: true, role: true, artistName: true,
+            artist: { select: { id: true, name: true, slug: true } },
+          },
+        },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true, coverImage: true } },
         monthBooks: {
-          include: {
+          select: {
             month: {
               select: {
                 id: true, year: true, month: true, theme: true,
@@ -133,10 +148,8 @@ export class EditionsService {
           },
         },
         saleEditions: {
-          include: {
-            announcement: {
-              select: { id: true, title: true, isBundle: true },
-            },
+          select: {
+            announcement: { select: { id: true, title: true, isBundle: true } },
           },
         },
       },

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { X, ExternalLink, ShoppingBag } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
@@ -85,12 +86,11 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           {/* Header: image + title */}
           <div className="flex gap-4 mb-5">
             {/* Cover */}
-            <div className="shrink-0 w-20 sm:w-28 rounded-xl overflow-hidden border border-stone-700">
+            <div className="relative shrink-0 w-20 sm:w-28 rounded-xl overflow-hidden border border-stone-700" style={{ aspectRatio: '2/3' }}>
               {coverImg ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverImg} alt={sale.title} className="w-full object-cover" style={{ aspectRatio: '2/3' }} />
+                <Image src={coverImg} alt={sale.title} fill className="object-cover" unoptimized />
               ) : (
-                <div className="w-full bg-stone-800 flex items-center justify-center text-stone-600 text-2xl font-serif" style={{ aspectRatio: '2/3' }}>
+                <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-2xl font-serif">
                   {sale.title.charAt(0)}
                 </div>
               )}
@@ -194,8 +194,9 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                       style={{ background: 'var(--bg-raised)' }}
                     >
                       {imgSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={imgSrc} alt={book?.title ?? 'Edition'} className="w-full object-cover group-hover:scale-105 transition-transform" style={{ aspectRatio: '2/3' }} />
+                        <div className="relative w-full" style={{ aspectRatio: '2/3' }}>
+                          <Image src={imgSrc} alt={book?.title ?? 'Edition'} fill className="object-cover group-hover:scale-105 transition-transform" unoptimized />
+                        </div>
                       ) : (
                         <div className="w-full bg-stone-800 flex items-center justify-center text-stone-600 text-xs" style={{ aspectRatio: '2/3' }}>No cover</div>
                       )}
