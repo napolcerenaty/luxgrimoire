@@ -1030,6 +1030,23 @@ model SubscriptionWaitlistEntry {
   @@map("subscription_waitlist_entries")
 }
 
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  eventType  String   @db.VarChar(64)
+  userId     String?  @db.VarChar(36)
+  entityType String?  @db.VarChar(32)
+  entityId   String?  @db.VarChar(36)
+  entityName String?  @db.VarChar(256)
+  value      String?  @db.VarChar(128)
+  createdAt  DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
 enum Role {
   ADMIN
   MODERATOR

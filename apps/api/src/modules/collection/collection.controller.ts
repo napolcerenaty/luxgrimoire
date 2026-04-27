@@ -3,12 +3,16 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
 import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('collection')
 @ApiBearerAuth()
 @Controller('collection')
 export class CollectionController {
-  constructor(private readonly collectionService: CollectionService) {}
+  constructor(
+    private readonly collectionService: CollectionService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
 
   @Get('stats')
   getStats(@CurrentUser() user: { id: string }) {
@@ -45,25 +49,47 @@ export class CollectionController {
   }
 
   @Post('wishlist')
-  addToWishlist(
+  async addToWishlist(
     @CurrentUser() user: { id: string },
     @Body() dto: AddToWishlistDto,
   ) {
-    return this.collectionService.addToWishlist(user.id, dto.bookEditionId);
+    const result = await this.collectionService.addToWishlist(user.id, dto.bookEditionId);
+    this.analyticsService.track({
+      eventType: 'wishlist_add',
+      userId: user.id,
+      entityType: 'edition',
+      entityId: dto.bookEditionId,
+    });
+    return result;
   }
 
   @Post()
-  addToCollection(@CurrentUser() user: { id: string }, @Body() dto: AddToCollectionDto) {
-    return this.collectionService.addToCollection(user.id, dto);
+  async addToCollection(@CurrentUser() user: { id: string }, @Body() dto: AddToCollectionDto) {
+    const result = await this.collectionService.addToCollection(user.id, dto);
+    this.analyticsService.track({
+      eventType: 'collection_add',
+      userId: user.id,
+      entityType: 'edition',
+      entityId: dto.bookEditionId ?? undefined,
+    });
+    return result;
   }
 
   @Patch(':id')
-  updateEntry(
+  async updateEntry(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
     @Body() dto: UpdateCollectionEntryDto,
   ) {
-    return this.collectionService.updateEntry(user.id, id, dto);
+    const result = await this.collectionService.updateEntry(user.id, id, dto);
+    if (dto.readingStatus) {
+      this.analyticsService.track({
+        eventType: 'book_status_change',
+        userId: user.id,
+        value: dto.readingStatus,
+      });
+    }
+    return result;
   }
 
   @Delete(':id')

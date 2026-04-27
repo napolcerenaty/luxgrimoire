@@ -21,6 +21,7 @@ import {
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
@@ -33,6 +34,7 @@ export class EditionsController {
   constructor(
     private readonly editionsService: EditionsService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -43,8 +45,21 @@ export class EditionsController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.editionsService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const edition = await this.editionsService.findBySlug(slug);
+    if ((edition as any)?.id) {
+      const book = (edition as any).book;
+      const name = book?.title
+        ? `${book.title}${(edition as any).editionName ? ' · ' + (edition as any).editionName : ''}`
+        : (edition as any).editionName ?? slug;
+      this.analyticsService.track({
+        eventType: 'edition_view',
+        entityType: 'edition',
+        entityId: (edition as any).id,
+        entityName: name,
+      });
+    }
+    return edition;
   }
 
   @ApiBearerAuth()

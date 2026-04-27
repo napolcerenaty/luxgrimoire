@@ -28,6 +28,7 @@ import { SaleInterestsModule } from './modules/sale-interests/sale-interests.mod
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.module';
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
@@ -89,6 +90,7 @@ import { SalesModule } from './modules/sales/sales.module';
     SkipPolicyModule,
     CurrencyModule,
     AiModule,
+    AnalyticsModule,
     PurchaseGroupsModule,
     BookBoxCollectionsModule,
     SubscriptionSeriesModule,

@@ -21,6 +21,7 @@ import {
   Lightbulb,
   Database,
   ScrollText,
+  BarChart3,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -50,6 +51,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
     heading: 'Overview',
     items: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
     ],
   },
