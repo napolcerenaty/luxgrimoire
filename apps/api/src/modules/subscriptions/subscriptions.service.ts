@@ -281,6 +281,7 @@ export class SubscriptionsService {
         isSpoiler: dto.isSpoiler ?? false,
         actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
         boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
+        signatureType: dto.signatureType ?? null,
       },
     });
   }

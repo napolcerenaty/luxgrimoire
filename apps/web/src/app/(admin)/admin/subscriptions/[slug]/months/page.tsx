@@ -430,7 +430,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
         signatureType: signatureType || undefined,
       }),
     }),
-    onSuccess: () => { onSuccess(); onClose(); setTheme(''); setCover('') },
+    onSuccess: () => { onSuccess(); onClose(); setTheme(''); setCover(''); setSignatureType('') },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
