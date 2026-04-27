@@ -92,23 +92,64 @@ function extractImages(html: string): string[] {
   return [...urls].slice(0, 20);
 }
 
-/** Extract post/article links from a listing/archive page */
+/** Extract post/article links from a listing/archive page.
+ *
+ * Strategy:
+ * 1. Look for links inside <article>, <main>, or common blog list containers (higher priority).
+ * 2. Fall back to all same-domain links (lower priority).
+ * 3. Filter out navigation, tags, categories, authors, pages, feeds, etc.
+ * 4. Require paths with ≥ 2 meaningful segments (rules out /about, /contact, /category/).
+ * 5. Return up to 50 results sorted by priority (content-area links first).
+ */
 function extractPostLinks(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl);
-  const links = new Set<string>();
-  for (const m of html.matchAll(/<a[^>]+href=['"](https?:\/\/[^'"]+|\/[^'"]+)['"]/gi)) {
+
+  // Non-post path prefixes to skip
+  const SKIP_RE = /^\/(tag|tags|category|categories|author|authors|search|feed|wp-content|wp-admin|wp-json|page|pages|cdn-cgi|s=|#)/i;
+
+  // href → priority (2 = found inside article/main, 1 = found elsewhere on page)
+  const links = new Map<string, number>();
+
+  const addLink = (href: string, priority: number) => {
     try {
-      const abs = new URL(m[1], base.origin).href;
-      // Only keep links on the same domain that look like posts (have a path beyond root)
+      const abs = new URL(href, base.origin).href;
       const u = new URL(abs);
-      if (u.hostname === base.hostname && u.pathname.length > 1 && u.pathname !== '/') {
-        links.add(abs);
-      }
+      if (u.hostname !== base.hostname) return;
+      const path = u.pathname.replace(/\/$/, '');
+      if (!path || path === base.pathname) return; // skip current page
+      if (SKIP_RE.test(path)) return;
+      // Require at least 2 path segments (/blog/my-post, /2024/08/reveal, etc.)
+      const segments = path.split('/').filter(Boolean);
+      if (segments.length < 2) return;
+      const current = links.get(abs) ?? 0;
+      if (priority > current) links.set(abs, priority);
     } catch {
-      // ignore bad links
+      // ignore bad hrefs
+    }
+  };
+
+  // Pass 1: extract links from <article> and <main> blocks
+  for (const m of html.matchAll(/<(?:article|main)\b[^>]*>([\s\S]*?)<\/(?:article|main)>/gi)) {
+    for (const a of m[1].matchAll(/<a[^>]+href=["']([^"']+)["']/gi)) {
+      addLink(a[1], 2);
     }
   }
-  return [...links].slice(0, 50);
+  // Also try common blog list div classes (post-list, entries, etc.)
+  for (const m of html.matchAll(/<div[^>]+class=["'][^"']*(?:post|entry|entries|blog-list|archive|listing)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)) {
+    for (const a of m[1].matchAll(/<a[^>]+href=["']([^"']+)["']/gi)) {
+      addLink(a[1], 2);
+    }
+  }
+
+  // Pass 2: all same-domain links (lower priority, catches any leftovers)
+  for (const m of html.matchAll(/<a[^>]+href=["']([^"']+)["']/gi)) {
+    addLink(m[1], 1);
+  }
+
+  return [...links.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([url]) => url)
+    .slice(0, 50);
 }
 
 @Injectable()

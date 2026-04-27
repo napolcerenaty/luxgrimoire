@@ -57,6 +57,16 @@ export class UploadService {
     return { publicId: result.public_id, url: result.secure_url };
   }
 
+  async uploadFromUrl(imageUrl: string, folder: string): Promise<{ publicId: string; url: string }> {
+    const result = await cloudinary.uploader.upload(imageUrl, {
+      folder,
+      resource_type: 'image',
+      eager: EAGER_TRANSFORMS,
+      transformation: { quality: 'auto', fetch_format: 'auto' },
+    });
+    return { publicId: result.public_id, url: result.secure_url };
+  }
+
   async deleteImage(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(publicId);
   }

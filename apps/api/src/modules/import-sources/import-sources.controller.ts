@@ -17,6 +17,7 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ImportSourcesService } from './import-sources.service';
+import { UploadService } from '../upload/upload.service';
 import {
   CreateImportSourceDto,
   UpdateImportSourceDto,
@@ -32,7 +33,10 @@ import {
 @Roles('ADMIN', 'MODERATOR')
 @Controller('admin/import')
 export class ImportSourcesController {
-  constructor(private readonly service: ImportSourcesService) {}
+  constructor(
+    private readonly service: ImportSourcesService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Import Sources CRUD
@@ -136,5 +140,15 @@ export class ImportSourcesController {
   @ApiOperation({ summary: 'Reject a pending import' })
   reject(@Param('id') id: string, @Body() dto: RejectPendingDto) {
     return this.service.rejectPending(id, dto.adminNote);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Image utilities
+  // ---------------------------------------------------------------------------
+
+  @Post('upload-image-url')
+  @ApiOperation({ summary: 'Fetch an external image URL and upload to Cloudinary' })
+  uploadImageUrl(@Body() body: { imageUrl: string }) {
+    return this.uploadService.uploadFromUrl(body.imageUrl, 'luxgrimoire/imports');
   }
 }

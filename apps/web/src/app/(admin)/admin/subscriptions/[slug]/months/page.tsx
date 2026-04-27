@@ -505,6 +505,24 @@ function ScrapedPreviewForm({
   const [coverImageUrl, setCoverImageUrl] = useState(data.imageUrl ?? '')
   const [bookTitle, setBookTitle] = useState(data.bookTitle ?? '')
   const [bookAuthor, setBookAuthor] = useState(data.bookAuthor ?? '')
+  const [uploadingImg, setUploadingImg] = useState<string | null>(null)
+  // track which images failed to load (hotlink protection etc.)
+  const [brokenImgs, setBrokenImgs] = useState<Set<string>>(new Set())
+
+  const uploadImageUrl = async (imgUrl: string) => {
+    setUploadingImg(imgUrl)
+    try {
+      const result = await authFetch<{ publicId: string; url: string }>('/admin/import/upload-image-url', {
+        method: 'POST',
+        body: JSON.stringify({ imageUrl: imgUrl }),
+      })
+      setCoverImageUrl(result.publicId)
+    } catch (e: unknown) {
+      alert(`Upload failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    } finally {
+      setUploadingImg(null)
+    }
+  }
 
   const savePendingMutation = useMutation({
     mutationFn: () => authFetch('/admin/import/pending/from-scrape', {
@@ -529,6 +547,9 @@ function ScrapedPreviewForm({
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  // Images that are available to show (not broken, or all if none loaded yet)
+  const visibleImages = data.allImages.filter(img => !brokenImgs.has(img))
+
   return (
     <div className="bg-stone-800 rounded-xl p-4 space-y-3 border border-amber-500/30">
       <div className="text-amber-400 text-xs font-semibold uppercase tracking-wide">Scraped preview — verify before saving</div>
@@ -552,19 +573,58 @@ function ScrapedPreviewForm({
         <input value={theme} onChange={e => setTheme(e.target.value)} className={INPUT} />
       </div>
       <div>
-        <label className={LABEL}>Cover image URL</label>
-        <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} />
+        <label className={LABEL}>Cover image (Cloudinary public ID or URL)</label>
+        <div className="flex gap-2">
+          <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} placeholder="click a thumbnail below to upload & select" />
+          {coverImageUrl.startsWith('http') && (
+            <button type="button" onClick={() => uploadImageUrl(coverImageUrl)}
+              disabled={!!uploadingImg}
+              title="Upload this URL to Cloudinary"
+              className="px-3 py-2 bg-stone-600 hover:bg-stone-500 text-stone-200 rounded-lg text-xs whitespace-nowrap disabled:opacity-50">
+              {uploadingImg ? '⏳' : '☁ Upload'}
+            </button>
+          )}
+        </div>
       </div>
       {data.allImages.length > 0 && (
         <div>
-          <label className={LABEL}>All found images — click to use as cover</label>
+          <label className={LABEL}>
+            Found images — click to upload &amp; use as cover
+            {brokenImgs.size > 0 && <span className="text-stone-500 ml-1">({brokenImgs.size} blocked by hotlink protection — use URL above)</span>}
+          </label>
           <div className="flex flex-wrap gap-2 mt-1">
-            {data.allImages.slice(0, 8).map((img, i) => (
-              <button key={i} type="button" onClick={() => setCoverImageUrl(img)}
-                className={`w-12 h-12 rounded border-2 overflow-hidden ${coverImageUrl === img ? 'border-amber-400' : 'border-stone-700 hover:border-stone-500'}`}>
-                <img src={img} alt="" className="w-full h-full object-cover" />
-              </button>
-            ))}
+            {data.allImages.slice(0, 12).map((img, i) => {
+              const isBroken = brokenImgs.has(img)
+              const isSelected = coverImageUrl === img || (uploadingImg === img)
+              if (isBroken) {
+                // Show as a compact URL chip instead of a broken image box
+                return (
+                  <button key={i} type="button" onClick={() => uploadImageUrl(img)}
+                    disabled={!!uploadingImg}
+                    title={img}
+                    className="h-8 px-2 rounded border border-stone-600 hover:border-amber-400 bg-stone-700 hover:bg-stone-600 text-stone-400 hover:text-amber-300 text-[10px] max-w-[140px] truncate disabled:opacity-50">
+                    {uploadingImg === img ? '⏳ uploading…' : '☁ ' + img.split('/').pop()?.slice(0, 20)}
+                  </button>
+                )
+              }
+              return (
+                <button key={i} type="button" onClick={() => uploadImageUrl(img)}
+                  disabled={!!uploadingImg}
+                  title="Click to upload to Cloudinary and use as cover"
+                  className={`w-16 h-16 rounded border-2 overflow-hidden relative flex-shrink-0 ${isSelected ? 'border-amber-400' : 'border-stone-700 hover:border-stone-500'} disabled:opacity-50`}>
+                  {uploadingImg === img && (
+                    <div className="absolute inset-0 bg-stone-900/70 flex items-center justify-center text-amber-400 text-xs">⏳</div>
+                  )}
+                  <img
+                    src={img}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                    onError={() => setBrokenImgs(prev => new Set([...prev, img]))}
+                  />
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -603,6 +663,7 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
   const [url, setUrl] = useState('')
   const [scraped, setScraped] = useState<ScrapedData | null>(null)
   const [parentLinks, setParentLinks] = useState<string[]>([])
+  const [linkFilter, setLinkFilter] = useState('')
   const [scrapingLink, setScrapingLink] = useState<string | null>(null)
   const [parentLinkScraped, setParentLinkScraped] = useState<ScrapedData | null>(null)
 
@@ -620,7 +681,7 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
       method: 'POST',
       body: JSON.stringify({ url }),
     }),
-    onSuccess: (data) => setParentLinks(data.links),
+    onSuccess: (data) => { setParentLinks(data.links); setLinkFilter('') },
     onError: (e: Error) => alert(`Scrape failed: ${e.message}`),
   })
 
@@ -639,6 +700,10 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
       setScrapingLink(null)
     }
   }
+
+  const filteredLinks = linkFilter
+    ? parentLinks.filter(l => l.toLowerCase().includes(linkFilter.toLowerCase()))
+    : parentLinks
 
   if (!open) {
     return (
@@ -702,21 +767,45 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
 
       {/* Parent/archive result */}
       {tab === 'parent' && parentLinks.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">
-            Found {parentLinks.length} links — click a URL to scrape it:
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">
+              {filteredLinks.length === parentLinks.length
+                ? `Found ${parentLinks.length} links`
+                : `${filteredLinks.length} of ${parentLinks.length} links`}
+            </div>
+            <input
+              value={linkFilter}
+              onChange={e => setLinkFilter(e.target.value)}
+              placeholder="Filter by keyword…"
+              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-100 text-xs focus:outline-none focus:border-amber-400"
+            />
+            {linkFilter && (
+              <button onClick={() => setLinkFilter('')} className="text-stone-500 hover:text-stone-300 text-xs">✕</button>
+            )}
           </div>
           <div className="max-h-64 overflow-y-auto space-y-1.5">
-            {parentLinks.map(link => (
-              <div key={link} className="flex items-center gap-2 bg-stone-800 rounded-lg px-3 py-2">
-                <span className="text-stone-300 text-xs flex-1 truncate" title={link}>{link}</span>
-                <button type="button" disabled={scrapingLink === link}
-                  onClick={() => scrapeLink(link)}
-                  className="text-amber-400 hover:text-amber-300 text-xs px-2 py-1 rounded hover:bg-amber-500/10 disabled:opacity-50 whitespace-nowrap">
-                  {scrapingLink === link ? '…' : 'Scrape'}
-                </button>
-              </div>
-            ))}
+            {filteredLinks.map(link => {
+              // Show just the path slug for readability, full URL in title
+              let display = link
+              try { display = new URL(link).pathname.replace(/\/$/, '') } catch {}
+              return (
+                <div key={link} className="flex items-center gap-2 bg-stone-800 rounded-lg px-3 py-2">
+                  <span className="text-stone-300 text-xs flex-1 min-w-0" title={link}>
+                    <span className="truncate block">{display}</span>
+                    <span className="text-stone-600 truncate block text-[10px]">{link}</span>
+                  </span>
+                  <button type="button" disabled={!!scrapingLink}
+                    onClick={() => scrapeLink(link)}
+                    className="text-amber-400 hover:text-amber-300 text-xs px-2 py-1 rounded hover:bg-amber-500/10 disabled:opacity-50 whitespace-nowrap">
+                    {scrapingLink === link ? '⏳' : 'Scrape'}
+                  </button>
+                </div>
+              )
+            })}
+            {filteredLinks.length === 0 && (
+              <div className="text-stone-500 text-xs p-3 text-center">No links match filter</div>
+            )}
           </div>
           {parentLinkScraped && (
             <ScrapedPreviewForm data={parentLinkScraped} subscriptionId={subscriptionId} slug={slug}
