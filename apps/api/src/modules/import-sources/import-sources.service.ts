@@ -61,9 +61,18 @@ function validateUrl(raw: string): URL {
   return parsed;
 }
 
-/** Strip HTML tags and decode basic entities, returning plain text */
+/** Strip HTML tags and decode basic entities, returning plain text.
+ * Tries to extract the main content area first, falls back to full body. */
 function htmlToText(html: string): string {
-  return html
+  // Try to isolate main content (article, main, .post-content etc.)
+  const contentMatch =
+    html.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ||
+    html.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
+    html.match(/<div[^>]+class="[^"]*(?:post|entry|content|blog)[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+
+  const source = contentMatch ? contentMatch[1] : html;
+
+  return source
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
@@ -75,21 +84,44 @@ function htmlToText(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\s{2,}/g, ' ')
     .trim()
-    .slice(0, 8000); // cap to avoid huge AI inputs
+    .slice(0, 12000); // increased cap
 }
 
-/** Extract all <img src> and og:image URLs from raw HTML */
+/** Extract all image URLs from raw HTML — handles src, data-src, og:image, srcset */
 function extractImages(html: string): string[] {
   const urls = new Set<string>();
-  // og:image / twitter:image
-  for (const m of html.matchAll(/content=['"](https?:\/\/[^'"]+\.(jpe?g|png|webp)[^'"]*)['"]/gi)) {
+
+  // og:image / twitter:image meta tags (highest quality, usually the hero image)
+  for (const m of html.matchAll(/content=['"](https?:\/\/[^'"]+\.(jpe?g|png|webp|gif)[^'"]*)['"]/gi)) {
     urls.add(m[1]);
   }
   // <img src=...>
   for (const m of html.matchAll(/<img[^>]+src=['"](https?:\/\/[^'"]+)['"]/gi)) {
+    if (!m[1].includes('data:')) urls.add(m[1]);
+  }
+  // <img data-src=...> (lazy loading)
+  for (const m of html.matchAll(/<img[^>]+data-src=['"](https?:\/\/[^'"]+)['"]/gi)) {
     urls.add(m[1]);
   }
-  return [...urls].slice(0, 20);
+  // <img data-lazy-src=...>
+  for (const m of html.matchAll(/<img[^>]+data-lazy-src=['"](https?:\/\/[^'"]+)['"]/gi)) {
+    urls.add(m[1]);
+  }
+  // <img data-original=...> (another common lazy pattern)
+  for (const m of html.matchAll(/<img[^>]+data-original=['"](https?:\/\/[^'"]+)['"]/gi)) {
+    urls.add(m[1]);
+  }
+  // srcset — take the last (largest) URL from each srcset
+  for (const m of html.matchAll(/srcset=['"](https?:\/\/[^'"]+)['"]/gi)) {
+    const parts = m[1].split(',').map(s => s.trim().split(/\s+/)[0]).filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last?.startsWith('http')) urls.add(last);
+  }
+
+  // Filter out tiny icons/trackers (very short URLs or known tracker patterns)
+  return [...urls]
+    .filter(u => !u.includes('gravatar') && !u.includes('avatar') && u.length > 20)
+    .slice(0, 20);
 }
 
 /** Extract post/article links from a listing/archive page.

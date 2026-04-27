@@ -736,15 +736,17 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
       </div>
 
       {/* Single post result */}
-      {tab === 'single' && scraped && !scraped.year && !scraped.month && (
-        <div className="text-stone-500 text-xs p-3 bg-stone-800/50 rounded-lg">
-          AI could not extract month/year from this URL. The page may not be a subscription reveal post.
-        </div>
-      )}
-      {tab === 'single' && scraped && (scraped.year || scraped.month) && (
-        <ScrapedPreviewForm data={scraped} subscriptionId={subscriptionId} slug={slug}
-          onSaved={() => { setScraped(null); setUrl(''); onMonthCreated() }}
-          onCancel={() => setScraped(null)} />
+      {tab === 'single' && scraped && (
+        <>
+          {!scraped.year && !scraped.month && (
+            <div className="text-amber-600/80 text-xs px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              ⚠ AI could not detect month/year — please fill them in manually below.
+            </div>
+          )}
+          <ScrapedPreviewForm data={scraped} subscriptionId={subscriptionId} slug={slug}
+            onSaved={() => { setScraped(null); setUrl(''); onMonthCreated() }}
+            onCancel={() => setScraped(null)} />
+        </>
       )}
 
       {/* Parent/archive result */}
