@@ -14,6 +14,7 @@ import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto'
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('authors')
 @Controller('authors')
@@ -21,6 +22,7 @@ export class AuthorsController {
   constructor(
     private readonly authorsService: AuthorsService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -31,8 +33,15 @@ export class AuthorsController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.authorsService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const result = await this.authorsService.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'author_view',
+      entityType: 'author',
+      entityId: slug,
+      entityName: (result as any)?.name ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()

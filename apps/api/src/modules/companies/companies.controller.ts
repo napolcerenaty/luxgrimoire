@@ -15,6 +15,7 @@ import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('companies')
 @Controller('companies')
@@ -22,6 +23,7 @@ export class CompaniesController {
   constructor(
     private readonly companiesService: CompaniesService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -32,8 +34,15 @@ export class CompaniesController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.companiesService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const result = await this.companiesService.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'company_view',
+      entityType: 'company',
+      entityId: slug,
+      entityName: (result as any)?.name ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()

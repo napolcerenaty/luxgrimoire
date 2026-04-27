@@ -14,6 +14,7 @@ import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('books')
 @Controller('books')
@@ -21,6 +22,7 @@ export class BooksController {
   constructor(
     private readonly booksService: BooksService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -43,8 +45,15 @@ export class BooksController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.booksService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const result = await this.booksService.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'book_view',
+      entityType: 'book',
+      entityId: slug,
+      entityName: (result as any)?.title ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()

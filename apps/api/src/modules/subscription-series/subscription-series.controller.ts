@@ -16,11 +16,15 @@ import {
   AssignMonthsToSeriesDto,
 } from './subscription-series.dto';
 import { Roles, Public } from '../../common/decorators/auth.decorators';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('subscription-series')
 @Controller('subscription-series')
 export class SubscriptionSeriesController {
-  constructor(private readonly service: SubscriptionSeriesService) {}
+  constructor(
+    private readonly service: SubscriptionSeriesService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
 
   @Get()
   @Public()
@@ -32,8 +36,15 @@ export class SubscriptionSeriesController {
   @Get(':slug')
   @Public()
   @ApiOperation({ summary: 'Get series by slug' })
-  findOne(@Param('slug') slug: string) {
-    return this.service.findBySlug(slug);
+  async findOne(@Param('slug') slug: string) {
+    const result = await this.service.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'series_view',
+      entityType: 'series',
+      entityId: slug,
+      entityName: (result as any)?.name ?? undefined,
+    });
+    return result;
   }
 
   @Post()

@@ -2,6 +2,11 @@ import { IsString, IsIn, IsOptional, IsNumberString } from 'class-validator';
 
 export const SUPPORTED_EVENT_TYPES = [
   { id: 'edition_view',          label: 'Edition Views',                  defaultGroupBy: 'entity' },
+  { id: 'book_view',             label: 'Book Views',                     defaultGroupBy: 'entity' },
+  { id: 'author_view',           label: 'Author Views',                   defaultGroupBy: 'entity' },
+  { id: 'artist_view',           label: 'Artist Views',                   defaultGroupBy: 'entity' },
+  { id: 'company_view',          label: 'Company Views',                  defaultGroupBy: 'entity' },
+  { id: 'series_view',           label: 'Series Views',                   defaultGroupBy: 'entity' },
   { id: 'collection_add',        label: 'Collection Additions',           defaultGroupBy: 'entity' },
   { id: 'collection_remove',     label: 'Collection Removals',            defaultGroupBy: 'entity' },
   { id: 'collection_status',     label: 'Ownership Status Changes',       defaultGroupBy: 'value'  },

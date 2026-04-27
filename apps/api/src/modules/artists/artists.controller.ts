@@ -14,6 +14,7 @@ import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto'
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('artists')
 @Controller('artists')
@@ -21,6 +22,7 @@ export class ArtistsController {
   constructor(
     private readonly artistsService: ArtistsService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -31,8 +33,15 @@ export class ArtistsController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.artistsService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const result = await this.artistsService.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'artist_view',
+      entityType: 'artist',
+      entityId: slug,
+      entityName: (result as any)?.name ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
