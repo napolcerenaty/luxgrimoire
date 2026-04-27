@@ -221,30 +221,34 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
       }
 
-      // 3. Add new artists (those without `existing` flag)
-      const seenNames = new Map<string, string>()
+      // 3. Add new artists (those without `existing` flag) — same artist may appear
+      //    multiple times with different roles (AI may split them per bullet)
+      const artistIdByName = new Map<string, string>() // name.lower → resolved artistId
       for (const art of artists) {
         if (art.existing) continue // already linked
         const name = art.name.trim()
         if (!name) continue
         const key = name.toLowerCase()
-        if (seenNames.has(key)) continue
         let artistId = art.id
         if (!artistId) {
-          const existing = await authFetch<{ data: { id: string; name: string }[] }>(
-            `/artists?search=${encodeURIComponent(name)}&pageSize=5`
-          )
-          const match = existing.data?.find(a => a.name.toLowerCase() === key)
-          if (match) {
-            artistId = match.id
+          if (artistIdByName.has(key)) {
+            artistId = artistIdByName.get(key)!
           } else {
-            const created = await authFetch<{ id: string }>('/artists', {
-              method: 'POST', body: JSON.stringify({ name }),
-            })
-            artistId = created.id
+            const existing = await authFetch<{ data: { id: string; name: string }[] }>(
+              `/artists?search=${encodeURIComponent(name)}&pageSize=5`
+            )
+            const match = existing.data?.find(a => a.name.toLowerCase() === key)
+            if (match) {
+              artistId = match.id
+            } else {
+              const created = await authFetch<{ id: string }>('/artists', {
+                method: 'POST', body: JSON.stringify({ name }),
+              })
+              artistId = created.id
+            }
           }
         }
-        seenNames.set(key, artistId)
+        artistIdByName.set(key, artistId)
         await authFetch(`/editions/${edition.slug}/artists`, {
           method: 'POST',
           body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
