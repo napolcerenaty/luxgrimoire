@@ -50,6 +50,8 @@ interface SubFormData {
   skipMaxConsecutive: string
   skipWindowMonths: string
   skipDeadlineDaysBefore: string
+  skipDeadlineType: string
+  skipDeadlineDayOfMonth: string
   skipNotes: string
   skipHow: string
 }
@@ -64,7 +66,7 @@ const EMPTY_FORM: SubFormData = {
   price: '',
   language: '',
   type: '',
-  contentType: 'MIX',
+  contentType: 'MONTH',
   bookishMerch: false,
   renewalDayUserSet: false,
   renewalDay: '',
@@ -83,6 +85,8 @@ const EMPTY_FORM: SubFormData = {
   skipMaxConsecutive: '',
   skipWindowMonths: '',
   skipDeadlineDaysBefore: '0',
+  skipDeadlineType: 'DAYS_BEFORE',
+  skipDeadlineDayOfMonth: '',
   skipNotes: '',
   skipHow: '',
 }
@@ -118,6 +122,8 @@ function subToForm(sub: ApiSubscription): SubFormData {
     skipMaxConsecutive: p?.maxConsecutive != null ? String(p.maxConsecutive) : '',
     skipWindowMonths: p?.windowMonths != null ? String(p.windowMonths) : '',
     skipDeadlineDaysBefore: p?.skipDeadlineDaysBefore != null ? String(p.skipDeadlineDaysBefore) : '0',
+    skipDeadlineType: (p as any)?.skipDeadlineType ?? 'DAYS_BEFORE',
+    skipDeadlineDayOfMonth: (p as any)?.skipDeadlineDayOfMonth != null ? String((p as any).skipDeadlineDayOfMonth) : '',
     skipNotes: p?.notes ?? '',
     skipHow: (p as any)?.skipHow ?? '',
   }
@@ -463,11 +469,29 @@ function SubscriptionForm({
             </select>
           </div>
           {form.skipPolicyType !== 'NONE' && (
-            <div>
-              <label className={LABEL_CLASS}>Deadline — days before renewal</label>
-              <input type="number" min={0} max={60} className={INPUT_CLASS}
-                value={form.skipDeadlineDaysBefore} onChange={setStr('skipDeadlineDaysBefore')} placeholder="0" />
-              <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
+            <div className="space-y-2">
+              <div>
+                <label className={LABEL_CLASS}>Deadline type</label>
+                <select className={SELECT_CLASS} value={form.skipDeadlineType} onChange={setStr('skipDeadlineType')}>
+                  <option value="DAYS_BEFORE">Days before renewal</option>
+                  <option value="DAY_OF_MONTH">Specific day of month</option>
+                </select>
+              </div>
+              {form.skipDeadlineType === 'DAYS_BEFORE' ? (
+                <div>
+                  <label className={LABEL_CLASS}>Days before renewal</label>
+                  <input type="number" min={0} max={60} className={INPUT_CLASS}
+                    value={form.skipDeadlineDaysBefore} onChange={setStr('skipDeadlineDaysBefore')} placeholder="0" />
+                  <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
+                </div>
+              ) : (
+                <div>
+                  <label className={LABEL_CLASS}>Day of month (1–28)</label>
+                  <input type="number" min={1} max={28} className={INPUT_CLASS}
+                    value={form.skipDeadlineDayOfMonth} onChange={setStr('skipDeadlineDayOfMonth')} placeholder="e.g. 15" />
+                  <p className="text-xs text-stone-500 mt-1">Skip must be submitted by this date each month</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -571,7 +595,9 @@ export default function AdminSubscriptionsPage() {
             maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
             maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
             windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
-            skipDeadlineDaysBefore: parseInt(form.skipDeadlineDaysBefore || '0', 10),
+            skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
+            skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
+            skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
             notes: form.skipNotes || undefined,
             skipHow: form.skipHow || undefined,
           }),
@@ -599,7 +625,9 @@ export default function AdminSubscriptionsPage() {
           maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
           maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
           windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
-          skipDeadlineDaysBefore: parseInt(form.skipDeadlineDaysBefore || '0', 10),
+          skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
+          skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
+          skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
           notes: form.skipNotes || undefined,
           skipHow: form.skipHow || undefined,
         }),

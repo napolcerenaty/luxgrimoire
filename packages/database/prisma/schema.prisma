@@ -353,6 +353,8 @@ model SubscriptionSkipPolicy {
   notes                  String?
   skipHow                String?
   skipDeadlineDaysBefore Int          @default(0)
+  skipDeadlineType       String       @default("DAYS_BEFORE")
+  skipDeadlineDayOfMonth Int?
   subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("subscription_skip_policies")

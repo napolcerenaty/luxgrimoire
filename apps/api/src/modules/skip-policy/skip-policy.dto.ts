@@ -35,6 +35,17 @@ export class UpsertSkipPolicyDto {
   @Type(() => Number)
   skipDeadlineDaysBefore?: number;
 
+  /** "DAYS_BEFORE" (default) | "DAY_OF_MONTH" */
+  @IsOptional()
+  @IsString()
+  skipDeadlineType?: string;
+
+  /** Specific day of month (1–28) when skipDeadlineType = "DAY_OF_MONTH" */
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  skipDeadlineDayOfMonth?: number;
+
   @IsOptional()
   @IsString()
   notes?: string;
