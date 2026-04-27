@@ -43,6 +43,7 @@ model User {
   skipRecords              UserSkipRecord[]
   subEntryTags             UserSubEntryTag[]
   subscriptionEntries      UserSubscriptionEntry[]
+  subscriptionRenewals     UserSubscriptionRenewal[]
   bugReports               BugReport[]
   featureRequests          FeatureRequest[]
   featureVotes             FeatureVote[]
@@ -631,6 +632,7 @@ model UserSubscriptionEntry {
   tags               UserSubEntryTag[]
   costChanges        UserSubscriptionCostChange[]
   bookEntries        UserBookEntry[]
+  renewalHistory     UserSubscriptionRenewal[]
   subscription       Subscription                       @relation(fields: [subscriptionId], references: [id])
   user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeTemplates       UserSubscriptionEntryFeeTemplate[]
@@ -681,6 +683,22 @@ model UserSubscriptionCostChange {
   entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@map("user_subscription_cost_changes")
+}
+
+/// One row per actual (or backfilled) renewal date — no cost data, calendar use only.
+model UserSubscriptionRenewal {
+  id          String                @id @default(uuid())
+  userId      String
+  entryId     String
+  renewalDate DateTime              @db.Date
+  source      String                @default("manual") @db.VarChar(20)
+  createdAt   DateTime              @default(now())
+  entry       UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, renewalDate])
+  @@index([userId, renewalDate])
+  @@map("user_subscription_renewals")
 }
 
 model PurchaseTransaction {

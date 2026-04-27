@@ -108,6 +108,36 @@ export class CurrencyService {
     return entries.length;
   }
 
+  /**
+   * Fetch and store today's rate for a specific pair.
+   * Updates both ExchangeRateHistory (dated) and ExchangeRateCache (latest).
+   */
+  async upsertCurrentRates(pairs: Array<{ from: string; to: string }>): Promise<void> {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const results: string[] = [];
+
+    for (const { from, to } of pairs) {
+      const f = from.toUpperCase();
+      const t = to.toUpperCase();
+      if (f === t) continue;
+      try {
+        const rate = await this.fetchAndCache(f, t, today);
+        // Upsert into ExchangeRateCache (latest rate, one row per pair)
+        await this.prisma.exchangeRateCache.upsert({
+          where: { fromCurrency_toCurrency: { fromCurrency: f, toCurrency: t } },
+          create: { fromCurrency: f, toCurrency: t, rate },
+          update: { rate, fetchedAt: new Date() },
+        });
+        this.setCache(`${f}:${t}:${todayStr}`, rate, todayStr);
+        results.push(`${f}→${t}: ${rate}`);
+      } catch (err) {
+        this.logger.warn(`[Cron] Failed to fetch ${f}→${t}: ${err}`);
+      }
+    }
+    this.logger.log(`[Cron] Rates updated: ${results.join(', ')}`);
+  }
+
   // ─── Private ────────────────────────────────────────────────────────────────
 
   private setCache(key: string, rate: number, dateStr: string): void {

@@ -5,6 +5,49 @@ function incrementMonth(year: number, month: number): [number, number] {
 }
 
 /**
+ * Computes all past renewal dates for a subscription entry.
+ * Used to backfill UserSubscriptionRenewal records for calendar display.
+ */
+export function computePastRenewalDates(
+  renewalDay: number,
+  type: string | null,
+  startingMonth: number | null,
+  startDate: Date,
+  skippedMonths: { year: number; month: number }[],
+): Date[] {
+  const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
+  const now = new Date();
+  const dates: Date[] = [];
+
+  let year = startDate.getUTCFullYear();
+  let month = startDate.getUTCMonth() + 1;
+
+  for (let i = 0; i < 120; i++) {
+    // For multi-month intervals, skip months that don't align
+    if (interval > 1 && startingMonth != null) {
+      const offset = ((month - startingMonth) % 12 + 12) % 12;
+      if (offset % interval !== 0) {
+        [year, month] = incrementMonth(year, month);
+        continue;
+      }
+    }
+
+    const candDate = new Date(Date.UTC(year, month - 1, renewalDay));
+
+    if (candDate >= now) break;
+
+    if (candDate >= startDate) {
+      const isSkipped = skippedMonths.some((s) => s.year === year && s.month === month);
+      if (!isSkipped) dates.push(candDate);
+    }
+
+    [year, month] = incrementMonth(year, month);
+  }
+
+  return dates;
+}
+
+/**
  * Pure function — computes the next renewal date given subscription parameters.
  * Used both for display (API responses) and for persisting to DB.
  */
@@ -150,4 +193,66 @@ export async function refreshNextRenewalDate(
     where: { id: entryId },
     data: { nextRenewalDate: nextDate ?? null },
   });
+}
+
+/**
+ * Backfills UserSubscriptionRenewal records for a given entry.
+ * Computes all past renewal dates and upserts them as source='backfill'.
+ * Safe to call multiple times — uses upsert with unique(entryId, renewalDate).
+ */
+export async function backfillRenewalHistory(
+  prisma: PrismaService,
+  entryId: string,
+): Promise<void> {
+  const entry = await prisma.userSubscriptionEntry.findUnique({
+    where: { id: entryId },
+    select: {
+      id: true,
+      userId: true,
+      active: true,
+      startDate: true,
+      renewalDay: true,
+      skipRecords: {
+        where: { undoneAt: null },
+        include: { month: { select: { year: true, month: true } } },
+      },
+      subscription: {
+        select: { renewalDay: true, type: true, startingMonth: true },
+      },
+    },
+  });
+
+  if (!entry?.startDate) return;
+
+  const sub = entry.subscription as any;
+  const renewalDay: number = entry.renewalDay ?? sub.renewalDay ?? 1;
+  const skippedMonths = (entry.skipRecords as any[]).map((r) => ({
+    year: r.month.year,
+    month: r.month.month,
+  }));
+
+  // Parse startDate: supports YYYY-MM-DD and YYYY-MM
+  const parts = entry.startDate.split('-').map(Number);
+  const startDate = new Date(Date.UTC(parts[0], (parts[1] ?? 1) - 1, parts[2] ?? 1));
+
+  const dates = computePastRenewalDates(
+    renewalDay,
+    sub.type ?? null,
+    sub.startingMonth ?? null,
+    startDate,
+    skippedMonths,
+  );
+
+  if (dates.length === 0) return;
+
+  // Upsert all past renewal dates — skip_duplicates handles idempotency
+  await prisma.$transaction(
+    dates.map((d) =>
+      prisma.userSubscriptionRenewal.upsert({
+        where: { entryId_renewalDate: { entryId, renewalDate: d } },
+        create: { userId: entry.userId, entryId, renewalDate: d, source: 'backfill' },
+        update: {}, // no-op if already exists
+      }),
+    ),
+  );
 }

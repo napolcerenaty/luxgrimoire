@@ -17,7 +17,7 @@ import {
   BackfillSubscriptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
-import { computeNextRenewalDate, refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 
 export interface CountryFeeHint {
@@ -767,6 +767,8 @@ export class SubscriptionsService {
 
     // Persist nextRenewalDate so cron jobs can query it
     await refreshNextRenewalDate(this.prisma, entry.id);
+    // Backfill past renewal history for calendar display (fire-and-forget)
+    backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
 
     return { entry, eligibleMonths };
   }
@@ -1156,6 +1158,8 @@ export class SubscriptionsService {
 
     // Always recompute skip state after backfill to keep counters consistent
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
+    // Backfill past renewal dates for calendar (fire-and-forget)
+    backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
 
     return { booksAdded, skipsRecorded };
   }
