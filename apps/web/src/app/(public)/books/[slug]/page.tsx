@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import { AddEditionForm } from '@/components/books/AddEditionForm'
 import { ArtistLink } from '@/components/ui/ArtistLink'
 import { EditionCard } from '@/components/books/EditionCard'
@@ -180,7 +179,6 @@ export default async function BookPage({ params }: Props) {
         <AddEditionForm bookId={book.id} bookSlug={book.slug} />
       </section>
       <BookBundleInfo editionIds={editions.map(e => e.id)} />
-      <ReviewsSection bookId={book.id} />
     </div>
   )
 }

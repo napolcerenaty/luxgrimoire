@@ -27,26 +27,12 @@ model User {
   accounts                 Account[]
   auditLogs                AuditLog[]
   submittedEditions        BookEdition[]               @relation("SubmittedEditions")
-  commentLikes             CommentLike[]
-  conversationMembers      ConversationMember[]
-  editionComments          EditionComment[]
-  editionLikes             EditionLike[]
-  sentMessages             Message[]                   @relation("SentMessages")
   purchases                PurchaseTransaction[]
-  reviewHelpfuls           ReviewHelpful[]
-  reviews                  Review[]
   sessions                 Session[]
   waitlistEntries          SubscriptionWaitlistEntry[]
   bookEntries              UserBookEntry[]
   editionTags              UserEditionTag[]
-  favoriteArtists          UserFavoriteArtist[]
-  favoriteAuthors          UserFavoriteAuthor[]
-  favoriteBooks            UserFavoriteBook[]
-  favoriteCompanies        UserFavoriteCompany[]
-  favoriteEditions         UserFavoriteEdition[]
   feeTemplates             UserFeeTemplate[]
-  following                UserFollow[]                @relation("Follower")
-  followers                UserFollow[]                @relation("Following")
   notifications            UserNotification[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
@@ -125,10 +111,8 @@ model Book {
   genres       String[]
   authors      BookAuthor[]
   editions     BookEdition[]
-  reviews      Review[]
   monthBooks   SubscriptionMonthBook[]
   userEntries  UserBookEntry[]
-  favoriteBy   UserFavoriteBook[]
 
   @@index([language])
   @@index([seriesName])
@@ -151,7 +135,6 @@ model Author {
   twitter     String?
   website     String?
   books       BookAuthor[]
-  favoriteBy  UserFavoriteAuthor[]
 
   @@index([nationality])
   @@index([name])
@@ -183,7 +166,6 @@ model Artist {
   twitter       String?
   website       String?
   contributions ArtistContribution[]
-  favoriteBy    UserFavoriteArtist[]
 
   @@index([specialty])
   @@index([name])
@@ -236,13 +218,10 @@ model BookEdition {
   book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
   collection               BookBoxCollection?        @relation(fields: [collectionId], references: [id])
   submittedBy              User?                     @relation("SubmittedEditions", fields: [submittedByUserId], references: [id])
-  comments                 EditionComment[]
-  likes                    EditionLike[]
   saleEditions             SaleAnnouncementEdition[]
   monthBooks               SubscriptionMonthBook[]
   userEntries              UserBookEntry[]
   tags                     UserEditionTag[]
-  favoriteBy               UserFavoriteEdition[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -279,7 +258,6 @@ model BookBoxCompany {
   sponsoredSlots    SponsoredSlot[]
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
-  favoriteBy        UserFavoriteCompany[]
   managers          User[]                @relation("CompanyManagers")
 
   @@index([country])
@@ -718,56 +696,6 @@ model PurchaseTransaction {
   @@map("purchase_transactions")
 }
 
-model UserFavoriteBook {
-  userId String
-  bookId String
-  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, bookId])
-  @@map("user_favorite_books")
-}
-
-model UserFavoriteAuthor {
-  userId   String
-  authorId String
-  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, authorId])
-  @@map("user_favorite_authors")
-}
-
-model UserFavoriteArtist {
-  userId   String
-  artistId String
-  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, artistId])
-  @@map("user_favorite_artists")
-}
-
-model UserFavoriteEdition {
-  userId    String
-  editionId String
-  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, editionId])
-  @@map("user_favorite_editions")
-}
-
-model UserFavoriteCompany {
-  userId    String
-  companyId String
-  company   BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, companyId])
-  @@map("user_favorite_companies")
-}
-
 model UserEditionTag {
   id        String      @id @default(uuid())
   userId    String
@@ -790,132 +718,6 @@ model UserSubEntryTag {
 
   @@unique([userId, entryId, tag])
   @@map("user_sub_entry_tags")
-}
-
-model UserFollow {
-  followerId  String
-  followingId String
-  createdAt   DateTime @default(now())
-  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@id([followerId, followingId])
-  @@index([followerId])
-  @@index([followingId])
-  @@map("user_follows")
-}
-
-model Review {
-  id                 String          @id @default(uuid())
-  userId             String
-  bookId             String
-  rating             Int
-  title              String?
-  body               String
-  containsSpoilers   Boolean         @default(false)
-  isVerifiedPurchase Boolean         @default(false)
-  helpfulCount       Int             @default(0)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  helpful            ReviewHelpful[]
-  book               Book            @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, bookId])
-  @@index([bookId])
-  @@index([userId])
-  @@index([bookId, createdAt])
-  @@map("reviews")
-}
-
-model ReviewHelpful {
-  userId    String
-  reviewId  String
-  createdAt DateTime @default(now())
-  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, reviewId])
-  @@index([reviewId])
-  @@map("review_helpfuls")
-}
-
-model EditionLike {
-  userId    String
-  editionId String
-  createdAt DateTime    @default(now())
-  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, editionId])
-  @@index([editionId])
-  @@map("edition_likes")
-}
-
-model EditionComment {
-  id        String        @id @default(uuid())
-  userId    String
-  editionId String
-  content   String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  likes     CommentLike[]
-  edition   BookEdition   @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([editionId])
-  @@index([userId])
-  @@map("edition_comments")
-}
-
-model CommentLike {
-  userId    String
-  commentId String
-  createdAt DateTime       @default(now())
-  comment   EditionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, commentId])
-  @@index([commentId])
-  @@map("comment_likes")
-}
-
-model Conversation {
-  id        String               @id @default(uuid())
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
-  members   ConversationMember[]
-  messages  Message[]
-
-  @@map("conversations")
-}
-
-model ConversationMember {
-  conversationId String
-  userId         String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([conversationId, userId])
-  @@index([userId])
-  @@map("conversation_members")
-}
-
-model Message {
-  id             String       @id @default(uuid())
-  conversationId String
-  senderId       String
-  content        String
-  readAt         DateTime?
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId])
-  @@index([senderId])
-  @@index([createdAt])
-  @@index([conversationId, createdAt])
-  @@map("messages")
 }
 
 model UserNotification {

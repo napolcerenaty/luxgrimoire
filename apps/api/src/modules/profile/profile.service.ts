@@ -18,7 +18,7 @@ export class ProfileService {
         role: true,
         _count: {
           select: {
-            favoriteBooks: true,
+            bookEntries: true,
           },
         },
       },

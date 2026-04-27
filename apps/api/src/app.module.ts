@@ -17,12 +17,9 @@ import { SearchModule } from './modules/search/search.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { SpendingModule } from './modules/spending/spending.module';
 import { FeesModule } from './modules/fees/fees.module';
-import { FavoritesModule } from './modules/favorites/favorites.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { SponsoredModule } from './modules/sponsored/sponsored.module';
-import { ReviewsModule } from './modules/reviews/reviews.module';
-import { SocialModule } from './modules/social/social.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
@@ -58,12 +55,9 @@ import { SalesModule } from './modules/sales/sales.module';
     UploadModule,
     SpendingModule,
     FeesModule,
-    FavoritesModule,
     NotificationsModule,
     ProfileModule,
     SponsoredModule,
-    ReviewsModule,
-    SocialModule,
     AnnouncementsModule,
     SaleInterestsModule,
     SkipPolicyModule,
