@@ -6,7 +6,6 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
-import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 const INPUT_CLASS =
@@ -311,39 +310,64 @@ export default function AdminCompaniesPage() {
   ]
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-stone-100">Book Boxes</h1>
-        {!isManager && (
+        {!isManager && !createOpen && !editCompany && (
           <button
             onClick={() => setCreateOpen(true)}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
           >
-            Add Book Box
+            + Add Book Box
           </button>
         )}
       </div>
 
-      {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
-      ) : (
-        <DataTable columns={columns} data={companies} onEdit={(row) => setEditCompany(row)} onDelete={isManager ? undefined : (row) => setDeleteCompany(row)} />
+      {/* Inline Create form */}
+      {createOpen && (
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-stone-100">Add Book Box</h2>
+            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+          </div>
+          <CompanyForm
+            initial={EMPTY_FORM}
+            submitLabel="Create Book Box"
+            submitting={createMutation.isPending}
+            onSubmit={(form) => createMutation.mutate(formToPayload(form))}
+          />
+        </div>
       )}
 
-      <FormModal open={createOpen} title="Add Book Box" onClose={() => setCreateOpen(false)}>
-        <CompanyForm initial={EMPTY_FORM} submitLabel="Create Book Box" submitting={createMutation.isPending} onSubmit={(form) => createMutation.mutate(formToPayload(form))} />
-      </FormModal>
-
-      <FormModal open={editCompany !== null} title="Edit Book Box" onClose={() => setEditCompany(null)}>
-        {editCompany && (
+      {/* Inline Edit form */}
+      {editCompany && (
+        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-stone-100">Edit — {editCompany.name}</h2>
+            <button onClick={() => setEditCompany(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+          </div>
           <CompanyForm
+            key={editCompany.id}
             initial={companyToForm(editCompany)}
             submitLabel="Save Changes"
             submitting={editMutation.isPending}
             onSubmit={(form) => editMutation.mutate({ slug: editCompany.slug, payload: formToPayload(form) })}
           />
-        )}
-      </FormModal>
+        </div>
+      )}
+
+      {/* Company table */}
+      {isLoading ? (
+        <div className="text-stone-400 py-8 text-center">Loading…</div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={companies}
+          onEdit={(row) => { setEditCompany(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          onDelete={isManager ? undefined : (row) => setDeleteCompany(row)}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteCompany !== null}
