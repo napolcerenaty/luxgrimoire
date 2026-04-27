@@ -489,6 +489,560 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
   )
 }
 
+// ─── Scraped preview + save ───────────────────────────────────────────────────
+type ScrapedData = {
+  year: number | null; month: number | null; theme: string | null
+  bookTitle: string | null; bookAuthor: string | null
+  imageUrl: string | null; allImages: string[]; sourceUrl: string
+}
+
+function ScrapedPreviewForm({
+  data, subscriptionId, slug, onSaved, onCancel,
+}: { data: ScrapedData; subscriptionId: string; slug: string; onSaved: () => void; onCancel: () => void }) {
+  const [year, setYear] = useState(String(data.year ?? ''))
+  const [month, setMonth] = useState(String(data.month ?? ''))
+  const [theme, setTheme] = useState(data.theme ?? '')
+  const [coverImageUrl, setCoverImageUrl] = useState(data.imageUrl ?? '')
+  const [bookTitle, setBookTitle] = useState(data.bookTitle ?? '')
+  const [bookAuthor, setBookAuthor] = useState(data.bookAuthor ?? '')
+
+  const savePendingMutation = useMutation({
+    mutationFn: () => authFetch('/admin/import/pending/from-scrape', {
+      method: 'POST',
+      body: JSON.stringify({
+        subscriptionId, year: parseInt(year), month: parseInt(month),
+        theme: theme || undefined, coverImageUrl: coverImageUrl || undefined,
+        bookTitle: bookTitle || undefined, bookAuthor: bookAuthor || undefined,
+        sourceUrl: data.sourceUrl, allImages: data.allImages,
+      }),
+    }),
+    onSuccess: () => { alert('Saved as pending — review in Pending Imports below'); onSaved() },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const saveDirectMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
+      method: 'POST',
+      body: JSON.stringify({ year: parseInt(year), month: parseInt(month), theme: theme || undefined, coverImage: coverImageUrl || undefined }),
+    }),
+    onSuccess: () => { alert('Month created directly'); onSaved() },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="bg-stone-800 rounded-xl p-4 space-y-3 border border-amber-500/30">
+      <div className="text-amber-400 text-xs font-semibold uppercase tracking-wide">Scraped preview — verify before saving</div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>Year</label>
+          <input type="number" value={year} onChange={e => setYear(e.target.value)} className={INPUT} min={2000} max={2100} />
+        </div>
+        <div>
+          <label className={LABEL}>Month</label>
+          <select value={month} onChange={e => setMonth(e.target.value)} className={INPUT}>
+            <option value="">—</option>
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i+1} value={i+1}>{i+1} — {MONTH_NAMES[i]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className={LABEL}>Theme</label>
+        <input value={theme} onChange={e => setTheme(e.target.value)} className={INPUT} />
+      </div>
+      <div>
+        <label className={LABEL}>Cover image URL</label>
+        <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} />
+      </div>
+      {data.allImages.length > 0 && (
+        <div>
+          <label className={LABEL}>All found images — click to use as cover</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {data.allImages.slice(0, 8).map((img, i) => (
+              <button key={i} type="button" onClick={() => setCoverImageUrl(img)}
+                className={`w-12 h-12 rounded border-2 overflow-hidden ${coverImageUrl === img ? 'border-amber-400' : 'border-stone-700 hover:border-stone-500'}`}>
+                <img src={img} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>Book title</label>
+          <input value={bookTitle} onChange={e => setBookTitle(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <label className={LABEL}>Book author</label>
+          <input value={bookAuthor} onChange={e => setBookAuthor(e.target.value)} className={INPUT} />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="button" disabled={saveDirectMutation.isPending || !year || !month}
+          onClick={() => saveDirectMutation.mutate()}
+          className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+          {saveDirectMutation.isPending ? 'Saving…' : '✓ Save as month'}
+        </button>
+        <button type="button" disabled={savePendingMutation.isPending || !year || !month}
+          onClick={() => savePendingMutation.mutate()}
+          className="bg-stone-600 text-stone-200 px-3 py-1.5 rounded-lg hover:bg-stone-500 disabled:opacity-50 text-xs">
+          {savePendingMutation.isPending ? 'Saving…' : '⏳ Save as pending'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="text-stone-500 hover:text-stone-300 text-xs px-2">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Import from URL panel ────────────────────────────────────────────────────
+function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscriptionId: string; slug: string; onMonthCreated: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<'single' | 'parent'>('single')
+  const [url, setUrl] = useState('')
+  const [scraped, setScraped] = useState<ScrapedData | null>(null)
+  const [parentLinks, setParentLinks] = useState<string[]>([])
+  const [scrapingLink, setScrapingLink] = useState<string | null>(null)
+  const [parentLinkScraped, setParentLinkScraped] = useState<ScrapedData | null>(null)
+
+  const scrapeMutation = useMutation({
+    mutationFn: () => authFetch<ScrapedData>('/admin/import/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ url, subscriptionId }),
+    }),
+    onSuccess: (data) => setScraped(data),
+    onError: (e: Error) => alert(`Scrape failed: ${e.message}`),
+  })
+
+  const scrapeParentMutation = useMutation({
+    mutationFn: () => authFetch<{ links: string[] }>('/admin/import/scrape-parent', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+    onSuccess: (data) => setParentLinks(data.links),
+    onError: (e: Error) => alert(`Scrape failed: ${e.message}`),
+  })
+
+  const scrapeLink = async (link: string) => {
+    setScrapingLink(link)
+    setParentLinkScraped(null)
+    try {
+      const data = await authFetch<ScrapedData>('/admin/import/scrape', {
+        method: 'POST',
+        body: JSON.stringify({ url: link, subscriptionId }),
+      })
+      setParentLinkScraped(data)
+    } catch (e: unknown) {
+      alert(`Scrape failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    } finally {
+      setScrapingLink(null)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        title="do pobierania danych historycznych"
+        className="flex items-center gap-1.5 px-3 py-2 bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg text-sm transition-colors"
+      >
+        <span>🕐</span>
+        <span className="text-xs">Import history</span>
+      </button>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-stone-100 font-semibold text-sm">🕐 Import historical month data</div>
+        <button onClick={() => { setOpen(false); setScraped(null); setParentLinks([]); setUrl('') }}
+          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-stone-800 p-1 rounded-lg w-fit">
+        {(['single', 'parent'] as const).map(t => (
+          <button key={t} onClick={() => { setTab(t); setScraped(null); setParentLinks([]) }}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === t ? 'bg-stone-600 text-stone-100' : 'text-stone-400 hover:text-stone-300'}`}>
+            {t === 'single' ? 'Single post URL' : 'Archive / listing URL'}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <label className={LABEL}>{tab === 'single' ? 'Blog post URL' : 'Archive / category page URL'}</label>
+        <div className="flex gap-2">
+          <input value={url} onChange={e => setUrl(e.target.value)}
+            placeholder={tab === 'single' ? 'https://blog.example.com/august-2024-reveal' : 'https://blog.example.com/reveals'}
+            className={INPUT} />
+          <button
+            type="button"
+            disabled={(tab === 'single' ? scrapeMutation.isPending : scrapeParentMutation.isPending) || !url}
+            onClick={() => tab === 'single' ? scrapeMutation.mutate() : scrapeParentMutation.mutate()}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm whitespace-nowrap"
+          >
+            {(scrapeMutation.isPending || scrapeParentMutation.isPending) ? 'Scraping…' : 'Scrape'}
+          </button>
+        </div>
+      </div>
+
+      {/* Single post result */}
+      {tab === 'single' && scraped && !scraped.year && !scraped.month && (
+        <div className="text-stone-500 text-xs p-3 bg-stone-800/50 rounded-lg">
+          AI could not extract month/year from this URL. The page may not be a subscription reveal post.
+        </div>
+      )}
+      {tab === 'single' && scraped && (scraped.year || scraped.month) && (
+        <ScrapedPreviewForm data={scraped} subscriptionId={subscriptionId} slug={slug}
+          onSaved={() => { setScraped(null); setUrl(''); onMonthCreated() }}
+          onCancel={() => setScraped(null)} />
+      )}
+
+      {/* Parent/archive result */}
+      {tab === 'parent' && parentLinks.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">
+            Found {parentLinks.length} links — click a URL to scrape it:
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-1.5">
+            {parentLinks.map(link => (
+              <div key={link} className="flex items-center gap-2 bg-stone-800 rounded-lg px-3 py-2">
+                <span className="text-stone-300 text-xs flex-1 truncate" title={link}>{link}</span>
+                <button type="button" disabled={scrapingLink === link}
+                  onClick={() => scrapeLink(link)}
+                  className="text-amber-400 hover:text-amber-300 text-xs px-2 py-1 rounded hover:bg-amber-500/10 disabled:opacity-50 whitespace-nowrap">
+                  {scrapingLink === link ? '…' : 'Scrape'}
+                </button>
+              </div>
+            ))}
+          </div>
+          {parentLinkScraped && (
+            <ScrapedPreviewForm data={parentLinkScraped} subscriptionId={subscriptionId} slug={slug}
+              onSaved={() => { setParentLinkScraped(null); onMonthCreated() }}
+              onCancel={() => setParentLinkScraped(null)} />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Pending imports panel ────────────────────────────────────────────────────
+type PendingImport = {
+  id: string; year: number; month: number; theme: string | null
+  bookTitle: string | null; bookAuthor: string | null
+  coverImageUrl: string | null; sourceUrl: string; status: string
+  createdAt: string
+}
+
+function PendingImportsPanel({ subscriptionId, slug, onApproved }: { subscriptionId: string; slug: string; onApproved: () => void }) {
+  const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const qKey = ['admin', 'import', 'pending', subscriptionId]
+
+  const { data: pending = [], isLoading } = useQuery<PendingImport[]>({
+    queryKey: qKey,
+    queryFn: () => authFetch(`/admin/import/pending?subscriptionId=${subscriptionId}&status=PENDING`),
+    enabled: open,
+  })
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => authFetch(`/admin/import/pending/${id}/approve`, { method: 'PATCH', body: '{}' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); onApproved() },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => authFetch(`/admin/import/pending/${id}/reject`, { method: 'PATCH', body: '{}' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
+        <div className="flex items-center gap-2">
+          <span className="text-amber-400 text-sm">⏳</span>
+          <span className="text-stone-200 font-semibold text-sm">Pending Imports</span>
+          <span className="text-stone-500 text-xs">auto-scraped data awaiting review</span>
+        </div>
+        <span className="text-stone-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-stone-800 p-4 space-y-3">
+          {isLoading ? (
+            <div className="text-stone-500 text-sm py-4 text-center">Loading…</div>
+          ) : pending.length === 0 ? (
+            <div className="text-stone-500 text-sm py-4 text-center">No pending imports</div>
+          ) : (
+            pending.map(item => (
+              <div key={item.id} className="bg-stone-800 rounded-xl p-3 space-y-2">
+                <div className="flex items-start gap-3">
+                  {item.coverImageUrl && (
+                    <img src={item.coverImageUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-stone-100 text-sm font-medium">
+                      {MONTH_NAMES[(item.month ?? 1) - 1]} {item.year}
+                      {item.theme && <span className="text-stone-400 ml-2 font-normal">— {item.theme}</span>}
+                    </div>
+                    {item.bookTitle && (
+                      <div className="text-stone-400 text-xs">{item.bookTitle}{item.bookAuthor ? ` by ${item.bookAuthor}` : ''}</div>
+                    )}
+                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-stone-600 hover:text-stone-400 text-xs truncate block max-w-xs">{item.sourceUrl}</a>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button disabled={approveMutation.isPending}
+                      onClick={() => approveMutation.mutate(item.id)}
+                      className="bg-green-500/20 text-green-400 hover:bg-green-500/30 px-3 py-1 rounded text-xs disabled:opacity-50">
+                      ✓ Approve
+                    </button>
+                    <button disabled={rejectMutation.isPending}
+                      onClick={() => rejectMutation.mutate(item.id)}
+                      className="bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-1 rounded text-xs disabled:opacity-50">
+                      ✕ Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Import sources panel ─────────────────────────────────────────────────────
+type ImportSource = {
+  id: string; name: string; url: string; sourceType: string; targetType: string
+  checkFrequency: string; checkHour: number; checkDayOfWeek: number | null; checkDayOfMonth: number | null
+  enabled: boolean; lastCheckedAt: string | null; monthThemeKeywords: string | null; saleKeywords: string | null
+  subscriptionId: string | null; companyId: string | null
+}
+
+const FREQ_LABELS: Record<string, string> = { DAILY: 'Daily', WEEKLY: 'Weekly', MONTHLY: 'Monthly' }
+const SOURCE_TYPE_LABELS: Record<string, string> = { BLOG: 'Blog post', BLOG_LISTING: 'Blog listing', RSS: 'RSS feed' }
+
+function ImportSourcesPanel({ subscriptionId }: { subscriptionId: string }) {
+  const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<ImportSource | null>(null)
+  const queryClient = useQueryClient()
+  const qKey = ['admin', 'import', 'sources', subscriptionId]
+
+  const { data: sources = [], isLoading } = useQuery<ImportSource[]>({
+    queryKey: qKey,
+    queryFn: () => authFetch(`/admin/import/sources?subscriptionId=${subscriptionId}`),
+    enabled: open,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => authFetch(`/admin/import/sources/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const checkNowMutation = useMutation({
+    mutationFn: (id: string) => authFetch(`/admin/import/sources/${id}/check`, { method: 'POST', body: '{}' }),
+    onSuccess: () => alert('Check triggered — new pending imports (if any) will appear shortly'),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
+        <div className="flex items-center gap-2">
+          <span className="text-blue-400 text-sm">⚙️</span>
+          <span className="text-stone-200 font-semibold text-sm">Import Sources</span>
+          <span className="text-stone-500 text-xs">automatic scraping schedules</span>
+        </div>
+        <span className="text-stone-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-stone-800 p-4 space-y-4">
+          {/* Source list */}
+          {isLoading ? (
+            <div className="text-stone-500 text-sm py-2 text-center">Loading…</div>
+          ) : sources.length === 0 && !creating ? (
+            <div className="text-stone-500 text-sm py-2 text-center">No import sources configured</div>
+          ) : (
+            sources.map(src => (
+              editing?.id === src.id
+                ? <ImportSourceForm key={src.id} subscriptionId={subscriptionId} initial={src}
+                    onSaved={() => { setEditing(null); queryClient.invalidateQueries({ queryKey: qKey }) }}
+                    onCancel={() => setEditing(null)} />
+                : (
+                  <div key={src.id} className="bg-stone-800 rounded-xl p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${src.enabled ? 'bg-green-400' : 'bg-stone-600'}`} />
+                          <span className="text-stone-100 text-sm font-medium">{src.name}</span>
+                          <span className="text-stone-500 text-xs">{SOURCE_TYPE_LABELS[src.sourceType] ?? src.sourceType}</span>
+                          <span className="text-stone-500 text-xs">·</span>
+                          <span className="text-stone-500 text-xs">{FREQ_LABELS[src.checkFrequency] ?? src.checkFrequency}</span>
+                        </div>
+                        <a href={src.url} target="_blank" rel="noopener noreferrer"
+                          className="text-stone-500 hover:text-stone-300 text-xs truncate block">{src.url}</a>
+                        {src.lastCheckedAt && (
+                          <div className="text-stone-600 text-xs">Last checked: {new Date(src.lastCheckedAt).toLocaleString()}</div>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button disabled={checkNowMutation.isPending}
+                          onClick={() => checkNowMutation.mutate(src.id)}
+                          title="Check now"
+                          className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 rounded hover:bg-blue-500/10 disabled:opacity-50">
+                          ▶ Run
+                        </button>
+                        <button onClick={() => setEditing(src)}
+                          className="text-stone-400 hover:text-stone-200 text-xs px-2 py-1 rounded hover:bg-stone-700">Edit</button>
+                        <button disabled={deleteMutation.isPending}
+                          onClick={() => { if (confirm('Delete this import source?')) deleteMutation.mutate(src.id) }}
+                          className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/10 disabled:opacity-50">Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                )
+            ))
+          )}
+          {creating && (
+            <ImportSourceForm subscriptionId={subscriptionId}
+              onSaved={() => { setCreating(false); queryClient.invalidateQueries({ queryKey: qKey }) }}
+              onCancel={() => setCreating(false)} />
+          )}
+          {!creating && !editing && (
+            <button onClick={() => setCreating(true)}
+              className="text-amber-400 hover:text-amber-300 text-xs px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors">
+              + Add import source
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Import source form (create / edit) ──────────────────────────────────────
+function ImportSourceForm({
+  subscriptionId, initial, onSaved, onCancel,
+}: { subscriptionId: string; initial?: ImportSource; onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [url, setUrl] = useState(initial?.url ?? '')
+  const [sourceType, setSourceType] = useState(initial?.sourceType ?? 'BLOG')
+  const [freq, setFreq] = useState(initial?.checkFrequency ?? 'WEEKLY')
+  const [hour, setHour] = useState(String(initial?.checkHour ?? 8))
+  const [dayOfWeek, setDayOfWeek] = useState(String(initial?.checkDayOfWeek ?? 1))
+  const [dayOfMonth, setDayOfMonth] = useState(String(initial?.checkDayOfMonth ?? 1))
+  const [keywords, setKeywords] = useState(initial?.monthThemeKeywords ?? '')
+  const [enabled, setEnabled] = useState(initial?.enabled ?? true)
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body = {
+        name, url, sourceType, subscriptionId,
+        checkFrequency: freq,
+        checkHour: parseInt(hour),
+        checkDayOfWeek: freq === 'WEEKLY' ? parseInt(dayOfWeek) : undefined,
+        checkDayOfMonth: freq === 'MONTHLY' ? parseInt(dayOfMonth) : undefined,
+        monthThemeKeywords: keywords || undefined,
+        enabled,
+        targetType: 'MONTH_THEME',
+      }
+      return initial
+        ? authFetch(`/admin/import/sources/${initial.id}`, { method: 'PUT', body: JSON.stringify(body) })
+        : authFetch('/admin/import/sources', { method: 'POST', body: JSON.stringify(body) })
+    },
+    onSuccess: onSaved,
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return (
+    <div className="bg-stone-800/60 rounded-xl p-4 space-y-3 border border-stone-700">
+      <div className="text-stone-100 text-xs font-semibold uppercase tracking-wide">
+        {initial ? 'Edit source' : 'New import source'}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className={LABEL}>Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} className={INPUT} placeholder="e.g. Illumicrate Blog" />
+        </div>
+        <div className="col-span-2">
+          <label className={LABEL}>URL</label>
+          <input value={url} onChange={e => setUrl(e.target.value)} className={INPUT} placeholder="https://..." />
+        </div>
+        <div>
+          <label className={LABEL}>Source type</label>
+          <select value={sourceType} onChange={e => setSourceType(e.target.value)} className={INPUT}>
+            <option value="BLOG">Blog post (single URL)</option>
+            <option value="BLOG_LISTING">Blog listing (archive)</option>
+            <option value="RSS">RSS feed</option>
+          </select>
+        </div>
+        <div>
+          <label className={LABEL}>Check frequency</label>
+          <select value={freq} onChange={e => setFreq(e.target.value)} className={INPUT}>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+          </select>
+        </div>
+        <div>
+          <label className={LABEL}>Check hour (UTC)</label>
+          <select value={hour} onChange={e => setHour(e.target.value)} className={INPUT}>
+            {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00 UTC</option>)}
+          </select>
+        </div>
+        {freq === 'WEEKLY' && (
+          <div>
+            <label className={LABEL}>Day of week</label>
+            <select value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)} className={INPUT}>
+              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+            </select>
+          </div>
+        )}
+        {freq === 'MONTHLY' && (
+          <div>
+            <label className={LABEL}>Day of month</label>
+            <select value={dayOfMonth} onChange={e => setDayOfMonth(e.target.value)} className={INPUT}>
+              {Array.from({ length: 28 }, (_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="col-span-2">
+          <label className={LABEL}>Month theme keywords (comma-separated, optional)</label>
+          <input value={keywords} onChange={e => setKeywords(e.target.value)} className={INPUT}
+            placeholder="reveal, theme, book of the month…" />
+        </div>
+        <div className="col-span-2 flex items-center gap-2">
+          <input type="checkbox" id="src-enabled" checked={enabled} onChange={e => setEnabled(e.target.checked)}
+            className="accent-amber-400" />
+          <label htmlFor="src-enabled" className="text-stone-300 text-xs">Enabled</label>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" disabled={mutation.isPending || !name || !url}
+          onClick={() => mutation.mutate()}
+          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+          {mutation.isPending ? 'Saving…' : initial ? 'Save changes' : 'Create source'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="bg-stone-700 text-stone-300 px-4 py-2 rounded-lg hover:bg-stone-600 text-sm">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 interface SubscriptionInfo { id: string; name: string; defaultCurrency?: string | null; bookBoxCompanyId?: string | null; price?: number | null; renewalDay?: number | null }
 
@@ -496,6 +1050,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   const { slug } = use(params)
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
+  const [importUrlOpen, setImportUrlOpen] = useState(false)
 
   const { data: subscription } = useQuery<SubscriptionInfo>({
     queryKey: ['admin', 'subscriptions', slug],
@@ -506,6 +1061,8 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     queryKey: qKey,
     queryFn: () => authFetch<Month[]>(`/subscriptions/${slug}/months`),
   })
+
+  const invalidateMonths = () => queryClient.invalidateQueries({ queryKey: qKey })
 
   return (
     <div>
@@ -518,8 +1075,29 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
       </div>
 
       <div className="space-y-4">
-        <AddMonthForm slug={slug} onSuccess={() => queryClient.invalidateQueries({ queryKey: qKey })} />
+        {/* Top action row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <AddMonthForm slug={slug} onSuccess={invalidateMonths} />
+          <button
+            onClick={() => setImportUrlOpen(!importUrlOpen)}
+            title="do pobierania danych historycznych"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${importUrlOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+          >
+            <span>🕐</span>
+            <span className="text-xs">Import history</span>
+          </button>
+        </div>
 
+        {/* Import URL panel */}
+        {importUrlOpen && subscription?.id && (
+          <ImportUrlPanel
+            subscriptionId={subscription.id}
+            slug={slug}
+            onMonthCreated={() => { invalidateMonths(); setImportUrlOpen(false) }}
+          />
+        )}
+
+        {/* Month list */}
         {isLoading ? (
           <div className="text-stone-400 py-8 text-center">Loading months…</div>
         ) : !months?.length ? (
@@ -538,6 +1116,14 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
               />
             ))}
           </div>
+        )}
+
+        {/* Pending imports + import sources panels (visible when subscription is loaded) */}
+        {subscription?.id && (
+          <>
+            <PendingImportsPanel subscriptionId={subscription.id} slug={slug} onApproved={invalidateMonths} />
+            <ImportSourcesPanel subscriptionId={subscription.id} />
+          </>
         )}
       </div>
     </div>

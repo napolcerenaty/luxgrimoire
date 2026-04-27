@@ -37,6 +37,7 @@ import { FeatureRequestsModule } from './modules/feature-requests/feature-reques
 import { DataRequestsModule } from './modules/data-requests/data-requests.module';
 import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { ImportSourcesModule } from './modules/import-sources/import-sources.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { SalesModule } from './modules/sales/sales.module';
     DataRequestsModule,
     SaleAnnouncementRequestsModule,
     SalesModule,
+    ImportSourcesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

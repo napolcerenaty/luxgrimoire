@@ -29,8 +29,18 @@ export class SubscriptionSeriesController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List series for a subscription' })
-  findBySubscriptionSlug(@Query('subscriptionSlug') subscriptionSlug: string) {
-    return this.service.findBySubscriptionSlug(subscriptionSlug);
+  async findBySubscriptionSlug(@Query('subscriptionSlug') subscriptionSlug: string) {
+    const results = await this.service.findBySubscriptionSlug(subscriptionSlug);
+    // Track one view event per series when the list is fetched for a subscription
+    for (const s of results) {
+      this.analyticsService.track({
+        eventType: 'series_view',
+        entityType: 'series',
+        entityId: s.slug,
+        entityName: s.name,
+      });
+    }
+    return results;
   }
 
   @Get(':slug')
