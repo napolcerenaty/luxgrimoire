@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -37,6 +39,28 @@ import { SalesModule } from './modules/sales/sales.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        if (redisUrl) {
+          try {
+            const store = await Promise.race([
+              redisStore({ url: redisUrl, socket: { connectTimeout: 3000 } }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Redis connection timeout')), 4000),
+              ),
+            ]);
+            return { stores: [store], ttl: 300_000 };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[CacheModule] Redis unavailable (${msg}), using in-memory cache`);
+          }
+        }
+        return { ttl: 300_000 };
+      },
+      inject: [ConfigService],
+    }),
     ThrottlerModule.forRoot([
       { name: 'default', ttl: 60_000, limit: 120 },  // 120 req/min globally
     ]),

@@ -1,11 +1,19 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
+const GENRES_TTL = 5 * 60 * 1000;   // 5 minutes
+const SERIES_TTL = 5 * 60 * 1000;   // 5 minutes
+
 @Injectable()
 export class BooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async create(dto: CreateBookDto) {
     const slug = generateSlug(dto.title);
@@ -62,6 +70,10 @@ export class BooksService {
   }
 
   async findSeriesNames(search?: string): Promise<string[]> {
+    const key = search ? `books:series:${search}` : 'books:series';
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) return cached;
+
     const books = await this.prisma.book.findMany({
       where: {
         seriesName: {
@@ -74,20 +86,29 @@ export class BooksService {
       orderBy: { seriesName: 'asc' },
       take: 20,
     });
-    return books.map(b => b.seriesName).filter(Boolean) as string[];
+    const result = books.map(b => b.seriesName).filter(Boolean) as string[];
+    await this.cache.set(key, result, SERIES_TTL);
+    return result;
   }
 
   async findGenres(search?: string): Promise<string[]> {
-    // Use raw SQL to aggregate all genres efficiently without loading full records
+    const key = search ? `books:genres:${search}` : 'books:genres';
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) return cached;
+
     const rows = await this.prisma.$queryRaw<{ genre: string }[]>`
       SELECT DISTINCT unnest(genres) AS genre FROM books WHERE array_length(genres, 1) > 0 ORDER BY genre LIMIT 200
     `;
     const all = rows.map(r => r.genre);
+    let result: string[];
     if (search) {
       const q = search.toLowerCase();
-      return all.filter(g => g.toLowerCase().includes(q)).slice(0, 30);
+      result = all.filter(g => g.toLowerCase().includes(q)).slice(0, 30);
+    } else {
+      result = all.slice(0, 50);
     }
-    return all.slice(0, 50);
+    await this.cache.set(key, result, GENRES_TTL);
+    return result;
   }
 
   async findBySlug(slug: string) {
