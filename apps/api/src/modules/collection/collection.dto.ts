@@ -31,6 +31,10 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
 }
 
+export class AddToWishlistDto {
+  @IsString() bookEditionId!: string;
+}
+
 export class SetEditionTagsDto {
   @IsArray()
   @IsString({ each: true })

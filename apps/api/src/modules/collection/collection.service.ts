@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 
@@ -6,9 +6,10 @@ import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 export class CollectionService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCollection(userId: string, page = 1, pageSize = 20) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean) {
     const skip = (page - 1) * pageSize;
-    const where = { userId };
+    const where: { userId: string; isWishlist?: boolean } = { userId };
+    if (isWishlist !== undefined) where.isWishlist = isWishlist;
     const [data, total] = await Promise.all([
       this.prisma.userBookEntry.findMany({
         where,
@@ -88,10 +89,46 @@ export class CollectionService {
         bookId: edition.bookId,
         editionId: dto.bookEditionId,
         condition: dto.condition,
+        isWishlist: dto.isWishlist ?? false,
         ownershipStatus: dto.ownershipStatus ?? 'OWNED',
         readingStatus: dto.readingStatus ?? 'UNREAD',
       },
     });
+  }
+
+  async addToWishlist(userId: string, bookEditionId: string) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { id: bookEditionId } });
+    if (!edition) throw new NotFoundException('Book edition not found');
+
+    const existing = await this.prisma.userBookEntry.findFirst({
+      where: { userId, editionId: bookEditionId },
+    });
+    if (existing) {
+      if (!existing.isWishlist) throw new ConflictException('Edition already in your collection');
+      return existing;
+    }
+    return this.prisma.userBookEntry.create({
+      data: {
+        userId,
+        bookId: edition.bookId,
+        editionId: bookEditionId,
+        isWishlist: true,
+        ownershipStatus: 'OWNED',
+        readingStatus: 'UNREAD',
+      },
+    });
+  }
+
+  async getEntryStatus(userId: string, editionId: string) {
+    const entry = await this.prisma.userBookEntry.findFirst({
+      where: { userId, editionId },
+      select: { id: true, isWishlist: true },
+    });
+    if (!entry) return { status: 'none' as const };
+    return {
+      status: entry.isWishlist ? ('wishlist' as const) : ('collection' as const),
+      entryId: entry.id,
+    };
   }
 
   async updateEntry(userId: string, entryId: string, dto: UpdateCollectionEntryDto) {
@@ -104,6 +141,7 @@ export class CollectionService {
         ...(dto.condition !== undefined && { condition: dto.condition }),
         ...(dto.ownershipStatus !== undefined && { ownershipStatus: dto.ownershipStatus }),
         ...(dto.readingStatus !== undefined && { readingStatus: dto.readingStatus }),
+        ...(dto.isWishlist !== undefined && { isWishlist: dto.isWishlist }),
       },
     });
   }
@@ -116,17 +154,18 @@ export class CollectionService {
   }
 
   async getStats(userId: string) {
-    const [totalOwned, groupResult] = await Promise.all([
-      this.prisma.userBookEntry.count({ where: { userId } }),
+    const [totalOwned, totalWishlist, groupResult] = await Promise.all([
+      this.prisma.userBookEntry.count({ where: { userId, isWishlist: false } }),
+      this.prisma.userBookEntry.count({ where: { userId, isWishlist: true } }),
       this.prisma.userBookEntry.groupBy({
         by: ['editionId'],
-        where: { userId, editionId: { not: null } },
+        where: { userId, editionId: { not: null }, isWishlist: false },
         _count: { editionId: true },
       }),
     ]);
     return {
       totalOwned,
-      totalWishlist: 0,
+      totalWishlist,
       totalEditions: groupResult.length,
     };
   }

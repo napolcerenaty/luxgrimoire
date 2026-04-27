@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
+import { WishlistButton } from '@/components/books/WishlistButton'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -228,13 +229,18 @@ export default async function EditionPage({ params }: Props) {
               )}
 
               {/* Badges */}
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {!edition.verifiedAt && (
                   <Badge variant="warning">Pending verification</Badge>
                 )}
                 {edition.isSpecial && (
                   <Badge variant="default">Special Edition</Badge>
                 )}
+              </div>
+
+              {/* Wishlist action */}
+              <div className="mb-6">
+                <WishlistButton editionId={edition.id} />
               </div>
 
               {/* Meta grid */}

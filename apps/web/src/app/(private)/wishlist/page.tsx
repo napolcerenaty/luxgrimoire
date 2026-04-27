@@ -27,13 +27,22 @@ interface CollectionEntry {
   }
 }
 
+interface PaginatedEntries {
+  data: CollectionEntry[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export default function WishlistPage() {
   const queryClient = useQueryClient()
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: result, isLoading } = useQuery({
     queryKey: ['collection', true],
-    queryFn: () => authFetch<CollectionEntry[]>('/collection?isWishlist=true'),
+    queryFn: () => authFetch<PaginatedEntries>('/collection?isWishlist=true&pageSize=100'),
   })
+
+  const entries = result?.data ?? []
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => authFetch<void>(`/collection/${id}`, { method: 'DELETE' }),

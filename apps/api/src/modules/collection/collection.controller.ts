@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('collection')
@@ -25,12 +25,31 @@ export class CollectionController {
     @CurrentUser() user: { id: string },
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('isWishlist') isWishlist?: string,
   ) {
+    const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
     return this.collectionService.getCollection(
       user.id,
       page ? Number(page) : 1,
       pageSize ? Number(pageSize) : 20,
+      wishlistFilter,
     );
+  }
+
+  @Get('status/:editionId')
+  getEntryStatus(
+    @CurrentUser() user: { id: string },
+    @Param('editionId') editionId: string,
+  ) {
+    return this.collectionService.getEntryStatus(user.id, editionId);
+  }
+
+  @Post('wishlist')
+  addToWishlist(
+    @CurrentUser() user: { id: string },
+    @Body() dto: AddToWishlistDto,
+  ) {
+    return this.collectionService.addToWishlist(user.id, dto.bookEditionId);
   }
 
   @Post()
