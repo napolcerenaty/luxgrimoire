@@ -658,7 +658,6 @@ function ScrapedPreviewForm({
 
 // ─── Import from URL panel ────────────────────────────────────────────────────
 function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscriptionId: string; slug: string; onMonthCreated: () => void }) {
-  const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'single' | 'parent'>('single')
   const [url, setUrl] = useState('')
   const [scraped, setScraped] = useState<ScrapedData | null>(null)
@@ -705,26 +704,9 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
     ? parentLinks.filter(l => l.toLowerCase().includes(linkFilter.toLowerCase()))
     : parentLinks
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        title="do pobierania danych historycznych"
-        className="flex items-center gap-1.5 px-3 py-2 bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg text-sm transition-colors"
-      >
-        <span>🕐</span>
-        <span className="text-xs">Import history</span>
-      </button>
-    )
-  }
-
   return (
     <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-stone-100 font-semibold text-sm">🕐 Import historical month data</div>
-        <button onClick={() => { setOpen(false); setScraped(null); setParentLinks([]); setUrl('') }}
-          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
-      </div>
+      <div className="text-stone-100 font-semibold text-sm">🕐 Import historical month data</div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-stone-800 p-1 rounded-lg w-fit">
