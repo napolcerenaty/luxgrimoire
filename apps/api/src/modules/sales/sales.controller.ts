@@ -3,12 +3,16 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { CreateSaleGroupDto, UpdateSaleGroupDto, SaleGroupsQueryDto } from './sales.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @ApiTags('sales')
 @ApiBearerAuth()
 @Controller('sales')
 export class SalesController {
-  constructor(private readonly service: SalesService) {}
+  constructor(
+    private readonly service: SalesService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
 
   @Get()
   getSaleGroups(
@@ -24,8 +28,15 @@ export class SalesController {
   }
 
   @Post()
-  createSaleGroup(@CurrentUser() user: { id: string }, @Body() dto: CreateSaleGroupDto) {
-    return this.service.createSaleGroup(user.id, dto);
+  async createSaleGroup(@CurrentUser() user: { id: string }, @Body() dto: CreateSaleGroupDto) {
+    const result = await this.service.createSaleGroup(user.id, dto);
+    this.analyticsService.track({
+      eventType: 'mark_as_sold',
+      userId: user.id,
+      entityType: 'edition',
+      value: dto.entryIds?.length === 1 ? 'single' : 'bundle',
+    });
+    return result;
   }
 
   @Patch(':id')

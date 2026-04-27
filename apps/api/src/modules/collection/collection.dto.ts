@@ -22,6 +22,8 @@ export class AddToCollectionDto {
   @IsOptional() @IsBoolean() isWishlist?: boolean;
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
+  /** Analytics only — not stored in DB */
+  @IsOptional() @IsString() _entityName?: string;
 }
 
 export class UpdateCollectionEntryDto {
@@ -33,6 +35,8 @@ export class UpdateCollectionEntryDto {
 
 export class AddToWishlistDto {
   @IsString() bookEditionId!: string;
+  /** Analytics only — not stored in DB */
+  @IsOptional() @IsString() _entityName?: string;
 }
 
 export class SetEditionTagsDto {

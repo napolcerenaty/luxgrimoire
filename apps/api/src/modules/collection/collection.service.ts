@@ -151,6 +151,7 @@ export class CollectionService {
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
+    return existing;
   }
 
   async getStats(userId: string) {

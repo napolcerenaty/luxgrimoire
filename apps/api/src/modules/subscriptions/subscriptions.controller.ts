@@ -28,6 +28,7 @@ import {
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
 
@@ -37,6 +38,7 @@ export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Public()
@@ -47,8 +49,15 @@ export class SubscriptionsController {
 
   @Public()
   @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.subscriptionsService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const result = await this.subscriptionsService.findBySlug(slug);
+    this.analyticsService.track({
+      eventType: 'subscription_view',
+      entityType: 'subscription',
+      entityId: slug,
+      entityName: (result as any)?.name ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
@@ -205,12 +214,20 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Patch(':slug/my-entry/cancel')
-  cancelMyEntry(
+  async cancelMyEntry(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() dto: CancelMyEntryDto,
   ) {
-    return this.subscriptionsService.cancelMySubscription(user.id, slug, dto);
+    const result = await this.subscriptionsService.cancelMySubscription(user.id, slug, dto);
+    this.analyticsService.track({
+      eventType: 'subscription_cancel',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+      value: (dto as any)?.cancellationReason ?? undefined,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
@@ -225,35 +242,57 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Delete(':slug/my-entry')
-  removeMyEntry(
+  async removeMyEntry(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() dto: RemoveMyEntryDto,
   ) {
-    return this.subscriptionsService.removeMySubscription(user.id, slug, {
+    const result = await this.subscriptionsService.removeMySubscription(user.id, slug, {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
     });
+    this.analyticsService.track({
+      eventType: 'subscription_delete',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
   @Post(':slug/join')
-  joinSubscription(
+  async joinSubscription(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() dto: JoinSubscriptionDto,
   ) {
-    return this.subscriptionsService.joinSubscription(user.id, slug, dto);
+    const result = await this.subscriptionsService.joinSubscription(user.id, slug, dto);
+    this.analyticsService.track({
+      eventType: 'subscription_join',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
   @Post(':slug/join/backfill')
-  backfillSubscription(
+  async backfillSubscription(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() dto: BackfillSubscriptionDto,
   ) {
-    return this.subscriptionsService.backfillSubscription(user.id, slug, dto);
+    const result = await this.subscriptionsService.backfillSubscription(user.id, slug, dto);
+    this.analyticsService.track({
+      eventType: 'subscription_backfill',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+      value: String((dto as any)?.selectedMonthIds?.length ?? 0),
+    });
+    return result;
   }
 
   // ── Waitlist ──────────────────────────────────────────────────────────────
@@ -272,12 +311,19 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Post(':slug/waitlist')
-  joinWaitlist(
+  async joinWaitlist(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() body: { joinedAt?: string },
   ) {
-    return this.subscriptionsService.joinWaitlist(user.id, slug, body?.joinedAt);
+    const result = await this.subscriptionsService.joinWaitlist(user.id, slug, body?.joinedAt);
+    this.analyticsService.track({
+      eventType: 'waitlist_join',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
@@ -292,7 +338,14 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Delete(':slug/waitlist')
-  leaveWaitlist(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
-    return this.subscriptionsService.leaveWaitlist(user.id, slug);
+  async leaveWaitlist(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    const result = await this.subscriptionsService.leaveWaitlist(user.id, slug);
+    this.analyticsService.track({
+      eventType: 'waitlist_leave',
+      userId: user.id,
+      entityType: 'subscription',
+      entityId: slug,
+    });
+    return result;
   }
 }

@@ -59,6 +59,7 @@ export class CollectionController {
       userId: user.id,
       entityType: 'edition',
       entityId: dto.bookEditionId,
+      entityName: dto._entityName,
     });
     return result;
   }
@@ -71,6 +72,7 @@ export class CollectionController {
       userId: user.id,
       entityType: 'edition',
       entityId: dto.bookEditionId ?? undefined,
+      entityName: dto._entityName,
     });
     return result;
   }
@@ -86,15 +88,32 @@ export class CollectionController {
       this.analyticsService.track({
         eventType: 'book_status_change',
         userId: user.id,
+        entityType: 'edition',
+        entityId: result.editionId ?? undefined,
         value: dto.readingStatus,
+      });
+    }
+    if (dto.ownershipStatus) {
+      this.analyticsService.track({
+        eventType: 'collection_status',
+        userId: user.id,
+        entityType: 'edition',
+        entityId: result.editionId ?? undefined,
+        value: dto.ownershipStatus,
       });
     }
     return result;
   }
 
   @Delete(':id')
-  removeFromCollection(@CurrentUser() user: { id: string }, @Param('id') id: string) {
-    return this.collectionService.removeFromCollection(user.id, id);
+  async removeFromCollection(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    const entry = await this.collectionService.removeFromCollection(user.id, id);
+    this.analyticsService.track({
+      eventType: 'collection_remove',
+      userId: user.id,
+      entityType: 'edition',
+      entityId: entry?.editionId ?? undefined,
+    });
   }
 
   @Put('edition/:editionId/tags')
