@@ -420,32 +420,6 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
         )}
 
         {/* Main book info below image */}
-        {mainBook ? (
-          <Link
-            href={`/books/${mainBook.book.slug}`}
-            className="flex items-center gap-3 group mt-2"
-          >
-            {cloudinaryUrl(mainBook.book.coverImage, 'w_80,c_fill,q_auto,f_auto') && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={cloudinaryUrl(mainBook.book.coverImage, 'w_80,c_fill,q_auto,f_auto')!}
-                alt={mainBook.book.title}
-                className="w-10 h-14 rounded object-cover shrink-0"
-              />
-            )}
-            <div>
-              {(mainBook.book.authors?.length ?? 0) > 0 && (
-                <p className="text-xs text-stone-400 mt-0.5">
-                  {mainBook.book.authors
-                    .map((a) => (a as unknown as { author: { name: string } }).author?.name ?? (a as unknown as { name: string }).name)
-                    .join(', ')}
-                </p>
-              )}
-            </div>
-          </Link>
-        ) : (
-          <p className="text-stone-500 text-xs italic mt-2">Book details coming soon</p>
-        )}
 
         {monthData.isSpoiler && (
           <Badge variant="warning" className="mt-2">Spoiler</Badge>
