@@ -22,7 +22,15 @@ if (-not $WebOnly) {
   Kill-Port 3001
   Start-Sleep -Milliseconds 500
   Write-Host "==> Starting API..."
-  Start-Process -FilePath "node" -ArgumentList "dist/main" `
+  # Load env vars from .env so JWT_SECRET and other secrets are available
+  $envFile = "$root\apps\api\.env"
+  if (Test-Path $envFile) {
+    Get-Content $envFile | Where-Object { $_ -match '^\s*[^#\s]' -and $_ -match '=' } | ForEach-Object {
+      $k, $v = $_ -split '=', 2
+      [System.Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim(), 'Process')
+    }
+  }
+  Start-Process -FilePath "node" -ArgumentList "--enable-source-maps","dist/main" `
     -WorkingDirectory "$root\apps\api" -WindowStyle Hidden
 }
 
