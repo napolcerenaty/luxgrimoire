@@ -1032,13 +1032,13 @@ model SubscriptionWaitlistEntry {
 
 model AnalyticsEvent {
   id         String   @id @default(uuid())
-  eventType  String   @db.VarChar(64)
-  userId     String?  @db.VarChar(36)
-  entityType String?  @db.VarChar(32)
-  entityId   String?  @db.VarChar(36)
-  entityName String?  @db.VarChar(256)
+  eventType  String   @map("event_type")  @db.VarChar(64)
+  userId     String?  @map("user_id")     @db.VarChar(36)
+  entityType String?  @map("entity_type") @db.VarChar(32)
+  entityId   String?  @map("entity_id")   @db.VarChar(36)
+  entityName String?  @map("entity_name") @db.VarChar(256)
   value      String?  @db.VarChar(128)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now())     @map("created_at")
 
   @@index([eventType, createdAt])
   @@index([entityType, entityId, createdAt])
