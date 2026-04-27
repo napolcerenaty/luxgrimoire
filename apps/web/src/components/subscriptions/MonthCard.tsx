@@ -111,7 +111,7 @@ export default function MonthCard({
       </div>
 
       {/* Theme below image */}
-      <div className="p-3 pt-2">
+      <div className="p-3 pt-2 min-h-[3rem] flex flex-col justify-start">
         {theme ? (
           <p className="text-stone-300 text-xs font-serif italic line-clamp-2">{theme}</p>
         ) : (
