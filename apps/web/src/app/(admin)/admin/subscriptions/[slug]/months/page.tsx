@@ -414,13 +414,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
 }
 
 // ─── Add month form ───────────────────────────────────────────────────────────
-function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void }) {
+function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSuccess: () => void; open: boolean; onClose: () => void }) {
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [month, setMonth] = useState(String(new Date().getMonth() + 1))
   const [theme, setTheme] = useState('')
   const [cover, setCover] = useState('')
   const [signatureType, setSignatureType] = useState('')
-  const [open, setOpen] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
@@ -431,18 +430,11 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
         signatureType: signatureType || undefined,
       }),
     }),
-    onSuccess: () => { onSuccess(); setOpen(false); setTheme(''); setCover('') },
+    onSuccess: () => { onSuccess(); onClose(); setTheme(''); setCover('') },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
-  if (!open) {
-    return (
-      <button onClick={() => setOpen(true)}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 text-sm">
-        + Add Month
-      </button>
-    )
-  }
+  if (!open) return null
 
   return (
     <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
@@ -482,7 +474,7 @@ function AddMonthForm({ slug, onSuccess }: { slug: string; onSuccess: () => void
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
           {mutation.isPending ? 'Adding…' : 'Add Month'}
         </button>
-        <button type="button" onClick={() => setOpen(false)}
+        <button type="button" onClick={onClose}
           className="bg-stone-700 text-stone-300 px-4 py-2 rounded-lg hover:bg-stone-600 text-sm">Cancel</button>
       </div>
     </div>
@@ -1124,6 +1116,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
   const [importUrlOpen, setImportUrlOpen] = useState(false)
+  const [addMonthOpen, setAddMonthOpen] = useState(false)
 
   const { data: subscription } = useQuery<SubscriptionInfo>({
     queryKey: ['admin', 'subscriptions', slug],
@@ -1148,11 +1141,16 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
       </div>
 
       <div className="space-y-4">
-        {/* Top action row */}
+        {/* Top action row — only buttons, no expanding content */}
         <div className="flex items-center gap-3 flex-wrap">
-          <AddMonthForm slug={slug} onSuccess={invalidateMonths} />
           <button
-            onClick={() => setImportUrlOpen(!importUrlOpen)}
+            onClick={() => { setAddMonthOpen(!addMonthOpen); if (importUrlOpen) setImportUrlOpen(false) }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'}`}
+          >
+            + Add Month
+          </button>
+          <button
+            onClick={() => { setImportUrlOpen(!importUrlOpen); if (addMonthOpen) setAddMonthOpen(false) }}
             title="do pobierania danych historycznych"
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${importUrlOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
           >
@@ -1160,6 +1158,9 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             <span className="text-xs">Import history</span>
           </button>
         </div>
+
+        {/* Add month form panel */}
+        <AddMonthForm slug={slug} onSuccess={invalidateMonths} open={addMonthOpen} onClose={() => setAddMonthOpen(false)} />
 
         {/* Import URL panel */}
         {importUrlOpen && subscription?.id && (
