@@ -3,9 +3,9 @@ import type { NextConfig } from 'next';
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com",
-  "font-src 'self'",
+  "font-src 'self' https://fonts.gstatic.com",
   "connect-src 'self' http://localhost:3001 https://api.cloudinary.com",
   "media-src 'self'",
   "object-src 'none'",
