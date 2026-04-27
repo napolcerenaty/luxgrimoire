@@ -76,6 +76,8 @@ export class SubscriptionsService {
         startingMonth: dto.startingMonth,
         shippingCountries: dto.shippingCountries ?? [],
         paymentOnStartup: dto.paymentOnStartup ?? false,
+        contentType: dto.contentType,
+        isHidden: dto.isHidden ?? false,
       },
     });
 
