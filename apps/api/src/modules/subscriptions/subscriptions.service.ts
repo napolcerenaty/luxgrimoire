@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { $Enums } from '@prisma/client';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -19,6 +20,7 @@ import {
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
+import { RenewalCronService } from './renewal.cron';
 
 export interface CountryFeeHint {
   category: string;
@@ -36,6 +38,7 @@ export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
+    private readonly renewalCron: RenewalCronService,
   ) {}
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
@@ -333,8 +336,9 @@ export class SubscriptionsService {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
+    let newBook;
     try {
-      return await this.prisma.subscriptionMonthBook.create({
+      newBook = await this.prisma.subscriptionMonthBook.create({
         data: {
           monthId: monthRecord.id,
           bookId: dto.bookId,
@@ -347,6 +351,17 @@ export class SubscriptionsService {
     } catch {
       throw new ConflictException('Book already added to this month');
     }
+
+    // Retroactively add this book to users whose renewal for this month already occurred
+    if (dto.bookId && dto.editionId) {
+      this.renewalCron.retroactivelyAddBookForSubscribers(
+        subscription.id,
+        { id: monthRecord.id, year, month, signatureType: monthRecord.signatureType ?? null },
+        { bookId: dto.bookId, editionId: dto.editionId, signatureType: (dto.signatureType as $Enums.SignatureType | null) ?? null },
+      ).catch(() => {});
+    }
+
+    return newBook;
   }
 
   async removeBookFromMonth(
