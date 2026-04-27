@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -41,11 +40,13 @@ interface QueryResult { label: string; count: number }
 
 export default function AnalyticsPage() {
   const router  = useRouter()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    if (user && user.role !== 'ADMIN' && user.role !== 'MODERATOR') router.replace('/admin')
-  }, [user, router])
+    if (!loading && user && user.role !== 'ADMIN' && user.role !== 'MODERATOR') router.replace('/admin')
+  }, [user, loading, router])
+
+  if (loading || !user) return null
 
   const [metric,  setMetric ] = useState(METRICS[0].id)
   const [groupBy, setGroupBy] = useState<string>(METRICS[0].defaultGroupBy)

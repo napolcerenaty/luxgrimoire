@@ -768,7 +768,7 @@ export async function voteFeatureRequest(id: string): Promise<{ voted: boolean }
   const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests/${id}/vote`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
