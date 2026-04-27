@@ -57,7 +57,17 @@ export default function MonthCard({
             className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverThumbUrl ? 'opacity-0' : 'opacity-100'}`}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-stone-600 text-xs">No image</div>
+          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 px-3
+            bg-gradient-to-br from-stone-900 via-stone-950 to-stone-900">
+            <span className="text-stone-400 font-serif text-xs tracking-widest uppercase text-center">
+              {monthName} {year}
+            </span>
+            {theme && (
+              <span className="text-stone-500 text-xs italic text-center line-clamp-3">
+                {theme}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Hover: edition/book image */}
