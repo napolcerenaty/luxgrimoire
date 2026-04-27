@@ -337,8 +337,19 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
           />
         </>
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-stone-600 text-sm">
-          No image
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2
+          bg-gradient-to-br from-stone-900 via-stone-950 to-stone-900">
+          <span className="text-amber-500/30 font-serif text-7xl font-bold select-none leading-none">
+            {String(monthData.month).padStart(2, '0')}
+          </span>
+          <span className="text-stone-400 font-serif text-base tracking-widest uppercase">
+            {monthName} {monthData.year}
+          </span>
+          {monthData.theme && (
+            <span className="text-stone-500 text-xs italic px-6 text-center line-clamp-2">
+              {monthData.theme}
+            </span>
+          )}
         </div>
       )}
 
@@ -423,9 +434,6 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
               />
             )}
             <div>
-              <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors line-clamp-2">
-                {mainBook.book.title}
-              </p>
               {(mainBook.book.authors?.length ?? 0) > 0 && (
                 <p className="text-xs text-stone-400 mt-0.5">
                   {mainBook.book.authors
