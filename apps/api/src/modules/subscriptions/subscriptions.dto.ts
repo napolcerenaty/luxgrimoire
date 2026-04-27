@@ -287,6 +287,10 @@ export class CreateMonthDto {
   @IsOptional()
   @IsIn(['unsigned', 'signed', 'digitally_signed'])
   signatureType?: 'unsigned' | 'signed' | 'digitally_signed';
+
+  @IsOptional()
+  @IsString()
+  cardArtistId?: string;
 }
 
 export class UpdateMonthDto {
@@ -329,6 +333,10 @@ export class UpdateMonthDto {
   @IsOptional()
   @IsIn(['unsigned', 'signed', 'digitally_signed'])
   signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | null;
+
+  @IsOptional()
+  @IsString()
+  cardArtistId?: string | null;
 }
 
 export class AddMonthBookDto {

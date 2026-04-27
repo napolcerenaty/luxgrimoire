@@ -167,6 +167,7 @@ model Artist {
   twitter       String?
   website       String?
   contributions ArtistContribution[]
+  cardArtistMonths SubscriptionMonth[]
 
   @@index([specialty])
   @@index([name])
@@ -443,7 +444,9 @@ model SubscriptionMonth {
   editionId      String?
   seriesId       String?
   signatureType  SignatureType?
+  cardArtistId   String?
   books          SubscriptionMonthBook[]
+  cardArtist     Artist?                 @relation(fields: [cardArtistId], references: [id])
   series         SubscriptionSeries?     @relation(fields: [seriesId], references: [id])
   subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   skipRecords    UserSkipRecord[]

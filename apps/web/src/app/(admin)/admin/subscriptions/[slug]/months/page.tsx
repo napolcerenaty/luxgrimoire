@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import ImageUpload from '@/components/admin/ImageUpload'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+import { PersonPicker } from '@/components/admin/pickers/PersonPicker'
 import Link from 'next/link'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -53,7 +54,9 @@ type Month = {
   id: string; year: number; month: number
   theme: string | null; coverImage: string | null
   books: MonthBook[]
-  signatureType: string | null}
+  signatureType: string | null
+  cardArtist: { id: string; name: string; slug: string } | null
+}
 
 // ─── Book Search component ────────────────────────────────────────────────────
 interface BookSearchProps {
@@ -229,6 +232,8 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const [editTheme, setEditTheme] = useState(month.theme ?? '')
   const [editCover, setEditCover] = useState(month.coverImage ?? '')
   const [editSignatureType, setEditSignatureType] = useState<string>(month.signatureType ?? '')
+  const [editCardArtistId, setEditCardArtistId] = useState<string | null>(month.cardArtist?.id ?? null)
+  const [editCardArtistName, setEditCardArtistName] = useState<string>(month.cardArtist?.name ?? '')
   const [booksOpen, setBooksOpen] = useState(false)
 
   const monthLabel = `${MONTH_NAMES[month.month - 1]} ${month.year}`
@@ -236,7 +241,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const updateMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}`, {
       method: 'PATCH',
-      body: JSON.stringify({ theme: editTheme || undefined, coverImage: editCover || undefined, signatureType: editSignatureType || null }),
+      body: JSON.stringify({
+        theme: editTheme || undefined,
+        coverImage: editCover || undefined,
+        signatureType: editSignatureType || null,
+        cardArtistId: editCardArtistId ?? null,
+      }),
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); setEditing(false) },
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -297,12 +307,18 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             })()}
           </div>
           {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
+          {month.cardArtist && (
+            <p className="text-stone-500 text-xs mt-0.5">🎨 {month.cardArtist.name}</p>
+          )}
           <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={() => {
             setEditing(!editing)
-            setEditTheme(month.theme ?? ''); setEditCover(month.coverImage ?? '')
+            setEditTheme(month.theme ?? '')
+            setEditCover(month.coverImage ?? '')
+            setEditCardArtistId(month.cardArtist?.id ?? null)
+            setEditCardArtistName(month.cardArtist?.name ?? '')
           }}className={`${BTN_SM} ${editing ? 'bg-stone-600 text-stone-200' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
             {editing ? 'Cancel' : 'Edit'}
           </button>
@@ -335,6 +351,19 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               <option value="signed">✍️ Signed</option>
               <option value="digitally_signed">🖨️ Digitally Signed</option>
             </select>
+          </div>
+          <div>
+            <label className={LABEL}>Card artist <span className="text-stone-600">(optional — credit for box design)</span></label>
+            {editCardArtistId ? (
+              <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2">
+                <span className="text-stone-200 text-sm flex-1">🎨 {editCardArtistName}</span>
+                <button type="button" onClick={() => { setEditCardArtistId(null); setEditCardArtistName('') }}
+                  className="text-stone-500 hover:text-red-400 text-xs transition-colors">✕</button>
+              </div>
+            ) : (
+              <PersonPicker endpoint="artists" placeholder="Search or create artist…"
+                onAdd={a => { setEditCardArtistId(a.id ?? null); setEditCardArtistName(a.name) }} />
+            )}
           </div>
           <button type="button"disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
@@ -420,6 +449,8 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
   const [theme, setTheme] = useState('')
   const [cover, setCover] = useState('')
   const [signatureType, setSignatureType] = useState('')
+  const [cardArtistId, setCardArtistId] = useState<string | null>(null)
+  const [cardArtistName, setCardArtistName] = useState('')
 
   const mutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
@@ -428,9 +459,10 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
         year: parseInt(year), month: parseInt(month),
         theme: theme || undefined, coverImage: cover || undefined,
         signatureType: signatureType || undefined,
+        cardArtistId: cardArtistId ?? undefined,
       }),
     }),
-    onSuccess: () => { onSuccess(); onClose(); setTheme(''); setCover(''); setSignatureType('') },
+    onSuccess: () => { onSuccess(); onClose(); setTheme(''); setCover(''); setSignatureType(''); setCardArtistId(null); setCardArtistName('') },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -466,6 +498,19 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
           <option value="signed">✍️ Signed</option>
           <option value="digitally_signed">🖨️ Digitally Signed</option>
         </select>
+      </div>
+      <div>
+        <label className={LABEL}>Card artist <span className="text-stone-600">(optional — credit for box design)</span></label>
+        {cardArtistId ? (
+          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2">
+            <span className="text-stone-200 text-sm flex-1">🎨 {cardArtistName}</span>
+            <button type="button" onClick={() => { setCardArtistId(null); setCardArtistName('') }}
+              className="text-stone-500 hover:text-red-400 text-xs transition-colors">✕</button>
+          </div>
+        ) : (
+          <PersonPicker endpoint="artists" placeholder="Search or create artist…"
+            onAdd={a => { setCardArtistId(a.id ?? null); setCardArtistName(a.name) }} />
+        )}
       </div>
       <ImageUpload label="Cover image" folder="luxgrimoire/subscription-months"
         value={cover} onChange={setCover} aspectRatio="1/1" />

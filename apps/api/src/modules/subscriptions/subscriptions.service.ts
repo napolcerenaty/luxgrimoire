@@ -186,6 +186,7 @@ export class SubscriptionsService {
         months: {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
+            cardArtist: { select: { id: true, name: true, slug: true } },
             books: {
               include: {
                 book: {
@@ -284,6 +285,7 @@ export class SubscriptionsService {
         actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
         boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
         signatureType: dto.signatureType ?? null,
+        cardArtistId: dto.cardArtistId ?? null,
       },
     });
   }
