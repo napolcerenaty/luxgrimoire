@@ -15,6 +15,7 @@ export function PersonPicker({ endpoint, placeholder, onAdd }: {
 }) {
   const [q, setQ] = useState('')
   const [dq, setDq] = useState('')
+  const [creating, setCreating] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data, isFetching } = useQuery({
@@ -37,11 +38,21 @@ export function PersonPicker({ endpoint, placeholder, onAdd }: {
     setQ(''); setDq('')
   }
 
-  const createNew = () => {
+  const createNew = async () => {
     const trimmed = q.trim()
-    if (!trimmed) return
-    onAdd({ name: trimmed })
-    setQ(''); setDq('')
+    if (!trimmed || creating) return
+    setCreating(true)
+    try {
+      const created = await authFetch<{ id: string; name: string }>(
+        `/${endpoint}`, { method: 'POST', body: JSON.stringify({ name: trimmed }) }
+      )
+      onAdd({ id: created.id, name: created.name })
+      setQ(''); setDq('')
+    } catch (e: unknown) {
+      alert(`Failed to create: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -57,9 +68,9 @@ export function PersonPicker({ endpoint, placeholder, onAdd }: {
               {r.name}
             </button>
           ))}
-          <button type="button" onClick={createNew}
-            className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors">
-            + Create &ldquo;{q}&rdquo;
+          <button type="button" onClick={createNew} disabled={creating}
+            className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
+            {creating ? 'Creating…' : `+ Create "${q}"`}
           </button>
         </div>
       )}
