@@ -51,11 +51,11 @@ export default async function HomePage() {
       {/* Hero */}
       <section
         className="relative overflow-hidden py-14 px-4 text-center"
-        style={{ background: 'linear-gradient(180deg, #060d18 0%, #0a1828 60%, var(--bg) 100%)' }}
+        style={{ background: 'var(--hero-bg)' }}
       >
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,130,180,0.18) 0%, transparent 65%)' }}
+          style={{ background: 'var(--hero-glow)' }}
         />
         <div className="relative container mx-auto max-w-3xl">
           <h1

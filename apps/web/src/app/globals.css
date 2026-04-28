@@ -52,6 +52,8 @@
   --accent-glow3:  rgba(0,110,160,0.12);
   --shadow:        rgba(0,0,0,0.7);
   --grad-header:   linear-gradient(135deg, #060d18 0%, #0d1f35 50%, #060d18 100%);
+  --hero-bg:       linear-gradient(180deg, #060d18 0%, #0a1828 60%, #050810 100%);
+  --hero-glow:     radial-gradient(ellipse at 50% 0%, rgba(0,130,180,0.18) 0%, transparent 65%);
 }
 
 /* Base font size & smooth scrolling */
@@ -121,6 +123,8 @@ html {
   --accent-glow3:  rgba(0, 80, 140, 0.10);
   --shadow:        rgba(0, 20, 60, 0.10);
   --grad-header:   linear-gradient(135deg, #c8daf0 0%, #d4e4f8 50%, #c8daf0 100%);
+  --hero-bg:       linear-gradient(180deg, #7aa0be 0%, #a8c4d8 55%, #e4edf8 100%);
+  --hero-glow:     radial-gradient(ellipse at 50% 0%, rgba(0,80,140,0.10) 0%, transparent 65%);
 }
 
 /* Lighter search/input shadow in light mode */
