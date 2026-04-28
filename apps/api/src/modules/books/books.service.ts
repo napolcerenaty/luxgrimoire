@@ -58,6 +58,14 @@ export class BooksService {
     const skip = (page - 1) * pageSize;
 
     const where: Record<string, unknown> = {};
+    // Default to only approved books for public access; allow admins to filter
+    if (query.status === 'all') {
+      // no status filter
+    } else if (query.status === 'pending' || query.status === 'rejected') {
+      where.status = query.status;
+    } else {
+      where.status = 'approved';
+    }
     if (query.language) where.language = query.language;
     if (query.seriesName) where.seriesName = query.seriesName;
     if (query.authorId) {

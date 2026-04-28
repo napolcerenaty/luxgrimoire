@@ -134,10 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-stone-950">
       <aside className="hidden md:flex flex-col w-60 shrink-0 bg-stone-950 border-r border-stone-800">
         <div className="px-6 py-5 border-b border-stone-800">
-          <Link href="/admin" className="text-amber-400 font-bold text-lg tracking-wide">
-            LuxGrimoire
-          </Link>
-          <p className="text-stone-500 text-xs mt-0.5">Admin Panel</p>
+          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
         </div>
         <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
           {navGroups.map((group) => (

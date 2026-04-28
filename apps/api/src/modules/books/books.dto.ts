@@ -129,4 +129,8 @@ export class BookQueryDto {
   @IsOptional()
   @IsString()
   genre?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }

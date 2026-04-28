@@ -221,6 +221,15 @@ export default function CreateBookEditionForm({
   })
   const companies = companiesData?.data ?? []
 
+  // ── Collections (for selected company) ──────────────────────────────────
+  const [collectionId, setCollectionId] = useState('')
+  const { data: collectionsData } = useQuery({
+    queryKey: ['edition-form-collections', companyId],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(`/book-box-collections?companyId=${companyId}&pageSize=100`),
+    enabled: !!companyId,
+  })
+  const collections = collectionsData?.data ?? []
+
   // ── AI result handler ────────────────────────────────────────────────────
   const applyAiResult = (r: AiParseResult) => {
     if (r.book?.title && !title) setTitle(r.book.title)
@@ -342,6 +351,7 @@ export default function CreateBookEditionForm({
         body: JSON.stringify({
           bookId: createdBookId,
           bookBoxCompanyId: companyId || undefined,
+          collectionId: collectionId || undefined,
           subscriptionId: subscriptionId || undefined,
           publisher: publisher.trim() || undefined,
           photoCredit: photoCredit.trim() || undefined,
@@ -520,6 +530,7 @@ export default function CreateBookEditionForm({
           <select value={companyId} onChange={e => {
               const id = e.target.value
               setCompanyId(id)
+              setCollectionId('')
               const co = companies.find(c => c.id === id)
               if (co?.defaultCurrency) setCurrency(co.defaultCurrency)
             }} className={INP}>
@@ -538,6 +549,17 @@ export default function CreateBookEditionForm({
           </div>
         </div>
       </div>
+
+      {/* Collection — only shown when company has collections */}
+      {companyId && collections.length > 0 && (
+        <div>
+          <label className={LBL}>Collection (optional)</label>
+          <select value={collectionId} onChange={e => setCollectionId(e.target.value)} className={INP}>
+            <option value="">— no collection —</option>
+            {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Publisher + Language */}
       <div className="grid grid-cols-2 gap-3">

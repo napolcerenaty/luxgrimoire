@@ -18,6 +18,7 @@ interface CollectionForm {
   name: string
   description: string
   coverImage: string
+  photoCredit: string
   isActive: boolean
 }
 
@@ -26,6 +27,7 @@ const emptyForm: CollectionForm = {
   name: '',
   description: '',
   coverImage: '',
+  photoCredit: '',
   isActive: true,
 }
 
@@ -35,6 +37,7 @@ function collectionToForm(c: ApiBookBoxCollection): CollectionForm {
     name: c.name,
     description: c.description ?? '',
     coverImage: c.coverImage ?? '',
+    photoCredit: c.photoCredit ?? '',
     isActive: c.isActive,
   }
 }
@@ -45,6 +48,7 @@ function formToPayload(form: CollectionForm, isNew: boolean) {
     name: form.name || undefined,
     description: form.description || undefined,
     coverImage: form.coverImage || undefined,
+    photoCredit: form.photoCredit || undefined,
     isActive: form.isActive,
   }
 }
@@ -96,6 +100,10 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
         onChange={(id) => setForm((f) => ({ ...f, coverImage: id }))}
         aspectRatio="16/9"
       />
+      <div>
+        <label className={LABEL_CLASS}>Photo credit (IG handle or name)</label>
+        <input className={INPUT_CLASS} value={form.photoCredit} onChange={set('photoCredit')} placeholder="@username" />
+      </div>
       <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
         <input
           type="checkbox"

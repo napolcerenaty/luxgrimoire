@@ -17,6 +17,10 @@ export class CreateBookBoxCollectionDto {
   coverImage?: string;
 
   @IsOptional()
+  @IsString()
+  photoCredit?: string;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
@@ -33,6 +37,10 @@ export class UpdateBookBoxCollectionDto {
   @IsOptional()
   @IsString()
   coverImage?: string;
+
+  @IsOptional()
+  @IsString()
+  photoCredit?: string;
 
   @IsOptional()
   @IsBoolean()

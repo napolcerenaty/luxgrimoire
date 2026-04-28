@@ -273,6 +273,7 @@ model BookBoxCollection {
   companyId   String
   name        String
   coverImage  String?
+  photoCredit String?
   createdAt   DateTime       @default(now())
   description String?
   isActive    Boolean        @default(true)

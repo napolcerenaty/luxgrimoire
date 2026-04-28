@@ -13,6 +13,7 @@ const COLLECTION_SELECT = {
   name: true,
   description: true,
   coverImage: true,
+  photoCredit: true,
   isActive: true,
   companyId: true,
   createdAt: true,
@@ -85,6 +86,7 @@ export class BookBoxCollectionsService {
         slug,
         description: dto.description,
         coverImage: dto.coverImage,
+        photoCredit: dto.photoCredit,
         isActive: dto.isActive ?? true,
       },
       select: COLLECTION_SELECT,
@@ -97,6 +99,7 @@ export class BookBoxCollectionsService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.coverImage !== undefined) data.coverImage = dto.coverImage;
+    if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     return this.prisma.bookBoxCollection.update({ where: { slug }, data, select: COLLECTION_SELECT });
   }
