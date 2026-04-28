@@ -612,7 +612,16 @@ function ScrapedPreviewForm({
       <div>
         <label className={LABEL}>Cover image (Cloudinary public ID or URL)</label>
         <div className="flex gap-2">
-          <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} placeholder="click a thumbnail below to upload & select" />
+          <div className="relative flex-1">
+            <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} placeholder="click a thumbnail below to upload & select" />
+            {coverImageUrl && (
+              <button type="button" onClick={() => setCoverImageUrl('')}
+                title="Clear image"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200 leading-none text-sm">
+                ✕
+              </button>
+            )}
+          </div>
           {coverImageUrl.startsWith('http') && (
             <button type="button" onClick={() => uploadImageUrl(coverImageUrl)}
               disabled={!!uploadingImg}
@@ -694,7 +703,7 @@ function ScrapedPreviewForm({
 }
 
 // ─── Import from URL panel ────────────────────────────────────────────────────
-function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscriptionId: string; slug: string; onMonthCreated: () => void }) {
+function ImportUrlPanel({ subscriptionId, slug, onMonthCreated, onMonthSaved }: { subscriptionId: string; slug: string; onMonthCreated: () => void; onMonthSaved: () => void }) {
   const [tab, setTab] = useState<'single' | 'parent'>('single')
   const [url, setUrl] = useState('')
   const [scraped, setScraped] = useState<ScrapedData | null>(null)
@@ -830,7 +839,7 @@ function ImportUrlPanel({ subscriptionId, slug, onMonthCreated }: { subscription
           </div>
           {parentLinkScraped && (
             <ScrapedPreviewForm data={parentLinkScraped} subscriptionId={subscriptionId} slug={slug}
-              onSaved={() => { setParentLinkScraped(null); onMonthCreated() }}
+              onSaved={() => { setParentLinkScraped(null); onMonthSaved() }}
               onCancel={() => setParentLinkScraped(null)} />
           )}
         </div>
@@ -1213,6 +1222,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             subscriptionId={subscription.id}
             slug={slug}
             onMonthCreated={() => { invalidateMonths(); setImportUrlOpen(false) }}
+            onMonthSaved={invalidateMonths}
           />
         )}
 
