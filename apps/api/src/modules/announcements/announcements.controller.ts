@@ -17,11 +17,13 @@ export class AnnouncementsController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('upcoming') upcoming?: string,
+    @Query('search') search?: string,
   ) {
     return this.announcementsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
       upcoming: upcoming === 'true',
+      search,
     });
   }
 

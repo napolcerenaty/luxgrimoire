@@ -46,9 +46,9 @@ const regionsInclude = {
 export class AnnouncementsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
     const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 10, 50);
+    const pageSize = Math.min(query.pageSize ?? 20, 200);
     const skip = (page - 1) * pageSize;
 
     const today = new Date();
@@ -58,13 +58,21 @@ export class AnnouncementsService {
     if (query.upcoming) {
       where.generalSaleDate = { gte: today };
     }
+    if (query.search) {
+      const term = query.search.trim();
+      where.OR = [
+        { title: { contains: term, mode: 'insensitive' } },
+        { company: { name: { contains: term, mode: 'insensitive' } } },
+        { editions: { some: { edition: { book: { title: { contains: term, mode: 'insensitive' } } } } } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.saleAnnouncement.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { generalSaleDate: 'desc' },
         include: { editions: editionsInclude, regions: regionsInclude, company: true },
       }),
       this.prisma.saleAnnouncement.count({ where }),
