@@ -67,20 +67,20 @@ export default async function HomePage() {
           <p className="text-lg sm:text-xl text-stone-300 mb-10 leading-relaxed font-sans">
             Your home for luxury book editions &amp; subscription boxes
           </p>
-          <form action="/search" method="get" className="flex items-center max-w-xl mx-auto gap-2">
-            <input
-              name="q"
-              type="text"
-              placeholder="Search books, authors, box companies…"
-              className="flex-1 bg-stone-800 border border-stone-600 rounded-full px-5 py-3 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-500 transition-colors"
-            />
-            <button
-              type="submit"
-              className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm whitespace-nowrap"
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <Link
+              href="/books"
+              className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
             >
-              Search
-            </button>
-          </form>
+              Browse Books
+            </Link>
+            <Link
+              href="/subscriptions"
+              className="px-6 py-3 border border-stone-600 hover:border-stone-400 text-stone-300 hover:text-stone-100 font-serif rounded-full transition-colors text-sm"
+            >
+              Subscription Boxes
+            </Link>
+          </div>
         </div>
       </section>
 

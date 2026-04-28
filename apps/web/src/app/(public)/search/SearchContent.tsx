@@ -129,8 +129,22 @@ export function SearchContent() {
 
           {totalCount === 0 && (
             <div className="text-center py-16">
-              <p className="text-stone-400 text-lg mb-2">No results found</p>
-              <p className="text-stone-600 text-sm">Try a different search term</p>
+              <p className="text-stone-300 text-lg mb-2">Didn&apos;t find what you&apos;re looking for?</p>
+              <p className="text-stone-500 text-sm mb-5">Help us grow the database — add missing books, editions or subscription boxes.</p>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <Link
+                  href="/data-requests"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-700 hover:bg-amber-600 text-stone-950 font-semibold rounded-full text-sm transition-colors"
+                >
+                  <span>➕</span> Add missing data
+                </Link>
+                <Link
+                  href="/sale-announcement-requests"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-stone-700 hover:border-stone-500 text-stone-300 hover:text-stone-100 rounded-full text-sm transition-colors"
+                >
+                  <span>📣</span> Report a sale
+                </Link>
+              </div>
             </div>
           )}
 
