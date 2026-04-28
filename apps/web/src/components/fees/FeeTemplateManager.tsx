@@ -21,6 +21,8 @@ const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'OTHER', label: 'Other' },
 ]
 
+const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
+
 const CATEGORY_COLORS: Record<FeeCategory, string> = {
   VAT: 'bg-blue-900/60 text-blue-300',
   CUSTOMS: 'bg-purple-900/60 text-purple-300',
@@ -181,14 +183,13 @@ export default function FeeTemplateManager() {
             </div>
             <div>
               <label className="block text-xs text-stone-400 mb-1">Currency</label>
-              <input
-                type="text"
+              <select
                 value={addForm.defaultCurrency}
-                onChange={(e) => setAddForm({ ...addForm, defaultCurrency: e.target.value.toUpperCase() })}
-                placeholder="PLN"
-                maxLength={5}
+                onChange={(e) => setAddForm({ ...addForm, defaultCurrency: e.target.value })}
                 className={inputCls}
-              />
+              >
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           {formError && (
@@ -257,13 +258,13 @@ export default function FeeTemplateManager() {
                       placeholder="Amount"
                       className={inputCls}
                     />
-                    <input
-                      type="text"
+                    <select
                       value={editForm.defaultCurrency}
-                      onChange={(e) => setEditForm({ ...editForm, defaultCurrency: e.target.value.toUpperCase() })}
-                      maxLength={5}
+                      onChange={(e) => setEditForm({ ...editForm, defaultCurrency: e.target.value })}
                       className={inputCls}
-                    />
+                    >
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   {formError && (
                     <p className="text-xs text-red-400">{formError}</p>
