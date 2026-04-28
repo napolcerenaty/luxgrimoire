@@ -10,13 +10,13 @@ export class SearchService {
   async search(q: string, filter = 'all') {
     const trimmed = q.trim();
     if (trimmed.length < 2) {
-      return { books: [], editions: [], authors: [], artists: [], subscriptions: [], companies: [], query: q, filter };
+      return { books: [], editions: [], authors: [], artists: [], subscriptions: [], companies: [], sales: [], query: q, filter };
     }
 
     const all = filter === 'all';
     const take = LIMIT_PER_GROUP;
 
-    const [books, editions, authors, artists, subscriptions, companies] = await Promise.all([
+    const [books, editions, authors, artists, subscriptions, companies, sales] = await Promise.all([
       // ── Books ──────────────────────────────────────────────────────────────
       (all || filter === 'books')
         ? this.prisma.book.findMany({
@@ -120,8 +120,32 @@ export class SearchService {
             take,
           })
         : [],
+
+      // ── Sale Announcements ─────────────────────────────────────────────────
+      (all || filter === 'sales')
+        ? this.prisma.saleAnnouncement.findMany({
+            where: {
+              OR: [
+                { title: { contains: trimmed, mode: 'insensitive' } },
+                { company: { name: { contains: trimmed, mode: 'insensitive' } } },
+                { editions: { some: { edition: { book: { title: { contains: trimmed, mode: 'insensitive' } } } } } },
+              ],
+            },
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+              generalSaleDate: true,
+              isBundle: true,
+              availableForPurchase: true,
+              company: { select: { name: true, slug: true, logoUrl: true } },
+            },
+            orderBy: { generalSaleDate: 'desc' as const },
+            take,
+          })
+        : [],
     ]);
 
-    return { books, editions, authors, artists, subscriptions, companies, query: trimmed, filter };
+    return { books, editions, authors, artists, subscriptions, companies, sales, query: trimmed, filter };
   }
 }

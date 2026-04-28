@@ -4,14 +4,14 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Loader2, PlusCircle, ChevronDown } from 'lucide-react'
+import { Search, Loader2, PlusCircle, ChevronDown, Megaphone } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies'
+type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies' | 'sales'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
   let timer: ReturnType<typeof setTimeout>
@@ -76,9 +76,8 @@ export function SearchContent() {
     (results?.books?.length ?? 0) + (results?.editions?.length ?? 0) +
     (results?.authors?.length ?? 0) +
     (results?.artists?.length ?? 0) + (results?.subscriptions?.length ?? 0) +
-    (results?.companies?.length ?? 0)
+    (results?.companies?.length ?? 0) + (results?.sales?.length ?? 0)
 
-  type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies'
   const tabs: { id: SearchTab; label: string; count: number }[] = [
     { id: 'all',           label: 'All',           count: totalCount },
     { id: 'books',         label: 'Books',         count: results?.books?.length ?? 0 },
@@ -87,6 +86,7 @@ export function SearchContent() {
     { id: 'artists',       label: 'Artists',       count: results?.artists?.length ?? 0 },
     { id: 'subscriptions', label: 'Subscriptions', count: results?.subscriptions?.length ?? 0 },
     { id: 'companies',     label: 'Companies',     count: results?.companies?.length ?? 0 },
+    { id: 'sales',         label: 'Sales',         count: results?.sales?.length ?? 0 },
   ]
 
   return (
@@ -292,6 +292,35 @@ export function SearchContent() {
                         {logo ? <Image src={logo} alt={company.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{company.name.charAt(0)}</div>}
                       </div>
                       <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{company.name}</p>
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Sales */}
+          {(activeTab === 'all' || activeTab === 'sales') && (results.sales?.length ?? 0) > 0 && (
+            <section className="mb-8">
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Sales</h2>}
+              <div className="space-y-2">
+                {results.sales!.map((sale) => {
+                  const isPast = sale.generalSaleDate && new Date(sale.generalSaleDate) < new Date()
+                  return (
+                    <Link key={sale.id} href={`/sale-announcements/${sale.id}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
+                      <div className="w-10 h-10 rounded bg-stone-800 shrink-0 flex items-center justify-center">
+                        <Megaphone size={18} className="text-amber-700/60" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{sale.title}</p>
+                        <p className="text-xs text-stone-500 truncate">
+                          {[sale.company?.name, sale.isBundle ? 'Bundle' : null].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      {isPast
+                        ? <span className="text-[9px] text-stone-500 border border-stone-700 rounded px-1.5 py-0.5 shrink-0">Past</span>
+                        : <span className="text-[9px] text-amber-500 border border-amber-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>
+                      }
                     </Link>
                   )
                 })}

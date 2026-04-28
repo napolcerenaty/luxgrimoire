@@ -356,6 +356,16 @@ export interface ApiSearchEdition {
   };
 }
 
+export interface ApiSearchSale {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  generalSaleDate: string | null;
+  isBundle: boolean;
+  availableForPurchase: boolean;
+  company: { name: string; slug: string; logoUrl: string | null } | null;
+}
+
 export interface ApiSearchResult {
   books: ApiSearchBook[];
   editions: ApiSearchEdition[];
@@ -363,6 +373,7 @@ export interface ApiSearchResult {
   artists: ApiSearchArtist[];
   subscriptions: ApiSearchSubscription[];
   companies: ApiSearchCompany[];
+  sales: ApiSearchSale[];
   query: string;
   filter: string;
 }
