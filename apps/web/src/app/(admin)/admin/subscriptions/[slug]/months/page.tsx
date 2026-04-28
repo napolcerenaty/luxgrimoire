@@ -499,6 +499,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
           <option value="">None / Unsigned</option>
           <option value="signed">✍️ Signed</option>
           <option value="digitally_signed">🖨️ Digitally Signed</option>
+          <option value="signed_bookplate">🏷️ Signed Bookplate</option>
         </select>
       </div>
       <div>
