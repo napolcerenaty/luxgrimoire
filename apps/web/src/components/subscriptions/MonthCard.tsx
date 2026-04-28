@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 
 interface MonthBook {
@@ -44,6 +45,7 @@ export default function MonthCard({
   accentColors,
 }: MonthCardProps) {
   const [hovered, setHovered] = useState(false)
+  const router = useRouter()
 
   const hoverImage = mainBook?.edition?.coverImage ?? mainBook?.coverImage ?? null
   const thumbUrl = cloudinaryUrl(coverImage, 'w_400,c_fill,q_auto,f_auto')
@@ -156,9 +158,15 @@ export default function MonthCard({
       ? `/editions/${mainBook.edition.slug}`
       : `/books/${bookSlug}`
     return (
-      <Link href={bookHref} className="block">
+      <div
+        role="link"
+        tabIndex={0}
+        className="block cursor-pointer"
+        onClick={() => router.push(bookHref)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(bookHref) }}
+      >
         {inner}
-      </Link>
+      </div>
     )
   }
 

@@ -290,15 +290,17 @@ export default function CreateBookEditionForm({
           genres: genres.length ? genres : undefined,
         }),
       })
-      for (const auth of authors) {
-        let authorId = auth.id
-        if (!authorId) {
-          const created = await authFetch<{ id: string }>('/authors', {
-            method: 'POST', body: JSON.stringify({ name: auth.name }),
-          })
-          authorId = created.id
+      if (isPrivileged) {
+        for (const auth of authors) {
+          let authorId = auth.id
+          if (!authorId) {
+            const created = await authFetch<{ id: string }>('/authors', {
+              method: 'POST', body: JSON.stringify({ name: auth.name }),
+            })
+            authorId = created.id
+          }
+          await authFetch(`/books/${book.slug}/authors/${authorId}`, { method: 'POST' })
         }
-        await authFetch(`/books/${book.slug}/authors/${authorId}`, { method: 'POST' })
       }
       setCreatedBookId(book.id)
       setCreatedBookSlug(book.slug)
@@ -309,6 +311,9 @@ export default function CreateBookEditionForm({
         } else {
           onSuccess()
         }
+      } else if (!isPrivileged) {
+        // Non-privileged users: book suggestion submitted, no edition step
+        onSuccess()
       } else {
         setStep(2)
       }

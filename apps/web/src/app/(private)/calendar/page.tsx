@@ -180,7 +180,7 @@ export default function CalendarPage() {
   const dayNames = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) =>
-        new Date(2024, 0, i + 1).toLocaleDateString('en-GB', { weekday: 'short' }),
+        new Date(2024, 0, i + 1).toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2),
       ),
     [],
   )
@@ -259,7 +259,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 min-w-0 overflow-x-hidden">
       <h1 className="text-2xl font-serif text-stone-100">Calendar</h1>
 
       {/* Month navigation */}
