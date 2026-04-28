@@ -20,7 +20,7 @@ interface CalEntry {
     type: string
     startingMonth: number
     renewalDay: number | null
-    company: { name: string; slug: string }
+    company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
 
@@ -36,7 +36,7 @@ interface SaleInterest {
     earlyAccessDate: string | null
     generalSaleDate: string | null
     saleTimezone: string | null
-    company: { id: string; name: string; logoUrl: string | null } | null
+    company: { id: string; name: string; logoUrl: string | null; brandColors?: string[] | null } | null
     regions: Array<{
       id: string
       firstAccessDate: string | null
@@ -58,6 +58,30 @@ function strHue(str?: string | null) {
   let h = 0
   for (let i = 0; i < (str?.length ?? 0); i++) h = (h * 31 + str!.charCodeAt(i)) & 0xffff
   return h % 360
+}
+
+/** Returns inline style for a calendar pill using brand color when available */
+function pillStyle(brandColors: string[] | null | undefined, hue: number, isDashed = false) {
+  const c = brandColors?.[0]
+  if (c) {
+    return {
+      background: `${c}22`,
+      color: c,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}55`,
+    }
+  }
+  if (isDashed) {
+    return {
+      background: `hsla(${hue},80%,55%,0.20)`,
+      color: `hsl(${hue},90%,82%)`,
+      border: `1px dashed hsla(${hue},70%,55%,0.55)`,
+    }
+  }
+  return {
+    background: `hsla(${hue},55%,45%,0.18)`,
+    color: `hsl(${hue},70%,70%)`,
+    border: `1px solid hsla(${hue},55%,45%,0.35)`,
+  }
 }
 
 // Returns the renewal day for a given (year, month0) if this is a renewal month, else null
@@ -156,6 +180,7 @@ export default function CalendarPage() {
         id: e.id,
         label: e.subscription.name,
         companyName: e.subscription.company?.name ?? null,
+        brandColors: e.subscription.company?.brandColors ?? null,
         slug: e.subscription.slug,
         hue: strHue(e.subscription.company?.slug ?? e.subscription.slug),
         logoUrl: e.subscription.logoUrl ?? e.subscription.coverImage,
@@ -184,6 +209,7 @@ export default function CalendarPage() {
           id: i.announcementId,
           label: i.announcement.title,
           companyName: i.announcement.company?.name ?? null,
+          brandColors: i.announcement.company?.brandColors ?? null,
           hue: strHue(i.announcement.company?.name ?? i.announcementId),
           tier: i.tier,
           time,
@@ -281,11 +307,7 @@ export default function CalendarPage() {
                       key={r.id}
                       href={`/subscriptions/${r.slug}`}
                       className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                      style={{
-                        background: `hsla(${r.hue},55%,45%,0.18)`,
-                        color: `hsl(${r.hue},70%,70%)`,
-                        border: `1px solid hsla(${r.hue},55%,45%,0.35)`,
-                      }}
+                      style={pillStyle(r.brandColors, r.hue, false)}
                       onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                       onMouseLeave={scheduleClose}
                     >
@@ -313,11 +335,7 @@ export default function CalendarPage() {
                     key={s.id}
                     href={s.href}
                     className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                    style={{
-                      background: `hsla(${s.hue},80%,55%,0.20)`,
-                      color: `hsl(${s.hue},90%,82%)`,
-                      border: `1px dashed hsla(${s.hue},70%,55%,0.55)`,
-                    }}
+                    style={pillStyle(s.brandColors, s.hue, true)}
                     onMouseEnter={e => openTooltip(
                       e,
                       s.label,
@@ -340,44 +358,6 @@ export default function CalendarPage() {
             )
           })}
         </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-2">
-        {activeEntries.map(e => {
-          const hue = strHue(e.subscription.slug)
-          const src = e.subscription.logoUrl ?? e.subscription.coverImage
-          const thumb = src ? cloudinaryUrl(src, 'w_24,h_24,c_pad,q_auto,f_auto') : null
-          return (
-            <Link
-              key={e.id}
-              href={`/subscriptions/${e.subscription.slug}`}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-opacity hover:opacity-80"
-              style={{
-                background: `hsla(${hue},55%,45%,0.18)`,
-                color: `hsl(${hue},70%,70%)`,
-                border: `1px solid hsla(${hue},55%,45%,0.35)`,
-              }}
-            >
-              {thumb && (
-                <Image src={thumb} alt="" width={14} height={14} className="rounded-sm object-contain" unoptimized />
-              )}
-              {e.subscription.name}
-            </Link>
-          )
-        })}
-        {interests.length > 0 && (() => {
-          const saleHue = strHue(interests[0]?.announcement.company?.name ?? 'sale')
-          return (
-            <span
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
-              style={{ background: `hsla(${saleHue},80%,55%,0.18)`, color: `hsl(${saleHue},90%,82%)`, border: `1px dashed hsla(${saleHue},70%,55%,0.5)` }}
-            >
-              <Bell size={11} />
-              Sale interest
-            </span>
-          )
-        })()}
       </div>
 
       {activeEntries.length === 0 && interests.length === 0 && (
@@ -410,14 +390,16 @@ export default function CalendarPage() {
                 const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                 const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
                 const hue = strHue(i.announcement.company?.name ?? i.announcementId)
+                const bc = i.announcement.company?.brandColors ?? null
+                const bStyle = pillStyle(bc, hue, true)
                 return (
                   <Link
                     key={`${i.announcementId}-${i.tier}`}
                     href={`/sale-announcements/${i.announcementId}`}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-900 border hover:opacity-90 transition-opacity group"
-                    style={{ borderColor: `hsla(${hue},70%,55%,0.35)` }}
+                    style={{ borderColor: bStyle.border.split(' ').pop() }}
                   >
-                    <Bell size={13} style={{ color: `hsl(${hue},80%,72%)` }} className="shrink-0" />
+                    <Bell size={13} style={{ color: bStyle.color }} className="shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-stone-200 group-hover:text-white truncate">{i.announcement.title}</p>
                       {i.announcement.company && (
@@ -425,7 +407,7 @@ export default function CalendarPage() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs" style={{ color: `hsl(${hue},80%,72%)` }}>{TIER_LABELS[i.tier]}</p>
+                      <p className="text-xs" style={{ color: bStyle.color }}>{TIER_LABELS[i.tier]}</p>
                       <p className="text-xs text-stone-400">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
                   </Link>

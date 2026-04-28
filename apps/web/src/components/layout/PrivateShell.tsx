@@ -4,14 +4,15 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
-import { BookOpen, Heart, DollarSign, User, BookMarked, ShoppingBag } from 'lucide-react'
+import { BookOpen, Heart, DollarSign, User, BookMarked, ShoppingBag, CalendarDays } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const NAV_LINKS = [
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/collection', label: 'My Collection', icon: BookOpen },
+  { href: '/sold', label: 'My Sales', icon: ShoppingBag },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
-  { href: '/sold', label: 'My Sales', icon: ShoppingBag },
   { href: '/spending', label: 'Spending', icon: DollarSign },
   { href: '/profile', label: 'Profile', icon: User },
 ]
@@ -36,10 +37,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-stone-950 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 border-r border-stone-800 p-6 gap-2 shrink-0">
-        <Link href="/" className="text-xl font-serif font-bold text-amber-400 tracking-wide mb-6 block">
-          LuxGrimoire
-        </Link>
+      <aside className="hidden md:flex flex-col w-56 border-r border-stone-800 pt-4 px-6 pb-6 gap-2 shrink-0">
         <nav className="flex flex-col gap-1">
           {NAV_LINKS.map(({ href, label, icon: Icon }) => (
             <Link

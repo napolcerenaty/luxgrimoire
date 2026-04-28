@@ -41,7 +41,7 @@ export default function LoginPage() {
       const me = meRes.ok ? await meRes.json() : { id: data.userId, email, username: data.username, role: data.role }
 
       auth.login(data.accessToken, me)
-      router.push('/collection')
+      router.push('/calendar')
     } catch {
       setError('Network error. Please try again.')
     } finally {

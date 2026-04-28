@@ -182,7 +182,7 @@ export function Navbar() {
       </div>
 
       {/* Second bar — main navigation */}
-      <nav className="border-b border-stone-700 bg-stone-800 overflow-x-auto scrollbar-none">
+      <nav className="border-b border-stone-700 bg-stone-800 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" style={{ scrollbarWidth: 'none' }}>
         <div className="flex items-center px-4 sm:px-6">
           {NAV_LINKS.map(({ href, label }) => (
             <Link

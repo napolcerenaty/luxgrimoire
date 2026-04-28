@@ -441,7 +441,7 @@ export default function SoldPage() {
       <RecordSaleModal
         open={addSaleOpen}
         onClose={() => setAddSaleOpen(false)}
-        entries={soldEntries}
+        entries={allEntries.filter(e => e.ownershipStatus !== 'SOLD')}
       />
     </div>
   )
