@@ -311,8 +311,7 @@ export default function CreateBookEditionForm({
           firstAccessDate: firstAccessDate || undefined,
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
-          coverImage: allImages[0] || undefined,
-          additionalImages: allImages.slice(1).filter(Boolean),
+          additionalImages: allImages.filter(Boolean),
           features: features.filter(Boolean),
         }),
       })

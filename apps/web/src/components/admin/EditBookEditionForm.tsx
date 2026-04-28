@@ -149,10 +149,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [earlyAccessDate, setEarlyAccessDate] = useState(edition.earlyAccessDate?.slice(0, 10) ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(edition.generalSaleDate?.slice(0, 10) ?? '')
   const [allImages, setAllImages] = useState<string[]>(() => {
-    const imgs: string[] = []
-    if (edition.coverImage) imgs.push(edition.coverImage)
-    if (edition.additionalImages?.length) imgs.push(...edition.additionalImages)
-    return imgs
+    return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
   const [features, setFeatures] = useState<string[]>(edition.features ?? [])
   const [artists, setArtists] = useState<ArtistEntry[]>(
@@ -212,8 +209,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           firstAccessDate: firstAccessDate || undefined,
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
-          coverImage: allImages[0] || undefined,
-          additionalImages: allImages.slice(1).filter(Boolean),
+          additionalImages: allImages.filter(Boolean),
           features: features.filter(Boolean),
         }),
       })

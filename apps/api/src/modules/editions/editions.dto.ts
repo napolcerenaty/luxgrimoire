@@ -29,11 +29,6 @@ export class CreateEditionDto {
   @IsOptional()
   @IsString()
   alternativeTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  coverImage?: string;
-
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -109,11 +104,6 @@ export class UpdateEditionDto {
   @IsOptional()
   @IsString()
   alternativeTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  coverImage?: string;
-
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
