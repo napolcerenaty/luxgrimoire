@@ -75,7 +75,14 @@ FEATURES RULES:
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
-- Do NOT put artist credits in features — those go in artists array
+- IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.
+  Example: "An exclusive foiled cover (front and spine) by @artisthandle" →
+    features: ["exclusive foiled cover (front and spine)"]
+    artists: [{ name: "@artisthandle", role: "exclusive foiled cover (front and spine)" }]
+  Example: "naked hardcover (no dust jacket) with illustrations by @artist and endpapers by @artist2" →
+    features: ["naked hardcover (no dust jacket)", "illustrations", "endpapers"]
+    artists: [{ name: "@artist", role: "naked hardcover (no dust jacket) with illustrations" }, { name: "@artist2", role: "endpapers" }]
+- Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
