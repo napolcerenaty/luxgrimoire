@@ -66,6 +66,14 @@ export class BooksController {
   }
 
   @ApiBearerAuth()
+  @Post('suggest')
+  async suggest(@Body() dto: CreateBookDto, @CurrentUser() user: { id: string; username: string }) {
+    const result = await this.booksService.suggest(dto, user.id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'SUGGEST_BOOK', entityType: 'book', entityId: result.id, entityTitle: result.slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateBookDto, @CurrentUser() user: { id: string; username: string }) {

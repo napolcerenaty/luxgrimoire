@@ -12,7 +12,7 @@ export class CreateBugReportDto {
   description!: string;
 
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, require_tld: false })
   @MaxLength(2048)
   pageUrl?: string;
 

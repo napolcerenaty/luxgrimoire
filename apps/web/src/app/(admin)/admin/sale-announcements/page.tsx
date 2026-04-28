@@ -20,6 +20,7 @@ import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/components/admin/MultiImageUpload'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
 const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
@@ -549,7 +550,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : undefined,
     earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : undefined,
     saleTimezone: f.saleTimezone || undefined,
-    basePrice: f.basePrice ? Number(f.basePrice) : undefined,
+    basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
     imageUrl: f.allImages[0] || undefined,
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
@@ -691,7 +692,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Price</label>
-          <input type="number" step="0.01" min="0" className={INP} value={form.basePrice} onChange={set('basePrice')} />
+          <input type="text" step="0.01" min="0" className={INP} value={form.basePrice} onChange={set('basePrice')} />
         </div>
         <div>
           <label className={LBL}>Currency</label>
@@ -858,7 +859,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         earlyAccessDate: form.earlyAccessDate ? tzLocalToUtcIso(form.earlyAccessDate, rTz) : null,
         endsAt: form.endsAt ? tzLocalToUtcIso(form.endsAt, rTz) : null,
         saleTimezone: form.saleTimezone || null,
-        basePrice: form.basePrice ? Number(form.basePrice) : null,
+        basePrice: form.basePrice ? parseDecimalInput(form.basePrice) : null,
         currency: form.currency || null,
       })
     },
@@ -930,7 +931,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-xs text-stone-400 mb-1">Price</label>
-            <input type="number" step="0.01" className={INP} value={f.basePrice} onChange={s('basePrice')} placeholder="Override price" />
+            <input type="text" step="0.01" className={INP} value={f.basePrice} onChange={s('basePrice')} placeholder="Override price" />
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Currency</label>

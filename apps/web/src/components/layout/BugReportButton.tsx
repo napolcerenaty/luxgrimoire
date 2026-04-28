@@ -57,11 +57,18 @@ export function BugReportButton() {
           pageUrl: typeof window !== 'undefined' ? window.location.href : pathname,
         }),
       })
-      if (!res.ok) throw new Error('Failed to submit')
+      if (!res.ok) {
+        let msg = 'Failed to submit'
+        try {
+          const body = await res.json()
+          msg = Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? msg)
+        } catch { /* ignore */ }
+        throw new Error(msg)
+      }
       setDone(true)
-    } catch {
-      setError('Failed to submit. Please try again.')
-    } finally {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to submit. Please try again.')
+    }finally {
       setSubmitting(false)
     }
   }

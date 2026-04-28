@@ -130,6 +130,7 @@ export class AuthService {
         id: true,
         username: true,
         email: true,
+        displayName: true,
         role: true,
         managedCompanyId: true,
         preferredCurrency: true,

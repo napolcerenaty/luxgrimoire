@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
 
 function formatType(type: string): string {
@@ -593,7 +594,7 @@ function EditEntryCostsModal({
         costCurrency: costCurrency || undefined,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
-          customAmount: f.customAmount ? parseFloat(f.customAmount) : null,
+          customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
           customCurrency: f.customCurrency || null,
         })),
       })

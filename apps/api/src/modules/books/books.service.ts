@@ -34,6 +34,24 @@ export class BooksService {
     });
   }
 
+  async suggest(dto: CreateBookDto, _userId: string) {
+    const slug = generateSlug(dto.title);
+    return this.prisma.book.create({
+      data: {
+        slug,
+        title: dto.title,
+        altTitle: dto.altTitle,
+        description: dto.description,
+        language: dto.language ?? 'en',
+        isbn: dto.isbn,
+        seriesName: dto.seriesName,
+        volumeNumber: dto.volumeNumber,
+        genres: dto.genres ?? [],
+        status: 'pending',
+      },
+    });
+  }
+
   async findAll(query: BookQueryDto) {
     const page = query.page ?? 1;
     const pageSize = Math.min(query.pageSize ?? 20, 100);

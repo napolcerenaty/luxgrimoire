@@ -152,13 +152,19 @@ export default function ProfilePage() {
     mutationFn: async (file: File) => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
       const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('folder', 'luxgrimoire/avatars')
-      const res = await fetch(`${API_BASE}/upload/image`, {
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch(`${API_BASE}/upload/avatar`, {
         method: 'POST',
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ data: dataUri }),
       })
       if (!res.ok) throw new Error(await res.text())
       return res.json() as Promise<UploadResponse>

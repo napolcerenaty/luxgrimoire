@@ -32,6 +32,7 @@ export class ProfileService {
       where: { id: userId },
       data: {
         ...(dto.bio !== undefined && { bio: dto.bio }),
+        ...(dto.displayName !== undefined && { displayName: dto.displayName }),
         ...(dto.avatar !== undefined && { avatarUrl: dto.avatar }),
         ...(dto.preferredCurrency !== undefined && { preferredCurrency: dto.preferredCurrency }),
         ...(dto.timezone !== undefined && { timezone: dto.timezone }),
@@ -43,6 +44,7 @@ export class ProfileService {
         id: true,
         username: true,
         email: true,
+        displayName: true,
         bio: true,
         avatarUrl: true,
         preferredCurrency: true,

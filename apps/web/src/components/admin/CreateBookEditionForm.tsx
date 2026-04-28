@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
@@ -172,6 +173,8 @@ export default function CreateBookEditionForm({
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const isPrivileged = user?.role === 'ADMIN' || user?.role === 'MODERATOR' || user?.role === 'COMPANY_MANAGER'
   const startStep = existingBookId ? 2 : 1
   const [step, setStep] = useState<1 | 2>(startStep)
   const [busy, setBusy] = useState(false)
@@ -277,7 +280,7 @@ export default function CreateBookEditionForm({
           return
         }
       }
-      const book = await authFetch<{ id: string; slug: string; title: string }>('/books', {
+      const book = await authFetch<{ id: string; slug: string; title: string }>(isPrivileged ? '/books' : '/books/suggest', {
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(),

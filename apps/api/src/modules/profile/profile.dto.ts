@@ -2,6 +2,7 @@ import { IsString, IsOptional, IsNumber, Min, Max, Length } from 'class-validato
 import { Type } from 'class-transformer';
 
 export class UpdateProfileDto {
+  @IsOptional() @IsString() displayName?: string;
   @IsOptional() @IsString() bio?: string;
   @IsOptional() @IsString() avatar?: string;
   @IsOptional() @IsString() preferredCurrency?: string;
