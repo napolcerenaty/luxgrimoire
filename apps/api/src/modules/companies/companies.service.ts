@@ -118,39 +118,72 @@ export class CompaniesService {
   async extractBrandColors(slug: string): Promise<string[]> {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
-      select: { id: true, website: true },
+      select: { id: true, website: true, logoUrl: true },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
-    if (!company.website) throw new BadRequestException('Company has no website URL configured');
+    if (!company.website && !company.logoUrl) throw new BadRequestException('Company has no website or logo URL configured');
 
-    // Fetch website HTML
-    const res = await fetch(company.website, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxgrimoireBot/1.0)' },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) throw new BadRequestException(`Failed to fetch website: HTTP ${res.status}`);
-    const html = await res.text();
+    let imageUrl: string | null = null;
 
-    // Parse og:image (handle both attribute orderings + HTML entities)
-    const ogMatch =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ??
-      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ??
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+    // ── 1. Try to find an image from the website ───────────────────────────
+    if (company.website) {
+      try {
+        const res = await fetch(company.website, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+          },
+          signal: AbortSignal.timeout(15000),
+          redirect: 'follow',
+        });
 
-    if (!ogMatch?.[1]) throw new BadRequestException('Could not find og:image or twitter:image on the website');
+        if (res.ok) {
+          const html = await res.text();
 
-    let imageUrl = ogMatch[1].replace(/&amp;/g, '&').replace(/&#x2F;/g, '/');
+          // Try multiple meta image patterns in priority order
+          const patterns = [
+            /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+            /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+            /<link[^>]+rel=["']apple-touch-icon(?:-precomposed)?["'][^>]+href=["']([^"']+)["']/i,
+            /<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon(?:-precomposed)?["']/i,
+          ];
 
-    // Resolve relative URLs
-    if (imageUrl.startsWith('//')) {
-      imageUrl = `https:${imageUrl}`;
-    } else if (imageUrl.startsWith('/')) {
-      const base = new URL(company.website);
-      imageUrl = `${base.protocol}//${base.host}${imageUrl}`;
+          for (const pattern of patterns) {
+            const m = html.match(pattern);
+            if (m?.[1]) {
+              imageUrl = m[1].replace(/&amp;/g, '&').replace(/&#x2F;/g, '/');
+              break;
+            }
+          }
+
+          // Resolve relative URLs
+          if (imageUrl) {
+            if (imageUrl.startsWith('//')) {
+              imageUrl = `https:${imageUrl}`;
+            } else if (imageUrl.startsWith('/')) {
+              const base = new URL(company.website);
+              imageUrl = `${base.protocol}//${base.host}${imageUrl}`;
+            }
+          }
+        }
+      } catch {
+        // Website fetch failed — will fall back to logoUrl below
+      }
     }
 
-    // Extract colors with node-vibrant
+    // ── 2. Fall back to company logoUrl if no image found from website ─────
+    if (!imageUrl && company.logoUrl) {
+      imageUrl = company.logoUrl;
+    }
+
+    if (!imageUrl) throw new BadRequestException('Could not find any image to extract colors from (no og:image on website and no logo URL stored)');
+
+    // ── 3. Extract colors with node-vibrant ───────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const VibrantModule = require('node-vibrant') as { default: { from: (src: string) => { getPalette: () => Promise<Record<string, { hex: string } | null>> } } };
     const Vibrant = VibrantModule.default;
