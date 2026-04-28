@@ -207,6 +207,10 @@ export default function CreateBookEditionForm({
   const [features, setFeatures] = useState<string[]>([])
   const [language, setLanguage] = useState('')
 
+  // Duplicate detection
+  const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
+  const [duplicateEdition, setDuplicateEdition] = useState<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null } | null>(null)
+
   // ── Companies ────────────────────────────────────────────────────────────
   const { data: companiesData } = useQuery({
     queryKey: ['companies-list'],
@@ -251,10 +255,30 @@ export default function CreateBookEditionForm({
   }
 
   // ── Step 1 submit ────────────────────────────────────────────────────────
-  const handleStep1 = async () => {
+  const handleStep1 = async (skipDupeCheck = false) => {
     if (!title.trim()) return alert('Book title is required')
     setBusy(true)
+    setDuplicateBook(null)
     try {
+      // Duplicate book check
+      if (!skipDupeCheck) {
+        const searchRes = await authFetch<{ data: Array<{ id: string; slug: string; title: string; authors: Array<{ author: { name: string } }> }> }>(
+          `/books?search=${encodeURIComponent(title.trim())}&pageSize=10`
+        )
+        const titleLower = title.trim().toLowerCase()
+        const exact = searchRes.data.find(b => b.title.toLowerCase() === titleLower)
+        if (exact) {
+          const authorNames = authors.map(a => a.name.toLowerCase())
+          const hasAuthorMatch =
+            authorNames.length === 0 || exact.authors.length === 0 ||
+            exact.authors.some(ba => authorNames.includes(ba.author.name.toLowerCase()))
+          if (hasAuthorMatch) {
+            setDuplicateBook({ id: exact.id, slug: exact.slug, title: exact.title, authors: exact.authors.map(ba => ({ name: ba.author.name })) })
+            setBusy(false)
+            return
+          }
+        }
+      }
       const book = await authFetch<{ id: string; slug: string; title: string }>('/books', {
         method: 'POST',
         body: JSON.stringify({
@@ -295,9 +319,21 @@ export default function CreateBookEditionForm({
   }
 
   // ── Step 2 submit ────────────────────────────────────────────────────────
-  const handleStep2 = async () => {
+  const handleStep2 = async (skipDupeCheck = false) => {
     setBusy(true)
+    setDuplicateEdition(null)
     try {
+      // Duplicate edition check
+      if (!skipDupeCheck && companyId) {
+        const edRes = await authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null }> }>(
+          `/editions?bookId=${createdBookId}&companyId=${companyId}&pageSize=10`
+        )
+        if (edRes.data.length > 0) {
+          setDuplicateEdition({ id: edRes.data[0].id, slug: edRes.data[0].slug, bookBoxCompany: edRes.data[0].bookBoxCompany, collection: edRes.data[0].collection })
+          setBusy(false)
+          return
+        }
+      }
       const ed = await authFetch<{ id: string; slug: string }>('/editions', {
         method: 'POST',
         body: JSON.stringify({
@@ -431,12 +467,38 @@ export default function CreateBookEditionForm({
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button type="button" disabled={busy || !title.trim()} onClick={handleStep1}
+        <button type="button" disabled={busy || !title.trim()} onClick={() => handleStep1()}
           className={BTN_PRIMARY}>
           {busy ? 'Creating…' : bookOnly ? 'Create Book' : 'Next: Edition →'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
       </div>
+
+      {duplicateBook && (
+        <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-4 space-y-2">
+          <p className="text-sm text-amber-300 font-semibold">⚠ This book may already exist</p>
+          <p className="text-sm text-stone-300">
+            <strong>{duplicateBook.title}</strong>
+            {duplicateBook.authors.length > 0 && ` by ${duplicateBook.authors.map(a => a.name).join(', ')}`}
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button type="button"
+              onClick={() => { setCreatedBookId(duplicateBook.id); setDuplicateBook(null); setStep(2) }}
+              className="px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold rounded-lg transition-colors">
+              Use existing book →
+            </button>
+            <a href={`/books/${duplicateBook.slug}`} target="_blank" rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
+              View book ↗
+            </a>
+            <button type="button"
+              onClick={() => { setDuplicateBook(null); handleStep1(true) }}
+              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-400 rounded-lg transition-colors">
+              Create as new anyway
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -479,7 +541,7 @@ export default function CreateBookEditionForm({
         </div>
       </div>
 
-      {/* Publisher + Photo credit */}
+      {/* Publisher + Language */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Publisher</label>
@@ -487,21 +549,10 @@ export default function CreateBookEditionForm({
             placeholder="e.g. Fairyloot Exclusive" className={INP} />
         </div>
         <div>
-          <label className={LBL}>Photo by (IG handle)</label>
-          <input value={photoCredit} onChange={e => setPhotoCredit(e.target.value)}
-            placeholder="@username" className={INP} />
+          <label className={LBL}>Language</label>
+          <input value={language} onChange={e => setLanguage(e.target.value)}
+            placeholder="e.g. English, Polish…" className={INP} />
         </div>
-      </div>
-
-      {/* Language */}
-      <div>
-        <label className={LBL}>Language</label>
-        <input
-          value={language}
-          onChange={e => setLanguage(e.target.value)}
-          placeholder="e.g. English, Polish…"
-          className={INP}
-        />
       </div>
 
       {/* Dates */}
@@ -528,6 +579,11 @@ export default function CreateBookEditionForm({
           folder="luxgrimoire/editions"
           onChange={setAllImages}
         />
+        <div className="mt-2">
+          <label className={LBL}>Photo by (IG handle)</label>
+          <input value={photoCredit} onChange={e => setPhotoCredit(e.target.value)}
+            placeholder="@username" className={INP} />
+        </div>
       </div>
 
       <AiParseSection onResult={applyAiResult} />
@@ -577,7 +633,7 @@ export default function CreateBookEditionForm({
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button type="button" disabled={busy || saved} onClick={handleStep2}
+        <button type="button" disabled={busy || saved} onClick={() => handleStep2()}
           className={saved
             ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white transition-colors'
             : BTN_PRIMARY}>
@@ -585,6 +641,27 @@ export default function CreateBookEditionForm({
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
       </div>
+
+      {duplicateEdition && (
+        <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-4 space-y-2">
+          <p className="text-sm text-amber-300 font-semibold">⚠ A similar edition already exists</p>
+          <p className="text-sm text-stone-300">
+            {duplicateEdition.bookBoxCompany?.name ?? 'Unknown company'}
+            {duplicateEdition.collection && ` — ${duplicateEdition.collection.name}`}
+          </p>
+          <div className="flex gap-2 pt-1">
+            <a href={`/editions/${duplicateEdition.slug}`} target="_blank" rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
+              View existing ↗
+            </a>
+            <button type="button"
+              onClick={() => { setDuplicateEdition(null); handleStep2(true) }}
+              className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-stone-100 rounded-lg transition-colors">
+              Add new variant anyway
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
