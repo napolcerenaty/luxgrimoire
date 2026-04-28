@@ -378,7 +378,7 @@ export default async function CompanyPage({ params }: Props) {
                       <EditionCard
                         key={edition.id}
                         href={`/editions/${edition.slug}`}
-                        coverImage={edition.coverImage ?? edition.book.coverImage}
+                        coverImage={edition.additionalImages?.[0] ?? edition.book.coverImage}
                         title={edition.book.title}
                         seriesName={edition.book.seriesName}
                         volumeNumber={edition.book.volumeNumber}

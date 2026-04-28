@@ -36,7 +36,7 @@ export default async function HomePage() {
     return {
       id: e.id,
       href: `/editions/${e.slug}`,
-      coverImage: e.coverImage ?? null,
+      coverImage: e.additionalImages?.[0] ?? null,
       title: e.book?.title ?? 'Unknown',
       subtitle: e.book?.seriesName
         ? `${e.book.seriesName}${e.book.volumeNumber != null ? ` #${e.book.volumeNumber}` : ''}`

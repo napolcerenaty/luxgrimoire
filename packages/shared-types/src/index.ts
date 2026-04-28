@@ -136,7 +136,7 @@ export interface ApiBookBoxCollection {
 export interface ApiCompanyEdition {
   id: string;
   slug: string;
-  coverImage: string | null;
+  additionalImages: string[];
   editionName: string | null;
   collectionId: string | null;
   subscriptionId: string | null;

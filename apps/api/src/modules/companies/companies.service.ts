@@ -76,6 +76,7 @@ export class CompaniesService {
             id: true,
             slug: true,
             editionName: true,
+            additionalImages: true,
             collectionId: true,
             subscriptionId: true,
             collection: { select: { id: true, name: true, slug: true } },

@@ -71,7 +71,7 @@ export default async function CollectionPage({ params }: Props) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
           {editions.map((edition) => {
-            const imgUrl = cloudinaryUrl(edition.coverImage, 'w_320,h_480,c_fill,q_auto,f_auto')
+            const imgUrl = cloudinaryUrl(edition.additionalImages?.[0] ?? null, 'w_320,h_480,c_fill,q_auto,f_auto')
             const book = edition.book
             const authors = book?.authors?.map((a) => (a as { name: string }).name).join(', ') ?? null
             const href = book?.slug ? `/books/${book.slug}` : '#'

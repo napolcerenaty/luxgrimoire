@@ -117,10 +117,10 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             {pendingEditions.map((edition) => (
               <div key={edition.id} className="rounded-xl border border-amber-800/40 bg-stone-900 p-4 flex items-start gap-4">
-                {edition.coverImage && cloudinaryUrl(edition.coverImage, 'w_60,h_90,c_fill,q_auto') && (
+                {edition.additionalImages?.[0] && cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto') && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={cloudinaryUrl(edition.coverImage, 'w_60,h_90,c_fill,q_auto')!}
+                    src={cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto')!}
                     alt=""
                     className="w-12 h-[72px] object-cover rounded border border-stone-700 flex-shrink-0"
                   />
