@@ -17,8 +17,6 @@ import { SearchDropdown } from '@/components/search/SearchDropdown'
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
-  { href: '/feature-requests', label: 'Feature Requests' },
-  { href: '/data-requests', label: 'Request Data' },
 ]
 
 const USER_NAV_LINKS = [
@@ -144,17 +142,36 @@ export function Navbar() {
                   </div>
 
                   <div className="py-1">
+                    {/* My Library */}
+                    <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">My Library</p>
                     {[
-                      { href: '/collection', icon: BookOpen,     label: 'Collection' },
-                      { href: '/spending',   icon: DollarSign,    label: 'Spending' },
-                      { href: '/calendar',   icon: CalendarDays,  label: 'Calendar' },
-                      { href: '/profile',    icon: Settings,      label: 'Settings' },
+                      { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
+                      { href: '/collection',        icon: BookOpen,     label: 'Collection' },
+                      { href: '/sold',              icon: ShoppingBag,  label: 'My Sales' },
+                      { href: '/my-subscriptions',  icon: BookMarked,   label: 'Subscriptions' },
+                      { href: '/wishlist',          icon: Heart,        label: 'Wishlist' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
                         key={href}
                         href={href}
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                      >
+                        <Icon size={14} /> {label}
+                      </Link>
+                    ))}
+
+                    <div className="h-px bg-stone-700 my-1" />
+                    {/* Finance & Account */}
+                    {[
+                      { href: '/spending', icon: DollarSign, label: 'Spending' },
+                      { href: '/profile',  icon: Settings,   label: 'Settings' },
+                    ].map(({ href, icon: Icon, label }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
                       >
                         <Icon size={14} /> {label}
                       </Link>
@@ -166,7 +183,7 @@ export function Navbar() {
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-stone-400 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-400 hover:bg-stone-700 hover:text-amber-400 transition-colors"
                         >
                           <LayoutDashboard size={14} /> Admin Panel
                         </Link>
@@ -176,7 +193,7 @@ export function Navbar() {
                     <div className="h-px bg-stone-700 my-1" />
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-stone-500 hover:bg-rose-950/40 hover:text-rose-400 transition-colors"
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-stone-500 hover:bg-rose-950/40 hover:text-rose-400 transition-colors"
                     >
                       <LogOut size={14} /> Sign out
                     </button>
@@ -209,22 +226,6 @@ export function Navbar() {
                   : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
               `}
             >
-              {label}
-            </Link>
-          ))}
-
-          {user && USER_NAV_LINKS.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`
-                flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
-                ${isActive(href)
-                  ? 'border-amber-400 text-amber-400'
-                  : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
-              `}
-            >
-              <Icon size={13} />
               {label}
             </Link>
           ))}
