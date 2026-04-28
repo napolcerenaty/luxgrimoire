@@ -5,13 +5,15 @@ import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 
 interface ImageCarouselProps {
   images: string[]
+  lightboxImages?: string[]  // full-res URLs for lightbox; falls back to images
   alt: string
 }
 
-export function ImageCarousel({ images, alt }: ImageCarouselProps) {
+export function ImageCarousel({ images, lightboxImages, alt }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const total = images.length
+  const fullImages = lightboxImages ?? images
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + total) % total), [total])
   const next = useCallback(() => setCurrent((c) => (c + 1) % total), [total])
@@ -124,7 +126,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={images[current]}
+              src={fullImages[current]}
               alt={`${alt} — ${current + 1}`}
               className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
             />
