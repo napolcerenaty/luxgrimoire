@@ -13,6 +13,8 @@ import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X } from 'lucide-rea
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
+const fmtStatus = (s: string) => s.replace(/_/g, ' ')
+
 interface CollectionEntry {
   id: string
   isWishlist: boolean
@@ -1215,7 +1217,7 @@ export default function CollectionPage() {
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
-                                {entry.ownershipStatus}
+                                {fmtStatus(entry.ownershipStatus)}
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
@@ -1235,7 +1237,7 @@ export default function CollectionPage() {
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                     >
-                                      {val}
+                                      {fmtStatus(val)}
                                     </button>
                                   ))}
                                 </div>
@@ -1275,7 +1277,7 @@ export default function CollectionPage() {
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                     >
-                                      {val === 'DNF' ? 'DNF (Did Not Finish)' : val === 'READ' ? 'Read' : 'Unread'}
+                                      {val === 'DNF' ? 'DNF' : val}
                                     </button>
                                   ))}
                                 </div>

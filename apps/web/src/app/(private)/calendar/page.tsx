@@ -385,6 +385,79 @@ export default function CalendarPage() {
         </p>
       )}
 
+      {/* Upcoming sales list */}
+      {interests.length > 0 && (() => {
+        const todayStr = today.toISOString().slice(0, 10)
+        const sorted = [...interests]
+          .map(i => ({ interest: i, dateStr: resolveInterestDate(i) }))
+          .filter(({ dateStr }) => !!dateStr)
+          .sort((a, b) => (a.dateStr! < b.dateStr! ? -1 : 1))
+        const upcoming = sorted.filter(({ dateStr }) => dateStr! >= todayStr)
+        const past = sorted.filter(({ dateStr }) => dateStr! < todayStr)
+        return (
+          <div className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">Sales you&apos;re interested in</h2>
+            <div className="space-y-1">
+              {upcoming.length === 0 && (
+                <p className="text-sm text-stone-500 italic">No upcoming sales tracked.</p>
+              )}
+              {upcoming.map(({ interest: i, dateStr }) => {
+                const d = new Date(dateStr!)
+                const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+                return (
+                  <Link
+                    key={`${i.announcementId}-${i.tier}`}
+                    href={`/sale-announcements/${i.announcementId}`}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-900 border border-stone-800 hover:border-purple-700/50 transition-colors group"
+                  >
+                    <Bell size={13} className="text-purple-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-stone-200 group-hover:text-white truncate">{i.announcement.title}</p>
+                      {i.announcement.company && (
+                        <p className="text-xs text-stone-500 truncate">{i.announcement.company.name}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-purple-300">{TIER_LABELS[i.tier]}</p>
+                      <p className="text-xs text-stone-400">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+              {past.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-400 transition-colors select-none">
+                    {past.length} past sale{past.length > 1 ? 's' : ''}
+                  </summary>
+                  <div className="mt-1 space-y-1 opacity-60">
+                    {past.reverse().map(({ interest: i, dateStr }) => {
+                      const d = new Date(dateStr!)
+                      const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                      return (
+                        <Link
+                          key={`${i.announcementId}-${i.tier}-past`}
+                          href={`/sale-announcements/${i.announcementId}`}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-900 border border-stone-800 hover:border-stone-700 transition-colors group"
+                        >
+                          <Bell size={13} className="text-stone-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-stone-400 truncate">{i.announcement.title}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-stone-500">{TIER_LABELS[i.tier]} · {label}</p>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Floating tooltip */}
       {tooltip && (
         <div
