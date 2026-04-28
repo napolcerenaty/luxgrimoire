@@ -38,7 +38,7 @@ function Cover({ id, size = 56 }: { id?: string | null; size?: number }) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EditionInfo = {
-  id: string; slug: string; coverImage: string | null
+  id: string; slug: string; additionalImages: string[]
   editionName: string | null; publisher: string | null
 }
 type BookInfo = {
@@ -167,10 +167,10 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
               disabled={addBookMutation.isPending}
               className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-800 hover:bg-stone-700 transition-colors"
             >
-              <Cover id={ed.coverImage} size={36} />
+              <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">{ed.editionName ?? 'Standard'}</div>
-                <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
+                <div className="text-stone-100 text-xs">{ed.editionName ?? ed.publisher ?? ''}</div>
+                <div className="text-stone-500 text-xs">{ed.editionName ? (ed.publisher ?? '') : ''}</div>
               </div>
             </button>
           ))}
@@ -382,13 +382,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               {month.books.map(mb => (
                 <div key={`${mb.bookId}-${mb.editionId}`}
                   className="flex items-center gap-3 bg-stone-800/60 rounded-xl px-3 py-2">
-                  <Cover id={mb.edition?.coverImage ?? mb.book.coverImage} size={44} />
+                  <Cover id={mb.edition?.additionalImages?.[0] ?? mb.book.coverImage} size={44} />
                   <div className="flex-1 min-w-0">
                     <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
-                          {mb.edition.editionName ?? 'Standard'}
-                          {mb.edition.publisher && ` · ${mb.edition.publisher}`}
+                          {[mb.edition.editionName, mb.edition.publisher].filter(Boolean).join(' · ') || null}
                         </div>
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }
