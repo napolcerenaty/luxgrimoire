@@ -89,9 +89,9 @@ html {
   --color-stone-500: #456a90;
   --color-stone-400: #1a3a5a;
   --color-stone-300: #0d2038;
-  --color-stone-200: #081428;
-  --color-stone-100: #040c18;
-  --color-stone-50:  #020810;
+  --color-stone-200: #0a1c36;
+  --color-stone-100: #0d2448;  /* rich navy — not black */
+  --color-stone-50:  #0a1c38;  /* deep navy */
 
   /* Remap amber → deeper cyan (readable on light blue bg) */
   --color-amber-50:  #002840;
@@ -114,7 +114,7 @@ html {
   --border:        #9ab8d8;
   --border-dim:    #b0cce4;
   --text:          #0d1f35;
-  --text-bright:   #040c18;
+  --text-bright:   #0d2448;  /* rich navy (was near-black #040c18) */
   --text-dim:      #1a3a5a;
   --text-muted:    #1a6888;  --accent:        #0d5585;
   --accent2:       #0878b0;
