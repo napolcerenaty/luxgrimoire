@@ -83,7 +83,7 @@ export default function MonthCard({
         {/* Hover overlay with book title — sits above the ribbon (ribbon ~28px) */}
         {hovered && (
           <div className="absolute inset-0 bg-stone-950/70 flex flex-col items-center justify-center pb-8 px-3 pointer-events-none">
-            {mainBook ? (
+            {mainBook?.edition ? (
               <p className="text-stone-100 text-xs font-serif font-semibold text-center leading-snug line-clamp-4">
                 {mainBook.title}
               </p>

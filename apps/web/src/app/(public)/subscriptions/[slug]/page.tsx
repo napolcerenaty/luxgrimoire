@@ -44,7 +44,7 @@ function getMainBook(monthData: ApiSubscriptionMonth) {
     coverImage: mb.book.coverImage ?? null,
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
-      coverImage: mb.edition.coverImage ?? null,
+      coverImage: mb.edition.additionalImages?.[0] ?? null,
     } : null,
   }
 }
@@ -312,7 +312,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
   const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
   const mainBook = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
   const bookCoverUrl = cloudinaryUrl(
-    mainBook?.edition?.coverImage ?? mainBook?.book?.coverImage ?? null,
+    mainBook?.edition?.additionalImages?.[0] ?? mainBook?.book?.coverImage ?? null,
     'w_600,c_fill,q_auto,f_auto',
   )
 
@@ -373,7 +373,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
 
       {/* Hover overlay with title */}
       <div className="absolute inset-0 z-30 flex items-center justify-center bg-stone-950/65 px-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        {mainBook ? (
+        {mainBook?.edition ? (
           <p className="text-stone-100 text-sm font-serif font-semibold text-center leading-snug line-clamp-4">
             {mainBook.book.title}
           </p>
