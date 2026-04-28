@@ -7,6 +7,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { WishlistButton } from '@/components/books/WishlistButton'
+import { BackButton } from '@/components/ui/BackButton'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -413,15 +414,12 @@ export default async function EditionPage({ params }: Props) {
         {/* ── Back link ────────────────────────────────────────────────────── */}
         {book && (
           <div>
-            <Link
-              href={`/books/${book.slug}`}
-              className="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors"
-            >
+            <BackButton className="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               All editions of &quot;{book.title}&quot;
-            </Link>
+            </BackButton>
           </div>
         )}
       </div>

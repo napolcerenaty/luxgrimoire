@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
+import { BackButton } from '@/components/ui/BackButton'
 import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
@@ -89,12 +90,9 @@ export default async function SubscriptionPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      {/* Back to company */}
+      {/* Back to previous page */}
       {sub.company && (
-        <Link
-          href={`/companies/${sub.company.slug}`}
-          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
-        >
+        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
           {cloudinaryUrl(sub.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto') && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -104,7 +102,7 @@ export default async function SubscriptionPage({ params }: Props) {
             />
           )}
           <span>← {sub.company.name}</span>
-        </Link>
+        </BackButton>
       )}
 
       {/* Header */}
