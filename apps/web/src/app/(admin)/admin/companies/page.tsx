@@ -342,8 +342,6 @@ export default function AdminCompaniesPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
-  const [extractingColors, setExtractingColors] = useState(false)
-  const [extractError, setExtractError] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -371,19 +369,6 @@ export default function AdminCompaniesPage() {
     mutationFn: (slug: string) => authFetch(`/companies/${slug}`, { method: 'DELETE' }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setDeleteCompany(null) },
   })
-
-  const handleExtractColors = async (slug: string) => {
-    setExtractingColors(true)
-    setExtractError(null)
-    try {
-      await authFetch(`/companies/${slug}/extract-brand-colors`, { method: 'POST' })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
-    } catch (err) {
-      setExtractError(err instanceof Error ? err.message : 'Extraction failed')
-    } finally {
-      setExtractingColors(false)
-    }
-  }
 
   const columns = [
     {
@@ -457,7 +442,7 @@ export default function AdminCompaniesPage() {
         <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Edit — {editCompany.name}</h2>
-            <button onClick={() => { setEditCompany(null); setExtractError(null) }} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => setEditCompany(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
 
           {/* Brand colors */}
@@ -470,20 +455,6 @@ export default function AdminCompaniesPage() {
               initial={editCompany.brandColors ?? []}
               onSaved={() => queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })}
             />
-
-            {/* Auto-extract button */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                disabled={extractingColors || !editCompany.website}
-                onClick={() => handleExtractColors(editCompany.slug)}
-                title={editCompany.website ? 'Extract colors from website' : 'Company has no website URL'}
-                className="px-3 py-1 text-xs rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40"
-              >
-                {extractingColors ? '⟳ Extracting…' : '🎨 Auto-Extract from Website'}
-              </button>
-              {extractError && <p className="text-red-400 text-xs">{extractError}</p>}
-            </div>
           </div>
 
           <CompanyForm
