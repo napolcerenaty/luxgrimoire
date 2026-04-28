@@ -491,6 +491,7 @@ model SaleAnnouncement {
   availableForPurchase Boolean                   @default(false)
   isBundle             Boolean                   @default(false)
   expectedShipping     String?
+  photoCredit          String?
   earlyAccessDate      DateTime?
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?

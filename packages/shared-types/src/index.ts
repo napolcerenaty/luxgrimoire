@@ -471,6 +471,7 @@ export interface ApiSaleAnnouncement {
 
   isBundle: boolean;
   expectedShipping: string | null;
+  photoCredit: string | null;
   availableForPurchase: boolean;
   createdAt: string;
   updatedAt: string;

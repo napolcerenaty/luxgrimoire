@@ -583,6 +583,7 @@ export interface SaleAnnouncementFormData {
 
   isBundle?: boolean;
   expectedShipping?: string;
+  photoCredit?: string;
   editionIds?: string[];
 }
 

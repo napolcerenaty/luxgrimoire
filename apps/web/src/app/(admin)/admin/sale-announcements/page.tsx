@@ -17,7 +17,6 @@ import {
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
-import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/components/admin/MultiImageUpload'
@@ -488,6 +487,7 @@ interface FormState {
   allImages: string[]
   isBundle: boolean
   expectedShipping: string
+  photoCredit: string
   linkedEditions: LinkedEdition[]
 }
 
@@ -503,6 +503,7 @@ const EMPTY_FORM: FormState = {
   allImages: [],
   isBundle: false,
   expectedShipping: '',
+  photoCredit: '',
   linkedEditions: [],
 }
 
@@ -517,7 +518,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     editionId: e.editionId,
     bookTitle: e.edition?.book?.title ?? '',
     editionName: e.edition?.editionName ?? null,
-    coverImage: e.edition?.coverImage ?? null,
+    coverImage: (e.edition as any)?.additionalImages?.[0] ?? null,
   }))
   return {
     title: a.title,
@@ -531,6 +532,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     allImages,
     isBundle: a.isBundle,
     expectedShipping: (a as any).expectedShipping ?? '',
+    photoCredit: a.photoCredit ?? '',
     linkedEditions,
   }
 }
@@ -550,6 +552,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
+    photoCredit: f.photoCredit || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
 }
@@ -702,6 +705,17 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           value={form.expectedShipping}
           onChange={set('expectedShipping')}
           placeholder="e.g. January/February 2026"
+        />
+      </div>
+
+      {/* Photo Credit */}
+      <div>
+        <label className={LBL}>Photo by (IG handler)</label>
+        <input
+          className={INP}
+          value={form.photoCredit}
+          onChange={set('photoCredit')}
+          placeholder="@photographer"
         />
       </div>
 
@@ -1207,11 +1221,13 @@ function AnnouncementCard({
   companyMap,
   onEdit,
   onDelete,
+  isEditing,
 }: {
   announcement: ApiSaleAnnouncement
   companyMap: Record<string, string>
   onEdit: () => void
   onDelete: () => void
+  isEditing?: boolean
 }) {
   const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
   const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
@@ -1220,7 +1236,7 @@ function AnnouncementCard({
     : null
 
   return (
-    <div className="bg-stone-900 border border-stone-700 rounded-xl overflow-hidden">
+    <div className={`bg-stone-900 border border-stone-700 rounded-xl overflow-hidden${isEditing ? ' rounded-b-none border-b-0' : ''}`}>
       <div className="flex items-start gap-4 p-4">
         {thumb
           ? <img src={thumb} className="w-12 h-15 object-cover rounded-lg flex-shrink-0" style={{ height: '60px', width: '48px' }} />
@@ -1252,8 +1268,8 @@ function AnnouncementCard({
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
-                className="text-amber-400 hover:text-amber-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-amber-400/50 transition-colors">
-                Edit
+                className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-amber-400/20 text-amber-300 border-amber-400/50' : 'text-amber-400 hover:text-amber-300 border-stone-600 hover:border-amber-400/50'}`}>
+                {isEditing ? 'Cancel' : 'Edit'}
               </button>
               <button onClick={onDelete}
                 className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-red-400/50 transition-colors">
@@ -1325,11 +1341,26 @@ export default function AdminSaleAnnouncementsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Sale Announcements</h1>
-        <button onClick={() => setCreateOpen(true)}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors">
-          Add Sale
+        <button
+          onClick={() => { setCreateOpen(o => !o); setEditItem(null) }}
+          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+        >
+          {createOpen ? '✕ Cancel' : '+ Add Sale'}
         </button>
       </div>
+
+      {/* Inline create form */}
+      {createOpen && (
+        <div className="bg-stone-900 border border-amber-500/40 rounded-xl p-5 mb-5">
+          <h2 className="text-amber-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
+          <SaleAnnouncementForm
+            initial={EMPTY_FORM}
+            submitLabel="Create"
+            submitting={createMutation.isPending}
+            onSubmit={form => createMutation.mutate(form)}
+          />
+        </div>
+      )}
 
       {/* Search + filter bar */}
       <div className="flex flex-wrap gap-3 mb-5">
@@ -1361,13 +1392,34 @@ export default function AdminSaleAnnouncementsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {announcements.map(a => (
-            <AnnouncementCard
-              key={a.id}
-              announcement={a}
-              companyMap={companyMap}
-              onEdit={() => setEditItem(a)}
-              onDelete={() => setDeleteItem(a)}
-            />
+            <div key={a.id}>
+              <AnnouncementCard
+                announcement={a}
+                companyMap={companyMap}
+                onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); setCreateOpen(false) }}
+                onDelete={() => setDeleteItem(a)}
+                isEditing={editItem?.id === a.id}
+              />
+              {editItem?.id === a.id && (
+                <div className="bg-stone-900 border border-amber-500/40 border-t-0 rounded-b-xl p-5 -mt-1">
+                  <h2 className="text-amber-400 font-semibold text-sm mb-4">Edit Sale Announcement</h2>
+                  <SaleAnnouncementForm
+                    key={editItem.id}
+                    initial={announcementToForm(editItem)}
+                    submitLabel="Save Changes"
+                    submitting={editMutation.isPending}
+                    onSubmit={form => editMutation.mutate({ id: editItem.id, form })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditItem(null)}
+                    className="mt-3 text-stone-500 hover:text-stone-300 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -1385,26 +1437,6 @@ export default function AdminSaleAnnouncementsPage() {
           </button>
         </div>
       )}
-
-      <FormModal open={createOpen} title="Add Sale Announcement" onClose={() => setCreateOpen(false)}>
-        <SaleAnnouncementForm
-          initial={EMPTY_FORM}
-          submitLabel="Create"
-          submitting={createMutation.isPending}
-          onSubmit={form => createMutation.mutate(form)}
-        />
-      </FormModal>
-
-      <FormModal open={editItem !== null} title="Edit Sale Announcement" onClose={() => setEditItem(null)}>
-        {editItem && (
-          <SaleAnnouncementForm
-            initial={announcementToForm(editItem)}
-            submitLabel="Save Changes"
-            submitting={editMutation.isPending}
-            onSubmit={form => editMutation.mutate({ id: editItem.id, form })}
-          />
-        )}
-      </FormModal>
 
       <ConfirmDialog
         open={deleteItem !== null}

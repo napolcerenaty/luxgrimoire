@@ -29,7 +29,7 @@ const editionsIncludeAdmin = {
     edition: {
       select: {
         editionName: true,
-        coverImage: true,
+        additionalImages: true,
         book: {
           select: { id: true, title: true, slug: true },
         },
@@ -179,6 +179,7 @@ export class AnnouncementsService {
         extraImagesJson: extraImages && extraImages.length > 0 ? extraImages : Prisma.DbNull,
         isBundle: data.isBundle ?? false,
         expectedShipping: data.expectedShipping ?? null,
+        photoCredit: data.photoCredit ?? null,
       },
     });
 
@@ -225,6 +226,7 @@ export class AnnouncementsService {
         }),
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
         ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
+        ...(data.photoCredit !== undefined && { photoCredit: data.photoCredit || null }),
       },
     });
 

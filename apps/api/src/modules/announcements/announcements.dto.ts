@@ -45,6 +45,10 @@ export class CreateSaleAnnouncementDto {
   expectedShipping?: string;
 
   @IsOptional()
+  @IsString()
+  photoCredit?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   extraImages?: string[];
@@ -99,6 +103,10 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   expectedShipping?: string;
+
+  @IsOptional()
+  @IsString()
+  photoCredit?: string;
 
   @IsOptional()
   @IsArray()
