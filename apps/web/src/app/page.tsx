@@ -69,16 +69,16 @@ export default async function HomePage() {
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
-              href="/books"
+              href="/subscriptions"
               className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
             >
-              Browse Books
+              Browse Subscriptions
             </Link>
             <Link
-              href="/subscriptions"
+              href="/books"
               className="px-6 py-3 border border-stone-600 hover:border-stone-400 text-stone-300 hover:text-stone-100 font-serif rounded-full transition-colors text-sm"
             >
-              Subscription Boxes
+              Browse Books
             </Link>
           </div>
         </div>

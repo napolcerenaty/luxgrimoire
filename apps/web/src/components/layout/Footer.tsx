@@ -5,12 +5,11 @@ const YEAR = new Date().getFullYear()
 
 const LINKS = {
   discover: [
-    { href: '/books',          label: 'Browse Books' },
-    { href: '/editions',       label: 'Editions' },
-    { href: '/subscriptions',  label: 'Subscription Boxes' },
-    { href: '/companies',      label: 'Book Box Companies' },
+    { href: '/subscriptions',      label: 'Subscription Boxes' },
+    { href: '/books',              label: 'Browse Books' },
+    { href: '/companies',          label: 'Book Box Companies' },
     { href: '/sale-announcements', label: 'Sale Announcements' },
-    { href: '/search',         label: 'Search' },
+    { href: '/search',             label: 'Search' },
   ],
   community: [
     { href: '/feature-requests',            label: 'Feature Requests' },
@@ -21,9 +20,13 @@ const LINKS = {
     { href: '/collection', label: 'My Collection' },
     { href: '/calendar',   label: 'My Calendar' },
     { href: '/spending',   label: 'Spending Tracker' },
-    { href: '/favorites',  label: 'Favorites' },
     { href: '/login',      label: 'Sign In' },
     { href: '/register',   label: 'Create Account' },
+  ],
+  company: [
+    { href: '/about',   label: 'About' },
+    { href: '/contact', label: 'Contact' },
+    { href: '/faq',     label: 'FAQ' },
   ],
   legal: [
     { href: '/report',       label: 'Report Abuse / DMCA' },
@@ -37,7 +40,7 @@ export function Footer() {
     <footer className="border-t border-stone-800 bg-stone-950 text-stone-400 mt-16">
       <div className="container mx-auto px-4 sm:px-6 py-12">
         {/* Main grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
             <p className="font-serif text-xl font-bold text-amber-400 mb-2">LuxGrimoire</p>
@@ -71,6 +74,18 @@ export function Footer() {
             <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mt-5 mb-3">Account</p>
             <ul className="space-y-2">
               {LINKS.account.map(({ href, label }) => (
+                <li key={href}>
+                  <Link href={href} className="text-sm hover:text-stone-200 transition-colors">{label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Company</p>
+            <ul className="space-y-2">
+              {LINKS.company.map(({ href, label }) => (
                 <li key={href}>
                   <Link href={href} className="text-sm hover:text-stone-200 transition-colors">{label}</Link>
                 </li>
