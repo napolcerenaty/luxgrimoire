@@ -1,0 +1,265 @@
+'use client'
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { Search, BookOpen, User, Brush, Package, Building2 } from 'lucide-react'
+import type { ApiSearchResult } from '@luxgrimoire/shared-types'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+
+function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }
+}
+
+export function SearchDropdown() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<ApiSearchResult | null>(null)
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+
+  const fetchResults = useCallback(
+    debounce(async (q: string) => {
+      if (q.length < 2) {
+        setResults(null)
+        setOpen(false)
+        setLoading(false)
+        return
+      }
+      setLoading(true)
+      try {
+        const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data: ApiSearchResult = await res.json()
+          setResults(data)
+          setOpen(true)
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setLoading(false)
+      }
+    }, 300),
+    [],
+  )
+
+  useEffect(() => {
+    fetchResults(query)
+  }, [query, fetchResults])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  const total = results
+    ? results.books.length + results.authors.length + results.artists.length +
+      results.subscriptions.length + results.companies.length
+    : 0
+
+  const goSearch = () => {
+    if (query.trim().length >= 2) {
+      setOpen(false)
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`)
+    }
+  }
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative w-full">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && goSearch()}
+          placeholder="Search books, editions…"
+          className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={goSearch}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
+        >
+          <Search size={13} className={loading ? 'animate-pulse' : ''} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute top-full mt-2 left-0 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-stone-700 bg-stone-900 shadow-2xl z-[200]">
+          {total === 0 ? (
+            <p className="px-4 py-3 text-xs text-stone-500">No results found</p>
+          ) : (
+            <div className="py-1">
+              <ResultGroup
+                title="Books"
+                icon={<BookOpen size={11} />}
+                items={results!.books.map((b) => ({
+                  key: b.id,
+                  label: b.title,
+                  sub: b.authors[0]?.author.name,
+                  image: b.coverImage,
+                  badge: b.editions[0]?.bookBoxCompany?.name,
+                  href: `/books/${b.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Authors"
+                icon={<User size={11} />}
+                items={results!.authors.map((a) => ({
+                  key: a.id,
+                  label: a.name,
+                  sub: a.nationality,
+                  image: a.photoUrl,
+                  href: `/authors/${a.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Artists"
+                icon={<Brush size={11} />}
+                items={results!.artists.map((a) => ({
+                  key: a.id,
+                  label: a.name,
+                  sub: a.specialty,
+                  image: a.photoUrl,
+                  href: `/artists/${a.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Subscriptions"
+                icon={<Package size={11} />}
+                items={results!.subscriptions.map((s) => ({
+                  key: s.id,
+                  label: s.name,
+                  sub: s.company?.name,
+                  image: s.company?.logoUrl,
+                  href: `/subscriptions/${s.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Companies"
+                icon={<Building2 size={11} />}
+                items={results!.companies.map((c) => ({
+                  key: c.id,
+                  label: c.name,
+                  sub: c.country,
+                  image: c.logoUrl,
+                  href: `/companies/${c.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+
+              {total > 0 && (
+                <button
+                  onClick={goSearch}
+                  className="w-full text-left px-4 py-2.5 text-xs text-amber-500 hover:bg-stone-800 border-t border-stone-800 transition-colors"
+                >
+                  See all results for &ldquo;{query}&rdquo;
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface ResultItem {
+  key: string
+  label: string
+  sub?: string | null
+  image?: string | null
+  badge?: string | null
+  href: string
+}
+
+function ResultGroup({
+  title,
+  icon,
+  items,
+  onNavigate,
+  query,
+}: {
+  title: string
+  icon: React.ReactNode
+  items: ResultItem[]
+  onNavigate: (href: string) => void
+  query: string
+}) {
+  if (!items.length) return null
+
+  const highlight = (text: string) => {
+    const idx = text.toLowerCase().indexOf(query.toLowerCase())
+    if (idx === -1) return <span>{text}</span>
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <mark className="bg-amber-500/30 text-amber-200 rounded-sm">{text.slice(idx, idx + query.length)}</mark>
+        {text.slice(idx + query.length)}
+      </span>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+        {icon} {title}
+      </div>
+      {items.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => onNavigate(item.href)}
+          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-800 transition-colors text-left"
+        >
+          <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden">
+            {item.image ? (
+              <Image src={item.image} alt={item.label} width={32} height={32} className="w-full h-full object-cover" unoptimized />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-stone-600">
+                <BookOpen size={14} />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-stone-200 truncate">{highlight(item.label)}</p>
+            {item.sub && <p className="text-[10px] text-stone-500 truncate">{item.sub}</p>}
+          </div>
+          {item.badge && (
+            <span className="text-[9px] text-amber-600 border border-amber-800 rounded px-1 py-0.5 shrink-0 max-w-[70px] truncate">
+              {item.badge}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
+}

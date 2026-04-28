@@ -1,20 +1,20 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Search, Loader2 } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-type SearchTab = 'all' | 'books' | 'authors' | 'artists' | 'companies'
+type SearchTab = 'all' | 'books' | 'authors' | 'artists' | 'subscriptions' | 'companies'
 
-interface SearchResults {
-  books?: Array<{ id: string; slug: string; title: string; coverImage: string | null; authors: Array<{ name: string }> }>
-  authors?: Array<{ id: string; slug: string; name: string; photoUrl: string | null }>
-  artists?: Array<{ id: string; slug: string; name: string; photoUrl: string | null }>
-  companies?: Array<{ id: string; slug: string; name: string; logoUrl: string | null }>
+function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms) }
 }
 
 function SkeletonCard() {
@@ -33,78 +33,75 @@ export function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const q = searchParams.get('q') ?? ''
+  const filterParam = (searchParams.get('filter') ?? 'all') as SearchTab
 
   const [query, setQuery] = useState(q)
-  const [results, setResults] = useState<SearchResults | null>(null)
+  const [results, setResults] = useState<ApiSearchResult | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<SearchTab>('all')
+  const [activeTab, setActiveTab] = useState<SearchTab>(filterParam)
 
-  const doSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
-      setResults(null)
-      return
-    }
-    setLoading(true)
-    try {
-      const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`)
-      if (res.ok) {
-        const data = await res.json()
-        setResults(data)
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const doSearch = useCallback(
+    debounce(async (searchQuery: string, tab: SearchTab) => {
+      if (!searchQuery.trim() || searchQuery.trim().length < 2) { setResults(null); setLoading(false); return }
+      setLoading(true)
+      try {
+        const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}&filter=${tab}`)
+        if (res.ok) setResults(await res.json())
+      } catch { /* ignore */ }
+      finally { setLoading(false) }
+    }, 300),
+    [],
+  )
 
-  useEffect(() => {
-    setQuery(q)
-    doSearch(q)
-  }, [q, doSearch])
+  useEffect(() => { setQuery(q); setActiveTab(filterParam) }, [q, filterParam])
+  useEffect(() => { doSearch(query, activeTab) }, [query, activeTab, doSearch])
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('q', query)
-    router.push(`/search?${params.toString()}`)
+  const handleQueryChange = (v: string) => {
+    setQuery(v)
+    const p = new URLSearchParams(searchParams.toString())
+    if (v) p.set('q', v); else p.delete('q')
+    router.replace(`/search?${p.toString()}`, { scroll: false })
+  }
+
+  const handleTabChange = (tab: SearchTab) => {
+    setActiveTab(tab)
+    const p = new URLSearchParams(searchParams.toString())
+    if (tab !== 'all') p.set('filter', tab); else p.delete('filter')
+    router.replace(`/search?${p.toString()}`, { scroll: false })
   }
 
   const totalCount =
-    (results?.books?.length ?? 0) +
-    (results?.authors?.length ?? 0) +
-    (results?.artists?.length ?? 0) +
+    (results?.books?.length ?? 0) + (results?.authors?.length ?? 0) +
+    (results?.artists?.length ?? 0) + (results?.subscriptions?.length ?? 0) +
     (results?.companies?.length ?? 0)
 
   const tabs: { id: SearchTab; label: string; count: number }[] = [
-    { id: 'all', label: 'All', count: totalCount },
-    { id: 'books', label: 'Books', count: results?.books?.length ?? 0 },
-    { id: 'authors', label: 'Authors', count: results?.authors?.length ?? 0 },
-    { id: 'artists', label: 'Artists', count: results?.artists?.length ?? 0 },
-    { id: 'companies', label: 'Companies', count: results?.companies?.length ?? 0 },
+    { id: 'all',           label: 'All',           count: totalCount },
+    { id: 'books',         label: 'Books',         count: results?.books?.length ?? 0 },
+    { id: 'authors',       label: 'Authors',       count: results?.authors?.length ?? 0 },
+    { id: 'artists',       label: 'Artists',       count: results?.artists?.length ?? 0 },
+    { id: 'subscriptions', label: 'Subscriptions', count: results?.subscriptions?.length ?? 0 },
+    { id: 'companies',     label: 'Companies',     count: results?.companies?.length ?? 0 },
   ]
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">
       <h1 className="text-4xl font-serif font-bold text-stone-100 mb-8">Search</h1>
 
-      {/* Search form */}
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-8">
+      {/* Search input — real-time, debounced */}
+      <div className="relative mb-8">
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search books, authors, companies…"
-          className="flex-1 bg-stone-800 border border-stone-700 rounded-full px-5 py-3 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
+          onChange={(e) => handleQueryChange(e.target.value)}
+          placeholder="Search books, authors, artists, subscriptions, companies…"
+          className="w-full bg-stone-800 border border-stone-700 rounded-full px-5 py-3 pr-12 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
           autoFocus
         />
-        <button
-          type="submit"
-          className="px-6 py-3 bg-amber-700 hover:bg-amber-600 text-white rounded-full font-medium transition-colors"
-        >
-          Search
-        </button>
-      </form>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500">
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+        </div>
+      </div>
 
       {loading && (
         <div className="space-y-3">
@@ -119,17 +116,13 @@ export function SearchContent() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-amber-700 text-white'
-                    : 'text-stone-400 hover:text-stone-200'
+                  activeTab === tab.id ? 'bg-amber-700 text-white' : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
                 {tab.label}
-                {tab.count > 0 && (
-                  <span className="ml-1 text-xs opacity-70">({tab.count})</span>
-                )}
+                {tab.count > 0 && <span className="ml-1 text-xs opacity-70">({tab.count})</span>}
               </button>
             ))}
           </div>
@@ -144,33 +137,20 @@ export function SearchContent() {
           {/* Books */}
           {(activeTab === 'all' || activeTab === 'books') && (results.books?.length ?? 0) > 0 && (
             <section className="mb-8">
-              {activeTab === 'all' && (
-                <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Books</h2>
-              )}
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Books</h2>}
               <div className="space-y-2">
                 {results.books!.map((book) => {
                   const cover = cloudinaryUrl(book.coverImage, 'w_60,c_fill,q_auto,f_auto')
                   return (
-                    <Link
-                      key={book.id}
-                      href={`/books/${book.slug}`}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
-                    >
+                    <Link key={book.id} href={`/books/${book.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
-                        {cover ? (
-                          <Image src={cover} alt={book.title} fill className="object-cover" unoptimized />
-                        ) : (
-                          <div className="w-full h-full bg-stone-700" />
-                        )}
+                        {cover ? <Image src={cover} alt={book.title} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700" />}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
-                          {book.title}
-                        </p>
-                        {book.authors?.length > 0 && (
-                          <p className="text-xs text-stone-400">
-                            {book.authors.map((a) => a.name).join(', ')}
-                          </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{book.title}</p>
+                        {book.authors?.length > 0 && <p className="text-xs text-stone-400 truncate">{book.authors.map((a) => a.author.name).join(', ')}</p>}
+                        {book.editions[0]?.bookBoxCompany && (
+                          <span className="inline-block mt-0.5 text-[10px] text-amber-600 border border-amber-800 rounded px-1 py-0.5">{book.editions[0].bookBoxCompany.name}</span>
                         )}
                       </div>
                     </Link>
@@ -183,30 +163,19 @@ export function SearchContent() {
           {/* Authors */}
           {(activeTab === 'all' || activeTab === 'authors') && (results.authors?.length ?? 0) > 0 && (
             <section className="mb-8">
-              {activeTab === 'all' && (
-                <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Authors</h2>
-              )}
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Authors</h2>}
               <div className="space-y-2">
                 {results.authors!.map((author) => {
                   const photo = cloudinaryUrl(author.photoUrl, 'w_60,h_60,c_fill,q_auto,f_auto')
                   return (
-                    <Link
-                      key={author.id}
-                      href={`/authors/${author.slug}`}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
-                    >
+                    <Link key={author.id} href={`/authors/${author.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
-                        {photo ? (
-                          <Image src={photo} alt={author.name} fill className="object-cover" unoptimized />
-                        ) : (
-                          <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
-                            {author.name.charAt(0)}
-                          </div>
-                        )}
+                        {photo ? <Image src={photo} alt={author.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{author.name.charAt(0)}</div>}
                       </div>
-                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
-                        {author.name}
-                      </p>
+                      <div>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{author.name}</p>
+                        {author.nationality && <p className="text-xs text-stone-500">{author.nationality}</p>}
+                      </div>
                     </Link>
                   )
                 })}
@@ -217,30 +186,42 @@ export function SearchContent() {
           {/* Artists */}
           {(activeTab === 'all' || activeTab === 'artists') && (results.artists?.length ?? 0) > 0 && (
             <section className="mb-8">
-              {activeTab === 'all' && (
-                <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Artists</h2>
-              )}
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Artists</h2>}
               <div className="space-y-2">
                 {results.artists!.map((artist) => {
                   const photo = cloudinaryUrl(artist.photoUrl, 'w_60,h_60,c_fill,q_auto,f_auto')
                   return (
-                    <Link
-                      key={artist.id}
-                      href={`/artists/${artist.slug}`}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
-                    >
+                    <Link key={artist.id} href={`/artists/${artist.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-10 rounded-full overflow-hidden bg-stone-800 shrink-0">
-                        {photo ? (
-                          <Image src={photo} alt={artist.name} fill className="object-cover" unoptimized />
-                        ) : (
-                          <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
-                            {artist.name.charAt(0)}
-                          </div>
-                        )}
+                        {photo ? <Image src={photo} alt={artist.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{artist.name.charAt(0)}</div>}
                       </div>
-                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
-                        {artist.name}
-                      </p>
+                      <div>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{artist.name}</p>
+                        {artist.specialty && <p className="text-xs text-stone-500">{artist.specialty}</p>}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Subscriptions */}
+          {(activeTab === 'all' || activeTab === 'subscriptions') && (results.subscriptions?.length ?? 0) > 0 && (
+            <section className="mb-8">
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Subscriptions</h2>}
+              <div className="space-y-2">
+                {results.subscriptions!.map((sub) => {
+                  const logo = cloudinaryUrl(sub.company?.logoUrl, 'w_60,h_60,c_fill,q_auto,f_auto')
+                  return (
+                    <Link key={sub.id} href={`/subscriptions/${sub.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-stone-800 shrink-0">
+                        {logo ? <Image src={logo} alt={sub.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{sub.name.charAt(0)}</div>}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{sub.name}</p>
+                        <p className="text-xs text-stone-500">{[sub.company?.name, sub.type, sub.isDiscontinued ? 'Discontinued' : null].filter(Boolean).join(' · ')}</p>
+                      </div>
                     </Link>
                   )
                 })}
@@ -251,30 +232,16 @@ export function SearchContent() {
           {/* Companies */}
           {(activeTab === 'all' || activeTab === 'companies') && (results.companies?.length ?? 0) > 0 && (
             <section className="mb-8">
-              {activeTab === 'all' && (
-                <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Companies</h2>
-              )}
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Companies</h2>}
               <div className="space-y-2">
                 {results.companies!.map((company) => {
                   const logo = cloudinaryUrl(company.logoUrl, 'w_60,h_60,c_fill,q_auto,f_auto')
                   return (
-                    <Link
-                      key={company.id}
-                      href={`/companies/${company.slug}`}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group"
-                    >
+                    <Link key={company.id} href={`/companies/${company.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-10 rounded overflow-hidden bg-stone-800 shrink-0">
-                        {logo ? (
-                          <Image src={logo} alt={company.name} fill className="object-cover" unoptimized />
-                        ) : (
-                          <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">
-                            {company.name.charAt(0)}
-                          </div>
-                        )}
+                        {logo ? <Image src={logo} alt={company.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{company.name.charAt(0)}</div>}
                       </div>
-                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">
-                        {company.name}
-                      </p>
+                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{company.name}</p>
                     </Link>
                   )
                 })}
@@ -284,8 +251,11 @@ export function SearchContent() {
         </>
       )}
 
-      {!loading && !results && q && (
-        <p className="text-stone-500 text-sm">Press Search to find results.</p>
+      {!loading && !results && query.length >= 2 && (
+        <p className="text-stone-500 text-sm">Searching…</p>
+      )}
+      {!loading && !results && query.length < 2 && (
+        <p className="text-stone-500 text-sm">Enter at least 2 characters to search.</p>
       )}
     </div>
   )

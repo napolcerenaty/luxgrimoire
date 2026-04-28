@@ -11,6 +11,7 @@ import {
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { SearchDropdown } from '@/components/search/SearchDropdown'
 
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
@@ -85,26 +86,9 @@ export function Navbar() {
         </Link>
 
         {/* Search bar — next to logo */}
-        <form
-          action="/search"
-          method="get"
-          className="relative z-10 flex-1 max-w-xs mx-3 hidden sm:flex items-center"
-        >
-          <div className="relative w-full">
-            <input
-              name="q"
-              type="text"
-              placeholder="Search books, editions…"
-              className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
-            />
-            <button
-              type="submit"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
-            >
-              <Search size={13} />
-            </button>
-          </div>
-        </form>
+        <div className="relative z-10 flex-1 max-w-xs mx-3 hidden sm:flex items-center">
+          <SearchDropdown />
+        </div>
         {/* Mobile search icon */}
         <Link href="/search" className="relative z-10 sm:hidden p-1.5 text-stone-400 hover:text-amber-400 transition-colors">
           <Search size={17} />

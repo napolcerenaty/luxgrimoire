@@ -293,6 +293,65 @@ export interface ApiError {
   error?: string;
 }
 
+export interface ApiSearchBook {
+  id: string;
+  slug: string;
+  title: string;
+  coverImage: string | null;
+  seriesName: string | null;
+  volumeNumber: number | null;
+  authors: { author: { id: string; name: string; slug: string } }[];
+  editions: {
+    bookBoxCompany: { slug: string; name: string; logoUrl: string | null } | null;
+  }[];
+}
+
+export interface ApiSearchAuthor {
+  id: string;
+  name: string;
+  slug: string;
+  photoUrl: string | null;
+  nationality: string | null;
+  _count: { books: number };
+}
+
+export interface ApiSearchArtist {
+  id: string;
+  name: string;
+  slug: string;
+  photoUrl: string | null;
+  specialty: string | null;
+}
+
+export interface ApiSearchSubscription {
+  id: string;
+  slug: string;
+  name: string;
+  coverImage: string | null;
+  type: string | null;
+  isDiscontinued: boolean;
+  company: { slug: string; name: string; logoUrl: string | null } | null;
+}
+
+export interface ApiSearchCompany {
+  id: string;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  country: string | null;
+}
+
+export interface ApiSearchResult {
+  books: ApiSearchBook[];
+  authors: ApiSearchAuthor[];
+  artists: ApiSearchArtist[];
+  subscriptions: ApiSearchSubscription[];
+  companies: ApiSearchCompany[];
+  query: string;
+  filter: string;
+}
+
+
 export interface ApiUserSubBillingPeriod {
   id: string;
   entryId: string;
