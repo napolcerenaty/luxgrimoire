@@ -252,7 +252,25 @@ export class SubscriptionsService {
   async getMonths(slug: string) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
-      include: { months: { orderBy: [{ year: 'desc' }, { month: 'desc' }] } },
+      include: {
+        months: {
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          include: {
+            cardArtist: { select: { id: true, name: true, slug: true } },
+            books: {
+              include: {
+                book: {
+                  select: {
+                    id: true, title: true, slug: true, coverImage: true,
+                    authors: { select: { author: { select: { name: true, slug: true } } } },
+                  },
+                },
+                edition: { select: { id: true, slug: true, editionName: true, publisher: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
     return sub.months;
