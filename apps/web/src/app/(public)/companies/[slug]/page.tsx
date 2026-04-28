@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany, ApiCompanyEdition } from '@luxgrimoire/shared-types'
-import { EditionCard } from '@/components/books/EditionCard'
+import { CompanyBooksSection, type EditionGroup } from './CompanyBooksSection'
 
 // Minimal inline SVG icons for social platforms
 function InstagramIcon({ className }: { className?: string }) {
@@ -60,11 +60,6 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
-type EditionGroup = {
-  label: string
-  href: string | null
-  editions: ApiCompanyEdition[]
-}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -141,6 +136,14 @@ export default async function CompanyPage({ params }: Props) {
     editionGroups.push({ label: 'Exclusive Editions', href: null, editions: standalone })
   }
 
+  // Re-order: Exclusive Editions first, then named collections, then subscription groups
+  const orderedGroups: EditionGroup[] = [
+    ...editionGroups.filter((g) => g.label === 'Exclusive Editions'),
+    ...editionGroups.filter((g) => g.href?.includes('/collections/')),
+    ...editionGroups.filter((g) => g.href?.includes('/subscriptions/')),
+    ...editionGroups.filter((g) => !g.href && g.label !== 'Exclusive Editions'),
+  ]
+
   const socials = [
     company.website
       ? { label: 'Website', href: company.website, icon: 'website' as const }
@@ -195,38 +198,20 @@ export default async function CompanyPage({ params }: Props) {
         </div>
       )}
 
-      {/* Company header */}
+      {/* Company header: logo+links left, info right */}
       <div className="flex flex-col sm:flex-row gap-8 items-start mb-12">
-        {logoUrl && (
-          <div className="w-40 h-20 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center shrink-0 overflow-hidden p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoUrl}
-              alt={company.name}
-              className="w-full h-full object-contain"
-            />
-          </div>
-        )}
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap mb-2">
-            <p className="text-xs text-amber-600 uppercase tracking-widest font-medium">Company</p>
-            {hasActiveSponsored && (
-              <Badge variant="warning">✦ Featured Partner</Badge>
-            )}
-          </div>
-          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3">{company.name}</h1>
-
-          {company.country && (
-            <span className="text-sm text-stone-400 mb-3 block">{company.country}</span>
+        {/* Left column: logo + social links */}
+        <div className="shrink-0 flex flex-col items-start gap-4">
+          {logoUrl && (
+            <div className="w-44 h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt={company.name} className="w-full h-full object-contain" />
+            </div>
           )}
 
-          {company.description && (
-            <p className="text-stone-300 leading-relaxed max-w-2xl mb-4">{company.description}</p>
-          )}
-
-          {/* Social links */}
+          {/* Social links as a column */}
           {socials.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="flex flex-col gap-1.5 w-44">
               {socials.map((s) => (
                 <a
                   key={s.icon}
@@ -234,7 +219,7 @@ export default async function CompanyPage({ params }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={s.label}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors text-xs font-medium"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors text-xs font-medium"
                 >
                   {s.icon === 'instagram' && <InstagramIcon className="w-3.5 h-3.5 shrink-0" />}
                   {s.icon === 'facebook' && <FacebookIcon className="w-3.5 h-3.5 shrink-0" />}
@@ -252,6 +237,23 @@ export default async function CompanyPage({ params }: Props) {
                 </a>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Right column: company info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap mb-2">
+            <p className="text-xs text-amber-600 uppercase tracking-widest font-medium">Company</p>
+            {hasActiveSponsored && (
+              <Badge variant="warning">✦ Featured Partner</Badge>
+            )}
+          </div>
+          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3">{company.name}</h1>
+          {company.country && (
+            <span className="text-sm text-stone-400 mb-3 block">{company.country}</span>
+          )}
+          {company.description && (
+            <p className="text-stone-300 leading-relaxed max-w-2xl">{company.description}</p>
           )}
         </div>
       </div>
@@ -294,24 +296,22 @@ export default async function CompanyPage({ params }: Props) {
         </section>
       )}
 
-      {/* Subscriptions */}
+      {/* Subscriptions — compact cards, denser grid */}
       {subscriptions.length > 0 && (
         <section className="mt-12">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            Subscriptions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {subscriptions.map((sub) => {
-              const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,h_400,c_fill,q_auto,f_auto')
-              const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_300,h_200,c_fit,q_auto,f_auto')
+              const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_400,h_300,c_fill,q_auto,f_auto')
+              const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_200,h_120,c_fit,q_auto,f_auto')
               return (
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
+                  className="group rounded-lg overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
                 >
-                  {/* Blurred bg + centred logo */}
-                  <div className="relative aspect-[3/2] overflow-hidden bg-stone-800 flex items-center justify-center">
+                  {/* Compact image: aspect-[2/1] */}
+                  <div className="relative aspect-[2/1] overflow-hidden bg-stone-800 flex items-center justify-center">
                     {bgImage && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -326,18 +326,18 @@ export default async function CompanyPage({ params }: Props) {
                       <img
                         src={logoImage}
                         alt={sub.name}
-                        className="relative z-10 max-w-[70%] max-h-[70%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
+                        className="relative z-10 max-w-[65%] max-h-[65%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <span className="relative z-10 text-stone-400 text-sm font-serif">{sub.name}</span>
+                      <span className="relative z-10 text-stone-400 text-xs font-serif">{sub.name}</span>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
                       {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
                       {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     </div>
-                    <h3 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors">
+                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight">
                       {sub.name}
                     </h3>
                   </div>
@@ -348,60 +348,8 @@ export default async function CompanyPage({ params }: Props) {
         </section>
       )}
 
-      {/* Books grouped by subscription/collection/standalone */}
-      {editionGroups.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-8">Books</h2>
-          <div className="space-y-10">
-            {editionGroups.map((group) => {
-              const VISIBLE = 20
-              const visibleEditions = group.editions.slice(0, VISIBLE)
-              const remaining = group.editions.length - VISIBLE
-              return (
-                <div key={group.label}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-lg font-serif font-semibold text-stone-200">{group.label}</h3>
-                    {group.href && (
-                      <Link
-                        href={group.href}
-                        className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
-                      >
-                        View all →
-                      </Link>
-                    )}
-                    <span className="text-xs text-stone-600 ml-auto">
-                      {group.editions.length} edition{group.editions.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {visibleEditions.map((edition) => (
-                      <EditionCard
-                        key={edition.id}
-                        href={`/editions/${edition.slug}`}
-                        coverImage={edition.additionalImages?.[0] ?? edition.book.coverImage}
-                        title={edition.book.title}
-                        seriesName={edition.book.seriesName}
-                        volumeNumber={edition.book.volumeNumber}
-                        authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
-                      />
-                    ))}
-                  </div>
-                  {remaining > 0 && group.href && (
-                    <div className="mt-4 text-center">
-                      <Link
-                        href={group.href}
-                        className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-400 transition-colors"
-                      >
-                        + {remaining} more edition{remaining !== 1 ? 's' : ''} — View all →
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {/* Books with tabs, search, load-more */}
+      <CompanyBooksSection groups={orderedGroups} />
 
       {subscriptions.length === 0 && editions.length === 0 && (
         <p className="text-stone-500 text-sm">No content found for this company.</p>
