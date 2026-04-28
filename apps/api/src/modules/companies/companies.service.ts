@@ -178,16 +178,27 @@ export class CompaniesService {
 
     // ── 2. Fall back to company logoUrl if no image found from website ─────
     if (!imageUrl && company.logoUrl) {
-      imageUrl = company.logoUrl;
+      // logoUrl is stored as a Cloudinary public ID — resolve to full URL
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME ?? '';
+      imageUrl = company.logoUrl.startsWith('http')
+        ? company.logoUrl
+        : `https://res.cloudinary.com/${cloudName}/image/upload/${company.logoUrl}`;
     }
 
     if (!imageUrl) throw new BadRequestException('Could not find any image to extract colors from (no og:image on website and no logo URL stored)');
 
-    // ── 3. Extract colors with node-vibrant ───────────────────────────────
+    // ── 3. Fetch image as Buffer (node-vibrant/node requires Buffer, not URL) ─
+    const imgRes = await fetch(imageUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!imgRes.ok) throw new BadRequestException(`Failed to fetch image for color extraction: HTTP ${imgRes.status}`);
+    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+
+    // ── 4. Extract colors with node-vibrant ──────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const VibrantModule = require('node-vibrant') as { default: { from: (src: string) => { getPalette: () => Promise<Record<string, { hex: string } | null>> } } };
-    const Vibrant = VibrantModule.default;
-    const palette = await Vibrant.from(imageUrl).getPalette();
+    const { Vibrant } = require('node-vibrant/node') as { Vibrant: { from: (src: Buffer) => { getPalette: () => Promise<Record<string, { hex: string } | null>> } } };
+    const palette = await Vibrant.from(imgBuffer).getPalette();
 
     const primary = palette['Vibrant']?.hex ?? palette['LightVibrant']?.hex ?? '#c8b48c';
     const dark = palette['DarkVibrant']?.hex ?? palette['DarkMuted']?.hex ?? '#2a1f14';
