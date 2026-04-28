@@ -311,9 +311,6 @@ export default function CreateBookEditionForm({
         } else {
           onSuccess()
         }
-      } else if (!isPrivileged) {
-        // Non-privileged users: book suggestion submitted, no edition step
-        onSuccess()
       } else {
         setStep(2)
       }

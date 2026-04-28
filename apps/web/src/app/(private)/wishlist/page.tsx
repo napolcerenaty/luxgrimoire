@@ -16,6 +16,7 @@ interface CollectionEntry {
     id: string
     slug: string
     publisher: string | null
+    additionalImages: string[]
     bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
       id: string
@@ -167,7 +168,7 @@ export default function WishlistPage() {
             <EditionCard
               key={entry.id}
               href={`/editions/${entry.edition.slug}`}
-              coverImage={entry.edition.book.coverImage}
+              coverImage={entry.edition.additionalImages[0] ?? entry.edition.book.coverImage}
               companyName={entry.edition.bookBoxCompany?.name}
               seriesName={entry.edition.book.seriesName}
               volumeNumber={entry.edition.book.volumeNumber}
