@@ -102,4 +102,24 @@ export class CompaniesController {
     void this.auditService.log({ userId: user.id, username: user.username, action: 'EXTRACT_BRAND_COLORS', entityType: 'company', entityId: slug, entityTitle: slug });
     return { brandColors: colors };
   }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @HttpCode(HttpStatus.OK)
+  @Post(':slug/set-brand-colors')
+  async setBrandColors(
+    @Param('slug') slug: string,
+    @Body() body: { colors: string[] },
+    @CurrentUser() user: { id: string; username: string; role: string; managedCompanyId: string | null },
+  ) {
+    if (user.role === 'COMPANY_MANAGER') {
+      const company = await this.companiesService.findBySlug(slug);
+      if (company.id !== user.managedCompanyId) {
+        throw new ForbiddenException('You can only manage your own company');
+      }
+    }
+    const colors = await this.companiesService.setBrandColors(slug, body.colors ?? []);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'SET_BRAND_COLORS', entityType: 'company', entityId: slug, entityTitle: slug });
+    return { brandColors: colors };
+  }
 }

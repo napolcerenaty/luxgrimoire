@@ -7,9 +7,94 @@ import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
+
+// ── Manual Brand Color Editor ────────────────────────────────────────────────
+function ManualColorEditor({
+  slug,
+  initial,
+  onSaved,
+}: {
+  slug: string
+  initial: string[]
+  onSaved: () => void
+}) {
+  const [colors, setColors] = useState<string[]>(() => {
+    const c = [...initial]
+    while (c.length < 3) c.push('#c8b48c')
+    return c.slice(0, 3)
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  const setColor = (i: number, val: string) =>
+    setColors((prev) => prev.map((c, idx) => (idx === i ? val : c)))
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await authFetch(`/companies/${slug}/set-brand-colors`, {
+        method: 'POST',
+        body: JSON.stringify({ colors }),
+      })
+      onSaved()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const labels = ['Primary', 'Dark', 'Muted']
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end gap-3 flex-wrap">
+        {colors.map((c, i) => (
+          <div key={i} className="flex flex-col gap-1">
+            <span className="text-[10px] text-stone-500 uppercase tracking-widest">{labels[i]}</span>
+            <div className="flex items-center gap-1.5">
+              {/* Native color picker */}
+              <input
+                type="color"
+                value={c.startsWith('#') ? c : '#c8b48c'}
+                onChange={(e) => setColor(i, e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border border-stone-600 bg-transparent p-0.5"
+              />
+              {/* Hex text input */}
+              <input
+                type="text"
+                value={c}
+                maxLength={7}
+                onChange={(e) => setColor(i, e.target.value)}
+                className="w-24 px-2 py-1.5 rounded-lg bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono focus:outline-none focus:border-amber-500"
+                placeholder="#rrggbb"
+              />
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="mb-0.5 px-3 py-1.5 text-xs rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Colors'}
+        </button>
+      </div>
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+    </div>
+  )
+}
 
 // Common ISO 4217 currencies
 const CURRENCIES = [
@@ -376,28 +461,30 @@ export default function AdminCompaniesPage() {
           </div>
 
           {/* Brand colors */}
-          <div className="flex items-center gap-3 py-2 border-b border-stone-800">
-            <div className="flex gap-1.5 items-center">
-              {(editCompany.brandColors ?? []).length > 0
-                ? (editCompany.brandColors ?? []).map((c, i) => (
-                    <div key={i} title={c} className="w-5 h-5 rounded-full border border-stone-600" style={{ backgroundColor: c }} />
-                  ))
-                : <span className="text-stone-500 text-xs">No brand colors yet</span>
-              }
+          <div className="py-2 border-b border-stone-800 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">Brand Colors</p>
+
+            {/* Color picker row */}
+            <ManualColorEditor
+              slug={editCompany.slug}
+              initial={editCompany.brandColors ?? []}
+              onSaved={() => queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })}
+            />
+
+            {/* Auto-extract button */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={extractingColors || !editCompany.website}
+                onClick={() => handleExtractColors(editCompany.slug)}
+                title={editCompany.website ? 'Extract colors from website' : 'Company has no website URL'}
+                className="px-3 py-1 text-xs rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40"
+              >
+                {extractingColors ? '⟳ Extracting…' : '🎨 Auto-Extract from Website'}
+              </button>
+              {extractError && <p className="text-red-400 text-xs">{extractError}</p>}
             </div>
-            <button
-              type="button"
-              disabled={extractingColors || !editCompany.website}
-              onClick={() => handleExtractColors(editCompany.slug).then(() => {
-                queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
-              })}
-              title={editCompany.website ? 'Extract colors from website og:image' : 'Company has no website URL'}
-              className="ml-auto px-3 py-1 text-xs rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40"
-            >
-              {extractingColors ? '⟳ Extracting…' : '🎨 Extract Brand Colors'}
-            </button>
           </div>
-          {extractError && <p className="text-red-400 text-xs">{extractError}</p>}
 
           <CompanyForm
             key={editCompany.id}
