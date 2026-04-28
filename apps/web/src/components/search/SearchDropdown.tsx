@@ -106,8 +106,24 @@ export function SearchDropdown() {
 
       {open && (
         <div className="absolute top-full mt-2 left-0 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-stone-700 bg-stone-900 shadow-2xl z-[200]">
-          {total === 0 ? (
-            <p className="px-4 py-3 text-xs text-stone-500">No results found</p>
+          {results !== null && total === 0 ? (
+            <div className="px-4 py-4 space-y-2">
+              <p className="text-xs text-stone-400">Didn&apos;t find what you&apos;re looking for?</p>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => { setOpen(false); router.push('/data-requests') }}
+                  className="text-left text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  ✦ Add it to the database →
+                </button>
+                <button
+                  onClick={() => { setOpen(false); router.push('/sale-announcement-requests') }}
+                  className="text-left text-xs text-stone-500 hover:text-stone-400 transition-colors"
+                >
+                  📢 Report a sale announcement →
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="py-1">
               <ResultGroup

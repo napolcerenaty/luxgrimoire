@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import { AddEditionForm } from '@/components/books/AddEditionForm'
+import { AddEditionModal } from '@/components/books/AddEditionModal'
 import { ArtistLink } from '@/components/ui/ArtistLink'
 import { EditionCard } from '@/components/books/EditionCard'
 import { BookBundleInfo } from '@/components/books/BookBundleInfo'
@@ -140,12 +140,15 @@ export default async function BookPage({ params }: Props) {
 
       {/* Editions */}
       <section className="mt-16">
-        <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-          Editions
-          {editions.length > 0 && (
-            <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
-          )}
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-serif font-semibold text-stone-100">
+            Editions
+            {editions.length > 0 && (
+              <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
+            )}
+          </h2>
+          <AddEditionModal bookId={book.id} />
+        </div>
         {editions.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {editions.map((edition) => (
@@ -176,7 +179,6 @@ export default async function BookPage({ params }: Props) {
             ))}
           </div>
         )}
-        <AddEditionForm bookId={book.id} bookSlug={book.slug} />
       </section>
       <BookBundleInfo editionIds={editions.map(e => e.id)} />
     </div>

@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { Database, CheckCircle, Clock, XCircle, ExternalLink } from 'lucide-react'
+import { Database, CheckCircle, Clock, XCircle, ExternalLink, PlusCircle, ChevronDown } from 'lucide-react'
+import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const DATA_TYPES = [
   { value: 'EDITION', label: '📖 Edition / Book box variant' },
@@ -62,15 +63,52 @@ export default function DataRequestsPage() {
     },
   })
 
+  const [addMode, setAddMode] = useState<null | 'book'>(null)
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
       <div>
         <h1 className="text-3xl font-serif font-bold text-stone-100 flex items-center gap-3">
-          <Database size={28} className="text-amber-400" /> Request Missing Data
+          <Database size={28} className="text-amber-400" /> Add Missing Data
         </h1>
         <p className="text-stone-400 text-sm mt-2">
-          Can't find a book edition, subscription box, or series? Let us know and we'll add it.
+          Can't find a book edition, subscription box, or series? You can add it directly or send us a request.
         </p>
+      </div>
+
+      {/* ── Direct submission ── */}
+      <div className="bg-stone-900 border border-amber-700/40 rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setAddMode(addMode ? null : 'book')}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-stone-800/60 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <PlusCircle size={20} className="text-amber-400" />
+            <div className="text-left">
+              <p className="text-sm font-semibold text-stone-100">Add a Book &amp; Edition Directly</p>
+              <p className="text-xs text-stone-500">
+                Submitted books are visible immediately with an &ldquo;Unverified&rdquo; badge until reviewed.
+              </p>
+            </div>
+          </div>
+          <ChevronDown size={16} className={`text-stone-500 transition-transform ${addMode ? 'rotate-180' : ''}`} />
+        </button>
+
+        {addMode === 'book' && (
+          <div className="border-t border-stone-800 p-6">
+            {user ? (
+              <CreateBookEditionForm
+                onSuccess={() => { setAddMode(null) }}
+                onCancel={() => setAddMode(null)}
+              />
+            ) : (
+              <div className="text-center py-6 space-y-3">
+                <p className="text-stone-400 text-sm">You need to be signed in to submit data directly.</p>
+                <a href="/login" className="inline-block px-5 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold rounded-full text-sm transition-colors">Sign in</a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {submitted ? (

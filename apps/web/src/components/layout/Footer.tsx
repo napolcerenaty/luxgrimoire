@@ -45,7 +45,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <p className="font-serif text-lg font-bold text-amber-400 mb-2">LuxGrimoire</p>
             <p className="text-xs text-stone-500 leading-relaxed">
-              Track luxury book editions and subscription boxes. Community-driven database.
+              Limited books. Unlimited obsession.
             </p>
           </div>
 
