@@ -327,7 +327,10 @@ export class SubscriptionsService {
 
     return this.prisma.subscriptionMonth.update({
       where: { id: existing.id },
-      data: dto,
+      data: {
+        ...dto,
+        cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
+      },
     });
   }
 

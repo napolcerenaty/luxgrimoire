@@ -84,7 +84,7 @@ export class AnnouncementsController {
   adminSetVariant(
     @Param('id') id: string,
     @Param('editionId') editionId: string,
-    @Body('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+    @Body('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
     @Body('price') price?: number,
     @Body('currency') currency?: string,
   ) {
@@ -97,7 +97,7 @@ export class AnnouncementsController {
   adminRemoveVariant(
     @Param('id') id: string,
     @Param('editionId') editionId: string,
-    @Param('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed',
+    @Param('signatureType') signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
   ) {
     return this.announcementsService.adminRemoveVariant(id, editionId, signatureType);
   }

@@ -1065,6 +1065,7 @@ enum SignatureType {
   unsigned
   signed
   digitally_signed
+  signed_bookplate
 }
 
 enum SponsoredSlotType {

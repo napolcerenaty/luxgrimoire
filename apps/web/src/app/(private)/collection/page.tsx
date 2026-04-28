@@ -642,7 +642,7 @@ export default function CollectionPage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [bookFilter, setBookFilter] = useState('')
-  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED'>('ALL')
+  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
@@ -796,6 +796,7 @@ export default function CollectionPage() {
     if (sigFilter === 'UNSIGNED' && e.signatureType) return false
     if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
     if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
+    if (sigFilter === 'SIGNED_BOOKPLATE' && e.signatureType !== 'signed_bookplate') return false
     if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
     if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
     if (tagFilter !== 'ALL') {
@@ -1079,6 +1080,7 @@ export default function CollectionPage() {
               <option value="UNSIGNED">Unsigned</option>
               <option value="SIGNED">✍️ Signed</option>
               <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
+              <option value="SIGNED_BOOKPLATE">🏷️ Signed Bookplate</option>
             </select>
 
             {/* Ownership status */}
@@ -1288,9 +1290,11 @@ export default function CollectionPage() {
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                                 entry.signatureType === 'signed'
                                   ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
+                                  : entry.signatureType === 'signed_bookplate'
+                                  ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
                                   : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                               }`}>
-                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : '🖨️ DIGITAL'}
+                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITAL'}
                               </span>
                             )}
                           </div>
