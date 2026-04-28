@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
-import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup, updatePurchaseGroup } from '@/lib/api'
 import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X, Pencil } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
@@ -62,8 +62,27 @@ interface EditionSearchResult {
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 
-function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+interface FeeEntry {
+  key: number
+  templateId: string
+  amount: string
+  currency: string
+}
+
+interface FeeTemplate {
+  id: string
+  name: string
+  category: string | null
+  defaultAmount: number | null
+  defaultCurrency: string | null
+  isActive: boolean
+}
+
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
+
+function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () => void; bundle?: ApiPurchaseGroup }) {
   const queryClient = useQueryClient()
+  const isEdit = !!bundle
   const [form, setForm] = useState({
     title: '',
     totalAmount: '',
@@ -76,6 +95,25 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedEditions, setSelectedEditions] = useState<EditionSearchResult[]>([])
   const [success, setSuccess] = useState(false)
+  const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
+  const feeKeyRef = useRef(0)
+
+  // Pre-fill form in edit mode whenever bundle changes
+  useEffect(() => {
+    if (bundle) {
+      setForm({
+        title: bundle.title ?? '',
+        totalAmount: String(bundle.totalAmount),
+        currency: bundle.currency,
+        shippingAmount: bundle.shippingAmount != null ? String(bundle.shippingAmount) : '',
+        purchasedAt: bundle.purchasedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+        notes: bundle.notes ?? '',
+      })
+    } else {
+      setForm({ title: '', totalAmount: '', currency: 'USD', shippingAmount: '', purchasedAt: new Date().toISOString().slice(0, 10), notes: '' })
+      setFeeEntries([])
+    }
+  }, [bundle, open])
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(editionSearch), 300)
@@ -91,17 +129,53 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
     enabled: debouncedSearch.length >= 2,
   })
 
+  const { data: feeTemplates = [] } = useQuery({
+    queryKey: ['fee-templates'],
+    queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
+    enabled: open,
+  })
+
   const mutation = useMutation({
-    mutationFn: () =>
-      createPurchaseGroup({
-        title: form.title || undefined,
-        totalAmount: Number(form.totalAmount),
-        currency: form.currency,
-        shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
-        purchasedAt: form.purchasedAt,
-        notes: form.notes || undefined,
-        editionIds: selectedEditions.map(e => e.id),
-      }),
+    mutationFn: async () => {
+      let groupId: string
+      if (isEdit) {
+        const updated = await updatePurchaseGroup(bundle!.id, {
+          title: form.title || undefined,
+          totalAmount: Number(form.totalAmount),
+          currency: form.currency,
+          shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
+          purchasedAt: form.purchasedAt,
+          notes: form.notes || undefined,
+        })
+        groupId = updated.id
+      } else {
+        const created = await createPurchaseGroup({
+          title: form.title || undefined,
+          totalAmount: Number(form.totalAmount),
+          currency: form.currency,
+          shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
+          purchasedAt: form.purchasedAt,
+          notes: form.notes || undefined,
+          editionIds: selectedEditions.map(e => e.id),
+        })
+        groupId = created.id
+      }
+      // POST custom fees linked to this bundle
+      for (const fe of feeEntries) {
+        if (!fe.templateId || !fe.amount) continue
+        await authFetch('/fees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            feeTemplateId: fe.templateId,
+            amount: Number(fe.amount),
+            currency: fe.currency,
+            purchaseGroupId: groupId,
+          }),
+        })
+      }
+      return groupId
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
@@ -109,9 +183,9 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
       setTimeout(() => {
         onClose()
         setSuccess(false)
-        setForm({ title: '', totalAmount: '', currency: 'USD', shippingAmount: '', purchasedAt: new Date().toISOString().slice(0, 10), notes: '' })
         setSelectedEditions([])
         setEditionSearch('')
+        setFeeEntries([])
       }, 1500)
     },
   })
@@ -126,12 +200,29 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
     setSelectedEditions(prev => prev.filter(e => e.id !== id))
   }
 
+  const addFeeEntry = () => {
+    const key = ++feeKeyRef.current
+    const tpl = feeTemplates[0]
+    setFeeEntries(prev => [...prev, {
+      key,
+      templateId: tpl?.id ?? '',
+      amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : '',
+      currency: tpl?.defaultCurrency ?? form.currency,
+    }])
+  }
+
+  const removeFeeEntry = (key: number) => setFeeEntries(prev => prev.filter(f => f.key !== key))
+
+  const updateFeeEntry = (key: number, patch: Partial<FeeEntry>) => {
+    setFeeEntries(prev => prev.map(f => f.key === key ? { ...f, ...patch } : f))
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title="Add Bundle">
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Edit Bundle' : 'Add Bundle'}>
       {success ? (
         <div className="text-center py-6">
           <div className="text-4xl mb-3">✓</div>
-          <p className="text-green-400 font-semibold">Bundle added to your collection!</p>
+          <p className="text-green-400 font-semibold">{isEdit ? 'Bundle updated!' : 'Bundle added to your collection!'}</p>
         </div>
       ) : (
         <form
@@ -143,14 +234,16 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
             <input className={INP} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. BOTM October 2024" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
               <label className={LBL}>Total Amount *</label>
               <input required type="number" step="0.01" min="0" className={INP} value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} />
             </div>
             <div>
               <label className={LBL}>Currency</label>
-              <input className={INP} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+              <select className={INP} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
 
@@ -170,39 +263,93 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
             <input className={INP} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </div>
 
-          {/* Edition search */}
-          <div>
-            <label className={LBL}>Search Editions *</label>
-            <input
-              className={INP}
-              value={editionSearch}
-              onChange={e => setEditionSearch(e.target.value)}
-              placeholder="Search by title, author…"
-            />
-            {searchResults.length > 0 && (
-              <div className="mt-2 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                {searchResults.map(ed => (
-                  <button
-                    key={ed.id}
-                    type="button"
-                    onClick={() => addEdition(ed)}
-                    className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors flex items-center gap-2 text-sm"
-                  >
-                    {ed.coverImage && (
-                      <Image src={ed.coverImage} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
-                    )}
-                    <div>
-                      <p className="text-stone-200">{ed.book.title}</p>
-                      <p className="text-stone-500 text-xs">{ed.publisher ?? ''}</p>
-                    </div>
-                  </button>
-                ))}
+          {/* Custom fee templates */}
+          {feeTemplates.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className={LBL}>Custom Fees</label>
+                <button
+                  type="button"
+                  onClick={addFeeEntry}
+                  className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  <Plus size={12} /> Add fee
+                </button>
               </div>
-            )}
-          </div>
+              {feeEntries.map(fe => (
+                <div key={fe.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 mb-2 items-center">
+                  <select
+                    className={INP}
+                    value={fe.templateId}
+                    onChange={e => {
+                      const tpl = feeTemplates.find(t => t.id === e.target.value)
+                      updateFeeEntry(fe.key, {
+                        templateId: e.target.value,
+                        amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : fe.amount,
+                        currency: tpl?.defaultCurrency ?? fe.currency,
+                      })
+                    }}
+                  >
+                    {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className={`${INP} w-24`}
+                    value={fe.amount}
+                    onChange={e => updateFeeEntry(fe.key, { amount: e.target.value })}
+                  />
+                  <select
+                    className={`${INP} w-20`}
+                    value={fe.currency}
+                    onChange={e => updateFeeEntry(fe.key, { currency: e.target.value })}
+                  >
+                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <button type="button" onClick={() => removeFeeEntry(fe.key)} className="text-stone-500 hover:text-red-400 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Edition search — only in create mode */}
+          {!isEdit && (
+            <div>
+              <label className={LBL}>Search Editions *</label>
+              <input
+                className={INP}
+                value={editionSearch}
+                onChange={e => setEditionSearch(e.target.value)}
+                placeholder="Search by title, author…"
+              />
+              {searchResults.length > 0 && (
+                <div className="mt-2 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {searchResults.map(ed => (
+                    <button
+                      key={ed.id}
+                      type="button"
+                      onClick={() => addEdition(ed)}
+                      className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors flex items-center gap-2 text-sm"
+                    >
+                      {ed.coverImage && (
+                        <Image src={ed.coverImage} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
+                      )}
+                      <div>
+                        <p className="text-stone-200">{ed.book.title}</p>
+                        <p className="text-stone-500 text-xs">{ed.publisher ?? ''}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Selected editions */}
-          {selectedEditions.length > 0 && (
+          {!isEdit && selectedEditions.length > 0 && (
             <div>
               <p className="text-xs text-stone-500 mb-2">{selectedEditions.length} edition{selectedEditions.length !== 1 ? 's' : ''} selected:</p>
               <div className="flex flex-wrap gap-2">
@@ -222,10 +369,10 @@ function AddBundleModal({ open, onClose }: { open: boolean; onClose: () => void 
 
           <button
             type="submit"
-            disabled={mutation.isPending || selectedEditions.length === 0}
+            disabled={mutation.isPending || (!isEdit && selectedEditions.length === 0)}
             className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
           >
-            {mutation.isPending ? 'Adding…' : 'Add Bundle'}
+            {mutation.isPending ? (isEdit ? 'Saving…' : 'Adding…') : (isEdit ? 'Save Bundle' : 'Add Bundle')}
           </button>
         </form>
       )}
@@ -649,9 +796,10 @@ export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
-  const [tab, setTab] = useState<'books' | 'bundles' | 'sales'>('books')
+  const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addBundleOpen, setAddBundleOpen] = useState(false)
+  const [editBundle, setEditBundle] = useState<ApiPurchaseGroup | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
@@ -795,6 +943,7 @@ export default function CollectionPage() {
   }, [entries])
 
   const filtered = entries.filter((e) => {
+    if (e.ownershipStatus === 'SOLD') return false
     if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
     if (sigFilter === 'UNSIGNED' && e.signatureType) return false
     if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
@@ -920,16 +1069,6 @@ export default function CollectionPage() {
         >
           Bundles {bundles.length > 0 && <span className="ml-1 text-xs">({bundles.length})</span>}
         </button>
-        <button
-          onClick={() => setTab('sales')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'sales'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-stone-400 hover:text-stone-200'
-          }`}
-        >
-          Sales {saleGroups.length > 0 && <span className="ml-1 text-xs">({saleGroups.length})</span>}
-        </button>
       </div>
 
       {tab === 'bundles' ? (
@@ -959,9 +1098,18 @@ export default function CollectionPage() {
                         </a>
                       )}
                     </div>
-                    <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
-                      {bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => { setEditBundle(bundle); setAddBundleOpen(true) }}
+                        className="p-1 text-stone-500 hover:text-amber-400 transition-colors"
+                        title="Edit bundle"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
+                        {bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 mt-3">
                     <div>
@@ -975,74 +1123,6 @@ export default function CollectionPage() {
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : tab === 'sales' ? (
-        /* ─── Sales tab ─── */
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-stone-400">{saleGroups.length} sale{saleGroups.length !== 1 ? 's' : ''}</p>
-            <button
-              onClick={() => setAddSaleOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
-            >
-              <Plus size={14} /> New Sale
-            </button>
-          </div>
-          {saleGroups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
-              <ShoppingBag size={48} className="mb-4 opacity-30" />
-              <p className="font-serif text-lg">No sales yet</p>
-              <p className="text-sm mt-1">Track books you have sold — individually or as a set</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {saleGroups.map((sg) => (
-                <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-stone-200 font-medium">
-                        {sg.title ?? new Date(sg.soldAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
-                      {sg.platform && (
-                        <span className="text-xs text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full mt-1 inline-block">
-                          {sg.platform}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
-                        {sg.entries?.length ?? 0} book{(sg.entries?.length ?? 0) !== 1 ? 's' : ''}
-                      </span>
-                      <button
-                        onClick={() => deleteSaleMut.mutate(sg.id)}
-                        className="ml-1 p-1 text-stone-500 hover:text-red-400 transition-colors"
-                        title="Delete sale"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <div>
-                      <p className="text-xs text-stone-500">Sold for</p>
-                      <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
-                    </div>
-                    {sg.profitLoss != null && (
-                      <div>
-                        <p className="text-xs text-stone-500">P&amp;L</p>
-                        <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {sg.soldAt && (
-                    <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>
-                  )}
                 </div>
               ))}
             </div>
@@ -1099,7 +1179,6 @@ export default function CollectionPage() {
               <option value="SHIPPING">Shipping</option>
               <option value="BORROWED">Borrowed</option>
               <option value="LENDED">Lent Out</option>
-              <option value="SOLD">Sold</option>
               <option value="GIFTED_AWAY">Gifted Away</option>
             </select>
 
@@ -1384,7 +1463,11 @@ export default function CollectionPage() {
         </div>
       </Modal>
 
-      <AddBundleModal open={addBundleOpen} onClose={() => setAddBundleOpen(false)} />
+      <AddBundleModal
+        open={addBundleOpen}
+        onClose={() => { setAddBundleOpen(false); setEditBundle(undefined) }}
+        bundle={editBundle}
+      />
 
       {/* ─── Add Sale Modal ─── */}
       <Modal open={addSaleOpen} onClose={() => setAddSaleOpen(false)} title="Record a Sale">

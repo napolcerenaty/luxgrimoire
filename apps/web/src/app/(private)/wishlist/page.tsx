@@ -65,7 +65,6 @@ export default function WishlistPage() {
   const [movePrice, setMovePrice] = useState('')
   const [moveCurrency, setMoveCurrency] = useState('EUR')
   const [shippingPrice, setShippingPrice] = useState('')
-  const [shippingCurrency, setShippingCurrency] = useState('EUR')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const feeKeyRef = useRef(0)
 
@@ -88,9 +87,9 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, shippingPrice, shippingCurrency, fees }: {
+    mutationFn: async ({ id, date, price, currency, shippingPrice, fees }: {
       id: string; date: string; price: string; currency: string;
-      shippingPrice: string; shippingCurrency: string; fees: FeeEntry[]
+      shippingPrice: string; fees: FeeEntry[]
     }) => {
       const body: Record<string, unknown> = { isWishlist: false }
       if (date) body.acquiredAt = new Date(date).toISOString()
@@ -108,7 +107,7 @@ export default function WishlistPage() {
       if (parsedShipping > 0) {
         await authFetch('/fees', {
           method: 'POST',
-          body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency: shippingCurrency, date: feeDate, category: 'FORWARDING', userBookEntryId: id }),
+          body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency, date: feeDate, category: 'FORWARDING', userBookEntryId: id }),
         })
       }
       for (const fee of fees) {
@@ -227,7 +226,7 @@ export default function WishlistPage() {
               <input type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} className={INPUT} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
               <div>
                 <label className={LABEL}>Price paid (optional)</label>
                 <input
@@ -239,17 +238,7 @@ export default function WishlistPage() {
                 />
               </div>
               <div>
-                <label className={LABEL}>Currency</label>
-                <select value={moveCurrency} onChange={e => setMoveCurrency(e.target.value)} className={INPUT}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Shipping */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>Shipping cost (optional)</label>
+                <label className={LABEL}>Shipping (optional)</label>
                 <input
                   type="text"
                   value={shippingPrice}
@@ -260,7 +249,7 @@ export default function WishlistPage() {
               </div>
               <div>
                 <label className={LABEL}>Currency</label>
-                <select value={shippingCurrency} onChange={e => setShippingCurrency(e.target.value)} className={INPUT}>
+                <select value={moveCurrency} onChange={e => setMoveCurrency(e.target.value)} className={INPUT}>
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -343,7 +332,7 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shippingPrice, shippingCurrency, fees: feeEntries })}
+                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shippingPrice, fees: feeEntries })}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >

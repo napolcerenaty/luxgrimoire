@@ -157,7 +157,7 @@ export default function CalendarPage() {
         label: e.subscription.name,
         companyName: e.subscription.company?.name ?? null,
         slug: e.subscription.slug,
-        hue: strHue(e.subscription.slug),
+        hue: strHue(e.subscription.company?.slug ?? e.subscription.slug),
         logoUrl: e.subscription.logoUrl ?? e.subscription.coverImage,
       }))
 
@@ -184,6 +184,7 @@ export default function CalendarPage() {
           id: i.announcementId,
           label: i.announcement.title,
           companyName: i.announcement.company?.name ?? null,
+          hue: strHue(i.announcement.company?.name ?? i.announcementId),
           tier: i.tier,
           time,
           href: `/sale-announcements/${i.announcementId}`,
@@ -313,14 +314,14 @@ export default function CalendarPage() {
                     href={s.href}
                     className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
                     style={{
-                      background: 'rgba(109,40,217,0.18)',
-                      color: 'rgb(196,168,255)',
-                      border: '1px solid rgba(109,40,217,0.4)',
+                      background: `hsla(${s.hue},80%,55%,0.20)`,
+                      color: `hsl(${s.hue},90%,82%)`,
+                      border: `1px dashed hsla(${s.hue},70%,55%,0.55)`,
                     }}
                     onMouseEnter={e => openTooltip(
                       e,
                       s.label,
-                      270,
+                      s.hue,
                       'sale',
                       `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                     )}
@@ -365,15 +366,18 @@ export default function CalendarPage() {
             </Link>
           )
         })}
-        {interests.length > 0 && (
-          <span
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
-            style={{ background: 'rgba(109,40,217,0.18)', color: 'rgb(196,168,255)', border: '1px solid rgba(109,40,217,0.4)' }}
-          >
-            <Bell size={11} />
-            Sale interest
-          </span>
-        )}
+        {interests.length > 0 && (() => {
+          const saleHue = strHue(interests[0]?.announcement.company?.name ?? 'sale')
+          return (
+            <span
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+              style={{ background: `hsla(${saleHue},80%,55%,0.18)`, color: `hsl(${saleHue},90%,82%)`, border: `1px dashed hsla(${saleHue},70%,55%,0.5)` }}
+            >
+              <Bell size={11} />
+              Sale interest
+            </span>
+          )
+        })()}
       </div>
 
       {activeEntries.length === 0 && interests.length === 0 && (
@@ -405,13 +409,15 @@ export default function CalendarPage() {
                 const d = new Date(dateStr!)
                 const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                 const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+                const hue = strHue(i.announcement.company?.name ?? i.announcementId)
                 return (
                   <Link
                     key={`${i.announcementId}-${i.tier}`}
                     href={`/sale-announcements/${i.announcementId}`}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-900 border border-stone-800 hover:border-purple-700/50 transition-colors group"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-900 border hover:opacity-90 transition-opacity group"
+                    style={{ borderColor: `hsla(${hue},70%,55%,0.35)` }}
                   >
-                    <Bell size={13} className="text-purple-400 shrink-0" />
+                    <Bell size={13} style={{ color: `hsl(${hue},80%,72%)` }} className="shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-stone-200 group-hover:text-white truncate">{i.announcement.title}</p>
                       {i.announcement.company && (
@@ -419,7 +425,7 @@ export default function CalendarPage() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs text-purple-300">{TIER_LABELS[i.tier]}</p>
+                      <p className="text-xs" style={{ color: `hsl(${hue},80%,72%)` }}>{TIER_LABELS[i.tier]}</p>
                       <p className="text-xs text-stone-400">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
                   </Link>
