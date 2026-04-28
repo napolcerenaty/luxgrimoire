@@ -193,8 +193,7 @@ model BookEdition {
   slug      String  @unique
   bookId    String
   publisher String?
-
-  coverImage               String?
+  photoCredit              String?
   additionalImages         String[]
   isSpecial                Boolean                   @default(false)
   createdAt                DateTime                  @default(now())

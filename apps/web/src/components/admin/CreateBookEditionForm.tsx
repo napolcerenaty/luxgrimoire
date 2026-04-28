@@ -192,6 +192,7 @@ export default function CreateBookEditionForm({
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState('')
+  const [photoCredit, setPhotoCredit] = useState('')
   const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
@@ -304,7 +305,7 @@ export default function CreateBookEditionForm({
           bookBoxCompanyId: companyId || undefined,
           subscriptionId: subscriptionId || undefined,
           publisher: publisher.trim() || undefined,
-          basePrice: price || undefined,
+          photoCredit: photoCredit.trim() || undefined,
           currency: currency || undefined,
           language: language || undefined,
           firstAccessDate: firstAccessDate || undefined,
@@ -479,12 +480,17 @@ export default function CreateBookEditionForm({
         </div>
       </div>
 
-      {/* Publisher + Edition year */}
+      {/* Publisher + Photo credit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Publisher</label>
           <input value={publisher} onChange={e => setPublisher(e.target.value)}
             placeholder="e.g. Fairyloot Exclusive" className={INP} />
+        </div>
+        <div>
+          <label className={LBL}>Photo by (IG handle)</label>
+          <input value={photoCredit} onChange={e => setPhotoCredit(e.target.value)}
+            placeholder="@username" className={INP} />
         </div>
       </div>
 

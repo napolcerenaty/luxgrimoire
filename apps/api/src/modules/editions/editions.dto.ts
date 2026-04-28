@@ -87,6 +87,10 @@ export class CreateEditionDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsString()
+  photoCredit?: string;
 }
 
 export class UpdateEditionDto {
@@ -163,6 +167,10 @@ export class UpdateEditionDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsString()
+  photoCredit?: string;
 }
 
 export class AddArtistDto {

@@ -143,6 +143,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [price, setPrice] = useState(edition.basePrice ?? '')
   const [currency, setCurrency] = useState(edition.currency ?? 'USD')
   const [publisher, setPublisher] = useState(edition.publisher ?? '')
+  const [photoCredit, setPhotoCredit] = useState((edition as any).photoCredit ?? '')
   const [language, setLanguage] = useState(edition.language ?? '')
   const [firstAccessDate, setFirstAccessDate] = useState(edition.firstAccessDate?.slice(0, 10) ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(edition.earlyAccessDate?.slice(0, 10) ?? '')
@@ -204,6 +205,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         body: JSON.stringify({
           bookBoxCompanyId: companyId || undefined,
           publisher: publisher.trim() || undefined,
+          photoCredit: photoCredit.trim() || undefined,
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
@@ -296,12 +298,17 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         </div>
       </div>
 
-      {/* Publisher */}
+      {/* Publisher + Photo credit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Publisher</label>
           <input value={publisher} onChange={e => setPublisher(e.target.value)}
             placeholder="e.g. Fairyloot Exclusive" className={INP} />
+        </div>
+        <div>
+          <label className={LBL}>Photo by (IG handle)</label>
+          <input value={photoCredit} onChange={e => setPhotoCredit(e.target.value)}
+            placeholder="@username" className={INP} />
         </div>
       </div>
 

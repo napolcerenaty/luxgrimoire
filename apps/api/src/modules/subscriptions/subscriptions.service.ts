@@ -204,7 +204,6 @@ export class SubscriptionsService {
                     slug: true,
                     editionName: true,
                     publisher: true,
-                    coverImage: true,
                   },
                 },
               },
@@ -251,8 +250,12 @@ export class SubscriptionsService {
   }
 
   async getMonths(slug: string) {
-    const subscription = await this.findBySlug(slug);
-    return subscription.months;
+    const sub = await this.prisma.subscription.findUnique({
+      where: { slug },
+      include: { months: { orderBy: [{ year: 'desc' }, { month: 'desc' }] } },
+    });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    return sub.months;
   }
 
   async addMonth(subscriptionSlug: string, dto: CreateMonthDto) {
