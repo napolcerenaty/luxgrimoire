@@ -255,28 +255,26 @@ export default function CreateBookEditionForm({
   }
 
   // ── Step 1 submit ────────────────────────────────────────────────────────
-  const handleStep1 = async (skipDupeCheck = false) => {
+  const handleStep1 = async () => {
     if (!title.trim()) return alert('Book title is required')
     setBusy(true)
     setDuplicateBook(null)
     try {
       // Duplicate book check
-      if (!skipDupeCheck) {
-        const searchRes = await authFetch<{ data: Array<{ id: string; slug: string; title: string; authors: Array<{ author: { name: string } }> }> }>(
-          `/books?search=${encodeURIComponent(title.trim())}&pageSize=10`
-        )
-        const titleLower = title.trim().toLowerCase()
-        const exact = searchRes.data.find(b => b.title.toLowerCase() === titleLower)
-        if (exact) {
-          const authorNames = authors.map(a => a.name.toLowerCase())
-          const hasAuthorMatch =
-            authorNames.length === 0 || exact.authors.length === 0 ||
-            exact.authors.some(ba => authorNames.includes(ba.author.name.toLowerCase()))
-          if (hasAuthorMatch) {
-            setDuplicateBook({ id: exact.id, slug: exact.slug, title: exact.title, authors: exact.authors.map(ba => ({ name: ba.author.name })) })
-            setBusy(false)
-            return
-          }
+      const searchRes = await authFetch<{ data: Array<{ id: string; slug: string; title: string; authors: Array<{ author: { name: string } }> }> }>(
+        `/books?search=${encodeURIComponent(title.trim())}&pageSize=10`
+      )
+      const titleLower = title.trim().toLowerCase()
+      const exact = searchRes.data.find(b => b.title.toLowerCase() === titleLower)
+      if (exact) {
+        const authorNames = authors.map(a => a.name.toLowerCase())
+        const hasAuthorMatch =
+          authorNames.length === 0 || exact.authors.length === 0 ||
+          exact.authors.some(ba => authorNames.includes(ba.author.name.toLowerCase()))
+        if (hasAuthorMatch) {
+          setDuplicateBook({ id: exact.id, slug: exact.slug, title: exact.title, authors: exact.authors.map(ba => ({ name: ba.author.name })) })
+          setBusy(false)
+          return
         }
       }
       const book = await authFetch<{ id: string; slug: string; title: string }>('/books', {
@@ -319,12 +317,12 @@ export default function CreateBookEditionForm({
   }
 
   // ── Step 2 submit ────────────────────────────────────────────────────────
-  const handleStep2 = async (skipDupeCheck = false) => {
+  const handleStep2 = async () => {
     setBusy(true)
     setDuplicateEdition(null)
     try {
       // Duplicate edition check
-      if (!skipDupeCheck && companyId) {
+      if (companyId) {
         const edRes = await authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null }> }>(
           `/editions?bookId=${createdBookId}&companyId=${companyId}&pageSize=10`
         )
@@ -491,11 +489,6 @@ export default function CreateBookEditionForm({
               className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
               View book ↗
             </a>
-            <button type="button"
-              onClick={() => { setDuplicateBook(null); handleStep1(true) }}
-              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-400 rounded-lg transition-colors">
-              Create as new anyway
-            </button>
           </div>
         </div>
       )}
@@ -654,11 +647,6 @@ export default function CreateBookEditionForm({
               className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
               View existing ↗
             </a>
-            <button type="button"
-              onClick={() => { setDuplicateEdition(null); handleStep2(true) }}
-              className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-stone-100 rounded-lg transition-colors">
-              Add new variant anyway
-            </button>
           </div>
         </div>
       )}
