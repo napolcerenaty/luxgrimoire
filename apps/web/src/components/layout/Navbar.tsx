@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, DollarSign,
-  Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays,
+  Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -35,6 +35,7 @@ export function Navbar() {
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -94,6 +95,14 @@ export function Navbar() {
         </Link>
 
         <div className="relative z-10 ml-auto flex items-center gap-1 sm:gap-2">
+          {/* Mobile hamburger — shown only on small screens */}
+          <button
+            className="md:hidden p-1.5 text-stone-400 hover:text-amber-400 transition-colors"
+            onClick={() => setMobileNavOpen(v => !v)}
+            aria-label="Toggle navigation"
+          >
+            {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
 
           {/* Theme toggle */}
           <button
@@ -181,8 +190,8 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Second bar — main navigation */}
-      <nav className="border-b border-stone-700 bg-stone-800 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" style={{ scrollbarWidth: 'none' }}>
+      {/* Second bar — desktop only */}
+      <nav className="hidden md:block border-b border-stone-700 bg-stone-800">
         <div className="flex items-center px-4 sm:px-6">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
@@ -217,26 +226,81 @@ export function Navbar() {
 
           {/* Admin Panel — far right, admins/mods only */}
           {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
-            <>
-              <div className="ml-auto flex items-center">
-                <div className="w-px h-4 bg-stone-700 mx-1 shrink-0" />
-                <Link
-                  href="/admin"
-                  className={`
-                    flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
-                    ${isActive('/admin')
-                      ? 'border-amber-400 text-amber-400'
-                      : 'border-transparent text-amber-600 hover:text-amber-400 hover:border-amber-700'}
-                  `}
-                >
-                  <LayoutDashboard size={13} />
-                  Admin
-                </Link>
-              </div>
-            </>
+            <div className="ml-auto flex items-center">
+              <div className="w-px h-4 bg-stone-700 mx-1 shrink-0" />
+              <Link
+                href="/admin"
+                className={`
+                  flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
+                  ${isActive('/admin')
+                    ? 'border-amber-400 text-amber-400'
+                    : 'border-transparent text-amber-600 hover:text-amber-400 hover:border-amber-700'}
+                `}
+              >
+                <LayoutDashboard size={13} />
+                Admin
+              </Link>
+            </div>
           )}
         </div>
       </nav>
+
+      {/* Mobile nav dropdown — shown when hamburger is open */}
+      {mobileNavOpen && (
+        <div className="md:hidden bg-stone-900 border-b border-stone-800 shadow-xl">
+          <div className="px-4 py-3 flex flex-col gap-1">
+            {NAV_LINKS.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileNavOpen(false)}
+                className={`
+                  flex items-center px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
+                  ${isActive(href)
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
+                `}
+              >
+                {label}
+              </Link>
+            ))}
+            {user && (
+              <>
+                <div className="h-px bg-stone-800 my-1" />
+                {USER_NAV_LINKS.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
+                      ${isActive(href)
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
+                    `}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </Link>
+                ))}
+              </>
+            )}
+            {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
+              <>
+                <div className="h-px bg-stone-800 my-1" />
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest text-amber-600 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+                >
+                  <LayoutDashboard size={15} />
+                  Admin
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }

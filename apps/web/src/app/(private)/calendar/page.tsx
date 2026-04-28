@@ -7,6 +7,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Bell } from 'lucide-react'
 import Link from 'next/link'
+import { useTheme } from '@/components/ThemeProvider'
 
 interface CalEntry {
   id: string
@@ -60,27 +61,47 @@ function strHue(str?: string | null) {
   return h % 360
 }
 
-/** Returns inline style for a calendar pill using brand color when available */
-function pillStyle(brandColors: string[] | null | undefined, hue: number, isDashed = false) {
-  const c = brandColors?.[0]
+/** Returns inline style for a calendar pill.
+ *  variant='renewal' → solid border (warm hue offset +0)
+ *  variant='sale'    → dashed border (cool hue offset -30), brand uses brandColors[1] if available
+ *  lightMode: invert lightness so pills are visible on light background
+ */
+function pillStyle(
+  brandColors: string[] | null | undefined,
+  hue: number,
+  variant: 'renewal' | 'sale',
+  lightMode = false,
+) {
+  const isDashed = variant === 'sale'
+  // Pick brand color: sales prefer second brand color if available
+  const c = variant === 'sale'
+    ? (brandColors?.[1] ?? brandColors?.[0])
+    : brandColors?.[0]
+
   if (c) {
+    // Use brand color with theme-aware opacity
+    const bgAlpha = lightMode ? '28' : '1e'
+    const borderAlpha = lightMode ? 'cc' : '66'
     return {
-      background: `${c}22`,
+      background: `${c}${bgAlpha}`,
       color: c,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}55`,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}${borderAlpha}`,
     }
   }
-  if (isDashed) {
+
+  // Fallback: hue-based — shift hue slightly for sales
+  const h = isDashed ? (hue + 210) % 360 : hue
+  if (lightMode) {
     return {
-      background: `hsla(${hue},80%,55%,0.20)`,
-      color: `hsl(${hue},90%,82%)`,
-      border: `1px dashed hsla(${hue},70%,55%,0.55)`,
+      background: `hsla(${h},60%,40%,0.12)`,
+      color: `hsl(${h},80%,28%)`,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},60%,35%,0.55)`,
     }
   }
   return {
-    background: `hsla(${hue},55%,45%,0.18)`,
-    color: `hsl(${hue},70%,70%)`,
-    border: `1px solid hsla(${hue},55%,45%,0.35)`,
+    background: `hsla(${h},55%,45%,0.18)`,
+    color: `hsl(${h},70%,70%)`,
+    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,45%,0.40)`,
   }
 }
 
@@ -113,6 +134,8 @@ function resolveInterestDate(interest: SaleInterest): string | null {
 }
 
 export default function CalendarPage() {
+  const { theme } = useTheme()
+  const lightMode = theme === 'light'
   const today = new Date()
   const [viewDate, setViewDate] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
@@ -307,7 +330,7 @@ export default function CalendarPage() {
                       key={r.id}
                       href={`/subscriptions/${r.slug}`}
                       className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                      style={pillStyle(r.brandColors, r.hue, false)}
+                      style={pillStyle(r.brandColors, r.hue, 'renewal', lightMode)}
                       onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                       onMouseLeave={scheduleClose}
                     >
@@ -335,7 +358,7 @@ export default function CalendarPage() {
                     key={s.id}
                     href={s.href}
                     className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                    style={pillStyle(s.brandColors, s.hue, true)}
+                    style={pillStyle(s.brandColors, s.hue, 'sale', lightMode)}
                     onMouseEnter={e => openTooltip(
                       e,
                       s.label,
@@ -391,7 +414,7 @@ export default function CalendarPage() {
                 const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
                 const hue = strHue(i.announcement.company?.name ?? i.announcementId)
                 const bc = i.announcement.company?.brandColors ?? null
-                const bStyle = pillStyle(bc, hue, true)
+                const bStyle = pillStyle(bc, hue, 'sale', lightMode)
                 return (
                   <Link
                     key={`${i.announcementId}-${i.tier}`}

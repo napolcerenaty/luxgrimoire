@@ -51,6 +51,7 @@ interface EditionSearchResult {
   slug: string
   coverImage: string | null
   publisher: string | null
+  bookBoxCompany?: { id: string; name: string; slug: string } | null
   book: {
     id: string
     title: string
@@ -124,7 +125,7 @@ function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () 
     queryKey: ['editions-search', debouncedSearch],
     queryFn: () =>
       debouncedSearch.length >= 2
-        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10`).then(r => r.data)
+        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10&include=bookBoxCompany`).then(r => r.data)
         : Promise.resolve([]),
     enabled: debouncedSearch.length >= 2,
   })
@@ -337,9 +338,11 @@ function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () 
                       {ed.coverImage && (
                         <Image src={ed.coverImage} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
                       )}
-                      <div>
-                        <p className="text-stone-200">{ed.book.title}</p>
-                        <p className="text-stone-500 text-xs">{ed.publisher ?? ''}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-stone-200 truncate">{ed.book.title}</p>
+                        <p className="text-stone-500 text-xs truncate">
+                          {ed.bookBoxCompany?.name ?? ed.publisher ?? ''}
+                        </p>
                       </div>
                     </button>
                   ))}
@@ -1031,7 +1034,7 @@ export default function CollectionPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
-          <p className="text-2xl font-serif font-bold text-amber-400">{stats?.totalOwned ?? entries.length}</p>
+          <p className="text-2xl font-serif font-bold text-amber-400">{entries.filter(e => e.ownershipStatus !== 'SOLD').length}</p>
         </div>
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Series</p>
