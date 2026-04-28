@@ -93,18 +93,18 @@ html {
   --color-stone-100: #0d2448;  /* rich navy — not black */
   --color-stone-50:  #0a1c38;  /* deep navy */
 
-  /* Remap amber → deeper cyan (readable on light blue bg) */
-  --color-amber-50:  #002840;
-  --color-amber-100: #003d5c;
-  --color-amber-200: #005278;
-  --color-amber-300: #006898;
-  --color-amber-400: #0a3870;  /* deep navy-blue (was #0878b0 cyan-blue) */
-  --color-amber-500: #0d5585;
-  --color-amber-600: #0d6898;
-  --color-amber-700: #1a82a8;
-  --color-amber-800: #2a9ec4;
-  --color-amber-900: #6ec5e0;
-  --color-amber-950: #cceaf4;
+  /* Remap amber → deep navy family (all consistent with logo navy) */
+  --color-amber-50:  #dce8f8;
+  --color-amber-100: #b8d0f0;
+  --color-amber-200: #8ab0e0;
+  --color-amber-300: #5a88c8;
+  --color-amber-400: #0a3870;  /* deep navy — logo */
+  --color-amber-500: #0d4880;  /* medium navy — accent */
+  --color-amber-600: #1a58a0;  /* medium-bright navy — primary buttons */
+  --color-amber-700: #1a70b8;  /* lighter navy — hover/accent-bright */
+  --color-amber-800: #2a88cc;
+  --color-amber-900: #5ab0e0;
+  --color-amber-950: #c0ddf4;
 
   /* CSS vars */
   --bg:            #e4edf8;
@@ -116,11 +116,12 @@ html {
   --text:          #0d1f35;
   --text-bright:   #0d2448;  /* rich navy (was near-black #040c18) */
   --text-dim:      #1a3a5a;
-  --text-muted:    #1a6888;  --accent:        #0d5585;
-  --accent2:       #0878b0;
-  --accent-bright: #1a82a8;
-  --accent-glow:   rgba(0, 100, 160, 0.15);
-  --accent-glow3:  rgba(0, 80, 140, 0.10);
+  --text-muted:    #1a6888;
+  --accent:        #0d4880;  /* medium navy (was teal #0d5585) */
+  --accent2:       #1a58a0;  /* medium-bright navy (was cyan #0878b0) */
+  --accent-bright: #1a70b8;  /* lighter navy (was teal #1a82a8) */
+  --accent-glow:   rgba(10, 56, 128, 0.15);
+  --accent-glow3:  rgba(10, 56, 128, 0.10);
   --shadow:        rgba(0, 20, 60, 0.10);
   --grad-header:   linear-gradient(135deg, #c8daf0 0%, #d4e4f8 50%, #c8daf0 100%);
   --hero-bg:       linear-gradient(180deg, #7aa0be 0%, #a8c4d8 55%, #e4edf8 100%);
@@ -131,4 +132,13 @@ html {
 [data-theme="light"] input,
 [data-theme="light"] .search-box {
   box-shadow: 0 2px 8px rgba(0, 40, 100, 0.08);
+}
+
+/* Nav-logo: muted navy glow in light mode */
+[data-theme="light"] .nav-logo {
+  text-shadow: 0 0 20px rgba(10, 56, 112, 0.20);
+}
+[data-theme="light"] .nav-logo:hover {
+  color: var(--accent-bright) !important;
+  text-shadow: 0 0 40px rgba(10, 80, 160, 0.40), 0 0 80px rgba(10, 56, 112, 0.18);
 }
