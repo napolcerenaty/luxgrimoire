@@ -65,7 +65,7 @@ export default async function HomePage() {
             LuxGrimoire
           </h1>
           <p className="text-lg sm:text-xl text-stone-300 mb-7 leading-relaxed font-sans">
-            Your home for luxury book editions &amp; subscription boxes
+            Limited books. Unlimited obsession.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
