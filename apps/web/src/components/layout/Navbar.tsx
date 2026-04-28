@@ -9,6 +9,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, DollarSign,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
+  Heart, BookMarked, ShoppingBag,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -21,9 +22,13 @@ const NAV_LINKS = [
 ]
 
 const USER_NAV_LINKS = [
-  { href: '/collection', label: 'Collection', icon: BookOpen },
-  { href: '/spending', label: 'Spending', icon: DollarSign },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/collection', label: 'My Collection', icon: BookOpen },
+  { href: '/sold', label: 'My Sales', icon: ShoppingBag },
+  { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
+  { href: '/wishlist', label: 'Wishlist', icon: Heart },
+  { href: '/spending', label: 'Spending', icon: DollarSign },
+  { href: '/profile', label: 'Profile', icon: User },
 ]
 
 export function Navbar() {

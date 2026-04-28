@@ -150,6 +150,16 @@ export default function CalendarPage() {
   } | null>(null)
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Mobile tap-to-detail bottom sheet
+  const [mobileDetail, setMobileDetail] = useState<{
+    label: string
+    subtitle?: string
+    hue: number
+    type: 'renewal' | 'sale'
+    href: string
+    brandColors?: string[] | null
+  } | null>(null)
+
   const { data: entries = [] } = useQuery<CalEntry[]>({
     queryKey: ['my-subscriptions'],
     queryFn: () => authFetch('/subscriptions/my/subscriptions'),
@@ -325,58 +335,88 @@ export default function CalendarPage() {
                   const thumb = r.logoUrl
                     ? cloudinaryUrl(r.logoUrl, 'w_24,h_24,c_pad,q_auto,f_auto')
                     : null
+                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
                   return (
-                    <Link
-                      key={r.id}
-                      href={`/subscriptions/${r.slug}`}
-                      className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                      style={pillStyle(r.brandColors, r.hue, 'renewal', lightMode)}
-                      onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
-                      onMouseLeave={scheduleClose}
-                    >
-                      <span className="flex items-center gap-1 truncate">
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt=""
-                            className="w-3.5 h-3.5 rounded-sm object-contain shrink-0"
-                          />
-                        ) : (
-                          <span className="shrink-0 text-[10px]">🔄</span>
+                    <span key={r.id} className="block">
+                      {/* Desktop: navigate on click */}
+                      <Link
+                        href={`/subscriptions/${r.slug}`}
+                        className="hidden sm:flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                        style={ps}
+                        onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
+                        onMouseLeave={scheduleClose}
+                      >
+                        <span className="flex items-center gap-1 truncate">
+                          {thumb ? (
+                            <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain shrink-0" />
+                          ) : (
+                            <span className="shrink-0 text-[10px]">🔄</span>
+                          )}
+                          <span className="truncate">{r.label}</span>
+                        </span>
+                        {r.companyName && (
+                          <span className="truncate opacity-60 pl-4">{r.companyName}</span>
                         )}
-                        <span className="truncate">{r.label}</span>
-                      </span>
-                      {r.companyName && (
-                        <span className="truncate opacity-60 pl-4">{r.companyName}</span>
-                      )}
-                    </Link>
+                      </Link>
+                      {/* Mobile: tap to show detail */}
+                      <button
+                        onClick={() => setMobileDetail({ label: r.label, subtitle: r.companyName ?? undefined, hue: r.hue, type: 'renewal', href: `/subscriptions/${r.slug}`, brandColors: r.brandColors })}
+                        className="sm:hidden w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate text-left"
+                        style={ps}
+                      >
+                        <span className="flex items-center gap-1 truncate">
+                          {thumb ? (
+                            <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain shrink-0" />
+                          ) : (
+                            <span className="shrink-0 text-[10px]">🔄</span>
+                          )}
+                          <span className="truncate">{r.label}</span>
+                        </span>
+                      </button>
+                    </span>
                   )
                 })}
 
-                {sales.map(s => (
-                  <Link
-                    key={s.id}
-                    href={s.href}
-                    className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
-                    style={pillStyle(s.brandColors, s.hue, 'sale', lightMode)}
-                    onMouseEnter={e => openTooltip(
-                      e,
-                      s.label,
-                      s.hue,
-                      'sale',
-                      `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
-                    )}
-                    onMouseLeave={scheduleClose}
-                  >
-                    <span className="flex items-center gap-1 truncate">
-                      <Bell size={9} className="shrink-0" />
-                      <span className="truncate">{s.label}</span>
+                {sales.map(s => {
+                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  return (
+                    <span key={s.id} className="block">
+                      {/* Desktop: navigate */}
+                      <Link
+                        href={s.href}
+                        className="hidden sm:flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                        style={ps}
+                        onMouseEnter={e => openTooltip(
+                          e,
+                          s.label,
+                          s.hue,
+                          'sale',
+                          `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
+                        )}
+                        onMouseLeave={scheduleClose}
+                      >
+                        <span className="flex items-center gap-1 truncate">
+                          <Bell size={9} className="shrink-0" />
+                          <span className="truncate">{s.label}</span>
+                        </span>
+                        {s.companyName && (
+                          <span className="truncate opacity-60 pl-3">{s.companyName}</span>
+                        )}
+                      </Link>
+                      {/* Mobile: tap to detail */}
+                      <button
+                        onClick={() => setMobileDetail({ label: s.label, subtitle: `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`, hue: s.hue, type: 'sale', href: s.href, brandColors: s.brandColors })}
+                        className="sm:hidden w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate text-left"
+                        style={ps}
+                      >
+                        <span className="flex items-center gap-1 truncate">
+                          <Bell size={9} className="shrink-0" />
+                          <span className="truncate">{s.label}</span>
+                        </span>
+                      </button>
                     </span>
-                    {s.companyName && (
-                      <span className="truncate opacity-60 pl-3">{s.companyName}</span>
-                    )}
-                  </Link>
-                ))}
+                  )
+                })}
               </div>
             )
           })}
@@ -469,7 +509,47 @@ export default function CalendarPage() {
         )
       })()}
 
-      {/* Floating tooltip */}
+      {/* Mobile detail bottom sheet */}
+      {mobileDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:hidden"
+          onClick={() => setMobileDetail(null)}
+        >
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative w-full bg-stone-900 border-t border-stone-700 rounded-t-2xl px-6 py-5 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-stone-700 rounded-full mx-auto mb-4" />
+            <div className="flex items-center gap-2 mb-1">
+              {mobileDetail.type === 'renewal' ? (
+                <span style={pillStyle(mobileDetail.brandColors, mobileDetail.hue, 'renewal', lightMode)} className="rounded px-2 py-0.5 text-xs">🔄 Renewal</span>
+              ) : (
+                <span style={pillStyle(mobileDetail.brandColors, mobileDetail.hue, 'sale', lightMode)} className="rounded px-2 py-0.5 text-xs flex items-center gap-1"><Bell size={11} /> Sale</span>
+              )}
+            </div>
+            <p className="text-stone-100 font-medium text-base leading-snug">{mobileDetail.label}</p>
+            {mobileDetail.subtitle && (
+              <p className="text-stone-400 text-sm mt-0.5">{mobileDetail.subtitle}</p>
+            )}
+            <Link
+              href={mobileDetail.href}
+              onClick={() => setMobileDetail(null)}
+              className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold text-sm transition-colors"
+            >
+              View details →
+            </Link>
+            <button
+              onClick={() => setMobileDetail(null)}
+              className="mt-2 w-full py-2 text-stone-500 text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating tooltip — desktop only */}
       {tooltip && (
         <div
           className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg border border-stone-700 bg-stone-900 shadow-xl text-sm"

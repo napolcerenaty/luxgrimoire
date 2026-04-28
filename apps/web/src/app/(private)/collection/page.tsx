@@ -125,7 +125,7 @@ function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () 
     queryKey: ['editions-search', debouncedSearch],
     queryFn: () =>
       debouncedSearch.length >= 2
-        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10&include=bookBoxCompany`).then(r => r.data)
+        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10`).then(r => r.data)
         : Promise.resolve([]),
     enabled: debouncedSearch.length >= 2,
   })
@@ -1007,22 +1007,22 @@ export default function CollectionPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col min-[480px]:flex-row min-[480px]:items-start min-[480px]:justify-between gap-3 mb-8">
         <div>
           <h1 className="text-3xl font-serif font-bold text-stone-100">My Collection</h1>
           <p className="text-stone-400 text-sm mt-1">Your physical book library</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setAddBundleOpen(true)}
-            className="flex items-center gap-2 bg-stone-700 hover:bg-stone-600 text-stone-100 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+            className="flex items-center gap-2 bg-stone-700 hover:bg-stone-600 text-stone-100 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
           >
             <Package size={16} />
             Add Bundle
           </button>
           <button
             onClick={() => setAddModalOpen(true)}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
           >
             <Plus size={16} />
             Add Book
