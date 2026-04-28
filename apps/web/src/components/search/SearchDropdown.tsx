@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Search, BookOpen, User, Brush, Package, Building2 } from 'lucide-react'
+import { Search, BookOpen, User, Brush, Package, Building2, Layers } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
@@ -72,7 +72,7 @@ export function SearchDropdown() {
   }, [])
 
   const total = results
-    ? results.books.length + results.authors.length + results.artists.length +
+    ? results.books.length + (results.editions?.length ?? 0) + results.authors.length + results.artists.length +
       results.subscriptions.length + results.companies.length
     : 0
 
@@ -133,9 +133,22 @@ export function SearchDropdown() {
                   key: b.id,
                   label: b.title,
                   sub: b.authors[0]?.author.name,
-                  image: b.coverImage,
-                  badge: b.editions[0]?.bookBoxCompany?.name,
+                  image: null,
                   href: `/books/${b.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Editions"
+                icon={<Layers size={11} />}
+                items={(results!.editions ?? []).map((e) => ({
+                  key: e.id,
+                  label: e.book.title,
+                  sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
+                  image: e.additionalImages?.[0] ?? null,
+                  badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
+                  href: `/editions/${e.slug}`,
                 }))}
                 onNavigate={(href) => { setOpen(false); router.push(href) }}
                 query={query}
@@ -256,13 +269,11 @@ function ResultGroup({
           onClick={() => onNavigate(item.href)}
           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-800 transition-colors text-left"
         >
-          <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden">
+          <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">
             {item.image ? (
               <Image src={item.image} alt={item.label} width={32} height={32} className="w-full h-full object-cover" unoptimized />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-stone-600">
-                <BookOpen size={14} />
-              </div>
+              <span className="text-stone-700"><BookOpen size={12} /></span>
             )}
           </div>
           <div className="flex-1 min-w-0">

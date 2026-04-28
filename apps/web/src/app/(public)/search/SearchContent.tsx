@@ -10,7 +10,7 @@ import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-type SearchTab = 'all' | 'books' | 'authors' | 'artists' | 'subscriptions' | 'companies'
+type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
   let timer: ReturnType<typeof setTimeout>
@@ -71,13 +71,16 @@ export function SearchContent() {
   }
 
   const totalCount =
-    (results?.books?.length ?? 0) + (results?.authors?.length ?? 0) +
+    (results?.books?.length ?? 0) + (results?.editions?.length ?? 0) +
+    (results?.authors?.length ?? 0) +
     (results?.artists?.length ?? 0) + (results?.subscriptions?.length ?? 0) +
     (results?.companies?.length ?? 0)
 
+  type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies'
   const tabs: { id: SearchTab; label: string; count: number }[] = [
     { id: 'all',           label: 'All',           count: totalCount },
     { id: 'books',         label: 'Books',         count: results?.books?.length ?? 0 },
+    { id: 'editions',      label: 'Editions',      count: results?.editions?.length ?? 0 },
     { id: 'authors',       label: 'Authors',       count: results?.authors?.length ?? 0 },
     { id: 'artists',       label: 'Artists',       count: results?.artists?.length ?? 0 },
     { id: 'subscriptions', label: 'Subscriptions', count: results?.subscriptions?.length ?? 0 },
@@ -136,7 +139,7 @@ export function SearchContent() {
                   href="/data-requests"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-700 hover:bg-amber-600 text-stone-950 font-semibold rounded-full text-sm transition-colors"
                 >
-                  <span>➕</span> Add missing data
+                  <span>📋</span> Request missing data
                 </Link>
                 <Link
                   href="/sale-announcement-requests"
@@ -153,20 +156,40 @@ export function SearchContent() {
             <section className="mb-8">
               {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Books</h2>}
               <div className="space-y-2">
-                {results.books!.map((book) => {
-                  const cover = cloudinaryUrl(book.coverImage, 'w_60,c_fill,q_auto,f_auto')
+                {results.books!.map((book) => (
+                  <Link key={book.id} href={`/books/${book.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
+                    <div className="w-2 h-8 rounded-sm bg-amber-900/50 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{book.title}</p>
+                      {book.authors?.length > 0 && <p className="text-xs text-stone-400 truncate">{book.authors.map((a) => a.author.name).join(', ')}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Editions */}
+          {(activeTab === 'all' || activeTab === 'editions') && (results.editions?.length ?? 0) > 0 && (
+            <section className="mb-8">
+              {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Editions</h2>}
+              <div className="space-y-2">
+                {results.editions!.map((ed) => {
+                  const cover = cloudinaryUrl(ed.additionalImages?.[0] ?? null, 'w_60,c_fill,q_auto,f_auto')
+                  const isUpcoming = ed.generalSaleDate && new Date(ed.generalSaleDate) > new Date()
                   return (
-                    <Link key={book.id} href={`/books/${book.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
+                    <Link key={ed.id} href={`/editions/${ed.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
-                        {cover ? <Image src={cover} alt={book.title} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700" />}
+                        {cover ? <Image src={cover} alt={ed.book.title} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-[10px]">no img</div>}
+                        {isUpcoming && <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-amber-400 uppercase bg-black/60">soon</span>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{book.title}</p>
-                        {book.authors?.length > 0 && <p className="text-xs text-stone-400 truncate">{book.authors.map((a) => a.author.name).join(', ')}</p>}
-                        {book.editions[0]?.bookBoxCompany && (
-                          <span className="inline-block mt-0.5 text-[10px] text-amber-600 border border-amber-800 rounded px-1 py-0.5">{book.editions[0].bookBoxCompany.name}</span>
-                        )}
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{ed.book.title}</p>
+                        <p className="text-xs text-stone-500 truncate">
+                          {[ed.bookBoxCompany?.name, ed.publisher].filter(Boolean).join(' · ')}
+                        </p>
                       </div>
+                      {isUpcoming && <span className="text-[9px] text-amber-500 border border-amber-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>}
                     </Link>
                   )
                 })}

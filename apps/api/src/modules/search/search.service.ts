@@ -10,13 +10,13 @@ export class SearchService {
   async search(q: string, filter = 'all') {
     const trimmed = q.trim();
     if (trimmed.length < 2) {
-      return { books: [], authors: [], artists: [], subscriptions: [], companies: [], query: q, filter };
+      return { books: [], editions: [], authors: [], artists: [], subscriptions: [], companies: [], query: q, filter };
     }
 
     const all = filter === 'all';
     const take = LIMIT_PER_GROUP;
 
-    const [books, authors, artists, subscriptions, companies] = await Promise.all([
+    const [books, editions, authors, artists, subscriptions, companies] = await Promise.all([
       // ── Books ──────────────────────────────────────────────────────────────
       (all || filter === 'books')
         ? this.prisma.book.findMany({
@@ -46,6 +46,35 @@ export class SearchService {
                 take: 1,
               },
             },
+            take,
+          })
+        : [],
+
+      // ── Editions ───────────────────────────────────────────────────────────
+      (all || filter === 'editions')
+        ? this.prisma.bookEdition.findMany({
+            where: {
+              OR: [
+                { book: { title: { contains: trimmed, mode: 'insensitive' } } },
+                { publisher: { contains: trimmed, mode: 'insensitive' } },
+                { bookBoxCompany: { name: { contains: trimmed, mode: 'insensitive' } } },
+              ],
+            },
+            select: {
+              id: true,
+              slug: true,
+              additionalImages: true,
+              publisher: true,
+              generalSaleDate: true,
+              bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
+              book: {
+                select: {
+                  id: true, slug: true, title: true, seriesName: true, volumeNumber: true,
+                  authors: { select: { author: { select: { name: true } } }, take: 1 },
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' as const },
             take,
           })
         : [],
@@ -93,6 +122,6 @@ export class SearchService {
         : [],
     ]);
 
-    return { books, authors, artists, subscriptions, companies, query: trimmed, filter };
+    return { books, editions, authors, artists, subscriptions, companies, query: trimmed, filter };
   }
 }

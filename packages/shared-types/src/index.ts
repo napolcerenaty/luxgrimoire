@@ -341,8 +341,26 @@ export interface ApiSearchCompany {
   country: string | null;
 }
 
+export interface ApiSearchEdition {
+  id: string;
+  slug: string;
+  additionalImages: string[];
+  publisher: string | null;
+  generalSaleDate: string | null;
+  bookBoxCompany: { name: string; slug: string; logoUrl: string | null } | null;
+  book: {
+    id: string;
+    slug: string;
+    title: string;
+    seriesName: string | null;
+    volumeNumber: number | null;
+    authors: Array<{ author: { name: string } }>;
+  };
+}
+
 export interface ApiSearchResult {
   books: ApiSearchBook[];
+  editions: ApiSearchEdition[];
   authors: ApiSearchAuthor[];
   artists: ApiSearchArtist[];
   subscriptions: ApiSearchSubscription[];
