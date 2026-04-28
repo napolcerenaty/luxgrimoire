@@ -669,7 +669,7 @@ export default function CollectionPage() {
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
     queryFn: () =>
-      authFetch<{ data: CollectionEntry[]; total: number }>('/collection').then((r) => r.data),
+      authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false').then((r) => r.data),
   })
 
   const { data: allUserTags = [] } = useQuery({

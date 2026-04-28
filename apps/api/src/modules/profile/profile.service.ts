@@ -56,6 +56,10 @@ export class ProfileService {
     });
   }
 
+  async deleteAccount(userId: string) {
+    await this.prisma.user.delete({ where: { id: userId } });
+  }
+
   async changeUsername(userId: string, dto: ChangeUsernameDto) {
     const existing = await this.prisma.user.findUnique({ where: { username: dto.username } });
     if (existing && existing.id !== userId) throw new ConflictException('Username already taken');

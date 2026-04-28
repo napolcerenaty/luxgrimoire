@@ -5,7 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 
@@ -59,10 +60,14 @@ const COUNTRIES: [string, string][] = [
 ]
 
 export default function ProfilePage() {
-  const { user, login } = useAuth()
+  const { user, login, logout } = useAuth()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
+
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const DELETE_PHRASE = 'yes i want to delete my account'
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [bio, setBio] = useState('')
@@ -182,6 +187,14 @@ export default function ProfilePage() {
       setTimeout(() => setUsernameSuccess(false), 3000)
     },
     onError: (e: Error) => setUsernameError(e.message),
+  })
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => authFetch<{ ok: boolean }>('/profile/account', { method: 'DELETE' }),
+    onSuccess: () => {
+      logout()
+      router.push('/')
+    },
   })
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,6 +329,44 @@ export default function ProfilePage() {
               {updateUsernameMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Updating...</> : usernameSuccess ? <><Check size={14} /> Updated!</> : 'Update Username'}
             </button>
           </form>
+
+          {/* Delete Account */}
+          <div className="bg-stone-900 border border-red-900/40 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-400 shrink-0" />
+              <h2 className="font-serif font-semibold text-red-400">Delete Account</h2>
+            </div>
+            <p className="text-sm text-stone-400">
+              This will permanently delete your account and all associated data — collection, wishlist, subscriptions, spending history, and more.{' '}
+              <strong className="text-stone-200">This action cannot be undone.</strong>
+            </p>
+            <div>
+              <label className={LABEL}>
+                Type <span className="text-red-400 font-mono text-xs">{DELETE_PHRASE}</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={DELETE_PHRASE}
+                className="w-full bg-stone-800 border border-red-900/50 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-600 focus:outline-none focus:border-red-500 transition-colors"
+              />
+            </div>
+            {deleteAccountMutation.isError && (
+              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">
+                {(deleteAccountMutation.error as Error).message}
+              </p>
+            )}
+            <button
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={deleteConfirmText !== DELETE_PHRASE || deleteAccountMutation.isPending}
+              className="flex items-center gap-2 bg-red-900 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-red-200 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+            >
+              {deleteAccountMutation.isPending
+                ? <><Loader2 size={14} className="animate-spin" /> Deleting…</>
+                : <><Trash2 size={14} /> Delete My Account</>}
+            </button>
+          </div>
         </div>
       )}
 
