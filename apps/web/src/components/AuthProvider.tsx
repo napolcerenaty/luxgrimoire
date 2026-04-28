@@ -15,6 +15,7 @@ interface AuthUser {
   timeFormat?: string
   defaultTaxRate?: number | null
   shippingCountry?: string | null
+  bio?: string | null
 }
 
 interface AuthContextType {

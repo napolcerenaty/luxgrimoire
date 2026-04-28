@@ -70,7 +70,7 @@ export default function ProfilePage() {
   const DELETE_PHRASE = 'yes i want to delete my account'
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
-  const [bio, setBio] = useState('')
+  const [bio, setBio] = useState(user?.bio ?? '')
   const [preferredCurrency, setPreferredCurrency] = useState(user?.preferredCurrency ?? 'EUR')
   const [shippingCountry, setShippingCountry] = useState(user?.shippingCountry ?? '')
   const [timezone, setTimezone] = useState(
@@ -119,14 +119,14 @@ export default function ProfilePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: (payload: UpdateProfilePayload) =>
-      authFetch<{ user: typeof user }>('/profile', {
+      authFetch<typeof user>('/profile', {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }),
     onSuccess: (data, variables) => {
-      if (data?.user && user) {
+      if (data && user) {
         const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
-        login(token ?? '', { ...user, ...data.user })
+        login(token ?? '', { ...user, ...data })
       }
       void queryClient.invalidateQueries({ queryKey: ['me'] })
       if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables || 'timeFormat' in variables) {
@@ -179,14 +179,14 @@ export default function ProfilePage() {
 
   const updateUsernameMutation = useMutation({
     mutationFn: (payload: UpdateUsernamePayload) =>
-      authFetch<{ user: typeof user }>('/profile/username', {
+      authFetch<{ id: string; username: string; email: string; updatedAt: string }>('/profile/username', {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }),
     onSuccess: (data) => {
-      if (data?.user && user) {
+      if (data && user) {
         const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
-        login(token ?? '', { ...user, ...data.user })
+        login(token ?? '', { ...user, ...data })
       }
       setUsernameSuccess(true)
       setUsernameError(null)

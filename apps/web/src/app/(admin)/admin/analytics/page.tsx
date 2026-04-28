@@ -30,6 +30,7 @@ const METRICS = [
   { id: 'mark_as_sold',          label: 'Marked as Sold',                 defaultGroupBy: 'value'  },
   { id: 'search',                label: 'Searches',                       defaultGroupBy: 'value'  },
   { id: 'search_no_results',     label: 'Searches — No Results',          defaultGroupBy: 'value'  },
+  { id: 'account_delete',        label: 'Account Deletions',              defaultGroupBy: 'user'   },
 ]
 
 const GROUP_BY_OPTIONS = [

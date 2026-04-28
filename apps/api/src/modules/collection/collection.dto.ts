@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsIn, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn, IsArray, IsDateString } from 'class-validator';
 
 export const OWNERSHIP_STATUSES = [
   'PREORDER',
@@ -31,6 +31,9 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsBoolean() isWishlist?: boolean;
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
+  @IsOptional() @IsDateString() acquiredAt?: string;
+  @IsOptional() @IsString() allocatedPrice?: string;
+  @IsOptional() @IsString() priceCurrency?: string;
 }
 
 export class AddToWishlistDto {

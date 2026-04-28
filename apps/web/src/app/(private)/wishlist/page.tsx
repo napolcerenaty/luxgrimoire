@@ -48,6 +48,10 @@ export default function WishlistPage() {
   const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [movePrice, setMovePrice] = useState('')
   const [moveCurrency, setMoveCurrency] = useState('EUR')
+  const [shippingPrice, setShippingPrice] = useState('')
+  const [shippingCurrency, setShippingCurrency] = useState('EUR')
+  const [customsFee, setCustomsFee] = useState('')
+  const [customsCurrency, setCustomsCurrency] = useState('EUR')
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['collection', true],
@@ -62,23 +66,44 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: ({ id, date, price, currency }: { id: string; date: string; price: string; currency: string }) => {
+    mutationFn: async ({ id, date, price, currency, shipping, shippingCur, customs, customsCur }: {
+      id: string; date: string; price: string; currency: string;
+      shipping: string; shippingCur: string; customs: string; customsCur: string
+    }) => {
       const body: Record<string, unknown> = { isWishlist: false }
       if (date) body.acquiredAt = new Date(date).toISOString()
-      const parsed = parseDecimalInput(price)
-      if (parsed > 0) {
-        body.allocatedPrice = String(parsed)
+      const parsedPrice = parseDecimalInput(price)
+      if (parsedPrice > 0) {
+        body.allocatedPrice = String(parsedPrice)
         body.priceCurrency = currency
       }
-      return authFetch<void>(`/collection/${id}`, {
+      await authFetch<void>(`/collection/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       })
+      const feeDate = date || new Date().toISOString().slice(0, 10)
+      const parsedShipping = parseDecimalInput(shipping)
+      if (parsedShipping > 0) {
+        await authFetch('/fees', {
+          method: 'POST',
+          body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency: shippingCur, date: feeDate, category: 'FORWARDING', userBookEntryId: id }),
+        })
+      }
+      const parsedCustoms = parseDecimalInput(customs)
+      if (parsedCustoms > 0) {
+        await authFetch('/fees', {
+          method: 'POST',
+          body: JSON.stringify({ name: 'Customs', amount: parsedCustoms, currency: customsCur, date: feeDate, category: 'CUSTOMS', userBookEntryId: id }),
+        })
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
       setMoveEntry(null)
+      setMovePrice('')
+      setShippingPrice('')
+      setCustomsFee('')
     },
   })
 
@@ -189,6 +214,44 @@ export default function WishlistPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Shipping cost (optional)</label>
+                <input
+                  type="text"
+                  value={shippingPrice}
+                  onChange={e => setShippingPrice(e.target.value)}
+                  placeholder="0.00"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Currency</label>
+                <select value={shippingCurrency} onChange={e => setShippingCurrency(e.target.value)} className={INPUT}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Customs fee (optional)</label>
+                <input
+                  type="text"
+                  value={customsFee}
+                  onChange={e => setCustomsFee(e.target.value)}
+                  placeholder="0.00"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Currency</label>
+                <select value={customsCurrency} onChange={e => setCustomsCurrency(e.target.value)} className={INPUT}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setMoveEntry(null)}
@@ -197,7 +260,7 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency })}
+                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shipping: shippingPrice, shippingCur: shippingCurrency, customs: customsFee, customsCur: customsCurrency })}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >

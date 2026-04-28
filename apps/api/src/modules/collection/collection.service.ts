@@ -142,6 +142,9 @@ export class CollectionService {
         ...(dto.ownershipStatus !== undefined && { ownershipStatus: dto.ownershipStatus }),
         ...(dto.readingStatus !== undefined && { readingStatus: dto.readingStatus }),
         ...(dto.isWishlist !== undefined && { isWishlist: dto.isWishlist }),
+        ...(dto.acquiredAt !== undefined && { acquiredAt: new Date(dto.acquiredAt) }),
+        ...(dto.allocatedPrice !== undefined && { allocatedPrice: dto.allocatedPrice }),
+        ...(dto.priceCurrency !== undefined && { priceCurrency: dto.priceCurrency }),
       },
     });
   }
