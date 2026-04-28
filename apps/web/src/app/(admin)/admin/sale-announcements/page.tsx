@@ -269,6 +269,7 @@ interface LinkedEdition {
   editionName?: string | null
   coverImage?: string | null
   publisher?: string | null
+  companyName?: string | null
 }
 
 interface BookInfo {
@@ -281,8 +282,9 @@ interface BookInfo {
 interface EditionInfo {
   id: string
   editionName?: string | null
-  coverImage?: string | null
+  additionalImages?: string[]
   publisher?: string | null
+  bookBoxCompany?: { name: string } | null
 }
 
 function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency }: {
@@ -328,8 +330,9 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
       editionId: ed.id,
       bookTitle: selectedBook.title,
       editionName: ed.editionName,
-      coverImage: ed.coverImage,
+      coverImage: ed.additionalImages?.[0],
       publisher: ed.publisher,
+      companyName: ed.bookBoxCompany?.name,
     })
     setSearch('')
     setDebounced('')
@@ -398,7 +401,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 }
                 <div className="flex-1 min-w-0">
                   <div className="text-stone-100 text-xs font-medium truncate">{e.bookTitle}</div>
-                  <div className="text-stone-500 text-xs truncate">{e.editionName ?? 'Standard'}{e.publisher ? ` · ${e.publisher}` : ''}</div>
+                  <div className="text-stone-500 text-xs truncate">{[e.companyName, e.editionName].filter(Boolean).join(' · ') || e.publisher || '—'}</div>
                 </div>
                 <button type="button" onClick={() => onRemove(e.editionId)}
                   className="text-red-400 hover:text-red-300 text-xs shrink-0">Remove</button>
@@ -424,12 +427,12 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 disabled={linked.some(l => l.editionId === ed.id)}
                 className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-700 hover:bg-stone-600 disabled:opacity-40 transition-colors"
               >
-                {ed.coverImage
-                  ? <img src={cloudThumb(ed.coverImage, 32, 40) ?? ''} alt="" className="w-8 h-10 object-cover rounded" />
+                {ed.additionalImages?.[0]
+                  ? <img src={cloudThumb(ed.additionalImages[0], 32, 40) ?? ''} alt="" className="w-8 h-10 object-cover rounded" />
                   : <div className="w-8 h-10 bg-stone-600 rounded" />
                 }
                 <div>
-                  <div className="text-stone-100 text-xs">{ed.editionName ?? 'Standard'}</div>
+                  <div className="text-stone-100 text-xs">{[ed.bookBoxCompany?.name, ed.editionName].filter(Boolean).join(' · ') || '—'}</div>
                   <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
               </button>
@@ -1096,7 +1099,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
             <p className="text-stone-500 text-xs py-2">No linked books yet.</p>
           )}
           {editions.map(e => {
-            const thumb = e.edition?.coverImage ? cloudThumb(e.edition.coverImage, 48, 60) : null
+            const thumb = (e.edition as any)?.additionalImages?.[0] ? cloudThumb((e.edition as any).additionalImages[0], 48, 60) : null
             const activeVariants = new Set((e.variants ?? []).map(v => v.signatureType))
             return (
               <div key={e.editionId} className="bg-stone-800/50 rounded-lg p-3">
@@ -1182,7 +1185,8 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   editionId: e.editionId,
                   bookTitle: e.edition?.book?.title ?? '',
                   editionName: e.edition?.editionName ?? null,
-                  coverImage: e.edition?.coverImage ?? null,
+                  coverImage: (e.edition as any)?.additionalImages?.[0] ?? null,
+                  companyName: (e.edition as any)?.bookBoxCompany?.name ?? null,
                 }))}
                 onAdd={linked => addMutation.mutate(linked.editionId)}
                 onRemove={editionId => removeMutation.mutate(editionId)}
