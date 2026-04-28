@@ -168,6 +168,7 @@ export interface ApiBookBoxCompany {
   x: string | null;
   bluesky: string | null;
   iossImplemented: boolean;
+  brandColors: string[];
   subscriptions?: ApiSubscription[];
   collections?: ApiBookBoxCollection[];
   sponsoredSlots?: ApiSponsoredSlot[];

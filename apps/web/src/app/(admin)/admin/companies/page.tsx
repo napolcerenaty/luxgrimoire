@@ -7,7 +7,6 @@ import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
@@ -258,6 +257,8 @@ export default function AdminCompaniesPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
+  const [extractingColors, setExtractingColors] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -286,6 +287,19 @@ export default function AdminCompaniesPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setDeleteCompany(null) },
   })
 
+  const handleExtractColors = async (slug: string) => {
+    setExtractingColors(true)
+    setExtractError(null)
+    try {
+      await authFetch(`/companies/${slug}/extract-brand-colors`, { method: 'POST' })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : 'Extraction failed')
+    } finally {
+      setExtractingColors(false)
+    }
+  }
+
   const columns = [
     {
       key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
@@ -305,6 +319,19 @@ export default function AdminCompaniesPage() {
       key: 'social', label: 'Social', render: (row: ApiBookBoxCompany) => {
         const links = [row.instagram, row.tiktok, row.x, row.bluesky, row.threads, row.facebook].filter(Boolean)
         return <span className="text-stone-500 text-xs">{links.length ? `${links.length} link${links.length > 1 ? 's' : ''}` : '—'}</span>
+      },
+    },
+    {
+      key: 'brandColors', label: 'Colors', render: (row: ApiBookBoxCompany) => {
+        const colors = row.brandColors ?? []
+        if (!colors.length) return <span className="text-stone-600 text-xs">—</span>
+        return (
+          <div className="flex gap-1 items-center">
+            {colors.map((c, i) => (
+              <div key={i} title={c} className="w-4 h-4 rounded-full border border-stone-700 flex-shrink-0" style={{ backgroundColor: c }} />
+            ))}
+          </div>
+        )
       },
     },
   ]
@@ -345,8 +372,33 @@ export default function AdminCompaniesPage() {
         <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Edit — {editCompany.name}</h2>
-            <button onClick={() => setEditCompany(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => { setEditCompany(null); setExtractError(null) }} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
+
+          {/* Brand colors */}
+          <div className="flex items-center gap-3 py-2 border-b border-stone-800">
+            <div className="flex gap-1.5 items-center">
+              {(editCompany.brandColors ?? []).length > 0
+                ? (editCompany.brandColors ?? []).map((c, i) => (
+                    <div key={i} title={c} className="w-5 h-5 rounded-full border border-stone-600" style={{ backgroundColor: c }} />
+                  ))
+                : <span className="text-stone-500 text-xs">No brand colors yet</span>
+              }
+            </div>
+            <button
+              type="button"
+              disabled={extractingColors || !editCompany.website}
+              onClick={() => handleExtractColors(editCompany.slug).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })
+              })}
+              title={editCompany.website ? 'Extract colors from website og:image' : 'Company has no website URL'}
+              className="ml-auto px-3 py-1 text-xs rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40"
+            >
+              {extractingColors ? '⟳ Extracting…' : '🎨 Extract Brand Colors'}
+            </button>
+          </div>
+          {extractError && <p className="text-red-400 text-xs">{extractError}</p>}
+
           <CompanyForm
             key={editCompany.id}
             initial={companyToForm(editCompany)}

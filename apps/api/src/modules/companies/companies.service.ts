@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
@@ -113,5 +113,60 @@ export class CompaniesService {
   async delete(slug: string) {
     await this.findBySlug(slug);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
+  }
+
+  async extractBrandColors(slug: string): Promise<string[]> {
+    const company = await this.prisma.bookBoxCompany.findUnique({
+      where: { slug },
+      select: { id: true, website: true },
+    });
+    if (!company) throw new NotFoundException(`Company '${slug}' not found`);
+    if (!company.website) throw new BadRequestException('Company has no website URL configured');
+
+    // Fetch website HTML
+    const res = await fetch(company.website, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxgrimoireBot/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new BadRequestException(`Failed to fetch website: HTTP ${res.status}`);
+    const html = await res.text();
+
+    // Parse og:image (handle both attribute orderings + HTML entities)
+    const ogMatch =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ??
+      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+
+    if (!ogMatch?.[1]) throw new BadRequestException('Could not find og:image or twitter:image on the website');
+
+    let imageUrl = ogMatch[1].replace(/&amp;/g, '&').replace(/&#x2F;/g, '/');
+
+    // Resolve relative URLs
+    if (imageUrl.startsWith('//')) {
+      imageUrl = `https:${imageUrl}`;
+    } else if (imageUrl.startsWith('/')) {
+      const base = new URL(company.website);
+      imageUrl = `${base.protocol}//${base.host}${imageUrl}`;
+    }
+
+    // Extract colors with node-vibrant
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const VibrantModule = require('node-vibrant') as { default: { from: (src: string) => { getPalette: () => Promise<Record<string, { hex: string } | null>> } } };
+    const Vibrant = VibrantModule.default;
+    const palette = await Vibrant.from(imageUrl).getPalette();
+
+    const primary = palette['Vibrant']?.hex ?? palette['LightVibrant']?.hex ?? '#c8b48c';
+    const dark = palette['DarkVibrant']?.hex ?? palette['DarkMuted']?.hex ?? '#2a1f14';
+    const muted = palette['Muted']?.hex ?? palette['LightMuted']?.hex ?? '#6b5a45';
+
+    const colors = [primary, dark, muted];
+
+    await this.prisma.bookBoxCompany.update({
+      where: { slug },
+      data: { brandColors: colors },
+    });
+
+    return colors;
   }
 }

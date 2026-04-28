@@ -176,6 +176,7 @@ export default async function SubscriptionPage({ params }: Props) {
                 label="Current Month"
                 labelVariant="current"
                 monthData={currentMonth}
+                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
               />
             )}
             {upcomingMonth && (
@@ -183,6 +184,7 @@ export default async function SubscriptionPage({ params }: Props) {
                 label="Upcoming Theme"
                 labelVariant="upcoming"
                 monthData={upcomingMonth}
+                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
               />
             )}
           </div>
@@ -207,6 +209,7 @@ export default async function SubscriptionPage({ params }: Props) {
                 mainBook={getMainBook(m)}
                 isSpoiler={m.isSpoiler}
                 cardArtist={m.cardArtist ?? null}
+                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
               />
             ))}
           </div>
@@ -305,9 +308,10 @@ interface FeaturedMonthCardProps {
   label: string
   labelVariant: 'current' | 'upcoming'
   monthData: ApiSubscriptionMonth
+  accentColors?: string[] | null
 }
 
-function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCardProps) {
+function FeaturedMonthCard({ label, labelVariant, monthData, accentColors }: FeaturedMonthCardProps) {
   const monthName = MONTH_NAMES[monthData.month - 1]
   // No c_fill — let contain work properly
   const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
@@ -338,8 +342,14 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
           />
         </>
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-2
-          bg-gradient-to-br from-stone-900 via-stone-950 to-stone-900">
+        <div
+          className="w-full h-full flex flex-col items-center justify-center gap-2"
+          style={
+            accentColors?.length
+              ? { background: `linear-gradient(135deg, ${accentColors[1] ?? '#0c0a09'} 0%, ${accentColors[0] ?? '#1c1917'} 60%, ${accentColors[2] ?? '#0c0a09'} 100%)` }
+              : { background: 'linear-gradient(135deg, #0c0a09 0%, #1c1917 60%, #0c0a09 100%)' }
+          }
+        >
           <span className="text-stone-400 font-serif text-base tracking-widest uppercase">
             {monthName} {monthData.year}
           </span>

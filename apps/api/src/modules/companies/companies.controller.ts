@@ -8,6 +8,8 @@ import {
   Body,
   Query,
   ForbiddenException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
@@ -80,5 +82,24 @@ export class CompaniesController {
     const result = await this.companiesService.delete(slug);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_COMPANY', entityType: 'company', entityId: result.id, entityTitle: result.slug });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @HttpCode(HttpStatus.OK)
+  @Post(':slug/extract-brand-colors')
+  async extractBrandColors(
+    @Param('slug') slug: string,
+    @CurrentUser() user: { id: string; username: string; role: string; managedCompanyId: string | null },
+  ) {
+    if (user.role === 'COMPANY_MANAGER') {
+      const company = await this.companiesService.findBySlug(slug);
+      if (company.id !== user.managedCompanyId) {
+        throw new ForbiddenException('You can only manage your own company');
+      }
+    }
+    const colors = await this.companiesService.extractBrandColors(slug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'EXTRACT_BRAND_COLORS', entityType: 'company', entityId: slug, entityTitle: slug });
+    return { brandColors: colors };
   }
 }

@@ -254,6 +254,7 @@ model BookBoxCompany {
   threads           String?
   tiktok            String?
   x                 String?
+  brandColors       String[]
   collections       BookBoxCollection[]
   editions          BookEdition[]
   sponsoredSlots    SponsoredSlot[]
