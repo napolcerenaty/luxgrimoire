@@ -140,6 +140,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
   // Pre-populate from existing edition
   const [companyId, setCompanyId] = useState(edition.bookBoxCompanyId ?? '')
+  const [collectionId, setCollectionId] = useState((edition as any).collectionId ?? '')
   const [price, setPrice] = useState(edition.basePrice ?? '')
   const [currency, setCurrency] = useState(edition.currency ?? 'USD')
   const [publisher, setPublisher] = useState(edition.publisher ?? '')
@@ -164,6 +165,14 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     queryFn: () => authFetch<{ data: Company[] }>('/companies?pageSize=100'),
   })
   const companies = companiesData?.data ?? []
+
+  // Collections for selected company
+  const { data: collectionsData } = useQuery({
+    queryKey: ['collections-by-company', companyId],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(`/book-box-collections?companyId=${companyId}&pageSize=100`),
+    enabled: !!companyId,
+  })
+  const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
     if (r.edition?.publisher) setPublisher(r.edition.publisher)
@@ -201,6 +210,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         method: 'PATCH',
         body: JSON.stringify({
           bookBoxCompanyId: companyId || undefined,
+          collectionId: collectionId || undefined,
           publisher: publisher.trim() || undefined,
           photoCredit: photoCredit.trim() || undefined,
           basePrice: price || undefined,
@@ -277,7 +287,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Company (book box)</label>
-          <select value={companyId} onChange={e => setCompanyId(e.target.value)} className={INP}>
+          <select value={companyId} onChange={e => { setCompanyId(e.target.value); setCollectionId('') }} className={INP}>
             <option value="">— none —</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -293,6 +303,17 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           </div>
         </div>
       </div>
+
+      {/* Collection picker (shown when company has collections) */}
+      {companyId && collections.length > 0 && (
+        <div>
+          <label className={LBL}>Collection</label>
+          <select value={collectionId} onChange={e => setCollectionId(e.target.value)} className={INP}>
+            <option value="">— none —</option>
+            {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Publisher + Photo credit */}
       <div className="grid grid-cols-2 gap-3">

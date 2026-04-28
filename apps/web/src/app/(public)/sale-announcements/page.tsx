@@ -8,7 +8,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
 import { Megaphone, Search } from 'lucide-react'
 import { AddToCollectionButton } from './[id]/AddToCollectionButton'
-import { useAuthStore } from '@/stores/authStore'
+import { useAuth } from '@/components/AuthProvider'
 
 function formatDate(iso: string | null) {
   if (!iso) return null
@@ -17,7 +17,7 @@ function formatDate(iso: string | null) {
 
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
-  const user = useAuthStore((s) => s.user)
+  const { user } = useAuth()
 
   const { data, isLoading } = useQuery({
     queryKey: ['sale-announcements', 'list'],
