@@ -6,6 +6,8 @@ import { getFeeTemplates } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Author {
@@ -143,7 +145,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
   const effectiveCur = costCurrency || currency
   const allSameCurrency = linkedFees.length > 0 && linkedFees.every(f => f.customCurrency === effectiveCur)
   const feesTotal = allSameCurrency
-    ? linkedFees.reduce((sum, f) => { const a = parseFloat(f.customAmount); return sum + (isNaN(a) ? 0 : a) }, 0)
+    ? linkedFees.reduce((sum, f) => sum + parseDecimalInput(f.customAmount), 0)
     : null
 
   // taxesAndFees: auto-sum when all fees share the same currency
@@ -164,7 +166,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       taxesAndFees,
       linkedFeeTemplates: linkedFees.map(f => ({
         templateId: f.templateId,
-        customAmount: f.customAmount !== '' ? parseFloat(f.customAmount) : undefined,
+        customAmount: f.customAmount !== '' ? parseDecimalInput(f.customAmount) : undefined,
         customCurrency: f.customCurrency,
       })),
       ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
@@ -377,10 +379,10 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
       const selectedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'selected').map(m => m.id)
       const skippedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'skipped').map(m => m.id)
       const bookPricesPayload = Object.entries(bookPrices)
-        .filter(([, v]) => v !== '' && !isNaN(parseFloat(v)))
+        .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
         .map(([key, v]) => {
           const [monthId, editionId] = key.split(':')
-          return { monthId, editionId, price: parseFloat(v) }
+          return { monthId, editionId, price: parseDecimalInput(v) }
         })
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',

@@ -70,7 +70,7 @@ export default function RegisterPage() {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
-        <h1 className="font-serif italic text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
+        <h1 className="font-serif text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
         <p className="text-stone-400 text-sm">Create your account</p>
       </div>
 

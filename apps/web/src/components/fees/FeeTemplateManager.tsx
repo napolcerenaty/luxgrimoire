@@ -11,6 +11,8 @@ import {
 import type { ApiFeeTemplate, FeeCategory } from '@luxgrimoire/shared-types'
 import { Loader2, Plus, Pencil, Trash2, Check, X, ArchiveRestore, Archive } from 'lucide-react'
 
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+
 const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'VAT', label: 'VAT' },
   { value: 'CUSTOMS', label: 'Customs' },
@@ -60,7 +62,7 @@ export default function FeeTemplateManager() {
       createFeeTemplate({
         name: addForm.name.trim(),
         category: addForm.category,
-        defaultAmount: addForm.defaultAmount ? parseFloat(addForm.defaultAmount) : undefined,
+        defaultAmount: addForm.defaultAmount ? parseDecimalInput(addForm.defaultAmount) : undefined,
         defaultCurrency: addForm.defaultCurrency.trim() || 'PLN',
       }),
     onSuccess: () => {
@@ -105,7 +107,7 @@ export default function FeeTemplateManager() {
       data: {
         name: editForm.name.trim(),
         category: editForm.category,
-        defaultAmount: editForm.defaultAmount ? parseFloat(editForm.defaultAmount) : null,
+        defaultAmount: editForm.defaultAmount ? parseDecimalInput(editForm.defaultAmount) : null,
         defaultCurrency: editForm.defaultCurrency.trim() || 'PLN',
       },
     })

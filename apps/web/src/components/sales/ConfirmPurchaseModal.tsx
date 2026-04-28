@@ -5,6 +5,8 @@ import { X, ShoppingBag, Loader2 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+
 interface Props {
   sale: ApiSaleAnnouncement
   preselectedTier?: 'FA' | 'EA' | 'GS'
@@ -42,7 +44,7 @@ export function ConfirmPurchaseModal({ sale, preselectedTier = 'GS', onClose, on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedEditionIds.length === 0) { setError('Select at least one edition'); return }
-    if (!totalAmount || isNaN(parseFloat(totalAmount))) { setError('Enter a valid total amount'); return }
+    if (!totalAmount || parseDecimalInput(totalAmount) <= 0) { setError('Enter a valid total amount'); return }
 
     setLoading(true)
     setError(null)
@@ -52,9 +54,9 @@ export function ConfirmPurchaseModal({ sale, preselectedTier = 'GS', onClose, on
         body: JSON.stringify({
           tier,
           purchasedAt: new Date(purchasedAt).toISOString(),
-          totalAmount: parseFloat(totalAmount),
+          totalAmount: parseDecimalInput(totalAmount),
           currency: currency.toUpperCase(),
-          shippingAmount: shippingAmount ? parseFloat(shippingAmount) : undefined,
+          shippingAmount: shippingAmount ? parseDecimalInput(shippingAmount) : undefined,
           editionIds: selectedEditionIds,
           notes: notes || undefined,
         }),

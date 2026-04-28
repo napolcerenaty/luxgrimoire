@@ -121,21 +121,18 @@ export default async function EditionPage({ params }: Props) {
 
   // Build all carousel images: cover first, then additional
   const allImages: string[] = []
-  const allLightboxImages: string[] = []
   const additionalSources = Array.isArray(edition.additionalImages) ? edition.additionalImages : []
   const coverSrc = edition.coverImage ?? book?.coverImage ?? null
 
-  const coverUrl = cloudinaryUrl(coverSrc, 'w_600,c_fill,q_auto,f_auto')
+  const coverUrl = cloudinaryUrl(coverSrc, 'w_1200,q_auto,f_auto')
   if (coverUrl) allImages.push(coverUrl)
-  const coverUrlFull = cloudinaryUrl(coverSrc, 'w_1600,q_auto,f_auto')
-  if (coverUrlFull) allLightboxImages.push(coverUrlFull)
 
   for (const img of additionalSources) {
-    const url = cloudinaryUrl(img, 'w_600,c_fill,q_auto,f_auto')
+    const url = cloudinaryUrl(img, 'w_1200,q_auto,f_auto')
     if (url) allImages.push(url)
-    const urlFull = cloudinaryUrl(img, 'w_1600,q_auto,f_auto')
-    if (urlFull) allLightboxImages.push(urlFull)
   }
+
+  const coverUrlForJsonLd = cloudinaryUrl(coverSrc, 'w_600,c_fill,q_auto,f_auto')
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -143,7 +140,7 @@ export default async function EditionPage({ params }: Props) {
     name: book?.title,
     description: book?.description,
     inLanguage: edition.language ?? book?.language,
-    ...(coverUrl ? { image: coverUrl } : {}),
+    ...(coverUrlForJsonLd ? { image: coverUrlForJsonLd } : {}),
   }
 
   return (
@@ -168,7 +165,7 @@ export default async function EditionPage({ params }: Props) {
               )}
 
               {allImages.length > 0 ? (
-                <ImageCarousel images={allImages} lightboxImages={allLightboxImages} alt={book?.title ?? 'Edition'} />
+                <ImageCarousel images={allImages} alt={book?.title ?? 'Edition'} />
               ) : (
                 <div className="w-full aspect-[2/3] rounded-xl bg-stone-800 flex items-center justify-center text-stone-600 ring-1 ring-stone-700/50">
                   <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">

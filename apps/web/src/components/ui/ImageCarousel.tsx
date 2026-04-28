@@ -5,21 +5,13 @@ import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 
 interface ImageCarouselProps {
   images: string[]
-  lightboxImages?: string[]  // full-res URLs for lightbox; falls back to images
   alt: string
 }
 
-export function ImageCarousel({ images, lightboxImages, alt }: ImageCarouselProps) {
+export function ImageCarousel({ images, alt }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0)
   const [lightbox, setLightbox] = useState(false)
-  const [fullResLoaded, setFullResLoaded] = useState(false)
   const total = images.length
-  const fullImages = lightboxImages ?? images
-
-  // Reset loaded state whenever lightbox image changes
-  useEffect(() => {
-    setFullResLoaded(false)
-  }, [current, lightbox])
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + total) % total), [total])
   const next = useCallback(() => setCurrent((c) => (c + 1) % total), [total])
@@ -134,17 +126,7 @@ export function ImageCarousel({ images, lightboxImages, alt }: ImageCarouselProp
             <img
               src={images[current]}
               alt={`${alt} — ${current + 1}`}
-              className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
-            />
-            {/* Full-res overlay — fades in once loaded */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={fullImages[current]}
-              src={fullImages[current]}
-              alt=""
-              aria-hidden
-              onLoad={() => setFullResLoaded(true)}
-              className={`absolute inset-0 max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain transition-opacity duration-300 ${fullResLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className="max-h-[90vh] max-w-[90vw] w-auto h-auto rounded-lg shadow-2xl"
             />
 
             {/* Prev / Next — overlaid on image edges */}

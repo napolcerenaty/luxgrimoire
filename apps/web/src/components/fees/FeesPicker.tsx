@@ -9,6 +9,8 @@ import {
 import type { ApiFeeTemplate, ApiPurchaseFee, ApiPurchaseDiscount, ApiPurchaseRefund, FeeCategory } from '@luxgrimoire/shared-types'
 import { ChevronDown, ChevronUp, Plus, Trash2, Loader2, Save, Tag, RotateCcw } from 'lucide-react'
 
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+
 interface FeesPickerProps {
   billingPeriodId?: string
   userBookEntryId?: string
@@ -201,7 +203,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
         Promise.all(
           feeRows.filter((r) => r.isNew && !r.markedForDelete).map((r) =>
             createPurchaseFee({
-              feeTemplateId: r.feeTemplateId, name: r.name, amount: parseFloat(r.amount) || 0,
+              feeTemplateId: r.feeTemplateId, name: r.name, amount: parseDecimalInput(r.amount),
               currency: r.currency, date: r.date, category: r.category,
               billingPeriodId, userBookEntryId, purchaseGroupId, notes: r.notes || undefined,
             })
@@ -210,7 +212,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
         Promise.all(
           discountRows.filter((r) => r.isNew && !r.markedForDelete).map((r) =>
             createPurchaseDiscount({
-              name: r.name, amount: parseFloat(r.amount) || 0, currency: r.currency,
+              name: r.name, amount: parseDecimalInput(r.amount), currency: r.currency,
               date: r.date, billingPeriodId, userBookEntryId, purchaseGroupId, notes: r.notes || undefined,
             })
           )
@@ -218,7 +220,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
         Promise.all(
           refundRows.filter((r) => r.isNew && !r.markedForDelete).map((r) =>
             createPurchaseRefund({
-              amount: parseFloat(r.amount) || 0, currency: r.currency, date: r.date,
+              amount: parseDecimalInput(r.amount), currency: r.currency, date: r.date,
               billingPeriodId, userBookEntryId, purchaseGroupId,
               reason: r.reason || undefined, notes: r.notes || undefined,
             })
@@ -275,17 +277,17 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
   const feeTotals: Record<string, number> = {}
   for (const r of visibleFees) {
-    const amt = parseFloat(r.amount) || 0
+    const amt = parseDecimalInput(r.amount)
     if (amt) feeTotals[r.currency] = (feeTotals[r.currency] ?? 0) + amt
   }
   const discountTotals: Record<string, number> = {}
   for (const r of visibleDiscounts) {
-    const amt = parseFloat(r.amount) || 0
+    const amt = parseDecimalInput(r.amount)
     if (amt) discountTotals[r.currency] = (discountTotals[r.currency] ?? 0) + amt
   }
   const refundTotals: Record<string, number> = {}
   for (const r of visibleRefunds) {
-    const amt = parseFloat(r.amount) || 0
+    const amt = parseDecimalInput(r.amount)
     if (amt) refundTotals[r.currency] = (refundTotals[r.currency] ?? 0) + amt
   }
 

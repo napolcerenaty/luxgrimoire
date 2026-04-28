@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
 import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
 interface CollectionEntry {
   id: string
@@ -276,7 +277,7 @@ function AddSaleForm({
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const total = parseFloat(saleTotalAmount) || 0
+  const total = parseDecimalInput(saleTotalAmount)
   const count = saleSelectedEntries.length
   const perBook = count > 0 ? (total / count).toFixed(2) : '0.00'
 
@@ -313,7 +314,7 @@ function AddSaleForm({
 
     const customAmounts: Record<string, number> | undefined =
       saleDistribution === 'CUSTOM'
-        ? Object.fromEntries(Object.entries(saleCustomAmounts).map(([k, v]) => [k, parseFloat(v) || 0]))
+        ? Object.fromEntries(Object.entries(saleCustomAmounts).map(([k, v]) => [k, parseDecimalInput(v)]))
         : undefined
 
     setPending(true)
@@ -1310,13 +1311,13 @@ export default function CollectionPage() {
                             const fees = entry.purchaseFees ?? []
                             // Convert each fee to costCur before summing
                             const feesInCostCur = fees.reduce((sum, f) => {
-                              const feeAmt = parseFloat(f.amount)
+                              const feeAmt = parseDecimalInput(f.amount)
                               if (f.currency === costCur) return sum + feeAmt
                               const rateKey = `${f.currency}:${costCur}:${dateStr}`
                               const rate = conversionRates[rateKey]
                               return sum + (rate ? feeAmt * rate : feeAmt)
                             }, 0)
-                            const totalInCostCur = parseFloat(entry.allocatedPrice) + feesInCostCur
+                            const totalInCostCur = parseDecimalInput(entry.allocatedPrice) + feesInCostCur
                             return (
                               <p className="text-[10px] text-stone-400">
                                 {totalInCostCur.toFixed(2)} {costCur}

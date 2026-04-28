@@ -8,6 +8,8 @@ import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
@@ -65,7 +67,7 @@ function formToCreatePayload(form: SlotFormData) {
     slotType: form.slotType,
     startDate: form.startDate,
     endDate: form.endDate,
-    priceCharged: form.priceCharged ? parseFloat(form.priceCharged) : undefined,
+    priceCharged: form.priceCharged ? parseDecimalInput(form.priceCharged) : undefined,
     notes: form.notes || undefined,
   }
 }
@@ -75,7 +77,7 @@ function formToUpdatePayload(form: SlotFormData) {
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
     isActive: form.isActive,
-    priceCharged: form.priceCharged ? parseFloat(form.priceCharged) : undefined,
+    priceCharged: form.priceCharged ? parseDecimalInput(form.priceCharged) : undefined,
     notes: form.notes || undefined,
   }
 }
