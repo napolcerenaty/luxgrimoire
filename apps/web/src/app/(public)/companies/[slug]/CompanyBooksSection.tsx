@@ -66,7 +66,7 @@ export function CompanyBooksSection({ groups }: Props) {
     <section className="mt-12">
       {/* Header row: title + search */}
       <div className="flex items-center gap-4 mb-5 flex-wrap">
-        <h2 className="text-2xl font-serif font-semibold text-stone-100">Books</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">Books</h2>
         <div className="ml-auto relative">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none">
             <SearchIcon />
@@ -82,7 +82,7 @@ export function CompanyBooksSection({ groups }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-stone-800 mb-6 overflow-x-auto">
+      <div className="flex gap-0 border-b border-stone-800 mb-6">
         {groups.map((group, idx) => (
           <button
             key={group.label}

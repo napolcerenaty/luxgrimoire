@@ -29,6 +29,15 @@ interface CollectionEntry {
   }
 }
 
+interface FeeTemplate {
+  id: string
+  name: string
+  category: string | null
+  defaultAmount: number | null
+  defaultCurrency: string | null
+  isActive: boolean
+}
+
 interface PaginatedEntries {
   data: CollectionEntry[]
   total: number
@@ -50,12 +59,17 @@ export default function WishlistPage() {
   const [moveCurrency, setMoveCurrency] = useState('EUR')
   const [shippingPrice, setShippingPrice] = useState('')
   const [shippingCurrency, setShippingCurrency] = useState('EUR')
-  const [customsFee, setCustomsFee] = useState('')
-  const [customsCurrency, setCustomsCurrency] = useState('EUR')
+  const [selectedCustomsTemplateId, setSelectedCustomsTemplateId] = useState('')
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['collection', true],
     queryFn: () => authFetch<PaginatedEntries>('/collection?isWishlist=true&pageSize=100'),
+  })
+
+  const { data: feeTemplates = [] } = useQuery({
+    queryKey: ['fee-templates'],
+    queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
+    enabled: !!moveEntry,
   })
 
   const entries = result?.data ?? []
@@ -66,9 +80,9 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, shipping, shippingCur, customs, customsCur }: {
+    mutationFn: async ({ id, date, price, currency, shipping, shippingCur, customsTemplate }: {
       id: string; date: string; price: string; currency: string;
-      shipping: string; shippingCur: string; customs: string; customsCur: string
+      shipping: string; shippingCur: string; customsTemplate: FeeTemplate | null
     }) => {
       const body: Record<string, unknown> = { isWishlist: false }
       if (date) body.acquiredAt = new Date(date).toISOString()
@@ -89,11 +103,10 @@ export default function WishlistPage() {
           body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency: shippingCur, date: feeDate, category: 'FORWARDING', userBookEntryId: id }),
         })
       }
-      const parsedCustoms = parseDecimalInput(customs)
-      if (parsedCustoms > 0) {
+      if (customsTemplate && (customsTemplate.defaultAmount ?? 0) > 0) {
         await authFetch('/fees', {
           method: 'POST',
-          body: JSON.stringify({ name: 'Customs', amount: parsedCustoms, currency: customsCur, date: feeDate, category: 'CUSTOMS', userBookEntryId: id }),
+          body: JSON.stringify({ feeTemplateId: customsTemplate.id, name: customsTemplate.name, amount: customsTemplate.defaultAmount, currency: customsTemplate.defaultCurrency ?? 'EUR', date: feeDate, category: customsTemplate.category ?? 'CUSTOMS', userBookEntryId: id }),
         })
       }
     },
@@ -103,7 +116,7 @@ export default function WishlistPage() {
       setMoveEntry(null)
       setMovePrice('')
       setShippingPrice('')
-      setCustomsFee('')
+      setSelectedCustomsTemplateId('')
     },
   })
 
@@ -233,23 +246,20 @@ export default function WishlistPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>Customs fee (optional)</label>
-                <input
-                  type="text"
-                  value={customsFee}
-                  onChange={e => setCustomsFee(e.target.value)}
-                  placeholder="0.00"
-                  className={INPUT}
-                />
-              </div>
-              <div>
-                <label className={LABEL}>Currency</label>
-                <select value={customsCurrency} onChange={e => setCustomsCurrency(e.target.value)} className={INPUT}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+            <div>
+              <label className={LABEL}>Customs fee template (optional)</label>
+              <select
+                value={selectedCustomsTemplateId}
+                onChange={e => setSelectedCustomsTemplateId(e.target.value)}
+                className={INPUT}
+              >
+                <option value="">— None —</option>
+                {feeTemplates.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}{t.category ? ` (${t.category})` : ''}{t.defaultAmount ? ` — ${t.defaultAmount} ${t.defaultCurrency ?? ''}` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -260,7 +270,10 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shipping: shippingPrice, shippingCur: shippingCurrency, customs: customsFee, customsCur: customsCurrency })}
+                onClick={() => {
+                  const customsTemplate = feeTemplates.find(t => t.id === selectedCustomsTemplateId) ?? null
+                  moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shipping: shippingPrice, shippingCur: shippingCurrency, customsTemplate })
+                }}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >

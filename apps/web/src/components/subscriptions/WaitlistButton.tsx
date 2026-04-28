@@ -155,22 +155,26 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   return (
     <div className="mt-4">
       {showDateForm ? (
-        <div className="flex items-center gap-2 bg-stone-800/60 border border-stone-700/60 rounded-xl px-4 py-3">
-          <Clock className="w-4 h-4 text-stone-400 shrink-0" />
-          <span className="text-xs text-stone-400">Joined waitlist on:</span>
-          <input
-            type="date"
-            value={dateInput}
-            onChange={e => setDateInput(e.target.value)}
-            className="flex-1 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-amber-400 text-xs"
-          />
-          <button onClick={() => handleJoin(dateInput || undefined)} disabled={busy}
-            className="text-xs px-3 py-1 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors disabled:opacity-50">
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : 'Save'}
-          </button>
-          <button onClick={() => setShowDateForm(false)} className="text-stone-500 hover:text-stone-300">
-            <X className="w-3.5 h-3.5" />
-          </button>
+        <div className="bg-stone-800/60 border border-stone-700/60 rounded-xl px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-stone-400 shrink-0" />
+            <span className="text-xs text-stone-400">Joined waitlist on:</span>
+          </div>
+          <div className="flex items-center gap-2 pl-6">
+            <input
+              type="date"
+              value={dateInput}
+              onChange={e => setDateInput(e.target.value)}
+              className="flex-1 min-w-0 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-amber-400 text-xs"
+            />
+            <button onClick={() => handleJoin(dateInput || undefined)} disabled={busy}
+              className="text-xs px-3 py-1 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors disabled:opacity-50 shrink-0">
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : 'Save'}
+            </button>
+            <button onClick={() => setShowDateForm(false)} className="text-stone-500 hover:text-stone-300 shrink-0">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       ) : (
         <button
