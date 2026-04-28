@@ -1219,7 +1219,7 @@ export default function CollectionPage() {
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
+                                  {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
