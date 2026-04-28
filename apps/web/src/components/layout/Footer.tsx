@@ -40,10 +40,10 @@ export function Footer() {
     <footer className="border-t border-stone-800 bg-stone-950 text-stone-400 mt-16">
       <div className="container mx-auto px-4 sm:px-6 py-12">
         {/* Main grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-8 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
-          <div className="col-span-2 sm:col-span-1">
-            <p className="font-serif text-xl font-bold text-amber-400 mb-2">LuxGrimoire</p>
+          <div className="col-span-2 md:col-span-1">
+            <p className="font-serif text-lg font-bold text-amber-400 mb-2">LuxGrimoire</p>
             <p className="text-xs text-stone-500 leading-relaxed">
               Track luxury book editions and subscription boxes. Community-driven database.
             </p>

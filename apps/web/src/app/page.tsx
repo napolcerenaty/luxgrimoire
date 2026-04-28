@@ -50,7 +50,7 @@ export default async function HomePage() {
     <div>
       {/* Hero */}
       <section
-        className="relative overflow-hidden py-20 px-4 text-center"
+        className="relative overflow-hidden py-14 px-4 text-center"
         style={{ background: 'linear-gradient(180deg, #060d18 0%, #0a1828 60%, var(--bg) 100%)' }}
       >
         <div
@@ -64,21 +64,21 @@ export default async function HomePage() {
           >
             LuxGrimoire
           </h1>
-          <p className="text-lg sm:text-xl text-stone-300 mb-10 leading-relaxed font-sans">
+          <p className="text-lg sm:text-xl text-stone-300 mb-7 leading-relaxed font-sans">
             Your home for luxury book editions &amp; subscription boxes
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
-              href="/subscriptions"
+              href="/companies"
               className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
             >
-              Browse Subscriptions
+              Browse Book Boxes
             </Link>
             <Link
-              href="/books"
+              href="/subscriptions"
               className="px-6 py-3 border border-stone-600 hover:border-stone-400 text-stone-300 hover:text-stone-100 font-serif rounded-full transition-colors text-sm"
             >
-              Browse Books
+              Browse Subscriptions
             </Link>
           </div>
         </div>
