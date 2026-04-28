@@ -166,7 +166,7 @@ export default function WishlistPage() {
           {entries.map((entry) => (
             <EditionCard
               key={entry.id}
-              href={`/books/${entry.edition.book.slug}`}
+              href={`/editions/${entry.edition.slug}`}
               coverImage={entry.edition.coverImage}
               companyName={entry.edition.bookBoxCompany?.name}
               seriesName={entry.edition.book.seriesName}

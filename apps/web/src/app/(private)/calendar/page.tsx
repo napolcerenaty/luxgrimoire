@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Bell } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Bell, X } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from '@/components/ThemeProvider'
 
@@ -150,15 +150,8 @@ export default function CalendarPage() {
   } | null>(null)
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Mobile tap-to-detail bottom sheet
-  const [mobileDetail, setMobileDetail] = useState<{
-    label: string
-    subtitle?: string
-    hue: number
-    type: 'renewal' | 'sale'
-    href: string
-    brandColors?: string[] | null
-  } | null>(null)
+  // Mobile tap-to-detail: selected day for agenda view
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
   const { data: entries = [] } = useQuery<CalEntry[]>({
     queryKey: ['my-subscriptions'],
@@ -307,20 +300,27 @@ export default function CalendarPage() {
           {cells.map((cell, idx) => {
             const renewals = cell.current ? renewalsForDay(cell.day) : []
             const sales = cell.current ? salesForDay(cell.day) : []
+            const totalEvents = renewals.length + sales.length
+            const isSelected = cell.current && selectedDay === cell.day
             return (
               <div
                 key={idx}
                 className={[
-                  'min-h-[80px] p-1.5 flex flex-col gap-0.5',
+                  'min-h-[48px] sm:min-h-[80px] p-1 sm:p-1.5 flex flex-col gap-0.5',
+                  cell.current ? 'cursor-pointer sm:cursor-default' : '',
                   !cell.current ? 'bg-stone-950/40' : '',
                   cell.current && isToday(cell.day)
                     ? 'bg-amber-950/20 ring-1 ring-inset ring-amber-700/40'
                     : '',
+                  isSelected
+                    ? 'sm:bg-transparent sm:ring-0 bg-stone-700/40 ring-1 ring-inset ring-stone-500/50'
+                    : '',
                 ].filter(Boolean).join(' ')}
+                onClick={() => cell.current && setSelectedDay(prev => prev === cell.day ? null : cell.day)}
               >
                 <span
                   className={[
-                    'text-xs leading-none mb-0.5 w-5 h-5 flex items-center justify-center rounded-full',
+                    'text-xs leading-none mb-0.5 w-5 h-5 flex items-center justify-center rounded-full shrink-0',
                     !cell.current
                       ? 'text-stone-700'
                       : isToday(cell.day)
@@ -331,20 +331,21 @@ export default function CalendarPage() {
                   {cell.day}
                 </span>
 
+                {/* Desktop pills */}
                 {renewals.map(r => {
                   const thumb = r.logoUrl
                     ? cloudinaryUrl(r.logoUrl, 'w_24,h_24,c_pad,q_auto,f_auto')
                     : null
                   const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
                   return (
-                    <span key={r.id} className="block">
-                      {/* Desktop: navigate on click */}
+                    <span key={r.id} className="hidden sm:block">
                       <Link
                         href={`/subscriptions/${r.slug}`}
-                        className="hidden sm:flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                        className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
                         style={ps}
                         onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                         onMouseLeave={scheduleClose}
+                        onClick={e => e.stopPropagation()}
                       >
                         <span className="flex items-center gap-1 truncate">
                           {thumb ? (
@@ -358,21 +359,6 @@ export default function CalendarPage() {
                           <span className="truncate opacity-60 pl-4">{r.companyName}</span>
                         )}
                       </Link>
-                      {/* Mobile: tap to show detail */}
-                      <button
-                        onClick={() => setMobileDetail({ label: r.label, subtitle: r.companyName ?? undefined, hue: r.hue, type: 'renewal', href: `/subscriptions/${r.slug}`, brandColors: r.brandColors })}
-                        className="sm:hidden w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate text-left"
-                        style={ps}
-                      >
-                        <span className="flex items-center gap-1 truncate">
-                          {thumb ? (
-                            <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain shrink-0" />
-                          ) : (
-                            <span className="shrink-0 text-[10px]">🔄</span>
-                          )}
-                          <span className="truncate">{r.label}</span>
-                        </span>
-                      </button>
                     </span>
                   )
                 })}
@@ -380,11 +366,10 @@ export default function CalendarPage() {
                 {sales.map(s => {
                   const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
                   return (
-                    <span key={s.id} className="block">
-                      {/* Desktop: navigate */}
+                    <span key={s.id} className="hidden sm:block">
                       <Link
                         href={s.href}
-                        className="hidden sm:flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                        className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
                         style={ps}
                         onMouseEnter={e => openTooltip(
                           e,
@@ -394,6 +379,7 @@ export default function CalendarPage() {
                           `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                         )}
                         onMouseLeave={scheduleClose}
+                        onClick={e => e.stopPropagation()}
                       >
                         <span className="flex items-center gap-1 truncate">
                           <Bell size={9} className="shrink-0" />
@@ -403,24 +389,98 @@ export default function CalendarPage() {
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
                         )}
                       </Link>
-                      {/* Mobile: tap to detail */}
-                      <button
-                        onClick={() => setMobileDetail({ label: s.label, subtitle: `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`, hue: s.hue, type: 'sale', href: s.href, brandColors: s.brandColors })}
-                        className="sm:hidden w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate text-left"
-                        style={ps}
-                      >
-                        <span className="flex items-center gap-1 truncate">
-                          <Bell size={9} className="shrink-0" />
-                          <span className="truncate">{s.label}</span>
-                        </span>
-                      </button>
                     </span>
                   )
                 })}
+
+                {/* Mobile: colored dots */}
+                {totalEvents > 0 && cell.current && (
+                  <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
+                    {[
+                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)` })),
+                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue + 210},60%,55%)` })),
+                    ].slice(0, 3).map((dot, i) => (
+                      <span
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: dot.color }}
+                      />
+                    ))}
+                    {totalEvents > 3 && (
+                      <span className="text-[7px] text-stone-500 leading-none self-center">+{totalEvents - 3}</span>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
+      </div>
+
+      {/* Mobile agenda — shown below calendar grid on small screens */}
+      <div className="sm:hidden">
+        {selectedDay ? (
+          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-stone-300">
+                {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
+                  weekday: 'long', day: 'numeric', month: 'long',
+                })}
+              </h3>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
+              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
+            ) : (
+              <div className="space-y-2">
+                {renewalsForDay(selectedDay).map(r => {
+                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/subscriptions/${r.slug}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      style={ps}
+                    >
+                      <span className="text-base shrink-0">🔄</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{r.label}</p>
+                        {r.companyName && <p className="text-xs opacity-70 truncate">{r.companyName}</p>}
+                      </div>
+                      <span className="text-xs opacity-50 shrink-0">Renewal</span>
+                    </Link>
+                  )
+                })}
+                {salesForDay(selectedDay).map(s => {
+                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  return (
+                    <Link
+                      key={s.id}
+                      href={s.href}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      style={ps}
+                    >
+                      <Bell size={15} className="shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{s.label}</p>
+                        <p className="text-xs opacity-70 truncate">
+                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
+                        </p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
+        )}
       </div>
 
       {activeEntries.length === 0 && interests.length === 0 && (
@@ -508,46 +568,6 @@ export default function CalendarPage() {
           </div>
         )
       })()}
-
-      {/* Mobile detail bottom sheet */}
-      {mobileDetail && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:hidden"
-          onClick={() => setMobileDetail(null)}
-        >
-          <div className="absolute inset-0 bg-black/50" />
-          <div
-            className="relative w-full bg-stone-900 border-t border-stone-700 rounded-t-2xl px-6 py-5 shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="w-10 h-1 bg-stone-700 rounded-full mx-auto mb-4" />
-            <div className="flex items-center gap-2 mb-1">
-              {mobileDetail.type === 'renewal' ? (
-                <span style={pillStyle(mobileDetail.brandColors, mobileDetail.hue, 'renewal', lightMode)} className="rounded px-2 py-0.5 text-xs">🔄 Renewal</span>
-              ) : (
-                <span style={pillStyle(mobileDetail.brandColors, mobileDetail.hue, 'sale', lightMode)} className="rounded px-2 py-0.5 text-xs flex items-center gap-1"><Bell size={11} /> Sale</span>
-              )}
-            </div>
-            <p className="text-stone-100 font-medium text-base leading-snug">{mobileDetail.label}</p>
-            {mobileDetail.subtitle && (
-              <p className="text-stone-400 text-sm mt-0.5">{mobileDetail.subtitle}</p>
-            )}
-            <Link
-              href={mobileDetail.href}
-              onClick={() => setMobileDetail(null)}
-              className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold text-sm transition-colors"
-            >
-              View details →
-            </Link>
-            <button
-              onClick={() => setMobileDetail(null)}
-              className="mt-2 w-full py-2 text-stone-500 text-sm"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Floating tooltip — desktop only */}
       {tooltip && (

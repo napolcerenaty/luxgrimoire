@@ -197,13 +197,13 @@ export function Navbar() {
 
       {/* Second bar — desktop only */}
       <nav className="hidden md:block border-b border-stone-700 bg-stone-800">
-        <div className="flex items-center px-4 sm:px-6">
+        <div className="flex items-center px-4 sm:px-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={`
-                flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
+                flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                 ${isActive(href)
                   ? 'border-amber-400 text-amber-400'
                   : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
@@ -218,7 +218,7 @@ export function Navbar() {
               key={href}
               href={href}
               className={`
-                flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
+                flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                 ${isActive(href)
                   ? 'border-amber-400 text-amber-400'
                   : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
@@ -231,12 +231,12 @@ export function Navbar() {
 
           {/* Admin Panel — far right, admins/mods only */}
           {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex items-center shrink-0">
               <div className="w-px h-4 bg-stone-700 mx-1 shrink-0" />
               <Link
                 href="/admin"
                 className={`
-                  flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
+                  flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
                   ${isActive('/admin')
                     ? 'border-amber-400 text-amber-400'
                     : 'border-transparent text-amber-600 hover:text-amber-400 hover:border-amber-700'}
