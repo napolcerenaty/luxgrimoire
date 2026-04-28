@@ -325,7 +325,7 @@ export default async function EditionPage({ params }: Props) {
                     <dt className="text-stone-500">Bundle</dt>
                     <dd>
                       <Link
-                        href={`/sale-announcements?bundle=${se.announcement.id}`}
+                        href={`/sale-announcements/${se.announcement.id}`}
                         className="text-amber-400 hover:underline"
                       >
                         {se.announcement.title}

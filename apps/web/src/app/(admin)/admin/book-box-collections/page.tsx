@@ -7,7 +7,6 @@ import type { ApiBookBoxCollection, ApiBookBoxCompany, PaginatedResponse } from 
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-import ImageUpload from '@/components/admin/ImageUpload'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -16,18 +15,12 @@ const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 interface CollectionForm {
   companyId: string
   name: string
-  description: string
-  coverImage: string
-  photoCredit: string
   isActive: boolean
 }
 
 const emptyForm: CollectionForm = {
   companyId: '',
   name: '',
-  description: '',
-  coverImage: '',
-  photoCredit: '',
   isActive: true,
 }
 
@@ -35,9 +28,6 @@ function collectionToForm(c: ApiBookBoxCollection): CollectionForm {
   return {
     companyId: c.companyId,
     name: c.name,
-    description: c.description ?? '',
-    coverImage: c.coverImage ?? '',
-    photoCredit: c.photoCredit ?? '',
     isActive: c.isActive,
   }
 }
@@ -46,9 +36,6 @@ function formToPayload(form: CollectionForm, isNew: boolean) {
   return {
     ...(isNew ? { companyId: form.companyId } : {}),
     name: form.name || undefined,
-    description: form.description || undefined,
-    coverImage: form.coverImage || undefined,
-    photoCredit: form.photoCredit || undefined,
     isActive: form.isActive,
   }
 }
@@ -82,27 +69,6 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
       <div>
         <label className={LABEL_CLASS}>Collection Name *</label>
         <input className={INPUT_CLASS} value={form.name} onChange={set('name')} required placeholder="e.g. Iron Editions" />
-      </div>
-      <div>
-        <label className={LABEL_CLASS}>Description</label>
-        <textarea
-          className={INPUT_CLASS + ' resize-none'}
-          rows={3}
-          value={form.description}
-          onChange={set('description')}
-          placeholder="Optional description"
-        />
-      </div>
-      <ImageUpload
-        label="Cover Image"
-        folder="luxgrimoire/collections"
-        value={form.coverImage}
-        onChange={(id) => setForm((f) => ({ ...f, coverImage: id }))}
-        aspectRatio="16/9"
-      />
-      <div>
-        <label className={LABEL_CLASS}>Photo credit (IG handle or name)</label>
-        <input className={INPUT_CLASS} value={form.photoCredit} onChange={set('photoCredit')} placeholder="@username" />
       </div>
       <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
         <input

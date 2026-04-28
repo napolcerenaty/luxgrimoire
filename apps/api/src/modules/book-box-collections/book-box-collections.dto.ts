@@ -9,18 +9,6 @@ export class CreateBookBoxCollectionDto {
   name!: string;
 
   @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  coverImage?: string;
-
-  @IsOptional()
-  @IsString()
-  photoCredit?: string;
-
-  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
@@ -29,18 +17,6 @@ export class UpdateBookBoxCollectionDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  coverImage?: string;
-
-  @IsOptional()
-  @IsString()
-  photoCredit?: string;
 
   @IsOptional()
   @IsBoolean()

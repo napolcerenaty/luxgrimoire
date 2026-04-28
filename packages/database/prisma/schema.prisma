@@ -272,10 +272,7 @@ model BookBoxCollection {
   id          String         @id @default(uuid())
   companyId   String
   name        String
-  coverImage  String?
-  photoCredit String?
   createdAt   DateTime       @default(now())
-  description String?
   isActive    Boolean        @default(true)
   slug        String         @unique
   updatedAt   DateTime       @updatedAt

@@ -33,7 +33,7 @@ export class SaleInterestsService {
             earlyAccessDate: true,
             generalSaleDate: true,
             saleTimezone: true,
-            company: { select: { id: true, name: true, logoUrl: true } },
+            company: { select: { id: true, name: true, logoUrl: true, brandColors: true } },
             regions: {
               select: {
                 id: true,

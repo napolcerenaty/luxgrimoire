@@ -10,9 +10,10 @@ interface Props {
   editionIds: string[]
   basePrice?: number
   currency: string
+  compact?: boolean
 }
 
-export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePrice, currency }: Props) {
+export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePrice, currency, compact }: Props) {
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
   const [form, setForm] = useState({
@@ -50,9 +51,12 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
     <>
       <button
         onClick={() => setOpen(true)}
-        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-6 py-3 rounded-xl transition-colors"
+        className={compact
+          ? "w-full text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-500/60 font-medium px-3 py-1.5 rounded-lg transition-colors"
+          : "bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-6 py-3 rounded-xl transition-colors"
+        }
       >
-        Add to My Collection
+        {compact ? '+ Add to Collection' : 'Add to My Collection'}
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add Bundle to Collection">

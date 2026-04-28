@@ -123,9 +123,6 @@ export interface ApiBookBoxCollection {
   id: string;
   slug: string;
   name: string;
-  description: string | null;
-  coverImage: string | null;
-  photoCredit: string | null;
   isActive: boolean;
   companyId: string;
   company?: { id: string; slug: string; name: string; logoUrl: string | null };

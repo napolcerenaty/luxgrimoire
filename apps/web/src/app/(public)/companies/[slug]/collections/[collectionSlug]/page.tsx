@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -20,7 +19,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const col = await apiFetch<CollectionWithEditions>(`/book-box-collections/${collectionSlug}`)
     return {
       title: `${col.name} — ${col.company?.name ?? ''}`,
-      description: col.description ?? `${col.name} collection editions`,
     }
   } catch {
     return { title: 'Collection not found' }
@@ -37,18 +35,10 @@ export default async function CollectionPage({ params }: Props) {
     notFound()
   }
 
-  const coverUrl = cloudinaryUrl(collection.coverImage, 'w_1200,h_400,c_fill,q_auto,f_auto')
   const editions = collection.editions ?? []
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      {/* Collection header */}
-      {coverUrl && (
-        <div className="relative w-full rounded-2xl overflow-hidden mb-8 aspect-[3/1]">
-          <Image src={coverUrl} alt={collection.name} fill className="object-cover" unoptimized />
-        </div>
-      )}
-
       <div className="mb-10">
         {collection.company && (
           <Link
@@ -59,9 +49,6 @@ export default async function CollectionPage({ params }: Props) {
           </Link>
         )}
         <h1 className="text-4xl font-serif font-bold text-stone-100 mt-2 mb-3">{collection.name}</h1>
-        {collection.description && (
-          <p className="text-stone-300 leading-relaxed max-w-2xl">{collection.description}</p>
-        )}
         <p className="text-stone-500 text-sm mt-3">{editions.length} edition{editions.length !== 1 ? 's' : ''}</p>
       </div>
 
