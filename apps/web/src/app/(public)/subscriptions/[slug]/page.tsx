@@ -206,6 +206,7 @@ export default async function SubscriptionPage({ params }: Props) {
                 coverImage={m.coverImage}
                 mainBook={getMainBook(m)}
                 isSpoiler={m.isSpoiler}
+                cardArtist={m.cardArtist ?? null}
               />
             ))}
           </div>
@@ -416,7 +417,16 @@ function FeaturedMonthCard({ label, labelVariant, monthData }: FeaturedMonthCard
           <p className="text-stone-500 text-sm italic mb-3">Theme not announced yet</p>
         )}
 
-        {/* Main book info below image */}
+        {monthData.cardArtist && (
+          <Link
+            href={`/artists/${monthData.cardArtist.slug}`}
+            className="inline-block text-xs text-stone-500 hover:text-amber-400 transition-colors mb-3"
+          >
+            card art by {monthData.cardArtist.instagram
+              ? `@${monthData.cardArtist.instagram.replace(/^@/, '')}`
+              : monthData.cardArtist.name}
+          </Link>
+        )}
 
         {monthData.isSpoiler && (
           <Badge variant="warning" className="mt-2">Spoiler</Badge>

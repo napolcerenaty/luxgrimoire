@@ -14,6 +14,12 @@ interface MonthBook {
   } | null
 }
 
+interface CardArtist {
+  slug: string
+  name: string
+  instagram: string | null
+}
+
 interface MonthCardProps {
   year: number
   month: number
@@ -22,6 +28,7 @@ interface MonthCardProps {
   coverImage?: string | null
   mainBook?: MonthBook | null
   isSpoiler?: boolean
+  cardArtist?: CardArtist | null
 }
 
 export default function MonthCard({
@@ -32,6 +39,7 @@ export default function MonthCard({
   coverImage,
   mainBook,
   isSpoiler,
+  cardArtist,
 }: MonthCardProps) {
   const [hovered, setHovered] = useState(false)
 
@@ -116,6 +124,15 @@ export default function MonthCard({
           <p className="text-stone-300 text-xs font-serif italic line-clamp-2">{theme}</p>
         ) : (
           <p className="text-stone-600 text-xs italic">No theme yet</p>
+        )}
+        {cardArtist && (
+          <Link
+            href={`/artists/${cardArtist.slug}`}
+            className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors mt-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
+          </Link>
         )}
         {isSpoiler && (
           <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-950/60 text-amber-400 mt-1.5">

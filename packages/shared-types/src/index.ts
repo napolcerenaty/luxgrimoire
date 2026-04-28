@@ -242,6 +242,7 @@ export interface ApiSubscriptionMonth {
   theme: string | null;
   coverImage: string | null;
   isSpoiler: boolean;
+  cardArtist: { id: string; name: string; slug: string; instagram: string | null } | null;
   books: ApiSubscriptionMonthBook[];
 }
 

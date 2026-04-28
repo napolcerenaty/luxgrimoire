@@ -186,7 +186,7 @@ export class SubscriptionsService {
         months: {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
-            cardArtist: { select: { id: true, name: true, slug: true } },
+            cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
             books: {
               include: {
                 book: {
@@ -257,7 +257,7 @@ export class SubscriptionsService {
         months: {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
-            cardArtist: { select: { id: true, name: true, slug: true } },
+            cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
             books: {
               include: {
                 book: {
