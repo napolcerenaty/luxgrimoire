@@ -83,16 +83,16 @@ export class AuthController {
     return this.handleOAuthCallback(req, res);
   }
 
-  // ——— GitHub OAuth ———
+  // ——— Facebook OAuth ———
   @Public()
-  @Get('github')
-  @UseGuards(AuthGuard('github'))
-  githubLogin() {}
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  facebookLogin() {}
 
   @Public()
-  @Get('github/callback')
-  @UseGuards(AuthGuard('github'))
-  async githubCallback(@Req() req: any, @Res() res: any) {
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
 
