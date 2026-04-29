@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { OAuthButtons } from '@/components/auth/OAuthButtons'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
@@ -150,6 +151,8 @@ export default function RegisterPage() {
           {loading ? 'Creating account…' : 'Create account'}
         </button>
       </form>
+
+      <OAuthButtons />
 
       <p className="text-center text-sm text-stone-400 mt-6">
         Already have an account?{' '}

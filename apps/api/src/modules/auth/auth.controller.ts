@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
@@ -67,5 +68,54 @@ export class AuthController {
   @Get('me')
   getMe(@CurrentUser() user: { id: string }) {
     return this.authService.getMe(user.id);
+  }
+
+  // ——— Google OAuth ———
+  @Public()
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  googleLogin() { /* Passport redirects automatically */ }
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@Req() req: any, @Res() res: any) {
+    return this.handleOAuthCallback(req, res);
+  }
+
+  // ——— GitHub OAuth ———
+  @Public()
+  @Get('github')
+  @UseGuards(AuthGuard('github'))
+  githubLogin() {}
+
+  @Public()
+  @Get('github/callback')
+  @UseGuards(AuthGuard('github'))
+  async githubCallback(@Req() req: any, @Res() res: any) {
+    return this.handleOAuthCallback(req, res);
+  }
+
+  // ——— Discord OAuth ———
+  @Public()
+  @Get('discord')
+  @UseGuards(AuthGuard('discord'))
+  discordLogin() {}
+
+  @Public()
+  @Get('discord/callback')
+  @UseGuards(AuthGuard('discord'))
+  async discordCallback(@Req() req: any, @Res() res: any) {
+    return this.handleOAuthCallback(req, res);
+  }
+
+  private async handleOAuthCallback(req: any, res: any) {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    try {
+      const result = await this.authService.oauthCallback(req.user);
+      return res.redirect(`${frontendUrl}/auth/callback?token=${result.accessToken}`, 302);
+    } catch {
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed`, 302);
+    }
   }
 }

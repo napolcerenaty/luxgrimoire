@@ -22,6 +22,16 @@ function hashResetToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+interface OAuthProfile {
+  provider: string;
+  providerId: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  accessToken: string;
+  refreshToken: string | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -178,6 +188,81 @@ export class AuthService {
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  async oauthCallback(profile: OAuthProfile) {
+    const existingAccount = await this.prisma.account.findUnique({
+      where: { provider_providerId: { provider: profile.provider, providerId: profile.providerId } },
+      include: { user: true },
+    });
+
+    if (existingAccount) {
+      await this.prisma.account.update({
+        where: { id: existingAccount.id },
+        data: { accessToken: profile.accessToken, refreshToken: profile.refreshToken },
+      });
+      const u = existingAccount.user;
+      return this.signToken(u.id, u.email, u.role, u.username, u.managedCompanyId);
+    }
+
+    if (profile.email) {
+      const userByEmail = await this.prisma.user.findUnique({ where: { email: profile.email } });
+      if (userByEmail) {
+        await this.prisma.account.create({
+          data: {
+            userId: userByEmail.id,
+            provider: profile.provider,
+            providerId: profile.providerId,
+            accessToken: profile.accessToken,
+            refreshToken: profile.refreshToken,
+          },
+        });
+        return this.signToken(userByEmail.id, userByEmail.email, userByEmail.role, userByEmail.username, userByEmail.managedCompanyId);
+      }
+    }
+
+    const baseUsername = this.generateUsername(profile.displayName ?? profile.email ?? profile.provider);
+    const username = await this.uniqueUsername(baseUsername);
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        username,
+        email: profile.email ?? `${profile.provider}_${profile.providerId}@noemail.luxgrimoire.com`,
+        emailVerified: !!profile.email,
+        displayName: profile.displayName ?? null,
+        avatarUrl: profile.avatarUrl ?? null,
+        accounts: {
+          create: {
+            provider: profile.provider,
+            providerId: profile.providerId,
+            accessToken: profile.accessToken,
+            refreshToken: profile.refreshToken,
+          },
+        },
+      },
+    });
+
+    return this.signToken(newUser.id, newUser.email, newUser.role, newUser.username, null);
+  }
+
+  private generateUsername(source: string): string {
+    return source
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 20)
+      || 'user';
+  }
+
+  private async uniqueUsername(base: string): Promise<string> {
+    let candidate = base;
+    let attempt = 0;
+    while (true) {
+      const exists = await this.prisma.user.findUnique({ where: { username: candidate } });
+      if (!exists) return candidate;
+      attempt++;
+      const suffix = String(attempt);
+      candidate = base.slice(0, 20 - suffix.length) + suffix;
+    }
   }
 
   private async signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
