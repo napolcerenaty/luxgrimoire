@@ -206,8 +206,11 @@ export class AuthService {
         data: { userId: user.id, tokenHash, expiresAt },
       });
 
-      // TODO: send email via Brevo. The plain `token` (not tokenHash) goes in the email link.
-      // Never log `token` — full account-takeover risk.
+      try {
+        await this.mail.sendPasswordResetEmail(user.email, token);
+      } catch {
+        // Non-fatal — don't reveal send failure to client
+      }
     }
 
     // Equalize response time to prevent timing-based email enumeration

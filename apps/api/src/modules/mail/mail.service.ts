@@ -64,76 +64,35 @@ export class MailService {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     const verifyLink = `${frontendUrl}/auth/verify-email?token=${token}`;
     const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
+    const year = new Date().getFullYear();
 
-    const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify your email – Luxgrimoire</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0c0a09;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0a09;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background-color:#1c1917;border:1px solid #44403c;border-radius:12px;overflow:hidden;">
-          <!-- Amber accent line -->
-          <tr>
-            <td style="height:4px;background:linear-gradient(to right,#d97706,#92400e);"></td>
-          </tr>
-          <!-- Header -->
-          <tr>
-            <td style="padding:32px 40px 0 40px;text-align:center;">
-              <p style="margin:0;color:#d97706;font-size:20px;font-weight:bold;letter-spacing:0.15em;text-transform:uppercase;">✦ Luxgrimoire</p>
-            </td>
-          </tr>
-          <!-- Title -->
-          <tr>
-            <td style="padding:24px 40px 0 40px;text-align:center;">
-              <h1 style="margin:0;color:#f5f5f4;font-size:24px;font-weight:bold;line-height:1.3;">Confirm your email address</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:16px 40px 0 40px;">
-              <p style="margin:0;color:#a8a29e;font-size:16px;line-height:1.6;">
-                Thank you for creating a Luxgrimoire account. Please confirm your email address by clicking the button below.
-              </p>
-            </td>
-          </tr>
-          <!-- CTA Button -->
-          <tr>
-            <td style="padding:32px 40px;text-align:center;">
-              <a href="${verifyLink}" style="background-color:#d97706;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
-                Verify Email Address
-              </a>
-            </td>
-          </tr>
-          <!-- Expiry note -->
-          <tr>
-            <td style="padding:0 40px 8px 40px;text-align:center;">
-              <p style="margin:0;color:#a8a29e;font-size:14px;line-height:1.6;">This link expires in <strong style="color:#f5f5f4;">24 hours</strong>.</p>
-            </td>
-          </tr>
-          <!-- Ignore note -->
-          <tr>
-            <td style="padding:0 40px 32px 40px;text-align:center;">
-              <p style="margin:0;color:#57534e;font-size:13px;line-height:1.6;">If you didn't create an account, you can safely ignore this email.</p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:24px 40px;border-top:1px solid #292524;text-align:center;">
-              <p style="margin:0;color:#57534e;font-size:12px;">© ${new Date().getFullYear()} Luxgrimoire · All rights reserved</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+    const html = emailShell(`Verify your email – Luxgrimoire`, `
+      ${emailBrand()}
+      ${emailTitle('Confirm Your Email Address')}
+      <tr>
+        <td style="padding:16px 44px 0 44px;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;text-align:center;">
+            Thank you for creating a Luxgrimoire account. Please confirm your email address to activate your account.
+          </p>
+        </td>
+      </tr>
+      ${emailButton(verifyLink, 'Verify Email Address')}
+      <tr>
+        <td style="padding:0 44px 8px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
+            This link expires in <span style="color:#c0e4f4;font-weight:600;">24 hours</span>.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 44px 36px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
+            If you didn't create an account, you can safely ignore this email.
+          </p>
+        </td>
+      </tr>
+      ${emailFooter(year)}
+    `);
 
     await this.transporter.sendMail({
       from,
@@ -144,4 +103,140 @@ export class MailService {
 
     this.logger.log(`Verification email sent to ${to}`);
   }
+
+  async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+    const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
+    const year = new Date().getFullYear();
+
+    const html = emailShell(`Reset your password – Luxgrimoire`, `
+      ${emailBrand()}
+      ${emailTitle('Reset Your Password')}
+      <tr>
+        <td style="padding:16px 44px 0 44px;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;text-align:center;">
+            We received a request to reset the password for your Luxgrimoire account. Click the button below to set a new password.
+          </p>
+        </td>
+      </tr>
+      ${emailButton(resetLink, 'Reset Password')}
+      <tr>
+        <td style="padding:0 44px 8px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
+            This link expires in <span style="color:#c0e4f4;font-weight:600;">1 hour</span>.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 44px 36px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
+            If you didn't request a password reset, you can safely ignore this email. Your password will not change.
+          </p>
+        </td>
+      </tr>
+      ${emailFooter(year)}
+    `);
+
+    await this.transporter.sendMail({
+      from,
+      to,
+      subject: 'Reset your Luxgrimoire password',
+      html,
+    });
+
+    this.logger.log(`Password reset email sent to ${to}`);
+  }
+}
+
+// ── Shared email template helpers ─────────────────────────────────────────────
+
+function emailShell(title: string, content: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#020610;font-family:'Crimson Text',Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background-color:#020610;padding:48px 16px;">
+    <tr>
+      <td align="center">
+        <table width="580" cellpadding="0" cellspacing="0" role="presentation"
+               style="max-width:580px;width:100%;background-color:#070f1c;border:1px solid #183858;border-radius:12px;overflow:hidden;">
+          ${content}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function emailBrand(): string {
+  return `
+  <tr>
+    <td style="height:3px;background:linear-gradient(to right,#060d18,#0d1f35,#2a9ec4,#0d1f35,#060d18);"></td>
+  </tr>
+  <tr>
+    <td style="padding:36px 44px 0 44px;text-align:center;">
+      <p style="margin:0;font-family:'Crimson Text',Georgia,serif;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#4a88a8;font-weight:600;">
+        — The Luxury Book Collector's Platform —
+      </p>
+      <p style="margin:10px 0 0 0;font-family:'Cinzel',Georgia,serif;font-size:28px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#c0e4f4;">
+        Luxgrimoire
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:16px 44px 0 44px;text-align:center;">
+      <p style="margin:0;color:#183858;font-size:16px;letter-spacing:0.25em;">· · · · ·</p>
+    </td>
+  </tr>`;
+}
+
+function emailTitle(text: string): string {
+  return `
+  <tr>
+    <td style="padding:20px 44px 0 44px;text-align:center;">
+      <h1 style="margin:0;font-family:'Cinzel',Georgia,serif;font-size:22px;font-weight:600;letter-spacing:0.06em;color:#e8f4ff;line-height:1.35;">
+        ${text}
+      </h1>
+    </td>
+  </tr>`;
+}
+
+function emailButton(href: string, label: string): string {
+  return `
+  <tr>
+    <td style="padding:32px 44px 28px 44px;text-align:center;">
+      <a href="${href}"
+         style="display:inline-block;background-color:#1a82a8;color:#e8f4ff;text-decoration:none;font-family:'Cinzel',Georgia,serif;font-size:14px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:14px 40px;border-radius:6px;border:1px solid #2a9ec4;">
+        ${label}
+      </a>
+    </td>
+  </tr>`;
+}
+
+function emailFooter(year: number): string {
+  return `
+  <tr>
+    <td style="padding:0 44px;">
+      <div style="height:1px;background-color:#0d2840;"></div>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:20px 44px 28px 44px;text-align:center;">
+      <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:12px;letter-spacing:0.08em;">
+        © ${year} LUXGRIMOIRE · ALL RIGHTS RESERVED
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="height:3px;background:linear-gradient(to right,#060d18,#0d1f35,#2a9ec4,#0d1f35,#060d18);"></td>
+  </tr>`;
 }
