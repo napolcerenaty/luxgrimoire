@@ -267,7 +267,7 @@ export default async function EditionPage({ params }: Props) {
               <div className="mb-6">
                 <EditionActionButtons
                   editionId={edition.id}
-                  editionName={editionLabel}
+                  bookTitle={book?.title ?? editionLabel}
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
