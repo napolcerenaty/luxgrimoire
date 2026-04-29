@@ -49,8 +49,6 @@ interface EditionDetail {
   generalSaleDate?: string | null
   verifiedAt: string | null
   submittedByUserId: string | null
-  alternativeTitle?: string | null
-  notes?: string | null
   photoCredit?: string | null
   subscriptionId?: string | null
   subscriptionMonthId?: string | null
@@ -60,7 +58,7 @@ interface EditionDetail {
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   book?: {
-    id: string; slug: string; title: string; altTitle: string | null
+    id: string; slug: string; title: string
     coverImage: string | null; seriesName: string | null; volumeNumber: number | null
     description: string | null; language: string; genres: string[]
     authors: ApiAuthor[]
@@ -249,10 +247,6 @@ export default async function EditionPage({ params }: Props) {
               {editionLabel && editionLabel !== edition.bookBoxCompany?.name && (
                 <p className="text-lg text-amber-500/90 font-medium mb-2">{editionLabel}</p>
               )}
-              {edition.alternativeTitle && (
-                <p className="text-stone-400 text-sm italic mb-3">{edition.alternativeTitle}</p>
-              )}
-
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {!edition.verifiedAt && (
