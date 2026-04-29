@@ -102,6 +102,14 @@ export class CollectionController {
         value: dto.ownershipStatus,
       });
     }
+    if (dto.trackingNumber && dto.trackingNumber.trim()) {
+      this.analyticsService.track({
+        eventType: 'tracking_add',
+        userId: user.id,
+        entityType: 'edition',
+        entityId: result.editionId ?? undefined,
+      });
+    }
     return result;
   }
 

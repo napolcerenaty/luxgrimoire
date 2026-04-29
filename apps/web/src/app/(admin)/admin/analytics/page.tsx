@@ -28,6 +28,7 @@ const METRICS = [
   { id: 'waitlist_join',         label: 'Waitlist Joins',                 defaultGroupBy: 'entity' },
   { id: 'waitlist_leave',        label: 'Waitlist Leaves',                defaultGroupBy: 'entity' },
   { id: 'mark_as_sold',          label: 'Marked as Sold',                 defaultGroupBy: 'value'  },
+  { id: 'tracking_add',          label: 'Tracking Numbers Added',         defaultGroupBy: 'entity' },
   { id: 'search',                label: 'Searches',                       defaultGroupBy: 'value'  },
   { id: 'search_no_results',     label: 'Searches — No Results',          defaultGroupBy: 'value'  },
   { id: 'account_delete',        label: 'Account Deletions',              defaultGroupBy: 'user'   },
