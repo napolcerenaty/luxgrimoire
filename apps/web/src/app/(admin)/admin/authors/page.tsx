@@ -19,6 +19,10 @@ interface AuthorFormData {
   bio: string
   nationality: string
   website: string
+  instagram: string
+  twitter: string
+  facebook: string
+  tiktok: string
   photoUrl: string
 }
 
@@ -27,6 +31,10 @@ const EMPTY_FORM: AuthorFormData = {
   bio: '',
   nationality: '',
   website: '',
+  instagram: '',
+  twitter: '',
+  facebook: '',
+  tiktok: '',
   photoUrl: '',
 }
 
@@ -34,8 +42,12 @@ function authorToForm(author: ApiAuthor): AuthorFormData {
   return {
     name: author.name,
     bio: author.bio ?? '',
-    nationality: '',
-    website: '',
+    nationality: author.nationality ?? '',
+    website: author.website ?? '',
+    instagram: author.instagram ?? '',
+    twitter: author.twitter ?? '',
+    facebook: author.facebook ?? '',
+    tiktok: author.tiktok ?? '',
     photoUrl: author.photoUrl ?? '',
   }
 }
@@ -46,6 +58,10 @@ function formToPayload(form: AuthorFormData) {
     bio: form.bio || undefined,
     nationality: form.nationality || undefined,
     website: form.website || undefined,
+    instagram: form.instagram || undefined,
+    twitter: form.twitter || undefined,
+    facebook: form.facebook || undefined,
+    tiktok: form.tiktok || undefined,
     photoUrl: form.photoUrl || undefined,
   }
 }
@@ -97,6 +113,22 @@ function AuthorForm({ initial, onSubmit, submitting, submitLabel }: AuthorFormPr
           value={form.website}
           onChange={set('website')}
         />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Instagram handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.instagram} onChange={set('instagram')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Twitter / X handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.twitter} onChange={set('twitter')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>TikTok handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.tiktok} onChange={set('tiktok')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Facebook</label>
+        <input className={INPUT_CLASS} placeholder="username or page slug" value={form.facebook} onChange={set('facebook')} />
       </div>
       <ImageUpload
           label="Photo"

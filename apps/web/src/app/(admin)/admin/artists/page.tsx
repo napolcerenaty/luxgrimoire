@@ -17,16 +17,24 @@ const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 interface ArtistFormData {
   name: string
   bio: string
-  nationality: string
+  specialty: string
   website: string
+  instagram: string
+  twitter: string
+  facebook: string
+  tiktok: string
   photoUrl: string
 }
 
 const EMPTY_FORM: ArtistFormData = {
   name: '',
   bio: '',
-  nationality: '',
+  specialty: '',
   website: '',
+  instagram: '',
+  twitter: '',
+  facebook: '',
+  tiktok: '',
   photoUrl: '',
 }
 
@@ -34,8 +42,12 @@ function artistToForm(artist: ApiArtist): ArtistFormData {
   return {
     name: artist.name,
     bio: artist.bio ?? '',
-    nationality: '',
-    website: '',
+    specialty: artist.specialty ?? '',
+    website: artist.website ?? '',
+    instagram: artist.instagram ?? '',
+    twitter: artist.twitter ?? '',
+    facebook: artist.facebook ?? '',
+    tiktok: artist.tiktok ?? '',
     photoUrl: artist.photoUrl ?? '',
   }
 }
@@ -44,8 +56,12 @@ function formToPayload(form: ArtistFormData) {
   return {
     name: form.name,
     bio: form.bio || undefined,
-    nationality: form.nationality || undefined,
+    specialty: form.specialty || undefined,
     website: form.website || undefined,
+    instagram: form.instagram || undefined,
+    twitter: form.twitter || undefined,
+    facebook: form.facebook || undefined,
+    tiktok: form.tiktok || undefined,
     photoUrl: form.photoUrl || undefined,
   }
 }
@@ -87,7 +103,7 @@ function ArtistForm({ initial, onSubmit, submitting, submitLabel }: ArtistFormPr
       </div>
       <div>
         <label className={LABEL_CLASS}>Nationality</label>
-        <input className={INPUT_CLASS} value={form.nationality} onChange={set('nationality')} />
+        <input className={INPUT_CLASS} value={form.specialty} onChange={set('specialty')} />
       </div>
       <div>
         <label className={LABEL_CLASS}>Website</label>
@@ -97,6 +113,22 @@ function ArtistForm({ initial, onSubmit, submitting, submitLabel }: ArtistFormPr
           value={form.website}
           onChange={set('website')}
         />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Instagram handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.instagram} onChange={set('instagram')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Twitter / X handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.twitter} onChange={set('twitter')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>TikTok handle</label>
+        <input className={INPUT_CLASS} placeholder="e.g. johndoe" value={form.tiktok} onChange={set('tiktok')} />
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Facebook</label>
+        <input className={INPUT_CLASS} placeholder="username or page slug" value={form.facebook} onChange={set('facebook')} />
       </div>
       <ImageUpload
           label="Photo"

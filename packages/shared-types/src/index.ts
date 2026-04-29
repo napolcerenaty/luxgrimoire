@@ -72,6 +72,12 @@ export interface ApiAuthor {
   name: string;
   bio: string | null;
   photoUrl: string | null;
+  nationality: string | null;
+  website: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  facebook: string | null;
+  tiktok: string | null;
 }
 
 export interface ApiArtist {
