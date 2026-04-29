@@ -604,6 +604,7 @@ model UserBookEntry {
   purchaseGroupId       String?
   subscriptionEntryId   String?
   signatureType         SignatureType?
+  trackingNumber        String?
   book                  Book                   @relation(fields: [bookId], references: [id])
   edition               BookEdition?           @relation(fields: [editionId], references: [id])
   purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])

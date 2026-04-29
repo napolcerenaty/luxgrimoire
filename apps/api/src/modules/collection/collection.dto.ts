@@ -34,6 +34,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsDateString() acquiredAt?: string;
   @IsOptional() @IsString() allocatedPrice?: string;
   @IsOptional() @IsString() priceCurrency?: string;
+  @IsOptional() @IsString() trackingNumber?: string;
 }
 
 export class AddToWishlistDto {

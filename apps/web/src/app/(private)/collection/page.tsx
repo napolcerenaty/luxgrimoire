@@ -10,7 +10,7 @@ import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X, Pencil } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X, Pencil, Truck } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
@@ -26,9 +26,10 @@ interface CollectionEntry {
   readingStatus: string
   allocatedPrice: string | null
   priceCurrency: string | null
-  purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
   signatureType: string | null
+  trackingNumber: string | null
   tags: string[]
+  purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
   purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
   edition: {
     id: string
@@ -855,6 +856,9 @@ export default function CollectionPage() {
   }, [queryClient])
 
   const [addSaleOpen, setAddSaleOpen] = useState(false)
+  // Track shipment modal
+  const [trackEntry, setTrackEntry] = useState<{ id: string; trackingNumber: string | null } | null>(null)
+  const [trackingInput, setTrackingInput] = useState('')
   const [saleTitle, setSaleTitle] = useState('')
   const [salePlatform, setSalePlatform] = useState('')
   const [saleCustomPlatform, setSaleCustomPlatform] = useState('')
@@ -1277,7 +1281,7 @@ export default function CollectionPage() {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
                           disabled={removeMutation.isPending}
-                          className="absolute top-2 right-2 p-1.5 bg-stone-950/80 text-stone-400 hover:text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          className="absolute top-2 right-2 p-1.5 bg-stone-950/80 text-stone-400 hover:text-red-400 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                           aria-label="Remove"
                         >
                           <Trash2 size={14} />
@@ -1433,6 +1437,46 @@ export default function CollectionPage() {
                               onSaved={handleTagsSaved}
                             />
                           )}
+
+                          {/* Quick action buttons */}
+                          <div className="flex gap-1 mt-2 pt-1.5 border-t border-stone-800/60">
+                            {/* Track shipment — always show if SHIPPING or has tracking number */}
+                            {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumber) && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault(); e.stopPropagation()
+                                  setTrackEntry({ id: entry.id, trackingNumber: entry.trackingNumber })
+                                  setTrackingInput(entry.trackingNumber ?? '')
+                                }}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
+                                  entry.trackingNumber
+                                    ? 'text-blue-400 border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20'
+                                    : 'text-stone-400 border-stone-700 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/10'
+                                }`}
+                                title={entry.trackingNumber ? `Tracking: ${entry.trackingNumber}` : 'Add tracking number'}
+                              >
+                                <Truck size={10} />
+                                {entry.trackingNumber ? 'Tracked' : 'Track'}
+                              </button>
+                            )}
+
+                            {/* Sell */}
+                            {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault(); e.stopPropagation()
+                                  setSaleSelectedEntries([entry.id])
+                                  setSaleCurrency(entry.priceCurrency ?? entry.purchaseGroup?.currency ?? 'GBP')
+                                  setAddSaleOpen(true)
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
+                                title="Record sale"
+                              >
+                                <ShoppingBag size={10} />
+                                Sell
+                              </button>
+                            )}
+                          </div>
                         </div>
                       }
                     />
@@ -1473,6 +1517,73 @@ export default function CollectionPage() {
         onClose={() => { setAddBundleOpen(false); setEditBundle(undefined) }}
         bundle={editBundle}
       />
+
+      {/* ─── Track Shipment Modal ─── */}
+      <Modal
+        open={!!trackEntry}
+        onClose={() => { setTrackEntry(null); setTrackingInput('') }}
+        title="Track Shipment"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-stone-400">
+            Add a tracking number to follow your shipment. You can paste it or enter it manually.
+          </p>
+          <input
+            type="text"
+            placeholder="e.g. JD014600006278907695"
+            value={trackingInput}
+            onChange={(e) => setTrackingInput(e.target.value)}
+            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            autoFocus
+          />
+          {trackingInput.trim() && (
+            <a
+              href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackingInput.trim())}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 transition-colors"
+            >
+              <Truck size={12} /> Preview on ParcelsApp ↗
+            </a>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                if (!trackEntry) return
+                await authFetch(`/collection/${trackEntry.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ trackingNumber: trackingInput.trim() || null }),
+                })
+                await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                setTrackEntry(null)
+                setTrackingInput('')
+              }}
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+            >
+              Save
+            </button>
+            {trackEntry?.trackingNumber && (
+              <button
+                onClick={async () => {
+                  if (!trackEntry) return
+                  await authFetch(`/collection/${trackEntry.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackingNumber: null }),
+                  })
+                  await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                  setTrackEntry(null)
+                  setTrackingInput('')
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-500 hover:text-red-400 hover:border-red-700/50 transition-colors"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* ─── Add Sale Modal ─── */}
       <Modal open={addSaleOpen} onClose={() => setAddSaleOpen(false)} title="Record a Sale">
