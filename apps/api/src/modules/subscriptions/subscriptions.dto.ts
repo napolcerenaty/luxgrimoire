@@ -367,6 +367,21 @@ export class UpdateMonthBookDto {
   signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate' | null;
 }
 
+export class MonthQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  pageSize?: number;
+}
+
 export class SubscriptionQueryDto {
   @IsOptional()
   @Type(() => Number)

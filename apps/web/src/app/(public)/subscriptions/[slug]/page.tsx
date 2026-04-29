@@ -9,6 +9,7 @@ import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionSeries } fro
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 import WaitlistButton from '@/components/subscriptions/WaitlistButton'
+import PreviousBoxes from '@/components/subscriptions/PreviousBoxes'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -70,7 +71,7 @@ export default async function SubscriptionPage({ params }: Props) {
 
   const coverUrl = cloudinaryUrl(sub.coverImage, 'w_800,c_fill,q_auto,f_auto')
 
-  // Sort months newest first
+  // Sort months newest first (current + future only, from filtered API)
   const months = (sub.months ?? []).sort((a, b) => {
     if (b.year !== a.year) return b.year - a.year
     return b.month - a.month
@@ -84,9 +85,7 @@ export default async function SubscriptionPage({ params }: Props) {
     (m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1),
   )
 
-  // Exclude featured months from "All Boxes" grid
-  const featuredIds = new Set([currentMonth?.id, upcomingMonth?.id].filter(Boolean))
-  const allBoxMonths = months.filter((m) => !featuredIds.has(m.id))
+  const brandColors = (sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
@@ -174,7 +173,7 @@ export default async function SubscriptionPage({ params }: Props) {
                 label="Current Month"
                 labelVariant="current"
                 monthData={currentMonth}
-                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
+                accentColors={brandColors}
               />
             )}
             {upcomingMonth && (
@@ -182,37 +181,15 @@ export default async function SubscriptionPage({ params }: Props) {
                 label="Upcoming Theme"
                 labelVariant="upcoming"
                 monthData={upcomingMonth}
-                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
+                accentColors={brandColors}
               />
             )}
           </div>
         </section>
       )}
 
-      {/* All months grid — excludes featured */}
-      {allBoxMonths.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            All Boxes ({months.length})
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {allBoxMonths.map((m) => (
-              <MonthCard
-                key={m.id}
-                year={m.year}
-                month={m.month}
-                monthName={MONTH_NAMES[m.month - 1]}
-                theme={m.theme}
-                coverImage={m.coverImage}
-                mainBook={getMainBook(m)}
-                isSpoiler={m.isSpoiler}
-                cardArtist={m.cardArtist ?? null}
-                accentColors={(sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Previous boxes — lazy loaded on demand */}
+      <PreviousBoxes subscriptionSlug={slug} accentColors={brandColors} />
 
       {/* Series history */}
       {seriesList.length > 0 && (

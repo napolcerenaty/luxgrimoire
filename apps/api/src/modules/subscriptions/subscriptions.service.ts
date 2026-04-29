@@ -178,12 +178,21 @@ export class SubscriptionsService {
   }
 
   async findBySlug(slug: string) {
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug },
       include: {
         company: true,
         skipPolicy: true,
         months: {
+          where: {
+            OR: [
+              { year: { gt: nowYear } },
+              { year: nowYear, month: { gte: nowMonth } },
+            ],
+          },
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
@@ -250,31 +259,54 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string) {
+  async getMonths(slug: string, page = 1, pageSize = 12) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
-      include: {
-        months: {
-          orderBy: [{ year: 'desc' }, { month: 'desc' }],
-          include: {
-            cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
-            books: {
-              include: {
-                book: {
-                  select: {
-                    id: true, title: true, slug: true, coverImage: true,
-                    authors: { select: { author: { select: { name: true, slug: true } } } },
-                  },
-                },
-                edition: { select: { id: true, slug: true, editionName: true, publisher: true, additionalImages: true } },
-              },
+      select: { id: true },
+    });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+
+    const where = {
+      subscriptionId: sub.id,
+      OR: [
+        { year: { lt: nowYear } },
+        { year: nowYear, month: { lt: nowMonth } },
+      ],
+    };
+
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.prisma.subscriptionMonth.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        select: {
+          id: true,
+          year: true,
+          month: true,
+          theme: true,
+          coverImage: true,
+          isSpoiler: true,
+          cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+          books: {
+            select: {
+              isMainBook: true,
+              book: { select: { id: true, title: true, slug: true, coverImage: true } },
+              edition: { select: { id: true, slug: true, additionalImages: true } },
             },
           },
         },
-      },
-    });
-    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
-    return sub.months;
+      }),
+      this.prisma.subscriptionMonth.count({ where }),
+    ]);
+
+    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   async addMonth(subscriptionSlug: string, dto: CreateMonthDto) {

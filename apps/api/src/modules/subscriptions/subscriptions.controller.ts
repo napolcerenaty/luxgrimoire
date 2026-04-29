@@ -19,6 +19,7 @@ import {
   AddMonthBookDto,
   UpdateMonthBookDto,
   SubscriptionQueryDto,
+  MonthQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
   CancelMyEntryDto,
@@ -98,8 +99,8 @@ export class SubscriptionsController {
 
   @Public()
   @Get(':slug/months')
-  getMonths(@Param('slug') slug: string) {
-    return this.subscriptionsService.getMonths(slug);
+  getMonths(@Param('slug') slug: string, @Query() query: MonthQueryDto) {
+    return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12);
   }
 
   @ApiBearerAuth()
