@@ -34,8 +34,6 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsDateString() acquiredAt?: string;
   @IsOptional() @IsString() allocatedPrice?: string;
   @IsOptional() @IsString() priceCurrency?: string;
-  @IsOptional() @IsString() shipping?: string;
-  @IsOptional() @IsString() shippingCurrency?: string;
   @IsOptional() @IsString() trackingNumber?: string;
   @IsOptional() @IsDateString() purchaseDate?: string;
   @IsOptional() @IsString() salePrice?: string;
@@ -43,14 +41,6 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() saleDate?: string;
   @IsOptional() @IsString() saleVenue?: string;
   @IsOptional() @IsString() saleNotes?: string;
-}
-
-export class AddEntryFeeDto {
-  @IsString() name!: string;
-  @IsString() amount!: string;
-  @IsString() currency!: string;
-  @IsOptional() @IsString() category?: string;
-  @IsOptional() @IsString() notes?: string;
 }
 
 export class AddToWishlistDto {

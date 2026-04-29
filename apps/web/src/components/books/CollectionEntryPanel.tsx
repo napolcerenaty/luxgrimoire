@@ -10,12 +10,32 @@ import { useAuth } from '@/components/AuthProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface EntryFee {
+interface PurchaseFee {
   id: string
   name: string
   amount: string
   currency: string
   category: string
+}
+
+interface PurchaseDiscount {
+  id: string
+  name: string
+  amount: string
+  currency: string
+}
+
+interface PurchaseGroup {
+  id: string
+  title: string | null
+  totalAmount: string
+  currency: string
+  shippingAmount: string | null
+  purchasedAt: string
+  notes: string | null
+  saleAnnouncementId: string | null
+  fees: PurchaseFee[]
+  discounts: PurchaseDiscount[]
 }
 
 interface CollectionEntry {
@@ -24,8 +44,6 @@ interface CollectionEntry {
   ownershipStatus: string
   allocatedPrice: string | null
   priceCurrency: string | null
-  shipping: string | null
-  shippingCurrency: string | null
   purchaseDate: string | null
   addedAt: string
   acquiredAt: string | null
@@ -36,8 +54,9 @@ interface CollectionEntry {
   saleVenue: string | null
   saleNotes: string | null
   signatureType: string | null
+  subscriptionEntryId: string | null
   tags: string[]
-  purchaseFees: EntryFee[]
+  purchaseGroup: PurchaseGroup | null
 }
 
 interface HistoryEntry {
@@ -98,10 +117,6 @@ function fmtDate(dateStr: string | null | undefined): string {
 const INP = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm w-full'
 const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
 
-function SectionDivider() {
-  return <div className="border-t border-stone-700/50 my-4" />
-}
-
 function EditBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -145,27 +160,29 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [rates, setRates] = useState<Record<string, number>>({})
   const userCurrency = user?.preferredCurrency
 
-  // Edit state
+  // Edit state — statuses
   const [editingStatus, setEditingStatus] = useState(false)
   const [editOwnership, setEditOwnership] = useState('')
   const [editReading, setEditReading] = useState('')
   const [savingStatus, setSavingStatus] = useState(false)
 
+  // Edit state — purchase group
   const [editingPurchase, setEditingPurchase] = useState(false)
-  const [editAllocatedPrice, setEditAllocatedPrice] = useState('')
-  const [editPriceCurrency, setEditPriceCurrency] = useState('')
-  const [editShipping, setEditShipping] = useState('')
-  const [editShippingCurrency, setEditShippingCurrency] = useState('')
-  const [editPurchaseDate, setEditPurchaseDate] = useState('')
+  const [editTotalAmount, setEditTotalAmount] = useState('')
+  const [editCurrency, setEditCurrency] = useState('')
+  const [editShippingAmount, setEditShippingAmount] = useState('')
+  const [editPurchasedAt, setEditPurchasedAt] = useState('')
+  const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
   const [savingPurchase, setSavingPurchase] = useState(false)
 
-  // Fee editing state
+  // Fee editing state (on purchase group)
   const [addingFee, setAddingFee] = useState(false)
   const [newFeeName, setNewFeeName] = useState('')
   const [newFeeAmount, setNewFeeAmount] = useState('')
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [savingFee, setSavingFee] = useState(false)
 
+  // Edit state — sale
   const [editingSale, setEditingSale] = useState(false)
   const [editSalePrice, setEditSalePrice] = useState('')
   const [editSaleCurrency, setEditSaleCurrency] = useState('')
@@ -174,15 +191,18 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editSaleNotes, setEditSaleNotes] = useState('')
   const [savingSale, setSavingSale] = useState(false)
 
+  // Edit state — tracking
   const [editingTracking, setEditingTracking] = useState(false)
   const [editTracking, setEditTracking] = useState('')
   const [savingTracking, setSavingTracking] = useState(false)
 
+  // Edit state — tags
   const [editingTags, setEditingTags] = useState(false)
   const [editTagInput, setEditTagInput] = useState('')
   const [editTagList, setEditTagList] = useState<string[]>([])
   const [savingTags, setSavingTags] = useState(false)
 
+  // History
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -201,12 +221,14 @@ export function CollectionEntryPanel({ editionId }: Props) {
   // Fetch exchange rates once we have entry + userCurrency
   useEffect(() => {
     if (!entry || !userCurrency) return
-    const allCurrencies = [
-      entry.priceCurrency,
-      entry.shippingCurrency,
-      ...(entry.purchaseFees ?? []).map(f => f.currency),
-    ].filter((c): c is string => !!c && c !== userCurrency)
-    const unique = [...new Set(allCurrencies)]
+    const pg = entry.purchaseGroup
+    const allCurrencies = pg ? [
+      pg.currency,
+      ...(pg.fees ?? []).map(f => f.currency),
+      ...(pg.discounts ?? []).map(d => d.currency),
+    ] : [entry.priceCurrency].filter(Boolean) as string[]
+
+    const unique = [...new Set(allCurrencies.filter(c => c !== userCurrency))]
     if (!unique.length) return
     Promise.all(
       unique.map(from =>
@@ -225,14 +247,18 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  async function patch(fields: Record<string, unknown>) {
+  async function patchEntry(fields: Record<string, unknown>) {
     const updated = await authFetch<CollectionEntry>(`/collection/${entry!.id}`, {
       method: 'PATCH',
       body: JSON.stringify(fields),
     })
-    // Re-fetch to get fresh data including tags
     const fresh = await authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
     setEntry({ ...(fresh ?? updated), tags: fresh?.tags ?? entry!.tags })
+  }
+
+  async function refetchEntry() {
+    const fresh = await authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
+    if (fresh) setEntry(fresh)
   }
 
   // ── Status section ────────────────────────────────────────────────────────
@@ -246,58 +272,87 @@ export function CollectionEntryPanel({ editionId }: Props) {
   async function saveStatus() {
     setSavingStatus(true)
     try {
-      await patch({ ownershipStatus: editOwnership, readingStatus: editReading })
+      await patchEntry({ ownershipStatus: editOwnership, readingStatus: editReading })
       setEditingStatus(false)
     } finally {
       setSavingStatus(false)
     }
   }
 
-  // ── Purchase section ──────────────────────────────────────────────────────
+  // ── Purchase group section ────────────────────────────────────────────────
 
   function openPurchaseEdit() {
-    setEditAllocatedPrice(entry!.allocatedPrice ?? '')
-    setEditPriceCurrency(entry!.priceCurrency ?? '')
-    setEditShipping(entry!.shipping ?? '')
-    setEditShippingCurrency(entry!.shippingCurrency ?? entry!.priceCurrency ?? '')
-    setEditPurchaseDate(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
+    const pg = entry!.purchaseGroup
+    if (pg) {
+      setEditTotalAmount(String(pg.totalAmount))
+      setEditCurrency(pg.currency)
+      setEditShippingAmount(pg.shippingAmount ? String(pg.shippingAmount) : '')
+      setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
+      setEditPurchaseNotes(pg.notes ?? '')
+    } else {
+      setEditTotalAmount('')
+      setEditCurrency(entry!.priceCurrency ?? 'EUR')
+      setEditShippingAmount('')
+      setEditPurchasedAt(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
+      setEditPurchaseNotes('')
+    }
     setEditingPurchase(true)
   }
 
   async function savePurchase() {
     setSavingPurchase(true)
     try {
-      await patch({
-        allocatedPrice: editAllocatedPrice || null,
-        priceCurrency: editPriceCurrency || null,
-        shipping: editShipping || null,
-        shippingCurrency: editShippingCurrency || null,
-        purchaseDate: editPurchaseDate || null,
-      })
+      const pg = entry!.purchaseGroup
+      const payload = {
+        totalAmount: parseFloat(editTotalAmount) || 0,
+        currency: editCurrency,
+        shippingAmount: editShippingAmount ? parseFloat(editShippingAmount) : null,
+        purchasedAt: editPurchasedAt || new Date().toISOString().slice(0, 10),
+        notes: editPurchaseNotes || null,
+      }
+      if (pg) {
+        await authFetch(`/collection/bundles/${pg.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        })
+      } else {
+        await authFetch(`/collection/bundles/for-entry/${entry!.id}`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+      }
+      await refetchEntry()
       setEditingPurchase(false)
     } finally {
       setSavingPurchase(false)
     }
   }
 
-  // ── Fee handlers ──────────────────────────────────────────────────────────
+  // ── Fee handlers (on purchase group) ─────────────────────────────────────
 
   function openAddFee() {
     setNewFeeName('')
     setNewFeeAmount('')
-    setNewFeeCurrency(entry!.priceCurrency ?? '')
+    setNewFeeCurrency(entry!.purchaseGroup?.currency ?? entry!.priceCurrency ?? 'EUR')
     setAddingFee(true)
   }
 
   async function saveNewFee() {
-    if (!newFeeName.trim() || !newFeeAmount) return
+    if (!newFeeName.trim() || !newFeeAmount || !entry!.purchaseGroup) return
     setSavingFee(true)
     try {
-      const fee = await authFetch<EntryFee>(`/collection/entry/${entry!.id}/fees`, {
+      await authFetch(`/fees`, {
         method: 'POST',
-        body: JSON.stringify({ name: newFeeName, amount: newFeeAmount, currency: newFeeCurrency || entry!.priceCurrency || 'EUR' }),
+        body: JSON.stringify({
+          name: newFeeName,
+          amount: parseFloat(newFeeAmount),
+          currency: newFeeCurrency,
+          date: new Date().toISOString(),
+          category: 'OTHER',
+          purchaseGroupId: entry!.purchaseGroup.id,
+        }),
       })
-      setEntry(prev => prev ? { ...prev, purchaseFees: [...prev.purchaseFees, fee] } : prev)
+      await refetchEntry()
       setAddingFee(false)
     } finally {
       setSavingFee(false)
@@ -305,8 +360,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
   }
 
   async function deleteFee(feeId: string) {
-    await authFetch(`/collection/entry/${entry!.id}/fees/${feeId}`, { method: 'DELETE' })
-    setEntry(prev => prev ? { ...prev, purchaseFees: prev.purchaseFees.filter(f => f.id !== feeId) } : prev)
+    await authFetch(`/fees/${feeId}`, { method: 'DELETE' })
+    await refetchEntry()
   }
 
   // ── Sale section ──────────────────────────────────────────────────────────
@@ -323,7 +378,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   async function saveSale() {
     setSavingSale(true)
     try {
-      await patch({
+      await patchEntry({
         salePrice: editSalePrice || null,
         saleCurrency: editSaleCurrency || null,
         saleDate: editSaleDate || null,
@@ -346,7 +401,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   async function saveTracking() {
     setSavingTracking(true)
     try {
-      await patch({ trackingNumber: editTracking || null })
+      await patchEntry({ trackingNumber: editTracking || null })
       setEditingTracking(false)
     } finally {
       setSavingTracking(false)
@@ -398,12 +453,26 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   // ── Computed values ───────────────────────────────────────────────────────
 
-  const timeSrc = entry.purchaseDate ?? entry.acquiredAt ?? entry.addedAt
-  const profit =
-    entry.salePrice && entry.allocatedPrice
-      ? parseFloat(entry.salePrice) - parseFloat(entry.allocatedPrice)
-      : null
-  const profitCurrency = entry.saleCurrency ?? entry.priceCurrency
+  const timeSrc = entry.purchaseDate ?? entry.purchaseGroup?.purchasedAt ?? entry.acquiredAt ?? entry.addedAt
+  const pg = entry.purchaseGroup
+  const isFromSubscription = !!entry.subscriptionEntryId
+
+  // Cost calculations from purchase group
+  const pgTotal = pg ? parseFloat(String(pg.totalAmount)) : null
+  const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
+  const pgFeesTotal = pg ? (pg.fees ?? []).reduce((acc, f) => acc + parseFloat(f.amount), 0) : 0
+  const pgDiscountsTotal = pg ? (pg.discounts ?? []).reduce((acc, d) => acc + parseFloat(d.amount), 0) : 0
+  const grandTotal = pgTotal !== null
+    ? pgTotal + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal
+    : null
+  const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0
+
+  // For P/L — use purchaseGroup.totalAmount as cost, or allocatedPrice fallback
+  const costForPL = pgTotal ?? (entry.allocatedPrice ? parseFloat(entry.allocatedPrice) : null)
+  const profit = entry.salePrice && costForPL !== null
+    ? parseFloat(entry.salePrice) - costForPL
+    : null
+  const profitCurrency = entry.saleCurrency ?? pg?.currency ?? entry.priceCurrency
 
   // Currency conversion helper
   function converted(amount: number, fromCurrency: string | null): string | null {
@@ -412,16 +481,6 @@ export function CollectionEntryPanel({ editionId }: Props) {
     if (!rate) return null
     return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
   }
-
-  // Cost totals (in priceCurrency only — items that share the same currency)
-  const mainCur = entry.priceCurrency
-  const priceNum = entry.allocatedPrice ? parseFloat(entry.allocatedPrice) : null
-  const shippingNum = entry.shipping ? parseFloat(entry.shipping) : null
-  const shippingInMainCur = shippingNum !== null && (entry.shippingCurrency === mainCur || !entry.shippingCurrency) ? shippingNum : null
-  const feesInMainCur = (entry.purchaseFees ?? [])
-    .filter(f => f.currency === mainCur)
-    .reduce((acc, f) => acc + parseFloat(f.amount), 0)
-  const total = priceNum !== null ? priceNum + (shippingInMainCur ?? 0) + feesInMainCur : null
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -435,6 +494,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
       <div className="flex items-center gap-2">
         <Package size={15} className="text-amber-400" />
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-bright)' }}>My Collection</h3>
+        {isFromSubscription && (
+          <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            From subscription
+          </span>
+        )}
       </div>
 
       {/* Row 1: Status + Time */}
@@ -479,8 +543,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
           <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Clock size={11} /> In collection</span></p>
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text-bright)' }}>{timeInCollection(timeSrc)}</p>
-            {entry.purchaseDate && (
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>since {fmtDate(entry.purchaseDate)}</p>
+            {(entry.purchaseDate ?? pg?.purchasedAt) && (
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>since {fmtDate(entry.purchaseDate ?? pg?.purchasedAt)}</p>
             )}
           </div>
         </div>
@@ -497,144 +561,152 @@ export function CollectionEntryPanel({ editionId }: Props) {
             </p>
             {!editingPurchase && (
               <button onClick={openPurchaseEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
-                ✏️ Edit costs
+                ✏️ {pg ? 'Edit costs' : 'Add costs'}
               </button>
             )}
           </div>
+
           {editingPurchase ? (
             <div className="flex flex-col gap-2">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Purchase date</label>
-                <input type="date" value={editPurchaseDate} onChange={e => setEditPurchaseDate(e.target.value)} className={INP} />
+                <input type="date" value={editPurchasedAt} onChange={e => setEditPurchasedAt(e.target.value)} className={INP} />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editAllocatedPrice} onChange={e => setEditAllocatedPrice(e.target.value)} placeholder="0.00" className={INP} />
+                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => setEditTotalAmount(e.target.value)} placeholder="0.00" className={INP} />
                 </div>
                 <div className="w-24">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
-                  <select value={editPriceCurrency} onChange={e => { setEditPriceCurrency(e.target.value); if (!editShippingCurrency) setEditShippingCurrency(e.target.value) }} className={INP}>
-                    <option value="">—</option>
+                  <select value={editCurrency} onChange={e => setEditCurrency(e.target.value)} className={INP}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
-                  <input type="number" step="0.01" min="0" value={editShipping} onChange={e => setEditShipping(e.target.value)} placeholder="0.00" className={INP} />
-                </div>
-                <div className="w-24">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
-                  <select value={editShippingCurrency} onChange={e => setEditShippingCurrency(e.target.value)} className={INP}>
-                    <option value="">—</option>
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
+                <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
+                <input value={editPurchaseNotes} onChange={e => setEditPurchaseNotes(e.target.value)} placeholder="Any notes…" className={INP} />
               </div>
               <SaveCancelBtns onSave={savePurchase} onCancel={() => setEditingPurchase(false)} saving={savingPurchase} />
             </div>
           ) : (
             <div className="space-y-1.5 text-sm">
-              {/* Price row */}
-              {priceNum !== null && (
-                <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Price</span>
-                  <span className="text-right">
-                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
-                      {priceNum.toFixed(2)} {mainCur ?? ''}
+              {pg ? (
+                <>
+                  {/* Price row */}
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Price</span>
+                    <span className="text-right">
+                      <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                        {pgTotal!.toFixed(2)} {pg.currency}
+                      </span>
+                      {converted(pgTotal!, pg.currency) && (
+                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgTotal!, pg.currency)}</span>
+                      )}
                     </span>
-                    {converted(priceNum, mainCur) && (
-                      <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(priceNum, mainCur)}</span>
-                    )}
-                  </span>
-                </div>
-              )}
+                  </div>
 
-              {/* Shipping row */}
-              {shippingNum !== null && (
-                <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
-                  <span className="text-right">
-                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
-                      {shippingNum.toFixed(2)} {entry.shippingCurrency ?? mainCur ?? ''}
-                    </span>
-                    {converted(shippingNum, entry.shippingCurrency ?? mainCur) && (
-                      <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(shippingNum, entry.shippingCurrency ?? mainCur)}</span>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {/* Fee rows */}
-              {(entry.purchaseFees ?? []).map(fee => {
-                const amt = parseFloat(fee.amount)
-                return (
-                  <div key={fee.id} className="flex justify-between items-baseline gap-2">
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fee.name}</span>
-                    <span className="text-right flex items-baseline gap-1.5">
-                      <span>
-                        <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
-                        {converted(amt, fee.currency) && (
-                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
+                  {/* Shipping row */}
+                  {pgShipping !== null && (
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
+                      <span className="text-right">
+                        <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                          {pgShipping.toFixed(2)} {pg.currency}
+                        </span>
+                        {converted(pgShipping, pg.currency) && (
+                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgShipping, pg.currency)}</span>
                         )}
                       </span>
-                      <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
-                        <Trash2 size={11} />
-                      </button>
-                    </span>
-                  </div>
-                )
-              })}
+                    </div>
+                  )}
 
-              {/* Add fee inline */}
-              {addingFee ? (
-                <div className="flex flex-col gap-1.5 pt-1">
-                  <div className="flex gap-1.5">
-                    <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Name (e.g. VAT)" className={INP + ' flex-1'} />
-                    <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
-                    <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
-                      <Check size={11} /> Add
+                  {/* Fee rows */}
+                  {(pg.fees ?? []).map(fee => {
+                    const amt = parseFloat(fee.amount)
+                    return (
+                      <div key={fee.id} className="flex justify-between items-baseline gap-2">
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fee.name}</span>
+                        <span className="text-right flex items-baseline gap-1.5">
+                          <span>
+                            <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
+                            {converted(amt, fee.currency) && (
+                              <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
+                            )}
+                          </span>
+                          <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        </span>
+                      </div>
+                    )
+                  })}
+
+                  {/* Discount rows */}
+                  {(pg.discounts ?? []).map(d => {
+                    const amt = parseFloat(d.amount)
+                    return (
+                      <div key={d.id} className="flex justify-between items-baseline gap-2">
+                        <span className="text-xs text-green-400">{d.name} (discount)</span>
+                        <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
+                      </div>
+                    )
+                  })}
+
+                  {/* Add fee inline */}
+                  {addingFee ? (
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <div className="flex gap-1.5">
+                        <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1'} />
+                        <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
+                        <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
+                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                          <Check size={11} /> Add
+                        </button>
+                        <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <X size={11} /> Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                      <Plus size={11} /> Add fee
                     </button>
-                    <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
-                      <X size={11} /> Cancel
-                    </button>
-                  </div>
-                </div>
+                  )}
+
+                  {/* Grand total */}
+                  {grandTotal !== null && hasBreakdown && (
+                    <div className="flex justify-between items-baseline gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                      <span className="font-medium" style={{ color: 'var(--text-bright)' }}>Total</span>
+                      <span className="text-right">
+                        <span className="font-semibold" style={{ color: 'var(--text-bright)' }}>
+                          {grandTotal.toFixed(2)} {pg.currency}
+                        </span>
+                        {converted(grandTotal, pg.currency) && (
+                          <span className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{converted(grandTotal, pg.currency)}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Purchase date */}
+                  <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    Purchased {fmtDate(pg.purchasedAt)}
+                  </p>
+                </>
               ) : (
-                <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
-                  <Plus size={11} /> Add fee
-                </button>
-              )}
-
-              {/* Total */}
-              {total !== null && (entry.shipping !== null || (entry.purchaseFees ?? []).length > 0) && (
-                <div className="flex justify-between items-baseline gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>Total</span>
-                  <span className="text-right">
-                    <span className="font-semibold" style={{ color: 'var(--text-bright)' }}>
-                      {total.toFixed(2)} {mainCur ?? ''}
-                    </span>
-                    {converted(total, mainCur) && (
-                      <span className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{converted(total, mainCur)}</span>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {/* Date */}
-              {entry.purchaseDate && (
-                <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>Purchased {fmtDate(entry.purchaseDate)}</p>
-              )}
-
-              {!priceNum && !shippingNum && !(entry.purchaseFees ?? []).length && (
-                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No costs recorded</p>
+                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                  {isFromSubscription ? 'Costs managed via subscription' : 'No costs recorded'}
+                </p>
               )}
             </div>
           )}
@@ -677,7 +749,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
             <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
             {!editingSale && (
               <button onClick={openSaleEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
-                ✏️ Edit costs
+                ✏️ Edit
               </button>
             )}
           </div>
@@ -838,3 +910,4 @@ export function CollectionEntryPanel({ editionId }: Props) {
     </div>
   )
 }
+

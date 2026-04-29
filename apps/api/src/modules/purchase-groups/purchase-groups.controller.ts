@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PurchaseGroupsService } from './purchase-groups.service';
-import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto } from './purchase-groups.dto';
+import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto, CreateGroupForEntryDto } from './purchase-groups.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('purchase-groups')
@@ -17,6 +17,16 @@ export class PurchaseGroupsController {
     @Body() dto: ConfirmSalePurchaseDto,
   ) {
     return this.service.confirmSalePurchase(user.id, announcementId, dto);
+  }
+
+  /** Create a purchase group for an existing single book entry (standalone purchase) */
+  @Post('for-entry/:entryId')
+  createGroupForEntry(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Body() dto: CreateGroupForEntryDto,
+  ) {
+    return this.service.createGroupForEntry(user.id, entryId, dto);
   }
 
   @Get()

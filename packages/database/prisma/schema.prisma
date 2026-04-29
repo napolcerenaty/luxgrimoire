@@ -585,8 +585,6 @@ model UserBookEntry {
   acquiredAt            DateTime?
   addedAt               DateTime               @default(now())
   allocatedPrice        Decimal?               @db.Decimal(10, 2)
-  shipping              Decimal?               @db.Decimal(10, 2)
-  shippingCurrency      String?                @db.VarChar(3)
   condition             String?
   isWishlist            Boolean                @default(false)
   ownershipStatus       String                 @default("OWNED")

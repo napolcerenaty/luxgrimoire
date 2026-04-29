@@ -180,6 +180,34 @@ export class PurchaseGroupsService {
     });
   }
 
+  async createGroupForEntry(userId: string, entryId: string, dto: UpdatePurchaseGroupDto & { totalAmount: number; currency: string; purchasedAt: string }) {
+    const entry = await this.prisma.userBookEntry.findUnique({
+      where: { id: entryId },
+      select: { userId: true, purchaseGroupId: true },
+    });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+
+    return this.prisma.$transaction(async (tx) => {
+      const group = await tx.userPurchaseGroup.create({
+        data: {
+          userId,
+          title: dto.title ?? null,
+          totalAmount: dto.totalAmount,
+          currency: dto.currency,
+          shippingAmount: dto.shippingAmount ?? null,
+          purchasedAt: new Date(dto.purchasedAt),
+          notes: dto.notes ?? null,
+        },
+      });
+      await tx.userBookEntry.update({
+        where: { id: entryId },
+        data: { purchaseGroupId: group.id },
+      });
+      return group;
+    });
+  }
+
   async deleteGroup(userId: string, groupId: string) {
     const existing = await this.prisma.userPurchaseGroup.findUnique({ where: { id: groupId } });
     if (!existing) throw new NotFoundException('Purchase group not found');

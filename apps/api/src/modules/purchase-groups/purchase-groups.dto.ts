@@ -62,6 +62,31 @@ export class ConfirmSalePurchaseDto {
   editionIds: string[] = [];
 }
 
+export class CreateGroupForEntryDto {
+  @IsNumber()
+  @Min(0)
+  totalAmount: number = 0;
+
+  @IsString()
+  currency: string = '';
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  shippingAmount?: number;
+
+  @IsDateString()
+  purchasedAt: string = '';
+
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
 export class UpdatePurchaseGroupDto {
   @IsString()
   @IsOptional()
