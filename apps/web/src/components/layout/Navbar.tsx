@@ -230,6 +230,34 @@ export function Navbar() {
             </Link>
           ))}
 
+          {/* User area links — visible when logged in */}
+          {user && (
+            <>
+              <div className="w-px h-4 bg-stone-700 mx-2 shrink-0" />
+              {[
+                { href: '/collection',       icon: BookOpen,     label: 'Collection' },
+                { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
+                { href: '/wishlist',         icon: Heart,        label: 'Wishlist' },
+                { href: '/my-subscriptions', icon: BookMarked,   label: 'Subscriptions' },
+                { href: '/spending',         icon: DollarSign,   label: 'Spending' },
+              ].map(({ href, icon: Icon, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`
+                    flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
+                    ${isActive(href)
+                      ? 'border-amber-400 text-amber-400'
+                      : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
+                  `}
+                >
+                  <Icon size={12} />
+                  {label}
+                </Link>
+              ))}
+            </>
+          )}
+
           {/* Admin Panel — far right, admins/mods only */}
           {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
             <div className="ml-auto flex items-center shrink-0">
