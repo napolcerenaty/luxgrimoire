@@ -158,10 +158,10 @@ export class MailService {
         params,
         sender: this.brevoFrom,
       });
-      this.logger.log(`${label} sent to ${to} via Brevo template ${templateId}`);
+      this.logger.log(`${label} sent to ${maskEmail(to)} via Brevo template ${templateId}`);
       return true;
     } catch (err) {
-      this.logger.error(`Failed to send ${label} to ${to} via Brevo`, err);
+      this.logger.error(`Failed to send ${label} to ${maskEmail(to)} via Brevo`, err);
       return false;
     }
   }
@@ -170,14 +170,20 @@ export class MailService {
     const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
     try {
       await this.transporter.sendMail({ from, to, subject, html });
-      this.logger.log(`${label} sent to ${to} via SMTP`);
+      this.logger.log(`${label} sent to ${maskEmail(to)} via SMTP`);
     } catch (err) {
-      this.logger.error(`Failed to send ${label} to ${to} via SMTP`, err);
+      this.logger.error(`Failed to send ${label} to ${maskEmail(to)} via SMTP`, err);
     }
   }
 }
 
 // ── Shared email template helpers ─────────────────────────────────────────────
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local[0]}***@${domain}`;
+}
 
 function emailShell(title: string, content: string): string {
   return `<!DOCTYPE html>

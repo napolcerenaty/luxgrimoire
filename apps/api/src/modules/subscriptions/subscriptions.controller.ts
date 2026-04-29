@@ -226,7 +226,7 @@ export class SubscriptionsController {
       userId: user.id,
       entityType: 'subscription',
       entityId: slug,
-      value: (dto as any)?.cancellationReason ?? undefined,
+      // cancellationReason intentionally omitted — free text may contain PII (GDPR)
     });
     return result;
   }
