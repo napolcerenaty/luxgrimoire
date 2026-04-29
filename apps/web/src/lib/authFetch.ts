@@ -12,6 +12,11 @@ export async function authFetch<T>(path: string, options?: RequestInit): Promise
     },
   })
   if (!res.ok) {
+    // Clear stale token on auth failures (401 = expired/invalid, 403 = forbidden role)
+    if ((res.status === 401 || res.status === 403) && typeof window !== 'undefined') {
+      localStorage.removeItem('luxgrimoire_token')
+      window.location.href = '/login'
+    }
     const err = await res.text()
     throw new Error(err)
   }

@@ -88,12 +88,13 @@ export class SponsoredService {
   }
 
   async getRevenueStats() {
-    const [allSlots, activeCount] = await Promise.all([
-      this.prisma.sponsoredSlot.findMany({ select: { type: true, priceEur: true, isActive: true } }),
+    const [revenueAgg, activeCount, allSlots] = await Promise.all([
+      this.prisma.sponsoredSlot.aggregate({ _sum: { priceEur: true } }),
       this.prisma.sponsoredSlot.count({ where: { isActive: true } }),
+      this.prisma.sponsoredSlot.findMany({ select: { type: true } }),
     ]);
 
-    const totalRevenue = allSlots.reduce((sum, s) => sum + s.priceEur, 0);
+    const totalRevenue = Number(revenueAgg._sum.priceEur ?? 0);
     const slotsByType = allSlots.reduce<Record<string, number>>((acc, s) => {
       acc[s.type] = (acc[s.type] ?? 0) + 1;
       return acc;

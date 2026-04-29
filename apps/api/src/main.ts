@@ -5,18 +5,25 @@ import {
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+
+// TODO[prod-setup]: Add Sentry integration here when SENTRY_DSN is configured
+// import * as Sentry from '@sentry/node'; etc.
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ bodyLimit: 20 * 1024 * 1024 }), // 20 MB for base64 image uploads
+    new FastifyAdapter({ logger: false, bodyLimit: 20 * 1024 * 1024 }), // 20 MB for base64 image uploads; Fastify logger disabled in favour of Pino
+    { bufferLogs: true },
   );
+  app.useLogger(app.get(Logger));
 
   // Security headers (helmet for Fastify)
   await app.register(require('@fastify/helmet'), {
     contentSecurityPolicy: false, // API is not HTML, CSP belongs on the web app
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
@@ -24,11 +31,11 @@ async function bootstrap() {
     },
   });
 
-  // Gzip/Brotli compression for all responses
+  // Brotli/Gzip/Deflate compression for all responses
   await app.register(require('@fastify/compress'), {
     global: true,
     threshold: 1024, // only compress responses > 1 KB
-    encodings: ['gzip', 'deflate'],
+    encodings: ['br', 'gzip', 'deflate'],
   });
 
   app.useGlobalPipes(
@@ -37,6 +44,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
+      forbidUnknownValues: true,
+      disableErrorMessages: process.env.NODE_ENV === 'production',
     }),
   );
 
@@ -60,9 +69,10 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.APP_PORT ?? 3001;
+  const logger = app.get(Logger);
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 API running on http://localhost:${port}/api`);
-  console.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 API running on http://localhost:${port}/api`, 'Bootstrap');
+  logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`, 'Bootstrap');
 }
 
 bootstrap();

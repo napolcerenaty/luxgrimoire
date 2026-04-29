@@ -5,8 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
-const GENRES_TTL = 5 * 60 * 1000;   // 5 minutes
-const SERIES_TTL = 5 * 60 * 1000;   // 5 minutes
+const GENRES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — genres change rarely
+const SERIES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — series change rarely
 
 @Injectable()
 export class BooksService {
@@ -86,7 +86,28 @@ export class BooksService {
         where,
         skip,
         take: pageSize,
-        include: { authors: { include: { author: true } } },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          altTitle: true,
+          coverImage: true,
+          language: true,
+          isbn: true,
+          seriesName: true,
+          volumeNumber: true,
+          genres: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          authors: {
+            select: {
+              author: {
+                select: { id: true, name: true, slug: true, photoUrl: true },
+              },
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.book.count({ where }),
@@ -140,9 +161,59 @@ export class BooksService {
   async findBySlug(slug: string) {
     const book = await this.prisma.book.findUnique({
       where: { slug },
-      include: {
-        authors: { include: { author: true } },
-        editions: { include: { artists: { include: { artist: true } }, bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } } } },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        altTitle: true,
+        description: true,
+        coverImage: true,
+        language: true,
+        isbn: true,
+        seriesName: true,
+        volumeNumber: true,
+        genres: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        authors: {
+          select: {
+            author: {
+              select: { id: true, name: true, slug: true, photoUrl: true, bio: true, nationality: true },
+            },
+          },
+        },
+        editions: {
+          select: {
+            id: true,
+            slug: true,
+            editionName: true,
+            alternativeTitle: true,
+            publisher: true,
+            basePrice: true,
+            currency: true,
+            language: true,
+            isSpecial: true,
+            additionalImages: true,
+            features: true,
+            generalSaleDate: true,
+            firstAccessDate: true,
+            earlyAccessDate: true,
+            createdAt: true,
+            updatedAt: true,
+            verifiedAt: true,
+            bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+            artists: {
+              select: {
+                role: true,
+                artistName: true,
+                artist: {
+                  select: { id: true, name: true, slug: true, photoUrl: true, specialty: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);

@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (r.ok) {
           const data: AuthUser = await r.json()
           setUser(data)
-        } else if (r.status === 401) {
-          // Token truly invalid — remove it
+        } else if (r.status === 401 || r.status === 403) {
+          // Token invalid or forbidden — remove it
           localStorage.removeItem('luxgrimoire_token')
         }
         // 5xx or other errors: keep the token (server may be restarting)

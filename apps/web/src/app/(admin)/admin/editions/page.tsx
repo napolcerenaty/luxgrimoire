@@ -5,11 +5,12 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
+import dynamic from 'next/dynamic'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
-import EditBookEditionForm from '@/components/admin/EditBookEditionForm'
+const CreateBookEditionForm = dynamic(() => import('@/components/admin/CreateBookEditionForm'), { ssr: false })
+const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
 
 const INPUT_CLASS =

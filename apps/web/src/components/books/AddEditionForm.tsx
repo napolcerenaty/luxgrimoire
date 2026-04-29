@@ -22,11 +22,22 @@ interface FormState {
 
 async function uploadImage(file: File): Promise<string> {
   const token = localStorage.getItem('luxgrimoire_token')
-  const fd = new FormData()
-  fd.append('file', file)
+  const dataUri = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/upload`,
-    { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd }
+    `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/upload/image`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/editions' }),
+    }
   )
   if (!res.ok) throw new Error('Upload failed')
   const data = await res.json() as { publicId: string }
@@ -65,8 +76,8 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
     e.preventDefault()
     setBusy(true)
     try {
-      let coverImage: string | undefined
-      if (coverFile) coverImage = await uploadImage(coverFile)
+      let uploadedCover: string | undefined
+      if (coverFile) uploadedCover = await uploadImage(coverFile)
 
       const edition = await authFetch<{ id: string; slug: string }>('/editions', {
         method: 'POST',
@@ -78,7 +89,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
           basePrice: form.price || undefined,
           currency: form.currency || undefined,
           notes: form.notes || undefined,
-          coverImage,
+          additionalImages: uploadedCover ? [uploadedCover] : undefined,
         }),
       })
 

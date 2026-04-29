@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
 import { Role } from '@prisma/client';
 import { UploadService } from '../upload/upload.service';
@@ -10,6 +13,8 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
+    private readonly auditService: AuditService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async getAuditLogs(query: AuditLogQueryDto) {
@@ -49,6 +54,15 @@ export class AdminService {
   }
 
   async getStats() {
+    const CACHE_KEY = 'admin:stats';
+    const cached = await this.cache.get<Awaited<ReturnType<typeof this.computeStats>>>(CACHE_KEY);
+    if (cached) return cached;
+    const stats = await this.computeStats();
+    await this.cache.set(CACHE_KEY, stats, 60_000); // cache for 60 seconds
+    return stats;
+  }
+
+  private async computeStats() {
     const [
       totalBooks,
       totalEditions,
@@ -156,8 +170,8 @@ export class AdminService {
     return { data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async assignRole(userId: string, dto: AssignRoleDto) {
-    return this.prisma.user.update({
+  async assignRole(userId: string, dto: AssignRoleDto, actor: { id: string; username: string }) {
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         role: dto.role as Role,
@@ -165,6 +179,18 @@ export class AdminService {
       },
       select: { id: true, username: true, email: true, role: true, managedCompanyId: true },
     });
+
+    void this.auditService.log({
+      userId: actor.id,
+      username: actor.username,
+      action: 'assign_role',
+      entityType: 'user',
+      entityId: userId,
+      entityTitle: updated.username,
+      metadata: { newRole: dto.role },
+    });
+
+    return updated;
   }
 
   async getUsers(query: UserQueryDto) {
@@ -200,7 +226,7 @@ export class AdminService {
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async deleteUser(userId: string) {
+  async deleteUser(userId: string, actor: { id: string; username: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, username: true, avatarUrl: true },
@@ -220,6 +246,17 @@ export class AdminService {
     }
 
     await this.prisma.user.delete({ where: { id: userId } });
+
+    void this.auditService.log({
+      userId: actor.id,
+      username: actor.username,
+      action: 'delete_user',
+      entityType: 'user',
+      entityId: userId,
+      entityTitle: user.username,
+      metadata: { email: user.email },
+    });
+
     return { deleted: true, email: user.email, username: user.username };
   }
 
@@ -242,16 +279,17 @@ export class AdminService {
       where: { active: true },
       select: { id: true, nextRenewalDate: true },
     });
-    let processed = 0;
-    let skipped = 0;
-    for (const entry of entries) {
-      if (entry.nextRenewalDate) {
-        skipped++;
-        continue;
-      }
-      await refreshNextRenewalDate(this.prisma, entry.id);
-      processed++;
+
+    const toProcess = entries.filter((e) => !e.nextRenewalDate);
+    const skipped = entries.length - toProcess.length;
+
+    // Process in batches of 50 to avoid saturating the DB connection pool
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+      const batch = toProcess.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map((e) => refreshNextRenewalDate(this.prisma, e.id)));
     }
-    return { processed, skipped };
+
+    return { processed: toProcess.length, skipped };
   }
 }

@@ -16,9 +16,9 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: unknown }) {
+function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | null | undefined }) {
   const firstEdition = a.editions?.[0]?.edition
-  const cover = firstEdition?.coverImage ?? a.imageUrl ?? null
+  const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_300,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
   const editionIds = a.editions?.map((e) => e.editionId) ?? []
@@ -84,7 +84,7 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: unknown }
   )
 }
 
-function SectionGrid({ title, items, user }: { title: string; items: ApiSaleAnnouncement[]; user: unknown }) {
+function SectionGrid({ title, items, user }: { title: string; items: ApiSaleAnnouncement[]; user: object | null | undefined }) {
   if (items.length === 0) return null
   return (
     <div className="mb-10">

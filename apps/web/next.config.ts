@@ -1,12 +1,23 @@
 import type { NextConfig } from 'next';
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+// Extract origin from API URL for CSP connect-src (e.g. https://api.example.com)
+const apiOrigin = (() => {
+  try {
+    const u = new URL(apiUrl);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return 'http://localhost:3001';
+  }
+})();
+
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "connect-src 'self' http://localhost:3001 https://api.cloudinary.com",
+  `connect-src 'self' ${apiOrigin} https://api.cloudinary.com`,
   "media-src 'self'",
   "object-src 'none'",
   "frame-src 'none'",
@@ -15,6 +26,9 @@ const CSP = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   images: {
     remotePatterns: [
       {

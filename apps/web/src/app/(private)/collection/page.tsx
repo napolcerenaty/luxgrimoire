@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup, updatePurchaseGroup } from '@/lib/api'
 import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
@@ -50,7 +51,7 @@ interface CollectionEntry {
 interface EditionSearchResult {
   id: string
   slug: string
-  coverImage: string | null
+  additionalImages: string[]
   publisher: string | null
   bookBoxCompany?: { id: string; name: string; slug: string } | null
   book: {
@@ -336,8 +337,8 @@ function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () 
                       onClick={() => addEdition(ed)}
                       className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors flex items-center gap-2 text-sm"
                     >
-                      {ed.coverImage && (
-                        <Image src={ed.coverImage} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
+                      {ed.additionalImages?.[0] && (
+                        <Image src={cloudinaryUrl(ed.additionalImages[0], 'w_64,h_80,c_fill,q_auto,f_auto') ?? ''} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-stone-200 truncate">{ed.book.title}</p>

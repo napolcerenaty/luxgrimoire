@@ -144,7 +144,6 @@ export default function AdminBookBoxCollectionsPage() {
       render: (row: ApiBookBoxCollection) => (
         <div>
           <div className="text-stone-100 font-medium">{row.name}</div>
-          {row.description && <div className="text-stone-500 text-xs line-clamp-1">{row.description}</div>}
         </div>
       ),
     },

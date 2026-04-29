@@ -71,7 +71,7 @@ export function BookEditionsSection({ editions, book }: Props) {
           <EditionCard
             key={edition.id}
             href={`/editions/${edition.slug}`}
-            coverImage={edition.coverImage}
+            coverImage={edition.additionalImages?.[0] ?? null}
             companyName={edition.bookBoxCompany?.name}
             companySlug={edition.bookBoxCompany?.slug}
             seriesName={book.seriesName}

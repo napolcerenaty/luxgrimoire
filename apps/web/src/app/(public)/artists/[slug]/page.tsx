@@ -13,7 +13,7 @@ interface BookBoxCompanySnippet {
 }
 
 interface EditionSnippet {
-  id: string; slug: string; coverImage: string | null; editionName: string | null
+  id: string; slug: string; additionalImages: string[]; editionName: string | null
   publisher: string | null
   bookBoxCompany: BookBoxCompanySnippet | null
   book: (Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & { authors: ApiAuthor[] }) | null
@@ -191,7 +191,7 @@ export default async function ArtistPage({ params }: Props) {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {contributions.map((c) => {
-                const cover = cloudinaryUrl(c.edition.coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
+                const cover = cloudinaryUrl(c.edition.additionalImages?.[0] ?? null, 'w_400,h_600,c_fill,q_auto,f_auto')
                 const book = c.edition.book
                 const company = c.edition.bookBoxCompany
 

@@ -49,7 +49,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   onClick: (sale: ApiSaleAnnouncement) => void
 }) {
   const firstEdition = sale.editions?.[0]?.edition
-  const raw = sale.imageUrl ?? firstEdition?.coverImage ?? null
+  const raw = sale.imageUrl ?? firstEdition?.additionalImages?.[0] ?? null
   const imgUrl = raw ? cloudinaryUrl(raw, 'w_320,h_480,c_fill,q_auto,f_auto') : null
 
   const companyName = (sale as any).company?.name ?? null

@@ -93,7 +93,6 @@ export interface ApiBookEdition {
   slug: string;
   bookId: string;
   publisher: string | null;
-  coverImage: string | null;
   additionalImages: string[];
   isSpecial: boolean;
   notes: string | null;
@@ -518,7 +517,7 @@ export interface ApiSaleEntry {
     priceCurrency?: string | null;
     edition?: {
       id: string;
-      coverImage?: string | null;
+      additionalImages?: string[];
       book: { id: string; title: string; slug: string };
       bookBoxCompany?: { id: string; name: string } | null;
     } | null;

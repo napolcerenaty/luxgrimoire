@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
+import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import { redisStore } from 'cache-manager-redis-yet';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerSkipTestGuard } from './common/guards/throttler-skip-test.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -42,6 +44,24 @@ import { ImportSourcesModule } from './modules/import-sources/import-sources.mod
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: process.env.NODE_ENV !== 'production'
+          ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
+          : undefined,
+        level: process.env.LOG_LEVEL ?? 'info',
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        serializers: {
+          req(req) {
+            return {
+              method: req.method,
+              url: req.url,
+              id: req.id,
+            };
+          },
+        },
+      },
+    }),
     ScheduleModule.forRoot(),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -58,7 +78,8 @@ import { ImportSourcesModule } from './modules/import-sources/import-sources.mod
             return { stores: [store], ttl: 300_000 };
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
-            console.warn(`[CacheModule] Redis unavailable (${msg}), using in-memory cache`);
+            const cacheLogger = new Logger('CacheModule');
+            cacheLogger.warn(`Redis unavailable (${msg}), using in-memory cache`);
           }
         }
         return { ttl: 300_000 };
@@ -103,7 +124,7 @@ import { ImportSourcesModule } from './modules/import-sources/import-sources.mod
     ImportSourcesModule,
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: ThrottlerSkipTestGuard },
   ],
 })
 export class AppModule {}

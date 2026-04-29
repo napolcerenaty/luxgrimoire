@@ -43,7 +43,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
 
   const editions = sale.editions ?? []
   const allEditionIds = editions.map(e => e.editionId)
-  const firstEditionCover = editions[0]?.edition?.coverImage ?? null
+  const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
   const coverImg = (sale.imageUrl ?? firstEditionCover)
     ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_600,h_450,c_fill,q_auto,f_auto')
     : null
@@ -182,7 +182,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   if (!edition) return null
                   const book = edition.book
                   const authors = (book?.authors ?? []) as any[]
-                  const raw = edition.coverImage ?? book?.coverImage
+                  const raw = edition.additionalImages?.[0] ?? book?.coverImage
                   const imgSrc = raw ? cloudinaryUrl(raw, 'w_200,h_300,c_fill,q_auto,f_auto') : null
 
                   return (

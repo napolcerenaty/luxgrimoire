@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/auth.decorators';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
 
@@ -34,15 +35,22 @@ export class AdminController {
 
   @Roles('ADMIN')
   @Patch('users/:userId/role')
-  assignRole(@Param('userId') userId: string, @Body() dto: AssignRoleDto) {
-    return this.adminService.assignRole(userId, dto);
+  assignRole(
+    @Param('userId') userId: string,
+    @Body() dto: AssignRoleDto,
+    @CurrentUser() actor: { id: string; username: string },
+  ) {
+    return this.adminService.assignRole(userId, dto, actor);
   }
 
   @Roles('ADMIN')
   @Delete('users/:userId')
-  async deleteUser(@Param('userId') userId: string) {
+  async deleteUser(
+    @Param('userId') userId: string,
+    @CurrentUser() actor: { id: string; username: string },
+  ) {
     try {
-      return await this.adminService.deleteUser(userId);
+      return await this.adminService.deleteUser(userId, actor);
     } catch {
       throw new NotFoundException('User not found');
     }

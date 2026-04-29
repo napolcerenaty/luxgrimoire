@@ -16,7 +16,7 @@ interface Author {
 
 interface BookEdition {
   id: string
-  coverImage: string | null
+  additionalImages: string[]
   title: string | null
   book: {
     title: string
@@ -524,10 +524,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
           onChange={onToggle}
           className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
         />
-        {mainBook?.edition?.coverImage && (
+        {mainBook?.edition?.additionalImages?.[0] && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={cloudinaryUrl(mainBook.edition.coverImage, 'w_40,h_56,c_fill,q_auto,f_auto') ?? ''}
+            src={cloudinaryUrl(mainBook.edition.additionalImages[0], 'w_40,h_56,c_fill,q_auto,f_auto') ?? ''}
             alt=""
             width={40}
             height={56}

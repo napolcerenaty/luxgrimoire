@@ -270,25 +270,13 @@ export default async function CompanyPage({ params }: Props) {
                 className="group rounded-xl overflow-hidden border border-stone-800 hover:border-amber-700/50 transition-colors"
                 style={{ background: 'var(--bg-raised)' }}
               >
-                {col.coverImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={cloudinaryUrl(col.coverImage ?? null, 'w_600,h_200,c_fill,q_auto,f_auto') ?? ''}
-                    alt={col.name}
-                    className="w-full aspect-[3/1] object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full aspect-[3/1] bg-stone-800 flex items-center justify-center">
-                    <span className="text-stone-600 text-sm font-serif">{col.name}</span>
-                  </div>
-                )}
+                <div className="w-full aspect-[3/1] bg-stone-800 flex items-center justify-center">
+                  <span className="text-stone-600 text-sm font-serif">{col.name}</span>
+                </div>
                 <div className="p-4">
                   <h3 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors">
                     {col.name}
                   </h3>
-                  {col.description && (
-                    <p className="text-stone-500 text-xs mt-1 line-clamp-2">{col.description}</p>
-                  )}
                 </div>
               </a>
             ))}

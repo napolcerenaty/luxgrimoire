@@ -75,6 +75,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('ADMIN', 'MODERATOR')
   sendNotification(
+    @CurrentUser() actor: { id: string; username: string },
     @Body()
     body: {
       targetType: 'users' | 'role' | 'all';
@@ -96,6 +97,7 @@ export class NotificationsController {
       link: body.link,
       type: body.type,
       expiresInDays: body.expiresInDays,
+      actor,
     });
   }
 

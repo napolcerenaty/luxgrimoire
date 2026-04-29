@@ -15,7 +15,12 @@ import {
   ResetPasswordDto,
   ChangePasswordDto,
 } from './auth.dto';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
+
+/** Constant-time hash for password reset tokens — prevents timing attacks on DB lookup */
+function hashResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 @Injectable()
 export class AuthService {
@@ -23,6 +28,9 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
   ) {}
+
+  /** In-memory per-email rate limit for forgotPassword (1 request / 5 min per address). */
+  private readonly forgotPasswordLastSent = new Map<string, number>();
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findFirst({
@@ -71,41 +79,66 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-    // Always return success to avoid email enumeration
-    if (!user) return { message: 'If that email exists, a reset link was sent.' };
+    // Constant-time response: always target ~500 ms regardless of whether the email exists
+    const TARGET_RESPONSE_MS = 500;
+    const startedAt = Date.now();
 
-    const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+    const normalizedEmail = dto.email.toLowerCase();
 
-    await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
-    await this.prisma.passwordResetToken.create({
-      data: { userId: user.id, token, expiresAt },
-    });
+    // Per-email rate limit: 1 request per 5 minutes
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    const lastSent = this.forgotPasswordLastSent.get(normalizedEmail) ?? 0;
+    const rateLimited = Date.now() - lastSent < COOLDOWN_MS;
 
-    // TODO: send email via Brevo. Token is intentionally NOT logged to avoid leaking it
-    // through application logs / log aggregation systems (full account-takeover risk).
+    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (user && !rateLimited) {
+      this.forgotPasswordLastSent.set(normalizedEmail, Date.now());
+
+      const token = randomBytes(32).toString('hex');
+      const tokenHash = hashResetToken(token);
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+      await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      await this.prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      });
+
+      // TODO: send email via Brevo. The plain `token` (not tokenHash) goes in the email link.
+      // Never log `token` — full account-takeover risk.
+    }
+
+    // Equalize response time to prevent timing-based email enumeration
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < TARGET_RESPONSE_MS) {
+      await new Promise((r) => setTimeout(r, TARGET_RESPONSE_MS - elapsed));
+    }
 
     return { message: 'If that email exists, a reset link was sent.' };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = hashResetToken(dto.token);
     const record = await this.prisma.passwordResetToken.findUnique({
-      where: { token: dto.token },
+      where: { tokenHash },
     });
 
-    if (!record || record.expiresAt < new Date()) {
+    if (!record || record.expiresAt < new Date() || record.usedAt) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    // Mark token as used before updating password to prevent double-use
+    await this.prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
     await this.prisma.user.update({
       where: { id: record.userId },
       data: { passwordHash },
     });
-    await this.prisma.passwordResetToken.delete({ where: { token: dto.token } });
+    await this.prisma.passwordResetToken.delete({ where: { id: record.id } });
 
     return { message: 'Password updated successfully' };
   }

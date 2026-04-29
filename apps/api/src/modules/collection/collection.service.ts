@@ -13,14 +13,52 @@ export class CollectionService {
     const [data, total] = await Promise.all([
       this.prisma.userBookEntry.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          userId: true,
+          bookId: true,
+          editionId: true,
+          condition: true,
+          isWishlist: true,
+          ownershipStatus: true,
+          readingStatus: true,
+          acquiredAt: true,
+          allocatedPrice: true,
+          priceCurrency: true,
+          createdAt: true,
+          updatedAt: true,
           edition: {
-            include: {
+            select: {
+              id: true,
+              slug: true,
+              editionName: true,
+              alternativeTitle: true,
+              publisher: true,
+              basePrice: true,
+              currency: true,
+              language: true,
+              isSpecial: true,
+              additionalImages: true,
+              features: true,
+              generalSaleDate: true,
+              firstAccessDate: true,
+              earlyAccessDate: true,
+              createdAt: true,
+              updatedAt: true,
+              verifiedAt: true,
+              bookBoxCompanyId: true,
+              subscriptionId: true,
               bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
               book: {
                 select: {
-                  id: true, slug: true, title: true, altTitle: true,
-                  seriesName: true, volumeNumber: true, coverImage: true, language: true,
+                  id: true,
+                  slug: true,
+                  title: true,
+                  altTitle: true,
+                  seriesName: true,
+                  volumeNumber: true,
+                  coverImage: true,
+                  language: true,
                   authors: {
                     select: {
                       author: { select: { id: true, name: true, slug: true, photoUrl: true } },

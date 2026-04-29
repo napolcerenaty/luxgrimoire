@@ -3,25 +3,21 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
-  OnModuleInit,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 const DEFAULT_TTL_KEY = 'notification.default_ttl_days';
 const DEFAULT_TTL_DAYS = 30;
 
 @Injectable()
-export class NotificationsService implements OnModuleInit {
+export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  constructor(private readonly prisma: PrismaService) {}
-
-  onModuleInit() {
-    // Daily cleanup of expired notifications
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    setInterval(() => this.cleanupExpired(), DAY_MS);
-    // Run once shortly after startup
-    setTimeout(() => this.cleanupExpired(), 10_000);
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   // ─── User-facing ────────────────────────────────────────────────────────────
 
@@ -98,8 +94,9 @@ export class NotificationsService implements OnModuleInit {
     link?: string;
     type?: string;
     expiresInDays?: number;
+    actor?: { id: string; username: string };
   }) {
-    const { targetType, userIds, role, title, body, link, type = 'admin', expiresInDays } = dto;
+    const { targetType, userIds, role, title, body, link, type = 'admin', expiresInDays, actor } = dto;
 
     const ttlDays = expiresInDays ?? (await this.getDefaultTtlDays());
     const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
@@ -110,6 +107,13 @@ export class NotificationsService implements OnModuleInit {
       await this.prisma.userNotification.createMany({
         data: userIds.map((uid) => ({ userId: uid, type, title, body: body ?? null, link: link ?? null, expiresAt })),
       });
+      void this.auditService.log({
+        userId: actor?.id,
+        username: actor?.username,
+        action: 'send_notification',
+        entityType: 'notification',
+        metadata: { targetType, title, sentCount: userIds.length },
+      });
       return { sent: userIds.length };
     }
 
@@ -119,6 +123,14 @@ export class NotificationsService implements OnModuleInit {
 
     // Estimate count to return in the immediate response
     const estimatedCount = await this.prisma.user.count({ where: whereClause });
+
+    void this.auditService.log({
+      userId: actor?.id,
+      username: actor?.username,
+      action: 'send_notification',
+      entityType: 'notification',
+      metadata: { targetType, role, title, estimatedCount },
+    });
 
     setImmediate(async () => {
       let skip = 0;
@@ -171,6 +183,8 @@ export class NotificationsService implements OnModuleInit {
     return { sent: estimatedCount, queued: true };
   }
 
+  /** Runs daily at 03:00 UTC — removes notifications whose expiresAt is in the past. */
+  @Cron('0 3 * * *')
   async cleanupExpired() {
     const { count } = await this.prisma.userNotification.deleteMany({
       where: { expiresAt: { lte: new Date() } },
