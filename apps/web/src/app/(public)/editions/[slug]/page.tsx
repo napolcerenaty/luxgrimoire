@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Fragment } from 'react'
+import { Fragment, cache } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -74,12 +74,15 @@ function formatDate(dateStr: string | null | undefined) {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+// Deduplicate API call between generateMetadata and page (React cache per request)
+const getEdition = cache(async (slug: string) => apiFetch<EditionDetail>(`/editions/${slug}`))
+
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
-    const edition = await apiFetch<EditionDetail>(`/editions/${slug}`)
+    const edition = await getEdition(slug)
     const book = edition.book
     const title = [edition.editionName ?? edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
     const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? null, 'w_800,c_fill,q_auto,f_auto')
@@ -104,7 +107,7 @@ export default async function EditionPage({ params }: Props) {
 
   let edition: EditionDetail
   try {
-    edition = await apiFetch<EditionDetail>(`/editions/${slug}`)
+    edition = await getEdition(slug)
   } catch {
     notFound()
   }
@@ -353,10 +356,6 @@ export default async function EditionPage({ params }: Props) {
                 ))}
               </dl>
 
-              {/* Notes */}
-              {edition.notes && (
-                <p className="mt-4 text-stone-400 text-sm leading-relaxed">{edition.notes}</p>
-              )}
             </div>
           </div>
         </div>

@@ -121,10 +121,17 @@ export class EditionsService {
   async findBySlug(slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
-      include: {
+      select: {
+        id: true, slug: true,
+        editionName: true, bookBoxCompanyId: true, bookBoxCompanyCustomName: true,
+        publisher: true, isSpecial: true,
+        additionalImages: true, language: true,
+        basePrice: true, currency: true, features: true,
+        firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
+        verifiedAt: true, submittedByUserId: true, photoCredit: true,
         book: {
           select: {
-            id: true, slug: true, title: true,
+            id: true, slug: true, title: true, description: true,
             seriesName: true, volumeNumber: true, language: true,
             authors: {
               select: {
