@@ -174,7 +174,29 @@ export class EditionsService {
 
   async update(slug: string, dto: UpdateEditionDto) {
     await this.findBySlug(slug);
-    return this.prisma.bookEdition.update({ where: { slug }, data: dto });
+
+    // Build a plain update object — never pass a class instance directly to Prisma
+    const data: Record<string, unknown> = {};
+    if (dto.editionName !== undefined) data.editionName = dto.editionName;
+    if (dto.publisher !== undefined) data.publisher = dto.publisher;
+    if (dto.language !== undefined) data.language = dto.language;
+    if (dto.alternativeTitle !== undefined) data.alternativeTitle = dto.alternativeTitle;
+    if (dto.additionalImages !== undefined) data.additionalImages = dto.additionalImages;
+    if (dto.isSpecial !== undefined) data.isSpecial = dto.isSpecial;
+    if (dto.basePrice !== undefined) data.basePrice = dto.basePrice ? dto.basePrice : null;
+    if (dto.currency !== undefined) data.currency = dto.currency;
+    if (dto.firstAccessDate !== undefined) data.firstAccessDate = dto.firstAccessDate;
+    if (dto.earlyAccessDate !== undefined) data.earlyAccessDate = dto.earlyAccessDate;
+    if (dto.generalSaleDate !== undefined) data.generalSaleDate = dto.generalSaleDate;
+    if (dto.bookBoxCompanyId !== undefined) data.bookBoxCompanyId = dto.bookBoxCompanyId;
+    if (dto.bookBoxCompanyCustomName !== undefined) data.bookBoxCompanyCustomName = dto.bookBoxCompanyCustomName;
+    if (dto.subscriptionId !== undefined) data.subscriptionId = dto.subscriptionId;
+    if (dto.subscriptionMonthId !== undefined) data.subscriptionMonthId = dto.subscriptionMonthId;
+    if (dto.collectionId !== undefined) data.collectionId = dto.collectionId;
+    if (dto.features !== undefined) data.features = dto.features;
+    if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
+
+    return this.prisma.bookEdition.update({ where: { slug }, data });
   }
 
   async delete(slug: string, userRole?: string) {
