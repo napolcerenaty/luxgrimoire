@@ -536,6 +536,10 @@ export class UpdateMyEntryCostsDto {
   @IsString()
   costCurrency?: string;
 
+  @IsOptional()
+  @IsString()
+  trackingNumber?: string | null;
+
   /** Full replacement list of linked fee templates */
   @IsOptional()
   @IsArray()

@@ -23,6 +23,7 @@ export const SUPPORTED_EVENT_TYPES = [
   { id: 'search',                label: 'Searches',                       defaultGroupBy: 'value'  },
   { id: 'search_no_results',     label: 'Searches — No Results',          defaultGroupBy: 'value'  },
   { id: 'account_delete',        label: 'Account Deletions',              defaultGroupBy: 'user'   },
+  { id: 'tracking_click',        label: 'Package Tracking Clicks',        defaultGroupBy: 'value'  },
 ] as const;
 
 export type SupportedGroupBy = 'entity' | 'value' | 'user' | 'day' | 'month';

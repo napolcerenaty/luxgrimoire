@@ -648,6 +648,7 @@ model UserSubscriptionEntry {
   basePrice          Decimal?                           @db.Decimal(10, 2)
   cancellationReason String?
   shippingCountry    String?                            @db.VarChar(2)
+  trackingNumber     String?
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]

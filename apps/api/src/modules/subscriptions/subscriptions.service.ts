@@ -693,6 +693,7 @@ export class SubscriptionsService {
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.taxesAndFees !== undefined && { taxesAndFees: dto.taxesAndFees }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
+        ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
       },
     });
 
