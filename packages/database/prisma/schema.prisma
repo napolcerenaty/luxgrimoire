@@ -613,6 +613,7 @@ model UserBookEntry {
   purchaseFees          UserPurchaseFee[]
   purchaseRefunds       UserPurchaseRefund[]
   saleEntries           UserSaleEntry[]
+  ownershipHistory      OwnershipStatusHistory[]
 
   @@unique([userId, bookId, editionId])
   @@index([userId])
@@ -624,6 +625,17 @@ model UserBookEntry {
   @@index([bookId])
   @@index([userId, createdAt])
   @@map("user_book_entries")
+}
+
+model OwnershipStatusHistory {
+  id              String        @id @default(uuid())
+  userBookEntryId String
+  status          String
+  changedAt       DateTime      @default(now())
+  entry           UserBookEntry @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+
+  @@index([userBookEntryId, changedAt])
+  @@map("ownership_status_history")
 }
 
 model UserSubscriptionEntry {

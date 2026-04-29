@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -114,6 +114,23 @@ export class CollectionController {
       entityType: 'edition',
       entityId: entry?.editionId ?? undefined,
     });
+  }
+
+  @Patch('edition/:editionId/ownership')
+  async updateEditionOwnership(
+    @CurrentUser() user: { id: string },
+    @Param('editionId') editionId: string,
+    @Body() dto: UpdateEditionOwnershipDto,
+  ) {
+    return this.collectionService.updateByEdition(user.id, editionId, dto.ownershipStatus);
+  }
+
+  @Get('entry/:entryId/history')
+  getOwnershipHistory(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+  ) {
+    return this.collectionService.getOwnershipHistory(user.id, entryId);
   }
 
   @Put('edition/:editionId/tags')

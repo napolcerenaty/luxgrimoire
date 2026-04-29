@@ -42,6 +42,10 @@ export class AddToWishlistDto {
   @IsOptional() @IsString() _entityName?: string;
 }
 
+export class UpdateEditionOwnershipDto {
+  @IsIn(OWNERSHIP_STATUSES) ownershipStatus!: OwnershipStatus;
+}
+
 export class SetEditionTagsDto {
   @IsArray()
   @IsString({ each: true })

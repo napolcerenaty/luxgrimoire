@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 
+
 @Injectable()
 export class CollectionService {
   constructor(private readonly prisma: PrismaService) {}
@@ -121,7 +122,7 @@ export class CollectionService {
   async addToCollection(userId: string, dto: AddToCollectionDto) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { id: dto.bookEditionId } });
     if (!edition) throw new NotFoundException('Book edition not found');
-    return this.prisma.userBookEntry.create({
+    const entry = await this.prisma.userBookEntry.create({
       data: {
         userId,
         bookId: edition.bookId,
@@ -132,6 +133,8 @@ export class CollectionService {
         readingStatus: dto.readingStatus ?? 'UNREAD',
       },
     });
+    this.recordStatusChange(entry.id, entry.ownershipStatus);
+    return entry;
   }
 
   async addToWishlist(userId: string, bookEditionId: string) {
@@ -173,7 +176,7 @@ export class CollectionService {
     const existing = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
-    return this.prisma.userBookEntry.update({
+    const updated = await this.prisma.userBookEntry.update({
       where: { id: entryId },
       data: {
         ...(dto.condition !== undefined && { condition: dto.condition }),
@@ -185,6 +188,60 @@ export class CollectionService {
         ...(dto.priceCurrency !== undefined && { priceCurrency: dto.priceCurrency }),
       },
     });
+    if (dto.ownershipStatus !== undefined && dto.ownershipStatus !== existing.ownershipStatus) {
+      this.recordStatusChange(entryId, dto.ownershipStatus);
+    }
+    return updated;
+  }
+
+  async updateByEdition(
+    userId: string,
+    editionId: string,
+    ownershipStatus: string,
+  ): Promise<{ updatedCount: number }> {
+    const entries = await this.prisma.userBookEntry.findMany({
+      where: { userId, editionId, isWishlist: false },
+      select: { id: true, ownershipStatus: true },
+    });
+    if (entries.length === 0) throw new NotFoundException('No collection entries found for this edition');
+
+    await this.prisma.$transaction(
+      entries.map((e) =>
+        this.prisma.userBookEntry.update({
+          where: { id: e.id },
+          data: { ownershipStatus },
+        }),
+      ),
+    );
+
+    for (const e of entries) {
+      if (e.ownershipStatus !== ownershipStatus) {
+        this.recordStatusChange(e.id, ownershipStatus);
+      }
+    }
+
+    return { updatedCount: entries.length };
+  }
+
+  async getOwnershipHistory(userId: string, entryId: string) {
+    const entry = await this.prisma.userBookEntry.findUnique({
+      where: { id: entryId },
+      select: { userId: true },
+    });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+
+    return this.prisma.ownershipStatusHistory.findMany({
+      where: { userBookEntryId: entryId },
+      orderBy: { changedAt: 'asc' },
+      select: { id: true, status: true, changedAt: true },
+    });
+  }
+
+  private recordStatusChange(userBookEntryId: string, status: string): void {
+    this.prisma.ownershipStatusHistory
+      .create({ data: { userBookEntryId, status } })
+      .catch(() => {});
   }
 
   async removeFromCollection(userId: string, entryId: string) {
