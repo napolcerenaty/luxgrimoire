@@ -158,11 +158,21 @@ export class CollectionService {
     const existing = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
+
+    // Auto-promote PREORDER → SHIPPING when a tracking number is added
+    const addingTracking = dto.trackingNumber !== undefined
+      && dto.trackingNumber !== null
+      && dto.trackingNumber.trim() !== ''
+      && !existing.trackingNumber;
+    const autoStatus =
+      addingTracking && existing.ownershipStatus === 'PREORDER' ? 'SHIPPING' : undefined;
+    const effectiveOwnershipStatus = dto.ownershipStatus ?? autoStatus;
+
     const updated = await this.prisma.userBookEntry.update({
       where: { id: entryId },
       data: {
         ...(dto.condition !== undefined && { condition: dto.condition }),
-        ...(dto.ownershipStatus !== undefined && { ownershipStatus: dto.ownershipStatus }),
+        ...(effectiveOwnershipStatus !== undefined && { ownershipStatus: effectiveOwnershipStatus }),
         ...(dto.readingStatus !== undefined && { readingStatus: dto.readingStatus }),
         ...(dto.isWishlist !== undefined && { isWishlist: dto.isWishlist }),
         ...(dto.acquiredAt !== undefined && { acquiredAt: new Date(dto.acquiredAt) }),
@@ -171,8 +181,8 @@ export class CollectionService {
         ...(dto.trackingNumber !== undefined && { trackingNumber: dto.trackingNumber }),
       },
     });
-    if (dto.ownershipStatus !== undefined && dto.ownershipStatus !== existing.ownershipStatus) {
-      this.recordStatusChange(entryId, dto.ownershipStatus);
+    if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {
+      this.recordStatusChange(entryId, effectiveOwnershipStatus);
     }
     return updated;
   }

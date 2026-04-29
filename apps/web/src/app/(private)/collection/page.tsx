@@ -859,6 +859,7 @@ export default function CollectionPage() {
   // Track shipment modal
   const [trackEntry, setTrackEntry] = useState<{ id: string; trackingNumber: string | null } | null>(null)
   const [trackingInput, setTrackingInput] = useState('')
+  const [trackingEditMode, setTrackingEditMode] = useState(false)
   const [saleTitle, setSaleTitle] = useState('')
   const [salePlatform, setSalePlatform] = useState('')
   const [saleCustomPlatform, setSaleCustomPlatform] = useState('')
@@ -1447,6 +1448,7 @@ export default function CollectionPage() {
                                   e.preventDefault(); e.stopPropagation()
                                   setTrackEntry({ id: entry.id, trackingNumber: entry.trackingNumber })
                                   setTrackingInput(entry.trackingNumber ?? '')
+                                  setTrackingEditMode(!entry.trackingNumber) // edit mode only when no existing number
                                 }}
                                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
                                   entry.trackingNumber
@@ -1521,49 +1523,39 @@ export default function CollectionPage() {
       {/* ─── Track Shipment Modal ─── */}
       <Modal
         open={!!trackEntry}
-        onClose={() => { setTrackEntry(null); setTrackingInput('') }}
+        onClose={() => { setTrackEntry(null); setTrackingInput(''); setTrackingEditMode(false) }}
         title="Track Shipment"
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-stone-400">
-            Add a tracking number to follow your shipment. You can paste it or enter it manually.
-          </p>
-          <input
-            type="text"
-            placeholder="e.g. JD014600006278907695"
-            value={trackingInput}
-            onChange={(e) => setTrackingInput(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
-            autoFocus
-          />
-          {trackingInput.trim() && (
-            <a
-              href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackingInput.trim())}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 transition-colors"
-            >
-              <Truck size={12} /> Preview on ParcelsApp ↗
-            </a>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                if (!trackEntry) return
-                await authFetch(`/collection/${trackEntry.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ trackingNumber: trackingInput.trim() || null }),
-                })
-                await queryClient.invalidateQueries({ queryKey: ['collection'] })
-                setTrackEntry(null)
-                setTrackingInput('')
-              }}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
-            >
-              Save
-            </button>
-            {trackEntry?.trackingNumber && (
+          {trackEntry?.trackingNumber && !trackingEditMode ? (
+            /* View mode — show tracking as link + edit button */
+            <>
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <Truck size={15} className="text-blue-400 shrink-0" />
+                <a
+                  href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2 break-all transition-colors"
+                >
+                  {trackEntry.trackingNumber}
+                </a>
+                <button
+                  onClick={() => { setTrackingInput(trackEntry.trackingNumber ?? ''); setTrackingEditMode(true) }}
+                  className="p-1.5 text-stone-500 hover:text-amber-400 transition-colors shrink-0"
+                  title="Edit tracking number"
+                >
+                  <Pencil size={13} />
+                </button>
+              </div>
+              <a
+                href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
+              >
+                <Truck size={14} /> Open tracking page ↗
+              </a>
               <button
                 onClick={async () => {
                   if (!trackEntry) return
@@ -1575,13 +1567,68 @@ export default function CollectionPage() {
                   await queryClient.invalidateQueries({ queryKey: ['collection'] })
                   setTrackEntry(null)
                   setTrackingInput('')
+                  setTrackingEditMode(false)
                 }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-500 hover:text-red-400 hover:border-red-700/50 transition-colors"
+                className="text-xs text-stone-600 hover:text-red-400 transition-colors text-center"
               >
-                Remove
+                Remove tracking number
               </button>
-            )}
-          </div>
+            </>
+          ) : (
+            /* Edit / add mode */
+            <>
+              <p className="text-sm text-stone-400">
+                {trackEntry?.trackingNumber
+                  ? 'Edit the tracking number below.'
+                  : 'Paste or enter a tracking number. If the book is in pre-order, the status will automatically change to Shipping.'}
+              </p>
+              <input
+                type="text"
+                placeholder="e.g. JD014600006278907695"
+                value={trackingInput}
+                onChange={(e) => setTrackingInput(e.target.value)}
+                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+                autoFocus
+              />
+              {trackingInput.trim() && (
+                <a
+                  href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackingInput.trim())}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 transition-colors"
+                >
+                  <Truck size={12} /> Preview on ParcelsApp ↗
+                </a>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (!trackEntry) return
+                    await authFetch(`/collection/${trackEntry.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ trackingNumber: trackingInput.trim() || null }),
+                    })
+                    await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                    setTrackEntry(null)
+                    setTrackingInput('')
+                    setTrackingEditMode(false)
+                  }}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  Save
+                </button>
+                {trackingEditMode && (
+                  <button
+                    onClick={() => { setTrackingInput(''); setTrackingEditMode(false) }}
+                    className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 
