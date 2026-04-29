@@ -59,6 +59,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
   const [visible, setVisible] = useState(false)
   const [page, setPage] = useState(1)
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
+  const [totalPages, setTotalPages] = useState(1)
 
   const { isLoading, isFetching } = useQuery<PaginatedMonths>({
     queryKey: ['subscription-past-months', subscriptionSlug, page],
@@ -66,6 +67,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
       const data = await apiFetch<PaginatedMonths>(
         `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}`,
       )
+      setTotalPages(data.totalPages)
       setAllMonths((prev) => {
         const existingIds = new Set(prev.map((m) => m.id))
         const newItems = data.data.filter((m) => !existingIds.has(m.id))
@@ -77,12 +79,6 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
     staleTime: 1000 * 60 * 5,
   })
 
-  const { data: firstPageData } = useQuery<PaginatedMonths>({
-    queryKey: ['subscription-past-months', subscriptionSlug, 1],
-    enabled: false,
-  })
-
-  const totalPages = firstPageData?.totalPages ?? 1
   const hasMore = page < totalPages
 
   if (!visible) {
