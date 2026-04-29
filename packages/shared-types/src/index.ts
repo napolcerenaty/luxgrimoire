@@ -55,7 +55,6 @@ export interface ApiBook {
   id: string;
   slug: string;
   title: string;
-  altTitle: string | null;
   description: string | null;
   coverImage: string | null;
   language: string;

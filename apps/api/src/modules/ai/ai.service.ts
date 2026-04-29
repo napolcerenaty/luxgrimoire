@@ -5,7 +5,6 @@ import OpenAI from 'openai';
 export interface AiParseResult {
   book?: {
     title?: string;
-    altTitle?: string;
     authors?: { name: string }[];
     seriesName?: string;
     volumeNumber?: number;
@@ -29,7 +28,6 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 {
   "book": {
     "title": "book title",
-    "altTitle": "alternative or original language title if mentioned",
     "authors": [{ "name": "Full Author Name" }],
     "seriesName": "series name if the book is part of a series",
     "volumeNumber": 1

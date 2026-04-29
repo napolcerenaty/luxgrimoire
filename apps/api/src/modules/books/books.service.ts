@@ -21,11 +21,9 @@ export class BooksService {
       data: {
         slug,
         title: dto.title,
-        altTitle: dto.altTitle,
         description: dto.description,
         coverImage: dto.coverImage,
         language: dto.language ?? 'en',
-        isbn: dto.isbn,
         seriesName: dto.seriesName,
         volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
@@ -40,10 +38,8 @@ export class BooksService {
       data: {
         slug,
         title: dto.title,
-        altTitle: dto.altTitle,
         description: dto.description,
         language: dto.language ?? 'en',
-        isbn: dto.isbn,
         seriesName: dto.seriesName,
         volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
@@ -77,7 +73,6 @@ export class BooksService {
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
-        { altTitle: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
@@ -90,10 +85,8 @@ export class BooksService {
           id: true,
           slug: true,
           title: true,
-          altTitle: true,
           coverImage: true,
           language: true,
-          isbn: true,
           seriesName: true,
           volumeNumber: true,
           genres: true,
@@ -165,11 +158,9 @@ export class BooksService {
         id: true,
         slug: true,
         title: true,
-        altTitle: true,
         description: true,
         coverImage: true,
         language: true,
-        isbn: true,
         seriesName: true,
         volumeNumber: true,
         genres: true,
@@ -188,7 +179,6 @@ export class BooksService {
             id: true,
             slug: true,
             editionName: true,
-            alternativeTitle: true,
             publisher: true,
             basePrice: true,
             currency: true,

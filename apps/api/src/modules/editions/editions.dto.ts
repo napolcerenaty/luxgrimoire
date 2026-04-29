@@ -27,9 +27,6 @@ export class CreateEditionDto {
   language?: string;
 
   @IsOptional()
-  @IsString()
-  alternativeTitle?: string;
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   additionalImages?: string[];
@@ -101,9 +98,6 @@ export class UpdateEditionDto {
   @IsString()
   language?: string;
 
-  @IsOptional()
-  @IsString()
-  alternativeTitle?: string;
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

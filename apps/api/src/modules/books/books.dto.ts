@@ -15,10 +15,6 @@ export class CreateBookDto {
 
   @IsOptional()
   @IsString()
-  altTitle?: string;
-
-  @IsOptional()
-  @IsString()
   description?: string;
 
   @IsOptional()
@@ -28,10 +24,6 @@ export class CreateBookDto {
   @IsOptional()
   @IsString()
   language?: string;
-
-  @IsOptional()
-  @IsString()
-  isbn?: string;
 
   @IsOptional()
   @IsString()
@@ -59,10 +51,6 @@ export class UpdateBookDto {
 
   @IsOptional()
   @IsString()
-  altTitle?: string;
-
-  @IsOptional()
-  @IsString()
   description?: string;
 
   @IsOptional()
@@ -72,10 +60,6 @@ export class UpdateBookDto {
   @IsOptional()
   @IsString()
   language?: string;
-
-  @IsOptional()
-  @IsString()
-  isbn?: string;
 
   @IsOptional()
   @IsString()

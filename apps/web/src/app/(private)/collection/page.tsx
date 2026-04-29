@@ -1536,6 +1536,7 @@ export default function CollectionPage() {
                   href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => authFetch(`/collection/${trackEntry.id}/tracking-click`, { method: 'POST' }).catch(() => {})}
                   className="flex-1 text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2 break-all transition-colors"
                 >
                   {trackEntry.trackingNumber}
@@ -1552,6 +1553,7 @@ export default function CollectionPage() {
                 href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => authFetch(`/collection/${trackEntry.id}/tracking-click`, { method: 'POST' }).catch(() => {})}
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
               >
                 <Truck size={14} /> Open tracking page ↗

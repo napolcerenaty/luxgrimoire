@@ -75,10 +75,6 @@ export default async function BookPage({ params }: Props) {
         <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3 leading-tight">
           {book.title}
         </h1>
-        {book.altTitle && (
-          <p className="text-stone-400 text-sm mb-3 italic">{book.altTitle}</p>
-        )}
-
         {book.authors.length > 0 && (
           <p className="text-stone-300 mb-6">
             by{' '}

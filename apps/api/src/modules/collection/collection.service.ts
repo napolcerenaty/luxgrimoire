@@ -154,6 +154,15 @@ export class CollectionService {
     };
   }
 
+  async getEntryForTracking(entryId: string, userId: string) {
+    const entry = await this.prisma.userBookEntry.findUnique({
+      where: { id: entryId },
+      select: { id: true, userId: true, editionId: true, trackingNumber: true },
+    });
+    if (!entry || entry.userId !== userId) return null;
+    return entry;
+  }
+
   async updateEntry(userId: string, entryId: string, dto: UpdateCollectionEntryDto) {
     const existing = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Entry not found');

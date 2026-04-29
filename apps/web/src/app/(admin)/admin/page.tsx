@@ -28,12 +28,10 @@ interface PendingBook {
   id: string
   slug: string
   title: string
-  altTitle?: string | null
   coverImage?: string | null
   createdAt: string
   authors?: { author: { id: string; name: string; slug: string } }[]
 }
-
 function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-stone-800 ${className}`} />
 }
@@ -207,7 +205,6 @@ export default function AdminDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-stone-100 text-sm">
                       {book.title}
-                      {book.altTitle && <span className="text-stone-400 ml-1">· {book.altTitle}</span>}
                     </p>
                     {book.authors && book.authors.length > 0 && (
                       <p className="text-xs text-amber-600/80 mt-0.5">

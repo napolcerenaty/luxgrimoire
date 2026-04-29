@@ -113,6 +113,20 @@ export class CollectionController {
     return result;
   }
 
+  @Post(':id/tracking-click')
+  async trackTrackingClick(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    // Fire-and-forget: log that user clicked the tracking link
+    const entry = await this.collectionService.getEntryForTracking(id, user.id);
+    this.analyticsService.track({
+      eventType: 'tracking_click',
+      userId: user.id,
+      entityType: 'edition',
+      entityId: entry?.editionId ?? undefined,
+      value: entry?.trackingNumber ?? undefined,
+    });
+    return { ok: true };
+  }
+
   @Delete(':id')
   async removeFromCollection(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     const entry = await this.collectionService.removeFromCollection(user.id, id);

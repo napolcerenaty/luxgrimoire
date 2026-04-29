@@ -28,7 +28,6 @@ export class EditionsService {
         editionName: dto.editionName,
         publisher: dto.publisher,
         language: dto.language,
-        alternativeTitle: dto.alternativeTitle,
         additionalImages:dto.additionalImages ?? [],
         isSpecial: dto.isSpecial ?? false,
         basePrice: dto.basePrice ? dto.basePrice : undefined,
@@ -125,7 +124,7 @@ export class EditionsService {
       include: {
         book: {
           select: {
-            id: true, slug: true, title: true, altTitle: true,
+            id: true, slug: true, title: true,
             seriesName: true, volumeNumber: true, coverImage: true, language: true,
             authors: {
               select: {
@@ -186,7 +185,6 @@ export class EditionsService {
     if (dto.editionName !== undefined) data.editionName = dto.editionName;
     if (dto.publisher !== undefined) data.publisher = dto.publisher;
     if (dto.language !== undefined) data.language = dto.language;
-    if (dto.alternativeTitle !== undefined) data.alternativeTitle = dto.alternativeTitle;
     if (dto.additionalImages !== undefined) data.additionalImages = dto.additionalImages;
     if (dto.isSpecial !== undefined) data.isSpecial = dto.isSpecial;
     if (dto.basePrice !== undefined) {
