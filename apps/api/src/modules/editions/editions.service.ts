@@ -80,17 +80,23 @@ export class EditionsService {
         where,
         skip,
         take: pageSize,
-        include: {
+        select: {
+          id: true,
+          slug: true,
+          publisher: true,
+          editionName: true,
+          bookBoxCompanyCustomName: true,
+          additionalImages: true,
+          isSpecial: true,
+          verifiedAt: true,
+          createdAt: true,
           book: {
             select: {
               id: true,
               slug: true,
               title: true,
-              altTitle: true,
               seriesName: true,
               volumeNumber: true,
-              coverImage: true,
-              language: true,
               authors: { select: { author: { select: { id: true, name: true, slug: true } } } },
             },
           },
