@@ -80,11 +80,12 @@ function pillStyle(
 
   if (c) {
     // Use brand color with theme-aware opacity
-    const bgAlpha = lightMode ? '28' : '1e'
-    const borderAlpha = lightMode ? 'cc' : '66'
+    const bgAlpha = lightMode ? '28' : '22'
+    const borderAlpha = lightMode ? 'cc' : '88'
     return {
       background: `${c}${bgAlpha}`,
-      color: c,
+      // dark mode: lighten brand color so text is readable on dark bg
+      color: lightMode ? c : `color-mix(in srgb, ${c} 55%, #f0ece6)`,
       border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}${borderAlpha}`,
     }
   }
@@ -98,10 +99,10 @@ function pillStyle(
       border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},60%,35%,0.55)`,
     }
   }
-  return {
-    background: `hsla(${h},55%,45%,0.18)`,
-    color: `hsl(${h},70%,70%)`,
-    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,45%,0.40)`,
+                  return {
+    background: `hsla(${h},55%,45%,0.22)`,
+    color: `hsl(${h},80%,78%)`,
+    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,55%,0.55)`,
   }
 }
 
@@ -310,7 +311,7 @@ export default function CalendarPage() {
                   cell.current ? 'cursor-pointer sm:cursor-default' : '',
                   !cell.current ? 'bg-stone-950/40' : '',
                   cell.current && isToday(cell.day)
-                    ? 'bg-amber-950/20 ring-1 ring-inset ring-amber-700/40'
+                    ? 'bg-amber-900/30 ring-1 ring-inset ring-amber-600/60'
                     : '',
                   isSelected
                     ? 'sm:bg-transparent sm:ring-0 bg-stone-700/40 ring-1 ring-inset ring-stone-500/50'
@@ -325,7 +326,7 @@ export default function CalendarPage() {
                       ? 'text-stone-700'
                       : isToday(cell.day)
                         ? 'bg-amber-500 text-stone-950 font-bold'
-                        : 'text-stone-400',
+                        : 'text-stone-200',
                   ].join(' ')}
                 >
                   {cell.day}
@@ -530,8 +531,8 @@ export default function CalendarPage() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-semibold opacity-90">{TIER_LABELS[i.tier]}</p>
-                      <p className="text-xs opacity-60">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
+                      <p className="text-xs font-semibold opacity-95">{TIER_LABELS[i.tier]}</p>
+                      <p className="text-xs opacity-75">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
                   </Link>
                 )
