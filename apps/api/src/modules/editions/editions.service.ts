@@ -125,7 +125,7 @@ export class EditionsService {
         book: {
           select: {
             id: true, slug: true, title: true,
-            seriesName: true, volumeNumber: true, coverImage: true, language: true,
+            seriesName: true, volumeNumber: true, language: true,
             authors: {
               select: {
                 author: { select: { id: true, name: true, slug: true, nationality: true } },

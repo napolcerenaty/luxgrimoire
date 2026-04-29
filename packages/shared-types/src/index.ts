@@ -56,7 +56,6 @@ export interface ApiBook {
   slug: string;
   title: string;
   description: string | null;
-  coverImage: string | null;
   language: string;
   seriesName: string | null;
   volumeNumber: number | null;
@@ -118,7 +117,7 @@ export interface ApiBookEdition {
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   generalSaleDate?: string | null;
-  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'coverImage' | 'seriesName' | 'volumeNumber'> & {
+  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & {
     authors?: ApiAuthor[];
   };
 }
@@ -147,7 +146,6 @@ export interface ApiCompanyEdition {
     id: string;
     slug: string;
     title: string;
-    coverImage: string | null;
     seriesName: string | null;
     volumeNumber: number | null;
     authors: { author: { id: string; name: string; slug: string } }[];
@@ -299,7 +297,6 @@ export interface ApiSearchBook {
   id: string;
   slug: string;
   title: string;
-  coverImage: string | null;
   seriesName: string | null;
   volumeNumber: number | null;
   authors: { author: { id: string; name: string; slug: string } }[];

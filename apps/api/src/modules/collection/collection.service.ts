@@ -41,7 +41,6 @@ export class CollectionService {
                   title: true,
                   seriesName: true,
                   volumeNumber: true,
-                  coverImage: true,
                   authors: {
                     select: {
                       author: { select: { id: true, name: true, slug: true } },

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { cloudinaryUrl } from '@/lib/cloudinary'
 
 interface BookCardProps {
   book: {
@@ -7,13 +6,12 @@ interface BookCardProps {
     title: string
     seriesName?: string | null
     volumeNumber?: number | null
-    coverImage?: string | null
     authors?: Array<{ name: string; slug: string }>
   }
 }
 
 export function BookCard({ book }: BookCardProps) {
-  const cover = cloudinaryUrl(book.coverImage, 'w_300,c_fill,q_auto,f_auto')
+  const cover = null
 
   return (
     <Link

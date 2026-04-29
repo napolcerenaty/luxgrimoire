@@ -203,7 +203,6 @@ export class SubscriptionsService {
                       id: true,
                       title: true,
                       slug: true,
-                      coverImage: true,
                       authors: { select: { author: { select: { name: true, slug: true } } } },
                     },
                   },
@@ -297,7 +296,7 @@ export class SubscriptionsService {
           books: {
             select: {
               isMainBook: true,
-              book: { select: { id: true, title: true, slug: true, coverImage: true } },
+              book: { select: { id: true, title: true, slug: true } },
               edition: { select: { id: true, slug: true, additionalImages: true } },
             },
           },

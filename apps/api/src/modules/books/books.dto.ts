@@ -19,10 +19,6 @@ export class CreateBookDto {
 
   @IsOptional()
   @IsString()
-  coverImage?: string;
-
-  @IsOptional()
-  @IsString()
   language?: string;
 
   @IsOptional()
@@ -52,10 +48,6 @@ export class UpdateBookDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  @IsOptional()
-  @IsString()
-  coverImage?: string;
 
   @IsOptional()
   @IsString()

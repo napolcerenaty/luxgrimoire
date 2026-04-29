@@ -42,7 +42,7 @@ type EditionInfo = {
   editionName: string | null; publisher: string | null
 }
 type BookInfo = {
-  id: string; title: string; slug: string; coverImage: string | null
+  id: string; title: string; slug: string
   authors: Array<{ author: { name: string } }>
 }
 type MonthBook = {
@@ -142,7 +142,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
       <div className="space-y-3">
         {/* Selected book header */}
         <div className="flex items-center gap-2">
-          <Cover id={selectedBook.coverImage} size={40} />
+          <Cover id={null} size={40} />
           <div className="flex-1">
             <div className="text-stone-100 text-sm font-medium">{selectedBook.title}</div>
             {selectedBook.authors?.length > 0 && (
@@ -196,7 +196,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
               <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
                 className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-800 hover:bg-stone-700 transition-colors"
               >
-                <Cover id={book.coverImage} size={36} />
+                <Cover id={null} size={36} />
                 <div>
                   <div className="text-stone-100 text-sm">{book.title}</div>
                   {book.authors?.length > 0 && (
@@ -382,7 +382,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               {month.books.map(mb => (
                 <div key={`${mb.bookId}-${mb.editionId}`}
                   className="flex items-center gap-3 bg-stone-800/60 rounded-xl px-3 py-2">
-                  <Cover id={mb.edition?.additionalImages?.[0] ?? mb.book.coverImage} size={44} />
+                  <Cover id={mb.edition?.additionalImages?.[0] ?? null} size={44} />
                   <div className="flex-1 min-w-0">
                     <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
                     {mb.edition

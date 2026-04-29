@@ -31,7 +31,6 @@ export class SearchService {
               id: true,
               slug: true,
               title: true,
-              coverImage: true,
               seriesName: true,
               volumeNumber: true,
               authors: {

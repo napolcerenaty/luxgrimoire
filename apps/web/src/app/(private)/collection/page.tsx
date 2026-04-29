@@ -41,7 +41,6 @@ interface CollectionEntry {
       id: string
       title: string
       slug: string
-      coverImage: string | null
       seriesName: string | null
       volumeNumber: number | null
       authors: Array<{ id: string; name: string; slug: string }>
@@ -1272,7 +1271,7 @@ export default function CollectionPage() {
                     <EditionCard
                       key={entry.id}
                       href={`/editions/${entry.edition.slug}`}
-                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.book.coverImage}
+                      coverImage={entry.edition.additionalImages[0] ?? null}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}

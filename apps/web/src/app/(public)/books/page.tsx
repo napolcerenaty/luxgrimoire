@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
-import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiBook, PaginatedResponse } from '@luxgrimoire/shared-types'
 
 export const dynamic = 'force-dynamic'
@@ -92,7 +91,6 @@ export default async function BooksPage({ searchParams }: Props) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
           {sorted.map((book) => {
-            const cover = cloudinaryUrl(book.coverImage, 'w_280,h_420,c_fill,q_auto,f_auto')
             const authors = book.authors.map((ba) => ba.author.name).join(', ')
             const seriesLabel = book.seriesName
               ? book.volumeNumber
@@ -109,18 +107,9 @@ export default async function BooksPage({ searchParams }: Props) {
               >
                 {/* Cover */}
                 <div className="relative overflow-hidden" style={{ aspectRatio: '2/3' }}>
-                  {cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cover}
-                      alt={book.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-stone-800">
-                      <span className="text-3xl font-serif text-amber-700/50">{book.title.charAt(0)}</span>
-                    </div>
-                  )}
+                  <div className="w-full h-full flex items-center justify-center bg-stone-800">
+                    <span className="text-3xl font-serif text-amber-700/50">{book.title.charAt(0)}</span>
+                  </div>
                 </div>
 
                 {/* Info */}

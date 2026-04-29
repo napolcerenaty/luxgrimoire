@@ -8,7 +8,6 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 interface MonthBook {
   slug: string
   title: string
-  coverImage?: string | null
   edition?: {
     slug?: string | null
     coverImage?: string | null
@@ -47,7 +46,7 @@ export default function MonthCard({
   const [hovered, setHovered] = useState(false)
   const router = useRouter()
 
-  const hoverImage = mainBook?.edition?.coverImage ?? mainBook?.coverImage ?? null
+  const hoverImage = mainBook?.edition?.coverImage ?? null
   const thumbUrl = cloudinaryUrl(coverImage, 'w_400,c_fill,q_auto,f_auto')
   const hoverThumbUrl = cloudinaryUrl(hoverImage, 'w_400,c_fill,q_auto,f_auto')
   const bookSlug = mainBook?.slug

@@ -114,7 +114,6 @@ model Book {
   slug         String                  @unique
   title        String
   description  String?
-  coverImage   String?
   language     String                  @default("en")
   seriesName   String?
   volumeNumber Float?

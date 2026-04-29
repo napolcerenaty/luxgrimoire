@@ -85,7 +85,6 @@ export class AdminService {
               id: true,
               slug: true,
               title: true,
-              coverImage: true,
               authors: { include: { author: { select: { id: true, name: true } } } },
             },
           },

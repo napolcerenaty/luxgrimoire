@@ -115,14 +115,14 @@ export class CollectionController {
 
   @Post(':id/tracking-click')
   async trackTrackingClick(@CurrentUser() user: { id: string }, @Param('id') id: string) {
-    // Fire-and-forget: log that user clicked the tracking link
+    // Fire-and-forget: log that user clicked the tracking link (no tracking number stored — GDPR)
     const entry = await this.collectionService.getEntryForTracking(id, user.id);
     this.analyticsService.track({
       eventType: 'tracking_click',
       userId: user.id,
       entityType: 'edition',
       entityId: entry?.editionId ?? undefined,
-      value: entry?.trackingNumber ?? undefined,
+      // value intentionally omitted — tracking numbers are personal data (GDPR)
     });
     return { ok: true };
   }

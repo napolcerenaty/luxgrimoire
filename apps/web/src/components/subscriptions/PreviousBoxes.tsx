@@ -20,7 +20,7 @@ interface PastMonth {
   cardArtist?: { id: string; name: string; slug: string; instagram: string | null } | null
   books?: {
     isMainBook: boolean
-    book: { id: string; title: string; slug: string; coverImage?: string | null }
+    book: { id: string; title: string; slug: string }
     edition?: { id: string; slug: string; additionalImages?: string[] | null } | null
   }[]
 }
@@ -39,7 +39,6 @@ function getMainBook(m: PastMonth) {
   return {
     slug: mb.book.slug,
     title: mb.book.title,
-    coverImage: mb.book.coverImage ?? null,
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
       coverImage: mb.edition.additionalImages?.[0] ?? null,

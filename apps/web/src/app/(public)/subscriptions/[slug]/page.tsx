@@ -43,7 +43,6 @@ function getMainBook(monthData: ApiSubscriptionMonth) {
   return {
     slug: mb.book.slug,
     title: mb.book.title,
-    coverImage: mb.book.coverImage ?? null,
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
       coverImage: mb.edition.additionalImages?.[0] ?? null,
@@ -292,7 +291,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors }: Fea
   const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
   const mainBook = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
   const bookCoverUrl = cloudinaryUrl(
-    mainBook?.edition?.additionalImages?.[0] ?? mainBook?.book?.coverImage ?? null,
+    mainBook?.edition?.additionalImages?.[0] ?? null,
     'w_600,c_fill,q_auto,f_auto',
   )
 

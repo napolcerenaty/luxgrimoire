@@ -123,7 +123,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               if (!edition) return null
               const book = edition.book
               const authors = book?.authors ?? []
-              const coverUrl = edition.additionalImages?.[0] ?? book?.coverImage
+              const coverUrl = edition.additionalImages?.[0]
               const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
               const bookSlug = book?.slug
 

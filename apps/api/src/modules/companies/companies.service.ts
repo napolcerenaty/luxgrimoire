@@ -68,9 +68,16 @@ export class CompaniesService {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       include: {
-        subscriptions: true,
-        collections: true,
-        sponsoredSlots: { where: { isActive: true } },
+        subscriptions: {
+          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true },
+        },
+        collections: {
+          select: { id: true, slug: true, name: true },
+        },
+        sponsoredSlots: {
+          where: { isActive: true },
+          select: { isActive: true, type: true },
+        },
         editions: {
           select: {
             id: true,
@@ -85,7 +92,6 @@ export class CompaniesService {
                 id: true,
                 slug: true,
                 title: true,
-                coverImage: true,
                 seriesName: true,
                 volumeNumber: true,
                 authors: {

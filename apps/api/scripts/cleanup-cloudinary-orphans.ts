@@ -102,10 +102,6 @@ async function fetchAllDbPublicIds(): Promise<Set<string>> {
   const users = await prisma.user.findMany({ select: { avatarUrl: true } })
   for (const u of users) add(u.avatarUrl)
 
-  // Book cover images
-  const books = await prisma.book.findMany({ select: { coverImage: true } })
-  for (const b of books) add(b.coverImage)
-
   // BookEdition additional images (the only image field on editions)
   const editions = await prisma.bookEdition.findMany({ select: { additionalImages: true } })
   for (const e of editions) addMany(e.additionalImages)

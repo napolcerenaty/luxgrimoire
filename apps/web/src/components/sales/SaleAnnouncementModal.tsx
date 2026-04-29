@@ -182,7 +182,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   if (!edition) return null
                   const book = edition.book
                   const authors = (book?.authors ?? []) as any[]
-                  const raw = edition.additionalImages?.[0] ?? book?.coverImage
+                  const raw = edition.additionalImages?.[0]
                   const imgSrc = raw ? cloudinaryUrl(raw, 'w_200,h_300,c_fill,q_auto,f_auto') : null
 
                   return (

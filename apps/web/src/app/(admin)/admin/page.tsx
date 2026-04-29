@@ -11,7 +11,7 @@ import type { ApiBookEdition, PaginatedResponse, ApiBook, ApiAuthor } from '@lux
 interface RecentEdition extends ApiBookEdition {
   createdAt: string
   updatedAt: string
-  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'coverImage' | 'seriesName' | 'volumeNumber'> & {
+  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & {
     authors?: ApiAuthor[]
   }
   bookBoxCompany?: { id: string; name: string; slug: string } | null
@@ -28,7 +28,6 @@ interface PendingBook {
   id: string
   slug: string
   title: string
-  coverImage?: string | null
   createdAt: string
   authors?: { author: { id: string; name: string; slug: string } }[]
 }
@@ -194,14 +193,6 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {pendingBooks.map((book) => (
                 <div key={book.id} className="rounded-xl border border-amber-800/40 bg-stone-900 p-4 flex items-start gap-4">
-                  {book.coverImage && cloudinaryUrl(book.coverImage, 'w_60,h_90,c_fill,q_auto') && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cloudinaryUrl(book.coverImage, 'w_60,h_90,c_fill,q_auto')!}
-                      alt=""
-                      className="w-12 h-[72px] object-cover rounded border border-stone-700 flex-shrink-0"
-                    />
-                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-stone-100 text-sm">
                       {book.title}

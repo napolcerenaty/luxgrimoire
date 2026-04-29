@@ -36,7 +36,6 @@ interface CollectionEntry {
       id: string
       title: string
       slug: string
-      coverImage: string | null
       seriesName: string | null
       volumeNumber: number | null
       authors: Array<{ id: string; name: string; slug: string }>
@@ -352,7 +351,7 @@ export default function SoldPage() {
                   <div key={entry.id} className="relative">
                     <EditionCard
                       href={`/editions/${entry.edition.slug}`}
-                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.book.coverImage}
+                      coverImage={entry.edition.additionalImages[0] ?? null}
                       title={entry.edition.book.title}
                       authors={entry.edition.book.authors}
                       companyName={entry.edition.bookBoxCompany?.name}

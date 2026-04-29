@@ -59,7 +59,7 @@ interface EditionDetail {
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   book?: {
     id: string; slug: string; title: string
-    coverImage: string | null; seriesName: string | null; volumeNumber: number | null
+    seriesName: string | null; volumeNumber: number | null
     description: string | null; language: string; genres: string[]
     authors: ApiAuthor[]
   } | null
@@ -82,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const edition = await apiFetch<EditionDetail>(`/editions/${slug}`)
     const book = edition.book
     const title = [edition.editionName ?? edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
-    const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? book?.coverImage ?? null, 'w_800,c_fill,q_auto,f_auto')
+    const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? null, 'w_800,c_fill,q_auto,f_auto')
     return {
       title: title || 'Edition',
       description: book?.description ?? undefined,
@@ -121,7 +121,7 @@ export default async function EditionPage({ params }: Props) {
   // Build all carousel images: cover first, then additional
   const allImages: string[] = []
   const additionalSources = Array.isArray(edition.additionalImages) ? edition.additionalImages : []
-  const coverSrc = edition.additionalImages[0] ?? book?.coverImage ?? null
+  const coverSrc = edition.additionalImages[0] ?? null
 
   const coverUrl = cloudinaryUrl(coverSrc, 'w_1200,q_auto,f_auto')
   if (coverUrl) allImages.push(coverUrl)
