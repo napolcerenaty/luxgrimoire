@@ -420,18 +420,6 @@ export interface ApiAuditLog {
   createdAt: string;
 }
 
-export interface ApiAdminStats {
-  totalBooks: number;
-  totalEditions: number;
-  totalAuthors: number;
-  totalArtists: number;
-  totalCompanies: number;
-  totalSubscriptions: number;
-  totalUsers: number;
-  totalAuditLogs: number;
-  actionsLast7Days: number;
-}
-
 // ─────────────────────────────────────────────
 // FEES & TAXES
 // ─────────────────────────────────────────────

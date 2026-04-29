@@ -17,11 +17,6 @@ export class AdminController {
     return this.adminService.getAuditLogs(query);
   }
 
-  @Get('stats')
-  getStats() {
-    return this.adminService.getStats();
-  }
-
   @Get('recent-editions')
   getRecentEditions(@Query() query: RecentEditionsQueryDto) {
     return this.adminService.getRecentEditions(query);

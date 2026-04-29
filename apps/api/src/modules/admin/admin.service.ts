@@ -53,53 +53,6 @@ export class AdminService {
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async getStats() {
-    const CACHE_KEY = 'admin:stats';
-    const cached = await this.cache.get<Awaited<ReturnType<typeof this.computeStats>>>(CACHE_KEY);
-    if (cached) return cached;
-    const stats = await this.computeStats();
-    await this.cache.set(CACHE_KEY, stats, 60_000); // cache for 60 seconds
-    return stats;
-  }
-
-  private async computeStats() {
-    const [
-      totalBooks,
-      totalEditions,
-      totalAuthors,
-      totalArtists,
-      totalCompanies,
-      totalSubscriptions,
-      totalUsers,
-      totalAuditLogs,
-      actionsLast7Days,
-    ] = await Promise.all([
-      this.prisma.book.count(),
-      this.prisma.bookEdition.count(),
-      this.prisma.author.count(),
-      this.prisma.artist.count(),
-      this.prisma.bookBoxCompany.count(),
-      this.prisma.subscription.count(),
-      this.prisma.user.count(),
-      this.prisma.auditLog.count(),
-      this.prisma.auditLog.count({
-        where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-      }),
-    ]);
-
-    return {
-      totalBooks,
-      totalEditions,
-      totalAuthors,
-      totalArtists,
-      totalCompanies,
-      totalSubscriptions,
-      totalUsers,
-      totalAuditLogs,
-      actionsLast7Days,
-    };
-  }
-
   async getRecentEditions(query: RecentEditionsQueryDto) {
     const page = query.page ?? 1;
     const pageSize = Math.min(query.pageSize ?? 30, 100);

@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiAdminStats, ApiBookEdition, PaginatedResponse, ApiBook, ApiAuthor } from '@luxgrimoire/shared-types'
+import type { ApiBookEdition, PaginatedResponse, ApiBook, ApiAuthor } from '@luxgrimoire/shared-types'
 
 interface RecentEdition extends ApiBookEdition {
   createdAt: string
@@ -44,23 +44,6 @@ export default function AdminDashboard() {
     queryFn: () => authFetch<PaginatedResponse<RecentEdition>>('/editions?needsVerification=true&pageSize=50'),
   })
 
-  const { data: stats } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: () => authFetch<ApiAdminStats>('/admin/stats'),
-    staleTime: 1000 * 60 * 5,
-  })
-
-  const STAT_CARDS = [
-    { label: 'Books',         value: stats?.totalBooks,         color: 'text-amber-400' },
-    { label: 'Editions',      value: stats?.totalEditions,      color: 'text-sky-400' },
-    { label: 'Authors',       value: stats?.totalAuthors,       color: 'text-violet-400' },
-    { label: 'Artists',       value: stats?.totalArtists,       color: 'text-pink-400' },
-    { label: 'Box Companies', value: stats?.totalCompanies,     color: 'text-teal-400' },
-    { label: 'Subscriptions', value: stats?.totalSubscriptions, color: 'text-emerald-400' },
-    { label: 'Users',         value: stats?.totalUsers,         color: 'text-stone-300' },
-    { label: 'Actions (7d)',  value: stats?.actionsLast7Days,   color: 'text-orange-400' },
-  ]
-
   const pendingEditions = pendingData?.data ?? []
   const pendingCount = pendingData?.total ?? 0
 
@@ -76,21 +59,6 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-stone-100 mb-1">Dashboard</h1>
           <p className="text-stone-400 text-sm">Monitor content changes and recent activity</p>
         </div>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
-        {STAT_CARDS.map(({ label, value, color }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 flex flex-col gap-1"
-          >
-            <span className={`text-2xl font-bold font-serif ${color}`}>
-              {value ?? <span className="inline-block w-8 h-6 bg-stone-800 animate-pulse rounded" />}
-            </span>
-            <span className="text-[11px] text-stone-500 uppercase tracking-wider font-sans">{label}</span>
-          </div>
-        ))}
       </div>
 
       {/* Pending Review */}
