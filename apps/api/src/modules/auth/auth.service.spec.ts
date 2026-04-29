@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed_password'),
@@ -19,14 +20,22 @@ describe('AuthService', () => {
   let service: AuthService;
   let prisma: DeepMockProxy<PrismaService>;
   let jwtService: DeepMockProxy<JwtService>;
+  let mailService: DeepMockProxy<MailService>;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     jwtService = mockDeep<JwtService>();
-    service = new AuthService(prisma as unknown as PrismaService, jwtService as unknown as JwtService);
+    mailService = mockDeep<MailService>();
+    mailService.sendVerificationEmail.mockResolvedValue(undefined);
+    service = new AuthService(
+      prisma as unknown as PrismaService,
+      jwtService as unknown as JwtService,
+      mailService as unknown as MailService,
+    );
 
-    // Reset per-email rate limit map between tests
+    // Reset per-email rate limit maps between tests
     (service as any).forgotPasswordLastSent.clear();
+    (service as any).resendLastSent.clear();
   });
 
   // ─── register ────────────────────────────────────────────────────────────────
@@ -46,15 +55,14 @@ describe('AuthService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should create user and return accessToken on success', async () => {
+    it('should create user and return message on success', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
-      prisma.session.create.mockResolvedValue({ id: 'session1' } as any);
-      jwtService.sign.mockReturnValue('jwt-token');
+      prisma.emailVerificationToken.create.mockResolvedValue({} as any);
 
       const result = await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!' });
 
-      expect(result.accessToken).toBe('jwt-token');
+      expect(result.message).toBeDefined();
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ email: 'new@test.com', username: 'newuser' }) }),
       );
@@ -70,13 +78,13 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if password invalid', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null } as any);
+      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(service.login({ email: 'x@x.com', password: 'wrong' })).rejects.toThrow(UnauthorizedException);
     });
 
     it('should return accessToken on valid credentials', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null } as any);
+      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       prisma.session.create.mockResolvedValue({ id: 'sess1' } as any);
       jwtService.sign.mockReturnValue('jwt-token');

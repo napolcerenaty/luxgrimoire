@@ -8,6 +8,7 @@ import { redisStore } from 'cache-manager-redis-yet';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerSkipTestGuard } from './common/guards/throttler-skip-test.guard';
 import { PrismaModule } from './prisma/prisma.module';
+import { MailModule } from './modules/mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -91,6 +92,7 @@ import { ImportSourcesModule } from './modules/import-sources/import-sources.mod
     ]),
     PrismaModule,
     AuditModule,
+    MailModule,
     AuthModule,
     AdminModule,
     BooksModule,

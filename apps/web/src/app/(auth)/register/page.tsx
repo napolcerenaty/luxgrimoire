@@ -47,20 +47,7 @@ export default function RegisterPage() {
         return
       }
 
-      // Auto-login after registration
-      const loginRes = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const loginData = await loginRes.json()
-
-      if (loginRes.ok && loginData.accessToken) {
-        localStorage.setItem('luxgrimoire_token', loginData.accessToken)
-      }
-
-      router.push('/collection')
+      router.push(`/check-email?email=${encodeURIComponent(email)}`)
     } catch {
       setError('Network error. Please try again.')
     } finally {

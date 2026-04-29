@@ -14,11 +14,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [unverified, setUnverified] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setUnverified(false)
     setLoading(true)
 
     try {
@@ -31,7 +33,11 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data?.message ?? 'Login failed. Please try again.')
+        if (res.status === 403 && data?.message?.toLowerCase().includes('verify')) {
+          setUnverified(true)
+        } else {
+          setError(data?.message ?? 'Login failed. Please try again.')
+        }
         return
       }
 
@@ -101,6 +107,18 @@ export default function LoginPage() {
           <p className="text-sm text-rose-400 bg-rose-950/30 border border-rose-900 rounded-lg px-4 py-2.5">
             {error}
           </p>
+        )}
+
+        {unverified && (
+          <div className="text-sm text-amber-300 bg-amber-950/30 border border-amber-800 rounded-lg px-4 py-3 space-y-1">
+            <p>Please verify your email address before signing in.</p>
+            <Link
+              href={`/resend-verification?email=${encodeURIComponent(email)}`}
+              className="inline-block font-semibold underline hover:text-amber-200 transition-colors"
+            >
+              Resend verification email
+            </Link>
+          </div>
         )}
 
         <button
