@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, AddEntryFeeDto } from './collection.dto';
 
 
 @Injectable()
@@ -151,6 +151,8 @@ export class CollectionService {
           ownershipStatus: true,
           allocatedPrice: true,
           priceCurrency: true,
+          shipping: true,
+          shippingCurrency: true,
           purchaseDate: true,
           addedAt: true,
           acquiredAt: true,
@@ -161,6 +163,10 @@ export class CollectionService {
           saleVenue: true,
           saleNotes: true,
           signatureType: true,
+          purchaseFees: {
+            select: { id: true, name: true, amount: true, currency: true, category: true },
+            orderBy: { createdAt: 'asc' },
+          },
         },
       }),
       this.prisma.userEditionTag.findMany({
@@ -217,6 +223,8 @@ export class CollectionService {
         ...(dto.acquiredAt !== undefined && { acquiredAt: new Date(dto.acquiredAt) }),
         ...(dto.allocatedPrice !== undefined && { allocatedPrice: dto.allocatedPrice }),
         ...(dto.priceCurrency !== undefined && { priceCurrency: dto.priceCurrency }),
+        ...(dto.shipping !== undefined && { shipping: dto.shipping || null }),
+        ...(dto.shippingCurrency !== undefined && { shippingCurrency: dto.shippingCurrency || null }),
         ...(dto.trackingNumber !== undefined && { trackingNumber: dto.trackingNumber }),
         ...(dto.purchaseDate !== undefined && { purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null }),
         ...(dto.salePrice !== undefined && { salePrice: dto.salePrice }),
@@ -305,5 +313,38 @@ export class CollectionService {
       totalWishlist,
       totalEditions: groupResult.length,
     };
+  }
+
+  async addEntryFee(userId: string, entryId: string, dto: AddEntryFeeDto) {
+    const entry = await this.prisma.userBookEntry.findUnique({
+      where: { id: entryId },
+      select: { userId: true },
+    });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+
+    return this.prisma.userPurchaseFee.create({
+      data: {
+        userId,
+        userBookEntryId: entryId,
+        name: dto.name,
+        amount: dto.amount,
+        currency: dto.currency,
+        category: (dto.category as any) ?? 'OTHER',
+        date: new Date(),
+        notes: dto.notes,
+      },
+      select: { id: true, name: true, amount: true, currency: true, category: true },
+    });
+  }
+
+  async removeEntryFee(userId: string, entryId: string, feeId: string) {
+    const fee = await this.prisma.userPurchaseFee.findUnique({
+      where: { id: feeId },
+      select: { userId: true, userBookEntryId: true },
+    });
+    if (!fee) throw new NotFoundException('Fee not found');
+    if (fee.userId !== userId || fee.userBookEntryId !== entryId) throw new ForbiddenException();
+    await this.prisma.userPurchaseFee.delete({ where: { id: feeId } });
   }
 }

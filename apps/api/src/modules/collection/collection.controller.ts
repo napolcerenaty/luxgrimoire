@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddEntryFeeDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -161,6 +161,24 @@ export class CollectionController {
     @Param('entryId') entryId: string,
   ) {
     return this.collectionService.getOwnershipHistory(user.id, entryId);
+  }
+
+  @Post('entry/:entryId/fees')
+  addEntryFee(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Body() dto: AddEntryFeeDto,
+  ) {
+    return this.collectionService.addEntryFee(user.id, entryId, dto);
+  }
+
+  @Delete('entry/:entryId/fees/:feeId')
+  removeEntryFee(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Param('feeId') feeId: string,
+  ) {
+    return this.collectionService.removeEntryFee(user.id, entryId, feeId);
   }
 
   @Put('edition/:editionId/tags')

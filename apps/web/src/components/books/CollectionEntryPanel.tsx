@@ -3,11 +3,20 @@
 import { useState, useEffect } from 'react'
 import {
   ExternalLink, Pencil, Check, X, ChevronDown, ChevronUp,
-  Clock, Tag, Package, Wallet,
+  Clock, Tag, Package, Wallet, Plus, Trash2,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface EntryFee {
+  id: string
+  name: string
+  amount: string
+  currency: string
+  category: string
+}
 
 interface CollectionEntry {
   id: string
@@ -15,6 +24,8 @@ interface CollectionEntry {
   ownershipStatus: string
   allocatedPrice: string | null
   priceCurrency: string | null
+  shipping: string | null
+  shippingCurrency: string | null
   purchaseDate: string | null
   addedAt: string
   acquiredAt: string | null
@@ -26,6 +37,7 @@ interface CollectionEntry {
   saleNotes: string | null
   signatureType: string | null
   tags: string[]
+  purchaseFees: EntryFee[]
 }
 
 interface HistoryEntry {
@@ -125,8 +137,13 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CollectionEntryPanel({ editionId }: Props) {
+  const { user } = useAuth()
   const [entry, setEntry] = useState<CollectionEntry | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Currency conversion
+  const [rates, setRates] = useState<Record<string, number>>({})
+  const userCurrency = user?.preferredCurrency
 
   // Edit state
   const [editingStatus, setEditingStatus] = useState(false)
@@ -137,8 +154,17 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editingPurchase, setEditingPurchase] = useState(false)
   const [editAllocatedPrice, setEditAllocatedPrice] = useState('')
   const [editPriceCurrency, setEditPriceCurrency] = useState('')
+  const [editShipping, setEditShipping] = useState('')
+  const [editShippingCurrency, setEditShippingCurrency] = useState('')
   const [editPurchaseDate, setEditPurchaseDate] = useState('')
   const [savingPurchase, setSavingPurchase] = useState(false)
+
+  // Fee editing state
+  const [addingFee, setAddingFee] = useState(false)
+  const [newFeeName, setNewFeeName] = useState('')
+  const [newFeeAmount, setNewFeeAmount] = useState('')
+  const [newFeeCurrency, setNewFeeCurrency] = useState('')
+  const [savingFee, setSavingFee] = useState(false)
 
   const [editingSale, setEditingSale] = useState(false)
   const [editSalePrice, setEditSalePrice] = useState('')
@@ -171,6 +197,29 @@ export function CollectionEntryPanel({ editionId }: Props) {
       .catch(() => setEntry(null))
       .finally(() => setLoading(false))
   }, [editionId])
+
+  // Fetch exchange rates once we have entry + userCurrency
+  useEffect(() => {
+    if (!entry || !userCurrency) return
+    const allCurrencies = [
+      entry.priceCurrency,
+      entry.shippingCurrency,
+      ...(entry.purchaseFees ?? []).map(f => f.currency),
+    ].filter((c): c is string => !!c && c !== userCurrency)
+    const unique = [...new Set(allCurrencies)]
+    if (!unique.length) return
+    Promise.all(
+      unique.map(from =>
+        authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${userCurrency}`)
+          .then(d => [from, d.rate] as [string, number])
+          .catch(() => [from, null] as [string, null])
+      )
+    ).then(results => {
+      const r: Record<string, number> = {}
+      results.forEach(([c, v]) => { if (v !== null) r[c] = v })
+      setRates(r)
+    })
+  }, [entry, userCurrency])
 
   if (loading || !entry) return null
 
@@ -209,6 +258,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
   function openPurchaseEdit() {
     setEditAllocatedPrice(entry!.allocatedPrice ?? '')
     setEditPriceCurrency(entry!.priceCurrency ?? '')
+    setEditShipping(entry!.shipping ?? '')
+    setEditShippingCurrency(entry!.shippingCurrency ?? entry!.priceCurrency ?? '')
     setEditPurchaseDate(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
     setEditingPurchase(true)
   }
@@ -219,12 +270,43 @@ export function CollectionEntryPanel({ editionId }: Props) {
       await patch({
         allocatedPrice: editAllocatedPrice || null,
         priceCurrency: editPriceCurrency || null,
+        shipping: editShipping || null,
+        shippingCurrency: editShippingCurrency || null,
         purchaseDate: editPurchaseDate || null,
       })
       setEditingPurchase(false)
     } finally {
       setSavingPurchase(false)
     }
+  }
+
+  // ── Fee handlers ──────────────────────────────────────────────────────────
+
+  function openAddFee() {
+    setNewFeeName('')
+    setNewFeeAmount('')
+    setNewFeeCurrency(entry!.priceCurrency ?? '')
+    setAddingFee(true)
+  }
+
+  async function saveNewFee() {
+    if (!newFeeName.trim() || !newFeeAmount) return
+    setSavingFee(true)
+    try {
+      const fee = await authFetch<EntryFee>(`/collection/entry/${entry!.id}/fees`, {
+        method: 'POST',
+        body: JSON.stringify({ name: newFeeName, amount: newFeeAmount, currency: newFeeCurrency || entry!.priceCurrency || 'EUR' }),
+      })
+      setEntry(prev => prev ? { ...prev, purchaseFees: [...prev.purchaseFees, fee] } : prev)
+      setAddingFee(false)
+    } finally {
+      setSavingFee(false)
+    }
+  }
+
+  async function deleteFee(feeId: string) {
+    await authFetch(`/collection/entry/${entry!.id}/fees/${feeId}`, { method: 'DELETE' })
+    setEntry(prev => prev ? { ...prev, purchaseFees: prev.purchaseFees.filter(f => f.id !== feeId) } : prev)
   }
 
   // ── Sale section ──────────────────────────────────────────────────────────
@@ -323,6 +405,24 @@ export function CollectionEntryPanel({ editionId }: Props) {
       : null
   const profitCurrency = entry.saleCurrency ?? entry.priceCurrency
 
+  // Currency conversion helper
+  function converted(amount: number, fromCurrency: string | null): string | null {
+    if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
+    const rate = rates[fromCurrency]
+    if (!rate) return null
+    return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
+  }
+
+  // Cost totals (in priceCurrency only — items that share the same currency)
+  const mainCur = entry.priceCurrency
+  const priceNum = entry.allocatedPrice ? parseFloat(entry.allocatedPrice) : null
+  const shippingNum = entry.shipping ? parseFloat(entry.shipping) : null
+  const shippingInMainCur = shippingNum !== null && (entry.shippingCurrency === mainCur || !entry.shippingCurrency) ? shippingNum : null
+  const feesInMainCur = (entry.purchaseFees ?? [])
+    .filter(f => f.currency === mainCur)
+    .reduce((acc, f) => acc + parseFloat(f.amount), 0)
+  const total = priceNum !== null ? priceNum + (shippingInMainCur ?? 0) + feesInMainCur : null
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const CARD = 'rounded-lg p-4 flex flex-col gap-3'
@@ -392,8 +492,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
         {/* Purchase cost card */}
         <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              <span className="flex items-center gap-1.5"><Wallet size={11} /> Purchase cost</span>
+            <p className="text-xs uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+              <Wallet size={11} /> Purchase cost
             </p>
             {!editingPurchase && (
               <button onClick={openPurchaseEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
@@ -403,6 +503,10 @@ export function CollectionEntryPanel({ editionId }: Props) {
           </div>
           {editingPurchase ? (
             <div className="flex flex-col gap-2">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Purchase date</label>
+                <input type="date" value={editPurchaseDate} onChange={e => setEditPurchaseDate(e.target.value)} className={INP} />
+              </div>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
@@ -410,37 +514,127 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 </div>
                 <div className="w-24">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
-                  <select value={editPriceCurrency} onChange={e => setEditPriceCurrency(e.target.value)} className={INP}>
+                  <select value={editPriceCurrency} onChange={e => { setEditPriceCurrency(e.target.value); if (!editShippingCurrency) setEditShippingCurrency(e.target.value) }} className={INP}>
                     <option value="">—</option>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Purchase date</label>
-                <input type="date" value={editPurchaseDate} onChange={e => setEditPurchaseDate(e.target.value)} className={INP} />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
+                  <input type="number" step="0.01" min="0" value={editShipping} onChange={e => setEditShipping(e.target.value)} placeholder="0.00" className={INP} />
+                </div>
+                <div className="w-24">
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
+                  <select value={editShippingCurrency} onChange={e => setEditShippingCurrency(e.target.value)} className={INP}>
+                    <option value="">—</option>
+                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
               <SaveCancelBtns onSave={savePurchase} onCancel={() => setEditingPurchase(false)} saving={savingPurchase} />
             </div>
           ) : (
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between items-baseline gap-2">
-                <span style={{ color: 'var(--text-muted)' }}>Price</span>
-                <span className="text-right">
-                  {entry.allocatedPrice ? (
-                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
-                      {parseFloat(entry.allocatedPrice).toFixed(2)} {entry.priceCurrency ?? ''}
-                    </span>
-                  ) : (
-                    <span className="italic text-xs" style={{ color: 'var(--text-muted)' }}>Not set</span>
-                  )}
-                </span>
-              </div>
-              {entry.purchaseDate && (
+              {/* Price row */}
+              {priceNum !== null && (
                 <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Date</span>
-                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>{fmtDate(entry.purchaseDate)}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Price</span>
+                  <span className="text-right">
+                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                      {priceNum.toFixed(2)} {mainCur ?? ''}
+                    </span>
+                    {converted(priceNum, mainCur) && (
+                      <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(priceNum, mainCur)}</span>
+                    )}
+                  </span>
                 </div>
+              )}
+
+              {/* Shipping row */}
+              {shippingNum !== null && (
+                <div className="flex justify-between items-baseline gap-2">
+                  <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
+                  <span className="text-right">
+                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                      {shippingNum.toFixed(2)} {entry.shippingCurrency ?? mainCur ?? ''}
+                    </span>
+                    {converted(shippingNum, entry.shippingCurrency ?? mainCur) && (
+                      <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(shippingNum, entry.shippingCurrency ?? mainCur)}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Fee rows */}
+              {(entry.purchaseFees ?? []).map(fee => {
+                const amt = parseFloat(fee.amount)
+                return (
+                  <div key={fee.id} className="flex justify-between items-baseline gap-2">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fee.name}</span>
+                    <span className="text-right flex items-baseline gap-1.5">
+                      <span>
+                        <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
+                        {converted(amt, fee.currency) && (
+                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
+                        )}
+                      </span>
+                      <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                        <Trash2 size={11} />
+                      </button>
+                    </span>
+                  </div>
+                )
+              })}
+
+              {/* Add fee inline */}
+              {addingFee ? (
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <div className="flex gap-1.5">
+                    <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Name (e.g. VAT)" className={INP + ' flex-1'} />
+                    <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
+                    <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                      <Check size={11} /> Add
+                    </button>
+                    <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                      <X size={11} /> Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                  <Plus size={11} /> Add fee
+                </button>
+              )}
+
+              {/* Total */}
+              {total !== null && (entry.shipping !== null || (entry.purchaseFees ?? []).length > 0) && (
+                <div className="flex justify-between items-baseline gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>Total</span>
+                  <span className="text-right">
+                    <span className="font-semibold" style={{ color: 'var(--text-bright)' }}>
+                      {total.toFixed(2)} {mainCur ?? ''}
+                    </span>
+                    {converted(total, mainCur) && (
+                      <span className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{converted(total, mainCur)}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Date */}
+              {entry.purchaseDate && (
+                <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>Purchased {fmtDate(entry.purchaseDate)}</p>
+              )}
+
+              {!priceNum && !shippingNum && !(entry.purchaseFees ?? []).length && (
+                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No costs recorded</p>
               )}
             </div>
           )}
