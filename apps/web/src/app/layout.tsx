@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -26,15 +27,18 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const theme = cookieStore.get('lx-theme')?.value === 'light' ? 'light' : 'dark'
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme={theme} suppressHydrationWarning>
       <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased">
-        <Providers>
+        <Providers initialTheme={theme}>
           <DevBanner />
           <Navbar />
           <main className="flex-1">{children}</main>

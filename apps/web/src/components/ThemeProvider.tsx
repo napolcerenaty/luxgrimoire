@@ -8,21 +8,42 @@ const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void }>({
   toggleTheme: () => {},
 })
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
+function getThemeCookie(): Theme {
+  if (typeof document === 'undefined') return 'dark'
+  const match = document.cookie.match(/(?:^|;\s*)lx-theme=([^;]+)/)
+  return match?.[1] === 'light' ? 'light' : 'dark'
+}
 
+function setThemeCookie(theme: Theme) {
+  // 1 year, not httpOnly so client JS can read it for toggle
+  document.cookie = `lx-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`
+}
+
+export function ThemeProvider({
+  children,
+  initialTheme = 'dark',
+}: {
+  children: React.ReactNode
+  initialTheme?: Theme
+}) {
+  // initialTheme is read server-side → <html data-theme> is set before hydration (no FOUC)
+  const [theme, setTheme] = useState<Theme>(initialTheme)
+
+  // On mount sync cookie → state in case it changed in another tab
   useEffect(() => {
-    const saved = localStorage.getItem('lx-theme') as Theme | null
-    if (saved === 'light' || saved === 'dark') setTheme(saved)
-  }, [])
+    const cookieTheme = getThemeCookie()
+    if (cookieTheme !== theme) setTheme(cookieTheme)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('lx-theme', theme)
+    setThemeCookie(theme)
   }, [theme])
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
+    <ThemeContext.Provider
+      value={{ theme, toggleTheme: () => setTheme(t => (t === 'dark' ? 'light' : 'dark')) }}
+    >
       {children}
     </ThemeContext.Provider>
   )

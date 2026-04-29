@@ -1,18 +1,21 @@
 'use client'
 import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { LanguageProvider } from '@/components/LanguageProvider'
 import { QueryProvider } from '@/providers/QueryProvider'
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  initialTheme,
+}: {
+  children: React.ReactNode
+  initialTheme?: 'dark' | 'light'
+}) {
   return (
     <QueryProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </LanguageProvider>
+      <ThemeProvider initialTheme={initialTheme}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </ThemeProvider>
     </QueryProvider>
   )

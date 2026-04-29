@@ -40,15 +40,14 @@ export function CookieBanner() {
 
         <p className="flex-1 text-xs leading-relaxed" style={{ color: '#a09070' }}>
           <span style={{ color: '#d4b896' }} className="font-medium">
-            We use browser storage (localStorage) to keep you signed in, remember your
-            language and theme preferences, and save your region selections.
+            We use browser storage to keep you signed in and remember your theme preference.
           </span>{' '}
           We do{' '}
           <strong className="font-semibold" style={{ color: '#d6c89a' }}>
             not
           </strong>{' '}
           use tracking, analytics or advertising cookies.{' '}
-          {/* Update this text when Faza 4 httpOnly session cookie is added */}
+          {/* Update when Faza 4 httpOnly session cookie is added */}
           All stored data stays on your device and is used solely to make the app work.
         </p>
 
