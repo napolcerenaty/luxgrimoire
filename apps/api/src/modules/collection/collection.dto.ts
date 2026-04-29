@@ -13,7 +13,7 @@ export const OWNERSHIP_STATUSES = [
 
 export type OwnershipStatus = typeof OWNERSHIP_STATUSES[number];
 
-export const READING_STATUSES = ['UNREAD', 'READ', 'DNF'] as const;
+export const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const;
 export type ReadingStatus = typeof READING_STATUSES[number];
 
 export class AddToCollectionDto {
@@ -35,6 +35,12 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() allocatedPrice?: string;
   @IsOptional() @IsString() priceCurrency?: string;
   @IsOptional() @IsString() trackingNumber?: string;
+  @IsOptional() @IsDateString() purchaseDate?: string;
+  @IsOptional() @IsString() salePrice?: string;
+  @IsOptional() @IsString() saleCurrency?: string;
+  @IsOptional() @IsString() saleDate?: string;
+  @IsOptional() @IsString() saleVenue?: string;
+  @IsOptional() @IsString() saleNotes?: string;
 }
 
 export class AddToWishlistDto {

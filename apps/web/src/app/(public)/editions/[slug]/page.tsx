@@ -1,3 +1,4 @@
+import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
@@ -268,6 +269,14 @@ export default async function EditionPage({ params }: Props) {
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
+                />
+              </div>
+
+              {/* My collection panel */}
+              <div className="mb-6">
+                <CollectionEntryPanel
+                  editionId={edition.id}
+                  editionName={edition.editionName ?? edition.bookBoxCompany?.name ?? null}
                 />
               </div>
 

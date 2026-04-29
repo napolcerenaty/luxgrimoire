@@ -141,6 +141,37 @@ export class CollectionService {
     });
   }
 
+  async getEntryByEditionId(userId: string, editionId: string) {
+    const [entry, tags] = await Promise.all([
+      this.prisma.userBookEntry.findFirst({
+        where: { userId, editionId, isWishlist: false },
+        select: {
+          id: true,
+          readingStatus: true,
+          ownershipStatus: true,
+          allocatedPrice: true,
+          priceCurrency: true,
+          purchaseDate: true,
+          addedAt: true,
+          acquiredAt: true,
+          trackingNumber: true,
+          salePrice: true,
+          saleCurrency: true,
+          saleDate: true,
+          saleVenue: true,
+          saleNotes: true,
+          signatureType: true,
+        },
+      }),
+      this.prisma.userEditionTag.findMany({
+        where: { userId, editionId },
+        select: { tag: true },
+      }),
+    ]);
+    if (!entry) return null;
+    return { ...entry, tags: tags.map((t) => t.tag) };
+  }
+
   async getEntryStatus(userId: string, editionId: string) {
     const entry = await this.prisma.userBookEntry.findFirst({
       where: { userId, editionId },
@@ -187,6 +218,12 @@ export class CollectionService {
         ...(dto.allocatedPrice !== undefined && { allocatedPrice: dto.allocatedPrice }),
         ...(dto.priceCurrency !== undefined && { priceCurrency: dto.priceCurrency }),
         ...(dto.trackingNumber !== undefined && { trackingNumber: dto.trackingNumber }),
+        ...(dto.purchaseDate !== undefined && { purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null }),
+        ...(dto.salePrice !== undefined && { salePrice: dto.salePrice }),
+        ...(dto.saleCurrency !== undefined && { saleCurrency: dto.saleCurrency }),
+        ...(dto.saleDate !== undefined && { saleDate: dto.saleDate }),
+        ...(dto.saleVenue !== undefined && { saleVenue: dto.saleVenue }),
+        ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {

@@ -48,6 +48,14 @@ export class CollectionController {
     return this.collectionService.getEntryStatus(user.id, editionId);
   }
 
+  @Get('edition/:editionId/entry')
+  getEntryByEdition(
+    @CurrentUser() user: { id: string },
+    @Param('editionId') editionId: string,
+  ) {
+    return this.collectionService.getEntryByEditionId(user.id, editionId);
+  }
+
   @Post('wishlist')
   async addToWishlist(
     @CurrentUser() user: { id: string },
