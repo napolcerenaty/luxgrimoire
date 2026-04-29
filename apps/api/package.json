@@ -17,6 +17,7 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/multipart": "^10.0.0",
     "@fastify/static": "^9.1.3",
+    "@getbrevo/brevo": "^5.0.4",
     "@luxgrimoire/database": "workspace:*",
     "@luxgrimoire/shared-types": "workspace:*",
     "@nestjs/bull": "^11.0.2",

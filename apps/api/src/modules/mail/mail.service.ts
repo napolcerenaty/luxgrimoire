@@ -1,14 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { BrevoClient } from '@getbrevo/brevo';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter: ReturnType<typeof nodemailer.createTransport>;
+  private readonly brevo: BrevoClient | null = null;
+  private readonly brevoFrom: { name: string; email: string };
 
   constructor() {
+    // Nodemailer for verification emails (HTML in-code)
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+      host: process.env.SMTP_HOST ?? 'smtp.brevo.com',
       port: parseInt(process.env.SMTP_PORT ?? '587', 10),
       secure: false,
       auth: {
@@ -16,6 +20,44 @@ export class MailService {
         pass: process.env.SMTP_PASS,
       },
     });
+
+    // Brevo API client for template-based emails
+    if (process.env.BREVO_API_KEY) {
+      this.brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+    }
+
+    const fromRaw = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
+    const match = fromRaw.match(/^"?([^"<]+)"?\s*<([^>]+)>$/);
+    this.brevoFrom = match
+      ? { name: match[1].trim(), email: match[2].trim() }
+      : { name: 'Luxgrimoire', email: fromRaw };
+  }
+
+  /**
+   * Send welcome email via Brevo template.
+   * Configure BREVO_WELCOME_TEMPLATE_ID in .env with the ID from Brevo dashboard.
+   * Template params: {{ params.username }}, {{ params.appUrl }}
+   */
+  async sendWelcomeEmail(to: string, username: string): Promise<void> {
+    const templateId = parseInt(process.env.BREVO_WELCOME_TEMPLATE_ID ?? '0', 10);
+    if (!templateId || !this.brevo) {
+      this.logger.warn('Welcome email skipped: BREVO_API_KEY or BREVO_WELCOME_TEMPLATE_ID not configured');
+      return;
+    }
+
+    const appUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+
+    try {
+      await this.brevo.transactionalEmails.sendTransacEmail({
+        templateId,
+        to: [{ email: to }],
+        params: { username, appUrl },
+        sender: this.brevoFrom,
+      });
+      this.logger.log(`Welcome email sent to ${to}`);
+    } catch (err) {
+      this.logger.error(`Failed to send welcome email to ${to}`, err);
+    }
   }
 
   async sendVerificationEmail(to: string, token: string): Promise<void> {

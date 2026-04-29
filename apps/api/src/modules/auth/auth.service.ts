@@ -128,8 +128,12 @@ export class AuthService {
     const user = await this.prisma.user.update({
       where: { id: record.userId },
       data: { emailVerified: true },
+      select: { id: true, email: true, role: true, username: true, managedCompanyId: true },
     });
     await this.prisma.emailVerificationToken.delete({ where: { id: record.id } });
+
+    // Send welcome email (non-fatal)
+    this.mail.sendWelcomeEmail(user.email, user.username).catch(() => {});
 
     return this.signToken(user.id, user.email, user.role, user.username, user.managedCompanyId);
   }
@@ -329,6 +333,11 @@ export class AuthService {
         },
       },
     });
+
+    // Send welcome email to new OAuth users (non-fatal)
+    if (profile.email) {
+      this.mail.sendWelcomeEmail(newUser.email, newUser.username).catch(() => {});
+    }
 
     return this.signToken(newUser.id, newUser.email, newUser.role, newUser.username, null);
   }

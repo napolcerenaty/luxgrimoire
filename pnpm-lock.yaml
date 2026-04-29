@@ -38,6 +38,9 @@ importers:
       '@fastify/static':
         specifier: ^9.1.3
         version: 9.1.3
+      '@getbrevo/brevo':
+        specifier: ^5.0.4
+        version: 5.0.4
       '@luxgrimoire/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -852,6 +855,10 @@ packages:
 
   '@fastify/static@9.1.3':
     resolution: {integrity: sha512-aXrYtsiryLhRxRNaxNqsn7FUISeb7rB9q4eHUPIot5aeQBLNahnz1m6thzm7JWC1poSGXS9XrX8DvuMivp2hkQ==}
+
+  '@getbrevo/brevo@5.0.4':
+    resolution: {integrity: sha512-wN4mHE6O0Pb/d/Dh3E4MAm2zCHbLLUcFF8/wgwTeMPy9KzHBYLu7S/nsJbzd0AWL09MHn8vwue8ULL9YOzluOQ==}
+    engines: {node: '>=18.0.0'}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -6494,6 +6501,8 @@ snapshots:
       fastify-plugin: 5.1.0
       fastq: 1.20.1
       glob: 13.0.6
+
+  '@getbrevo/brevo@5.0.4': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
