@@ -65,9 +65,6 @@ export function CompaniesClient({ companies }: Props) {
           {filtered.map((company) => {
             const bgImage = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fill,q_auto,f_auto')
             const logoImage = cloudinaryUrl(company.logoUrl, 'w_300,h_160,c_fit,q_auto,f_auto')
-            const subCount = company.subscriptions?.length ?? 0
-            const collectionCount = company._count?.collections ?? 0
-            const exclusiveCount = company._count?.editions ?? 0
 
             return (
               <Link
@@ -115,24 +112,7 @@ export function CompaniesClient({ companies }: Props) {
                     </p>
                   )}
 
-                  {/* Counts */}
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {subCount > 0 && (
-                      <span className="text-xs text-amber-600/80">
-                        {subCount} sub{subCount !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {collectionCount > 0 && (
-                      <span className="text-xs text-stone-500">
-                        {collectionCount} collection{collectionCount !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {exclusiveCount > 0 && (
-                      <span className="text-xs text-stone-500">
-                        {exclusiveCount} exclusive edition{exclusiveCount !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
+                  {/* Counts removed */}
                 </div>
               </Link>
             )
