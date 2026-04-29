@@ -200,7 +200,7 @@ export class CollectionService {
     ownershipStatus: string,
   ): Promise<{ updatedCount: number }> {
     const entries = await this.prisma.userBookEntry.findMany({
-      where: { userId, editionId, isWishlist: false },
+      where: { userId, editionId, isWishlist: false, ownershipStatus: { not: 'SOLD' } },
       select: { id: true, ownershipStatus: true },
     });
     if (entries.length === 0) throw new NotFoundException('No collection entries found for this edition');
