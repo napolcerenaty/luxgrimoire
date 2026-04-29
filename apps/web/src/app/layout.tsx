@@ -4,6 +4,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { DevBanner } from '@/components/layout/DevBanner'
 import { BugReportButton } from '@/components/layout/BugReportButton'
+import { CookieBanner } from '@/components/layout/CookieBanner'
 import { Providers } from '@/components/Providers'
 
 export const metadata: Metadata = {
@@ -39,6 +40,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <Footer />
           <BugReportButton />
+          <CookieBanner />
         </Providers>
       </body>
     </html>
