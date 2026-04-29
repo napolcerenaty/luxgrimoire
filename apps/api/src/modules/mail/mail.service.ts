@@ -10,7 +10,7 @@ export class MailService {
   private readonly brevoFrom: { name: string; email: string };
 
   constructor() {
-    // Nodemailer for verification emails (HTML in-code)
+    // Nodemailer SMTP — fallback when Brevo template IDs are not configured
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST ?? 'smtp.brevo.com',
       port: parseInt(process.env.SMTP_PORT ?? '587', 10),
@@ -21,7 +21,7 @@ export class MailService {
       },
     });
 
-    // Brevo API client for template-based emails
+    // Brevo API client — preferred delivery for all emails
     if (process.env.BREVO_API_KEY) {
       this.brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
     }
@@ -34,118 +34,146 @@ export class MailService {
   }
 
   /**
-   * Send welcome email via Brevo template.
-   * Configure BREVO_WELCOME_TEMPLATE_ID in .env with the ID from Brevo dashboard.
+   * Welcome email — Brevo template.
+   * Env: BREVO_WELCOME_TEMPLATE_ID
    * Template params: {{ params.username }}, {{ params.appUrl }}
    */
   async sendWelcomeEmail(to: string, username: string): Promise<void> {
-    const templateId = parseInt(process.env.BREVO_WELCOME_TEMPLATE_ID ?? '0', 10);
-    if (!templateId || !this.brevo) {
-      this.logger.warn('Welcome email skipped: BREVO_API_KEY or BREVO_WELCOME_TEMPLATE_ID not configured');
-      return;
-    }
-
     const appUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    await this.sendViaBrevoTemplate(
+      'BREVO_WELCOME_TEMPLATE_ID',
+      to,
+      { username, appUrl },
+      'Welcome email',
+    );
+  }
+
+  /**
+   * Email verification — Brevo template (preferred) or SMTP fallback.
+   * Env: BREVO_VERIFY_TEMPLATE_ID
+   * Template params: {{ params.verifyLink }}
+   * Fallback subject: "Verify your Luxgrimoire email address"
+   */
+  async sendVerificationEmail(to: string, token: string): Promise<void> {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const verifyLink = `${frontendUrl}/auth/verify-email?token=${token}`;
+
+    const sent = await this.sendViaBrevoTemplate(
+      'BREVO_VERIFY_TEMPLATE_ID',
+      to,
+      { verifyLink },
+      'Verification email',
+    );
+
+    if (!sent) {
+      // Fallback: send via SMTP with inline HTML
+      const year = new Date().getFullYear();
+      const html = emailShell('Verify your email – Luxgrimoire', `
+        ${emailBrand()}
+        ${emailTitle('Confirm Your Email Address')}
+        <tr><td style="padding:16px 44px 0 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;">
+            Thank you for creating a Luxgrimoire account. Please confirm your email address to activate your account.
+          </p>
+        </td></tr>
+        ${emailButton(verifyLink, 'Verify Email Address')}
+        <tr><td style="padding:0 44px 8px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
+            This link expires in <span style="color:#c0e4f4;font-weight:600;">24 hours</span>.
+          </p>
+        </td></tr>
+        <tr><td style="padding:0 44px 36px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
+            If you didn't create an account, you can safely ignore this email.
+          </p>
+        </td></tr>
+        ${emailFooter(year)}
+      `);
+      await this.sendViaSMTP(to, 'Verify your Luxgrimoire email address', html, 'Verification email');
+    }
+  }
+
+  /**
+   * Password reset — Brevo template (preferred) or SMTP fallback.
+   * Env: BREVO_RESET_TEMPLATE_ID
+   * Template params: {{ params.resetLink }}
+   * Fallback subject: "Reset your Luxgrimoire password"
+   */
+  async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+
+    const sent = await this.sendViaBrevoTemplate(
+      'BREVO_RESET_TEMPLATE_ID',
+      to,
+      { resetLink },
+      'Password reset email',
+    );
+
+    if (!sent) {
+      const year = new Date().getFullYear();
+      const html = emailShell('Reset your password – Luxgrimoire', `
+        ${emailBrand()}
+        ${emailTitle('Reset Your Password')}
+        <tr><td style="padding:16px 44px 0 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;">
+            We received a request to reset the password for your Luxgrimoire account.
+          </p>
+        </td></tr>
+        ${emailButton(resetLink, 'Reset Password')}
+        <tr><td style="padding:0 44px 8px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
+            This link expires in <span style="color:#c0e4f4;font-weight:600;">1 hour</span>.
+          </p>
+        </td></tr>
+        <tr><td style="padding:0 44px 36px 44px;text-align:center;">
+          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
+            If you didn't request this, you can safely ignore this email. Your password will not change.
+          </p>
+        </td></tr>
+        ${emailFooter(year)}
+      `);
+      await this.sendViaSMTP(to, 'Reset your Luxgrimoire password', html, 'Password reset email');
+    }
+  }
+
+  // ── Private helpers ──────────────────────────────────────────────────────────
+
+  /**
+   * Send via Brevo template API. Returns true on success, false if not configured or failed.
+   */
+  private async sendViaBrevoTemplate(
+    envKey: string,
+    to: string,
+    params: Record<string, string>,
+    label: string,
+  ): Promise<boolean> {
+    const templateId = parseInt(process.env[envKey] ?? '0', 10);
+    if (!templateId || !this.brevo) return false;
 
     try {
       await this.brevo.transactionalEmails.sendTransacEmail({
         templateId,
         to: [{ email: to }],
-        params: { username, appUrl },
+        params,
         sender: this.brevoFrom,
       });
-      this.logger.log(`Welcome email sent to ${to}`);
+      this.logger.log(`${label} sent to ${to} via Brevo template ${templateId}`);
+      return true;
     } catch (err) {
-      this.logger.error(`Failed to send welcome email to ${to}`, err);
+      this.logger.error(`Failed to send ${label} to ${to} via Brevo`, err);
+      return false;
     }
   }
 
-  async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    const verifyLink = `${frontendUrl}/auth/verify-email?token=${token}`;
+  private async sendViaSMTP(to: string, subject: string, html: string, label: string): Promise<void> {
     const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
-    const year = new Date().getFullYear();
-
-    const html = emailShell(`Verify your email – Luxgrimoire`, `
-      ${emailBrand()}
-      ${emailTitle('Confirm Your Email Address')}
-      <tr>
-        <td style="padding:16px 44px 0 44px;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;text-align:center;">
-            Thank you for creating a Luxgrimoire account. Please confirm your email address to activate your account.
-          </p>
-        </td>
-      </tr>
-      ${emailButton(verifyLink, 'Verify Email Address')}
-      <tr>
-        <td style="padding:0 44px 8px 44px;text-align:center;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
-            This link expires in <span style="color:#c0e4f4;font-weight:600;">24 hours</span>.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 44px 36px 44px;text-align:center;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
-            If you didn't create an account, you can safely ignore this email.
-          </p>
-        </td>
-      </tr>
-      ${emailFooter(year)}
-    `);
-
-    await this.transporter.sendMail({
-      from,
-      to,
-      subject: 'Verify your Luxgrimoire email address',
-      html,
-    });
-
-    this.logger.log(`Verification email sent to ${to}`);
-  }
-
-  async sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
-    const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
-    const year = new Date().getFullYear();
-
-    const html = emailShell(`Reset your password – Luxgrimoire`, `
-      ${emailBrand()}
-      ${emailTitle('Reset Your Password')}
-      <tr>
-        <td style="padding:16px 44px 0 44px;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;text-align:center;">
-            We received a request to reset the password for your Luxgrimoire account. Click the button below to set a new password.
-          </p>
-        </td>
-      </tr>
-      ${emailButton(resetLink, 'Reset Password')}
-      <tr>
-        <td style="padding:0 44px 8px 44px;text-align:center;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:15px;line-height:1.6;">
-            This link expires in <span style="color:#c0e4f4;font-weight:600;">1 hour</span>.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 44px 36px 44px;text-align:center;">
-          <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#4a88a8;font-size:14px;line-height:1.6;">
-            If you didn't request a password reset, you can safely ignore this email. Your password will not change.
-          </p>
-        </td>
-      </tr>
-      ${emailFooter(year)}
-    `);
-
-    await this.transporter.sendMail({
-      from,
-      to,
-      subject: 'Reset your Luxgrimoire password',
-      html,
-    });
-
-    this.logger.log(`Password reset email sent to ${to}`);
+    try {
+      await this.transporter.sendMail({ from, to, subject, html });
+      this.logger.log(`${label} sent to ${to} via SMTP`);
+    } catch (err) {
+      this.logger.error(`Failed to send ${label} to ${to} via SMTP`, err);
+    }
   }
 }
 
