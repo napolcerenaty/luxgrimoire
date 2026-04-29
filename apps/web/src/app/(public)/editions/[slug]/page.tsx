@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
-import { WishlistButton } from '@/components/books/WishlistButton'
+import { EditionActionButtons } from '@/components/books/EditionActionButtons'
 import { BackButton } from '@/components/ui/BackButton'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
@@ -173,6 +173,30 @@ export default async function EditionPage({ params }: Props) {
                   </svg>
                 </div>
               )}
+
+              {/* Photo credit */}
+              {artists.filter(a => /photo/i.test(a.role)).map(a => {
+                const displayName = a.artist.name.startsWith('@') ? a.artist.name.slice(1) : a.artist.name
+                return (
+                  <p key={a.artist.id} className="text-xs text-stone-400 mt-1 text-center">
+                    📷 photo by{' '}
+                    {a.artist.instagram ? (
+                      <a
+                        href={`https://instagram.com/${a.artist.instagram}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-amber-400 transition-colors"
+                      >
+                        @{a.artist.instagram}
+                      </a>
+                    ) : (
+                      <Link href={`/artists/${a.artist.slug}`} className="hover:text-amber-400 transition-colors">
+                        {displayName}
+                      </Link>
+                    )}
+                  </p>
+                )
+              })}
             </div>
 
             {/* ── Right: Info ── */}
@@ -244,9 +268,15 @@ export default async function EditionPage({ params }: Props) {
                 )}
               </div>
 
-              {/* Wishlist action */}
+              {/* Collection / wishlist actions */}
               <div className="mb-6">
-                <WishlistButton editionId={edition.id} />
+                <EditionActionButtons
+                  editionId={edition.id}
+                  editionName={editionLabel}
+                  basePrice={edition.basePrice}
+                  currency={edition.currency}
+                  bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
+                />
               </div>
 
               {/* Meta grid */}

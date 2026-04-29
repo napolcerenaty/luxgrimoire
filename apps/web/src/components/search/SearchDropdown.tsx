@@ -252,7 +252,7 @@ function ResultGroup({
     return (
       <span>
         {text.slice(0, idx)}
-        <mark className="bg-amber-500/30 text-amber-200 rounded-sm">{text.slice(idx, idx + query.length)}</mark>
+        <mark className="bg-amber-500/20 text-amber-600 rounded-sm px-px">{text.slice(idx, idx + query.length)}</mark>
         {text.slice(idx + query.length)}
       </span>
     )
