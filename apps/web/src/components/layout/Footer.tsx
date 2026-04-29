@@ -44,8 +44,8 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <p className="font-serif text-lg font-bold text-amber-400 mb-2">LuxGrimoire</p>
-            <p className="text-xs text-stone-500 leading-relaxed">
-              Limited books. Unlimited obsession.
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] mt-1">
+              — Limited books. Unlimited obsession. —
             </p>
           </div>
 
