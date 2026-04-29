@@ -51,6 +51,7 @@ interface EditionDetail {
   submittedByUserId: string | null
   alternativeTitle?: string | null
   notes?: string | null
+  photoCredit?: string | null
   subscriptionId?: string | null
   subscriptionMonthId?: string | null
   artists: EditionArtist[]
@@ -175,28 +176,22 @@ export default async function EditionPage({ params }: Props) {
               )}
 
               {/* Photo credit */}
-              {artists.filter(a => /photo/i.test(a.role)).map(a => {
-                const displayName = a.artist.name.startsWith('@') ? a.artist.name.slice(1) : a.artist.name
+              {edition.photoCredit && (() => {
+                const handle = edition.photoCredit.replace(/^@/, '')
                 return (
-                  <p key={a.artist.id} className="text-xs text-stone-400 mt-1 text-center">
+                  <p className="text-xs text-stone-400 mt-1 text-center">
                     📷 photo by{' '}
-                    {a.artist.instagram ? (
-                      <a
-                        href={`https://instagram.com/${a.artist.instagram}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-amber-400 transition-colors"
-                      >
-                        @{a.artist.instagram}
-                      </a>
-                    ) : (
-                      <Link href={`/artists/${a.artist.slug}`} className="hover:text-amber-400 transition-colors">
-                        {displayName}
-                      </Link>
-                    )}
+                    <a
+                      href={`https://instagram.com/${handle}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:text-amber-400 transition-colors"
+                    >
+                      @{handle}
+                    </a>
                   </p>
                 )
-              })}
+              })()}
             </div>
 
             {/* ── Right: Info ── */}
