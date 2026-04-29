@@ -10,6 +10,15 @@ const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
 
+const OWNERSHIP_OPTIONS = [
+  { value: 'OWNED', label: 'Owned' },
+  { value: 'PREORDER', label: 'Pre-order' },
+  { value: 'SHIPPING', label: 'Shipping / In transit' },
+  { value: 'BORROWED', label: 'Borrowed' },
+  { value: 'LENDED', label: 'Lent out' },
+] as const
+type OwnershipOption = typeof OWNERSHIP_OPTIONS[number]['value']
+
 interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
 interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null; isActive: boolean }
 interface EntryStatus { status: 'none' | 'wishlist' | 'collection'; entryId?: string }
@@ -34,6 +43,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [movePrice, setMovePrice] = useState(basePrice ?? '')
   const [moveCurrency, setMoveCurrency] = useState(currency ?? 'EUR')
+  const [ownershipStatus, setOwnershipStatus] = useState<OwnershipOption>('OWNED')
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -81,6 +91,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setMoveDate(new Date().toISOString().slice(0, 10))
     setMovePrice(basePrice ?? '')
     setMoveCurrency(currency ?? 'EUR')
+    setOwnershipStatus('OWNED')
     setShippingPrice('')
     setFeeEntries([])
     setStep(bundles.length > 0 ? 'bundle' : 'form')
@@ -96,7 +107,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
 
       if (status === 'wishlist' && entryId) {
         // Promote wishlist → collection (same flow as wishlist page)
-        const body: Record<string, unknown> = { isWishlist: false }
+        const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
         if (moveDate) body.acquiredAt = new Date(moveDate).toISOString()
         const parsedPrice = parseDecimalInput(movePrice)
         if (parsedPrice > 0) { body.allocatedPrice = String(parsedPrice); body.priceCurrency = moveCurrency }
@@ -107,7 +118,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         // Fresh add — create new entry
         const res = await authFetch<{ id: string }>('/collection', {
           method: 'POST',
-          body: JSON.stringify({ bookEditionId: editionId, ownershipStatus: 'OWNED' }),
+          body: JSON.stringify({ bookEditionId: editionId, ownershipStatus }),
         })
         targetEntryId = res.id
         const body: Record<string, unknown> = {}
@@ -240,6 +251,13 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
               </div>
             ) : (
               <>
+                <div>
+                  <label className={LABEL}>Status</label>
+                  <select value={ownershipStatus} onChange={e => setOwnershipStatus(e.target.value as OwnershipOption)} className={INPUT}>
+                    {OWNERSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+
                 <div>
                   <label className={LABEL}>Purchase date</label>
                   <input type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} className={INPUT} />

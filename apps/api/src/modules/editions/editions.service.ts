@@ -183,7 +183,14 @@ export class EditionsService {
     if (dto.alternativeTitle !== undefined) data.alternativeTitle = dto.alternativeTitle;
     if (dto.additionalImages !== undefined) data.additionalImages = dto.additionalImages;
     if (dto.isSpecial !== undefined) data.isSpecial = dto.isSpecial;
-    if (dto.basePrice !== undefined) data.basePrice = dto.basePrice ? dto.basePrice : null;
+    if (dto.basePrice !== undefined) {
+      if (dto.basePrice) {
+        // Normalize comma decimal separator (e.g. "12,99" → "12.99")
+        data.basePrice = dto.basePrice.replace(',', '.');
+      } else {
+        data.basePrice = null;
+      }
+    }
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.firstAccessDate !== undefined) data.firstAccessDate = dto.firstAccessDate;
     if (dto.earlyAccessDate !== undefined) data.earlyAccessDate = dto.earlyAccessDate;

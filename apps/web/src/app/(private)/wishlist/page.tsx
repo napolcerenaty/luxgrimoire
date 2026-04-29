@@ -55,6 +55,14 @@ interface PaginatedEntries {
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
+const OWNERSHIP_OPTIONS = [
+  { value: 'OWNED', label: 'Owned' },
+  { value: 'PREORDER', label: 'Pre-order' },
+  { value: 'SHIPPING', label: 'Shipping / In transit' },
+  { value: 'BORROWED', label: 'Borrowed' },
+  { value: 'LENDED', label: 'Lent out' },
+] as const
+
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
 
@@ -65,6 +73,7 @@ export default function WishlistPage() {
   const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [movePrice, setMovePrice] = useState('')
   const [moveCurrency, setMoveCurrency] = useState('EUR')
+  const [moveOwnershipStatus, setMoveOwnershipStatus] = useState<string>('OWNED')
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const feeKeyRef = useRef(0)
@@ -88,11 +97,11 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, shippingPrice, fees }: {
+    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees }: {
       id: string; date: string; price: string; currency: string;
-      shippingPrice: string; fees: FeeEntry[]
+      ownershipStatus: string; shippingPrice: string; fees: FeeEntry[]
     }) => {
-      const body: Record<string, unknown> = { isWishlist: false }
+      const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
       if (date) body.acquiredAt = new Date(date).toISOString()
       const parsedPrice = parseDecimalInput(price)
       if (parsedPrice > 0) {
@@ -136,6 +145,7 @@ export default function WishlistPage() {
       setMovePrice('')
       setShippingPrice('')
       setFeeEntries([])
+      setMoveOwnershipStatus('OWNED')
     },
   })
 
@@ -221,6 +231,13 @@ export default function WishlistPage() {
             <p className="text-sm text-stone-400">
               <span className="text-stone-200 font-medium">{moveEntry.edition.book.title}</span>
             </p>
+
+            <div>
+              <label className={LABEL}>Status</label>
+              <select value={moveOwnershipStatus} onChange={e => setMoveOwnershipStatus(e.target.value)} className={INPUT}>
+                {OWNERSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
 
             <div>
               <label className={LABEL}>Purchase date</label>
@@ -333,7 +350,7 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, shippingPrice, fees: feeEntries })}
+                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries })}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >
