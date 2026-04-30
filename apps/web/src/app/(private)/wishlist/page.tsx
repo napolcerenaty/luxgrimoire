@@ -102,23 +102,29 @@ export default function WishlistPage() {
     }) => {
       const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
       if (date) body.acquiredAt = new Date(date).toISOString()
-      const parsedPrice = parseDecimalInput(price)
-      if (parsedPrice > 0) {
-        body.allocatedPrice = String(parsedPrice)
-        body.priceCurrency = currency
-      }
       await authFetch<void>(`/collection/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       })
       const feeDate = date || new Date().toISOString().slice(0, 10)
+      const parsedPrice = parseDecimalInput(price)
       const parsedShipping = parseDecimalInput(shippingPrice)
-      if (parsedShipping > 0) {
-        await authFetch('/fees', {
+
+      // Create a purchase group if price or shipping provided
+      let purchaseGroupId: string | null = null
+      if (parsedPrice > 0 || parsedShipping > 0) {
+        const group = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${id}`, {
           method: 'POST',
-          body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency, date: feeDate, category: 'FORWARDING', userBookEntryId: id }),
+          body: JSON.stringify({
+            totalAmount: parsedPrice > 0 ? parsedPrice : 0,
+            currency,
+            shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
+            purchasedAt: new Date(feeDate).toISOString(),
+          }),
         })
+        purchaseGroupId = group?.id ?? null
       }
+
       for (const fee of fees) {
         const parsedAmount = parseDecimalInput(fee.amount)
         if (parsedAmount <= 0) continue
@@ -132,7 +138,7 @@ export default function WishlistPage() {
             currency: fee.currency,
             date: feeDate,
             category: template?.category ?? undefined,
-            userBookEntryId: id,
+            ...(purchaseGroupId ? { purchaseGroupId } : {}),
           }),
         })
       }

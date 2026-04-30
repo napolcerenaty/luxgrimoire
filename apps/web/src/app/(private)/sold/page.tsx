@@ -19,13 +19,9 @@ interface CollectionEntry {
   readingStatus: string
   condition: string | null
   acquiredAt: string | null
-  purchaseDate: string | null
-  allocatedPrice: string | null
-  priceCurrency: string | null
   signatureType: string | null
   tags: string[]
-  purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
-  purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
+  purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: string } | null
   edition: {
     id: string
     slug: string
@@ -182,7 +178,7 @@ function RecordSaleModal({
                     {selected.includes(e.id) ? '✓' : ''}
                   </span>
                   <span className="flex-1 truncate">{e.edition.book.title}</span>
-                  {e.allocatedPrice && <span className="text-stone-500 text-xs shrink-0">{e.allocatedPrice} {e.priceCurrency}</span>}
+                  {e.purchaseGroup && <span className="text-stone-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
                 </button>
               ))}
             </div>
@@ -361,8 +357,8 @@ export default function SoldPage() {
                       footer={
                         <div className="mt-1 flex flex-wrap gap-1">
                           <Badge variant="default">SOLD</Badge>
-                          {entry.allocatedPrice && (
-                            <span className="text-[10px] text-stone-400">{entry.allocatedPrice} {entry.priceCurrency}</span>
+                          {entry.purchaseGroup && (
+                            <span className="text-[10px] text-stone-400">{parseFloat(entry.purchaseGroup.totalAmount).toFixed(2)} {entry.purchaseGroup.currency}</span>
                           )}
                         </div>
                       }
