@@ -109,12 +109,18 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
 }
 
 function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: () => void; onCancel: () => void }) {
+  const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
     queryKey: ['edition-detail', slug],
     queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}`),
+    staleTime: 0,
+    gcTime: 0,
   })
   if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
-  return <EditBookEditionForm edition={data} onSuccess={onSuccess} onCancel={onCancel} />
+  return <EditBookEditionForm edition={data} onSuccess={() => {
+    queryClient.invalidateQueries({ queryKey: ['edition-detail', slug] })
+    onSuccess()
+  }} onCancel={onCancel} />
 }
 
 export default function AdminEditionsPage() {
