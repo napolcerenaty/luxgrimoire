@@ -245,7 +245,7 @@ function AddSaleForm({
               <span className="flex-1 truncate">{e.edition.book.title}</span>
               {e.purchaseGroup && (
                 <span className="text-stone-500 text-xs shrink-0">
-                  {(e.purchaseGroup.totalAmount + (e.purchaseGroup.shippingAmount ?? 0)).toFixed(2)} {e.purchaseGroup.currency}
+                  {(Number(e.purchaseGroup.totalAmount) + Number(e.purchaseGroup.shippingAmount ?? 0)).toFixed(2)} {e.purchaseGroup.currency}
                 </span>
               )}
             </button>
@@ -1055,7 +1055,7 @@ export default function CollectionPage() {
                           {/* Cost display */}
                           {entry.purchaseGroup ? (() => {
                             const pg = entry.purchaseGroup
-                            const total = pg.totalAmount + (pg.shippingAmount ?? 0)
+                            const total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
                             const dc = user?.preferredCurrency
                             const dateStr = pg.purchasedAt.slice(0, 10)
                             return (
