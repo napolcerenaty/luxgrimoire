@@ -42,6 +42,7 @@ import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requ
 import { SalesModule } from './modules/sales/sales.module';
 import { ImportSourcesModule } from './modules/import-sources/import-sources.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
+import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { TrackingModule } from './modules/tracking/tracking.module';
     SalesModule,
     ImportSourcesModule,
     TrackingModule,
+    BackupModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerSkipTestGuard },

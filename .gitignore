@@ -30,6 +30,9 @@ Thumbs.db
 # Uploads (replaced by Cloudinary)
 uploads/
 
+# Database backups (local files, not committed to repo)
+apps/api/backups/
+
 # Turbo cache
 .turbo/
 
