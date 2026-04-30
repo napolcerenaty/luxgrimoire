@@ -380,6 +380,11 @@ export class MonthQueryDto {
   @Min(1)
   @Max(50)
   pageSize?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  all?: boolean;
 }
 
 export class SubscriptionQueryDto {

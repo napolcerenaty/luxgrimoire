@@ -1181,7 +1181,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
 
   const { data: months, isLoading } = useQuery<Month[]>({
     queryKey: qKey,
-    queryFn: () => authFetch<Month[]>(`/subscriptions/${slug}/months`),
+    queryFn: () => authFetch<Month[]>(`/subscriptions/${slug}/months?all=true`),
   })
 
   const invalidateMonths = () => queryClient.invalidateQueries({ queryKey: qKey })

@@ -258,7 +258,7 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true },
@@ -269,13 +269,15 @@ export class SubscriptionsService {
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
 
-    const where = {
-      subscriptionId: sub.id,
-      OR: [
-        { year: { lt: nowYear } },
-        { year: nowYear, month: { lt: nowMonth } },
-      ],
-    };
+    const where = all
+      ? { subscriptionId: sub.id }
+      : {
+          subscriptionId: sub.id,
+          OR: [
+            { year: { lt: nowYear } },
+            { year: nowYear, month: { lte: nowMonth } },
+          ],
+        };
 
     const skip = (page - 1) * pageSize;
 
