@@ -108,6 +108,15 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
   )
 }
 
+function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: () => void; onCancel: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['edition-detail', slug],
+    queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}`),
+  })
+  if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
+  return <EditBookEditionForm edition={data} onSuccess={onSuccess} onCancel={onCancel} />
+}
+
 export default function AdminEditionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -115,7 +124,7 @@ export default function AdminEditionsPage() {
   const managedCompanyId = (user as (typeof user & { managedCompanyId?: string }) | null)?.managedCompanyId ?? ''
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [editEdition, setEditEdition] = useState<ApiBookEdition | null>(null)
+  const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -313,7 +322,7 @@ export default function AdminEditionsPage() {
           <DataTable
             columns={columns}
             data={editions}
-            onEdit={(row) => setEditEdition(row)}
+            onEdit={(row) => setEditEditionSlug(row.slug)}
             onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
           />
           {(data?.totalPages ?? 1) > 1 && (
@@ -337,15 +346,15 @@ export default function AdminEditionsPage() {
       </FormModal>
 
       <FormModal
-        open={editEdition !== null}
+        open={editEditionSlug !== null}
         title="Edit Edition"
-        onClose={() => setEditEdition(null)}
+        onClose={() => setEditEditionSlug(null)}
       >
-        {editEdition && (
-          <EditBookEditionForm
-            edition={editEdition}
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setEditEdition(null) }}
-            onCancel={() => setEditEdition(null)}
+        {editEditionSlug && (
+          <EditEditionLoader
+            slug={editEditionSlug}
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setEditEditionSlug(null) }}
+            onCancel={() => setEditEditionSlug(null)}
           />
         )}
       </FormModal>
