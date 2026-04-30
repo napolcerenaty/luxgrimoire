@@ -14,7 +14,7 @@ const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 // ─── Cloud image helper ───────────────────────────────────────────────────────
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 function cloudUrl(publicId: string | null | undefined, size = 80) {
   if (!publicId) return null
   if (publicId.startsWith('http')) return publicId

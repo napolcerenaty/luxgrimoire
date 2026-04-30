@@ -8,6 +8,8 @@ import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-t
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
+const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
@@ -185,7 +187,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initial.logoUrl ? `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload/w_120,h_120,c_fill/${initial.logoUrl}` : null
+    initial.logoUrl ? `https://res.cloudinary.com/${CLOUD}/image/upload/w_120,h_120,c_fill/${initial.logoUrl}` : null
   )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -374,7 +376,7 @@ export default function AdminCompaniesPage() {
     {
       key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
         row.logoUrl
-          ? <img src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload/w_40,h_40,c_fill/${row.logoUrl}`} alt="" className="w-9 h-9 rounded object-cover" />
+          ? <img src={`https://res.cloudinary.com/${CLOUD}/image/upload/w_40,h_40,c_fill/${row.logoUrl}`} alt="" className="w-9 h-9 rounded object-cover" />
           : <div className="w-9 h-9 rounded bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">{row.name.charAt(0)}</div>,
     },
     { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-stone-200">{row.name}</span> },

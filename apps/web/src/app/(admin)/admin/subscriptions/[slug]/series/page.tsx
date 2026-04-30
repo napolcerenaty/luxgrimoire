@@ -236,7 +236,7 @@ function SeriesCard({
   const qKey = ['admin', 'subscription-series', subscriptionSlug]
   const [editing, setEditing] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
-  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
   const coverUrl = series.coverImage
     ? series.coverImage.startsWith('http') ? series.coverImage

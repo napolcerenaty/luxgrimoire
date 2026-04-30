@@ -22,7 +22,7 @@ import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/components/admin/MultiImageUpload'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -569,7 +569,7 @@ function SingleImageUpload({ imageId, folder, onChange }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
   const thumb = imageId
     ? imageId.startsWith('http')
       ? imageId
