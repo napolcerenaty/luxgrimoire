@@ -312,13 +312,16 @@ export function CollectionEntryPanel({ editionId }: Props) {
   function openStatusEdit() {
     setEditOwnership(entry!.ownershipStatus)
     setEditReading(entry!.readingStatus)
+    setEditSignatureType(entry!.signatureType ?? '')
     setEditingStatus(true)
   }
 
   async function saveStatus() {
     setSavingStatus(true)
     try {
-      await patchEntry({ ownershipStatus: editOwnership, readingStatus: editReading })
+      const fields: Record<string, unknown> = { ownershipStatus: editOwnership, readingStatus: editReading }
+      if (editSignatureType) fields.signatureType = editSignatureType
+      await patchEntry(fields)
       setEditingStatus(false)
     } finally {
       setSavingStatus(false)
@@ -613,64 +616,79 @@ export function CollectionEntryPanel({ editionId }: Props) {
   return (
     <div className="space-y-3">
 
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Package size={15} className="text-amber-400" />
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-bright)' }}>My Collection</h3>
-        {isFromSubscription && (
-          <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-            From subscription
+      {/* Status section (full-width, replaces old header + row1 grid) */}
+      <div className={CARD} style={cardStyle}>
+        {/* Collection meta line */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <Clock size={10} className="inline mr-1 -mt-px" />
+            In your collection · <span style={{ color: 'var(--text-dim)' }}>{timeInCollection(timeSrc)}</span>
+            {(entry.purchaseDate ?? pg?.purchasedAt) && (
+              <span className="ml-1" style={{ color: 'var(--text-muted)' }}>
+                (from {fmtDate(entry.purchaseDate ?? pg?.purchasedAt)})
+              </span>
+            )}
           </span>
-        )}
-      </div>
-
-      {/* Row 1: Status + Time */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-        {/* Status card */}
-        <div className={CARD} style={cardStyle}>
-          <p className={SEC_HDR}>Status</p>
-          {editingStatus ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 flex-wrap">
-                <div className="flex-1 min-w-[120px]">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Ownership</label>
-                  <select value={editOwnership} onChange={e => setEditOwnership(e.target.value)} className={INP}>
-                    {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div className="flex-1 min-w-[120px]">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Reading</label>
-                  <select value={editReading} onChange={e => setEditReading(e.target.value)} className={INP}>
-                    {READING_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-              <SaveCancelBtns onSave={saveStatus} onCancel={() => setEditingStatus(false)} saving={savingStatus} />
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'bg-stone-700 text-stone-300'}`}>
-                {entry.ownershipStatus}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-xs ${READING_COLORS[entry.readingStatus] ?? 'bg-stone-700 text-stone-400'}`}>
-                {entry.readingStatus}
-              </span>
-              <EditBtn onClick={openStatusEdit} />
-            </div>
+          {isFromSubscription && (
+            <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+              From subscription
+            </span>
           )}
         </div>
 
-        {/* Time in collection card */}
-        <div className={CARD} style={cardStyle}>
-          <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Clock size={11} /> In collection</span></p>
-          <div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-bright)' }}>{timeInCollection(timeSrc)}</p>
-            {(entry.purchaseDate ?? pg?.purchasedAt) && (
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>since {fmtDate(entry.purchaseDate ?? pg?.purchasedAt)}</p>
+        {/* Status badges / edit form */}
+        {editingStatus ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Ownership</label>
+                <select value={editOwnership} onChange={e => setEditOwnership(e.target.value)} className={INP}>
+                  {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Reading</label>
+                <select value={editReading} onChange={e => setEditReading(e.target.value)} className={INP}>
+                  {READING_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Signature</label>
+                <select value={editSignatureType} onChange={e => setEditSignatureType(e.target.value)} className={INP}>
+                  <option value="">— not set —</option>
+                  {SIGNATURE_TYPES.map(s => <option key={s} value={s}>{SIGNATURE_LABELS[s]}</option>)}
+                </select>
+              </div>
+            </div>
+            <SaveCancelBtns onSave={saveStatus} onCancel={() => setEditingStatus(false)} saving={savingStatus} />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={openStatusEdit}
+              className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80`}
+            >
+              {entry.ownershipStatus}
+              <ChevronDown size={10} />
+            </button>
+            <button
+              onClick={openStatusEdit}
+              className={`${READING_COLORS[entry.readingStatus] ?? 'badge-unread'} px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80`}
+            >
+              {entry.readingStatus}
+              <ChevronDown size={10} />
+            </button>
+            {entry.signatureType && (
+              <button
+                onClick={openStatusEdit}
+                className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80"
+              >
+                {SIGNATURE_LABELS[entry.signatureType] ?? entry.signatureType}
+                <ChevronDown size={10} />
+              </button>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Row 2: Purchase cost + Tracking */}
@@ -979,6 +997,57 @@ export function CollectionEntryPanel({ editionId }: Props) {
         </div>
       </div>
 
+      {/* Tags — compact, below Row 2 */}
+      <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
+          <Tag size={10} /> Tags
+        </span>
+        {editingTags ? (
+          <div className="flex flex-col gap-2 w-full mt-1">
+            {editTagList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {editTagList.map(tag => (
+                  <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+                    {tag}
+                    <button onClick={() => setEditTagList(prev => prev.filter(t => t !== tag))} className="text-stone-500 hover:text-red-400 transition-colors">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={editTagInput}
+                onChange={e => setEditTagInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagFromInput() } }}
+                placeholder="Add tags (Enter or comma)…"
+                className={INP}
+              />
+              <button onClick={addTagFromInput} className="px-3 py-1.5 rounded-lg text-xs shrink-0 transition-colors" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+                Add
+              </button>
+            </div>
+            <SaveCancelBtns onSave={saveTags} onCancel={() => setEditingTags(false)} saving={savingTags} />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1 flex-wrap">
+              {entry.tags.length > 0 ? (
+                entry.tags.map(tag => (
+                  <span key={tag} className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>no tags</span>
+              )}
+            </div>
+            <EditBtn onClick={openTagsEdit} />
+          </>
+        )}
+      </div>
+
       {/* Sale details — only when SOLD */}
       {entry.ownershipStatus === 'SOLD' && (
         <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.25)' }}>
@@ -1063,53 +1132,6 @@ export function CollectionEntryPanel({ editionId }: Props) {
           )}
         </div>
       )}
-
-      {/* Tags */}
-      <div className={CARD} style={cardStyle}>
-        <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Tag size={11} /> Tags</span></p>
-        {editingTags ? (
-          <div className="flex flex-col gap-2">
-            {editTagList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {editTagList.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {tag}
-                    <button onClick={() => setEditTagList(prev => prev.filter(t => t !== tag))} className="text-stone-500 hover:text-red-400 transition-colors">
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                value={editTagInput}
-                onChange={e => setEditTagInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagFromInput() } }}
-                placeholder="Add tags (Enter or comma)…"
-                className={INP}
-              />
-              <button onClick={addTagFromInput} className="px-3 py-1.5 rounded-lg text-xs shrink-0 transition-colors" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                Add
-              </button>
-            </div>
-            <SaveCancelBtns onSave={saveTags} onCancel={() => setEditingTags(false)} saving={savingTags} />
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {entry.tags.length > 0 ? (
-              entry.tags.map(tag => (
-                <span key={tag} className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                  {tag}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No tags</span>
-            )}
-            <EditBtn onClick={openTagsEdit} />
-          </div>
-        )}
-      </div>
 
       {/* Ownership history */}
       <div className={CARD} style={cardStyle}>
