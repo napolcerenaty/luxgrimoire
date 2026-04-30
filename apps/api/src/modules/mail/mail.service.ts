@@ -26,11 +26,11 @@ export class MailService {
       this.brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
     }
 
-    const fromRaw = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
+    const fromRaw = process.env.SMTP_FROM ?? '"LuxGrimoire" <noreply@luxgrimoire.com>';
     const match = fromRaw.match(/^"?([^"<]+)"?\s*<([^>]+)>$/);
     this.brevoFrom = match
       ? { name: match[1].trim(), email: match[2].trim() }
-      : { name: 'Luxgrimoire', email: fromRaw };
+      : { name: 'LuxGrimoire', email: fromRaw };
   }
 
   /**
@@ -52,11 +52,11 @@ export class MailService {
    * Email verification — Brevo template (preferred) or SMTP fallback.
    * Env: BREVO_VERIFY_TEMPLATE_ID
    * Template params: {{ params.verifyLink }}
-   * Fallback subject: "Verify your Luxgrimoire email address"
+   * Fallback subject: "Verify your LuxGrimoire email address"
    */
   async sendVerificationEmail(to: string, token: string): Promise<void> {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    const verifyLink = `${frontendUrl}/auth/verify-email?token=${token}`;
+    const verifyLink = `${frontendUrl}/verify-email?token=${token}`;
 
     const sent = await this.sendViaBrevoTemplate(
       'BREVO_VERIFY_TEMPLATE_ID',
@@ -68,12 +68,12 @@ export class MailService {
     if (!sent) {
       // Fallback: send via SMTP with inline HTML
       const year = new Date().getFullYear();
-      const html = emailShell('Verify your email – Luxgrimoire', `
+      const html = emailShell('Verify your email – LuxGrimoire', `
         ${emailBrand()}
         ${emailTitle('Confirm Your Email Address')}
         <tr><td style="padding:16px 44px 0 44px;text-align:center;">
           <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;">
-            Thank you for creating a Luxgrimoire account. Please confirm your email address to activate your account.
+            Thank you for creating a LuxGrimoire account. Please confirm your email address to activate your account.
           </p>
         </td></tr>
         ${emailButton(verifyLink, 'Verify Email Address')}
@@ -89,7 +89,7 @@ export class MailService {
         </td></tr>
         ${emailFooter(year)}
       `);
-      await this.sendViaSMTP(to, 'Verify your Luxgrimoire email address', html, 'Verification email');
+      await this.sendViaSMTP(to, 'Verify your LuxGrimoire email address', html, 'Verification email');
     }
   }
 
@@ -97,7 +97,7 @@ export class MailService {
    * Password reset — Brevo template (preferred) or SMTP fallback.
    * Env: BREVO_RESET_TEMPLATE_ID
    * Template params: {{ params.resetLink }}
-   * Fallback subject: "Reset your Luxgrimoire password"
+   * Fallback subject: "Reset your LuxGrimoire password"
    */
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
@@ -112,12 +112,12 @@ export class MailService {
 
     if (!sent) {
       const year = new Date().getFullYear();
-      const html = emailShell('Reset your password – Luxgrimoire', `
+      const html = emailShell('Reset your password – LuxGrimoire', `
         ${emailBrand()}
         ${emailTitle('Reset Your Password')}
         <tr><td style="padding:16px 44px 0 44px;text-align:center;">
           <p style="margin:0;font-family:'Crimson Text',Georgia,serif;color:#7ab0cc;font-size:17px;line-height:1.75;">
-            We received a request to reset the password for your Luxgrimoire account.
+            We received a request to reset the password for your LuxGrimoire account.
           </p>
         </td></tr>
         ${emailButton(resetLink, 'Reset Password')}
@@ -133,7 +133,7 @@ export class MailService {
         </td></tr>
         ${emailFooter(year)}
       `);
-      await this.sendViaSMTP(to, 'Reset your Luxgrimoire password', html, 'Password reset email');
+      await this.sendViaSMTP(to, 'Reset your LuxGrimoire password', html, 'Password reset email');
     }
   }
 
@@ -167,7 +167,7 @@ export class MailService {
   }
 
   private async sendViaSMTP(to: string, subject: string, html: string, label: string): Promise<void> {
-    const from = process.env.SMTP_FROM ?? '"Luxgrimoire" <noreply@luxgrimoire.com>';
+    const from = process.env.SMTP_FROM ?? '"LuxGrimoire" <noreply@luxgrimoire.com>';
     try {
       await this.transporter.sendMail({ from, to, subject, html });
       this.logger.log(`${label} sent via SMTP`);
@@ -216,7 +216,7 @@ function emailBrand(): string {
         — The Luxury Book Collector's Platform —
       </p>
       <p style="margin:10px 0 0 0;font-family:'Cinzel',Georgia,serif;font-size:28px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#c0e4f4;">
-        Luxgrimoire
+        LuxGrimoire
       </p>
     </td>
   </tr>
