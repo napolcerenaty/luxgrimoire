@@ -171,6 +171,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editTotalAmount, setEditTotalAmount] = useState('')
   const [editCurrency, setEditCurrency] = useState('')
   const [editShippingAmount, setEditShippingAmount] = useState('')
+  const [editDiscount, setEditDiscount] = useState('')
   const [editPurchasedAt, setEditPurchasedAt] = useState('')
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
   const [savingPurchase, setSavingPurchase] = useState(false)
@@ -287,12 +288,14 @@ export function CollectionEntryPanel({ editionId }: Props) {
       setEditTotalAmount(String(pg.totalAmount))
       setEditCurrency(pg.currency)
       setEditShippingAmount(pg.shippingAmount ? String(pg.shippingAmount) : '')
+      setEditDiscount(pg.discounts?.[0] ? String(pg.discounts[0].amount) : '')
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
     } else {
       setEditTotalAmount('')
       setEditCurrency(entry!.priceCurrency ?? 'EUR')
       setEditShippingAmount('')
+      setEditDiscount('')
       setEditPurchasedAt(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
       setEditPurchaseNotes('')
     }
@@ -310,17 +313,46 @@ export function CollectionEntryPanel({ editionId }: Props) {
         purchasedAt: editPurchasedAt || new Date().toISOString().slice(0, 10),
         notes: editPurchaseNotes || null,
       }
+      let groupId: string
       if (pg) {
         await authFetch(`/collection/bundles/${pg.id}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
         })
+        groupId = pg.id
       } else {
-        await authFetch(`/collection/bundles/for-entry/${entry!.id}`, {
+        const created = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${entry!.id}`, {
           method: 'POST',
           body: JSON.stringify(payload),
         })
+        groupId = created.id
       }
+
+      // Sync discount: delete existing, create new if value provided
+      const existingDiscount = pg?.discounts?.[0]
+      const discountAmount = editDiscount ? parseFloat(editDiscount) : null
+      if (existingDiscount && (!discountAmount || discountAmount <= 0)) {
+        await authFetch(`/fees/discounts/${existingDiscount.id}`, { method: 'DELETE' })
+      } else if (discountAmount && discountAmount > 0) {
+        if (existingDiscount) {
+          await authFetch(`/fees/discounts/${existingDiscount.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ amount: discountAmount, currency: editCurrency, date: (editPurchasedAt || new Date().toISOString().slice(0, 10)) }),
+          })
+        } else {
+          await authFetch(`/fees/discounts`, {
+            method: 'POST',
+            body: JSON.stringify({
+              name: 'Discount',
+              amount: discountAmount,
+              currency: editCurrency,
+              date: editPurchasedAt || new Date().toISOString(),
+              purchaseGroupId: groupId,
+            }),
+          })
+        }
+      }
+
       await refetchEntry()
       setEditingPurchase(false)
     } finally {
@@ -588,6 +620,10 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
                 <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP} />
               </div>
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Discount</label>
+                <input type="number" step="0.01" min="0" value={editDiscount} onChange={e => setEditDiscount(e.target.value)} placeholder="0.00" className={INP} />
+              </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
                 <input value={editPurchaseNotes} onChange={e => setEditPurchaseNotes(e.target.value)} placeholder="Any notes…" className={INP} />
@@ -652,8 +688,13 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     const amt = parseFloat(d.amount)
                     return (
                       <div key={d.id} className="flex justify-between items-baseline gap-2">
-                        <span className="text-xs text-green-400">{d.name} (discount)</span>
-                        <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
+                        <span className="text-xs text-green-400">− {d.name}</span>
+                        <span className="text-right">
+                          <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
+                          {converted(amt, d.currency) && (
+                            <span className="block text-xs text-green-500/60">{converted(amt, d.currency)?.replace('≈', '≈ −')}</span>
+                          )}
+                        </span>
                       </div>
                     )
                   })}
