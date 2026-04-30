@@ -1,0 +1,14 @@
+node_modules
+.git
+*.log
+dist
+.next
+apps/api/backups
+apps/api/.env
+apps/web/.env*
+packages/database/.env
+*.md
+.idea
+.vscode
+restart.ps1
+scripts
