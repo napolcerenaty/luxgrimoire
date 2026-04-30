@@ -2,9 +2,7 @@
 set -e
 
 echo "▶ Running Prisma migrations..."
-cd /app/packages/database
-DATABASE_URL="$DATABASE_URL" npx prisma migrate deploy
+node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
 echo "▶ Starting API..."
-cd /app
 exec node apps/api/dist/main.js
