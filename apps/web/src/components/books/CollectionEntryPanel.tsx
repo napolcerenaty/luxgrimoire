@@ -139,8 +139,9 @@ function fmtDate(dateStr: string | null | undefined): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const INP = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm w-full'
-const INP_FLEX = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm flex-1 min-w-0'
+const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = INP_BASE + ' w-full'
+const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
 const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
 
 function EditBtn({ onClick }: { onClick: () => void }) {
@@ -774,7 +775,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         value={d.amount}
                         onChange={e => setEditDiscounts(prev => prev.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
                         placeholder="0.00"
-                        className={INP + ' w-24'}
+                        className={INP_BASE + ' w-24'}
                       />
                       <button
                         type="button"
@@ -837,8 +838,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         )}
                         <div className="flex gap-1.5">
                           <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
-                          <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
-                          <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
+                          <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
+                          <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
@@ -879,8 +880,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     {addingRefund ? (
                       <div className="flex flex-col gap-1.5 pt-0.5">
                         <div className="flex gap-1.5">
-                          <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
-                          <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP + ' w-20'}>
+                          <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
+                          <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <input value={newRefundReason} onChange={e => setNewRefundReason(e.target.value)} placeholder="Reason (optional)" className={INP + ' flex-1'} />
