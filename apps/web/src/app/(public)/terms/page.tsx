@@ -1,0 +1,228 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'Terms of Use – LuxGrimoire',
+  description: 'Terms of Use for LuxGrimoire — rules governing use of the platform.',
+}
+
+const EFFECTIVE_DATE = 'May 1, 2025'
+const CONTACT_EMAIL = 'legal@luxgrimoire.com'
+
+export default function TermsPage() {
+  return (
+    <div className="container mx-auto max-w-3xl px-4 py-16">
+      <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">Terms of Use</h1>
+      <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
+
+      <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">1. Acceptance of Terms</h2>
+          <p>
+            By accessing or using LuxGrimoire (&ldquo;the Service&rdquo;) at{' '}
+            <Link href="https://luxgrimoire.com" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+              luxgrimoire.com
+            </Link>
+            , you agree to be bound by these Terms of Use. If you do not agree, do not use the Service.
+          </p>
+          <p className="mt-2">
+            These Terms apply to all visitors, registered users, and contributors. For questions, contact us at{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+              {CONTACT_EMAIL}
+            </a>
+            .
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">2. Description of Service</h2>
+          <p>
+            LuxGrimoire is a community-driven database and personal tracker for luxury special edition books and book
+            subscription boxes. The Service allows users to browse a publicly-contributed database, manage personal
+            collections, track spending, follow upcoming sale announcements, and contribute data.
+          </p>
+          <p className="mt-2">
+            LuxGrimoire is an independent project and is not affiliated with, endorsed by, or sponsored by any
+            book publisher, subscription box company, or book-related brand, unless explicitly stated in a labeled
+            sponsored partnership.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">3. Eligibility</h2>
+          <p>
+            You must be at least 13 years old to use the Service. By creating an account, you confirm that you
+            meet this minimum age requirement. If you are under 18, you should review these Terms with a parent
+            or guardian.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">4. User Accounts</h2>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+            <li>You are responsible for all activity that occurs under your account.</li>
+            <li>You must provide accurate, current, and complete information when creating your account.</li>
+            <li>You may not share your account with others or create accounts on behalf of others without authorisation.</li>
+            <li>You must notify us immediately at <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a> of any unauthorised use of your account.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">5. User-Generated Content</h2>
+          <p>
+            Users may contribute content to LuxGrimoire, including database entries, sale announcements, and images.
+            By contributing content, you agree that:
+          </p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>Your content is accurate to the best of your knowledge.</li>
+            <li>You have the right to contribute the content and it does not violate any law or third-party rights.</li>
+            <li>You grant LuxGrimoire a non-exclusive, worldwide, royalty-free licence to display, distribute, and
+                modify the content as part of the platform.</li>
+            <li>Contributed database content (book titles, edition details, company information) may be accessible
+                to all users of the platform.</li>
+          </ul>
+          <p className="mt-3">
+            We reserve the right to remove any content that violates these Terms, at our sole discretion.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">6. Image Uploads</h2>
+          <p>
+            You may upload images (e.g. edition cover photos) to enrich the community database. By uploading
+            an image, you confirm that:
+          </p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>You are the author or original photographer, or you have obtained explicit permission from the
+                rights-holder to upload the image.</li>
+            <li>You are not uploading images that infringe copyright, are protected by digital rights management
+                (DRM), or are obtained in violation of any terms of service.</li>
+            <li>You understand that publisher cover art, promotional photos, and other commercially-produced images
+                may be protected by copyright. Upload only images for which you hold rights or have authorisation.</li>
+            <li>You grant LuxGrimoire a non-exclusive, worldwide, royalty-free licence to store, display, resize,
+                and serve the image as part of the platform.</li>
+            <li>You retain ownership of images you upload. You may request their removal at any time.</li>
+          </ul>
+          <p className="mt-3">
+            LuxGrimoire will respond promptly to valid copyright takedown notices. See Section 11 (DMCA / Copyright)
+            for details.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">7. Prohibited Conduct</h2>
+          <p>You agree not to:</p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>Upload, post, or submit false, misleading, or inaccurate information.</li>
+            <li>Upload infringing, defamatory, obscene, or otherwise unlawful content.</li>
+            <li>Attempt to access, probe, or test the security of the Service without authorisation.</li>
+            <li>Use automated tools (bots, scrapers) to collect data from the Service without prior written permission.</li>
+            <li>Impersonate any person, company, or entity.</li>
+            <li>Interfere with or disrupt the Service or its infrastructure.</li>
+            <li>Use the Service for any commercial purpose without our prior written consent.</li>
+            <li>Create multiple accounts to circumvent bans or restrictions.</li>
+          </ul>
+          <p className="mt-3">
+            Violation of these rules may result in immediate account suspension or termination.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">8. Sponsored Content</h2>
+          <p>
+            LuxGrimoire may display sponsored slots (Featured Partners). Sponsored content is always clearly
+            labeled with a &ldquo;Sponsored&rdquo; or &ldquo;Featured&rdquo; badge. Sponsorships do not influence editorial
+            decisions about the accuracy of database content. We are not liable for the products, services, or
+            websites of sponsor companies.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">9. Intellectual Property</h2>
+          <p>
+            The LuxGrimoire name, logo, design, and original code are the intellectual property of LuxGrimoire
+            and its creators. You may not reproduce, distribute, or create derivative works from them without
+            written permission.
+          </p>
+          <p className="mt-2">
+            Book titles, author names, company names, and edition descriptions referenced in the database are
+            the property of their respective rights-holders and are used for identification and informational
+            purposes only.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">10. Disclaimers</h2>
+          <p>
+            The Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties of any kind, express or
+            implied. We do not warrant that:
+          </p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>Database information is complete, accurate, or up to date.</li>
+            <li>The Service will be uninterrupted or error-free.</li>
+            <li>Prices, availability, or sale dates of any featured edition or subscription are accurate.</li>
+          </ul>
+          <p className="mt-3">
+            Always verify purchase information directly with the relevant publisher or subscription box company.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">11. DMCA / Copyright Takedown</h2>
+          <p>
+            If you believe that content on LuxGrimoire infringes your copyright, please send a takedown notice to{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a> including:
+          </p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>A description of the copyrighted work you believe has been infringed.</li>
+            <li>The URL or location of the allegedly infringing content on our platform.</li>
+            <li>Your contact information (name, email address).</li>
+            <li>A statement that you have a good faith belief that the use is not authorised by the rights-holder.</li>
+            <li>A statement that the information in your notice is accurate, under penalty of perjury.</li>
+          </ul>
+          <p className="mt-3">
+            We will respond to valid notices promptly and remove infringing content as required.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">12. Limitation of Liability</h2>
+          <p>
+            To the maximum extent permitted by applicable law, LuxGrimoire and its contributors shall not be
+            liable for any indirect, incidental, special, or consequential damages arising from use of or
+            inability to use the Service, including loss of data or profits.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">13. Governing Law</h2>
+          <p>
+            These Terms are governed by the laws of the European Union and the Republic of Poland, without regard
+            to conflict of law principles. Any disputes shall be subject to the exclusive jurisdiction of the
+            courts of Poland.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">14. Changes to Terms</h2>
+          <p>
+            We may update these Terms from time to time. We will notify registered users of material changes by
+            email and by posting the updated Terms with a new effective date. Your continued use of the Service
+            after the effective date constitutes acceptance of the revised Terms.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">15. Contact</h2>
+          <p>
+            Questions about these Terms:{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  )
+}

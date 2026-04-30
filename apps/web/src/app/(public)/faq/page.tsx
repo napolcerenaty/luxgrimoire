@@ -36,16 +36,8 @@ const FAQ: { q: string; a: string }[] = [
     a: 'The Spending Tracker lets you log the price you paid for each edition and gives you a summary of your spending per month, year, or subscription box.',
   },
   {
-    q: 'How are brand colors used?',
-    a: 'When a book box company has no cover images for an edition, LuxGrimoire can extract the brand\'s main colors from their website and use those as a decorative palette in calendars and edition placeholders. Colors are extracted automatically and can be re-run by admins.',
-  },
-  {
     q: 'I found incorrect data. How do I report it?',
     a: 'Use the "Report Abuse / DMCA" page (linked in the footer) and select "Incorrect data". Describe the issue and we\'ll investigate and correct it.',
-  },
-  {
-    q: 'Is this affiliated with any subscription box company?',
-    a: 'No. LuxGrimoire is an independent, fan-made community project. Featured partners are paid sponsored slots clearly labeled as such — they have no editorial influence over the database.',
   },
   {
     q: 'Can I become a moderator or contributor?',

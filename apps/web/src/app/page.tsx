@@ -90,15 +90,17 @@ export default async function HomePage() {
         viewAllHref="/sale-announcements"
       />
 
-      {/* CTA below announcements */}
-      <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
-        <p className="text-sm text-stone-400">
-          Have you seen an announcement?{' '}
-          <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors">
-            Let us know!
-          </Link>
-        </p>
-      </div>
+      {/* CTA below announcements — only shown when announcements are present */}
+      {announcements.length > 0 && (
+        <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
+          <p className="text-sm text-stone-400">
+            Have you seen an announcement?{' '}
+            <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors">
+              Let us know!
+            </Link>
+          </p>
+        </div>
+      )}
 
       {/* Recently Added Editions carousel */}
       <EditionCarousel
