@@ -20,6 +20,16 @@ const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 type ArtistEntry = { id?: string; name: string; role: string }
 type Company = { id: string; name: string; slug: string; defaultCurrency?: string | null }
 
+const ISO_TO_LANGUAGE: Record<string, string> = {
+  EN: 'English', PL: 'Polish', FR: 'French', DE: 'German', ES: 'Spanish',
+  IT: 'Italian', PT: 'Portuguese', NL: 'Dutch', CS: 'Czech', HU: 'Hungarian',
+  RO: 'Romanian', UK: 'Ukrainian', JA: 'Japanese', KO: 'Korean', ZH: 'Chinese',
+}
+function resolveLanguage(lang: string | null | undefined): string {
+  if (!lang) return ''
+  return ISO_TO_LANGUAGE[lang.toUpperCase()] ?? lang
+}
+
 interface AiParseResult {
   book?: {
     title?: string
@@ -209,7 +219,7 @@ export default function CreateBookEditionForm({
   const [allImages, setAllImages] = useState<string[]>([])
   const [artists, setArtists] = useState<ArtistEntry[]>([])
   const [features, setFeatures] = useState<string[]>([])
-  const [language, setLanguage] = useState(defaultLanguage ?? '')
+  const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
@@ -356,6 +366,7 @@ export default function CreateBookEditionForm({
           subscriptionId: subscriptionId || undefined,
           publisher: publisher.trim() || undefined,
           photoCredit: photoCredit.trim() || undefined,
+          basePrice: price ? Number(price) : undefined,
           currency: currency || undefined,
           language: language || undefined,
           firstAccessDate: firstAccessDate || undefined,

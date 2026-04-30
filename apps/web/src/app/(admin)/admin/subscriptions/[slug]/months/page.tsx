@@ -1169,7 +1169,7 @@ function ImportSourceForm({
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; defaultCurrency?: string | null; bookBoxCompanyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
 
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -1244,8 +1244,8 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             {months.map(m => (
               <MonthCard key={m.id} month={m} slug={slug}
                 subscriptionId={subscription?.id}
-                defaultCurrency={subscription?.defaultCurrency}
-                defaultCompanyId={subscription?.bookBoxCompanyId}
+                defaultCurrency={subscription?.currency}
+                defaultCompanyId={subscription?.companyId}
                 defaultPrice={subscription?.price}
                 renewalDay={subscription?.renewalDay}
                 defaultLanguage={subscription?.language}
