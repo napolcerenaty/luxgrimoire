@@ -137,7 +137,7 @@ function resolveSkipType(form: SubFormData): string {
   return form.skipPolicyType
 }
 
-
+function formToCreatePayload(form: SubFormData) {
   return {
     companyId: form.companyId,
     name: form.name,
