@@ -140,6 +140,7 @@ function fmtDate(dateStr: string | null | undefined): string {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const INP = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm w-full'
+const INP_FLEX = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm flex-1 min-w-0'
 const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
 
 function EditBtn({ onClick }: { onClick: () => void }) {
@@ -742,18 +743,18 @@ export function CollectionEntryPanel({ editionId }: Props) {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => setEditTotalAmount(e.target.value)} placeholder="0.00" className={INP} />
+                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => setEditTotalAmount(e.target.value)} placeholder="0.00" className={INP_FLEX + ' w-20'} />
                 </div>
-                <div className="w-24">
+                <div className="flex-1">
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
+                  <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP_FLEX + ' w-20'} />
+                </div>
+                <div className="w-24 shrink-0">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
                   <select value={editCurrency} onChange={e => setEditCurrency(e.target.value)} className={INP}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
-                <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP} />
               </div>
 
               {/* Discounts list */}
@@ -766,7 +767,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         value={d.name}
                         onChange={e => setEditDiscounts(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                         placeholder="Name (e.g. promo code)"
-                        className={INP + ' flex-1 min-w-0'}
+                        className={INP_FLEX}
                       />
                       <input
                         type="number" step="0.01" min="0"
@@ -835,7 +836,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                           </div>
                         )}
                         <div className="flex gap-1.5">
-                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1 min-w-0'} />
+                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
                           <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
