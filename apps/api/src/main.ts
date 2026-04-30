@@ -73,6 +73,18 @@ async function bootstrap() {
       'https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js',
       'https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js',
     ],
+    customJsStr: `
+      window.onload = function() {
+        window.ui = SwaggerUIBundle({
+          url: '/api/docs-json',
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: 'StandaloneLayout'
+        });
+      };
+    `,
   });
 
   const port = process.env.APP_PORT ?? 3001;
