@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
-import { redisStore } from 'cache-manager-redis-yet';
+import KeyvRedis from '@keyv/redis';
 import Keyv from 'keyv';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerSkipTestGuard } from './common/guards/throttler-skip-test.guard';
@@ -73,8 +73,11 @@ import { BackupModule } from './modules/backup/backup.module';
         const redisUrl = config.get<string>('REDIS_URL');
         if (redisUrl) {
           try {
-            const store = await Promise.race([
-              redisStore({ url: redisUrl, socket: { connectTimeout: 3000 } }),
+            const keyvRedis = new KeyvRedis(redisUrl);
+            const store = new Keyv({ store: keyvRedis });
+            // Verify connection with timeout
+            await Promise.race([
+              store.get('__ping__'),
               new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Redis connection timeout')), 4000),
               ),
