@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "email_verification_tokens" (
+-- CreateTable (idempotent)
+CREATE TABLE IF NOT EXISTS "email_verification_tokens" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
@@ -9,8 +9,8 @@ CREATE TABLE "email_verification_tokens" (
     CONSTRAINT "email_verification_tokens_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "email_verification_tokens_tokenHash_key" ON "email_verification_tokens"("tokenHash");
+-- CreateIndex (idempotent)
+CREATE UNIQUE INDEX IF NOT EXISTS "email_verification_tokens_tokenHash_key" ON "email_verification_tokens"("tokenHash");
 
--- CreateIndex
-CREATE INDEX "email_verification_tokens_userId_idx" ON "email_verification_tokens"("userId");
+-- CreateIndex (idempotent)
+CREATE INDEX IF NOT EXISTS "email_verification_tokens_userId_idx" ON "email_verification_tokens"("userId");

@@ -1,1 +1,1 @@
-ALTER TABLE "user_subscription_entries" ADD COLUMN "trackingNumber" TEXT;
+ALTER TABLE "user_subscription_entries" ADD COLUMN IF NOT EXISTS "trackingNumber" TEXT;
