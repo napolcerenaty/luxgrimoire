@@ -12,7 +12,8 @@
     "test:e2e": "jest --config jest.e2e.config.ts --no-coverage --forceExit",
     "test:cov": "jest --coverage",
     "db:backup": "node scripts/db-backup.js",
-    "db:restore": "node scripts/db-restore.js"
+    "db:restore": "node scripts/db-restore.js",
+    "db:anonymize": "node scripts/db-anonymize.js"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",
