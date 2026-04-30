@@ -275,7 +275,7 @@ export class SubscriptionsService {
           subscriptionId: sub.id,
           OR: [
             { year: { lt: nowYear } },
-            { year: nowYear, month: { lte: nowMonth } },
+            { year: nowYear, month: { lt: nowMonth } },
           ],
         };
 
