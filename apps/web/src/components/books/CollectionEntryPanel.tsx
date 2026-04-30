@@ -171,7 +171,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editTotalAmount, setEditTotalAmount] = useState('')
   const [editCurrency, setEditCurrency] = useState('')
   const [editShippingAmount, setEditShippingAmount] = useState('')
-  const [editDiscount, setEditDiscount] = useState('')
+  const [editDiscounts, setEditDiscounts] = useState<{ id?: string; name: string; amount: string }[]>([])
   const [editPurchasedAt, setEditPurchasedAt] = useState('')
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
   const [savingPurchase, setSavingPurchase] = useState(false)
@@ -288,14 +288,14 @@ export function CollectionEntryPanel({ editionId }: Props) {
       setEditTotalAmount(String(pg.totalAmount))
       setEditCurrency(pg.currency)
       setEditShippingAmount(pg.shippingAmount ? String(pg.shippingAmount) : '')
-      setEditDiscount(pg.discounts?.[0] ? String(pg.discounts[0].amount) : '')
+      setEditDiscounts((pg.discounts ?? []).map(d => ({ id: d.id, name: d.name, amount: String(d.amount) })))
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
     } else {
       setEditTotalAmount('')
       setEditCurrency(entry!.priceCurrency ?? 'EUR')
       setEditShippingAmount('')
-      setEditDiscount('')
+      setEditDiscounts([])
       setEditPurchasedAt(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
       setEditPurchaseNotes('')
     }
@@ -328,25 +328,36 @@ export function CollectionEntryPanel({ editionId }: Props) {
         groupId = created.id
       }
 
-      // Sync discount: delete existing, create new if value provided
-      const existingDiscount = pg?.discounts?.[0]
-      const discountAmount = editDiscount ? parseFloat(editDiscount) : null
-      if (existingDiscount && (!discountAmount || discountAmount <= 0)) {
-        await authFetch(`/fees/discounts/${existingDiscount.id}`, { method: 'DELETE' })
-      } else if (discountAmount && discountAmount > 0) {
-        if (existingDiscount) {
-          await authFetch(`/fees/discounts/${existingDiscount.id}`, {
+      // Sync discounts: delete removed, patch existing, post new
+      const existingIds = new Set((pg?.discounts ?? []).map(d => d.id))
+      const keptIds = new Set(editDiscounts.filter(d => d.id).map(d => d.id!))
+
+      // Delete discounts that were removed from the list
+      for (const d of (pg?.discounts ?? [])) {
+        if (!keptIds.has(d.id)) {
+          await authFetch(`/fees/discounts/${d.id}`, { method: 'DELETE' })
+        }
+      }
+
+      const purchasedAtIso = editPurchasedAt ? new Date(editPurchasedAt).toISOString() : new Date().toISOString()
+      for (const d of editDiscounts) {
+        const amt = parseFloat(d.amount)
+        if (!amt || amt <= 0 || !d.name.trim()) continue
+        if (d.id && existingIds.has(d.id)) {
+          // Update existing
+          await authFetch(`/fees/discounts/${d.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ amount: discountAmount, currency: editCurrency, date: (editPurchasedAt || new Date().toISOString().slice(0, 10)) }),
+            body: JSON.stringify({ amount: amt, currency: editCurrency, date: purchasedAtIso }),
           })
         } else {
+          // Create new
           await authFetch(`/fees/discounts`, {
             method: 'POST',
             body: JSON.stringify({
-              name: 'Discount',
-              amount: discountAmount,
+              name: d.name,
+              amount: amt,
               currency: editCurrency,
-              date: editPurchasedAt || new Date().toISOString(),
+              date: purchasedAtIso,
               purchaseGroupId: groupId,
             }),
           })
@@ -393,6 +404,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   async function deleteFee(feeId: string) {
     await authFetch(`/fees/${feeId}`, { method: 'DELETE' })
+    await refetchEntry()
+  }
+
+  async function deleteDiscount(discountId: string) {
+    await authFetch(`/fees/discounts/${discountId}`, { method: 'DELETE' })
     await refetchEntry()
   }
 
@@ -620,9 +636,44 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
                 <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP} />
               </div>
-              <div className="flex-1">
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Discount</label>
-                <input type="number" step="0.01" min="0" value={editDiscount} onChange={e => setEditDiscount(e.target.value)} placeholder="0.00" className={INP} />
+
+              {/* Discounts list */}
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Discounts</label>
+                <div className="flex flex-col gap-1.5">
+                  {editDiscounts.map((d, i) => (
+                    <div key={i} className="flex gap-1.5 items-center">
+                      <input
+                        value={d.name}
+                        onChange={e => setEditDiscounts(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                        placeholder="Name (e.g. promo code)"
+                        className={INP + ' flex-1'}
+                      />
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={d.amount}
+                        onChange={e => setEditDiscounts(prev => prev.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
+                        placeholder="0.00"
+                        className={INP + ' w-24'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditDiscounts(prev => prev.filter((_, j) => j !== i))}
+                        className="text-stone-600 hover:text-red-400 transition-colors shrink-0"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditDiscounts(prev => [...prev, { name: '', amount: '' }])}
+                    className="flex items-center gap-1 text-xs pt-0.5 transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <Plus size={11} /> Add discount
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
@@ -689,11 +740,16 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     return (
                       <div key={d.id} className="flex justify-between items-baseline gap-2">
                         <span className="text-xs text-green-400">− {d.name}</span>
-                        <span className="text-right">
-                          <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
-                          {converted(amt, d.currency) && (
-                            <span className="block text-xs text-green-500/60">{converted(amt, d.currency)?.replace('≈', '≈ −')}</span>
-                          )}
+                        <span className="text-right flex items-baseline gap-1.5">
+                          <span>
+                            <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
+                            {converted(amt, d.currency) && (
+                              <span className="block text-xs text-green-500/60">{converted(amt, d.currency)?.replace('≈', '≈ −')}</span>
+                            )}
+                          </span>
+                          <button onClick={() => deleteDiscount(d.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={11} />
+                          </button>
                         </span>
                       </div>
                     )
