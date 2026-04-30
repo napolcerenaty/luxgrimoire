@@ -11,7 +11,7 @@ import { Providers } from '@/components/Providers'
 export const metadata: Metadata = {
   title: {
     template: '%s | LuxGrimoire',
-    default: 'LuxGrimoire — Luxury Book Editions & Subscription Boxes',
+    default: 'LuxGrimoire — Luxury Book Editions & Subscription Boxes Tracker',
   },
   description:
     'Discover and track luxury book editions, special editions, and subscription boxes. Your collection, beautifully organised.',
