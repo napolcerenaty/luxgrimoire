@@ -129,7 +129,15 @@ function subToForm(sub: ApiSubscription): SubFormData {
   }
 }
 
-function formToCreatePayload(form: SubFormData) {
+// When user picks UNLIMITED + fills maxConsecutive, send UNLIMITED_MAX_CONSEC to API
+function resolveSkipType(form: SubFormData): string {
+  if (form.skipPolicyType === 'UNLIMITED' && form.skipMaxConsecutive) {
+    return 'UNLIMITED_MAX_CONSEC'
+  }
+  return form.skipPolicyType
+}
+
+
   return {
     companyId: form.companyId,
     name: form.name,
@@ -269,10 +277,11 @@ function SubscriptionForm({
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>
-              <input list="currency-datalist" className={INPUT_CLASS} value={form.currency} onChange={setStr('currency')} placeholder="EUR" />
-              <datalist id="currency-datalist">
-                {['EUR','USD','GBP','PLN','CAD','AUD','CHF','SEK','NOK','DKK','CZK','HUF'].map((c) => <option key={c} value={c} />)}
-              </datalist>
+              <select className={SELECT_CLASS} value={form.currency} onChange={setStr('currency')}>
+                {['EUR','USD','GBP','PLN','CAD','AUD','CHF','SEK','NOK','DKK','CZK','HUF'].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={LABEL_CLASS}>Language</label>
@@ -461,7 +470,6 @@ function SubscriptionForm({
             <select className={SELECT_CLASS} value={form.skipPolicyType} onChange={setStr('skipPolicyType')}>
               <option value="NONE">No skips allowed</option>
               <option value="UNLIMITED">Unlimited skips</option>
-              <option value="UNLIMITED_MAX_CONSEC">Unlimited (max consecutive)</option>
               <option value="CALENDAR_YEAR">X skips per calendar year</option>
               <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
               <option value="FROM_SUB_START">X skips from subscription start</option>
@@ -495,29 +503,29 @@ function SubscriptionForm({
           )}
         </div>
 
-        {form.skipPolicyType !== 'NONE' && form.skipPolicyType !== 'UNLIMITED' && (
+        {form.skipPolicyType !== 'NONE' && (
           <div className="grid grid-cols-3 gap-3">
-            {form.skipPolicyType !== 'UNLIMITED_MAX_CONSEC' && (
+            {form.skipPolicyType !== 'UNLIMITED' && (
               <div>
                 <label className={LABEL_CLASS}>Max skips</label>
                 <input type="number" min={1} className={INPUT_CLASS}
                   value={form.skipMaxSkips} onChange={setStr('skipMaxSkips')} placeholder="e.g. 2" />
               </div>
             )}
-            {form.skipPolicyType === 'UNLIMITED_MAX_CONSEC' && (
-              <div>
-                <label className={LABEL_CLASS}>Max consecutive</label>
-                <input type="number" min={1} className={INPUT_CLASS}
-                  value={form.skipMaxConsecutive} onChange={setStr('skipMaxConsecutive')} placeholder="e.g. 3" />
-              </div>
-            )}
             {(form.skipPolicyType === 'FROM_FIRST_SKIP' || form.skipPolicyType === 'FROM_SUB_START') && (
               <div>
-                <label className={LABEL_CLASS}>Window (months)</label>
+                <label className={LABEL_CLASS}>Reset period (months)</label>
                 <input type="number" min={1} className={INPUT_CLASS}
                   value={form.skipWindowMonths} onChange={setStr('skipWindowMonths')} placeholder="e.g. 12" />
+                <p className="text-xs text-stone-500 mt-1">Skip count resets after this many months</p>
               </div>
             )}
+            <div>
+              <label className={LABEL_CLASS}>Max consecutive skips</label>
+              <input type="number" min={1} className={INPUT_CLASS}
+                value={form.skipMaxConsecutive} onChange={setStr('skipMaxConsecutive')} placeholder="optional" />
+              <p className="text-xs text-stone-500 mt-1">Skips in a row (leave blank = no limit)</p>
+            </div>
           </div>
         )}
 
@@ -590,7 +598,7 @@ export default function AdminSubscriptionsPage() {
         await authFetch(`/skip-policy/${sub.slug}`, {
           method: 'PUT',
           body: JSON.stringify({
-            type: form.skipPolicyType,
+            type: resolveSkipType(form),
             maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
             maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
             windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
@@ -620,7 +628,7 @@ export default function AdminSubscriptionsPage() {
       await authFetch(`/skip-policy/${slug}`, {
         method: 'PUT',
         body: JSON.stringify({
-          type: form.skipPolicyType || 'NONE',
+          type: resolveSkipType(form) || 'NONE',
           maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
           maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
           windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
