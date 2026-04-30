@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 }
 
 const EFFECTIVE_DATE = 'May 1, 2025'
-const CONTACT_EMAIL = 'privacy@luxgrimoire.com'
+const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 
 export default function PrivacyPolicyPage() {
   return (
@@ -117,7 +117,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">7. Data Retention</h2>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
-            <li><strong className="text-stone-300">Account data:</strong> retained for the duration of your account. Deleted within 30 days of an account deletion request.</li>
+            <li><strong className="text-stone-300">Account data:</strong> retained for the duration of your account. You can delete your account immediately at any time from your Profile settings — this permanently removes your personal data. You may also request deletion by contacting us.</li>
             <li><strong className="text-stone-300">Collection data:</strong> deleted with your account or upon specific request.</li>
             <li><strong className="text-stone-300">Uploaded images:</strong> retained until you or an administrator removes them.</li>
             <li><strong className="text-stone-300">Server logs:</strong> retained for up to 90 days for security purposes.</li>

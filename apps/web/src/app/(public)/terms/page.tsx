@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 }
 
 const EFFECTIVE_DATE = 'May 1, 2025'
-const CONTACT_EMAIL = 'legal@luxgrimoire.com'
+const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 
 export default function TermsPage() {
   return (
