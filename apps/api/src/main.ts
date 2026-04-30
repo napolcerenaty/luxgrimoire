@@ -68,12 +68,8 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  // Register spec endpoint manually (NestJS Swagger Fastify bug: auto-generated routes return empty)
-  const httpAdapter = app.getHttpAdapter();
+  // Embed spec inline to avoid NestJS+Fastify bug where docs-json returns empty
   const specJson = JSON.stringify(document);
-  httpAdapter.get('/api/docs-json', (_req: unknown, res: any) => {
-    res.header('Content-Type', 'application/json').send(specJson);
-  });
 
   SwaggerModule.setup('api/docs', app, document, {
     customCssUrl: 'https://unpkg.com/swagger-ui-dist@5/swagger-ui.css',
@@ -84,7 +80,7 @@ async function bootstrap() {
     customJsStr: `
       window.onload = function() {
         window.ui = SwaggerUIBundle({
-          url: '/api/docs-json',
+          spec: ${specJson},
           dom_id: '#swagger-ui',
           deepLinking: true,
           presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
