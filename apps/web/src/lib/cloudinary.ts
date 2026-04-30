@@ -1,4 +1,4 @@
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
 export function cloudinaryUrl(
   publicId: string | null | undefined,
