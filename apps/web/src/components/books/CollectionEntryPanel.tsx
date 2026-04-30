@@ -766,7 +766,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         value={d.name}
                         onChange={e => setEditDiscounts(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                         placeholder="Name (e.g. promo code)"
-                        className={INP + ' flex-1'}
+                        className={INP + ' flex-1 min-w-0'}
                       />
                       <input
                         type="number" step="0.01" min="0"
@@ -835,7 +835,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                           </div>
                         )}
                         <div className="flex gap-1.5">
-                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1'} />
+                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1 min-w-0'} />
                           <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
