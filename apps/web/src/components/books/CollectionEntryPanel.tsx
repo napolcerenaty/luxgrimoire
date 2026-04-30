@@ -264,26 +264,58 @@ export function CollectionEntryPanel({ editionId }: Props) {
   }, [editionId])
 
   // Fetch exchange rates once we have entry + userCurrency
+  // Keys are "${from}:${to}:${date}" for date-specific rates
   useEffect(() => {
     if (!entry || !userCurrency) return
     const pg = entry.purchaseGroup
-    const allCurrencies = pg ? [
-      pg.currency,
-      ...(pg.fees ?? []).map(f => f.currency),
-      ...(pg.discounts ?? []).map(d => d.currency),
-      ...(pg.refunds ?? []).map(r => r.currency),
-    ] : []
-    const unique = [...new Set(allCurrencies.filter(c => c !== userCurrency))]
+    if (!pg) return
+
+    const pgDate = pg.purchasedAt?.slice(0, 10) ?? ''
+    const pgCurrency = pg.currency
+
+    const tuples: Array<{ from: string; to: string; date: string }> = []
+
+    if (pgCurrency !== userCurrency) {
+      tuples.push({ from: pgCurrency, to: userCurrency, date: pgDate })
+    }
+
+    ;(pg.fees ?? []).forEach(f => {
+      const d = f.date?.slice(0, 10) ?? pgDate
+      if (f.currency !== userCurrency) tuples.push({ from: f.currency, to: userCurrency, date: d })
+      if (f.currency !== pgCurrency) tuples.push({ from: f.currency, to: pgCurrency, date: d })
+    })
+
+    ;(pg.discounts ?? []).forEach(d => {
+      const date = (d as any).date?.slice(0, 10) ?? pgDate
+      if (d.currency !== userCurrency) tuples.push({ from: d.currency, to: userCurrency, date })
+      if (d.currency !== pgCurrency) tuples.push({ from: d.currency, to: pgCurrency, date })
+    })
+
+    ;(pg.refunds ?? []).forEach(r => {
+      const date = r.date?.slice(0, 10) ?? pgDate
+      if (r.currency !== userCurrency) tuples.push({ from: r.currency, to: userCurrency, date })
+      if (r.currency !== pgCurrency) tuples.push({ from: r.currency, to: pgCurrency, date })
+    })
+
+    const seen = new Set<string>()
+    const unique = tuples.filter(t => {
+      const key = `${t.from}:${t.to}:${t.date}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
     if (!unique.length) return
+
     Promise.all(
-      unique.map(from =>
-        authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${userCurrency}`)
-          .then(d => [from, d.rate] as [string, number])
-          .catch(() => [from, null] as [string, null])
+      unique.map(({ from, to, date }) =>
+        authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${to}${date ? `&date=${date}` : ''}`)
+          .then(d => [`${from}:${to}:${date}`, d.rate] as [string, number])
+          .catch(() => [`${from}:${to}:${date}`, null] as [string, null])
       )
     ).then(results => {
       const r: Record<string, number> = {}
-      results.forEach(([c, v]) => { if (v !== null) r[c] = v })
+      results.forEach(([k, v]) => { if (v !== null) r[k] = v })
       setRates(r)
     })
   }, [entry, userCurrency])
@@ -576,9 +608,26 @@ export function CollectionEntryPanel({ editionId }: Props) {
   // Cost calculations from purchase group
   const pgTotal = pg ? parseFloat(String(pg.totalAmount)) : null
   const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
-  const pgFeesTotal = pg ? (pg.fees ?? []).reduce((acc, f) => acc + parseFloat(f.amount), 0) : 0
-  const pgDiscountsTotal = pg ? (pg.discounts ?? []).reduce((acc, d) => acc + parseFloat(d.amount), 0) : 0
-  const pgRefundsTotal = pg ? (pg.refunds ?? []).reduce((acc, r) => acc + parseFloat(r.amount), 0) : 0
+  const pgDate = pg?.purchasedAt?.slice(0, 10) ?? ''
+
+  function toPgCurrency(amount: number, fromCurrency: string, date: string): number {
+    if (!pg || fromCurrency === pg.currency) return amount
+    const rate = rates[`${fromCurrency}:${pg.currency}:${date}`]
+    return rate ? amount * rate : amount
+  }
+
+  const pgFeesTotal = pg ? (pg.fees ?? []).reduce((acc, f) => {
+    const d = f.date?.slice(0, 10) ?? pgDate
+    return acc + toPgCurrency(parseFloat(f.amount), f.currency, d)
+  }, 0) : 0
+  const pgDiscountsTotal = pg ? (pg.discounts ?? []).reduce((acc, d) => {
+    const date = (d as any).date?.slice(0, 10) ?? pgDate
+    return acc + toPgCurrency(parseFloat(d.amount), d.currency, date)
+  }, 0) : 0
+  const pgRefundsTotal = pg ? (pg.refunds ?? []).reduce((acc, r) => {
+    const d = r.date?.slice(0, 10) ?? pgDate
+    return acc + toPgCurrency(parseFloat(r.amount), r.currency, d)
+  }, 0) : 0
   const grandTotal = pgTotal !== null
     ? pgTotal + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal
     : null
@@ -591,10 +640,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
     : null
   const profitCurrency = entry.saleCurrency ?? pg?.currency
 
-  // Currency conversion helper
-  function converted(amount: number, fromCurrency: string | null): string | null {
+  // Currency conversion helper — uses date-keyed rates
+  function converted(amount: number, fromCurrency: string | null, date?: string): string | null {
     if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
-    const rate = rates[fromCurrency]
+    const dateKey = date?.slice(0, 10) ?? ''
+    const rate = rates[`${fromCurrency}:${userCurrency}:${dateKey}`]
     if (!rate) return null
     return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
   }
@@ -919,8 +969,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                       <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
                         {pgTotal!.toFixed(2)} {pg.currency}
                       </span>
-                      {converted(pgTotal!, pg.currency) && (
-                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgTotal!, pg.currency)}</span>
+                      {converted(pgTotal!, pg.currency, pg.purchasedAt) && (
+                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgTotal!, pg.currency, pg.purchasedAt)}</span>
                       )}
                     </span>
                   </div>
@@ -933,8 +983,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
                           {pgShipping.toFixed(2)} {pg.currency}
                         </span>
-                        {converted(pgShipping, pg.currency) && (
-                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgShipping, pg.currency)}</span>
+                        {converted(pgShipping, pg.currency, pg.purchasedAt) && (
+                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(pgShipping, pg.currency, pg.purchasedAt)}</span>
                         )}
                       </span>
                     </div>
@@ -951,8 +1001,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         </span>
                         <span className="text-right">
                           <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
-                          {converted(amt, fee.currency) && (
-                            <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
+                          {converted(amt, fee.currency, fee.date) && (
+                            <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency, fee.date)}</span>
                           )}
                         </span>
                       </div>
@@ -968,8 +1018,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         <span className="text-right flex items-baseline gap-1.5">
                           <span>
                             <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
-                            {converted(amt, d.currency) && (
-                              <span className="block text-xs text-green-500/60">{converted(amt, d.currency)?.replace('≈', '≈ −')}</span>
+                            {converted(amt, d.currency, (d as any).date ?? pg.purchasedAt) && (
+                              <span className="block text-xs text-green-500/60">{converted(amt, d.currency, (d as any).date ?? pg.purchasedAt)?.replace('≈', '≈ −')}</span>
                             )}
                           </span>
                           <button onClick={() => deleteDiscount(d.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
@@ -991,8 +1041,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         </span>
                         <span className="text-right">
                           <span className="text-xs text-orange-400">−{amt.toFixed(2)} {r.currency}</span>
-                          {converted(amt, r.currency) && (
-                            <span className="block text-xs text-orange-500/60">{converted(amt, r.currency)?.replace('≈', '≈ −')}</span>
+                          {converted(amt, r.currency, r.date) && (
+                            <span className="block text-xs text-orange-500/60">{converted(amt, r.currency, r.date)?.replace('≈', '≈ −')}</span>
                           )}
                         </span>
                       </div>
@@ -1007,8 +1057,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         <span className="font-semibold" style={{ color: 'var(--text-bright)' }}>
                           {grandTotal.toFixed(2)} {pg.currency}
                         </span>
-                        {converted(grandTotal, pg.currency) && (
-                          <span className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{converted(grandTotal, pg.currency)}</span>
+                        {converted(grandTotal, pg.currency, pg.purchasedAt) && (
+                          <span className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{converted(grandTotal, pg.currency, pg.purchasedAt)}</span>
                         )}
                       </span>
                     </div>
