@@ -149,6 +149,7 @@ export interface CreateBookEditionFormProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  defaultLanguage?: string | null
   monthYear?: number
   monthMonth?: number
   /** Pre-fill date fields from a sale announcement context */
@@ -167,7 +168,7 @@ export interface CreateBookEditionFormProps {
 
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
-  defaultPrice, renewalDay,
+  defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
   onSuccess, onBookCreated, onCancel,
@@ -208,7 +209,7 @@ export default function CreateBookEditionForm({
   const [allImages, setAllImages] = useState<string[]>([])
   const [artists, setArtists] = useState<ArtistEntry[]>([])
   const [features, setFeatures] = useState<string[]>([])
-  const [language, setLanguage] = useState('')
+  const [language, setLanguage] = useState(defaultLanguage ?? '')
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)

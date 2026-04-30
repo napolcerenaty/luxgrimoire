@@ -66,12 +66,13 @@ interface BookSearchProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  defaultLanguage?: string | null
   monthYear: number
   monthMonth: number
   onDone: () => void
 }
 
-function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, monthYear, monthMonth, onDone }: BookSearchProps) {
+function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, monthYear, monthMonth, onDone }: BookSearchProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -120,6 +121,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
     defaultCompanyId,
     defaultPrice,
     renewalDay,
+    defaultLanguage,
     monthYear,
     monthMonth,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); setMode('search'); onDone() },
@@ -223,9 +225,10 @@ interface MonthCardProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  defaultLanguage?: string | null
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
   const [editing, setEditing] = useState(false)
@@ -434,6 +437,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Add book</div>
             <BookSearch slug={slug} subscriptionId={subscriptionId} defaultCurrency={defaultCurrency}
               defaultCompanyId={defaultCompanyId} defaultPrice={defaultPrice} renewalDay={renewalDay}
+              defaultLanguage={defaultLanguage}
               monthYear={month.year} monthMonth={month.month}
               onDone={() => setBooksOpen(true)} />
           </div>
@@ -1165,7 +1169,7 @@ function ImportSourceForm({
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; defaultCurrency?: string | null; bookBoxCompanyId?: string | null; price?: number | null; renewalDay?: number | null }
+interface SubscriptionInfo { id: string; name: string; defaultCurrency?: string | null; bookBoxCompanyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
 
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -1244,6 +1248,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultCompanyId={subscription?.bookBoxCompanyId}
                 defaultPrice={subscription?.price}
                 renewalDay={subscription?.renewalDay}
+                defaultLanguage={subscription?.language}
               />
             ))}
           </div>
