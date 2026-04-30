@@ -95,20 +95,28 @@ const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
 const OWNERSHIP_COLORS: Record<string, string> = {
-  OWNED: 'bg-green-500/15 text-green-400 border border-green-500/20',
-  PREORDER: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
-  SHIPPING: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
-  BORROWED: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
-  LENDED: 'bg-orange-500/15 text-orange-400 border border-orange-500/20',
-  SOLD: 'bg-red-500/15 text-red-400 border border-red-500/20',
+  OWNED: 'badge-owned',
+  PREORDER: 'badge-preorder',
+  SHIPPING: 'badge-shipping',
+  BORROWED: 'badge-borrowed',
+  LENDED: 'badge-lended',
+  SOLD: 'badge-sold',
 }
 
 const READING_COLORS: Record<string, string> = {
-  UNREAD: 'bg-stone-700/50 text-stone-400 border border-stone-600/30',
-  READING: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
-  READ: 'bg-green-500/15 text-green-400 border border-green-500/20',
-  DNF: 'bg-red-500/15 text-red-400 border border-red-500/20',
+  UNREAD: 'badge-unread',
+  READING: 'badge-reading',
+  READ: 'badge-read',
+  DNF: 'badge-dnf',
 }
+
+const SIGNATURE_LABELS: Record<string, string> = {
+  unsigned: 'Unsigned',
+  signed: 'Signed',
+  digitally_signed: 'Digitally signed',
+  signed_bookplate: 'Bookplate',
+}
+const SIGNATURE_TYPES = ['unsigned', 'signed', 'digitally_signed', 'signed_bookplate'] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -182,6 +190,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editingStatus, setEditingStatus] = useState(false)
   const [editOwnership, setEditOwnership] = useState('')
   const [editReading, setEditReading] = useState('')
+  const [editSignatureType, setEditSignatureType] = useState('')
   const [savingStatus, setSavingStatus] = useState(false)
 
   // Edit state — purchase group
