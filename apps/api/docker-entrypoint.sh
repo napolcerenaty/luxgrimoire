@@ -2,7 +2,7 @@
 set -e
 
 echo "▶ Running Prisma migrations..."
-node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
+packages/database/node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
 echo "▶ Starting API..."
 exec node apps/api/dist/main.js

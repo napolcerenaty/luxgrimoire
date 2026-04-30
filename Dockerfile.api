@@ -35,8 +35,9 @@ ENV NODE_ENV=production
 
 # Copy the entire node_modules from builder (includes pnpm virtual store with
 # generated Prisma client — trying to copy just .prisma breaks with pnpm)
-COPY --from=builder /app/node_modules           ./node_modules
-COPY --from=builder /app/apps/api/dist          ./apps/api/dist
+COPY --from=builder /app/node_modules                    ./node_modules
+COPY --from=builder /app/packages/database/node_modules  ./packages/database/node_modules
+COPY --from=builder /app/apps/api/dist                   ./apps/api/dist
 
 # package.json files needed for module resolution
 COPY package.json ./
