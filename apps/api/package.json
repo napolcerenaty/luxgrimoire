@@ -13,7 +13,9 @@
     "test:cov": "jest --coverage",
     "db:backup": "node scripts/db-backup.js",
     "db:restore": "node scripts/db-restore.js",
-    "db:anonymize": "node scripts/db-anonymize.js"
+    "db:anonymize": "node scripts/db-anonymize.js",
+    "cloudinary:migrate": "node scripts/cloudinary-migrate.js",
+    "cloudinary:migrate:dry": "node scripts/cloudinary-migrate.js --dry-run"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",
