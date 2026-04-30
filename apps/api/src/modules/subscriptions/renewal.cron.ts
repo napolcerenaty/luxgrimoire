@@ -119,12 +119,10 @@ export class RenewalCronService {
           userId: entry.userId,
           bookId: mb.bookId,
           editionId: mb.editionId,
-          purchaseDate: renewalDate,
           ownershipStatus: 'PREORDER',
           readingStatus: 'UNREAD',
           subscriptionEntryId: entry.id,
           signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-          ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
         },
         update: {}, // no-op if already in collection
       }).catch(() => {});
@@ -178,12 +176,10 @@ export class RenewalCronService {
           userId: entry.userId,
           bookId: book.bookId,
           editionId: book.editionId!,
-          purchaseDate: renewalRecord.renewalDate,
           ownershipStatus: 'PREORDER',
           readingStatus: 'UNREAD',
           subscriptionEntryId: entry.id,
           signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
-          ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
         },
         update: {},
       }).catch(() => {});

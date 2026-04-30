@@ -51,6 +51,7 @@ interface PurchaseGroup {
   purchasedAt: string
   notes: string | null
   saleAnnouncementId: string | null
+  fromSubscription: boolean
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
@@ -60,9 +61,6 @@ interface CollectionEntry {
   id: string
   readingStatus: string
   ownershipStatus: string
-  allocatedPrice: string | null
-  priceCurrency: string | null
-  purchaseDate: string | null
   addedAt: string
   acquiredAt: string | null
   trackingNumber: string | null
@@ -269,7 +267,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
       ...(pg.fees ?? []).map(f => f.currency),
       ...(pg.discounts ?? []).map(d => d.currency),
       ...(pg.refunds ?? []).map(r => r.currency),
-    ] : [entry.priceCurrency].filter(Boolean) as string[]
+    ] : []
     const unique = [...new Set(allCurrencies.filter(c => c !== userCurrency))]
     if (!unique.length) return
     Promise.all(
@@ -327,11 +325,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
     } else {
-      setEditTotalAmount(entry!.allocatedPrice ? String(parseFloat(entry!.allocatedPrice)) : '')
-      setEditCurrency(entry!.priceCurrency ?? 'EUR')
+      setEditTotalAmount('')
+      setEditCurrency('EUR')
       setEditShippingAmount('')
       setEditDiscounts([])
-      setEditPurchasedAt(entry!.purchaseDate ? entry!.purchaseDate.slice(0, 10) : '')
+      setEditPurchasedAt('')
       setEditPurchaseNotes('')
     }
     setEditingPurchase(true)
@@ -414,7 +412,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   function openAddFee() {
     setNewFeeName('')
     setNewFeeAmount('')
-    setNewFeeCurrency(entry!.purchaseGroup?.currency ?? entry!.priceCurrency ?? 'EUR')
+    setNewFeeCurrency(entry!.purchaseGroup?.currency ?? 'EUR')
     setAddingFee(true)
   }
 
@@ -565,7 +563,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   // ── Computed values ───────────────────────────────────────────────────────
 
-  const timeSrc = entry.purchaseDate ?? entry.purchaseGroup?.purchasedAt ?? entry.acquiredAt ?? entry.addedAt
+  const timeSrc = entry.purchaseGroup?.purchasedAt ?? entry.acquiredAt ?? entry.addedAt
   const pg = entry.purchaseGroup
   const isFromSubscription = !!entry.subscriptionEntryId
 
@@ -580,12 +578,12 @@ export function CollectionEntryPanel({ editionId }: Props) {
     : null
   const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0 || pgRefundsTotal > 0
 
-  // For P/L — use purchaseGroup.totalAmount as cost, or allocatedPrice fallback
-  const costForPL = pgTotal ?? (entry.allocatedPrice ? parseFloat(entry.allocatedPrice) : null)
+  // For P/L — use purchaseGroup.totalAmount as cost
+  const costForPL = pgTotal
   const profit = entry.salePrice && costForPL !== null
     ? parseFloat(entry.salePrice) - costForPL
     : null
-  const profitCurrency = entry.saleCurrency ?? pg?.currency ?? entry.priceCurrency
+  const profitCurrency = entry.saleCurrency ?? pg?.currency
 
   // Currency conversion helper
   function converted(amount: number, fromCurrency: string | null): string | null {
@@ -610,9 +608,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             <Clock size={10} className="inline mr-1 -mt-px" />
             In your collection · <span style={{ color: 'var(--text-dim)' }}>{timeInCollection(timeSrc)}</span>
-            {(entry.purchaseDate ?? pg?.purchasedAt) && (
+            {(pg?.purchasedAt) && (
               <span className="ml-1" style={{ color: 'var(--text-muted)' }}>
-                (from {fmtDate(entry.purchaseDate ?? pg?.purchasedAt)})
+                (from {fmtDate(pg.purchasedAt)})
               </span>
             )}
           </span>
@@ -982,28 +980,6 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     Purchased {fmtDate(pg.purchasedAt)}
                   </p>
                 </>
-              ) : entry.allocatedPrice ? (
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span style={{ color: 'var(--text-muted)' }}>Price</span>
-                    <span className="text-right">
-                      <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
-                        {parseFloat(entry.allocatedPrice).toFixed(2)} {entry.priceCurrency}
-                      </span>
-                      {entry.priceCurrency && converted(parseFloat(entry.allocatedPrice), entry.priceCurrency) && (
-                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(parseFloat(entry.allocatedPrice), entry.priceCurrency)}</span>
-                      )}
-                    </span>
-                  </div>
-                  {entry.purchaseDate && (
-                    <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      Purchased {fmtDate(entry.purchaseDate)}
-                    </p>
-                  )}
-                  <p className="text-xs italic pt-1" style={{ color: 'var(--text-muted)' }}>
-                    Click &quot;Edit costs&quot; to add breakdown
-                  </p>
-                </div>
               ) : (
                 <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
                   {isFromSubscription ? 'Costs managed via subscription' : 'No costs recorded'}

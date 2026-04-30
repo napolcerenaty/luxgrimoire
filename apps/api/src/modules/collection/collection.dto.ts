@@ -32,10 +32,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
   @IsOptional() @IsDateString() acquiredAt?: string;
-  @IsOptional() @IsString() allocatedPrice?: string;
-  @IsOptional() @IsString() priceCurrency?: string;
   @IsOptional() @IsString() trackingNumber?: string;
-  @IsOptional() @IsDateString() purchaseDate?: string;
   @IsOptional() @IsString() salePrice?: string;
   @IsOptional() @IsString() saleCurrency?: string;
   @IsOptional() @IsString() saleDate?: string;

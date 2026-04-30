@@ -584,14 +584,10 @@ model UserBookEntry {
   updatedAt             DateTime               @updatedAt
   acquiredAt            DateTime?
   addedAt               DateTime               @default(now())
-  allocatedPrice        Decimal?               @db.Decimal(10, 2)
   condition             String?
   isWishlist            Boolean                @default(false)
   ownershipStatus       String                 @default("OWNED")
-  purchaseDate          DateTime?
-  purchaseTransactionId String?
   readingStatus         String                 @default("UNREAD")
-  priceCurrency         String?                @db.VarChar(3)
   saleCurrency          String?
   saleDate              String?
   saleNotes             String?
@@ -606,9 +602,6 @@ model UserBookEntry {
   purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
   subscriptionEntry     UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchaseDiscounts     UserPurchaseDiscount[]
-  purchaseFees          UserPurchaseFee[]
-  purchaseRefunds       UserPurchaseRefund[]
   saleEntries           UserSaleEntry[]
   ownershipHistory      OwnershipStatusHistory[]
 
@@ -667,6 +660,7 @@ model UserSubscriptionEntry {
   subscription       Subscription                       @relation(fields: [subscriptionId], references: [id])
   user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeTemplates       UserSubscriptionEntryFeeTemplate[]
+  purchaseGroups     UserPurchaseGroup[]
 
   @@unique([userId, subscriptionId])
   @@index([userId])
@@ -952,20 +946,17 @@ model UserPurchaseFee {
   date            DateTime              @db.Date
   category        FeeCategory           @default(OTHER)
   billingPeriodId String?
-  userBookEntryId String?
   notes           String?
   createdAt       DateTime              @default(now())
   purchaseGroupId String?
   billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
   feeTemplate     UserFeeTemplate?      @relation(fields: [feeTemplateId], references: [id])
   purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
-  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
   @@index([billingPeriodId])
-  @@index([userBookEntryId])
   @@index([purchaseGroupId])
   @@map("user_purchase_fees")
 }
@@ -979,19 +970,16 @@ model UserPurchaseDiscount {
   currency        String
   date            DateTime              @db.Date
   billingPeriodId String?
-  userBookEntryId String?
   notes           String?
   createdAt       DateTime              @default(now())
   purchaseGroupId String?
   billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
   purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
-  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
   @@index([billingPeriodId])
-  @@index([userBookEntryId])
   @@index([purchaseGroupId])
   @@map("user_purchase_discounts")
 }
@@ -1003,46 +991,47 @@ model UserPurchaseRefund {
   currency        String
   date            DateTime              @db.Date
   billingPeriodId String?
-  userBookEntryId String?
   reason          String?
   notes           String?
   createdAt       DateTime              @default(now())
   purchaseGroupId String?
   billingPeriod   UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
   purchaseGroup   UserPurchaseGroup?    @relation(fields: [purchaseGroupId], references: [id], onDelete: Cascade)
-  userBookEntry   UserBookEntry?        @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, date])
   @@index([billingPeriodId])
-  @@index([userBookEntryId])
   @@index([purchaseGroupId])
   @@map("user_purchase_refunds")
 }
 
 model UserPurchaseGroup {
-  id                 String                 @id @default(uuid())
-  userId             String
-  saleAnnouncementId String?
-  title              String?
-  totalAmount        Decimal                @db.Decimal(10, 2)
-  currency           String
-  shippingAmount     Decimal?               @db.Decimal(10, 2)
-  purchasedAt        DateTime
-  notes              String?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  bookEntries        UserBookEntry[]
-  discounts          UserPurchaseDiscount[]
-  fees               UserPurchaseFee[]
-  saleAnnouncement   SaleAnnouncement?      @relation(fields: [saleAnnouncementId], references: [id])
-  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refunds            UserPurchaseRefund[]
+  id                  String                 @id @default(uuid())
+  userId              String
+  saleAnnouncementId  String?
+  subscriptionEntryId String?
+  title               String?
+  totalAmount         Decimal                @db.Decimal(10, 2)
+  currency            String
+  shippingAmount      Decimal?               @db.Decimal(10, 2)
+  purchasedAt         DateTime
+  fromSubscription    Boolean                @default(false)
+  notes               String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  bookEntries         UserBookEntry[]
+  discounts           UserPurchaseDiscount[]
+  fees                UserPurchaseFee[]
+  saleAnnouncement    SaleAnnouncement?      @relation(fields: [saleAnnouncementId], references: [id])
+  subscriptionEntry   UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refunds             UserPurchaseRefund[]
 
   @@index([userId])
   @@index([userId, purchasedAt])
   @@index([saleAnnouncementId])
+  @@index([subscriptionEntryId])
   @@map("user_purchase_groups")
 }
 

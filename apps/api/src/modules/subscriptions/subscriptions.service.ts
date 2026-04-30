@@ -688,15 +688,6 @@ export class SubscriptionsService {
       await this.prisma.userBookEntry.deleteMany({
         where: { userId, subscriptionEntryId: entry.id },
       });
-      // Also delete books linked via purchaseTransactionId (manual billing periods)
-      const txIds = entry.billingPeriods
-        .map((p) => p.purchaseTransactionId)
-        .filter((id): id is string => id != null);
-      if (txIds.length) {
-        await this.prisma.userBookEntry.deleteMany({
-          where: { userId, purchaseTransactionId: { in: txIds } },
-        });
-      }
     }
 
     // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags)
@@ -730,10 +721,7 @@ export class SubscriptionsService {
 
     // Propagate currency to book entries that are missing it
     if (dto.costCurrency) {
-      await this.prisma.userBookEntry.updateMany({
-        where: { subscriptionEntryId: entry.id, priceCurrency: null },
-        data: { priceCurrency: dto.costCurrency },
-      });
+      // costCurrency is now tracked at the subscription entry level only
     }
 
     if (dto.linkedFeeTemplates !== undefined) {
@@ -962,15 +950,25 @@ export class SubscriptionsService {
     });
 
     const feesToCreate: {
-      userId: string; feeTemplateId?: string; name: string; amount: number;
-      currency: string; date: Date; category: any; userBookEntryId: string;
+      userId: string; feeTemplateId?: string | null; name: string; amount: number;
+      currency: string; date: Date; category: any; purchaseGroupId: string;
     }[] = [];
 
-    for (const mb of monthBooks) {
-      const pricePerBook = entry.basePrice && monthBooks.length > 0
-        ? parseFloat((entry.basePrice as any).toString()) / monthBooks.length
-        : null;
+    // Create ONE purchase group for this billing period
+    const group = await this.prisma.userPurchaseGroup.create({
+      data: {
+        userId,
+        fromSubscription: true,
+        subscriptionEntryId: entryId,
+        totalAmount: entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0,
+        shippingAmount: entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null,
+        currency: entry.costCurrency ?? 'USD',
+        purchasedAt: purchaseDate,
+        title: `Subscription – ${firstMonth.year}/${String(firstMonth.month).padStart(2, '0')}`,
+      },
+    });
 
+    for (const mb of monthBooks) {
       try {
         const bookEntry = await this.prisma.userBookEntry.upsert({
           where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
@@ -978,21 +976,18 @@ export class SubscriptionsService {
             userId,
             bookId: mb.bookId!,
             editionId: mb.editionId!,
-            purchaseDate,
             ownershipStatus: 'PREORDER',
             readingStatus: 'UNREAD',
             subscriptionEntryId: entryId,
+            purchaseGroupId: group.id,
             signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
-            ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
-            ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
           },
           update: {
-            ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
-            ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
+            purchaseGroupId: group.id,
           },
         });
 
-        // Fee templates
+        // Fee templates linked to group
         for (const link of feeTemplateLinks) {
           const template = link.feeTemplate;
           const amount = link.customAmount ?? template.defaultAmount;
@@ -1005,33 +1000,20 @@ export class SubscriptionsService {
             currency: link.customCurrency ?? template.defaultCurrency,
             date: purchaseDate,
             category: template.category,
-            userBookEntryId: bookEntry.id,
+            purchaseGroupId: group.id,
           });
         }
 
-        // Shipping cost (split across books)
-        if (entry.shippingCost && monthBooks.length > 0) {
-          feesToCreate.push({
-            userId,
-            name: 'Shipping',
-            amount: parseFloat((entry.shippingCost as any).toString()) / monthBooks.length,
-            currency: entry.costCurrency ?? 'USD',
-            date: purchaseDate,
-            category: 'SHIPPING',
-            userBookEntryId: bookEntry.id,
-          });
-        }
-
-        // Taxes & fees (split across books)
+        // Taxes & fees linked to group (shipping already in group.shippingAmount)
         if (entry.taxesAndFees && monthBooks.length > 0) {
           feesToCreate.push({
             userId,
             name: 'Taxes & Fees',
-            amount: parseFloat((entry.taxesAndFees as any).toString()) / monthBooks.length,
+            amount: parseFloat((entry.taxesAndFees as any).toString()),
             currency: entry.costCurrency ?? 'USD',
             date: purchaseDate,
             category: 'OTHER',
-            userBookEntryId: bookEntry.id,
+            purchaseGroupId: group.id,
           });
         }
       } catch {
@@ -1095,8 +1077,8 @@ export class SubscriptionsService {
 
     // Build all fee records in memory first
     const feesToCreate: {
-      userId: string; feeTemplateId?: string; name: string; amount: number;
-      currency: string; date: Date; category: any; userBookEntryId: string;
+      userId: string; feeTemplateId?: string | null; name: string; amount: number;
+      currency: string; date: Date; category: any; purchaseGroupId: string;
     }[] = [];
 
     for (const monthId of dto.selectedMonthIds) {
@@ -1108,37 +1090,50 @@ export class SubscriptionsService {
         : new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
       const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
+      // Create ONE purchase group per month
+      const group = await this.prisma.userPurchaseGroup.create({
+        data: {
+          userId,
+          fromSubscription: true,
+          subscriptionEntryId: entry.id,
+          totalAmount: entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0,
+          shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
+          currency: entry.costCurrency ?? 'USD',
+          purchasedAt: renewalDate,
+          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
+        },
+      });
+
       for (const mb of monthBooks) {
         const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
-        const pricePerBook = override != null
-          ? override.price
-          : (entry.basePrice && monthBooks.length > 0
-            ? parseFloat(entry.basePrice.toString()) / monthBooks.length
-            : null);
+        // If override price exists, update group total to match (per book overrides are unusual for groups)
+        if (override != null) {
+          await this.prisma.userPurchaseGroup.update({
+            where: { id: group.id },
+            data: { totalAmount: override.price ?? 0 },
+          });
+        }
 
         try {
-          const bookEntry = await this.prisma.userBookEntry.upsert({
+          await this.prisma.userBookEntry.upsert({
             where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
             create: {
               userId,
               bookId: mb.bookId!,
               editionId: mb.editionId!,
-              purchaseDate: renewalDate,
               ownershipStatus: 'OWNED',
               readingStatus: 'UNREAD',
               subscriptionEntryId: entry.id,
+              purchaseGroupId: group.id,
               signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-              ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
-              ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
             },
             update: {
-              ...(pricePerBook !== null && { allocatedPrice: pricePerBook }),
-              ...(entry.costCurrency && { priceCurrency: entry.costCurrency }),
+              purchaseGroupId: group.id,
             },
           });
           booksAdded++;
 
-          // Accumulate fee records instead of creating one by one
+          // Accumulate fee records linked to group
           for (const link of (entry as any).feeTemplates ?? []) {
             const template = link.feeTemplate;
             const amount = link.customAmount ?? template.defaultAmount;
@@ -1151,19 +1146,7 @@ export class SubscriptionsService {
               currency: link.customCurrency ?? template.defaultCurrency,
               date: renewalDate,
               category: template.category,
-              userBookEntryId: bookEntry.id,
-            });
-          }
-
-          if (entry.shippingCost && monthBooks.length > 0) {
-            feesToCreate.push({
-              userId,
-              name: 'Shipping',
-              amount: parseFloat(entry.shippingCost.toString()) / monthBooks.length,
-              currency: entry.costCurrency ?? 'USD',
-              date: renewalDate,
-              category: 'SHIPPING',
-              userBookEntryId: bookEntry.id,
+              purchaseGroupId: group.id,
             });
           }
 
@@ -1171,11 +1154,11 @@ export class SubscriptionsService {
             feesToCreate.push({
               userId,
               name: 'Taxes & Fees',
-              amount: parseFloat(entry.taxesAndFees.toString()) / monthBooks.length,
+              amount: parseFloat(entry.taxesAndFees.toString()),
               currency: entry.costCurrency ?? 'USD',
               date: renewalDate,
               category: 'OTHER',
-              userBookEntryId: bookEntry.id,
+              purchaseGroupId: group.id,
             });
           }
         } catch {

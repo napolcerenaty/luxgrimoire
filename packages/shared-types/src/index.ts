@@ -445,7 +445,6 @@ export interface ApiPurchaseFee {
   date: string;
   category: FeeCategory;
   billingPeriodId: string | null;
-  userBookEntryId: string | null;
   notes: string | null;
   createdAt: string;
 }
@@ -458,7 +457,6 @@ export interface ApiPurchaseDiscount {
   currency: string;
   date: string;
   billingPeriodId: string | null;
-  userBookEntryId: string | null;
   notes: string | null;
   createdAt: string;
 }
@@ -470,7 +468,6 @@ export interface ApiPurchaseRefund {
   currency: string;
   date: string;
   billingPeriodId: string | null;
-  userBookEntryId: string | null;
   reason: string | null;
   notes: string | null;
   createdAt: string;
@@ -481,11 +478,13 @@ export interface ApiPurchaseGroup {
   id: string;
   userId: string;
   saleAnnouncementId: string | null;
+  subscriptionEntryId?: string | null;
   title: string | null;
   totalAmount: number;
   currency: string;
   shippingAmount: number | null;
   purchasedAt: string;
+  fromSubscription: boolean;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -493,6 +492,9 @@ export interface ApiPurchaseGroup {
   saleAnnouncement?: { id: string; title: string } | null;
   bookCount?: number;
   perBookCost?: number;
+  fees?: { id: string; name: string; amount: number; currency: string; category: string }[];
+  discounts?: { id: string; name: string; amount: number; currency: string }[];
+  refunds?: { id: string; amount: number; currency: string; date: string; reason: string | null }[];
 }
 
 export interface ApiSaleEntry {
@@ -503,8 +505,6 @@ export interface ApiSaleEntry {
   userBookEntry?: {
     id: string;
     ownershipStatus: string;
-    allocatedPrice?: number | null;
-    priceCurrency?: string | null;
     edition?: {
       id: string;
       additionalImages?: string[];

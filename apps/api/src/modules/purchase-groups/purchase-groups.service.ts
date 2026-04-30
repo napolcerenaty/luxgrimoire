@@ -95,7 +95,6 @@ export class PurchaseGroupsService {
               bookId: edition.bookId,
               editionId: edition.id,
               purchaseGroupId: group.id,
-              purchaseDate: new Date(dto.purchasedAt),
               ownershipStatus: 'OWNED',
             },
           })
@@ -120,6 +119,7 @@ export class PurchaseGroupsService {
         ...(dto.shippingAmount !== undefined && { shippingAmount: dto.shippingAmount }),
         ...(dto.purchasedAt !== undefined && { purchasedAt: new Date(dto.purchasedAt) }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.fromSubscription !== undefined && { fromSubscription: dto.fromSubscription }),
       },
     });
   }
@@ -166,7 +166,6 @@ export class PurchaseGroupsService {
               bookId: edition.bookId,
               editionId: edition.id,
               purchaseGroupId: group.id,
-              purchaseDate: new Date(dto.purchasedAt),
               ownershipStatus: 'PREORDER',
             },
           })

@@ -32,7 +32,6 @@ type SaleGroupWithEntries = {
     userBookEntryId: string;
     allocatedAmount: NumOrDec;
     userBookEntry: {
-      allocatedPrice?: NumOrDec | null;
       edition?: unknown;
     } | null;
   }>;
@@ -96,7 +95,7 @@ export class SalesService {
 
     const entries = await this.prisma.userBookEntry.findMany({
       where: { id: { in: dto.entryIds }, userId },
-      select: { id: true, allocatedPrice: true, priceCurrency: true },
+      select: { id: true },
     });
 
     if (entries.length !== dto.entryIds.length) {
@@ -208,15 +207,12 @@ export class SalesService {
 
   private withProfit(g: SaleGroupWithEntries) {
     const totalSale = toNum(g.totalAmount);
-    const totalPurchase = g.entries.reduce((sum, e) => {
-      return sum + (e.userBookEntry?.allocatedPrice ? toNum(e.userBookEntry.allocatedPrice) : 0);
-    }, 0);
 
     return {
       ...g,
       totalAmount: totalSale,
-      totalPurchaseCost: totalPurchase,
-      profitLoss: totalPurchase > 0 ? Math.round((totalSale - totalPurchase) * 100) / 100 : null,
+      totalPurchaseCost: null,
+      profitLoss: null,
       entries: g.entries.map((e) => ({
         ...e,
         allocatedAmount: toNum(e.allocatedAmount),

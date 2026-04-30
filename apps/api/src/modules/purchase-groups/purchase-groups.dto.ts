@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsArray, IsDateString, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsDateString, Min } from 'class-validator';
 
 export class CreatePurchaseGroupDto {
   @IsString()
@@ -113,4 +113,8 @@ export class UpdatePurchaseGroupDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  fromSubscription?: boolean;
 }

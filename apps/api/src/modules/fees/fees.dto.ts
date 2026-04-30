@@ -77,10 +77,6 @@ export class CreatePurchaseFeeDto {
 
   @IsString()
   @IsOptional()
-  userBookEntryId?: string;
-
-  @IsString()
-  @IsOptional()
   purchaseGroupId?: string;
 
   @IsString()
@@ -135,10 +131,6 @@ export class CreatePurchaseDiscountDto {
 
   @IsString()
   @IsOptional()
-  userBookEntryId?: string;
-
-  @IsString()
-  @IsOptional()
   purchaseGroupId?: string;
 
   @IsString()
@@ -183,10 +175,6 @@ export class CreatePurchaseRefundDto {
   @IsString()
   @IsOptional()
   billingPeriodId?: string;
-
-  @IsString()
-  @IsOptional()
-  userBookEntryId?: string;
 
   @IsString()
   @IsOptional()

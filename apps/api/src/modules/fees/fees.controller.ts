@@ -53,10 +53,9 @@ export class FeesController {
   getPurchaseFees(
     @CurrentUser() user: { id: string },
     @Query('billingPeriodId') billingPeriodId?: string,
-    @Query('userBookEntryId') userBookEntryId?: string,
     @Query('purchaseGroupId') purchaseGroupId?: string,
   ) {
-    return this.feesService.getPurchaseFees(user.id, { billingPeriodId, userBookEntryId, purchaseGroupId });
+    return this.feesService.getPurchaseFees(user.id, { billingPeriodId, purchaseGroupId });
   }
 
   @Post()
@@ -84,10 +83,9 @@ export class FeesController {
   getDiscounts(
     @CurrentUser() user: { id: string },
     @Query('billingPeriodId') billingPeriodId?: string,
-    @Query('userBookEntryId') userBookEntryId?: string,
     @Query('purchaseGroupId') purchaseGroupId?: string,
   ) {
-    return this.feesService.getDiscounts(user.id, { billingPeriodId, userBookEntryId, purchaseGroupId });
+    return this.feesService.getDiscounts(user.id, { billingPeriodId, purchaseGroupId });
   }
 
   @Post('discounts')
@@ -115,10 +113,9 @@ export class FeesController {
   getRefunds(
     @CurrentUser() user: { id: string },
     @Query('billingPeriodId') billingPeriodId?: string,
-    @Query('userBookEntryId') userBookEntryId?: string,
     @Query('purchaseGroupId') purchaseGroupId?: string,
   ) {
-    return this.feesService.getRefunds(user.id, { billingPeriodId, userBookEntryId, purchaseGroupId });
+    return this.feesService.getRefunds(user.id, { billingPeriodId, purchaseGroupId });
   }
 
   @Post('refunds')

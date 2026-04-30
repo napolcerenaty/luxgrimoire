@@ -106,11 +106,9 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
       let targetEntryId: string
 
       if (status === 'wishlist' && entryId) {
-        // Promote wishlist → collection (same flow as wishlist page)
+        // Promote wishlist → collection
         const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
         if (moveDate) body.acquiredAt = new Date(moveDate).toISOString()
-        const parsedPrice = parseDecimalInput(movePrice)
-        if (parsedPrice > 0) { body.allocatedPrice = String(parsedPrice); body.priceCurrency = moveCurrency }
         await authFetch<void>(`/collection/${entryId}`, { method: 'PATCH', body: JSON.stringify(body) })
         targetEntryId = entryId
         setStatus('collection')
@@ -121,25 +119,33 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           body: JSON.stringify({ bookEditionId: editionId, ownershipStatus }),
         })
         targetEntryId = res.id
-        const body: Record<string, unknown> = {}
-        if (moveDate) body.acquiredAt = new Date(moveDate).toISOString()
-        const parsedPrice = parseDecimalInput(movePrice)
-        if (parsedPrice > 0) { body.allocatedPrice = String(parsedPrice); body.priceCurrency = moveCurrency }
-        if (Object.keys(body).length > 0) {
-          await authFetch<void>(`/collection/${targetEntryId}`, { method: 'PATCH', body: JSON.stringify(body) })
+        if (moveDate) {
+          await authFetch<void>(`/collection/${targetEntryId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ acquiredAt: new Date(moveDate).toISOString() }),
+          })
         }
         setEntryId(res.id)
         if (status !== 'collection') setStatus('collection')
       }
 
-      // Shipping fee
+      // Create purchase group when price is provided
+      const parsedPrice = parseDecimalInput(movePrice)
       const parsedShipping = parseDecimalInput(shippingPrice)
-      if (parsedShipping > 0) {
-        await authFetch('/fees', {
+      let purchaseGroupId: string | null = null
+      if (parsedPrice > 0) {
+        const pgRes = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${targetEntryId}`, {
           method: 'POST',
-          body: JSON.stringify({ name: 'Shipping', amount: parsedShipping, currency: moveCurrency, date: feeDate, category: 'FORWARDING', userBookEntryId: targetEntryId }),
+          body: JSON.stringify({
+            totalAmount: parsedPrice,
+            currency: moveCurrency,
+            shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
+            purchasedAt: feeDate,
+          }),
         })
+        purchaseGroupId = pgRes.id
       }
+
       // Additional custom fees
       for (const fee of feeEntries) {
         const parsedAmount = parseDecimalInput(fee.amount)
@@ -154,7 +160,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
             currency: fee.currency,
             date: feeDate,
             category: template?.category ?? undefined,
-            userBookEntryId: targetEntryId,
+            ...(purchaseGroupId ? { purchaseGroupId } : { userBookEntryId: targetEntryId }),
           }),
         })
       }

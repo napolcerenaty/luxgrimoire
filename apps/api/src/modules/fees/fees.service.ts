@@ -63,13 +63,12 @@ export class FeesService {
 
   async getPurchaseFees(
     userId: string,
-    opts: { billingPeriodId?: string; userBookEntryId?: string; purchaseGroupId?: string } = {},
+    opts: { billingPeriodId?: string; purchaseGroupId?: string } = {},
   ) {
     return this.prisma.userPurchaseFee.findMany({
       where: {
         userId,
         ...(opts.billingPeriodId ? { billingPeriodId: opts.billingPeriodId } : {}),
-        ...(opts.userBookEntryId ? { userBookEntryId: opts.userBookEntryId } : {}),
         ...(opts.purchaseGroupId ? { purchaseGroupId: opts.purchaseGroupId } : {}),
       },
       include: { feeTemplate: { select: { id: true, name: true } } },
@@ -88,7 +87,6 @@ export class FeesService {
         date: new Date(dto.date),
         category: dto.category ?? 'OTHER',
         billingPeriodId: dto.billingPeriodId ?? null,
-        userBookEntryId: dto.userBookEntryId ?? null,
         notes: dto.notes ?? null,
       },
       include: { feeTemplate: { select: { id: true, name: true } } },
@@ -141,13 +139,12 @@ export class FeesService {
 
   async getDiscounts(
     userId: string,
-    opts: { billingPeriodId?: string; userBookEntryId?: string; purchaseGroupId?: string } = {},
+    opts: { billingPeriodId?: string; purchaseGroupId?: string } = {},
   ) {
     return this.prisma.userPurchaseDiscount.findMany({
       where: {
         userId,
         ...(opts.billingPeriodId ? { billingPeriodId: opts.billingPeriodId } : {}),
-        ...(opts.userBookEntryId ? { userBookEntryId: opts.userBookEntryId } : {}),
         ...(opts.purchaseGroupId ? { purchaseGroupId: opts.purchaseGroupId } : {}),
       },
       orderBy: { date: 'desc' },
@@ -163,7 +160,6 @@ export class FeesService {
         currency: dto.currency,
         date: new Date(dto.date),
         billingPeriodId: dto.billingPeriodId ?? null,
-        userBookEntryId: dto.userBookEntryId ?? null,
         purchaseGroupId: dto.purchaseGroupId ?? null,
         notes: dto.notes ?? null,
       },
@@ -205,13 +201,12 @@ export class FeesService {
 
   async getRefunds(
     userId: string,
-    opts: { billingPeriodId?: string; userBookEntryId?: string; purchaseGroupId?: string } = {},
+    opts: { billingPeriodId?: string; purchaseGroupId?: string } = {},
   ) {
     return this.prisma.userPurchaseRefund.findMany({
       where: {
         userId,
         ...(opts.billingPeriodId ? { billingPeriodId: opts.billingPeriodId } : {}),
-        ...(opts.userBookEntryId ? { userBookEntryId: opts.userBookEntryId } : {}),
         ...(opts.purchaseGroupId ? { purchaseGroupId: opts.purchaseGroupId } : {}),
       },
       orderBy: { date: 'desc' },
@@ -226,7 +221,6 @@ export class FeesService {
         currency: dto.currency,
         date: new Date(dto.date),
         billingPeriodId: dto.billingPeriodId ?? null,
-        userBookEntryId: dto.userBookEntryId ?? null,
         purchaseGroupId: dto.purchaseGroupId ?? null,
         reason: dto.reason ?? null,
         notes: dto.notes ?? null,

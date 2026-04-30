@@ -5,8 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { createPurchaseGroup, getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup, updatePurchaseGroup } from '@/lib/api'
-import type { ApiPurchaseGroup, ApiSaleGroup } from '@luxgrimoire/shared-types'
+import { getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
@@ -21,16 +20,13 @@ interface CollectionEntry {
   isWishlist: boolean
   condition: string | null
   acquiredAt: string | null
-  purchaseDate: string | null
   ownershipStatus: string
   readingStatus: string
-  allocatedPrice: string | null
-  priceCurrency: string | null
   signatureType: string | null
   trackingNumber: string | null
   tags: string[]
   purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
-  purchaseGroup: { id: string; currency: string; purchasedAt: string } | null
+  purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null; fromSubscription: boolean } | null
   edition: {
     id: string
     slug: string
@@ -45,20 +41,6 @@ interface CollectionEntry {
       volumeNumber: number | null
       authors: Array<{ id: string; name: string; slug: string }>
     }
-  }
-}
-
-interface EditionSearchResult {
-  id: string
-  slug: string
-  additionalImages: string[]
-  publisher: string | null
-  bookBoxCompany?: { id: string; name: string; slug: string } | null
-  book: {
-    id: string
-    title: string
-    slug: string
-    authors: Array<{ id: string; name: string; slug: string }>
   }
 }
 
@@ -83,307 +65,6 @@ interface FeeTemplate {
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
-function AddBundleModal({ open, onClose, bundle }: { open: boolean; onClose: () => void; bundle?: ApiPurchaseGroup }) {
-  const queryClient = useQueryClient()
-  const isEdit = !!bundle
-  const [form, setForm] = useState({
-    title: '',
-    totalAmount: '',
-    currency: 'USD',
-    shippingAmount: '',
-    purchasedAt: new Date().toISOString().slice(0, 10),
-    notes: '',
-  })
-  const [editionSearch, setEditionSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [selectedEditions, setSelectedEditions] = useState<EditionSearchResult[]>([])
-  const [success, setSuccess] = useState(false)
-  const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
-  const feeKeyRef = useRef(0)
-
-  // Pre-fill form in edit mode whenever bundle changes
-  useEffect(() => {
-    if (bundle) {
-      setForm({
-        title: bundle.title ?? '',
-        totalAmount: String(bundle.totalAmount),
-        currency: bundle.currency,
-        shippingAmount: bundle.shippingAmount != null ? String(bundle.shippingAmount) : '',
-        purchasedAt: bundle.purchasedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-        notes: bundle.notes ?? '',
-      })
-    } else {
-      setForm({ title: '', totalAmount: '', currency: 'USD', shippingAmount: '', purchasedAt: new Date().toISOString().slice(0, 10), notes: '' })
-      setFeeEntries([])
-    }
-  }, [bundle, open])
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(editionSearch), 300)
-    return () => clearTimeout(t)
-  }, [editionSearch])
-
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ['editions-search', debouncedSearch],
-    queryFn: () =>
-      debouncedSearch.length >= 2
-        ? authFetch<{ data: EditionSearchResult[] }>(`/editions?search=${encodeURIComponent(debouncedSearch)}&pageSize=10`).then(r => r.data)
-        : Promise.resolve([]),
-    enabled: debouncedSearch.length >= 2,
-  })
-
-  const { data: feeTemplates = [] } = useQuery({
-    queryKey: ['fee-templates'],
-    queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
-    enabled: open,
-  })
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      let groupId: string
-      if (isEdit) {
-        const updated = await updatePurchaseGroup(bundle!.id, {
-          title: form.title || undefined,
-          totalAmount: Number(form.totalAmount),
-          currency: form.currency,
-          shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
-          purchasedAt: form.purchasedAt,
-          notes: form.notes || undefined,
-        })
-        groupId = updated.id
-      } else {
-        const created = await createPurchaseGroup({
-          title: form.title || undefined,
-          totalAmount: Number(form.totalAmount),
-          currency: form.currency,
-          shippingAmount: form.shippingAmount ? Number(form.shippingAmount) : undefined,
-          purchasedAt: form.purchasedAt,
-          notes: form.notes || undefined,
-          editionIds: selectedEditions.map(e => e.id),
-        })
-        groupId = created.id
-      }
-      // POST custom fees linked to this bundle
-      for (const fe of feeEntries) {
-        if (!fe.templateId || !fe.amount) continue
-        await authFetch('/fees', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            feeTemplateId: fe.templateId,
-            amount: Number(fe.amount),
-            currency: fe.currency,
-            purchaseGroupId: groupId,
-          }),
-        })
-      }
-      return groupId
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-groups'] })
-      queryClient.invalidateQueries({ queryKey: ['collection'] })
-      setSuccess(true)
-      setTimeout(() => {
-        onClose()
-        setSuccess(false)
-        setSelectedEditions([])
-        setEditionSearch('')
-        setFeeEntries([])
-      }, 1500)
-    },
-  })
-
-  const addEdition = (ed: EditionSearchResult) => {
-    if (!selectedEditions.find(e => e.id === ed.id)) {
-      setSelectedEditions(prev => [...prev, ed])
-    }
-  }
-
-  const removeEdition = (id: string) => {
-    setSelectedEditions(prev => prev.filter(e => e.id !== id))
-  }
-
-  const addFeeEntry = () => {
-    const key = ++feeKeyRef.current
-    const tpl = feeTemplates[0]
-    setFeeEntries(prev => [...prev, {
-      key,
-      templateId: tpl?.id ?? '',
-      amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : '',
-      currency: tpl?.defaultCurrency ?? form.currency,
-    }])
-  }
-
-  const removeFeeEntry = (key: number) => setFeeEntries(prev => prev.filter(f => f.key !== key))
-
-  const updateFeeEntry = (key: number, patch: Partial<FeeEntry>) => {
-    setFeeEntries(prev => prev.map(f => f.key === key ? { ...f, ...patch } : f))
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Edit Bundle' : 'Add Bundle'}>
-      {success ? (
-        <div className="text-center py-6">
-          <div className="text-4xl mb-3">✓</div>
-          <p className="text-green-400 font-semibold">{isEdit ? 'Bundle updated!' : 'Bundle added to your collection!'}</p>
-        </div>
-      ) : (
-        <form
-          onSubmit={e => { e.preventDefault(); mutation.mutate() }}
-          className="flex flex-col gap-4"
-        >
-          <div>
-            <label className={LBL}>Bundle Title (optional)</label>
-            <input className={INP} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. BOTM October 2024" />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className={LBL}>Total Amount *</label>
-              <input required type="number" step="0.01" min="0" className={INP} value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} />
-            </div>
-            <div>
-              <label className={LBL}>Currency</label>
-              <select className={INP} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LBL}>Shipping Amount</label>
-              <input type="number" step="0.01" min="0" className={INP} value={form.shippingAmount} onChange={e => setForm(f => ({ ...f, shippingAmount: e.target.value }))} />
-            </div>
-            <div>
-              <label className={LBL}>Purchase Date *</label>
-              <input required type="date" className={INP} value={form.purchasedAt} onChange={e => setForm(f => ({ ...f, purchasedAt: e.target.value }))} />
-            </div>
-          </div>
-
-          <div>
-            <label className={LBL}>Notes</label>
-            <input className={INP} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-          </div>
-
-          {/* Custom fee templates */}
-          {feeTemplates.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className={LBL}>Custom Fees</label>
-                <button
-                  type="button"
-                  onClick={addFeeEntry}
-                  className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
-                >
-                  <Plus size={12} /> Add fee
-                </button>
-              </div>
-              {feeEntries.map(fe => (
-                <div key={fe.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 mb-2 items-center">
-                  <select
-                    className={INP}
-                    value={fe.templateId}
-                    onChange={e => {
-                      const tpl = feeTemplates.find(t => t.id === e.target.value)
-                      updateFeeEntry(fe.key, {
-                        templateId: e.target.value,
-                        amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : fe.amount,
-                        currency: tpl?.defaultCurrency ?? fe.currency,
-                      })
-                    }}
-                  >
-                    {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className={`${INP} w-24`}
-                    value={fe.amount}
-                    onChange={e => updateFeeEntry(fe.key, { amount: e.target.value })}
-                  />
-                  <select
-                    className={`${INP} w-20`}
-                    value={fe.currency}
-                    onChange={e => updateFeeEntry(fe.key, { currency: e.target.value })}
-                  >
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <button type="button" onClick={() => removeFeeEntry(fe.key)} className="text-stone-500 hover:text-red-400 transition-colors">
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Edition search — only in create mode */}
-          {!isEdit && (
-            <div>
-              <label className={LBL}>Search Editions *</label>
-              <input
-                className={INP}
-                value={editionSearch}
-                onChange={e => setEditionSearch(e.target.value)}
-                placeholder="Search by title, author…"
-              />
-              {searchResults.length > 0 && (
-                <div className="mt-2 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {searchResults.map(ed => (
-                    <button
-                      key={ed.id}
-                      type="button"
-                      onClick={() => addEdition(ed)}
-                      className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors flex items-center gap-2 text-sm"
-                    >
-                      {ed.additionalImages?.[0] && (
-                        <Image src={cloudinaryUrl(ed.additionalImages[0], 'w_64,h_80,c_fill,q_auto,f_auto') ?? ''} alt="" width={32} height={40} className="object-cover rounded" unoptimized />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-stone-200 truncate">{ed.book.title}</p>
-                        <p className="text-stone-500 text-xs truncate">
-                          {ed.bookBoxCompany?.name ?? ed.publisher ?? ''}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Selected editions */}
-          {!isEdit && selectedEditions.length > 0 && (
-            <div>
-              <p className="text-xs text-stone-500 mb-2">{selectedEditions.length} edition{selectedEditions.length !== 1 ? 's' : ''} selected:</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedEditions.map(ed => (
-                  <span key={ed.id} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
-                    {ed.book.title}
-                    <button type="button" onClick={() => removeEdition(ed.id)} className="text-stone-500 hover:text-red-400">×</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {mutation.isError && (
-            <p className="text-red-400 text-sm">{(mutation.error as Error).message}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={mutation.isPending || (!isEdit && selectedEditions.length === 0)}
-            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
-          >
-            {mutation.isPending ? (isEdit ? 'Saving…' : 'Adding…') : (isEdit ? 'Save Bundle' : 'Add Bundle')}
-          </button>
-        </form>
-      )}
-    </Modal>
-  )
-}
 
 const SALE_PLATFORMS = [
   { value: 'vinted', label: '🛍️ Vinted' },
@@ -562,8 +243,10 @@ function AddSaleForm({
                 {saleSelectedEntries.includes(e.id) ? '✓' : ''}
               </span>
               <span className="flex-1 truncate">{e.edition.book.title}</span>
-              {e.allocatedPrice && (
-                <span className="text-stone-500 text-xs shrink-0">{e.allocatedPrice} {e.priceCurrency}</span>
+              {e.purchaseGroup && (
+                <span className="text-stone-500 text-xs shrink-0">
+                  {(e.purchaseGroup.totalAmount + (e.purchaseGroup.shippingAmount ?? 0)).toFixed(2)} {e.purchaseGroup.currency}
+                </span>
               )}
             </button>
           ))}
@@ -803,8 +486,6 @@ export default function CollectionPage() {
   const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [addBundleOpen, setAddBundleOpen] = useState(false)
-  const [editBundle, setEditBundle] = useState<ApiPurchaseGroup | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
@@ -897,29 +578,24 @@ export default function CollectionPage() {
     },
   })
 
-  // Fetch currency conversion rates for entries with purchase groups or priceCurrency
+  // Fetch currency conversion rates for entries with purchase groups
   // Includes: costCur→dc (for display) and feeCurrency→costCur (for fee normalization)
   useEffect(() => {
     const defaultCurrency = user?.preferredCurrency
     if (!defaultCurrency || entries.length === 0) return
     const combos = new Set<string>()
     for (const e of entries) {
-      if (!e.allocatedPrice) continue
-      const from = e.priceCurrency ?? e.purchaseGroup?.currency
-      const date = e.purchaseGroup?.purchasedAt?.slice(0, 10)
-        ?? e.purchaseDate?.slice(0, 10)
-        ?? e.acquiredAt?.slice(0, 10)
-        ?? new Date().toISOString().slice(0, 10)
-      if (from) {
-        // costCur → defaultCurrency (for display conversion)
-        if (from !== defaultCurrency) {
-          combos.add(`${from}:${defaultCurrency}:${date}`)
-        }
-        // feeCurrency → costCur (to normalize fees into purchase currency)
-        for (const fee of e.purchaseFees ?? []) {
-          if (fee.currency !== from) {
-            combos.add(`${fee.currency}:${from}:${date}`)
-          }
+      if (!e.purchaseGroup) continue
+      const from = e.purchaseGroup.currency
+      const date = e.purchaseGroup.purchasedAt.slice(0, 10)
+      // costCur → defaultCurrency (for display conversion)
+      if (from !== defaultCurrency) {
+        combos.add(`${from}:${defaultCurrency}:${date}`)
+      }
+      // feeCurrency → costCur (to normalize fees into purchase currency)
+      for (const fee of e.purchaseFees ?? []) {
+        if (fee.currency !== from) {
+          combos.add(`${fee.currency}:${from}:${date}`)
         }
       }
     }
@@ -1020,13 +696,6 @@ export default function CollectionPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => setAddBundleOpen(true)}
-            className="flex items-center gap-2 bg-stone-700 hover:bg-stone-600 text-stone-100 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
-          >
-            <Package size={16} />
-            Add Bundle
-          </button>
-          <button
             onClick={() => setAddModalOpen(true)}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
           >
@@ -1108,13 +777,6 @@ export default function CollectionPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => { setEditBundle(bundle); setAddBundleOpen(true) }}
-                        className="p-1 text-stone-500 hover:text-amber-400 transition-colors"
-                        title="Edit bundle"
-                      >
-                        <Pencil size={13} />
-                      </button>
                       <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
                         {bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}
                       </span>
@@ -1391,35 +1053,23 @@ export default function CollectionPage() {
                           </div>
 
                           {/* Cost display */}
-                          {entry.allocatedPrice && (entry.priceCurrency || entry.purchaseGroup?.currency) && (() => {
-                            const costCur = entry.priceCurrency ?? entry.purchaseGroup!.currency
+                          {entry.purchaseGroup ? (() => {
+                            const pg = entry.purchaseGroup
+                            const total = pg.totalAmount + (pg.shippingAmount ?? 0)
                             const dc = user?.preferredCurrency
-                            const dateStr = entry.purchaseGroup?.purchasedAt?.slice(0, 10)
-                              ?? entry.purchaseDate?.slice(0, 10)
-                              ?? entry.acquiredAt?.slice(0, 10)
-                              ?? new Date().toISOString().slice(0, 10)
-                            const fees = entry.purchaseFees ?? []
-                            // Convert each fee to costCur before summing
-                            const feesInCostCur = fees.reduce((sum, f) => {
-                              const feeAmt = parseDecimalInput(f.amount)
-                              if (f.currency === costCur) return sum + feeAmt
-                              const rateKey = `${f.currency}:${costCur}:${dateStr}`
-                              const rate = conversionRates[rateKey]
-                              return sum + (rate ? feeAmt * rate : feeAmt)
-                            }, 0)
-                            const totalInCostCur = parseDecimalInput(entry.allocatedPrice) + feesInCostCur
+                            const dateStr = pg.purchasedAt.slice(0, 10)
                             return (
                               <p className="text-[10px] text-stone-400">
-                                {totalInCostCur.toFixed(2)} {costCur}
-                                {dc && costCur !== dc && (() => {
-                                  const key = `${costCur}:${dc}:${dateStr}`
+                                {total.toFixed(2)} {pg.currency}
+                                {dc && pg.currency !== dc && (() => {
+                                  const key = `${pg.currency}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · ~{(totalInCostCur * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-stone-500"> · ~{(total * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )
-                          })()}
+                          })() : null}
 
                           {entry.acquiredAt && (
                             <p className="text-[10px] text-stone-500">
@@ -1467,7 +1117,7 @@ export default function CollectionPage() {
                                 onClick={(e) => {
                                   e.preventDefault(); e.stopPropagation()
                                   setSaleSelectedEntries([entry.id])
-                                  setSaleCurrency(entry.priceCurrency ?? entry.purchaseGroup?.currency ?? 'GBP')
+                                  setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP')
                                   setAddSaleOpen(true)
                                 }}
                                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
@@ -1512,12 +1162,6 @@ export default function CollectionPage() {
           </a>
         </div>
       </Modal>
-
-      <AddBundleModal
-        open={addBundleOpen}
-        onClose={() => { setAddBundleOpen(false); setEditBundle(undefined) }}
-        bundle={editBundle}
-      />
 
       {/* ─── Track Shipment Modal ─── */}
       <Modal

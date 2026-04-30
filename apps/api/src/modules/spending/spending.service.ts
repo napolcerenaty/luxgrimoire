@@ -119,55 +119,64 @@ export class SpendingService {
     };
   }
 
-  /** Comprehensive stats built from book collection data (UserBookEntry + fees) */
+  /** Comprehensive stats built from book collection data (UserBookEntry + purchaseGroup) */
   async getComprehensiveStats(userId: string, targetCurrency: string) {
     const tgt = targetCurrency.toUpperCase();
     const now = new Date();
     const thisYear = now.getFullYear();
     const thisMonth = now.getMonth() + 1;
 
-    // Load all book entries with fees, purchase group and subscription info
+    // Load all book entries with their purchase group (fees/discounts/refunds live on the group)
     const [entries, saleGroups] = await Promise.all([
       this.prisma.userBookEntry.findMany({
         where: { userId },
         include: {
-          purchaseFees: true,
-          purchaseDiscounts: true,
-          purchaseRefunds: true,
-          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true } },
+          purchaseGroup: {
+            include: {
+              fees: { select: { amount: true, currency: true, date: true, category: true } },
+              discounts: { select: { amount: true, currency: true, date: true } },
+              refunds: { select: { amount: true, currency: true, date: true } },
+              bookEntries: { select: { id: true } },
+            },
+          },
           subscriptionEntry: {
             include: { subscription: { select: { name: true, slug: true } } },
           },
-          edition: { include: { book: { select: { title: true, slug: true, authors: { include: { author: { select: { name: true } } } } } } } },
-        },
-      }),
-      this.prisma.userSaleGroup.findMany({
-        where: { userId },
-        include: {
-          entries: {
+          edition: {
             include: {
-              userBookEntry: {
+              book: {
                 select: {
-                  allocatedPrice: true,
-                  priceCurrency: true,
-                  purchaseGroup: { select: { currency: true } },
+                  title: true,
+                  slug: true,
+                  authors: { include: { author: { select: { name: true } } } },
                 },
               },
             },
           },
         },
       }),
+      this.prisma.userSaleGroup.findMany({
+        where: { userId },
+        include: {
+          entries: { select: { id: true } },
+        },
+      }),
     ]);
 
-    // Helper: convert amount on date to target currency (best-effort, returns 0 on failure)
+    // Helper: convert amount on date to target currency (best-effort, returns original on failure)
     const convert = async (amount: number, fromCurrency: string, date: Date): Promise<number> => {
       if (!fromCurrency || amount === 0) return 0;
       if (fromCurrency.toUpperCase() === tgt) return amount;
       try {
         return await this.currencyService.convert(amount, fromCurrency, tgt, date);
       } catch {
-        return amount; // fallback: keep original amount if rate unavailable
+        return amount;
       }
+    };
+
+    const toNum = (v: { toNumber: () => number } | number | null | undefined): number => {
+      if (v == null) return 0;
+      return typeof v === 'object' ? v.toNumber() : Number(v);
     };
 
     // Accumulators
@@ -188,63 +197,65 @@ export class SpendingService {
     const topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
 
     for (const entry of entries) {
-      const purchaseCurrency = entry.priceCurrency ?? entry.purchaseGroup?.currency ?? null;
-      const dateRaw = entry.purchaseDate ?? entry.purchaseGroup?.purchasedAt ?? entry.acquiredAt ?? now;
-      const date = new Date(dateRaw);
+      const group = entry.purchaseGroup;
+      if (!group) continue;
+
+      const purchaseCurrency = group.currency;
+      const date = new Date(group.purchasedAt);
       const entryYear = date.getFullYear();
       const entryMonth = date.getMonth() + 1;
+      const entryCount = group.bookEntries.length || 1;
 
-      let entryTotal = 0;
+      // Base + shipping per entry (in group currency, converted to target)
+      const basePerEntry = toNum(group.totalAmount) / entryCount;
+      const shippingPerEntry = group.shippingAmount ? toNum(group.shippingAmount) / entryCount : 0;
+      const baseConverted = await convert(basePerEntry, purchaseCurrency, date);
+      const shippingConverted = await convert(shippingPerEntry, purchaseCurrency, date);
 
-      // Base price
-      if (entry.allocatedPrice && purchaseCurrency) {
-        const base = Number(entry.allocatedPrice);
-        const converted = await convert(base, purchaseCurrency, date);
-        entryTotal += converted;
-        totalBasePrice += converted;
-        booksWithCost++;
+      // Group-level fees/discounts/refunds divided by entry count
+      let feesPerEntry = 0;
+      let shippingFeesPerEntry = 0;
+      let taxFeesPerEntry = 0;
+      for (const fee of group.fees) {
+        const amt = await convert(toNum(fee.amount), fee.currency, new Date(fee.date)) / entryCount;
+        feesPerEntry += amt;
+        if (fee.category === 'SHIPPING') shippingFeesPerEntry += amt;
+        else if (fee.category === 'VAT' || fee.category === 'CUSTOMS') taxFeesPerEntry += amt;
       }
 
-      // Fees
-      for (const fee of entry.purchaseFees) {
-        const converted = await convert(Number(fee.amount), fee.currency, new Date(fee.date));
-        entryTotal += converted;
-        totalFees += converted;
-        if (fee.category === 'SHIPPING') totalShipping += converted;
-        else if (fee.category === 'VAT' || fee.category === 'CUSTOMS') totalTax += converted;
+      let discountsPerEntry = 0;
+      for (const disc of group.discounts) {
+        discountsPerEntry += await convert(toNum(disc.amount), disc.currency, new Date(disc.date)) / entryCount;
       }
 
-      // Discounts (subtract)
-      for (const disc of entry.purchaseDiscounts) {
-        const converted = await convert(Number(disc.amount), disc.currency, new Date(disc.date));
-        entryTotal -= converted;
-        totalDiscounts += converted;
+      let refundsPerEntry = 0;
+      for (const ref of group.refunds) {
+        refundsPerEntry += await convert(toNum(ref.amount), ref.currency, new Date(ref.date)) / entryCount;
       }
 
-      // Refunds (subtract)
-      for (const ref of entry.purchaseRefunds) {
-        const converted = await convert(Number(ref.amount), ref.currency, new Date(ref.date));
-        entryTotal -= converted;
-        totalRefunds += converted;
-      }
-
+      const entryTotal = baseConverted + shippingConverted + feesPerEntry - discountsPerEntry - refundsPerEntry;
       if (entryTotal === 0) continue;
+
+      booksWithCost++;
+      totalBasePrice += baseConverted;
+      totalShipping += shippingConverted + shippingFeesPerEntry;
+      totalTax += taxFeesPerEntry;
+      totalFees += feesPerEntry;
+      totalDiscounts += discountsPerEntry;
+      totalRefunds += refundsPerEntry;
 
       totalAllTime += entryTotal;
       if (entryYear === thisYear) totalThisYear += entryTotal;
       if (entryYear === thisYear && entryMonth === thisMonth) totalThisMonth += entryTotal;
 
-      // By year
       byYearMap[entryYear] = (byYearMap[entryYear] ?? 0) + entryTotal;
 
-      // By month (last 24 months)
       const monthKey = `${entryYear}-${String(entryMonth).padStart(2, '0')}`;
       const diffMonths = (thisYear - entryYear) * 12 + (thisMonth - entryMonth);
       if (diffMonths >= 0 && diffMonths < 24) {
         byMonthMap[monthKey] = (byMonthMap[monthKey] ?? 0) + entryTotal;
       }
 
-      // By subscription
       if (entry.subscriptionEntry?.subscription) {
         const sub = entry.subscriptionEntry.subscription;
         if (!bySubMap[sub.slug]) bySubMap[sub.slug] = { name: sub.name, slug: sub.slug, amount: 0, books: 0 };
@@ -252,8 +263,7 @@ export class SpendingService {
         bySubMap[sub.slug].books++;
       }
 
-      // Top expensive
-      if (entryTotal > 0 && (entry.allocatedPrice || entry.purchaseFees.length > 0)) {
+      if (entryTotal > 0) {
         const title = entry.edition?.book?.title ?? 'Unknown';
         const author = entry.edition?.book?.authors?.[0]?.author?.name ?? '';
         topExpensive.push({
@@ -267,11 +277,9 @@ export class SpendingService {
       }
     }
 
-    // Sort and trim top expensive
     topExpensive.sort((a, b) => b.amount - a.amount);
     const top10 = topExpensive.slice(0, 10);
 
-    // Build byMonth array with all 24 months filled (0 for missing)
     const byMonth: Array<{ month: string; amount: number }> = [];
     for (let i = 23; i >= 0; i--) {
       const d = new Date(thisYear, now.getMonth() - i, 1);
@@ -281,8 +289,6 @@ export class SpendingService {
 
     // ── Sales stats ──────────────────────────────────────────────────────────
     let totalSalesRevenue = 0;
-    let totalSalesProfit = 0;
-    let salesProfitKnown = false;
     let totalBooksSold = 0;
 
     const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
@@ -294,13 +300,11 @@ export class SpendingService {
       totalSalesRevenue += revenue;
       totalBooksSold += group.entries.length;
 
-      // By platform
       const platform = (group.platform as string | null) || 'other';
       if (!salesByPlatformMap[platform]) salesByPlatformMap[platform] = { platform, amount: 0, count: 0 };
       salesByPlatformMap[platform].amount += revenue;
       salesByPlatformMap[platform].count += group.entries.length;
 
-      // By month (last 24m)
       const soldYear = soldDate.getFullYear();
       const soldMonth = soldDate.getMonth() + 1;
       const diffM = (thisYear - soldYear) * 12 + (thisMonth - soldMonth);
@@ -308,27 +312,8 @@ export class SpendingService {
         const key = `${soldYear}-${String(soldMonth).padStart(2, '0')}`;
         salesByMonthMap[key] = (salesByMonthMap[key] ?? 0) + revenue;
       }
-
-      // Profit/loss per group
-      let purchaseCost = 0;
-      let hasCost = false;
-      for (const e of group.entries) {
-        if (e.userBookEntry?.allocatedPrice) {
-          const eCurrency = (e.userBookEntry as any).priceCurrency
-            ?? (e.userBookEntry as any).purchaseGroup?.currency ?? null;
-          if (eCurrency) {
-            purchaseCost += await convert(Number(e.userBookEntry.allocatedPrice), eCurrency, soldDate);
-            hasCost = true;
-          }
-        }
-      }
-      if (hasCost) {
-        totalSalesProfit += revenue - purchaseCost;
-        salesProfitKnown = true;
-      }
     }
 
-    // Build salesByMonth aligned to the same 24-month window as byMonth
     const salesByMonth = byMonth.map((m) => ({
       month: m.month,
       amount: Math.round((salesByMonthMap[m.month] ?? 0) * 100) / 100,
@@ -355,9 +340,8 @@ export class SpendingService {
         .map((s) => ({ ...s, amount: Math.round(s.amount * 100) / 100 }))
         .sort((a, b) => b.amount - a.amount),
       topExpensive: top10,
-      // Sales
       totalSalesRevenue: Math.round(totalSalesRevenue * 100) / 100,
-      totalSalesProfit: salesProfitKnown ? Math.round(totalSalesProfit * 100) / 100 : null,
+      totalSalesProfit: null,
       totalBooksSold,
       salesByPlatform: Object.values(salesByPlatformMap)
         .map((p) => ({ ...p, amount: Math.round(p.amount * 100) / 100 }))
