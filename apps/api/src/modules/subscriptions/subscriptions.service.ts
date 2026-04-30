@@ -294,6 +294,7 @@ export class SubscriptionsService {
           theme: true,
           coverImage: true,
           isSpoiler: true,
+          signatureType: true,
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
           books: {
             select: {
