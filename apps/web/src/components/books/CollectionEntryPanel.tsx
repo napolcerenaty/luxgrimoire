@@ -186,11 +186,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [rates, setRates] = useState<Record<string, number>>({})
   const userCurrency = user?.preferredCurrency
 
-  // Edit state — statuses
-  const [editingStatus, setEditingStatus] = useState(false)
-  const [editOwnership, setEditOwnership] = useState('')
-  const [editReading, setEditReading] = useState('')
-  const [editSignatureType, setEditSignatureType] = useState('')
+  // Status dropdowns (inline, no save form)
+  const [activeDropdown, setActiveDropdown] = useState<'ownership' | 'reading' | 'signature' | null>(null)
   const [savingStatus, setSavingStatus] = useState(false)
 
   // Edit state — purchase group
@@ -273,7 +270,6 @@ export function CollectionEntryPanel({ editionId }: Props) {
       ...(pg.discounts ?? []).map(d => d.currency),
       ...(pg.refunds ?? []).map(r => r.currency),
     ] : [entry.priceCurrency].filter(Boolean) as string[]
-
     const unique = [...new Set(allCurrencies.filter(c => c !== userCurrency))]
     if (!unique.length) return
     Promise.all(
@@ -309,20 +305,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   // ── Status section ────────────────────────────────────────────────────────
 
-  function openStatusEdit() {
-    setEditOwnership(entry!.ownershipStatus)
-    setEditReading(entry!.readingStatus)
-    setEditSignatureType(entry!.signatureType ?? '')
-    setEditingStatus(true)
-  }
-
-  async function saveStatus() {
+  async function quickSaveStatus(field: 'ownershipStatus' | 'readingStatus' | 'signatureType', value: string) {
+    setActiveDropdown(null)
     setSavingStatus(true)
     try {
-      const fields: Record<string, unknown> = { ownershipStatus: editOwnership, readingStatus: editReading }
-      if (editSignatureType) fields.signatureType = editSignatureType
-      await patchEntry(fields)
-      setEditingStatus(false)
+      await patchEntry({ [field]: value === '' ? null : value })
     } finally {
       setSavingStatus(false)
     }
@@ -340,7 +327,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
     } else {
-      setEditTotalAmount('')
+      setEditTotalAmount(entry!.allocatedPrice ? String(parseFloat(entry!.allocatedPrice)) : '')
       setEditCurrency(entry!.priceCurrency ?? 'EUR')
       setEditShippingAmount('')
       setEditDiscounts([])
@@ -636,59 +623,96 @@ export function CollectionEntryPanel({ editionId }: Props) {
           )}
         </div>
 
-        {/* Status badges / edit form */}
-        {editingStatus ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2 flex-wrap">
-              <div className="flex-1 min-w-[120px]">
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Ownership</label>
-                <select value={editOwnership} onChange={e => setEditOwnership(e.target.value)} className={INP}>
-                  {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[120px]">
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Reading</label>
-                <select value={editReading} onChange={e => setEditReading(e.target.value)} className={INP}>
-                  {READING_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[140px]">
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Signature</label>
-                <select value={editSignatureType} onChange={e => setEditSignatureType(e.target.value)} className={INP}>
-                  <option value="">— not set —</option>
-                  {SIGNATURE_TYPES.map(s => <option key={s} value={s}>{SIGNATURE_LABELS[s]}</option>)}
-                </select>
-              </div>
-            </div>
-            <SaveCancelBtns onSave={saveStatus} onCancel={() => setEditingStatus(false)} saving={savingStatus} />
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Status badges — each is an inline dropdown */}
+        {activeDropdown && (
+          <div className="fixed inset-0 z-[5]" onClick={() => setActiveDropdown(null)} />
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Ownership dropdown */}
+          <div className="relative">
             <button
-              onClick={openStatusEdit}
-              className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80`}
+              onClick={() => setActiveDropdown(prev => prev === 'ownership' ? null : 'ownership')}
+              disabled={savingStatus}
+              className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
             >
               {entry.ownershipStatus}
               <ChevronDown size={10} />
             </button>
+            {activeDropdown === 'ownership' && (
+              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[130px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                {OWNERSHIP_STATUSES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => quickSaveStatus('ownershipStatus', s)}
+                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.ownershipStatus ? 'font-semibold' : ''}`}
+                    style={{ color: s === entry.ownershipStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reading dropdown */}
+          <div className="relative">
             <button
-              onClick={openStatusEdit}
-              className={`${READING_COLORS[entry.readingStatus] ?? 'badge-unread'} px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80`}
+              onClick={() => setActiveDropdown(prev => prev === 'reading' ? null : 'reading')}
+              disabled={savingStatus}
+              className={`${READING_COLORS[entry.readingStatus] ?? 'badge-unread'} px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
             >
               {entry.readingStatus}
               <ChevronDown size={10} />
             </button>
-            {entry.signatureType && (
-              <button
-                onClick={openStatusEdit}
-                className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80"
-              >
-                {SIGNATURE_LABELS[entry.signatureType] ?? entry.signatureType}
-                <ChevronDown size={10} />
-              </button>
+            {activeDropdown === 'reading' && (
+              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[110px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                {READING_STATUSES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => quickSaveStatus('readingStatus', s)}
+                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.readingStatus ? 'font-semibold' : ''}`}
+                    style={{ color: s === entry.readingStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        )}
+
+          {/* Signature dropdown — always shown (unsigned when null) */}
+          <div className="relative">
+            <button
+              onClick={() => setActiveDropdown(prev => prev === 'signature' ? null : 'signature')}
+              disabled={savingStatus}
+              className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+            >
+              {SIGNATURE_LABELS[entry.signatureType ?? 'unsigned'] ?? 'Unsigned'}
+              <ChevronDown size={10} />
+            </button>
+            {activeDropdown === 'signature' && (
+              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[150px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                <button
+                  onClick={() => quickSaveStatus('signatureType', '')}
+                  className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
+                  style={{ color: !entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                >
+                  Unsigned
+                </button>
+                {SIGNATURE_TYPES.filter(s => s !== 'unsigned').map(s => (
+                  <button
+                    key={s}
+                    onClick={() => quickSaveStatus('signatureType', s)}
+                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
+                    style={{ color: s === entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                  >
+                    {SIGNATURE_LABELS[s]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Row 2: Purchase cost + Tracking */}
@@ -958,6 +982,28 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     Purchased {fmtDate(pg.purchasedAt)}
                   </p>
                 </>
+              ) : entry.allocatedPrice ? (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Price</span>
+                    <span className="text-right">
+                      <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                        {parseFloat(entry.allocatedPrice).toFixed(2)} {entry.priceCurrency}
+                      </span>
+                      {entry.priceCurrency && converted(parseFloat(entry.allocatedPrice), entry.priceCurrency) && (
+                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(parseFloat(entry.allocatedPrice), entry.priceCurrency)}</span>
+                      )}
+                    </span>
+                  </div>
+                  {entry.purchaseDate && (
+                    <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      Purchased {fmtDate(entry.purchaseDate)}
+                    </p>
+                  )}
+                  <p className="text-xs italic pt-1" style={{ color: 'var(--text-muted)' }}>
+                    Click &quot;Edit costs&quot; to add breakdown
+                  </p>
+                </div>
               ) : (
                 <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
                   {isFromSubscription ? 'Costs managed via subscription' : 'No costs recorded'}
