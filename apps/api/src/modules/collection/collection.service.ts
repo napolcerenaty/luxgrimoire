@@ -167,7 +167,7 @@ export class CollectionService {
               notes: true,
               saleAnnouncementId: true,
               fees: {
-                select: { id: true, name: true, amount: true, currency: true, category: true },
+                select: { id: true, name: true, amount: true, currency: true, category: true, date: true },
                 orderBy: { createdAt: 'asc' },
               },
               discounts: {

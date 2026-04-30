@@ -16,6 +16,7 @@ interface PurchaseFee {
   amount: string
   currency: string
   category: string
+  date: string
 }
 
 interface PurchaseDiscount {
@@ -206,6 +207,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [newFeeName, setNewFeeName] = useState('')
   const [newFeeAmount, setNewFeeAmount] = useState('')
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
+  const [newFeeDate, setNewFeeDate] = useState('')
   const [savingFee, setSavingFee] = useState(false)
 
   // Refund state
@@ -213,6 +215,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [newRefundAmount, setNewRefundAmount] = useState('')
   const [newRefundCurrency, setNewRefundCurrency] = useState('')
   const [newRefundReason, setNewRefundReason] = useState('')
+  const [newRefundDate, setNewRefundDate] = useState('')
   const [savingRefund, setSavingRefund] = useState(false)
 
   // Fee templates
@@ -413,11 +416,12 @@ export function CollectionEntryPanel({ editionId }: Props) {
     setNewFeeName('')
     setNewFeeAmount('')
     setNewFeeCurrency(entry!.purchaseGroup?.currency ?? 'EUR')
+    setNewFeeDate(new Date().toISOString().slice(0, 10))
     setAddingFee(true)
   }
 
   async function saveNewFee() {
-    if (!newFeeName.trim() || !newFeeAmount || !entry!.purchaseGroup) return
+    if (!newFeeName.trim() || !newFeeAmount || !newFeeDate || !entry!.purchaseGroup) return
     setSavingFee(true)
     try {
       await authFetch(`/fees`, {
@@ -426,7 +430,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
           name: newFeeName,
           amount: parseFloat(newFeeAmount),
           currency: newFeeCurrency,
-          date: new Date().toISOString(),
+          date: new Date(newFeeDate).toISOString(),
           category: 'OTHER',
           purchaseGroupId: entry!.purchaseGroup.id,
         }),
@@ -449,7 +453,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   }
 
   async function saveNewRefund() {
-    if (!newRefundAmount || !entry!.purchaseGroup) return
+    if (!newRefundAmount || !newRefundDate || !entry!.purchaseGroup) return
     setSavingRefund(true)
     try {
       await authFetch(`/fees/refunds`, {
@@ -457,7 +461,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
         body: JSON.stringify({
           amount: parseFloat(newRefundAmount),
           currency: newRefundCurrency,
-          date: new Date().toISOString(),
+          date: new Date(newRefundDate).toISOString(),
           reason: newRefundReason || null,
           purchaseGroupId: entry!.purchaseGroup.id,
         }),
@@ -713,8 +717,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
         </div>
       </div>
 
-      {/* Row 2: Purchase cost + Tracking */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Row 2: Purchase cost + (Tracking + Tags stacked) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
 
         {/* Purchase cost card */}
         <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -723,8 +727,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
               <Wallet size={11} /> Purchase cost
             </p>
             {!editingPurchase && (
-              <button onClick={openPurchaseEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
-                ✏️ {pg ? 'Edit costs' : 'Add costs'}
+              <button onClick={openPurchaseEdit} className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                <Pencil size={11} /> {pg ? 'Edit costs' : 'Add costs'}
               </button>
             )}
           </div>
@@ -794,6 +798,111 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
                 <input value={editPurchaseNotes} onChange={e => setEditPurchaseNotes(e.target.value)} placeholder="Any notes…" className={INP} />
               </div>
+
+              {/* Fees management in edit mode */}
+              {pg && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Fees</label>
+                  <div className="flex flex-col gap-1.5">
+                    {(pg.fees ?? []).map(fee => (
+                      <div key={fee.id} className="flex items-center gap-1.5 text-xs">
+                        <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
+                        <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
+                        <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
+                        <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    ))}
+                    {addingFee ? (
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        {feeTemplates.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1">
+                            {feeTemplates.map(t => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                  setNewFeeName(t.name)
+                                  if (t.defaultAmount) setNewFeeAmount(String(t.defaultAmount))
+                                  if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
+                                }}
+                                className="px-2 py-0.5 rounded text-xs border border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+                              >
+                                {t.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1'} />
+                          <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
+                          <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
+                            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <input type="date" value={newFeeDate} onChange={e => setNewFeeDate(e.target.value)} className={INP} />
+                        <div className="flex gap-1.5">
+                          <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                            <Check size={11} /> Add
+                          </button>
+                          <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                            <X size={11} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                        <Plus size={11} /> Add fee
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Refunds management in edit mode */}
+              {pg && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Refunds</label>
+                  <div className="flex flex-col gap-1.5">
+                    {(pg.refunds ?? []).map(r => (
+                      <div key={r.id} className="flex items-center gap-1.5 text-xs">
+                        <span className="flex-1 truncate text-orange-400">{r.reason ?? 'Refund'}</span>
+                        <span className="text-orange-400">{parseFloat(r.amount).toFixed(2)} {r.currency}</span>
+                        <span className="text-stone-500">{r.date ? r.date.slice(0, 10) : ''}</span>
+                        <button onClick={() => deleteRefund(r.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    ))}
+                    {addingRefund ? (
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        <div className="flex gap-1.5">
+                          <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
+                          <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP + ' w-20'}>
+                            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <input value={newRefundReason} onChange={e => setNewRefundReason(e.target.value)} placeholder="Reason (optional)" className={INP + ' flex-1'} />
+                        </div>
+                        <input type="date" value={newRefundDate} onChange={e => setNewRefundDate(e.target.value)} className={INP} />
+                        <div className="flex gap-1.5">
+                          <button onClick={saveNewRefund} disabled={savingRefund} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50">
+                            <Check size={11} /> Add
+                          </button>
+                          <button onClick={() => setAddingRefund(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                            <X size={11} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setNewRefundAmount(''); setNewRefundCurrency(pg.currency); setNewRefundReason(''); setNewRefundDate(new Date().toISOString().slice(0, 10)); setAddingRefund(true) }} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                        <Plus size={11} /> Add refund
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <SaveCancelBtns onSave={savePurchase} onCancel={() => setEditingPurchase(false)} saving={savingPurchase} />
               {saveError && <p className="text-xs text-red-400">{saveError}</p>}
             </div>
@@ -834,17 +943,15 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     const amt = parseFloat(fee.amount)
                     return (
                       <div key={fee.id} className="flex justify-between items-baseline gap-2">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fee.name}</span>
-                        <span className="text-right flex items-baseline gap-1.5">
-                          <span>
-                            <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
-                            {converted(amt, fee.currency) && (
-                              <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
-                            )}
-                          </span>
-                          <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
-                            <Trash2 size={11} />
-                          </button>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {fee.name}
+                          {fee.date && <span className="ml-1 text-stone-600">{fee.date.slice(0, 10)}</span>}
+                        </span>
+                        <span className="text-right">
+                          <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
+                          {converted(amt, fee.currency) && (
+                            <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency)}</span>
+                          )}
                         </span>
                       </div>
                     )
@@ -871,94 +978,24 @@ export function CollectionEntryPanel({ editionId }: Props) {
                     )
                   })}
 
-                  {/* Add fee inline */}
-                  {addingFee ? (
-                    <div className="flex flex-col gap-1.5 pt-1">
-                      {feeTemplates.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-1">
-                          {feeTemplates.map(t => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => {
-                                setNewFeeName(t.name)
-                                if (t.defaultAmount) setNewFeeAmount(String(t.defaultAmount))
-                                if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
-                              }}
-                              className="px-2 py-0.5 rounded text-xs border border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400 transition-colors"
-                            >
-                              {t.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex gap-1.5">
-                        <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1'} />
-                        <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
-                        <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP + ' w-20'}>
-                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
-                          <Check size={11} /> Add
-                        </button>
-                        <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
-                          <X size={11} /> Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
-                      <Plus size={11} /> Add fee
-                    </button>
-                  )}
-
                   {/* Refund rows */}
                   {(pg.refunds ?? []).map(r => {
                     const amt = parseFloat(r.amount)
                     return (
                       <div key={r.id} className="flex justify-between items-baseline gap-2">
-                        <span className="text-xs text-orange-400">↩ {r.reason ?? 'Refund'}</span>
-                        <span className="text-right flex items-baseline gap-1.5">
-                          <span>
-                            <span className="text-xs text-orange-400">−{amt.toFixed(2)} {r.currency}</span>
-                            {converted(amt, r.currency) && (
-                              <span className="block text-xs text-orange-500/60">{converted(amt, r.currency)?.replace('≈', '≈ −')}</span>
-                            )}
-                          </span>
-                          <button onClick={() => deleteRefund(r.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
-                            <Trash2 size={11} />
-                          </button>
+                        <span className="text-xs text-orange-400">
+                          ↩ {r.reason ?? 'Refund'}
+                          {r.date && <span className="ml-1 text-orange-500/50">{r.date.slice(0, 10)}</span>}
+                        </span>
+                        <span className="text-right">
+                          <span className="text-xs text-orange-400">−{amt.toFixed(2)} {r.currency}</span>
+                          {converted(amt, r.currency) && (
+                            <span className="block text-xs text-orange-500/60">{converted(amt, r.currency)?.replace('≈', '≈ −')}</span>
+                          )}
                         </span>
                       </div>
                     )
                   })}
-
-                  {/* Add refund inline */}
-                  {addingRefund ? (
-                    <div className="flex flex-col gap-1.5 pt-1">
-                      <div className="flex gap-1.5">
-                        <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
-                        <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP + ' w-20'}>
-                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        <input value={newRefundReason} onChange={e => setNewRefundReason(e.target.value)} placeholder="Reason (optional)" className={INP + ' flex-1'} />
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button onClick={saveNewRefund} disabled={savingRefund} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50">
-                          <Check size={11} /> Add
-                        </button>
-                        <button onClick={() => setAddingRefund(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
-                          <X size={11} /> Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => { setNewRefundAmount(''); setNewRefundCurrency(pg.currency); setNewRefundReason(''); setAddingRefund(true) }} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
-                      <Plus size={11} /> Add refund
-                    </button>
-                  )}
 
                   {/* Grand total */}
                   {grandTotal !== null && hasBreakdown && (
@@ -989,8 +1026,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
           )}
         </div>
 
-        {/* Tracking card */}
-        <div className={CARD} style={cardStyle}>
+        {/* Right column: Tracking (compact) + Tags stacked */}
+        <div className="flex flex-col gap-3">
+
+        {/* Tracking card — compact */}
+        <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Package size={11} /> Tracking</span></p>
           {editingTracking ? (
             <div className="flex flex-col gap-2">
@@ -1017,10 +1057,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
             </button>
           )}
         </div>
-      </div>
 
-      {/* Tags — compact, below Row 2 */}
-      <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          {/* Tags — below Tracking */}
+          <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
         <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
           <Tag size={10} /> Tags
         </span>
@@ -1068,6 +1107,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
             <EditBtn onClick={openTagsEdit} />
           </>
         )}
+          </div>
+
+        </div>
       </div>
 
       {/* Sale details — only when SOLD */}
