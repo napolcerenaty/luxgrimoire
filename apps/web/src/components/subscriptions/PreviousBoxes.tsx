@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import MonthCard from './MonthCard'
@@ -60,23 +60,25 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
   const [totalPages, setTotalPages] = useState(1)
 
-  const { isLoading, isFetching } = useQuery<PaginatedMonths>({
+  const { data, isLoading, isFetching } = useQuery<PaginatedMonths>({
     queryKey: ['subscription-past-months', subscriptionSlug, page],
-    queryFn: async () => {
-      const data = await apiFetch<PaginatedMonths>(
+    queryFn: () =>
+      apiFetch<PaginatedMonths>(
         `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}`,
-      )
-      setTotalPages(data.totalPages)
-      setAllMonths((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id))
-        const newItems = data.data.filter((m) => !existingIds.has(m.id))
-        return [...prev, ...newItems]
-      })
-      return data
-    },
+      ),
     enabled: visible,
     staleTime: 1000 * 60 * 5,
   })
+
+  useEffect(() => {
+    if (!data) return
+    setTotalPages(data.totalPages)
+    setAllMonths((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id))
+      const newItems = data.data.filter((m) => !existingIds.has(m.id))
+      return [...prev, ...newItems]
+    })
+  }, [data])
 
   const hasMore = page < totalPages
 
