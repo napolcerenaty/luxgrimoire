@@ -1,7 +1,8 @@
-# restart.ps1 — kills anything on 3000/3001 then starts API + web
+# restart.ps1 — starts Redis (if not running), then API + web
 param(
   [switch]$ApiOnly,
-  [switch]$WebOnly
+  [switch]$WebOnly,
+  [switch]$RedisOnly
 )
 
 function Kill-Port($port) {
@@ -15,8 +16,35 @@ function Kill-Port($port) {
   }
 }
 
+function Is-PortOpen($port) {
+  $conn = netstat -ano | Select-String ":$port " | Select-String "LISTENING"
+  return $null -ne $conn
+}
+
 $root = $PSScriptRoot
 
+# ── Redis ─────────────────────────────────────────────────────────────────────
+$redisExe = "$env:USERPROFILE\scoop\apps\redis\current\redis-server.exe"
+if (Test-Path $redisExe) {
+  if (Is-PortOpen 6379) {
+    Write-Host "==> Redis already running on :6379 ✓"
+  } else {
+    Write-Host "==> Starting Redis..."
+    Start-Process -FilePath $redisExe -WindowStyle Hidden
+    Start-Sleep -Milliseconds 800
+    if (Is-PortOpen 6379) {
+      Write-Host "    Redis started ✓"
+    } else {
+      Write-Host "    Redis failed to start — API will run without cache"
+    }
+  }
+} else {
+  Write-Host "==> Redis not found (scoop install redis), skipping..."
+}
+
+if ($RedisOnly) { exit 0 }
+
+# ── API ───────────────────────────────────────────────────────────────────────
 if (-not $WebOnly) {
   Write-Host "==> Killing :3001 (API)..."
   Kill-Port 3001
@@ -34,6 +62,7 @@ if (-not $WebOnly) {
     -WorkingDirectory "$root\apps\api" -WindowStyle Hidden
 }
 
+# ── Web ───────────────────────────────────────────────────────────────────────
 if (-not $ApiOnly) {
   Write-Host "==> Killing :3000 (Web)..."
   Kill-Port 3000
@@ -47,6 +76,9 @@ Start-Sleep -Seconds 2
 
 Write-Host ""
 Write-Host "==> Running processes:"
-netstat -ano | Select-String ":3000 |:3001 " | Select-String "LISTENING"
+netstat -ano | Select-String ":6379 |:3000 |:3001 " | Select-String "LISTENING"
 Write-Host ""
-Write-Host "Done! API: http://localhost:3001  Web: http://localhost:3000"
+Write-Host "Done!"
+Write-Host "  API:   http://localhost:3001"
+Write-Host "  Web:   http://localhost:3000"
+Write-Host "  Redis: localhost:6379"
