@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import { redisStore } from 'cache-manager-redis-yet';
+import Keyv from 'keyv';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerSkipTestGuard } from './common/guards/throttler-skip-test.guard';
 import { PrismaModule } from './prisma/prisma.module';
@@ -85,7 +86,7 @@ import { BackupModule } from './modules/backup/backup.module';
             cacheLogger.warn(`Redis unavailable (${msg}), using in-memory cache`);
           }
         }
-        return { ttl: 300_000 };
+        return { stores: [new Keyv()], ttl: 300_000 };
       },
       inject: [ConfigService],
     }),
