@@ -25,6 +25,23 @@ interface PurchaseDiscount {
   currency: string
 }
 
+interface PurchaseRefund {
+  id: string
+  amount: string
+  currency: string
+  date: string
+  reason: string | null
+}
+
+interface FeeTemplate {
+  id: string
+  name: string
+  category: string
+  defaultAmount: string | null
+  defaultCurrency: string | null
+  isActive: boolean
+}
+
 interface PurchaseGroup {
   id: string
   title: string | null
@@ -36,6 +53,7 @@ interface PurchaseGroup {
   saleAnnouncementId: string | null
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
+  refunds: PurchaseRefund[]
 }
 
 interface CollectionEntry {
@@ -176,12 +194,25 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
   const [savingPurchase, setSavingPurchase] = useState(false)
 
+  // Error state
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   // Fee editing state (on purchase group)
   const [addingFee, setAddingFee] = useState(false)
   const [newFeeName, setNewFeeName] = useState('')
   const [newFeeAmount, setNewFeeAmount] = useState('')
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [savingFee, setSavingFee] = useState(false)
+
+  // Refund state
+  const [addingRefund, setAddingRefund] = useState(false)
+  const [newRefundAmount, setNewRefundAmount] = useState('')
+  const [newRefundCurrency, setNewRefundCurrency] = useState('')
+  const [newRefundReason, setNewRefundReason] = useState('')
+  const [savingRefund, setSavingRefund] = useState(false)
+
+  // Fee templates
+  const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([])
 
   // Edit state — sale
   const [editingSale, setEditingSale] = useState(false)
@@ -217,6 +248,10 @@ export function CollectionEntryPanel({ editionId }: Props) {
       .then((data) => setEntry(data))
       .catch(() => setEntry(null))
       .finally(() => setLoading(false))
+
+    authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true')
+      .then(t => setFeeTemplates(t ?? []))
+      .catch(() => {})
   }, [editionId])
 
   // Fetch exchange rates once we have entry + userCurrency
@@ -227,6 +262,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
       pg.currency,
       ...(pg.fees ?? []).map(f => f.currency),
       ...(pg.discounts ?? []).map(d => d.currency),
+      ...(pg.refunds ?? []).map(r => r.currency),
     ] : [entry.priceCurrency].filter(Boolean) as string[]
 
     const unique = [...new Set(allCurrencies.filter(c => c !== userCurrency))]
@@ -304,15 +340,16 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   async function savePurchase() {
     setSavingPurchase(true)
+    setSaveError(null)
     try {
       const pg = entry!.purchaseGroup
-      const payload = {
+      const payload: Record<string, unknown> = {
         totalAmount: parseFloat(editTotalAmount) || 0,
         currency: editCurrency,
-        shippingAmount: editShippingAmount ? parseFloat(editShippingAmount) : null,
-        purchasedAt: editPurchasedAt || new Date().toISOString().slice(0, 10),
-        notes: editPurchaseNotes || null,
+        purchasedAt: editPurchasedAt || new Date().toISOString(),
       }
+      if (editShippingAmount) payload.shippingAmount = parseFloat(editShippingAmount)
+      if (editPurchaseNotes) payload.notes = editPurchaseNotes
       let groupId: string
       if (pg) {
         await authFetch(`/collection/bundles/${pg.id}`, {
@@ -366,6 +403,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
       await refetchEntry()
       setEditingPurchase(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setSavingPurchase(false)
     }
@@ -409,6 +448,32 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   async function deleteDiscount(discountId: string) {
     await authFetch(`/fees/discounts/${discountId}`, { method: 'DELETE' })
+    await refetchEntry()
+  }
+
+  async function saveNewRefund() {
+    if (!newRefundAmount || !entry!.purchaseGroup) return
+    setSavingRefund(true)
+    try {
+      await authFetch(`/fees/refunds`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: parseFloat(newRefundAmount),
+          currency: newRefundCurrency,
+          date: new Date().toISOString(),
+          reason: newRefundReason || null,
+          purchaseGroupId: entry!.purchaseGroup.id,
+        }),
+      })
+      await refetchEntry()
+      setAddingRefund(false)
+    } finally {
+      setSavingRefund(false)
+    }
+  }
+
+  async function deleteRefund(refundId: string) {
+    await authFetch(`/fees/refunds/${refundId}`, { method: 'DELETE' })
     await refetchEntry()
   }
 
@@ -510,10 +575,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
   const pgFeesTotal = pg ? (pg.fees ?? []).reduce((acc, f) => acc + parseFloat(f.amount), 0) : 0
   const pgDiscountsTotal = pg ? (pg.discounts ?? []).reduce((acc, d) => acc + parseFloat(d.amount), 0) : 0
+  const pgRefundsTotal = pg ? (pg.refunds ?? []).reduce((acc, r) => acc + parseFloat(r.amount), 0) : 0
   const grandTotal = pgTotal !== null
-    ? pgTotal + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal
+    ? pgTotal + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal
     : null
-  const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0
+  const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0 || pgRefundsTotal > 0
 
   // For P/L — use purchaseGroup.totalAmount as cost, or allocatedPrice fallback
   const costForPL = pgTotal ?? (entry.allocatedPrice ? parseFloat(entry.allocatedPrice) : null)
@@ -680,6 +746,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 <input value={editPurchaseNotes} onChange={e => setEditPurchaseNotes(e.target.value)} placeholder="Any notes…" className={INP} />
               </div>
               <SaveCancelBtns onSave={savePurchase} onCancel={() => setEditingPurchase(false)} saving={savingPurchase} />
+              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
             </div>
           ) : (
             <div className="space-y-1.5 text-sm">
@@ -758,6 +825,24 @@ export function CollectionEntryPanel({ editionId }: Props) {
                   {/* Add fee inline */}
                   {addingFee ? (
                     <div className="flex flex-col gap-1.5 pt-1">
+                      {feeTemplates.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {feeTemplates.map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                setNewFeeName(t.name)
+                                if (t.defaultAmount) setNewFeeAmount(String(t.defaultAmount))
+                                if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
+                              }}
+                              className="px-2 py-0.5 rounded text-xs border border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+                            >
+                              {t.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex gap-1.5">
                         <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP + ' flex-1'} />
                         <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
@@ -777,6 +862,52 @@ export function CollectionEntryPanel({ editionId }: Props) {
                   ) : (
                     <button onClick={openAddFee} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
                       <Plus size={11} /> Add fee
+                    </button>
+                  )}
+
+                  {/* Refund rows */}
+                  {(pg.refunds ?? []).map(r => {
+                    const amt = parseFloat(r.amount)
+                    return (
+                      <div key={r.id} className="flex justify-between items-baseline gap-2">
+                        <span className="text-xs text-orange-400">↩ {r.reason ?? 'Refund'}</span>
+                        <span className="text-right flex items-baseline gap-1.5">
+                          <span>
+                            <span className="text-xs text-orange-400">−{amt.toFixed(2)} {r.currency}</span>
+                            {converted(amt, r.currency) && (
+                              <span className="block text-xs text-orange-500/60">{converted(amt, r.currency)?.replace('≈', '≈ −')}</span>
+                            )}
+                          </span>
+                          <button onClick={() => deleteRefund(r.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        </span>
+                      </div>
+                    )
+                  })}
+
+                  {/* Add refund inline */}
+                  {addingRefund ? (
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <div className="flex gap-1.5">
+                        <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP + ' w-20'} />
+                        <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP + ' w-20'}>
+                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input value={newRefundReason} onChange={e => setNewRefundReason(e.target.value)} placeholder="Reason (optional)" className={INP + ' flex-1'} />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button onClick={saveNewRefund} disabled={savingRefund} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50">
+                          <Check size={11} /> Add
+                        </button>
+                        <button onClick={() => setAddingRefund(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <X size={11} /> Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setNewRefundAmount(''); setNewRefundCurrency(pg.currency); setNewRefundReason(''); setAddingRefund(true) }} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                      <Plus size={11} /> Add refund
                     </button>
                   )}
 

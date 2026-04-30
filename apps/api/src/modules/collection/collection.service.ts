@@ -180,6 +180,10 @@ export class CollectionService {
                 select: { id: true, name: true, amount: true, currency: true },
                 orderBy: { date: 'asc' },
               },
+              refunds: {
+                select: { id: true, amount: true, currency: true, date: true, reason: true },
+                orderBy: { date: 'asc' },
+              },
             },
           },
         },
