@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { $Enums } from '@prisma/client';
+import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 
@@ -35,6 +35,9 @@ export class RenewalCronService {
         userId: true,
         subscriptionId: true,
         costCurrency: true,
+        basePrice: true,
+        shippingCost: true,
+        taxesAndFees: true,
         nextRenewalDate: true,
       },
     });
@@ -55,6 +58,9 @@ export class RenewalCronService {
     userId: string;
     subscriptionId: string;
     costCurrency: string | null;
+    basePrice: { toString(): string } | null;
+    shippingCost: { toString(): string } | null;
+    taxesAndFees: { toString(): string } | null;
     nextRenewalDate: Date | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
@@ -83,6 +89,7 @@ export class RenewalCronService {
    * Adds books for a subscription month to a user's collection with PREORDER status.
    * Skipped if the user has an active skip record for that month.
    * Uses upsert so re-runs are safe.
+   * Creates a UserPurchaseGroup with cost data and UserPurchaseFee records for fee templates.
    */
   async addBooksForSubscriptionMonth(
     entry: {
@@ -90,6 +97,9 @@ export class RenewalCronService {
       userId: string;
       subscriptionId: string;
       costCurrency: string | null;
+      basePrice?: { toString(): string } | null;
+      shippingCost?: { toString(): string } | null;
+      taxesAndFees?: { toString(): string } | null;
     },
     year: number,
     month: number,
@@ -110,6 +120,53 @@ export class RenewalCronService {
     });
     if (skip && !skip.undoneAt) return;
 
+    const currency = entry.costCurrency ?? 'USD';
+    const basePrice = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
+    const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+    const taxesAndFees = entry.taxesAndFees ? parseFloat(entry.taxesAndFees.toString()) : null;
+
+    // Idempotency: reuse existing purchase group for this entry + month if already created
+    let group = await this.prisma.userPurchaseGroup.findFirst({
+      where: {
+        userId: entry.userId,
+        subscriptionEntryId: entry.id,
+        title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
+      },
+      select: { id: true },
+    });
+
+    if (!group) {
+      group = await this.prisma.userPurchaseGroup.create({
+        data: {
+          userId: entry.userId,
+          fromSubscription: true,
+          subscriptionEntryId: entry.id,
+          totalAmount: basePrice,
+          shippingAmount: shippingCost,
+          currency,
+          purchasedAt: renewalDate,
+          title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
+        },
+      });
+    }
+
+    // Fetch fee templates for this subscription entry
+    const feeTemplateLinks = await this.prisma.userSubscriptionEntryFeeTemplate.findMany({
+      where: { subscriptionEntryId: entry.id },
+      include: { feeTemplate: true },
+    });
+
+    const feesToCreate: Array<{
+      userId: string;
+      feeTemplateId?: string | null;
+      name: string;
+      amount: number;
+      currency: string;
+      date: Date;
+      category: FeeCategory;
+      purchaseGroupId: string;
+    }> = [];
+
     for (const mb of monthRecord.books) {
       if (!mb.bookId || !mb.editionId) continue;
 
@@ -122,10 +179,46 @@ export class RenewalCronService {
           ownershipStatus: 'PREORDER',
           readingStatus: 'UNREAD',
           subscriptionEntryId: entry.id,
+          purchaseGroupId: group.id,
           signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
         },
-        update: {}, // no-op if already in collection
+        update: {},
       }).catch(() => {});
+
+      for (const link of feeTemplateLinks) {
+        const template = link.feeTemplate;
+        const amount = link.customAmount ?? template.defaultAmount;
+        if (!amount) continue;
+        feesToCreate.push({
+          userId: entry.userId,
+          feeTemplateId: template.id,
+          name: template.name,
+          amount: parseFloat(amount.toString()),
+          currency: link.customCurrency ?? template.defaultCurrency,
+          date: renewalDate,
+          category: (template.category ?? 'OTHER') as FeeCategory,
+          purchaseGroupId: group.id,
+        });
+      }
+    }
+
+    if (taxesAndFees && taxesAndFees > 0 && monthRecord.books.length > 0) {
+      feesToCreate.push({
+        userId: entry.userId,
+        name: 'Taxes & Fees',
+        amount: taxesAndFees,
+        currency,
+        date: renewalDate,
+        category: 'OTHER' as FeeCategory,
+        purchaseGroupId: group.id,
+      });
+    }
+
+    if (feesToCreate.length > 0) {
+      await this.prisma.userPurchaseFee.createMany({
+        data: feesToCreate,
+        skipDuplicates: true,
+      });
     }
   }
 
@@ -146,7 +239,6 @@ export class RenewalCronService {
       where: { subscriptionId, active: true },
       select: { id: true, userId: true, costCurrency: true },
     });
-
     if (entries.length === 0) return;
 
     const monthStart = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, 1));
@@ -170,6 +262,16 @@ export class RenewalCronService {
       });
       if (skip && !skip.undoneAt) continue;
 
+      // Link to the existing purchase group for this month (created by the renewal cron)
+      const existingGroup = await this.prisma.userPurchaseGroup.findFirst({
+        where: {
+          userId: entry.userId,
+          subscriptionEntryId: entry.id,
+          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
+        },
+        select: { id: true },
+      });
+
       await this.prisma.userBookEntry.upsert({
         where: { userId_bookId_editionId: { userId: entry.userId, bookId: book.bookId, editionId: book.editionId! } },
         create: {
@@ -179,6 +281,7 @@ export class RenewalCronService {
           ownershipStatus: 'PREORDER',
           readingStatus: 'UNREAD',
           subscriptionEntryId: entry.id,
+          purchaseGroupId: existingGroup?.id ?? null,
           signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
         },
         update: {},
