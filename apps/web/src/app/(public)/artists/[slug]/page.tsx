@@ -131,6 +131,8 @@ export default async function ArtistPage({ params }: Props) {
     }
   }
   const groupedEditions = Array.from(editionMap.values())
+
+  const jsonLd = {
     '@context': 'https://schema.org', '@type': 'Person',
     name: artist.name,
     description: artist.bio,

@@ -154,7 +154,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   })
   const [features, setFeatures] = useState<string[]>(edition.features ?? [])
   const [artists, setArtists] = useState<ArtistEntry[]>(
-    edition.artists.map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
+    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
   // Track which existing artists were removed
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())

@@ -116,7 +116,7 @@ export default async function BookPage({ params }: Props) {
           </h2>
           <AddEditionModal bookId={book.id} />
         </div>
-        <BookEditionsSection editions={editions} book={book} />
+        <BookEditionsSection editions={editions} />
       </section>
 
       <BookBundleInfo editionIds={editions.map(e => e.id)} />

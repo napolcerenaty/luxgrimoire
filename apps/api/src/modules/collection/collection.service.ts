@@ -145,8 +145,7 @@ export class CollectionService {
   }
 
   async getEntriesByEditionId(userId: string, editionId: string) {
-    const [entries, tags] = await Promise.all([
-      this.prisma.userBookEntry.findMany({
+    const entries = await this.prisma.userBookEntry.findMany({
         where: { userId, editionId, isWishlist: false },
         orderBy: { createdAt: 'asc' },
         select: {
@@ -193,8 +192,7 @@ export class CollectionService {
             },
           },
         },
-      }),
-    ]);
+      });
     return entries.map((entry) => ({
       ...entry,
       tags: (entry.entryTags ?? []).map((t) => t.tag),

@@ -106,7 +106,7 @@ export interface ApiBookEdition {
   bookBoxCompany?: { name: string; slug: string } | null;
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
-  artists: Array<{ artist: ApiArtist; role: string }>;
+  artists?: Array<{ artist: ApiArtist; role: string }>;
   verifiedAt: string | null;
   submittedByUserId: string | null;
   // Edition commerce / access fields

@@ -8,7 +8,7 @@ interface EditionCardProps {
   companySlug?: string | null
   seriesName?: string | null
   volumeNumber?: number | null
-  title: string
+  title?: string
   authors?: Array<{ name: string }>
   unverified?: boolean
   generalSaleDate?: string | null
@@ -33,6 +33,7 @@ export function EditionCard({
   footer,
 }: EditionCardProps) {
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
+  const altText = title ?? companyName ?? 'Edition'
   const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
 
   return (
@@ -47,7 +48,7 @@ export function EditionCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover}
-            alt={title}
+            alt={altText}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -75,25 +76,38 @@ export function EditionCard({
 
       <div className="p-3 flex flex-col flex-1">
         <div className="flex-1 flex flex-col gap-1">
-          {/* Always reserve series line height so title aligns across cards */}
-          <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
-            {seriesName ? `${seriesName}${volumeNumber != null ? ` #${volumeNumber}` : ''}` : '\u00A0'}
-          </p>
-          <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
-            {title}
-          </p>
-          {authors && authors.length > 0 && (
-            <p className="text-[11px] text-stone-500 truncate">
-              {authors.map(a => a.name).join(', ')}
-            </p>
-          )}
-          {companyName && (
-            <p className="text-[10px] text-amber-700 font-medium truncate mt-0.5">
+          {title ? (
+            <>
+              {/* Always reserve series line height so title aligns across cards */}
+              <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
+                {seriesName ? `${seriesName}${volumeNumber != null ? ` #${volumeNumber}` : ''}` : '\u00A0'}
+              </p>
+              <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+                {title}
+              </p>
+              {authors && authors.length > 0 && (
+                <p className="text-[11px] text-stone-500 truncate">
+                  {authors.map(a => a.name).join(', ')}
+                </p>
+              )}
+              {companyName && (
+                <p className="text-[10px] text-amber-700 font-medium truncate mt-0.5">
+                  {companySlug ? (
+                    <span onClick={e => e.preventDefault()}>
+                      <a href={`/companies/${companySlug}`} className="hover:text-amber-500 transition-colors">{companyName}</a>
+                    </span>
+                  ) : companyName}
+                </p>
+              )}
+            </>
+          ) : (
+            /* No title mode: only show company/edition name prominently */
+            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-amber-400 transition-colors truncate">
               {companySlug ? (
                 <span onClick={e => e.preventDefault()}>
                   <a href={`/companies/${companySlug}`} className="hover:text-amber-500 transition-colors">{companyName}</a>
                 </span>
-              ) : companyName}
+              ) : (companyName ?? 'Edition')}
             </p>
           )}
         </div>
