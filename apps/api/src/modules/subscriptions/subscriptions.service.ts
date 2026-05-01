@@ -1010,22 +1010,27 @@ export class SubscriptionsService {
 
     for (const mb of monthBooks) {
       try {
-        const bookEntry = await this.prisma.userBookEntry.upsert({
-          where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
-          create: {
-            userId,
-            bookId: mb.bookId!,
-            editionId: mb.editionId!,
-            ownershipStatus: 'PREORDER',
-            readingStatus: 'UNREAD',
-            subscriptionEntryId: entryId,
-            purchaseGroupId: group.id,
-            signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
-          },
-          update: {
-            purchaseGroupId: group.id,
-          },
+        const existingSub = await this.prisma.userBookEntry.findFirst({
+          where: { userId, editionId: mb.editionId!, subscriptionEntryId: entryId },
+          select: { id: true },
         });
+        const bookEntry = existingSub
+          ? await this.prisma.userBookEntry.update({
+              where: { id: existingSub.id },
+              data: { purchaseGroupId: group.id },
+            })
+          : await this.prisma.userBookEntry.create({
+              data: {
+                userId,
+                bookId: mb.bookId!,
+                editionId: mb.editionId!,
+                ownershipStatus: 'PREORDER',
+                readingStatus: 'UNREAD',
+                subscriptionEntryId: entryId,
+                purchaseGroupId: group.id,
+                signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
+              },
+            });
 
         // Fee templates linked to group
         for (const link of feeTemplateLinks) {
@@ -1155,22 +1160,29 @@ export class SubscriptionsService {
         }
 
         try {
-          await this.prisma.userBookEntry.upsert({
-            where: { userId_bookId_editionId: { userId, bookId: mb.bookId!, editionId: mb.editionId! } },
-            create: {
-              userId,
-              bookId: mb.bookId!,
-              editionId: mb.editionId!,
-              ownershipStatus: 'OWNED',
-              readingStatus: 'UNREAD',
-              subscriptionEntryId: entry.id,
-              purchaseGroupId: group.id,
-              signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-            },
-            update: {
-              purchaseGroupId: group.id,
-            },
+          const existingSubEntry = await this.prisma.userBookEntry.findFirst({
+            where: { userId, editionId: mb.editionId!, subscriptionEntryId: entry.id },
+            select: { id: true },
           });
+          if (existingSubEntry) {
+            await this.prisma.userBookEntry.update({
+              where: { id: existingSubEntry.id },
+              data: { purchaseGroupId: group.id },
+            });
+          } else {
+            await this.prisma.userBookEntry.create({
+              data: {
+                userId,
+                bookId: mb.bookId!,
+                editionId: mb.editionId!,
+                ownershipStatus: 'OWNED',
+                readingStatus: 'UNREAD',
+                subscriptionEntryId: entry.id,
+                purchaseGroupId: group.id,
+                signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
+              },
+            });
+          }
           booksAdded++;
 
           // Accumulate fee records linked to group

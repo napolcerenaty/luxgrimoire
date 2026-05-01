@@ -184,20 +184,24 @@ export class RenewalCronService {
     for (const mb of monthRecord.books) {
       if (!mb.bookId || !mb.editionId) continue;
 
-      await this.prisma.userBookEntry.upsert({
-        where: { userId_bookId_editionId: { userId: entry.userId, bookId: mb.bookId, editionId: mb.editionId } },
-        create: {
-          userId: entry.userId,
-          bookId: mb.bookId,
-          editionId: mb.editionId,
-          ownershipStatus: 'PREORDER',
-          readingStatus: 'UNREAD',
-          subscriptionEntryId: entry.id,
-          purchaseGroupId: group.id,
-          signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-        },
-        update: {},
-      }).catch(() => {});
+      const existingEntry = await this.prisma.userBookEntry.findFirst({
+        where: { userId: entry.userId, editionId: mb.editionId, subscriptionEntryId: entry.id },
+        select: { id: true },
+      });
+      if (!existingEntry) {
+        await this.prisma.userBookEntry.create({
+          data: {
+            userId: entry.userId,
+            bookId: mb.bookId,
+            editionId: mb.editionId,
+            ownershipStatus: 'PREORDER',
+            readingStatus: 'UNREAD',
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: group.id,
+            signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
+          },
+        }).catch(() => {});
+      }
 
       for (const link of feeTemplateLinks) {
         const template = link.feeTemplate;
@@ -274,20 +278,24 @@ export class RenewalCronService {
         select: { id: true },
       });
 
-      await this.prisma.userBookEntry.upsert({
-        where: { userId_bookId_editionId: { userId: entry.userId, bookId: book.bookId, editionId: book.editionId! } },
-        create: {
-          userId: entry.userId,
-          bookId: book.bookId,
-          editionId: book.editionId!,
-          ownershipStatus: 'PREORDER',
-          readingStatus: 'UNREAD',
-          subscriptionEntryId: entry.id,
-          purchaseGroupId: existingGroup?.id ?? null,
-          signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
-        },
-        update: {},
-      }).catch(() => {});
+      const existingBookEntry = await this.prisma.userBookEntry.findFirst({
+        where: { userId: entry.userId, editionId: book.editionId!, subscriptionEntryId: entry.id },
+        select: { id: true },
+      });
+      if (!existingBookEntry) {
+        await this.prisma.userBookEntry.create({
+          data: {
+            userId: entry.userId,
+            bookId: book.bookId,
+            editionId: book.editionId!,
+            ownershipStatus: 'PREORDER',
+            readingStatus: 'UNREAD',
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: existingGroup?.id ?? null,
+            signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+          },
+        }).catch(() => {});
+      }
     }
   }
 }
