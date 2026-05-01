@@ -10,9 +10,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
-// TODO[prod-setup]: Add Sentry integration here when SENTRY_DSN is configured
-// import * as Sentry from '@sentry/node'; etc.
-
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -64,42 +61,47 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  const config = new DocumentBuilder()
-    .setTitle('LuxGrimoire API')
-    .setDescription('LuxGrimoire backend API')
-    .setVersion('2.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
+  // Swagger: only expose in non-production to avoid leaking API surface
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('LuxGrimoire API')
+      .setDescription('LuxGrimoire backend API')
+      .setVersion('2.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
 
-  // Embed spec inline to avoid NestJS+Fastify bug where docs-json returns empty
-  const specJson = JSON.stringify(document);
+    // Embed spec inline to avoid NestJS+Fastify bug where docs-json returns empty
+    const specJson = JSON.stringify(document);
 
-  SwaggerModule.setup('api/docs', app, document, {
-    customCssUrl: 'https://unpkg.com/swagger-ui-dist@5/swagger-ui.css',
-    customJs: [
-      'https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js',
-      'https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js',
-    ],
-    customJsStr: `
-      window.onload = function() {
-        window.ui = SwaggerUIBundle({
-          spec: ${specJson},
-          dom_id: '#swagger-ui',
-          deepLinking: true,
-          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
-          layout: 'StandaloneLayout'
-        });
-      };
-    `,
-  });
+    SwaggerModule.setup('api/docs', app, document, {
+      customCssUrl: 'https://unpkg.com/swagger-ui-dist@5/swagger-ui.css',
+      customJs: [
+        'https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js',
+        'https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js',
+      ],
+      customJsStr: `
+        window.onload = function() {
+          window.ui = SwaggerUIBundle({
+            spec: ${specJson},
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+            plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+            layout: 'StandaloneLayout'
+          });
+        };
+      `,
+    });
+  }
 
   const port = process.env.APP_PORT ?? 3001;
   const logger = app.get(Logger);
   await app.listen(port, '0.0.0.0');
   logger.log(`🚀 API running on http://localhost:${port}/api`, 'Bootstrap');
-  logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`, 'Bootstrap');
+  if (process.env.NODE_ENV !== 'production') {
+    logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`, 'Bootstrap');
+  }
 }
 
 bootstrap();

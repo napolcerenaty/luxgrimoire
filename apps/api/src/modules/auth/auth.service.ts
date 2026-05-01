@@ -5,9 +5,11 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   RegisterDto,
@@ -44,12 +46,10 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mail: MailService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  /** In-memory per-email rate limit for forgotPassword (1 request / 5 min per address). */
-  private readonly forgotPasswordLastSent = new Map<string, number>();
-  /** In-memory per-email rate limit for resendVerification (1 request / 5 min per address). */
-  private readonly resendLastSent = new Map<string, number>();
+  private readonly COOLDOWN_MS = 5 * 60 * 1000;
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findFirst({
@@ -143,14 +143,13 @@ export class AuthService {
     const startedAt = Date.now();
 
     const normalizedEmail = email.toLowerCase();
-    const COOLDOWN_MS = 5 * 60 * 1000;
-    const lastSent = this.resendLastSent.get(normalizedEmail) ?? 0;
-    const rateLimited = Date.now() - lastSent < COOLDOWN_MS;
+    const cacheKey = `auth:rv:${normalizedEmail}`;
+    const rateLimited = !!(await this.cache.get(cacheKey));
 
     const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (user && !user.emailVerified && !rateLimited) {
-      this.resendLastSent.set(normalizedEmail, Date.now());
+      await this.cache.set(cacheKey, 1, this.COOLDOWN_MS);
 
       const token = randomBytes(32).toString('hex');
       const tokenHash = hashVerifyToken(token);
@@ -187,15 +186,14 @@ export class AuthService {
 
     const normalizedEmail = dto.email.toLowerCase();
 
-    // Per-email rate limit: 1 request per 5 minutes
-    const COOLDOWN_MS = 5 * 60 * 1000;
-    const lastSent = this.forgotPasswordLastSent.get(normalizedEmail) ?? 0;
-    const rateLimited = Date.now() - lastSent < COOLDOWN_MS;
+    // Per-email rate limit: 1 request per 5 minutes (Redis-backed so survives restarts/scaling)
+    const cacheKey = `auth:fp:${normalizedEmail}`;
+    const rateLimited = !!(await this.cache.get(cacheKey));
 
     const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (user && !rateLimited) {
-      this.forgotPasswordLastSent.set(normalizedEmail, Date.now());
+      await this.cache.set(cacheKey, 1, this.COOLDOWN_MS);
 
       const token = randomBytes(32).toString('hex');
       const tokenHash = hashResetToken(token);

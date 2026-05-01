@@ -1,5 +1,6 @@
 import { ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Cache } from '@nestjs/cache-manager';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
@@ -21,21 +22,31 @@ describe('AuthService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let jwtService: DeepMockProxy<JwtService>;
   let mailService: DeepMockProxy<MailService>;
+  let cacheStore: Map<string, unknown>;
+  let cacheManager: { get: jest.Mock; set: jest.Mock };
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     jwtService = mockDeep<JwtService>();
     mailService = mockDeep<MailService>();
     mailService.sendVerificationEmail.mockResolvedValue(undefined);
+
+    // Redis cache mock backed by a local Map so rate-limit state persists within a test
+    cacheStore = new Map();
+    cacheManager = {
+      get: jest.fn().mockImplementation((key: string) => Promise.resolve(cacheStore.get(key) ?? null)),
+      set: jest.fn().mockImplementation((key: string, value: unknown) => {
+        cacheStore.set(key, value);
+        return Promise.resolve();
+      }),
+    };
+
     service = new AuthService(
       prisma as unknown as PrismaService,
       jwtService as unknown as JwtService,
       mailService as unknown as MailService,
+      cacheManager as unknown as Cache,
     );
-
-    // Reset per-email rate limit maps between tests
-    (service as any).forgotPasswordLastSent.clear();
-    (service as any).resendLastSent.clear();
   });
 
   // ─── register ────────────────────────────────────────────────────────────────

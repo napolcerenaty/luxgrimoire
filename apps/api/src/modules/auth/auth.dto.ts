@@ -1,5 +1,8 @@
 import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty } from 'class-validator';
 
+/** bcrypt silently truncates inputs at 72 bytes — cap passwords there to prevent DoS via long inputs */
+const BCRYPT_MAX = 72;
+
 export class RegisterDto {
   @IsString()
   @MinLength(3)
@@ -11,6 +14,7 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(8)
+  @MaxLength(BCRYPT_MAX)
   password!: string;
 }
 
@@ -19,6 +23,7 @@ export class LoginDto {
   email!: string;
 
   @IsString()
+  @MaxLength(BCRYPT_MAX)
   password!: string;
 }
 
@@ -33,15 +38,18 @@ export class ResetPasswordDto {
 
   @IsString()
   @MinLength(8)
+  @MaxLength(BCRYPT_MAX)
   password!: string;
 }
 
 export class ChangePasswordDto {
   @IsString()
+  @MaxLength(BCRYPT_MAX)
   currentPassword!: string;
 
   @IsString()
   @MinLength(8)
+  @MaxLength(BCRYPT_MAX)
   newPassword!: string;
 }
 
