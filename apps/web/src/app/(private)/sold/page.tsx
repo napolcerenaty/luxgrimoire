@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { EditionCard } from '@/components/books/EditionCard'
-import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { getSaleGroups, createSaleGroup, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
 import type { ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { Plus, Trash2, ShoppingBag } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
@@ -20,6 +20,8 @@ interface CollectionEntry {
   condition: string | null
   acquiredAt: string | null
   signatureType: string | null
+  salePrice: string | null
+  saleCurrency: string | null
   tags: string[]
   purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: string } | null
   edition: {
@@ -227,6 +229,125 @@ function RecordSaleModal({
   )
 }
 
+function EditSaleModal({
+  open,
+  onClose,
+  saleGroup,
+}: {
+  open: boolean
+  onClose: () => void
+  saleGroup: ApiSaleGroup | null
+}) {
+  const queryClient = useQueryClient()
+  const [title, setTitle] = useState('')
+  const [platform, setPlatform] = useState('')
+  const [customPlatform, setCustomPlatform] = useState('')
+  const [total, setTotal] = useState('')
+  const [currency, setCurrency] = useState('GBP')
+  const [soldAt, setSoldAt] = useState('')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  // Populate fields when the target sale group changes
+  useEffect(() => {
+    if (!open || !saleGroup) return
+    setTitle(saleGroup.title ?? '')
+    const knownPlatform = SALE_PLATFORMS.find(p => p.value === saleGroup.platform)
+    if (knownPlatform) { setPlatform(saleGroup.platform); setCustomPlatform('') }
+    else if (saleGroup.platform) { setPlatform('other'); setCustomPlatform(saleGroup.platform) }
+    else { setPlatform(''); setCustomPlatform('') }
+    setTotal(String(saleGroup.totalAmount))
+    setCurrency(saleGroup.currency)
+    setSoldAt(saleGroup.soldAt ? saleGroup.soldAt.slice(0, 10) : '')
+    setNotes(saleGroup.notes ?? '')
+    setError(null)
+    setSuccess(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saleGroup?.id, open])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!saleGroup) return
+    setError(null)
+    const totalNum = parseDecimalInput(total)
+    if (!total || totalNum <= 0) { setError('Enter a valid total amount'); return }
+    if (!soldAt) { setError('Enter the sale date'); return }
+    const plat = platform === 'other' ? customPlatform : platform
+    setPending(true)
+    try {
+      await updateSaleGroup(saleGroup.id, {
+        title: title || undefined,
+        platform: plat || undefined,
+        totalAmount: totalNum,
+        currency,
+        soldAt,
+        notes: notes || undefined,
+      })
+      queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+      setSuccess(true)
+      setTimeout(() => { onClose(); setSuccess(false) }, 1000)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Sale">
+      {success ? (
+        <div className="text-center py-6">
+          <div className="text-4xl mb-3">✓</div>
+          <p className="text-green-400 font-semibold">Sale updated!</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className={LBL}>Sale title (optional)</label>
+            <input className={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Book set" />
+          </div>
+          <div>
+            <label className={LBL}>Platform</label>
+            <select className={INP} value={platform} onChange={e => setPlatform(e.target.value)}>
+              <option value="">— Select platform —</option>
+              {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+            {platform === 'other' && (
+              <input className={`${INP} mt-2`} value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Platform name…" />
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LBL}>Total sold for *</label>
+              <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
+            </div>
+            <div>
+              <label className={LBL}>Currency</label>
+              <input className={INP} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="GBP" />
+            </div>
+          </div>
+          <div>
+            <label className={LBL}>Sale date *</label>
+            <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
+          </div>
+          <div>
+            <label className={LBL}>Notes</label>
+            <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button type="submit" disabled={pending}
+            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+          >
+            {pending ? 'Saving…' : 'Save Changes'}
+          </button>
+        </form>
+      )}
+    </Modal>
+  )
+}
+
 export default function SoldPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -235,6 +356,7 @@ export default function SoldPage() {
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
   const [addSaleOpen, setAddSaleOpen] = useState(false)
+  const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
 
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ['collection', false],
@@ -357,7 +479,23 @@ export default function SoldPage() {
                       footer={
                         <div className="mt-1 flex flex-wrap gap-1">
                           <Badge variant="default">SOLD</Badge>
-                          {entry.purchaseGroup && (
+                          {entry.salePrice && entry.saleCurrency && (() => {
+                            const sold = parseFloat(entry.salePrice!)
+                            const paid = entry.purchaseGroup ? parseFloat(entry.purchaseGroup.totalAmount) : null
+                            const sameCur = paid !== null && entry.saleCurrency === entry.purchaseGroup?.currency
+                            if (sameCur && paid !== null) {
+                              const diff = sold - paid
+                              return (
+                                <span className={`text-[10px] font-semibold ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {diff >= 0 ? '+' : ''}{diff.toFixed(2)} {entry.saleCurrency}
+                                </span>
+                              )
+                            }
+                            return (
+                              <span className="text-[10px] text-amber-400">{sold.toFixed(2)} {entry.saleCurrency}</span>
+                            )
+                          })()}
+                          {!entry.salePrice && entry.purchaseGroup && (
                             <span className="text-[10px] text-stone-400">{parseFloat(entry.purchaseGroup.totalAmount).toFixed(2)} {entry.purchaseGroup.currency}</span>
                           )}
                         </div>
@@ -403,8 +541,15 @@ export default function SoldPage() {
                       {sg.entries?.length ?? 0} book{(sg.entries?.length ?? 0) !== 1 ? 's' : ''}
                     </span>
                     <button
+                      onClick={() => setEditingSale(sg)}
+                      className="ml-1 p-1 text-stone-500 hover:text-amber-400 transition-colors"
+                      title="Edit sale"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
                       onClick={() => deleteSaleMut.mutate(sg.id)}
-                      className="ml-1 p-1 text-stone-500 hover:text-red-400 transition-colors"
+                      className="p-1 text-stone-500 hover:text-red-400 transition-colors"
                       title="Delete sale"
                     >
                       <Trash2 size={14} />
@@ -438,6 +583,11 @@ export default function SoldPage() {
         open={addSaleOpen}
         onClose={() => setAddSaleOpen(false)}
         entries={allEntries.filter(e => e.ownershipStatus !== 'SOLD')}
+      />
+      <EditSaleModal
+        open={editingSale !== null}
+        onClose={() => setEditingSale(null)}
+        saleGroup={editingSale}
       />
     </div>
   )

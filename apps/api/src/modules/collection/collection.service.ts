@@ -51,6 +51,8 @@ export class CollectionService {
               },
             },
           },
+          salePrice: true,
+          saleCurrency: true,
           purchaseGroup: { select: { id: true, currency: true, purchasedAt: true, totalAmount: true, shippingAmount: true, fromSubscription: true } },
         },
         orderBy: { createdAt: 'desc' },
