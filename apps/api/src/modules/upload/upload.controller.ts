@@ -29,7 +29,7 @@ const ALLOWED_MIME_RE = /^data:image\/(png|jpeg|webp);base64,/;
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER', 'USER')
   @Post('image')
   async uploadImage(@Body() dto: UploadImageDto) {
     const folder = dto.folder ?? 'luxgrimoire/uploads';
@@ -49,7 +49,7 @@ export class UploadController {
     return this.uploadService.uploadImageBase64(dto.data, 'luxgrimoire/avatars');
   }
 
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER', 'USER')
   @Delete('image')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteImage(@Body() dto: DeleteImageDto) {
