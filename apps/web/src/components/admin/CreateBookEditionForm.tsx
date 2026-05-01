@@ -508,7 +508,16 @@ export default function CreateBookEditionForm({
           </p>
           <div className="flex gap-2 pt-1">
             <button type="button"
-              onClick={() => { setCreatedBookId(duplicateBook.id); setDuplicateBook(null); setStep(2) }}
+              onClick={() => {
+                if (bookOnly && onBookCreated) {
+                  onBookCreated(duplicateBook.id, duplicateBook.title)
+                } else {
+                  setCreatedBookId(duplicateBook.id)
+                  setCreatedBookSlug(duplicateBook.slug)
+                  setDuplicateBook(null)
+                  setStep(2)
+                }
+              }}
               className="px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold rounded-lg transition-colors">
               Use existing book →
             </button>
