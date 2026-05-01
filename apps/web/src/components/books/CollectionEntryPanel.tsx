@@ -250,8 +250,19 @@ export function CollectionEntryPanel({ editionId }: Props) {
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
 
-  // Reset cached history whenever entry ID changes (e.g. re-render for different edition)
-  useEffect(() => { setHistory(null) }, [entry?.id])
+  // Reset cached history whenever entry ID changes (e.g. copy switcher)
+  // If history panel is open, re-fetch immediately for the new copy
+  useEffect(() => {
+    setHistory(null)
+    if (showHistory && entry?.id) {
+      setLoadingHistory(true)
+      authFetch<HistoryEntry[]>(`/collection/entry/${entry.id}/history`)
+        .then(data => setHistory(data))
+        .catch(() => setHistory([]))
+        .finally(() => setLoadingHistory(false))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id])
 
   // Fetch entry on mount (only if token exists)
   useEffect(() => {

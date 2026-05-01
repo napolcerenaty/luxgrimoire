@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 
 
@@ -249,6 +250,7 @@ export class CollectionService {
         ...(dto.saleDate !== undefined && { saleDate: dto.saleDate }),
         ...(dto.saleVenue !== undefined && { saleVenue: dto.saleVenue }),
         ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
+        ...(dto.signatureType !== undefined && { signatureType: (dto.signatureType ?? null) as SignatureType | null }),
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {

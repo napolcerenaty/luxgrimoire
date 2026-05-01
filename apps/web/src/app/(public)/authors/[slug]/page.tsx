@@ -83,7 +83,7 @@ function BookRow({ book }: { book: BookSnippet }) {
         {label}
       </Link>
       {book.editions.length > 0 && (
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {book.editions.map(edition => (
             <EditionCard
               key={edition.id}
