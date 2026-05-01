@@ -61,10 +61,10 @@ export function Navbar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className="sticky top-0 z-50 w-full">
       {/* Top bar — logo + controls */}
       <div
-        className="border-b border-stone-700 px-4 sm:px-6 py-3 flex items-center gap-3"
+        className="border-b border-stone-700 px-4 sm:px-6 py-3 flex items-center gap-3 w-full"
         style={{ background: 'var(--grad-header)', position: 'relative' }}
       >
         {/* Radial glow — clipped separately so it doesn't affect dropdowns */}

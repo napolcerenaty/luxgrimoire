@@ -59,7 +59,7 @@ export default async function HomePage() {
         />
         <div className="relative container mx-auto max-w-3xl">
           <h1
-            className="text-5xl sm:text-7xl font-serif font-bold text-amber-400 mb-4 tracking-widest"
+            className="text-4xl sm:text-6xl lg:text-7xl font-serif font-bold text-amber-400 mb-4 tracking-wide sm:tracking-widest"
             style={{ textShadow: '0 0 40px rgba(0,150,200,0.35)' }}
           >
             LuxGrimoire

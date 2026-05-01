@@ -733,6 +733,11 @@ export class SubscriptionsService {
       });
     }
 
+    // Delete skip state for this subscription (no FK cascade, must be explicit)
+    await this.prisma.userSubscriptionSkipState.deleteMany({
+      where: { userId, subscriptionId: sub.id },
+    });
+
     // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags)
     await this.prisma.userSubscriptionEntry.delete({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
