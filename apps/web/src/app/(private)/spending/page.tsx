@@ -25,6 +25,9 @@ interface ComprehensiveStats {
   byMonth: Array<{ month: string; amount: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
   topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
+  topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
+  topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
+  topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
   totalSalesRevenue: number
   totalSalesProfit: number | null
   totalBooksSold: number
@@ -318,6 +321,81 @@ export default function SpendingPage() {
                     <div className="text-right shrink-0">
                       <p className="text-sm font-semibold text-amber-400">{fmt(book.amount, currency)}</p>
                       <p className="text-xs text-stone-600">{book.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top 10 highest sale prices */}
+          {stats.topSalePrice.length > 0 && (
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
+                <TrendingUp size={14} className="text-green-400" />
+                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Top 10 Highest Sale Prices</h2>
+              </div>
+              <div className="divide-y divide-stone-800/50">
+                {stats.topSalePrice.map((book, i) => (
+                  <div key={i} className="flex items-center gap-4 px-6 py-3 hover:bg-stone-800/30 transition-colors">
+                    <span className="text-xs text-stone-600 w-5 text-right font-mono">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-stone-100 font-medium truncate">{book.title}</p>
+                      <p className="text-xs text-stone-500 truncate">{book.author}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-green-400">{fmt(book.amount, currency)}</p>
+                      <p className="text-xs text-stone-600">{book.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top 10 highest profits */}
+          {stats.topProfit.length > 0 && (
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
+                <TrendingUp size={14} className="text-emerald-400" />
+                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Top 10 Highest Profits</h2>
+              </div>
+              <div className="divide-y divide-stone-800/50">
+                {stats.topProfit.map((book, i) => (
+                  <div key={i} className="flex items-center gap-4 px-6 py-3 hover:bg-stone-800/30 transition-colors">
+                    <span className="text-xs text-stone-600 w-5 text-right font-mono">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-stone-100 font-medium truncate">{book.title}</p>
+                      <p className="text-xs text-stone-500 truncate">{book.author}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-emerald-400">+{fmt(book.amount, currency)}</p>
+                      <p className="text-xs text-stone-600">cost {fmt(book.cost, currency)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top 10 biggest losses */}
+          {stats.topLoss.length > 0 && (
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
+                <TrendingDown size={14} className="text-red-400" />
+                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Top 10 Biggest Losses</h2>
+              </div>
+              <div className="divide-y divide-stone-800/50">
+                {stats.topLoss.map((book, i) => (
+                  <div key={i} className="flex items-center gap-4 px-6 py-3 hover:bg-stone-800/30 transition-colors">
+                    <span className="text-xs text-stone-600 w-5 text-right font-mono">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-stone-100 font-medium truncate">{book.title}</p>
+                      <p className="text-xs text-stone-500 truncate">{book.author}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-red-400">{fmt(book.amount, currency)}</p>
+                      <p className="text-xs text-stone-600">cost {fmt(book.cost, currency)}</p>
                     </div>
                   </div>
                 ))}

@@ -196,6 +196,9 @@ export class SpendingService {
     const byMonthMap: Record<string, number> = {};
     const bySubMap: Record<string, { name: string; slug: string; amount: number; books: number }> = {};
     const topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
+    const topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
+    const topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
+    const topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
 
     for (const entry of entries) {
       const group = entry.purchaseGroup;
@@ -265,22 +268,47 @@ export class SpendingService {
         bySubMap[sub.slug].books++;
       }
 
+      const bookTitle = entry.edition?.book?.title ?? 'Unknown';
+      const bookAuthor = entry.edition?.book?.authors?.[0]?.author?.name ?? '';
+      const editionSlug = entry.edition?.slug ?? null;
+      const dateStr = date.toISOString().slice(0, 10);
+
       if (entryTotal > 0) {
-        const title = entry.edition?.book?.title ?? 'Unknown';
-        const author = entry.edition?.book?.authors?.[0]?.author?.name ?? '';
         topExpensive.push({
-          title,
-          author,
+          title: bookTitle,
+          author: bookAuthor,
           amount: entryTotal,
           currency: tgt,
-          date: date.toISOString().slice(0, 10),
-          editionSlug: entry.edition?.slug ?? null,
+          date: dateStr,
+          editionSlug,
         });
+      }
+
+      if (entry.salePrice) {
+        const saleDate = entry.saleDate ? new Date(entry.saleDate) : date;
+        const salePriceNum = toNum(entry.salePrice);
+        const saleCur = entry.saleCurrency ?? purchaseCurrency;
+        const salePriceConverted = await convert(salePriceNum, saleCur, saleDate);
+        const pl = salePriceConverted - entryTotal;
+
+        topSalePrice.push({ title: bookTitle, author: bookAuthor, amount: salePriceConverted, currency: tgt, date: dateStr, editionSlug });
+        if (pl >= 0) {
+          topProfit.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: tgt, cost: entryTotal, date: dateStr, editionSlug });
+        } else {
+          topLoss.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: tgt, cost: entryTotal, date: dateStr, editionSlug });
+        }
       }
     }
 
     topExpensive.sort((a, b) => b.amount - a.amount);
     const top10 = topExpensive.slice(0, 10);
+
+    topSalePrice.sort((a, b) => b.amount - a.amount);
+    topProfit.sort((a, b) => b.amount - a.amount);
+    topLoss.sort((a, b) => a.amount - b.amount);
+    const top10SalePrice = topSalePrice.slice(0, 10);
+    const top10Profit = topProfit.slice(0, 10);
+    const top10Loss = topLoss.slice(0, 10);
 
     const byMonth: Array<{ month: string; amount: number }> = [];
     for (let i = 23; i >= 0; i--) {
@@ -342,6 +370,9 @@ export class SpendingService {
         .map((s) => ({ ...s, amount: Math.round(s.amount * 100) / 100 }))
         .sort((a, b) => b.amount - a.amount),
       topExpensive: top10,
+      topSalePrice: top10SalePrice,
+      topProfit: top10Profit,
+      topLoss: top10Loss,
       totalSalesRevenue: Math.round(totalSalesRevenue * 100) / 100,
       totalSalesProfit: null,
       totalBooksSold,
