@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -10,6 +10,8 @@ import { Megaphone, Search } from 'lucide-react'
 import { AddToCollectionButton } from './[id]/AddToCollectionButton'
 import { useAuth } from '@/components/AuthProvider'
 import { useDebounce } from '@/hooks/useDebounce'
+
+const PAGE_SIZE = 15
 
 function formatDate(iso: string | null) {
   if (!iso) return null
@@ -84,55 +86,35 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | 
   )
 }
 
-function SectionGrid({ title, items, user }: { title: string; items: ApiSaleAnnouncement[]; user: object | null | undefined }) {
-  if (items.length === 0) return null
-  return (
-    <div className="mb-10">
-      <h2 className="text-xs font-sans uppercase tracking-widest text-stone-500 mb-4 border-b border-stone-800 pb-2">
-        {title} <span className="ml-1 text-stone-600">({items.length})</span>
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {items.map((a) => <AnnouncementCard key={a.id} a={a} user={user} />)}
-      </div>
-    </div>
-  )
-}
-
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const { user } = useAuth()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['sale-announcements', 'list', debouncedSearch],
-    queryFn: () => {
-      const params = new URLSearchParams({ pageSize: '200' })
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['sale-announcements', 'upcoming', debouncedSearch],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({
+        pageSize: String(PAGE_SIZE),
+        upcoming: 'true',
+        page: String(pageParam),
+      })
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
       return apiFetch<PaginatedResponse<ApiSaleAnnouncement>>(`/announcements?${params}`)
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
     staleTime: 60_000,
   })
 
-  const announcements = data?.data ?? []
-
-  const today = useMemo(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  }, [])
-
-  const { upcoming, past } = useMemo(() => {
-    const upcoming: ApiSaleAnnouncement[] = []
-    const past: ApiSaleAnnouncement[] = []
-    for (const a of announcements) {
-      const saleDate = a.generalSaleDate ? new Date(a.generalSaleDate) : null
-      if (!saleDate || saleDate >= today) upcoming.push(a)
-      else past.push(a)
-    }
-    return { upcoming, past }
-  }, [announcements, today])
-
-  const isEmpty = announcements.length === 0
+  const announcements = data?.pages.flatMap((p) => p.data) ?? []
+  const isEmpty = !isLoading && announcements.length === 0
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
@@ -162,14 +144,14 @@ export default function SaleAnnouncementsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <div key={i} className="rounded-xl border border-stone-800 bg-stone-900 animate-pulse" style={{ aspectRatio: '3/4' }} />
           ))}
         </div>
       ) : isEmpty ? (
         <div className="text-center py-20 text-stone-500">
           <Megaphone size={40} className="mx-auto mb-4 opacity-30" />
-          <p className="text-lg">{search ? 'No results found.' : 'No sales at the moment.'}</p>
+          <p className="text-lg">{search ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
           {!search && (
             <p className="text-sm mt-2">
               Spotted one?{' '}
@@ -181,8 +163,20 @@ export default function SaleAnnouncementsPage() {
         </div>
       ) : (
         <>
-          <SectionGrid title="Upcoming" items={upcoming} user={user} />
-          <SectionGrid title="Past" items={past} user={user} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {announcements.map((a) => <AnnouncementCard key={a.id} a={a} user={user} />)}
+          </div>
+          {hasNextPage && (
+            <div className="text-center mt-10">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {isFetchingNextPage ? 'Loading…' : 'Show more'}
+              </button>
+            </div>
+          )}
         </>
       )}
 

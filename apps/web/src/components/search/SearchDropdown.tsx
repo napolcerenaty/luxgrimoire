@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Search, BookOpen, User, Brush, Package, Building2, Layers } from 'lucide-react'
+import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 
@@ -74,7 +74,7 @@ export function SearchDropdown() {
 
   const total = results
     ? results.books.length + (results.editions?.length ?? 0) + results.authors.length + results.artists.length +
-      results.subscriptions.length + results.companies.length
+      results.subscriptions.length + results.companies.length + (results.sales?.length ?? 0)
     : 0
 
   const goSearch = () => {
@@ -202,6 +202,20 @@ export function SearchDropdown() {
                   sub: c.country,
                   image: c.logoUrl,
                   href: `/companies/${c.slug}`,
+                }))}
+                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                query={query}
+              />
+              <ResultGroup
+                title="Sales"
+                icon={<Megaphone size={11} />}
+                items={(results!.sales ?? []).map((s) => ({
+                  key: s.id,
+                  label: s.title,
+                  sub: s.company?.name,
+                  image: s.company?.logoUrl,
+                  badge: s.availableForPurchase ? 'Live' : null,
+                  href: `/sale-announcements/${s.id}`,
                 }))}
                 onNavigate={(href) => { setOpen(false); router.push(href) }}
                 query={query}
