@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Search, BookOpen, User, Brush, Package, Building2, Layers } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
@@ -146,7 +147,7 @@ export function SearchDropdown() {
                   key: e.id,
                   label: e.book.title,
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
-                  image: e.additionalImages?.[0] ?? null,
+                  image: cloudinaryUrl(e.additionalImages?.[0]),
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}

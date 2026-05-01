@@ -606,8 +606,8 @@ model UserBookEntry {
   saleEntries           UserSaleEntry[]
   ownershipHistory      OwnershipStatusHistory[]
 
-  @@unique([userId, bookId, editionId])
   @@index([userId])
+  @@index([userId, bookId, editionId])
   @@index([userId, ownershipStatus])
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
