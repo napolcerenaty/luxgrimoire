@@ -139,7 +139,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
 
   return (
     <>
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-10 max-w-5xl">
         {/* Centered header */}
         <div className="flex flex-col items-center mb-6 gap-3">
           <div className="flex items-center gap-4 w-full">

@@ -577,24 +577,33 @@ export function CollectionEntryPanel({ editionId }: Props) {
     setEditingTags(true)
   }
 
-  function addTagFromInput() {
-    const newTags = editTagInput.split(',').map(t => t.trim()).filter(Boolean)
-    setEditTagList(prev => [...new Set([...prev, ...newTags])])
-    setEditTagInput('')
-  }
-
-  async function saveTags() {
+  async function saveTagsList(tags: string[]) {
     setSavingTags(true)
     try {
       const saved = await authFetch<string[]>(`/collection/edition/${editionId}/tags`, {
         method: 'PUT',
-        body: JSON.stringify({ tags: editTagList }),
+        body: JSON.stringify({ tags }),
       })
       setEntry(prev => prev ? { ...prev, tags: saved } : prev)
-      setEditingTags(false)
+      setEditTagList(saved)
     } finally {
       setSavingTags(false)
     }
+  }
+
+  async function addTagFromInput() {
+    const newTags = editTagInput.split(',').map(t => t.trim()).filter(Boolean)
+    if (!newTags.length) return
+    const merged = [...new Set([...editTagList, ...newTags])]
+    setEditTagList(merged)
+    setEditTagInput('')
+    await saveTagsList(merged)
+  }
+
+  async function removeTag(tag: string) {
+    const updated = editTagList.filter(t => t !== tag)
+    setEditTagList(updated)
+    await saveTagsList(updated)
   }
 
   // ── History section ───────────────────────────────────────────────────────
@@ -1166,7 +1175,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 {editTagList.map(tag => (
                   <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
                     {tag}
-                    <button onClick={() => setEditTagList(prev => prev.filter(t => t !== tag))} className="text-stone-500 hover:text-red-400 transition-colors">
+                    <button onClick={() => removeTag(tag)} className="text-stone-500 hover:text-red-400 transition-colors">
                       <X size={10} />
                     </button>
                   </span>
@@ -1180,12 +1189,14 @@ export function CollectionEntryPanel({ editionId }: Props) {
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagFromInput() } }}
                 placeholder="Add tags (Enter or comma)…"
                 className={INP}
+                disabled={savingTags}
               />
-              <button onClick={addTagFromInput} className="px-3 py-1.5 rounded-lg text-xs shrink-0 transition-colors" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                Add
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setEditingTags(false)} className="text-xs px-3 py-1 rounded-lg transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                Done
               </button>
             </div>
-            <SaveCancelBtns onSave={saveTags} onCancel={() => setEditingTags(false)} saving={savingTags} />
           </div>
         ) : (
           <>

@@ -126,7 +126,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
   if (cards.length === 0) return null
 
   return (
-    <section className="container mx-auto px-4 py-10">
+    <section className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Header */}
       {centered ? (
         <div className="flex flex-col items-center mb-6 gap-3">
