@@ -53,6 +53,8 @@ const SALE_PLATFORMS = [
   { value: 'other', label: 'Other' },
 ]
 
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
+
 function RecordSaleModal({
   open,
   onClose,
@@ -156,7 +158,9 @@ function RecordSaleModal({
             </div>
             <div>
               <label className={LBL}>Currency</label>
-              <input className={INP} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="GBP" />
+              <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           <div>
@@ -325,7 +329,9 @@ function EditSaleModal({
             </div>
             <div>
               <label className={LBL}>Currency</label>
-              <input className={INP} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="GBP" />
+              <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           <div>

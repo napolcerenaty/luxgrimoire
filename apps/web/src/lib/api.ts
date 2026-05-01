@@ -248,6 +248,10 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
   prepaidMonths: number;
   renewalDay: number | null;
   nextRenewalDate: string | null;
+  nextRenewalAmount: string | null;
+  nextRenewalCurrency: string | null;
+  nextRenewalPriceChanged: boolean;
+  nextRenewalNewPrice: string | null;
   cancellationDate: string | null;
   cancellationReason: string | null;
   feeTemplates: Array<{

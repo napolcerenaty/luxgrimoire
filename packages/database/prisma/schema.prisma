@@ -322,6 +322,7 @@ model Subscription {
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
   paymentOnStartup     Boolean                      @default(false)
+  priceChanges             SubscriptionPriceChange[]
   comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
   comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")
   months               SubscriptionMonth[]
@@ -647,6 +648,7 @@ model UserSubscriptionEntry {
   prepaidMonths      Int                                @default(1)
   costCurrency       String?
   basePrice          Decimal?                           @db.Decimal(10, 2)
+  isDefaultPricing   Boolean                            @default(true)
   cancellationReason String?
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?
@@ -705,6 +707,23 @@ model UserSubscriptionCostChange {
   entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@map("user_subscription_cost_changes")
+}
+
+/// Subscription-level base price changes set by admin, effective from a given month.
+model SubscriptionPriceChange {
+  id              String       @id @default(uuid())
+  subscriptionId  String
+  effectiveMonth  Int
+  effectiveYear   Int
+  newBasePrice    Decimal      @db.Decimal(10, 2)
+  currency        String       @db.VarChar(3)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, effectiveYear, effectiveMonth])
+  @@index([subscriptionId])
+  @@map("subscription_price_changes")
 }
 
 /// One row per actual (or backfilled) renewal date — no cost data, calendar use only.

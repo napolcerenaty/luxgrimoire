@@ -328,6 +328,10 @@ export default function SpendingPage() {
             </div>
           )}
 
+          {/* Top 10 sale stats — two-column grid */}
+          {(stats.topSalePrice.length > 0 || stats.topProfit.length > 0 || stats.topLoss.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
           {/* Top 10 highest sale prices */}
           {stats.topSalePrice.length > 0 && (
             <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
@@ -400,6 +404,9 @@ export default function SpendingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
             </div>
           )}
 
