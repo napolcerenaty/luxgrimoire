@@ -646,12 +646,24 @@ export function CollectionEntryPanel({ editionId }: Props) {
     : null
   const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0 || pgRefundsTotal > 0
 
-  // For P/L — use purchaseGroup.totalAmount as cost
-  const costForPL = pgTotal
+  // For P/L — use grandTotal (base + shipping + fees - discounts - refunds), converted to sale currency
+  const saleCur = entry.saleCurrency ?? pg?.currency ?? null
+  const pgCur = pg?.currency ?? null
+  let costForPL: number | null = null
+  if (grandTotal !== null && pgCur) {
+    if (!saleCur || saleCur === pgCur) {
+      costForPL = grandTotal
+    } else {
+      // convert grandTotal from purchase currency to sale currency using purchase date
+      const rateKey = `${pgCur}:${saleCur}:${pgDate}`
+      const rate = rates[rateKey]
+      costForPL = rate ? grandTotal * rate : null
+    }
+  }
   const profit = entry.salePrice && costForPL !== null
     ? parseFloat(entry.salePrice) - costForPL
     : null
-  const profitCurrency = entry.saleCurrency ?? pg?.currency
+  const profitCurrency = saleCur
 
   // Currency conversion helper — converts to userCurrency (preferred display currency)
   function converted(amount: number, fromCurrency: string | null, date?: string): string | null {

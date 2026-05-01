@@ -122,15 +122,16 @@ export default async function EditionPage({ params }: Props) {
   const saleEditions = edition.saleEditions ?? []
   const bundles = saleEditions.filter(se => se.announcement.isBundle)
 
-  // Build all carousel images: cover first, then additional
+  // Build all carousel images: cover first, then remaining additional
   const allImages: string[] = []
   const additionalSources = Array.isArray(edition.additionalImages) ? edition.additionalImages : []
-  const coverSrc = edition.additionalImages[0] ?? null
+  const coverSrc = additionalSources[0] ?? null
 
   const coverUrl = cloudinaryUrl(coverSrc, 'w_1200,q_auto,f_auto')
   if (coverUrl) allImages.push(coverUrl)
 
-  for (const img of additionalSources) {
+  // skip index 0 — already added as cover
+  for (const img of additionalSources.slice(1)) {
     const url = cloudinaryUrl(img, 'w_1200,q_auto,f_auto')
     if (url) allImages.push(url)
   }
