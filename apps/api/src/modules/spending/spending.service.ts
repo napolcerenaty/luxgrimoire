@@ -220,7 +220,7 @@ export class SpendingService {
       for (const fee of group.fees) {
         const amt = await convert(toNum(fee.amount), fee.currency, new Date(fee.date)) / entryCount;
         feesPerEntry += amt;
-        if (fee.category === 'SHIPPING') shippingFeesPerEntry += amt;
+        if (fee.category === 'SHIPPING' || fee.category === 'FORWARDING') shippingFeesPerEntry += amt;
         else if (fee.category === 'VAT' || fee.category === 'CUSTOMS') taxFeesPerEntry += amt;
       }
 
