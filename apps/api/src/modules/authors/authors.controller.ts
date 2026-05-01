@@ -45,7 +45,7 @@ export class AuthorsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER', 'USER')
   @Post()
   async create(@Body() dto: CreateAuthorDto, @CurrentUser() user: { id: string; username: string }) {
     const result = await this.authorsService.create(dto);

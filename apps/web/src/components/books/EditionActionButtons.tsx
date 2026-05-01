@@ -30,10 +30,12 @@ interface Props {
   basePrice?: string | null
   currency?: string | null
   bundles: Array<{ id: string; title: string }>
+  generalSaleDate?: string | null
 }
 
-export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles }: Props) {
+export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles, generalSaleDate }: Props) {
   const { user } = useAuth()
+  const isFutureSale = !!generalSaleDate && new Date(generalSaleDate) > new Date()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -198,8 +200,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           )
         )}
 
-        {/* Collection state */}
-        {isInCollection ? (
+        {/* Collection state — hidden if sale date is in the future */}
+        {!isFutureSale && (isInCollection ? (
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm text-stone-400">
               <CheckCircle size={15} className="text-amber-400" />
@@ -215,7 +217,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
             className="inline-flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             <BookPlus size={16} />Add to Collection
           </button>
-        )}
+        ))}
       </div>
 
       {/* Modal — identical to wishlist "Move to Collection" */}

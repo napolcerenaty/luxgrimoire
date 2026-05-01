@@ -269,6 +269,7 @@ export default async function EditionPage({ params }: Props) {
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
+                  generalSaleDate={edition.generalSaleDate}
                 />
               </div>
 

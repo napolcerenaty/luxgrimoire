@@ -92,7 +92,7 @@ export class BooksController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER', 'USER')
   @Post(':slug/authors/:authorId')
   addAuthor(@Param('slug') slug: string, @Param('authorId') authorId: string) {
     return this.booksService.addAuthor(slug, authorId);
