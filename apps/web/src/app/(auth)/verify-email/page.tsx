@@ -39,15 +39,12 @@ function VerifyEmailContent() {
           return
         }
 
-        // Fetch full user profile and log in
-        const meRes = await fetch(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${data.accessToken}` },
-        })
-        const me = meRes.ok
-          ? await meRes.json()
-          : { id: data.userId, email: data.email, username: data.username, role: data.role }
+        // Cookie was set by API during verify-email — fetch /auth/me with credentials:include
+        const me = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
 
-        auth.login(data.accessToken, me)
+        if (me) auth.login(me)
         setStatus('success')
 
         setTimeout(() => router.push('/calendar'), 2000)

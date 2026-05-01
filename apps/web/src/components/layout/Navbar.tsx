@@ -51,15 +51,7 @@ export function Navbar() {
   }, [])
 
   const handleLogout = async () => {
-    // Revoke session on server (fire-and-forget — don't block UI)
-    const token = localStorage.getItem('luxgrimoire_token')
-    if (token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/auth/logout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => { /* ignore network errors on logout */ })
-    }
-    logout()
+    await logout() // calls API, clears cookie, clears user state
     queryClient.clear()
     setDropdownOpen(false)
     router.push('/')

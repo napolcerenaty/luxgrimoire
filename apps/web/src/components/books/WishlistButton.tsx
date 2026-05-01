@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 import { Bookmark, BookmarkCheck } from 'lucide-react'
 
 interface EntryStatus {
@@ -14,18 +15,18 @@ interface WishlistButtonProps {
 }
 
 export function WishlistButton({ editionId }: WishlistButtonProps) {
+  const { user } = useAuth()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('luxgrimoire_token')
-    if (!token) { setStatus('none'); return }
+    if (!user) { setStatus('none'); return }
 
     authFetch<EntryStatus>(`/collection/status/${editionId}`)
       .then(res => { setStatus(res.status); setEntryId(res.entryId ?? null) })
       .catch(() => setStatus('none'))
-  }, [editionId])
+  }, [editionId, user])
 
   const handleAdd = async () => {
     setIsPending(true)
@@ -55,11 +56,8 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
     }
   }
 
-  // Not logged in or loading — render nothing on server, nothing until status known
   if (status === 'loading') return null
-
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-  if (!token) return null
+  if (!user) return null
 
   if (status === 'collection') {
     return (

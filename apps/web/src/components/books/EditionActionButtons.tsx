@@ -57,12 +57,11 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   })
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-    if (!token) { setStatus('none'); return }
+    if (!user) { setStatus('none'); return }
     authFetch<EntryStatus>(`/collection/status/${editionId}`)
       .then(res => { setStatus(res.status); setEntryId(res.entryId ?? null) })
       .catch(() => setStatus('none'))
-  }, [editionId])
+  }, [editionId, user])
 
   const handleAddWishlist = async () => {
     setIsPending(true)
@@ -175,8 +174,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   }
 
   if (status === 'loading') return null
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-  if (!token) return null
+  if (!user) return null
 
   const isInCollection = status === 'collection'
 

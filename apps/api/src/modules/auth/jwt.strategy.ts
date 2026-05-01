@@ -13,7 +13,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: any) => {
+          // Cookie extraction (primary - production browser clients)
+          const cookieName = process.env.JWT_COOKIE_NAME ?? 'jwt';
+          const cookies = req?.cookies;
+          if (cookies?.[cookieName]) return cookies[cookieName];
+          return null;
+        },
+        ExtractJwt.fromAuthHeaderAsBearerToken(), // Bearer fallback (Swagger/CLI/mobile)
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
     });

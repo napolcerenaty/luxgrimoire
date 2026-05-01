@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Clock, X, Loader2, Pencil, Check } from 'lucide-react'
 import { joinWaitlist, leaveWaitlist, updateWaitlistDate, getMyWaitlistStatus, getMySubscriptionEntry } from '@/lib/api'
+import { useAuth } from '@/components/AuthProvider'
 
 interface WaitlistButtonProps {
   subscriptionSlug: string
@@ -15,6 +16,7 @@ type WaitlistState =
   | { joinedAt: string; leftAt: string | null }
 
 export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps) {
+  const { user } = useAuth()
   const [status, setStatus] = useState<WaitlistState>('loading')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,8 +25,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   const [showDateForm, setShowDateForm] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('luxgrimoire_token')
-    if (!token) { setStatus('no-auth'); return }
+    if (!user) { setStatus('none'); return }
     // Hide for active subscribers
     getMySubscriptionEntry(subscriptionSlug)
       .then((entry) => {
@@ -32,7 +33,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
         return getMyWaitlistStatus(subscriptionSlug).then(data => setStatus(data ?? null))
       })
       .catch(() => setStatus(null))
-  }, [subscriptionSlug])
+  }, [subscriptionSlug, user])
 
   if (status === 'loading' || status === 'no-auth') return null
 

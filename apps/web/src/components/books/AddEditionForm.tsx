@@ -21,7 +21,6 @@ interface FormState {
 }
 
 async function uploadImage(file: File): Promise<string> {
-  const token = localStorage.getItem('luxgrimoire_token')
   const dataUri = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
@@ -32,10 +31,8 @@ async function uploadImage(file: File): Promise<string> {
     `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/upload/image`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/editions' }),
     }
   )

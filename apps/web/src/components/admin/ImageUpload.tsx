@@ -33,8 +33,6 @@ export default function ImageUpload({ label, folder, value, onChange, aspectRati
     setUploading(true)
     setError(null)
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-      // Read file as base64 data URI (works with JPEG, PNG, WebP, AVIF, etc.)
       const dataUri = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
@@ -43,10 +41,8 @@ export default function ImageUpload({ label, folder, value, onChange, aspectRati
       })
       const res = await fetch(`${API_BASE}/upload/image`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataUri, folder }),
       })
       if (!res.ok) throw new Error(await res.text())

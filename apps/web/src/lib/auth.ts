@@ -1,16 +1,8 @@
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('luxgrimoire_token')
-}
+// Auth utility — token is now an httpOnly cookie, not accessible to JS.
+// Use useAuth() from AuthProvider for auth state.
 
-export function setToken(token: string): void {
-  localStorage.setItem('luxgrimoire_token', token)
-}
-
-export function clearToken(): void {
-  localStorage.removeItem('luxgrimoire_token')
-}
-
+/** @deprecated Use useAuth().user !== null instead */
 export function isAuthenticated(): boolean {
-  return !!getToken()
+  // Cannot check httpOnly cookie from JS — use AuthProvider state
+  return false
 }

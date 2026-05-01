@@ -21,49 +21,46 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
-  login: (token: string, user: AuthUser) => void
-  logout: () => void
+  login: (user: AuthUser) => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('luxgrimoire_token')
-    if (!token) {
-      setLoading(false)
-      return
-    }
-
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${API_URL}/auth/me`, { credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
           const data: AuthUser = await r.json()
           setUser(data)
-        } else if (r.status === 401 || r.status === 403) {
-          // Token invalid or forbidden — remove it
-          localStorage.removeItem('luxgrimoire_token')
         }
-        // 5xx or other errors: keep the token (server may be restarting)
+        // 401 = not logged in, ignore
       })
       .catch(() => {
-        // Network error: server is down/restarting — keep the token
+        // Network error: server may be down, ignore
       })
       .finally(() => setLoading(false))
   }, [])
 
-  const login = (token: string, authUser: AuthUser) => {
-    localStorage.setItem('luxgrimoire_token', token)
+  const login = (authUser: AuthUser) => {
     setUser(authUser)
   }
 
-  const logout = () => {
-    localStorage.removeItem('luxgrimoire_token')
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // ignore network errors
+    }
     setUser(null)
   }
 

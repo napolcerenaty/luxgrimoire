@@ -32,14 +32,17 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: any) {
+    const { accessToken, ...user } = await this.authService.login(dto);
+    this.setAuthCookie(res, accessToken);
+    return user; // return user object only, not token
   }
 
   @ApiBearerAuth()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  logout(@CurrentUser() user: { id: string; jti: string | null }) {
+  async logout(@CurrentUser() user: { id: string; jti: string | null }, @Res({ passthrough: true }) res: any) {
+    this.clearAuthCookie(res);
     if (user.jti) return this.authService.logout(user.id, user.jti);
   }
 
@@ -69,8 +72,14 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('verify-email')
-  verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(dto.token);
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Res({ passthrough: true }) res: any) {
+    const result = await this.authService.verifyEmail(dto.token);
+    if (result?.accessToken) {
+      this.setAuthCookie(res, result.accessToken);
+      const { accessToken: _, ...user } = result;
+      return user;
+    }
+    return result;
   }
 
   @Public()
@@ -129,9 +138,28 @@ export class AuthController {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     try {
       const result = await this.authService.oauthCallback(req.user);
-      return res.redirect(`${frontendUrl}/auth/callback?token=${result.accessToken}`, 302);
+      this.setAuthCookie(res, result.accessToken);
+      return res.redirect(`${frontendUrl}/auth/callback`, 302); // NO token in URL
     } catch {
       return res.redirect(`${frontendUrl}/login?error=oauth_failed`, 302);
     }
+  }
+
+  private setAuthCookie(res: any, token: string) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieName = process.env.JWT_COOKIE_NAME ?? 'jwt';
+    const maxAge = 7 * 24 * 60 * 60; // 7 days in seconds
+    res.setCookie(cookieName, token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge,
+    });
+  }
+
+  private clearAuthCookie(res: any) {
+    const cookieName = process.env.JWT_COOKIE_NAME ?? 'jwt';
+    res.clearCookie(cookieName, { path: '/' });
   }
 }

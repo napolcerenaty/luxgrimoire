@@ -125,8 +125,7 @@ export default function ProfilePage() {
       }),
     onSuccess: (data, variables) => {
       if (data && user) {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
-        login(token ?? '', { ...user, ...data })
+        login({ ...user, ...data })
       }
       void queryClient.invalidateQueries({ queryKey: ['me'] })
       if ('preferredCurrency' in variables || 'timezone' in variables || 'shippingCountry' in variables || 'timeFormat' in variables) {
@@ -150,7 +149,6 @@ export default function ProfilePage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
       const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
       const dataUri = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -160,10 +158,8 @@ export default function ProfilePage() {
       })
       const res = await fetch(`${API_BASE}/upload/avatar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataUri }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -185,8 +181,7 @@ export default function ProfilePage() {
       }),
     onSuccess: (data) => {
       if (data && user) {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : ''
-        login(token ?? '', { ...user, ...data })
+        login({ ...user, ...data })
       }
       setUsernameSuccess(true)
       setUsernameError(null)

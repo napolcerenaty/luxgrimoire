@@ -12,7 +12,6 @@ function cloudThumb(id: string) {
 }
 
 export async function uploadImage(file: File, folder: string): Promise<string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
   const dataUri = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
@@ -21,10 +20,8 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   })
   const res = await fetch(`${API_BASE}/upload/image`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: dataUri, folder }),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -34,13 +31,10 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
 
 export async function deleteImage(publicId: string): Promise<void> {
   if (!publicId || publicId.startsWith('http')) return
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
   await fetch(`${API_BASE}/upload/image`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ publicId }),
   })
 }

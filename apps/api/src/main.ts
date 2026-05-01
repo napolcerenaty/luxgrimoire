@@ -21,6 +21,9 @@ async function bootstrap() {
   );
   app.useLogger(app.get(Logger));
 
+  // Cookie parser (must be before helmet)
+  await app.register(require('@fastify/cookie'));
+
   // Security headers (helmet for Fastify)
   await app.register(require('@fastify/helmet'), {
     contentSecurityPolicy: false, // API is not HTML, CSP belongs on the web app
@@ -54,7 +57,7 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     maxAge: 86400, // cache preflight for 24h to reduce OPTIONS load
   });

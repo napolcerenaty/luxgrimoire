@@ -6,17 +6,12 @@ export type SaleTier = 'FA' | 'EA' | 'GS'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-function getToken() {
-  return typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-}
-
 async function authFetch(path: string, options?: RequestInit) {
-  const token = getToken()
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   })
@@ -69,7 +64,6 @@ export function useSaleInterest(announcementId: string | null) {
 
     // Fetch from server only if no cache yet
     if (!cached) {
-      if (!getToken()) { unsub(); return }
       setState(s => ({ ...s, loading: true }))
       authFetch(`/sale-interests/${announcementId}`)
         .then(data => {

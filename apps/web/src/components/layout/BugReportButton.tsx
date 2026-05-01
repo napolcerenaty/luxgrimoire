@@ -43,13 +43,10 @@ export function BugReportButton() {
     setSubmitting(true)
     setError(null)
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
       const res = await fetch(`${API_BASE}/bug-reports`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),

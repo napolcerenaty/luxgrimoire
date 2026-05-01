@@ -26,6 +26,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
@@ -41,13 +42,12 @@ export default function LoginPage() {
         return
       }
 
-      // Fetch full user profile to populate AuthProvider state
-      const meRes = await fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${data.accessToken}` },
-      })
-      const me = meRes.ok ? await meRes.json() : { id: data.userId, email, username: data.username, role: data.role }
+      // Login API now returns user object directly (cookie is set by API)
+      const me = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
 
-      auth.login(data.accessToken, me)
+      auth.login(me ?? data)
       router.push('/calendar')
     } catch {
       setError('Network error. Please try again.')

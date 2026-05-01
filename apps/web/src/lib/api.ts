@@ -7,6 +7,7 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'include',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
@@ -40,12 +41,11 @@ export interface UpdateFeeTemplateData {
 }
 
 export async function getFeeTemplates(activeOnly?: boolean): Promise<ApiFeeTemplate[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const qs = activeOnly ? '?activeOnly=true' : '';
   const res = await fetch(`${API_URL}/fees/templates${qs}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -53,12 +53,11 @@ export async function getFeeTemplates(activeOnly?: boolean): Promise<ApiFeeTempl
 }
 
 export async function createFeeTemplate(data: CreateFeeTemplateData): Promise<ApiFeeTemplate> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/templates`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -67,12 +66,11 @@ export async function createFeeTemplate(data: CreateFeeTemplateData): Promise<Ap
 }
 
 export async function updateFeeTemplate(id: string, data: UpdateFeeTemplateData): Promise<ApiFeeTemplate> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/templates/${id}`, {
+    credentials: 'include',
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -81,11 +79,10 @@ export async function updateFeeTemplate(id: string, data: UpdateFeeTemplateData)
 }
 
 export async function deleteFeeTemplate(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/templates/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -115,16 +112,15 @@ export interface CreatePurchaseFeeData {
 }
 
 export async function getPurchaseFees(opts?: GetPurchaseFeesOpts): Promise<ApiPurchaseFee[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const params = new URLSearchParams();
   if (opts?.billingPeriodId) params.set('billingPeriodId', opts.billingPeriodId);
   if (opts?.userBookEntryId) params.set('userBookEntryId', opts.userBookEntryId);
   if (opts?.purchaseGroupId) params.set('purchaseGroupId', opts.purchaseGroupId);
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(`${API_URL}/fees${qs}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -132,12 +128,11 @@ export async function getPurchaseFees(opts?: GetPurchaseFeesOpts): Promise<ApiPu
 }
 
 export async function createPurchaseFee(data: CreatePurchaseFeeData): Promise<ApiPurchaseFee> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -146,11 +141,10 @@ export async function createPurchaseFee(data: CreatePurchaseFeeData): Promise<Ap
 }
 
 export async function deletePurchaseFee(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -170,25 +164,23 @@ export interface CreatePurchaseDiscountData {
 }
 
 export async function getDiscounts(opts?: { billingPeriodId?: string; userBookEntryId?: string; purchaseGroupId?: string }): Promise<import('@luxgrimoire/shared-types').ApiPurchaseDiscount[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const params = new URLSearchParams();
   if (opts?.billingPeriodId) params.set('billingPeriodId', opts.billingPeriodId);
   if (opts?.userBookEntryId) params.set('userBookEntryId', opts.userBookEntryId);
   if (opts?.purchaseGroupId) params.set('purchaseGroupId', opts.purchaseGroupId);
   const res = await fetch(`${API_URL}/fees/discounts${params.toString() ? '?' + params.toString() : ''}`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function createPurchaseDiscount(data: CreatePurchaseDiscountData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseDiscount> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/discounts`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -197,10 +189,9 @@ export async function createPurchaseDiscount(data: CreatePurchaseDiscountData): 
 }
 
 export async function deletePurchaseDiscount(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/discounts/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -210,30 +201,27 @@ export async function deletePurchaseDiscount(id: string): Promise<void> {
 // ─────────────────────────────────────────────
 
 export async function getMyWaitlist(): Promise<import('@luxgrimoire/shared-types').ApiWaitlistEntry[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/waitlist/me`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function getMyWaitlistStatus(slug: string): Promise<{ id: string; joinedAt: string; leftAt: string | null } | null> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/waitlist/me`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function joinWaitlist(slug: string, joinedAt?: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/waitlist`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(joinedAt ? { joinedAt } : {}),
   });
@@ -241,12 +229,11 @@ export async function joinWaitlist(slug: string, joinedAt?: string): Promise<voi
 }
 
 export async function updateWaitlistDate(slug: string, joinedAt: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/waitlist`, {
+    credentials: 'include',
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ joinedAt }),
   });
@@ -276,10 +263,8 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
     };
   }>;
 } | null> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
-  if (!token) return null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    credentials: 'include',
   });
   if (res.status === 404 || res.status === 403) return null;
   if (!res.ok) return null;
@@ -287,10 +272,9 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
 }
 
 export async function leaveWaitlist(slug: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/waitlist`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -299,10 +283,9 @@ export async function cancelMySubscriptionEntry(
   slug: string,
   data: { cancellationDate?: string; cancellationReason?: string },
 ): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/cancel`, {
+    credentials: 'include',
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
@@ -312,11 +295,9 @@ export async function removeMySubscriptionEntry(
   slug: string,
   opts: { removeBooks: boolean; removeSpending: boolean },
 ): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-  if (!token) throw new Error('Not authenticated')
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(opts),
   })
   if (!res.ok) {
@@ -335,10 +316,9 @@ export async function updateMyEntryCosts(
     linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number | null; customCurrency?: string | null }>;
   },
 ): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/costs`, {
+    credentials: 'include',
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
@@ -359,25 +339,23 @@ export interface CreatePurchaseRefundData {
 }
 
 export async function getRefunds(opts?: { billingPeriodId?: string; userBookEntryId?: string; purchaseGroupId?: string }): Promise<import('@luxgrimoire/shared-types').ApiPurchaseRefund[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const params = new URLSearchParams();
   if (opts?.billingPeriodId) params.set('billingPeriodId', opts.billingPeriodId);
   if (opts?.userBookEntryId) params.set('userBookEntryId', opts.userBookEntryId);
   if (opts?.purchaseGroupId) params.set('purchaseGroupId', opts.purchaseGroupId);
   const res = await fetch(`${API_URL}/fees/refunds${params.toString() ? '?' + params.toString() : ''}`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function createPurchaseRefund(data: CreatePurchaseRefundData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseRefund> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/refunds`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -386,10 +364,9 @@ export async function createPurchaseRefund(data: CreatePurchaseRefundData): Prom
 }
 
 export async function deletePurchaseRefund(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/fees/refunds/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -419,18 +396,16 @@ export interface UpdatePurchaseGroupData {
 }
 
 export async function getPurchaseGroups(): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function getPurchaseGroup(id: string): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles/${id}`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
@@ -452,22 +427,19 @@ export interface CountryFeeHint {
 }
 
 export async function getCountryFeeHints(slug: string, country: string): Promise<CountryFeeHint[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-  if (!token) return []
   const res = await fetch(`${API_URL}/subscriptions/${slug}/country-fees?country=${country}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   })
   if (!res.ok) return []
   return res.json()
 }
 
 export async function createPurchaseGroup(data: CreatePurchaseGroupData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -476,12 +448,11 @@ export async function createPurchaseGroup(data: CreatePurchaseGroupData): Promis
 }
 
 export async function updatePurchaseGroup(id: string, data: UpdatePurchaseGroupData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles/${id}`, {
+    credentials: 'include',
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -490,10 +461,9 @@ export async function updatePurchaseGroup(id: string, data: UpdatePurchaseGroupD
 }
 
 export async function deletePurchaseGroup(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/collection/bundles/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -524,9 +494,8 @@ export interface UpdateSaleGroupData {
 }
 
 export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/sales`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   const json = await res.json();
@@ -535,10 +504,9 @@ export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types
 }
 
 export async function createSaleGroup(data: CreateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/sales`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -546,10 +514,9 @@ export async function createSaleGroup(data: CreateSaleGroupData): Promise<import
 }
 
 export async function updateSaleGroup(id: string, data: UpdateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/sales/${id}`, {
+    credentials: 'include',
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -557,10 +524,9 @@ export async function updateSaleGroup(id: string, data: UpdateSaleGroupData): Pr
 }
 
 export async function deleteSaleGroup(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/sales/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -598,11 +564,10 @@ export async function adminGetSaleAnnouncements(params?: {
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
   if (params?.search) qs.set('search', params.search);
   if (params?.companyId) qs.set('companyId', params.companyId);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin?${qs}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -610,12 +575,11 @@ export async function adminGetSaleAnnouncements(params?: {
 }
 
 export async function adminCreateSaleAnnouncement(data: SaleAnnouncementFormData): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin`, {
+    credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -624,12 +588,11 @@ export async function adminCreateSaleAnnouncement(data: SaleAnnouncementFormData
 }
 
 export async function adminUpdateSaleAnnouncement(id: string, data: SaleAnnouncementFormData): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}`, {
+    credentials: 'include',
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(data),
   });
@@ -638,19 +601,17 @@ export async function adminUpdateSaleAnnouncement(id: string, data: SaleAnnounce
 }
 
 export async function adminDeleteSaleAnnouncement(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
 export async function adminAddAnnouncementEdition(id: string, editionId: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ editionId }),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -658,10 +619,9 @@ export async function adminAddAnnouncementEdition(id: string, editionId: string)
 }
 
 export async function adminRemoveAnnouncementEdition(id: string, editionId: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -671,10 +631,9 @@ export async function adminSetAnnouncementVariant(
   signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
   price?: number | null, currency?: string | null,
 ): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ signatureType, price, currency }),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -685,10 +644,9 @@ export async function adminRemoveAnnouncementVariant(
   id: string, editionId: string,
   signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
 ): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants/${signatureType}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
@@ -706,10 +664,9 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
   basePrice?: number | null;
   currency?: string | null;
 }): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -717,16 +674,16 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
 }
 
 export async function adminDeleteAnnouncementRegion(saleId: string, regionId: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions/${regionId}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
 export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/${id}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -734,10 +691,9 @@ export async function getSaleAnnouncement(id: string): Promise<import('@luxgrimo
 }
 // ─── Feature Requests ─────────────────────────────────────────────────────────
 export async function submitFeatureRequest(data: { title: string; description: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -745,53 +701,48 @@ export async function submitFeatureRequest(data: { title: string; description: s
 }
 
 export async function getFeatureRequests(params?: { page?: number; pageSize?: number }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
   const res = await fetch(`${API_URL}/feature-requests?${qs}`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function getMyFeatureRequests(): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest[]> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests/my`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function voteFeatureRequest(id: string): Promise<{ voted: boolean }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests/${id}/vote`, {
+    credentials: 'include',
     method: 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function adminGetFeatureRequests(params?: { page?: number; status?: string }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.status) qs.set('status', params.status);
   const res = await fetch(`${API_URL}/feature-requests/admin?${qs}`, {
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();
 }
 
 export async function adminReviewFeatureRequest(id: string, data: { status: 'accepted' | 'rejected'; adminNote?: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests/${id}/review`, {
+    credentials: 'include',
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -799,10 +750,9 @@ export async function adminReviewFeatureRequest(id: string, data: { status: 'acc
 }
 
 export async function adminDeleteFeatureRequest(id: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null;
   const res = await fetch(`${API_URL}/feature-requests/${id}`, {
+    credentials: 'include',
     method: 'DELETE',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }

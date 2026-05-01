@@ -100,7 +100,6 @@ export default function SubscriptionInfoPanel({
   months,
 }: Props) {
   const { user } = useAuth()
-  const [token, setToken] = useState<string | null>(null)
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
@@ -119,14 +118,12 @@ export default function SubscriptionInfoPanel({
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
     queryFn: () => authFetch<{ skippedMonths: { year: number; month: number }[] }>(`/skip-policy/${subscriptionSlug}/status`),
-    enabled: !!token,
+    enabled: !!user,
     retry: false,
   })
 
   useEffect(() => {
-    const t = localStorage.getItem('luxgrimoire_token')
-    setToken(t)
-    if (t) {
+    if (user) {
       setLoading(true)
       getMySubscriptionEntry(subscriptionSlug)
         .then(setMyEntry)
@@ -135,15 +132,15 @@ export default function SubscriptionInfoPanel({
     } else {
       setMyEntry(null)
     }
-  }, [subscriptionSlug])
+  }, [subscriptionSlug, user])
 
   // Fetch series when user is a subscriber
   useEffect(() => {
-    if (!token) return
+    if (!user) return
     authFetch<ApiSubscriptionSeries[]>(`/subscription-series?subscriptionSlug=${subscriptionSlug}`)
       .then(setSeriesList)
       .catch(() => setSeriesList([]))
-  }, [subscriptionSlug, token])
+  }, [subscriptionSlug, user])
 
   useEffect(() => {
     if (!showConversion || !price) return
