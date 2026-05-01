@@ -11,9 +11,6 @@ export async function authFetch<T>(path: string, options?: RequestInit): Promise
     },
   })
   if (!res.ok) {
-    if ((res.status === 401 || res.status === 403) && typeof window !== 'undefined') {
-      window.location.href = '/login'
-    }
     const err = await res.text()
     throw new Error(err)
   }
