@@ -153,6 +153,10 @@ export class SalesService {
             saleVenue: dto.platform,
           },
         });
+
+        await tx.ownershipStatusHistory.create({
+          data: { userBookEntryId: entryId, status: "SOLD" },
+        });
       }
 
       return tx.userSaleGroup.findUnique({

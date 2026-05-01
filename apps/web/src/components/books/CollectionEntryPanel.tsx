@@ -819,6 +819,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
       {/* Row 2: Purchase cost + (Tracking + Tags + Ownership history stacked) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
 
+        {/* Left column: Purchase cost + Sale details */}
+        <div className="flex flex-col gap-3">
+
         {/* Purchase cost card */}
         <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-3">
@@ -1134,6 +1137,92 @@ export function CollectionEntryPanel({ editionId }: Props) {
           )}
         </div>
 
+          {/* Sale details — shown in left column when SOLD */}
+          {entry.ownershipStatus === 'SOLD' && (
+            <div className="rounded-xl border p-4 mt-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
+                {!editingSale && (
+                  <button onClick={openSaleEdit} className="flex items-center gap-1 text-xs transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-bright)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
+                    <Pencil size={11} /> Edit
+                  </button>
+                )}
+              </div>
+              {editingSale ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale price</label>
+                      <input type="number" step="0.01" min="0" value={editSalePrice} onChange={e => setEditSalePrice(e.target.value)} placeholder="0.00" className={INP} />
+                    </div>
+                    <div className="w-24">
+                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
+                    <select value={editSaleCurrency} onChange={e => setEditSaleCurrency(e.target.value)} className={INP}>
+                      <option value="">—</option>
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale date</label>
+                  <input type="date" value={editSaleDate} onChange={e => setEditSaleDate(e.target.value)} className={INP} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Venue / platform</label>
+                  <input value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} placeholder="e.g. eBay" className={INP} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
+                  <input value={editSaleNotes} onChange={e => setEditSaleNotes(e.target.value)} placeholder="Any notes…" className={INP} />
+                </div>
+                <SaveCancelBtns onSave={saveSale} onCancel={() => setEditingSale(false)} saving={savingSale} />
+              </div>
+            ) : (
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span style={{ color: 'var(--text-muted)' }}>Sale price</span>
+                  <span className="text-right">
+                    {entry.salePrice ? (
+                      <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
+                        {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency ?? ''}
+                      </span>
+                    ) : (
+                      <span className="italic text-xs" style={{ color: 'var(--text-muted)' }}>Not set</span>
+                    )}
+                  </span>
+                </div>
+                {entry.saleDate && (
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Date</span>
+                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>{fmtDate(entry.saleDate)}</span>
+                  </div>
+                )}
+                {entry.saleVenue && (
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Venue</span>
+                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>{entry.saleVenue}</span>
+                  </div>
+                )}
+                {entry.saleNotes && (
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Notes</span>
+                    <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{entry.saleNotes}</span>
+                  </div>
+                )}
+                {profit !== null && (
+                  <div className="flex justify-between items-baseline gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>P / L</span>
+                    <span className={`font-semibold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {profit >= 0 ? '+' : ''}{profit.toFixed(2)} {profitCurrency ?? ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            </div>
+          )}
+        </div>
+
         {/* Right column: Tracking (compact) + Tags stacked */}
         <div className="flex flex-col gap-3">
 
@@ -1254,91 +1343,6 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
         </div>
       </div>
-
-      {/* Sale details — shown below the main grid when SOLD */}
-      {entry.ownershipStatus === 'SOLD' && (
-          <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
-              {!editingSale && (
-                <button onClick={openSaleEdit} className="flex items-center gap-1 text-xs transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-bright)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
-                  <Pencil size={11} /> Edit
-                </button>
-              )}
-            </div>
-            {editingSale ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale price</label>
-                    <input type="number" step="0.01" min="0" value={editSalePrice} onChange={e => setEditSalePrice(e.target.value)} placeholder="0.00" className={INP} />
-                  </div>
-                  <div className="w-24">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
-                  <select value={editSaleCurrency} onChange={e => setEditSaleCurrency(e.target.value)} className={INP}>
-                    <option value="">—</option>
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale date</label>
-                <input type="date" value={editSaleDate} onChange={e => setEditSaleDate(e.target.value)} className={INP} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Venue / platform</label>
-                <input value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} placeholder="e.g. eBay" className={INP} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
-                <input value={editSaleNotes} onChange={e => setEditSaleNotes(e.target.value)} placeholder="Any notes…" className={INP} />
-              </div>
-              <SaveCancelBtns onSave={saveSale} onCancel={() => setEditingSale(false)} saving={savingSale} />
-            </div>
-          ) : (
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between items-baseline gap-2">
-                <span style={{ color: 'var(--text-muted)' }}>Sale price</span>
-                <span className="text-right">
-                  {entry.salePrice ? (
-                    <span className="font-medium" style={{ color: 'var(--text-bright)' }}>
-                      {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency ?? ''}
-                    </span>
-                  ) : (
-                    <span className="italic text-xs" style={{ color: 'var(--text-muted)' }}>Not set</span>
-                  )}
-                </span>
-              </div>
-              {entry.saleDate && (
-                <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Date</span>
-                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>{fmtDate(entry.saleDate)}</span>
-                </div>
-              )}
-              {entry.saleVenue && (
-                <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Venue</span>
-                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>{entry.saleVenue}</span>
-                </div>
-              )}
-              {entry.saleNotes && (
-                <div className="flex justify-between items-baseline gap-2">
-                  <span style={{ color: 'var(--text-muted)' }}>Notes</span>
-                  <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{entry.saleNotes}</span>
-                </div>
-              )}
-              {profit !== null && (
-                <div className="flex justify-between items-baseline gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-                  <span className="font-medium" style={{ color: 'var(--text-bright)' }}>P / L</span>
-                  <span className={`font-semibold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {profit >= 0 ? '+' : ''}{profit.toFixed(2)} {profitCurrency ?? ''}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
     </div>
   )

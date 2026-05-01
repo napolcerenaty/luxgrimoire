@@ -208,7 +208,9 @@ function AddSaleForm({
         </div>
         <div>
           <label className={LBL}>Currency</label>
-          <input className={INP} value={saleCurrency} onChange={e => setSaleCurrency(e.target.value)} placeholder="GBP" />
+          <select className={INP} value={saleCurrency} onChange={e => setSaleCurrency(e.target.value)}>
+            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
       </div>
 
