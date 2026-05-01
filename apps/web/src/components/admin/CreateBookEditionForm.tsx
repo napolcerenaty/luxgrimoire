@@ -295,6 +295,13 @@ export default function CreateBookEditionForm({
           authorNames.length === 0 || exact.authors.length === 0 ||
           exact.authors.some(ba => authorNames.includes(ba.author.name.toLowerCase()))
         if (hasAuthorMatch) {
+          // In bookOnly+onBookCreated mode (e.g. EditionPicker), skip the warning and
+          // proceed directly to edition creation using the existing book.
+          if (bookOnly && onBookCreated) {
+            onBookCreated(exact.id, exact.title)
+            setBusy(false)
+            return
+          }
           setDuplicateBook({ id: exact.id, slug: exact.slug, title: exact.title, authors: exact.authors.map(ba => ({ name: ba.author.name })) })
           setBusy(false)
           return
