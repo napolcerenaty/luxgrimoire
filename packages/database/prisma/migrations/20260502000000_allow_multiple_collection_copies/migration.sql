@@ -4,4 +4,4 @@
 
 DROP INDEX IF EXISTS "user_book_entries_userId_bookId_editionId_key";
 
-CREATE INDEX IF NOT EXISTS "UserBookEntry_userId_bookId_editionId_idx" ON "UserBookEntry"("userId", "bookId", "editionId");
+CREATE INDEX IF NOT EXISTS "user_book_entries_userId_bookId_editionId_idx" ON "user_book_entries"("userId", "bookId", "editionId");
