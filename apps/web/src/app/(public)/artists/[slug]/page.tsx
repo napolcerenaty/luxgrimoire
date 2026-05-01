@@ -120,7 +120,17 @@ export default async function ArtistPage({ params }: Props) {
     icon: <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
   })
 
-  const jsonLd = {
+  // Group contributions by edition — one card per edition, list all roles
+  const editionMap = new Map<string, { edition: EditionSnippet; roles: string[] }>()
+  for (const c of contributions) {
+    const existing = editionMap.get(c.edition.id)
+    if (existing) {
+      existing.roles.push(c.role)
+    } else {
+      editionMap.set(c.edition.id, { edition: c.edition, roles: [c.role] })
+    }
+  }
+  const groupedEditions = Array.from(editionMap.values())
     '@context': 'https://schema.org', '@type': 'Person',
     name: artist.name,
     description: artist.bio,
@@ -155,7 +165,6 @@ export default async function ArtistPage({ params }: Props) {
               <h1 className="text-4xl sm:text-5xl font-serif font-bold text-stone-100 leading-tight mb-1">
                 {artist.name}
               </h1>
-              <p className="text-lg text-amber-500/80 font-mono mb-3">@{artist.name}</p>
 
               {artist.specialty && (
                 <Badge variant="outline" className="mb-4">{artist.specialty}</Badge>
@@ -186,28 +195,27 @@ export default async function ArtistPage({ params }: Props) {
           <>
             <div className="flex items-center gap-3 mb-8">
               <h2 className="text-2xl font-serif font-semibold text-stone-100">Artwork & Contributions</h2>
-              <span className="text-sm text-stone-500 bg-stone-800 rounded-full px-3 py-0.5">{contributions.length}</span>
+              <span className="text-sm text-stone-500 bg-stone-800 rounded-full px-3 py-0.5">{groupedEditions.length}</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-              {contributions.map((c) => {
-                const cover = cloudinaryUrl(c.edition.additionalImages?.[0] ?? null, 'w_400,h_600,c_fill,q_auto,f_auto')
-                const book = c.edition.book
-                const company = c.edition.bookBoxCompany
+              {groupedEditions.map(({ edition, roles }) => {
+                const cover = cloudinaryUrl(edition.additionalImages?.[0] ?? null, 'w_400,h_600,c_fill,q_auto,f_auto')
+                const company = edition.bookBoxCompany
 
                 return (
                   <Link
-                    key={c.id}
-                    href={`/editions/${c.edition.slug}`}
+                    key={edition.id}
+                    href={`/editions/${edition.slug}`}
                     className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
                   >
-                    {/* Cover image with overlays */}
+                    {/* Cover image */}
                     <div className="relative aspect-[2/3] bg-stone-800 overflow-hidden">
                       {cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={cover}
-                          alt={book?.title ?? 'Edition cover'}
+                          alt={edition.editionName ?? company?.name ?? 'Edition cover'}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
@@ -215,11 +223,6 @@ export default async function ArtistPage({ params }: Props) {
                           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                         </div>
                       )}
-
-                      {/* Role badge — top left */}
-                      <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide backdrop-blur-sm ${roleColor(c.role)}`}>
-                        {c.role}
-                      </div>
 
                       {/* Bottom ribbon — book box company name */}
                       {company && (
@@ -237,26 +240,13 @@ export default async function ArtistPage({ params }: Props) {
                       )}
                     </div>
 
-                    {/* Card body */}
+                    {/* Card body — list of roles */}
                     <div className="p-3 flex flex-col gap-1 flex-1">
-                      {/* Series */}
-                      {book?.seriesName && (
-                        <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate">
-                          {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}
+                      {roles.map((role) => (
+                        <p key={role} className={`text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded ${roleColor(role)}`}>
+                          {role}
                         </p>
-                      )}
-
-                      {/* Title */}
-                      <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
-                        {book?.title ?? '—'}
-                      </p>
-
-                      {/* Authors */}
-                      {book?.authors && book.authors.length > 0 && (
-                        <p className="text-[11px] text-stone-500 truncate">
-                          {book.authors.map(a => a.name).join(', ')}
-                        </p>
-                      )}
+                      ))}
                     </div>
                   </Link>
                 )
