@@ -653,13 +653,23 @@ export function CollectionEntryPanel({ editionId }: Props) {
     : null
   const profitCurrency = entry.saleCurrency ?? pg?.currency
 
-  // Currency conversion helper — uses date-keyed rates
+  // Currency conversion helper — converts to userCurrency (preferred display currency)
   function converted(amount: number, fromCurrency: string | null, date?: string): string | null {
     if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
     const dateKey = date?.slice(0, 10) ?? ''
     const rate = rates[`${fromCurrency}:${userCurrency}:${dateKey}`]
     if (!rate) return null
     return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
+  }
+
+  // Converts to purchase currency (pg.currency) — shown for fees/discounts in a different currency
+  function convertedToPg(amount: number, fromCurrency: string | null, date?: string): string | null {
+    const pgCur = pg?.currency
+    if (!fromCurrency || !pgCur || fromCurrency === pgCur) return null
+    const dateKey = date?.slice(0, 10) ?? ''
+    const rate = rates[`${fromCurrency}:${pgCur}:${dateKey}`]
+    if (!rate) return null
+    return `≈ ${(amount * rate).toFixed(2)} ${pgCur}`
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1014,6 +1024,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         </span>
                         <span className="text-right">
                           <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
+                          {convertedToPg(amt, fee.currency, fee.date) && (
+                            <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{convertedToPg(amt, fee.currency, fee.date)}</span>
+                          )}
                           {converted(amt, fee.currency, fee.date) && (
                             <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(amt, fee.currency, fee.date)}</span>
                           )}
@@ -1031,6 +1044,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         <span className="text-right flex items-baseline gap-1.5">
                           <span>
                             <span className="text-xs text-green-400">−{amt.toFixed(2)} {d.currency}</span>
+                            {convertedToPg(amt, d.currency, (d as any).date ?? pg.purchasedAt) && (
+                              <span className="block text-xs text-green-500/60">{convertedToPg(amt, d.currency, (d as any).date ?? pg.purchasedAt)?.replace('≈', '≈ −')}</span>
+                            )}
                             {converted(amt, d.currency, (d as any).date ?? pg.purchasedAt) && (
                               <span className="block text-xs text-green-500/60">{converted(amt, d.currency, (d as any).date ?? pg.purchasedAt)?.replace('≈', '≈ −')}</span>
                             )}
@@ -1054,6 +1070,9 @@ export function CollectionEntryPanel({ editionId }: Props) {
                         </span>
                         <span className="text-right">
                           <span className="text-xs text-orange-400">−{amt.toFixed(2)} {r.currency}</span>
+                          {convertedToPg(amt, r.currency, r.date) && (
+                            <span className="block text-xs text-orange-500/60">{convertedToPg(amt, r.currency, r.date)?.replace('≈', '≈ −')}</span>
+                          )}
                           {converted(amt, r.currency, r.date) && (
                             <span className="block text-xs text-orange-500/60">{converted(amt, r.currency, r.date)?.replace('≈', '≈ −')}</span>
                           )}
