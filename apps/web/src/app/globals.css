@@ -139,6 +139,26 @@ html {
   --hero-glow:     radial-gradient(ellipse at 50% 0%, rgba(0,80,140,0.10) 0%, transparent 65%);
 }
 
+/* Green / emerald palette — remap to readable dark greens on light bg */
+[data-theme="light"] {
+  /* Text shades: bright greens → dark readable greens */
+  --color-green-300:   #166534;
+  --color-green-400:   #15803d;
+  --color-green-500:   #16a34a;
+  /* Background shades: dark greens → light green tints */
+  --color-green-900:   #dcfce7;
+  --color-green-950:   #f0fdf4;
+
+  /* Emerald text shades */
+  --color-emerald-300: #065f46;
+  --color-emerald-400: #047857;
+  --color-emerald-500: #059669;
+  /* Emerald background shades */
+  --color-emerald-800: #d1fae5;
+  --color-emerald-900: #ecfdf5;
+  --color-emerald-950: #f0fdf4;
+}
+
 /* Lighter search/input shadow in light mode */
 [data-theme="light"] input,
 [data-theme="light"] .search-box {
