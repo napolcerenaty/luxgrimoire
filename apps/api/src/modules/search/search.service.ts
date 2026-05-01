@@ -76,6 +76,14 @@ export class SearchService {
     const companyIds = getIds(5)
     const saleIds = getIds(6)
 
+    // If Typesense returned no hits at all, collections are likely not indexed yet
+    // Fall back to Postgres full-text search
+    const totalHits = bookIds.length + editionIds.length + authorIds.length + artistIds.length +
+      subscriptionIds.length + companyIds.length + saleIds.length
+    if (totalHits === 0) {
+      return this.postgresSearch(trimmed, filter)
+    }
+
     const [books, editions, authors, artists, subscriptions, companies, sales] = await Promise.all([
       bookIds.length
         ? this.prisma.book.findMany({

@@ -213,7 +213,7 @@ export function SearchDropdown() {
                   key: s.id,
                   label: s.title,
                   sub: s.company?.name,
-                  image: s.company?.logoUrl,
+                  image: s.imageUrl ?? s.company?.logoUrl,
                   badge: s.availableForPurchase ? 'Live' : null,
                   href: `/sale-announcements/${s.id}`,
                 }))}
