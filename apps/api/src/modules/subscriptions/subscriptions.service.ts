@@ -548,7 +548,6 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
-        taxesAndFees: true,
         skipRecords: {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
@@ -592,9 +591,8 @@ export class SubscriptionsService {
       const cur = entry.costCurrency ?? sub.currency ?? null;
       const base = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
       const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
-      const taxes = entry.taxesAndFees ? parseFloat(entry.taxesAndFees.toString()) : null;
       const nextRenewalAmount = base !== null
-        ? (base + (shipping ?? 0) + (taxes ?? 0))
+        ? (base + (shipping ?? 0))
         : null;
 
       const { skipRecords: _sr, ...entryWithoutSkips } = entry;
@@ -703,7 +701,7 @@ export class SubscriptionsService {
   async updateMyEntryCosts(
     userId: string,
     slug: string,
-    dto: { basePrice?: string; shippingCost?: string; taxesAndFees?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
+    dto: { basePrice?: string; shippingCost?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
   ) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
@@ -716,7 +714,6 @@ export class SubscriptionsService {
       data: {
         ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
-        ...(dto.taxesAndFees !== undefined && { taxesAndFees: dto.taxesAndFees }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
       },
@@ -788,7 +785,6 @@ export class SubscriptionsService {
         startDate: startDateStr,
         basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
-        taxesAndFees: dto.taxesAndFees ? parseFloat(dto.taxesAndFees) : null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
       },
@@ -799,7 +795,6 @@ export class SubscriptionsService {
         startDate: startDateStr ?? undefined,
         basePrice: dto.basePrice !== undefined ? parseFloat(dto.basePrice) : undefined,
         shippingCost: dto.shippingCost !== undefined ? parseFloat(dto.shippingCost) : undefined,
-        taxesAndFees: dto.taxesAndFees !== undefined ? parseFloat(dto.taxesAndFees) : undefined,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
       },
@@ -905,7 +900,7 @@ export class SubscriptionsService {
     userId: string,
     subscriptionId: string,
     startDateObj: Date,
-    entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; taxesAndFees: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
+    entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
   ) {
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
@@ -1008,17 +1003,6 @@ export class SubscriptionsService {
         }
 
         // Taxes & fees linked to group (shipping already in group.shippingAmount)
-        if (entry.taxesAndFees && monthBooks.length > 0) {
-          feesToCreate.push({
-            userId,
-            name: 'Taxes & Fees',
-            amount: parseFloat((entry.taxesAndFees as any).toString()),
-            currency: entry.costCurrency ?? 'USD',
-            date: purchaseDate,
-            category: 'OTHER',
-            purchaseGroupId: group.id,
-          });
-        }
       } catch {
         // skip if already exists
       }
@@ -1149,18 +1133,6 @@ export class SubscriptionsService {
               currency: link.customCurrency ?? template.defaultCurrency,
               date: renewalDate,
               category: template.category,
-              purchaseGroupId: group.id,
-            });
-          }
-
-          if (entry.taxesAndFees && monthBooks.length > 0) {
-            feesToCreate.push({
-              userId,
-              name: 'Taxes & Fees',
-              amount: parseFloat(entry.taxesAndFees.toString()),
-              currency: entry.costCurrency ?? 'USD',
-              date: renewalDate,
-              category: 'OTHER',
               purchaseGroupId: group.id,
             });
           }

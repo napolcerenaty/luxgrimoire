@@ -37,7 +37,6 @@ export class RenewalCronService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
-        taxesAndFees: true,
         nextRenewalDate: true,
       },
     });
@@ -60,7 +59,6 @@ export class RenewalCronService {
     costCurrency: string | null;
     basePrice: { toString(): string } | null;
     shippingCost: { toString(): string } | null;
-    taxesAndFees: { toString(): string } | null;
     nextRenewalDate: Date | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
@@ -99,7 +97,6 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
-      taxesAndFees?: { toString(): string } | null;
     },
     year: number,
     month: number,
@@ -123,7 +120,6 @@ export class RenewalCronService {
     const currency = entry.costCurrency ?? 'USD';
     const basePrice = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
     const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
-    const taxesAndFees = entry.taxesAndFees ? parseFloat(entry.taxesAndFees.toString()) : null;
 
     // Idempotency: reuse existing purchase group for this entry + month if already created
     let group = await this.prisma.userPurchaseGroup.findFirst({
@@ -200,18 +196,6 @@ export class RenewalCronService {
           purchaseGroupId: group.id,
         });
       }
-    }
-
-    if (taxesAndFees && taxesAndFees > 0 && monthRecord.books.length > 0) {
-      feesToCreate.push({
-        userId: entry.userId,
-        name: 'Taxes & Fees',
-        amount: taxesAndFees,
-        currency,
-        date: renewalDate,
-        category: 'OTHER' as FeeCategory,
-        purchaseGroupId: group.id,
-      });
     }
 
     if (feesToCreate.length > 0) {

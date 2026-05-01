@@ -16,7 +16,6 @@ interface MySubscriptionEntry {
   costCurrency: string | null
   basePrice: string | null
   shippingCost: string | null
-  taxesAndFees: string | null
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null

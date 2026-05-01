@@ -46,7 +46,6 @@ interface JoinResult {
     startDate: string | null
     costCurrency: string | null
     shippingCost: string | null
-    taxesAndFees: string | null
     renewalDay: number | null
   }
   eligibleMonths: SubscriptionMonth[]
@@ -92,7 +91,6 @@ interface Step1Props {
     costCurrency: string
     basePrice: string
     shippingCost: string
-    taxesAndFees: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
   }) => void
@@ -148,9 +146,6 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
     ? linkedFees.reduce((sum, f) => sum + parseDecimalInput(f.customAmount), 0)
     : null
 
-  // taxesAndFees: auto-sum when all fees share the same currency
-  const taxesAndFees = feesTotal != null ? feesTotal.toFixed(2) : ''
-
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const parts = firstOrderDate.split('-').map(Number)
@@ -163,7 +158,6 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       costCurrency: costCurrency || currency,
       basePrice,
       shippingCost,
-      taxesAndFees,
       linkedFeeTemplates: linkedFees.map(f => ({
         templateId: f.templateId,
         customAmount: f.customAmount !== '' ? parseDecimalInput(f.customAmount) : undefined,
@@ -597,7 +591,6 @@ export default function JoinSubscriptionModal({
     costCurrency: string
     basePrice: string
     shippingCost: string
-    taxesAndFees: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
   }) => {
@@ -612,7 +605,6 @@ export default function JoinSubscriptionModal({
           costCurrency: data.costCurrency,
           basePrice: data.basePrice || undefined,
           shippingCost: data.shippingCost || undefined,
-          taxesAndFees: data.taxesAndFees || undefined,
           renewalDay: data.renewalDay,
           linkedFeeTemplates: data.linkedFeeTemplates.length > 0
             ? data.linkedFeeTemplates.map(f => ({

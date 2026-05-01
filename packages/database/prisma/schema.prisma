@@ -643,7 +643,6 @@ model UserSubscriptionEntry {
   renewalDay         Int?
   shippingCost       Decimal?                           @db.Decimal(10, 2)
   startingMonth      Int?
-  taxesAndFees       Decimal?                           @db.Decimal(10, 2)
   nextRenewalDate    DateTime?
   prepaidMonths      Int                                @default(1)
   costCurrency       String?
@@ -681,7 +680,6 @@ model UserSubBillingPeriod {
   prepayOptionId        String?
   purchaseTransactionId String?
   shipping              Decimal?               @db.Decimal(10, 2)
-  taxesAndFees          Decimal?               @db.Decimal(10, 2)
   coveredToMonth        Int?
   coveredToYear         Int?
   paidCurrency          String?
@@ -704,7 +702,6 @@ model UserSubscriptionCostChange {
   effectiveFromYear  Int
   recordedAt         DateTime              @default(now())
   shippingCost       Decimal?              @db.Decimal(10, 2)
-  taxesAndFees       Decimal?              @db.Decimal(10, 2)
   entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@map("user_subscription_cost_changes")

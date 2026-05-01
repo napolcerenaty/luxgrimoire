@@ -469,10 +469,6 @@ export class JoinSubscriptionDto {
   shippingCost?: string;
 
   @IsOptional()
-  @IsString()
-  taxesAndFees?: string;
-
-  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(31)
@@ -547,10 +543,6 @@ export class UpdateMyEntryCostsDto {
   @IsOptional()
   @IsString()
   shippingCost?: string;
-
-  @IsOptional()
-  @IsString()
-  taxesAndFees?: string;
 
   @IsOptional()
   @IsString()

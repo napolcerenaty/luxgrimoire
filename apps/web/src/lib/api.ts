@@ -242,7 +242,6 @@ export async function updateWaitlistDate(slug: string, joinedAt: string): Promis
 
 export async function getMySubscriptionEntry(slug: string): Promise<{
   shippingCost: string | null;
-  taxesAndFees: string | null;
   basePrice: string | null;
   costCurrency: string | null;
   active: boolean;
@@ -311,7 +310,6 @@ export async function updateMyEntryCosts(
   data: {
     basePrice?: string;
     shippingCost?: string;
-    taxesAndFees?: string;
     costCurrency?: string;
     linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number | null; customCurrency?: string | null }>;
   },

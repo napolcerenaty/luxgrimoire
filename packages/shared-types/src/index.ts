@@ -385,7 +385,6 @@ export interface ApiUserSubBillingPeriod {
   entryId: string;
   billedAt: string | null;           // ISO date string
   baseAmount: number | null;
-  taxesAndFees: number | null;
   shipping: number | null;
   paidCurrency: string | null;       // currency the payment was made in
   monthsCovered: number;

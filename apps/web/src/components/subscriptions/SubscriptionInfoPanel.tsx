@@ -48,7 +48,6 @@ type FeeTemplateLink = {
 type MyEntry = {
   shippingCost: string | null
   basePrice: string | null
-  taxesAndFees: string | null
   costCurrency: string | null
   active: boolean
   prepaidMonths: number
