@@ -64,7 +64,7 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.SENTRY_DSN,
   disableLogger: true,
   tunnelRoute: '/monitoring',
-  hideSourceMaps: true,
+  sourcemaps: { disable: !process.env.SENTRY_DSN },
   autoInstrumentServerFunctions: true,
 });
 

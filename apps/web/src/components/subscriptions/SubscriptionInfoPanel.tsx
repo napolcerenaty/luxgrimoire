@@ -177,11 +177,11 @@ export default function SubscriptionInfoPanel({
   const entryCurrency = myEntry?.costCurrency ?? currency
 
   useEffect(() => {
-    if (!token || !user?.shippingCountry) return
+    if (!user || !user?.shippingCountry) return
     getCountryFeeHints(subscriptionSlug, user.shippingCountry)
       .then(setCountryFeeHints)
       .catch(() => {})
-  }, [token, subscriptionSlug, user?.shippingCountry])
+  }, [user, subscriptionSlug, user?.shippingCountry])
   const priceNum = isSubscriber && myEntry?.basePrice ? parseFloat(myEntry.basePrice) : (price ? parseFloat(price) : null)
   const shipping = isSubscriber && myEntry?.shippingCost ? parseFloat(myEntry.shippingCost) : null
   const feeTotal = isSubscriber
@@ -327,7 +327,7 @@ export default function SubscriptionInfoPanel({
             ) : null}
           </div>
         </>
-      ) : token ? (
+      ) : user ? (
         <>
           <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Base price</p>
           <p className="text-2xl font-serif font-semibold text-stone-100">
@@ -349,7 +349,7 @@ export default function SubscriptionInfoPanel({
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
         </>
       )}
-      {token && !isSubscriber && countryFeeHints.length > 0 && (
+      {user && !isSubscriber && countryFeeHints.length > 0 && (
         <div className="pt-3 border-t border-stone-700/60">
           <p className="text-xs text-stone-500 mb-1.5">
             🌍 Subscribers from {user?.shippingCountry} report:
@@ -477,7 +477,7 @@ export default function SubscriptionInfoPanel({
         /* Non-subscriber: compact single column, max-w-sm */
         <div className="max-w-sm space-y-4">
           {costPanel}
-          {token && !isSubscriber && myEntry !== undefined && (
+          {user && !isSubscriber && myEntry !== undefined && (
             <button
               type="button"
               onClick={() => setShowJoinModal(true)}

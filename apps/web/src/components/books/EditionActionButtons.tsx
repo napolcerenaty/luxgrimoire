@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, MoveRight, Plus, X } from 'lucide-react'
 
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles }: Props) {
+  const { user } = useAuth()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
