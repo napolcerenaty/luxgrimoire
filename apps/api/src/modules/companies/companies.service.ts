@@ -1,15 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CompaniesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly typesense: TypesenseService,
+  ) {}
 
   async create(dto: CreateCompanyDto) {
     const slug = generateSlug(dto.name);
-    return this.prisma.bookBoxCompany.create({
+    const company = await this.prisma.bookBoxCompany.create({
       data: {
         slug,
         name: dto.name,
@@ -27,6 +33,8 @@ export class CompaniesService {
         iossImplemented: dto.iossImplemented ?? false,
       },
     });
+    await this.indexCompany(company);
+    return company;
   }
 
   async findAll(query: CompanyQueryDto) {
@@ -113,11 +121,15 @@ export class CompaniesService {
 
   async update(slug: string, dto: UpdateCompanyDto) {
     await this.findBySlug(slug);
-    return this.prisma.bookBoxCompany.update({ where: { slug }, data: dto });
+    const company = await this.prisma.bookBoxCompany.update({ where: { slug }, data: dto });
+    await this.indexCompany(company);
+    await this.reindexCompanyRelations(company.id);
+    return company;
   }
 
   async delete(slug: string) {
-    await this.findBySlug(slug);
+    const company = await this.findBySlug(slug);
+    await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }
 
@@ -128,4 +140,71 @@ export class CompaniesService {
     return normalized;
   }
 
+  private async indexCompany(company: { id: string; slug: string; name: string; country?: string | null }): Promise<void> {
+    try {
+      await this.typesense.upsertDocument('companies', {
+        id: company.id,
+        slug: company.slug,
+        name: company.name,
+        country: company.country ?? '',
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index company ${company.id}`, err);
+    }
+  }
+
+  private async reindexCompanyRelations(companyId: string): Promise<void> {
+    try {
+      const subscriptions = await this.prisma.subscription.findMany({
+        where: { companyId },
+        select: {
+          id: true, slug: true, name: true, type: true, isDiscontinued: true,
+          company: { select: { name: true } },
+        },
+        take: 50,
+      });
+      for (const sub of subscriptions) {
+        await this.typesense.upsertDocument('subscriptions', {
+          id: sub.id,
+          slug: sub.slug,
+          name: sub.name,
+          companyName: sub.company?.name ?? '',
+          type: sub.type ?? '',
+          isDiscontinued: sub.isDiscontinued,
+        });
+      }
+
+      const editions = await this.prisma.bookEdition.findMany({
+        where: { bookBoxCompanyId: companyId },
+        select: {
+          id: true,
+          publisher: true,
+          createdAt: true,
+          book: {
+            select: {
+              id: true,
+              title: true,
+              authors: { select: { author: { select: { name: true } } } },
+            },
+          },
+          bookBoxCompany: { select: { name: true, slug: true } },
+        },
+        take: 50,
+      });
+      for (const ed of editions) {
+        await this.typesense.upsertDocument('editions', {
+          id: ed.id,
+          bookId: ed.book.id,
+          bookTitle: ed.book.title,
+          authorNames: ed.book.authors.map((a) => a.author.name),
+          publisher: ed.publisher ?? '',
+          companyName: ed.bookBoxCompany?.name ?? '',
+          companySlug: ed.bookBoxCompany?.slug ?? '',
+          createdAt: Math.floor(new Date(ed.createdAt).getTime() / 1000),
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Failed to reindex company relations for ${companyId}`, err);
+    }
+  }
 }

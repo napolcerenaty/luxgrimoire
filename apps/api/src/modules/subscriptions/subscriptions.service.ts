@@ -1,11 +1,13 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import { $Enums } from '@prisma/client';
 import {
   CreateSubscriptionDto,
@@ -38,8 +40,11 @@ export interface CountryFeeHint {
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
+    private readonly typesense: TypesenseService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
     private readonly renewalCron: RenewalCronService,
   ) {}
@@ -97,6 +102,7 @@ export class SubscriptionsService {
       });
     }
 
+    await this.indexSubscription(subscription.id);
     return subscription;
   }
 
@@ -247,11 +253,13 @@ export class SubscriptionsService {
       }
     }
 
+    await this.indexSubscription(updated.id);
     return updated;
   }
 
   async delete(slug: string) {
-    await this.findBySlug(slug);
+    const sub = await this.findBySlug(slug);
+    await this.typesense.deleteDocument('subscriptions', sub.id);
     return this.prisma.subscription.delete({ where: { slug } });
   }
 
@@ -1524,5 +1532,32 @@ export class SubscriptionsService {
     if (!change) throw new NotFoundException('Price change not found');
     if (change.subscriptionId !== sub.id) throw new ForbiddenException();
     await this.prisma.subscriptionPriceChange.delete({ where: { id } });
+  }
+
+  private async indexSubscription(subscriptionId: string): Promise<void> {
+    try {
+      const sub = await this.prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          type: true,
+          isDiscontinued: true,
+          company: { select: { name: true } },
+        },
+      });
+      if (!sub) return;
+      await this.typesense.upsertDocument('subscriptions', {
+        id: sub.id,
+        slug: sub.slug,
+        name: sub.name,
+        companyName: sub.company?.name ?? '',
+        type: sub.type ?? '',
+        isDiscontinued: sub.isDiscontinued,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index subscription ${subscriptionId}`, err);
+    }
   }
 }

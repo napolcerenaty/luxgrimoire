@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import {
   CreateEditionDto,
   UpdateEditionDto,
@@ -10,7 +11,12 @@ import { generateSlugFromParts } from '../../common/utils/slug.util';
 
 @Injectable()
 export class EditionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(EditionsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly typesense: TypesenseService,
+  ) {}
 
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {
     const book = await this.prisma.book.findUnique({ where: { id: dto.bookId } });
@@ -21,7 +27,7 @@ export class EditionsService {
       dto.editionName ?? dto.publisher,
     );
 
-    return this.prisma.bookEdition.create({
+    const edition = await this.prisma.bookEdition.create({
       data: {
         slug,
         bookId: dto.bookId,
@@ -46,6 +52,8 @@ export class EditionsService {
         submittedByUserId: opts?.submittedByUserId,
       },
     });
+    await this.indexEdition(edition.id);
+    return edition;
   }
 
   async findAll(query: EditionQueryDto) {
@@ -214,7 +222,9 @@ export class EditionsService {
     if (dto.features !== undefined) data.features = dto.features;
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
 
-    return this.prisma.bookEdition.update({ where: { slug }, data });
+    const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
+    await this.indexEdition(edition.id);
+    return edition;
   }
 
   async delete(slug: string, userRole?: string) {
@@ -227,6 +237,7 @@ export class EditionsService {
     } else if (userRole && userRole !== 'ADMIN' && userRole !== 'MODERATOR') {
       throw new ForbiddenException('Only admins can delete editions');
     }
+    await this.typesense.deleteDocument('editions', edition.id);
     return this.prisma.bookEdition.delete({ where: { slug } });
   }
 
@@ -250,5 +261,39 @@ export class EditionsService {
     return this.prisma.artistContribution.deleteMany({
       where: { editionId: edition.id, artistId },
     });
+  }
+
+  private async indexEdition(editionId: string): Promise<void> {
+    try {
+      const edition = await this.prisma.bookEdition.findUnique({
+        where: { id: editionId },
+        select: {
+          id: true,
+          publisher: true,
+          createdAt: true,
+          book: {
+            select: {
+              id: true,
+              title: true,
+              authors: { select: { author: { select: { name: true } } } },
+            },
+          },
+          bookBoxCompany: { select: { name: true, slug: true } },
+        },
+      });
+      if (!edition) return;
+      await this.typesense.upsertDocument('editions', {
+        id: edition.id,
+        bookId: edition.book.id,
+        bookTitle: edition.book.title,
+        authorNames: edition.book.authors.map((a) => a.author.name),
+        publisher: edition.publisher ?? '',
+        companyName: edition.bookBoxCompany?.name ?? '',
+        companySlug: edition.bookBoxCompany?.slug ?? '',
+        createdAt: Math.floor(new Date(edition.createdAt).getTime() / 1000),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index edition ${editionId}`, err);
+    }
   }
 }

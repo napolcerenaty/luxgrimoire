@@ -1,15 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
 @Injectable()
 export class AuthorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AuthorsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly typesense: TypesenseService,
+  ) {}
 
   async create(dto: CreateAuthorDto) {
     const slug = generateSlug(dto.name);
-    return this.prisma.author.create({
+    const author = await this.prisma.author.create({
       data: {
         slug,
         name: dto.name,
@@ -23,6 +29,8 @@ export class AuthorsService {
         tiktok: dto.tiktok,
       },
     });
+    await this.indexAuthor(author);
+    return author;
   }
 
   async findAll(query: AuthorQueryDto) {
@@ -73,11 +81,62 @@ export class AuthorsService {
 
   async update(slug: string, dto: UpdateAuthorDto) {
     await this.findBySlug(slug);
-    return this.prisma.author.update({ where: { slug }, data: dto });
+    const author = await this.prisma.author.update({ where: { slug }, data: dto });
+    await this.indexAuthor(author);
+    await this.reindexAuthorBooks(author.id);
+    return author;
   }
 
   async delete(slug: string) {
-    await this.findBySlug(slug);
+    const author = await this.findBySlug(slug);
+    await this.typesense.deleteDocument('authors', author.id);
     return this.prisma.author.delete({ where: { slug } });
+  }
+
+  private async indexAuthor(author: { id: string; name: string; slug: string; nationality?: string | null }): Promise<void> {
+    try {
+      await this.typesense.upsertDocument('authors', {
+        id: author.id,
+        name: author.name,
+        slug: author.slug,
+        nationality: author.nationality ?? '',
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index author ${author.id}`, err);
+    }
+  }
+
+  private async reindexAuthorBooks(authorId: string): Promise<void> {
+    try {
+      const bookAuthors = await this.prisma.bookAuthor.findMany({
+        where: { authorId },
+        select: { bookId: true },
+        take: 50,
+      });
+      for (const ba of bookAuthors) {
+        const book = await this.prisma.book.findUnique({
+          where: { id: ba.bookId },
+          select: {
+            id: true,
+            title: true,
+            seriesName: true,
+            genres: true,
+            createdAt: true,
+            authors: { select: { author: { select: { name: true } } } },
+          },
+        });
+        if (!book) continue;
+        await this.typesense.upsertDocument('books', {
+          id: book.id,
+          title: book.title,
+          seriesName: book.seriesName ?? '',
+          authorNames: book.authors.map((a) => a.author.name),
+          genres: book.genres,
+          createdAt: Math.floor(new Date(book.createdAt).getTime() / 1000),
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Failed to reindex books for author ${authorId}`, err);
+    }
   }
 }

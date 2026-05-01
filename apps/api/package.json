@@ -15,7 +15,8 @@
     "db:restore": "node scripts/db-restore.js",
     "db:anonymize": "node scripts/db-anonymize.js",
     "cloudinary:migrate": "node scripts/cloudinary-migrate.js",
-    "cloudinary:migrate:dry": "node scripts/cloudinary-migrate.js --dry-run"
+    "cloudinary:migrate:dry": "node scripts/cloudinary-migrate.js --dry-run",
+    "typesense:reindex": "ts-node -r tsconfig-paths/register src/scripts/typesense-reindex.ts"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",

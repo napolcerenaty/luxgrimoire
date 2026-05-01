@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
@@ -10,14 +11,17 @@ const SERIES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — series change rarely
 
 @Injectable()
 export class BooksService {
+  private readonly logger = new Logger(BooksService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly typesense: TypesenseService,
   ) {}
 
   async create(dto: CreateBookDto) {
     const slug = generateSlug(dto.title);
-    return this.prisma.book.create({
+    const book = await this.prisma.book.create({
       data: {
         slug,
         title: dto.title,
@@ -29,6 +33,8 @@ export class BooksService {
         status: dto.status ?? 'approved',
       },
     });
+    await this.indexBook(book.id);
+    return book;
   }
 
   async suggest(dto: CreateBookDto, _userId: string) {
@@ -210,20 +216,25 @@ export class BooksService {
 
   async update(slug: string, dto: UpdateBookDto) {
     await this.findBySlug(slug);
-    return this.prisma.book.update({ where: { slug }, data: dto });
+    const book = await this.prisma.book.update({ where: { slug }, data: dto });
+    await this.indexBook(book.id);
+    return book;
   }
 
   async delete(slug: string) {
-    await this.findBySlug(slug);
+    const book = await this.findBySlug(slug);
+    await this.typesense.deleteDocument('books', book.id);
     return this.prisma.book.delete({ where: { slug } });
   }
 
   async addAuthor(slug: string, authorId: string) {
     const book = await this.findBySlug(slug);
     try {
-      return await this.prisma.bookAuthor.create({
+      const result = await this.prisma.bookAuthor.create({
         data: { bookId: book.id, authorId },
       });
+      await this.indexBook(book.id);
+      return result;
     } catch {
       throw new ConflictException('Author already linked to this book');
     }
@@ -231,8 +242,37 @@ export class BooksService {
 
   async removeAuthor(slug: string, authorId: string) {
     const book = await this.findBySlug(slug);
-    return this.prisma.bookAuthor.delete({
+    const result = await this.prisma.bookAuthor.delete({
       where: { bookId_authorId: { bookId: book.id, authorId } },
     });
+    await this.indexBook(book.id);
+    return result;
+  }
+
+  private async indexBook(bookId: string): Promise<void> {
+    try {
+      const book = await this.prisma.book.findUnique({
+        where: { id: bookId },
+        select: {
+          id: true,
+          title: true,
+          seriesName: true,
+          genres: true,
+          createdAt: true,
+          authors: { select: { author: { select: { name: true } } } },
+        },
+      });
+      if (!book) return;
+      await this.typesense.upsertDocument('books', {
+        id: book.id,
+        title: book.title,
+        seriesName: book.seriesName ?? '',
+        authorNames: book.authors.map((a) => a.author.name),
+        genres: book.genres,
+        createdAt: Math.floor(new Date(book.createdAt).getTime() / 1000),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index book ${bookId}`, err);
+    }
   }
 }

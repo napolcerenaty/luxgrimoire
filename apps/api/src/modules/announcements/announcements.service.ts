@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TypesenseService } from '../typesense/typesense.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 
 // Full include — used for public endpoints where book authors/artists are displayed
@@ -44,7 +45,12 @@ const regionsInclude = {
 
 @Injectable()
 export class AnnouncementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AnnouncementsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly typesense: TypesenseService,
+  ) {}
 
   async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
     const page = query.page ?? 1;
@@ -202,6 +208,7 @@ export class AnnouncementsService {
       });
     }
 
+    await this.indexSale(announcement.id);
     return this.findById(announcement.id);
   }
 
@@ -252,12 +259,14 @@ export class AnnouncementsService {
       }
     }
 
+    await this.indexSale(id);
     return this.findById(id);
   }
 
   async delete(id: string) {
     const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Sale announcement not found');
+    await this.typesense.deleteDocument('sales', id);
     await this.prisma.saleAnnouncement.delete({ where: { id } });
   }
 
@@ -296,5 +305,31 @@ export class AnnouncementsService {
 
   async adminDeleteRegion(saleId: string, regionId: string) {
     await this.prisma.saleAnnouncementRegion.deleteMany({ where: { id: regionId, saleId } });
+  }
+
+  private async indexSale(saleId: string): Promise<void> {
+    try {
+      const sale = await this.prisma.saleAnnouncement.findUnique({
+        where: { id: saleId },
+        select: {
+          id: true,
+          title: true,
+          generalSaleDate: true,
+          company: { select: { name: true, slug: true } },
+        },
+      });
+      if (!sale) return;
+      await this.typesense.upsertDocument('sales', {
+        id: sale.id,
+        title: sale.title,
+        companyName: sale.company?.name ?? '',
+        companySlug: sale.company?.slug ?? '',
+        generalSaleDate: sale.generalSaleDate
+          ? Math.floor(new Date(sale.generalSaleDate).getTime() / 1000)
+          : undefined,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to index sale ${saleId}`, err);
+    }
   }
 }

@@ -46,6 +46,7 @@ import { SalesModule } from './modules/sales/sales.module';
 import { ImportSourcesModule } from './modules/import-sources/import-sources.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { BackupModule } from './modules/backup/backup.module';
+import { TypesenseModule } from './modules/typesense/typesense.module';
 
 @Module({
   imports: [
@@ -109,6 +110,7 @@ import { BackupModule } from './modules/backup/backup.module';
     MailModule,
     AuthModule,
     AdminModule,
+    TypesenseModule,
     BooksModule,
     AuthorsModule,
     ArtistsModule,
