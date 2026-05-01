@@ -320,6 +320,19 @@ export function CollectionEntryPanel({ editionId }: Props) {
     })
   }, [entry, userCurrency])
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail?.editionId || detail.editionId === editionId) {
+        authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
+          .then(fresh => { if (fresh) { setEntry(fresh); setLoading(false) } })
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('collection:updated', handler)
+    return () => window.removeEventListener('collection:updated', handler)
+  }, [editionId])
+
   if (loading || !entry) return null
 
   // ── Helpers ──────────────────────────────────────────────────────────────

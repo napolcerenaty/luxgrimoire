@@ -48,7 +48,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [movePrice, setMovePrice] = useState(basePrice ?? '')
   const [moveCurrency, setMoveCurrency] = useState(currency ?? 'EUR')
-  const [ownershipStatus, setOwnershipStatus] = useState<OwnershipOption>('OWNED')
+  const [ownershipStatus, setOwnershipStatus] = useState<OwnershipOption>('PREORDER')
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
@@ -97,7 +97,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setMoveDate(new Date().toISOString().slice(0, 10))
     setMovePrice(basePrice ?? '')
     setMoveCurrency(currency ?? 'EUR')
-    setOwnershipStatus('OWNED')
+    setOwnershipStatus('PREORDER')
     setShippingPrice('')
     setFeeEntries([])
     setDiscountEntries([])
@@ -136,15 +136,17 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         if (status !== 'collection') setStatus('collection')
       }
 
-      // Create purchase group when price is provided
+      // Create purchase group when any monetary data is present
       const parsedPrice = parseDecimalInput(movePrice)
       const parsedShipping = parseDecimalInput(shippingPrice)
+      const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)
+      const hasDiscounts = discountEntries.some(d => parseDecimalInput(d.amount) > 0)
       let purchaseGroupId: string | null = null
-      if (parsedPrice > 0) {
+      if (parsedPrice > 0 || parsedShipping > 0 || hasFees || hasDiscounts) {
         const pgRes = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${targetEntryId}`, {
           method: 'POST',
           body: JSON.stringify({
-            totalAmount: parsedPrice,
+            totalAmount: parsedPrice > 0 ? parsedPrice : 0,
             currency: moveCurrency,
             shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
             purchasedAt: feeDate,
@@ -167,7 +169,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
             currency: fee.currency,
             date: feeDate,
             category: template?.category ?? undefined,
-            ...(purchaseGroupId ? { purchaseGroupId } : { userBookEntryId: targetEntryId }),
+            ...(purchaseGroupId ? { purchaseGroupId } : {}),
           }),
         })
       }
@@ -190,6 +192,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
 
       setAddedOnce(true)
       setModalOpen(false)
+      window.dispatchEvent(new CustomEvent('collection:updated', { detail: { editionId } }))
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {

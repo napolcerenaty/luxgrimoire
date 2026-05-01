@@ -87,6 +87,7 @@ export class FeesService {
         date: new Date(dto.date),
         category: dto.category ?? 'OTHER',
         billingPeriodId: dto.billingPeriodId ?? null,
+        purchaseGroupId: dto.purchaseGroupId ?? null,
         notes: dto.notes ?? null,
       },
       include: { feeTemplate: { select: { id: true, name: true } } },
