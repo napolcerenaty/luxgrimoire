@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 // Extract origin from API URL for CSP connect-src (e.g. https://api.example.com)
@@ -58,5 +59,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Only upload source maps when SENTRY_DSN is set (i.e., production)
+  silent: !process.env.SENTRY_DSN,
+  disableLogger: true,
+  tunnelRoute: '/monitoring',
+  hideSourceMaps: true,
+  autoInstrumentServerFunctions: true,
+});
 

@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import KeyvRedis from '@keyv/redis';
@@ -93,9 +94,14 @@ import { BackupModule } from './modules/backup/backup.module';
       },
       inject: [ConfigService],
     }),
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 120 },  // 120 req/min globally
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        const storage = redisUrl ? new ThrottlerStorageRedisService(redisUrl) : undefined;
+        return [{ name: 'default', ttl: 60_000, limit: 120, ...(storage ? { storage } : {}) }];
+      },
+    }),
     PrismaModule,
     AuditModule,
     MailModule,
