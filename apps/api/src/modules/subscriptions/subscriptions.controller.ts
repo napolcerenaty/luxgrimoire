@@ -25,6 +25,7 @@ import {
   CancelMyEntryDto,
   UpdateMyEntryCostsDto,
   RemoveMyEntryDto,
+  CreatePriceChangeDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -348,5 +349,37 @@ export class SubscriptionsController {
       entityId: slug,
     });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/price-changes')
+  listPriceChanges(@Param('slug') slug: string) {
+    return this.subscriptionsService.listPriceChanges(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/price-changes')
+  async createPriceChange(
+    @Param('slug') slug: string,
+    @Body() dto: CreatePriceChangeDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.createPriceChange(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/price-changes/:id')
+  async deletePriceChange(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    await this.subscriptionsService.deletePriceChange(slug, id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
   }
 }

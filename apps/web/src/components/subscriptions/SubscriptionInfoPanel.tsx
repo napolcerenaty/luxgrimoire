@@ -53,6 +53,10 @@ type MyEntry = {
   prepaidMonths: number
   renewalDay: number | null
   nextRenewalDate: string | null
+  nextRenewalAmount: string | null
+  nextRenewalCurrency: string | null
+  nextRenewalPriceChanged: boolean
+  nextRenewalNewPrice: string | null
   cancellationDate: string | null
   cancellationReason: string | null
   feeTemplates: FeeTemplateLink[]
@@ -324,6 +328,14 @@ export default function SubscriptionInfoPanel({
                 <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
               </div>
             ) : null}
+            {myEntry?.nextRenewalPriceChanged && myEntry.nextRenewalNewPrice && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-amber-400">⚠️</span>
+                <span className="text-amber-300 font-medium">
+                  Price changes to {myEntry.nextRenewalNewPrice} {myEntry.nextRenewalCurrency ?? entryCurrency} from next renewal
+                </span>
+              </div>
+            )}
           </div>
         </>
       ) : user ? (

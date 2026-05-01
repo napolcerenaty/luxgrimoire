@@ -764,3 +764,32 @@ export async function adminDeleteFeatureRequest(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
+
+export async function listSubscriptionPriceChanges(slug: string): Promise<Array<{
+  id: string; effectiveMonth: number; effectiveYear: number; newBasePrice: string; currency: string; notes: string | null; createdAt: string;
+}>> {
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/price-changes`, { credentials: 'include' });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function createSubscriptionPriceChange(slug: string, data: {
+  effectiveMonth: number; effectiveYear: number; newBasePrice: number; currency: string; notes?: string;
+}): Promise<{ id: string }> {
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/price-changes`, {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function deleteSubscriptionPriceChange(slug: string, id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/subscriptions/${slug}/price-changes/${id}`, {
+    credentials: 'include',
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}

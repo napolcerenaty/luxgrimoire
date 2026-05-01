@@ -1168,6 +1168,137 @@ function ImportSourceForm({
   )
 }
 
+// ─── Price Changes Panel ──────────────────────────────────────────────────────
+type PriceChange = {
+  id: string; effectiveMonth: number; effectiveYear: number
+  newBasePrice: string; currency: string; notes: string | null; createdAt: string
+}
+
+function PriceChangesPanel({ slug }: { slug: string }) {
+  const queryClient = useQueryClient()
+  const qKey = ['admin', 'subscriptions', slug, 'price-changes']
+
+  const [month, setMonth] = useState(String(new Date().getMonth() + 1))
+  const [year, setYear] = useState(String(new Date().getFullYear()))
+  const [price, setPrice] = useState('')
+  const [currency, setCurrency] = useState('EUR')
+  const [notes, setNotes] = useState('')
+  const [showForm, setShowForm] = useState(false)
+
+  const { data: changes, isLoading } = useQuery<PriceChange[]>({
+    queryKey: qKey,
+    queryFn: () => authFetch<PriceChange[]>(`/subscriptions/${slug}/price-changes`),
+  })
+
+  const addMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${slug}/price-changes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        effectiveMonth: parseInt(month),
+        effectiveYear: parseInt(year),
+        newBasePrice: parseFloat(price),
+        currency,
+        notes: notes || undefined,
+      }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qKey })
+      setShowForm(false); setPrice(''); setNotes('')
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => authFetch(`/subscriptions/${slug}/price-changes/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className={`${BTN_SM} ${showForm ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+        >
+          {showForm ? 'Cancel' : '+ Add Price Change'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-stone-800 rounded-xl p-3 space-y-3 border border-stone-700">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={LABEL}>Month *</label>
+              <select value={month} onChange={e => setMonth(e.target.value)} className={INPUT}>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i+1} value={i+1}>{i+1} — {MONTH_NAMES[i]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Year *</label>
+              <input type="number" value={year} onChange={e => setYear(e.target.value)}
+                min={2000} max={2100} className={INPUT} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={LABEL}>New base price *</label>
+              <input type="number" value={price} onChange={e => setPrice(e.target.value)}
+                min={0} step={0.01} placeholder="e.g. 34.99" className={INPUT} />
+            </div>
+            <div>
+              <label className={LABEL}>Currency *</label>
+              <input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())}
+                placeholder="EUR" maxLength={3} className={INPUT} />
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Notes (optional)</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="e.g. Annual price increase" className={INPUT} />
+          </div>
+          <button
+            disabled={addMutation.isPending || !price || !currency}
+            onClick={() => addMutation.mutate()}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm"
+          >
+            {addMutation.isPending ? 'Saving…' : 'Save Price Change'}
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <p className="text-stone-500 text-sm">Loading…</p>
+      ) : !changes?.length ? (
+        <p className="text-stone-600 text-sm italic">No price changes recorded yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {changes.map(pc => (
+            <div key={pc.id} className="flex items-center justify-between bg-stone-800 rounded-lg px-3 py-2 text-sm">
+              <div className="space-y-0.5">
+                <span className="text-stone-100 font-medium">
+                  {MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear} — {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
+                </span>
+                {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+              </div>
+              <button
+                onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
+                disabled={deleteMutation.isPending}
+                className="text-red-500 hover:text-red-400 text-xs transition-colors ml-3 shrink-0"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
 
@@ -1259,6 +1390,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <>
             <PendingImportsPanel subscriptionId={subscription.id} slug={slug} onApproved={invalidateMonths} />
             <ImportSourcesPanel subscriptionId={subscription.id} />
+            <PriceChangesPanel slug={slug} />
           </>
         )}
       </div>

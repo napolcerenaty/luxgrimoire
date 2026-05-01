@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+import { resolveEffectiveBasePrice } from './price-change.util';
 
 @Injectable()
 export class RenewalCronService {
@@ -37,6 +38,7 @@ export class RenewalCronService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        isDefaultPricing: true,
         nextRenewalDate: true,
       },
     });
@@ -59,6 +61,7 @@ export class RenewalCronService {
     costCurrency: string | null;
     basePrice: { toString(): string } | null;
     shippingCost: { toString(): string } | null;
+    isDefaultPricing?: boolean | null;
     nextRenewalDate: Date | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
@@ -97,6 +100,7 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
+      isDefaultPricing?: boolean | null;
     },
     year: number,
     month: number,
@@ -118,8 +122,22 @@ export class RenewalCronService {
     if (skip && !skip.undoneAt) return;
 
     const currency = entry.costCurrency ?? 'USD';
-    const basePrice = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
+    const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
     const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+
+    // Apply subscription-level price changes if this is a default-pricing entry
+    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+      where: { subscriptionId: entry.subscriptionId },
+      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    });
+    const resolved = resolveEffectiveBasePrice(
+      subPriceChanges,
+      year,
+      month,
+      fallbackBase,
+      (entry as any).isDefaultPricing !== false,
+    );
+    const basePrice = resolved.price ?? fallbackBase;
 
     // Idempotency: reuse existing purchase group for this entry + month if already created
     let group = await this.prisma.userPurchaseGroup.findFirst({

@@ -559,3 +559,25 @@ export class UpdateMyEntryCostsDto {
   @Type(() => LinkedFeeTemplateDto)
   linkedFeeTemplates?: LinkedFeeTemplateDto[];
 }
+
+export class CreatePriceChangeDto {
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  effectiveMonth!: number;
+
+  @IsInt()
+  @Min(2000)
+  effectiveYear!: number;
+
+  @IsNumber()
+  @Min(0)
+  newBasePrice!: number;
+
+  @IsString()
+  currency!: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}

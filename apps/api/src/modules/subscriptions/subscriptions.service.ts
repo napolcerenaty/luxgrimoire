@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { $Enums } from '@prisma/client';
@@ -16,11 +17,13 @@ import {
   SubscriptionQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
+  CreatePriceChangeDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
+import { resolveEffectiveBasePrice } from './price-change.util';
 
 export interface CountryFeeHint {
   category: string;
@@ -548,6 +551,7 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        isDefaultPricing: true,
         skipRecords: {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
@@ -587,12 +591,40 @@ export class SubscriptionsService {
         storedRenewalDate = fresh?.nextRenewalDate ?? null;
       }
 
-      // Compute total renewal amount
+      // Compute total renewal amount — use subscription price changes for default-pricing entries
       const cur = entry.costCurrency ?? sub.currency ?? null;
-      const base = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
+      const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
       const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
-      const nextRenewalAmount = base !== null
-        ? (base + (shipping ?? 0))
+
+      // Determine next renewal month/year (use UTC to avoid timezone issues)
+      let nextBase = fallbackBase;
+      let nextRenewalPriceChanged = false;
+      let nextRenewalNewPrice: string | null = null;
+      if (storedRenewalDate) {
+        const renewalYear = storedRenewalDate.getUTCFullYear();
+        const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
+        const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+          where: { subscriptionId: sub.id },
+          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+        });
+        const resolved = resolveEffectiveBasePrice(
+          subPriceChanges,
+          renewalYear,
+          renewalMonth,
+          fallbackBase,
+          (entry as any).isDefaultPricing !== false,
+        );
+        if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
+          nextBase = resolved.price;
+          nextRenewalPriceChanged = true;
+          nextRenewalNewPrice = resolved.price !== null ? resolved.price.toFixed(2) : null;
+        } else {
+          nextBase = resolved.price ?? fallbackBase;
+        }
+      }
+
+      const nextRenewalAmount = nextBase !== null
+        ? (nextBase + (shipping ?? 0))
         : null;
 
       const { skipRecords: _sr, ...entryWithoutSkips } = entry;
@@ -602,6 +634,8 @@ export class SubscriptionsService {
         nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null,
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
         nextRenewalCurrency: cur,
+        nextRenewalPriceChanged,
+        nextRenewalNewPrice,
       };
     }));
   }
@@ -712,7 +746,7 @@ export class SubscriptionsService {
     await this.prisma.userSubscriptionEntry.update({
       where: { id: entry.id },
       data: {
-        ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
+        ...(dto.basePrice !== undefined && { basePrice: dto.basePrice, isDefaultPricing: false }),
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
@@ -1049,6 +1083,14 @@ export class SubscriptionsService {
     });
     const monthMap = new Map(monthRecords.map(m => [m.id, m]));
 
+    // Load subscription price changes for historical pricing
+    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    });
+    const isDefaultPricing = (entry as any).isDefaultPricing !== false;
+    const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
+
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     let earliestMonthId: string | null = null;
@@ -1083,7 +1125,10 @@ export class SubscriptionsService {
           userId,
           fromSubscription: true,
           subscriptionEntryId: entry.id,
-          totalAmount: entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0,
+          totalAmount: (() => {
+            const resolved = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, isDefaultPricing);
+            return resolved.price ?? fallbackBase;
+          })(),
           shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
           currency: entry.costCurrency ?? 'USD',
           purchasedAt: renewalDate,
@@ -1437,5 +1482,47 @@ export class SubscriptionsService {
 
     this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 86_400_000 }); // 24h TTL
     return data;
+  }
+
+  async listPriceChanges(slug: string) {
+    const sub = await this.findBySlug(slug);
+    return this.prisma.subscriptionPriceChange.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    });
+  }
+
+  async createPriceChange(slug: string, dto: CreatePriceChangeDto) {
+    const sub = await this.findBySlug(slug);
+    return this.prisma.subscriptionPriceChange.upsert({
+      where: {
+        subscriptionId_effectiveYear_effectiveMonth: {
+          subscriptionId: sub.id,
+          effectiveYear: dto.effectiveYear,
+          effectiveMonth: dto.effectiveMonth,
+        },
+      },
+      create: {
+        subscriptionId: sub.id,
+        effectiveMonth: dto.effectiveMonth,
+        effectiveYear: dto.effectiveYear,
+        newBasePrice: dto.newBasePrice,
+        currency: dto.currency,
+        notes: dto.notes ?? null,
+      },
+      update: {
+        newBasePrice: dto.newBasePrice,
+        currency: dto.currency,
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  async deletePriceChange(slug: string, id: string) {
+    const sub = await this.findBySlug(slug);
+    const change = await this.prisma.subscriptionPriceChange.findUnique({ where: { id } });
+    if (!change) throw new NotFoundException('Price change not found');
+    if (change.subscriptionId !== sub.id) throw new ForbiddenException();
+    await this.prisma.subscriptionPriceChange.delete({ where: { id } });
   }
 }
