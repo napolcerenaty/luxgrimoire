@@ -26,7 +26,7 @@ interface CollectionEntry {
   trackingNumber: string | null
   tags: string[]
   purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
-  purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null; fromSubscription: boolean } | null
+  purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null; fromSubscription: boolean; _count: { bookEntries: number } } | null
   edition: {
     id: string
     slug: string
@@ -354,12 +354,12 @@ function TagEditor({
 
   const save = useCallback(async (nextTags: string[]) => {
     setLocalTags(nextTags)
-    const saved = await authFetch<string[]>(`/collection/edition/${editionId}/tags`, {
+    const saved = await authFetch<string[]>(`/collection/entry/${entryId}/tags`, {
       method: 'PUT',
       body: JSON.stringify({ tags: nextTags }),
     })
-    onSaved(editionId, saved)
-  }, [editionId, onSaved])
+    onSaved(entryId, saved)
+  }, [entryId, onSaved])
 
   const addTag = (tag: string) => {
     const t = tag.trim()
@@ -532,8 +532,8 @@ export default function CollectionPage() {
   })
 
   // Called by TagEditor when tags are saved — update local override + re-fetch allUserTags
-  const handleTagsSaved = useCallback((editionId: string, tags: string[]) => {
-    setTagOverrides(prev => ({ ...prev, [editionId]: tags }))
+  const handleTagsSaved = useCallback((entryId: string, tags: string[]) => {
+    setTagOverrides(prev => ({ ...prev, [entryId]: tags }))
     void queryClient.invalidateQueries({ queryKey: ['collection-tags'] })
   }, [queryClient])
 
@@ -1084,7 +1084,7 @@ export default function CollectionPage() {
                             <TagEditor
                               entryId={entry.id}
                               editionId={entry.edition.id}
-                              tags={tagOverrides[entry.edition.id] ?? entry.tags ?? []}
+                              tags={tagOverrides[entry.id] ?? entry.tags ?? []}
                               allTags={allUserTags}
                               onSaved={handleTagsSaved}
                             />

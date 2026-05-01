@@ -33,6 +33,7 @@ model User {
   waitlistEntries          SubscriptionWaitlistEntry[]
   bookEntries              UserBookEntry[]
   editionTags              UserEditionTag[]
+  bookEntryTags            UserBookEntryTag[]
   feeTemplates             UserFeeTemplate[]
   notifications            UserNotification[]
   purchaseDiscounts        UserPurchaseDiscount[]
@@ -605,6 +606,7 @@ model UserBookEntry {
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   saleEntries           UserSaleEntry[]
   ownershipHistory      OwnershipStatusHistory[]
+  entryTags             UserBookEntryTag[]
 
   @@index([userId])
   @@index([userId, bookId, editionId])
@@ -753,6 +755,18 @@ model PurchaseTransaction {
 
   @@index([userId])
   @@map("purchase_transactions")
+}
+
+model UserBookEntryTag {
+  id      String        @id @default(uuid())
+  userId  String
+  entryId String
+  tag     String
+  entry   UserBookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryId, tag])
+  @@map("user_book_entry_tags")
 }
 
 model UserEditionTag {

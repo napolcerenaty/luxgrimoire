@@ -163,12 +163,12 @@ export class CollectionController {
     return this.collectionService.getOwnershipHistory(user.id, entryId);
   }
 
-  @Put('edition/:editionId/tags')
-  setEditionTags(
+  @Put('entry/:entryId/tags')
+  setEntryTags(
     @CurrentUser() user: { id: string },
-    @Param('editionId') editionId: string,
+    @Param('entryId') entryId: string,
     @Body() dto: SetEditionTagsDto,
   ) {
-    return this.collectionService.setEditionTags(user.id, editionId, dto.tags);
+    return this.collectionService.setEntryTags(user.id, entryId, dto.tags);
   }
 }

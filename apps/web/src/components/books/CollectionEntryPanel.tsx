@@ -602,7 +602,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   async function saveTagsList(tags: string[]) {
     setSavingTags(true)
     try {
-      const saved = await authFetch<string[]>(`/collection/edition/${editionId}/tags`, {
+      const saved = await authFetch<string[]>(`/collection/entry/${entry!.id}/tags`, {
         method: 'PUT',
         body: JSON.stringify({ tags }),
       })
