@@ -464,7 +464,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
           // Update existing
           await authFetch(`/fees/discounts/${d.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ amount: amt, currency: editCurrency, date: purchasedAtIso }),
+            body: JSON.stringify({ name: d.name, amount: amt, currency: editCurrency, date: purchasedAtIso }),
           })
         } else {
           // Create new
