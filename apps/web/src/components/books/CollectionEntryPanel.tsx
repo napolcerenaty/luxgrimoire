@@ -704,119 +704,7 @@ export function CollectionEntryPanel({ editionId }: Props) {
   return (
     <div className="space-y-3">
 
-      {/* Status section (full-width, replaces old header + row1 grid) */}
-      <div className={CARD} style={cardStyle}>
-        {/* Collection meta line */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            <Clock size={10} className="inline mr-1 -mt-px" />
-            In your collection · <span style={{ color: 'var(--text-dim)' }}>{timeInCollection(timeSrc, entry.ownershipStatus === 'SOLD' ? (entry.saleDate ?? null) : null)}</span>
-            {(pg?.purchasedAt) && (
-              <span className="ml-1" style={{ color: 'var(--text-muted)' }}>
-                (from {fmtDate(pg.purchasedAt)})
-              </span>
-            )}
-          </span>
-          {isFromSubscription && (
-            <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              From subscription
-            </span>
-          )}
-        </div>
-
-        {/* Status badges — each is an inline dropdown */}
-        {activeDropdown && (
-          <div className="fixed inset-0 z-[5]" onClick={() => setActiveDropdown(null)} />
-        )}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Ownership dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveDropdown(prev => prev === 'ownership' ? null : 'ownership')}
-              disabled={savingStatus}
-              className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
-            >
-              {entry.ownershipStatus}
-              <ChevronDown size={10} />
-            </button>
-            {activeDropdown === 'ownership' && (
-              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[130px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
-                {OWNERSHIP_STATUSES.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => quickSaveStatus('ownershipStatus', s)}
-                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.ownershipStatus ? 'font-semibold' : ''}`}
-                    style={{ color: s === entry.ownershipStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Reading dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveDropdown(prev => prev === 'reading' ? null : 'reading')}
-              disabled={savingStatus}
-              className={`${READING_COLORS[entry.readingStatus] ?? 'badge-unread'} px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
-            >
-              {entry.readingStatus}
-              <ChevronDown size={10} />
-            </button>
-            {activeDropdown === 'reading' && (
-              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[110px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
-                {READING_STATUSES.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => quickSaveStatus('readingStatus', s)}
-                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.readingStatus ? 'font-semibold' : ''}`}
-                    style={{ color: s === entry.readingStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Signature dropdown — always shown (unsigned when null) */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveDropdown(prev => prev === 'signature' ? null : 'signature')}
-              disabled={savingStatus}
-              className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
-            >
-              {SIGNATURE_LABELS[entry.signatureType ?? 'unsigned'] ?? 'Unsigned'}
-              <ChevronDown size={10} />
-            </button>
-            {activeDropdown === 'signature' && (
-              <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[150px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
-                <button
-                  onClick={() => quickSaveStatus('signatureType', '')}
-                  className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
-                  style={{ color: !entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
-                >
-                  Unsigned
-                </button>
-                {SIGNATURE_TYPES.filter(s => s !== 'unsigned').map(s => (
-                  <button
-                    key={s}
-                    onClick={() => quickSaveStatus('signatureType', s)}
-                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
-                    style={{ color: s === entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
-                  >
-                    {SIGNATURE_LABELS[s]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: Purchase cost + (Tracking + Tags + Ownership history stacked) */}
+      {/* 2-column layout: left=costs, right=status+tracking+tags+history */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
 
         {/* Left column: Purchase cost + Sale details */}
@@ -1223,8 +1111,120 @@ export function CollectionEntryPanel({ editionId }: Props) {
           )}
         </div>
 
-        {/* Right column: Tracking (compact) + Tags stacked */}
+        {/* Right column: Status + Tracking + Tags + Ownership history */}
         <div className="flex flex-col gap-3">
+
+        {/* Status card — collection meta + status badges */}
+        <div className={CARD} style={cardStyle}>
+          {/* Collection meta line */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              <Clock size={10} className="inline mr-1 -mt-px" />
+              In your collection · <span style={{ color: 'var(--text-dim)' }}>{timeInCollection(timeSrc, entry.ownershipStatus === 'SOLD' ? (entry.saleDate ?? null) : null)}</span>
+              {(pg?.purchasedAt) && (
+                <span className="ml-1" style={{ color: 'var(--text-muted)' }}>
+                  (from {fmtDate(pg.purchasedAt)})
+                </span>
+              )}
+            </span>
+            {isFromSubscription && (
+              <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                From subscription
+              </span>
+            )}
+          </div>
+
+          {/* Status badges — each is an inline dropdown */}
+          {activeDropdown && (
+            <div className="fixed inset-0 z-[5]" onClick={() => setActiveDropdown(null)} />
+          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Ownership dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setActiveDropdown(prev => prev === 'ownership' ? null : 'ownership')}
+                disabled={savingStatus}
+                className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
+              >
+                {entry.ownershipStatus}
+                <ChevronDown size={10} />
+              </button>
+              {activeDropdown === 'ownership' && (
+                <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[130px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                  {OWNERSHIP_STATUSES.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => quickSaveStatus('ownershipStatus', s)}
+                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.ownershipStatus ? 'font-semibold' : ''}`}
+                      style={{ color: s === entry.ownershipStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Reading dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setActiveDropdown(prev => prev === 'reading' ? null : 'reading')}
+                disabled={savingStatus}
+                className={`${READING_COLORS[entry.readingStatus] ?? 'badge-unread'} px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
+              >
+                {entry.readingStatus}
+                <ChevronDown size={10} />
+              </button>
+              {activeDropdown === 'reading' && (
+                <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[110px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                  {READING_STATUSES.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => quickSaveStatus('readingStatus', s)}
+                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.readingStatus ? 'font-semibold' : ''}`}
+                      style={{ color: s === entry.readingStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Signature dropdown — always shown (unsigned when null) */}
+            <div className="relative">
+              <button
+                onClick={() => setActiveDropdown(prev => prev === 'signature' ? null : 'signature')}
+                disabled={savingStatus}
+                className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+              >
+                {SIGNATURE_LABELS[entry.signatureType ?? 'unsigned'] ?? 'Unsigned'}
+                <ChevronDown size={10} />
+              </button>
+              {activeDropdown === 'signature' && (
+                <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[150px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                  <button
+                    onClick={() => quickSaveStatus('signatureType', '')}
+                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
+                    style={{ color: !entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                  >
+                    Unsigned
+                  </button>
+                  {SIGNATURE_TYPES.filter(s => s !== 'unsigned').map(s => (
+                    <button
+                      key={s}
+                      onClick={() => quickSaveStatus('signatureType', s)}
+                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
+                      style={{ color: s === entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                    >
+                      {SIGNATURE_LABELS[s]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Tracking card — compact */}
         <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>

@@ -716,13 +716,13 @@ export default function CollectionPage() {
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Series</p>
           <p className="text-2xl font-serif font-bold text-stone-100">
-            {new Set(entries.map((e) => e.edition.book.seriesName).filter(Boolean)).size}
+            {new Set(entries.filter(e => e.ownershipStatus !== 'SOLD').map((e) => e.edition.book.seriesName).filter(Boolean)).size}
           </p>
         </div>
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Authors</p>
           <p className="text-2xl font-serif font-bold text-stone-100">
-            {new Set(entries.flatMap((e) => e.edition.book.authors.map((a) => (a as any).author?.id ?? a.id))).size}
+            {new Set(entries.filter(e => e.ownershipStatus !== 'SOLD').flatMap((e) => e.edition.book.authors.map((a) => (a as any).author?.id ?? a.id))).size}
           </p>
         </div>
       </div>
