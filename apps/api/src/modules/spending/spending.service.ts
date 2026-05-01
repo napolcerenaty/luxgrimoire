@@ -187,6 +187,7 @@ export class SpendingService {
     let totalDiscounts = 0;
     let totalRefunds = 0;
     let totalFees = 0;
+    let totalShippingFees = 0;
     let totalBasePrice = 0;
     let totalShipping = 0;
     let totalTax = 0;
@@ -239,6 +240,7 @@ export class SpendingService {
       booksWithCost++;
       totalBasePrice += baseConverted;
       totalShipping += shippingConverted + shippingFeesPerEntry;
+      totalShippingFees += shippingFeesPerEntry;
       totalTax += taxFeesPerEntry;
       totalFees += feesPerEntry;
       totalDiscounts += discountsPerEntry;
@@ -329,7 +331,7 @@ export class SpendingService {
       totalBasePrice: Math.round(totalBasePrice * 100) / 100,
       totalShipping: Math.round(totalShipping * 100) / 100,
       totalTax: Math.round(totalTax * 100) / 100,
-      totalOtherFees: Math.round((totalFees - totalShipping - totalTax) * 100) / 100,
+      totalOtherFees: Math.round((totalFees - totalShippingFees - totalTax) * 100) / 100,
       totalDiscounts: Math.round(totalDiscounts * 100) / 100,
       totalRefunds: Math.round(totalRefunds * 100) / 100,
       byYear: Object.entries(byYearMap)
