@@ -1,7 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
@@ -12,9 +11,17 @@ import {
   VerifyEmailDto,
   ResendVerificationDto,
 } from './auth.dto';
-import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { Public } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  GoogleInitGuard,
+  GoogleCallbackGuard,
+  FacebookInitGuard,
+  FacebookCallbackGuard,
+  DiscordInitGuard,
+  DiscordCallbackGuard,
+} from './guards/oauth-state.guard';
 
 @ApiTags('auth')
 @UseGuards(JwtAuthGuard)
@@ -98,12 +105,12 @@ export class AuthController {
   // ——— Google OAuth ———
   @Public()
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleInitGuard)
   googleLogin() { /* Passport redirects automatically */ }
 
   @Public()
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleCallbackGuard)
   async googleCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
@@ -111,12 +118,12 @@ export class AuthController {
   // ——— Facebook OAuth ———
   @Public()
   @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
+  @UseGuards(FacebookInitGuard)
   facebookLogin() {}
 
   @Public()
   @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
+  @UseGuards(FacebookCallbackGuard)
   async facebookCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
@@ -124,12 +131,12 @@ export class AuthController {
   // ——— Discord OAuth ———
   @Public()
   @Get('discord')
-  @UseGuards(AuthGuard('discord'))
+  @UseGuards(DiscordInitGuard)
   discordLogin() {}
 
   @Public()
   @Get('discord/callback')
-  @UseGuards(AuthGuard('discord'))
+  @UseGuards(DiscordCallbackGuard)
   async discordCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
