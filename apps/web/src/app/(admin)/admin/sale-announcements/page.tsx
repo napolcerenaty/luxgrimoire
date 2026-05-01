@@ -347,6 +347,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     return (
       <div className="border border-stone-700 rounded-lg p-3 mt-2">
         <CreateBookEditionForm
+          key="create-book"
           bookOnly
           onBookCreated={(bookId, bookTitle) => {
             setSelectedBook({ id: bookId, title: bookTitle })
@@ -363,6 +364,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     return (
       <div className="border border-stone-700 rounded-lg p-3 mt-2">
         <CreateBookEditionForm
+          key={`create-edition-${selectedBook.id}`}
           existingBookId={selectedBook.id}
           defaultFirstAccessDate={defaultFirstAccessDate}
           defaultEarlyAccessDate={defaultEarlyAccessDate}
