@@ -21,6 +21,7 @@ const OWNERSHIP_OPTIONS = [
 type OwnershipOption = typeof OWNERSHIP_OPTIONS[number]['value']
 
 interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
+interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null; isActive: boolean }
 interface EntryStatus { status: 'none' | 'wishlist' | 'collection'; entryId?: string }
 
@@ -50,9 +51,11 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [ownershipStatus, setOwnershipStatus] = useState<OwnershipOption>('OWNED')
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
+  const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const feeKeyRef = useRef(0)
+  const discountKeyRef = useRef(0)
 
   const { data: feeTemplates = [] } = useQuery<FeeTemplate[]>({
     queryKey: ['fee-templates'],
@@ -97,6 +100,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setOwnershipStatus('OWNED')
     setShippingPrice('')
     setFeeEntries([])
+    setDiscountEntries([])
     setStep(bundles.length > 0 ? 'bundle' : 'form')
     setModalOpen(true)
   }
@@ -164,6 +168,22 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
             date: feeDate,
             category: template?.category ?? undefined,
             ...(purchaseGroupId ? { purchaseGroupId } : { userBookEntryId: targetEntryId }),
+          }),
+        })
+      }
+
+      // Discounts
+      for (const disc of discountEntries) {
+        const parsedAmount = parseDecimalInput(disc.amount)
+        if (parsedAmount <= 0 || !disc.name.trim()) continue
+        await authFetch('/fees/discounts', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: disc.name.trim(),
+            amount: parsedAmount,
+            currency: disc.currency,
+            date: feeDate,
+            ...(purchaseGroupId ? { purchaseGroupId } : {}),
           }),
         })
       }
@@ -326,6 +346,41 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                           {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                         <button type="button" onClick={() => setFeeEntries(prev => prev.filter(f => f.key !== fee.key))}
+                          className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={LABEL.replace('mb-1', '')}>Discounts (optional)</span>
+                    <button type="button"
+                      onClick={() => { discountKeyRef.current++; setDiscountEntries(prev => [...prev, { key: discountKeyRef.current, name: '', amount: '', currency: moveCurrency || 'EUR' }]) }}
+                      className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
+                      <Plus size={12} /> Add discount
+                    </button>
+                  </div>
+                  {discountEntries.length === 0 && <p className="text-xs text-stone-500 italic">No discounts</p>}
+                  <div className="space-y-2">
+                    {discountEntries.map(disc => (
+                      <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+                        <input type="text" value={disc.name}
+                          onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
+                          placeholder="e.g. Promo code, loyalty…"
+                          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
+                        <input type="text" value={disc.amount}
+                          onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
+                          placeholder="0.00"
+                          className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
+                        <select value={disc.currency}
+                          onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
+                          className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors">
+                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button type="button" onClick={() => setDiscountEntries(prev => prev.filter(d => d.key !== disc.key))}
                           className="p-2 text-stone-500 hover:text-red-400 transition-colors">
                           <X size={14} />
                         </button>
