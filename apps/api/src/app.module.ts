@@ -1,5 +1,6 @@
 import { Logger, Module } from '@nestjs/common';
-import { LoggerModule } from 'nestjs-pino';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
@@ -7,7 +8,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import KeyvRedis from '@keyv/redis';
 import Keyv from 'keyv';
-import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerSkipTestGuard } from './common/guards/throttler-skip-test.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { MailModule } from './modules/mail/mail.module';
@@ -48,6 +49,7 @@ import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
   imports: [
+    ...(process.env.SENTRY_DSN ? [SentryModule.forRoot()] : []),
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({
       pinoHttp: {
@@ -140,6 +142,7 @@ import { BackupModule } from './modules/backup/backup.module';
     BackupModule,
   ],
   providers: [
+    ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),
     { provide: APP_GUARD, useClass: ThrottlerSkipTestGuard },
   ],
 })
