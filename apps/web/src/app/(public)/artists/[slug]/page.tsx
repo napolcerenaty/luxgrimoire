@@ -4,23 +4,17 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import type { ApiArtist, ApiBook, ApiAuthor } from '@luxgrimoire/shared-types'
+import type { ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface BookBoxCompanySnippet {
-  id: string; slug: string; name: string; logoUrl: string | null
-}
-
 interface EditionSnippet {
   id: string; slug: string; additionalImages: string[]; editionName: string | null
-  publisher: string | null
-  bookBoxCompany: BookBoxCompanySnippet | null
-  book: (Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & { authors: ApiAuthor[] }) | null
+  bookBoxCompany: { name: string } | null
 }
 
 interface Contribution {
-  id: string; role: string
+  role: string
   edition: EditionSnippet
 }
 

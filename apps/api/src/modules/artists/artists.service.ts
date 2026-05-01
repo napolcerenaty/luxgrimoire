@@ -73,13 +73,28 @@ export class ArtistsService {
   async findBySlug(slug: string) {
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        bio: true,
+        photoUrl: true,
+        specialty: true,
+        website: true,
+        instagram: true,
+        twitter: true,
+        facebook: true,
+        tiktok: true,
         contributions: {
-          include: {
+          select: {
+            role: true,
             edition: {
-              include: {
-                book: { include: { authors: { include: { author: true } } } },
-                bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+              select: {
+                id: true,
+                slug: true,
+                additionalImages: true,
+                editionName: true,
+                bookBoxCompany: { select: { name: true } },
               },
             },
           },
@@ -87,24 +102,7 @@ export class ArtistsService {
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-
-    // Flatten book.authors join-table rows → flat ApiAuthor[]
-    const flatContributions = artist.contributions.map((c) => ({
-      ...c,
-      edition: {
-        ...c.edition,
-        book: c.edition.book
-          ? {
-              ...c.edition.book,
-              authors: c.edition.book.authors.map(
-                (ba: { author: unknown }) => ba.author,
-              ),
-            }
-          : c.edition.book,
-      },
-    }));
-
-    return { ...artist, contributions: flatContributions };
+    return artist;
   }
 
   async update(slug: string, dto: UpdateArtistDto) {
