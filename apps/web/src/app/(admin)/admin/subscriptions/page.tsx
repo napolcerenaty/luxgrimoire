@@ -720,6 +720,12 @@ export default function AdminSubscriptionsPage() {
               Series →
             </Link>
           )}
+          <Link
+            href={`/admin/subscriptions/${row.slug}/months#price-changes`}
+            className="text-emerald-400 text-xs hover:underline ml-3"
+          >
+            💰 Prices →
+          </Link>
         </>
       ),
     },

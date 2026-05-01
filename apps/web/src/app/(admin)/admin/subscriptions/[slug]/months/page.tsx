@@ -12,6 +12,7 @@ const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 
 const LABEL = 'block text-xs text-stone-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
 // ─── Cloud image helper ───────────────────────────────────────────────────────
 const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
@@ -1174,14 +1175,14 @@ type PriceChange = {
   newBasePrice: string; currency: string; notes: string | null; createdAt: string
 }
 
-function PriceChangesPanel({ slug }: { slug: string }) {
+function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subscriptionCurrency?: string | null }) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'price-changes']
 
   const [month, setMonth] = useState(String(new Date().getMonth() + 1))
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [price, setPrice] = useState('')
-  const [currency, setCurrency] = useState('EUR')
+  const [currency, setCurrency] = useState(subscriptionCurrency ?? 'EUR')
   const [notes, setNotes] = useState('')
   const [showForm, setShowForm] = useState(false)
 
@@ -1215,7 +1216,7 @@ function PriceChangesPanel({ slug }: { slug: string }) {
   })
 
   return (
-    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
+    <div id="price-changes" className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
         <button
@@ -1251,8 +1252,9 @@ function PriceChangesPanel({ slug }: { slug: string }) {
             </div>
             <div>
               <label className={LABEL}>Currency *</label>
-              <input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())}
-                placeholder="EUR" maxLength={3} className={INPUT} />
+              <select value={currency} onChange={e => setCurrency(e.target.value)} className={INPUT}>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           <div>
@@ -1390,7 +1392,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <>
             <PendingImportsPanel subscriptionId={subscription.id} slug={slug} onApproved={invalidateMonths} />
             <ImportSourcesPanel subscriptionId={subscription.id} />
-            <PriceChangesPanel slug={slug} />
+            <PriceChangesPanel slug={slug} subscriptionCurrency={subscription?.currency} />
           </>
         )}
       </div>
