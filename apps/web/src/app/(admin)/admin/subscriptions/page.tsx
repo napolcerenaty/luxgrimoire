@@ -414,14 +414,16 @@ function SubscriptionForm({
           <label className={LABEL_CLASS}>Variant of</label>
           <select className={SELECT_CLASS} value={form.parentSubscriptionId} onChange={setStr('parentSubscriptionId')}>
             <option value="">— None —</option>
-            {allSubscriptions.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
+            {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId) : allSubscriptions)
+              .map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
           </select>
         </div>
         <div>
           <label className={LABEL_CLASS}>Copy months from</label>
           <select className={SELECT_CLASS} value={form.copyFromSlug} onChange={setStr('copyFromSlug')}>
             <option value="">— None —</option>
-            {allSubscriptions.map((s) => <option key={s.id} value={s.slug}>{s.name} ({s.slug})</option>)}
+            {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId) : allSubscriptions)
+              .map((s) => <option key={s.id} value={s.slug}>{s.name} ({s.slug})</option>)}
           </select>
           <p className="text-xs text-stone-500 mt-1">Copies all months and books from the selected subscription</p>
         </div>
