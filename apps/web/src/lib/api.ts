@@ -285,6 +285,7 @@ export async function cancelMySubscriptionEntry(
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/cancel`, {
     credentials: 'include',
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
@@ -297,6 +298,7 @@ export async function removeMySubscriptionEntry(
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
     credentials: 'include',
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(opts),
   })
   if (!res.ok) {
@@ -317,6 +319,7 @@ export async function updateMyEntryCosts(
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry/costs`, {
     credentials: 'include',
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json().then(d => d.message)) || `API error ${res.status}`);
@@ -505,6 +508,7 @@ export async function createSaleGroup(data: CreateSaleGroupData): Promise<import
   const res = await fetch(`${API_URL}/sales`, {
     credentials: 'include',
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -515,6 +519,7 @@ export async function updateSaleGroup(id: string, data: UpdateSaleGroupData): Pr
   const res = await fetch(`${API_URL}/sales/${id}`, {
     credentials: 'include',
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -610,6 +615,7 @@ export async function adminAddAnnouncementEdition(id: string, editionId: string)
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions`, {
     credentials: 'include',
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ editionId }),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -632,6 +638,7 @@ export async function adminSetAnnouncementVariant(
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants`, {
     credentials: 'include',
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ signatureType, price, currency }),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -665,6 +672,7 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions`, {
     credentials: 'include',
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -692,6 +700,7 @@ export async function submitFeatureRequest(data: { title: string; description: s
   const res = await fetch(`${API_URL}/feature-requests`, {
     credentials: 'include',
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
@@ -741,6 +750,7 @@ export async function adminReviewFeatureRequest(id: string, data: { status: 'acc
   const res = await fetch(`${API_URL}/feature-requests/${id}/review`, {
     credentials: 'include',
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
