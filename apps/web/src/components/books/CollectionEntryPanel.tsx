@@ -1219,25 +1219,27 @@ export function CollectionEntryPanel({ editionId }: Props) {
         </div>
       </div>
 
-      {/* Sale details — only when SOLD */}
-      {entry.ownershipStatus === 'SOLD' && (
-        <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.25)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
-            {!editingSale && (
-              <button onClick={openSaleEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
-                ✏️ Edit
-              </button>
-            )}
-          </div>
-          {editingSale ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale price</label>
-                  <input type="number" step="0.01" min="0" value={editSalePrice} onChange={e => setEditSalePrice(e.target.value)} placeholder="0.00" className={INP} />
-                </div>
-                <div className="w-24">
+      {/* Sale details + Ownership history — side by side when SOLD */}
+      {entry.ownershipStatus === 'SOLD' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Sale details */}
+          <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.25)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
+              {!editingSale && (
+                <button onClick={openSaleEdit} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+                  ✏️ Edit
+                </button>
+              )}
+            </div>
+            {editingSale ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Sale price</label>
+                    <input type="number" step="0.01" min="0" value={editSalePrice} onChange={e => setEditSalePrice(e.target.value)} placeholder="0.00" className={INP} />
+                  </div>
+                  <div className="w-24">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
                   <select value={editSaleCurrency} onChange={e => setEditSaleCurrency(e.target.value)} className={INP}>
                     <option value="">—</option>
@@ -1301,41 +1303,75 @@ export function CollectionEntryPanel({ editionId }: Props) {
               )}
             </div>
           )}
-        </div>
-      )}
+          </div>
 
-      {/* Ownership history */}
-      <div className={CARD} style={cardStyle}>
-        <button
-          onClick={toggleHistory}
-          className="flex items-center gap-1.5 text-xs transition-colors w-full text-left"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {showHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          {showHistory ? 'Hide' : 'Show'} ownership history
-        </button>
-        {showHistory && (
-          <div className="pt-1">
-            {loadingHistory ? (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
-            ) : !history || history.length === 0 ? (
-              <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No history recorded</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {history.map((h) => (
-                  <div key={h.id} className="flex items-center gap-2.5 text-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
-                    <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
-                      {h.status}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
+          {/* Ownership history — second column */}
+          <div className={CARD} style={cardStyle}>
+            <button
+              onClick={toggleHistory}
+              className="flex items-center gap-1.5 text-xs transition-colors w-full text-left"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {showHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {showHistory ? 'Hide' : 'Show'} ownership history
+            </button>
+            {showHistory && (
+              <div className="pt-1">
+                {loadingHistory ? (
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+                ) : !history || history.length === 0 ? (
+                  <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No history recorded</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {history.map((h) => (
+                      <div key={h.id} className="flex items-center gap-2.5 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
+                        <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
+                          {h.status}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Ownership history — standalone when not SOLD */
+        <div className={CARD} style={cardStyle}>
+          <button
+            onClick={toggleHistory}
+            className="flex items-center gap-1.5 text-xs transition-colors w-full text-left"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {showHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            {showHistory ? 'Hide' : 'Show'} ownership history
+          </button>
+          {showHistory && (
+            <div className="pt-1">
+              {loadingHistory ? (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+              ) : !history || history.length === 0 ? (
+                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No history recorded</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {history.map((h) => (
+                    <div key={h.id} className="flex items-center gap-2.5 text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
+                      <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
+                        {h.status}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   )
