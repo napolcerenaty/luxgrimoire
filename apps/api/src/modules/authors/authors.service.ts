@@ -73,10 +73,48 @@ export class AuthorsService {
   async findBySlug(slug: string) {
     const author = await this.prisma.author.findUnique({
       where: { slug },
-      include: { books: { include: { book: true } } },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        bio: true,
+        photoUrl: true,
+        nationality: true,
+        website: true,
+        instagram: true,
+        twitter: true,
+        facebook: true,
+        tiktok: true,
+        books: {
+          select: {
+            book: {
+              select: {
+                id: true,
+                slug: true,
+                title: true,
+                seriesName: true,
+                volumeNumber: true,
+                editions: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    additionalImages: true,
+                    verifiedAt: true,
+                    generalSaleDate: true,
+                    bookBoxCompany: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
-    return author;
+    return {
+      ...author,
+      books: author.books.map((ba) => ba.book),
+    };
   }
 
   async update(slug: string, dto: UpdateAuthorDto) {
