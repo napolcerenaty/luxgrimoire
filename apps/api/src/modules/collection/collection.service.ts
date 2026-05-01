@@ -53,7 +53,7 @@ export class CollectionService {
           },
           salePrice: true,
           saleCurrency: true,
-          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true, totalAmount: true, shippingAmount: true, fromSubscription: true } },
+          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true, totalAmount: true, shippingAmount: true, fromSubscription: true, _count: { select: { bookEntries: true } } } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -139,10 +139,11 @@ export class CollectionService {
     });
   }
 
-  async getEntryByEditionId(userId: string, editionId: string) {
-    const [entry, tags] = await Promise.all([
-      this.prisma.userBookEntry.findFirst({
+  async getEntriesByEditionId(userId: string, editionId: string) {
+    const [entries, tags] = await Promise.all([
+      this.prisma.userBookEntry.findMany({
         where: { userId, editionId, isWishlist: false },
+        orderBy: { createdAt: 'asc' },
         select: {
           id: true,
           readingStatus: true,
@@ -189,8 +190,8 @@ export class CollectionService {
         select: { tag: true },
       }),
     ]);
-    if (!entry) return null;
-    return { ...entry, tags: tags.map((t) => t.tag) };
+    const tagList = tags.map((t) => t.tag);
+    return entries.map((entry) => ({ ...entry, tags: tagList }));
   }
 
   async getEntryStatus(userId: string, editionId: string) {

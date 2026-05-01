@@ -180,6 +180,8 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
 
 export function CollectionEntryPanel({ editionId }: Props) {
   const { user } = useAuth()
+  const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
+  const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
   const [entry, setEntry] = useState<CollectionEntry | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -256,8 +258,12 @@ export function CollectionEntryPanel({ editionId }: Props) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
     if (!token) { setLoading(false); return }
 
-    authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
-      .then((data) => setEntry(data))
+    authFetch<CollectionEntry[]>(`/collection/edition/${editionId}/entry`)
+      .then((data) => {
+        const entries = data ?? []
+        setAllEntries(entries)
+        setEntry(entries[0] ?? null)
+      })
       .catch(() => setEntry(null))
       .finally(() => setLoading(false))
 
@@ -327,8 +333,13 @@ export function CollectionEntryPanel({ editionId }: Props) {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (!detail?.editionId || detail.editionId === editionId) {
-        authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
-          .then(fresh => { if (fresh) { setEntry(fresh); setLoading(false) } })
+        authFetch<CollectionEntry[]>(`/collection/edition/${editionId}/entry`)
+          .then(fresh => {
+            if (fresh?.length) {
+              setAllEntries(fresh)
+              setEntry(prev => fresh.find(e => e.id === prev?.id) ?? fresh[0])
+            }
+          })
           .catch(() => {})
       }
     }
@@ -345,13 +356,21 @@ export function CollectionEntryPanel({ editionId }: Props) {
       method: 'PATCH',
       body: JSON.stringify(fields),
     })
-    const fresh = await authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
+    const freshAll = await authFetch<CollectionEntry[]>(`/collection/edition/${editionId}/entry`)
+    const fresh = freshAll?.find(e => e.id === entry!.id) ?? freshAll?.[0]
+    setAllEntries(freshAll ?? [])
     setEntry({ ...(fresh ?? updated), tags: fresh?.tags ?? entry!.tags })
   }
 
   async function refetchEntry() {
-    const fresh = await authFetch<CollectionEntry | null>(`/collection/edition/${editionId}/entry`)
-    if (fresh) setEntry(fresh)
+    const freshAll = await authFetch<CollectionEntry[]>(`/collection/edition/${editionId}/entry`)
+    if (freshAll?.length) {
+      setAllEntries(freshAll)
+      setEntry(prev => {
+        const same = freshAll.find(e => e.id === prev?.id)
+        return same ?? freshAll[0]
+      })
+    }
   }
 
   // ── Status section ────────────────────────────────────────────────────────
@@ -703,6 +722,26 @@ export function CollectionEntryPanel({ editionId }: Props) {
 
   return (
     <div className="space-y-3">
+
+      {/* Copy switcher — shown when user has multiple copies of the same edition */}
+      {allEntries.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-widest text-stone-500 mr-1">Copy:</span>
+          {allEntries.map((e, i) => (
+            <button
+              key={e.id}
+              onClick={() => { setSelectedCopyIdx(i); setEntry(allEntries[i]) }}
+              className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
+                i === selectedCopyIdx
+                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                  : 'border-stone-700 text-stone-400 hover:border-stone-500'
+              }`}
+            >
+              #{i + 1}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 2-column layout: left=costs, right=status+tracking+tags+history */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">

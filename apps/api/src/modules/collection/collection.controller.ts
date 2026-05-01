@@ -53,7 +53,7 @@ export class CollectionController {
     @CurrentUser() user: { id: string },
     @Param('editionId') editionId: string,
   ) {
-    return this.collectionService.getEntryByEditionId(user.id, editionId);
+    return this.collectionService.getEntriesByEditionId(user.id, editionId);
   }
 
   @Post('wishlist')
