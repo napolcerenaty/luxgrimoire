@@ -319,10 +319,22 @@ export class CollectionService {
   }
 
   async removeFromCollection(userId: string, entryId: string) {
-    const existing = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
+    const existing = await this.prisma.userBookEntry.findUnique({
+      where: { id: entryId },
+      select: { id: true, userId: true, editionId: true, purchaseGroupId: true },
+    });
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
+    // Clean up the purchase group if it's now empty
+    if (existing.purchaseGroupId) {
+      const remaining = await this.prisma.userBookEntry.count({
+        where: { purchaseGroupId: existing.purchaseGroupId },
+      });
+      if (remaining === 0) {
+        await this.prisma.userPurchaseGroup.delete({ where: { id: existing.purchaseGroupId } }).catch(() => {});
+      }
+    }
     return existing;
   }
 

@@ -727,10 +727,27 @@ export class SubscriptionsService {
     }
 
     if (opts.removeBooks) {
+      // Collect purchase group IDs before deleting entries (to clean up orphaned groups)
+      const affectedEntries = await this.prisma.userBookEntry.findMany({
+        where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
+        select: { purchaseGroupId: true },
+      });
+      const groupIds = [...new Set(affectedEntries.map((e) => e.purchaseGroupId as string))];
+
       // Delete books linked via subscriptionEntryId (added via backfill)
       await this.prisma.userBookEntry.deleteMany({
         where: { userId, subscriptionEntryId: entry.id },
       });
+
+      // Delete any purchase groups that are now empty
+      if (groupIds.length > 0) {
+        await this.prisma.userPurchaseGroup.deleteMany({
+          where: {
+            id: { in: groupIds },
+            bookEntries: { none: {} },
+          },
+        });
+      }
     }
 
     // Delete skip state for this subscription (no FK cascade, must be explicit)
