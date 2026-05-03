@@ -179,7 +179,7 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CollectionEntryPanel({ editionId }: Props) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
   const [entry, setEntry] = useState<CollectionEntry | null>(null)
@@ -264,10 +264,10 @@ export function CollectionEntryPanel({ editionId }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id])
 
-  // Fetch entry on mount (only if token exists)
+  // Fetch entry once auth state is resolved
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
-    if (!token) { setLoading(false); return }
+    if (authLoading) return
+    if (!user) { setLoading(false); return }
 
     authFetch<CollectionEntry[]>(`/collection/edition/${editionId}/entry`)
       .then((data) => {
@@ -281,7 +281,8 @@ export function CollectionEntryPanel({ editionId }: Props) {
     authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true')
       .then(t => setFeeTemplates(t ?? []))
       .catch(() => {})
-  }, [editionId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editionId, authLoading, user?.id])
 
   // Fetch exchange rates once we have entry + userCurrency
   // Keys are "${from}:${to}:${date}" for date-specific rates
