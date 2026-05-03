@@ -41,6 +41,12 @@ async function uploadImage(file: File): Promise<string> {
   return data.publicId
 }
 
+const BOOK_LANGUAGES = [
+  'English', 'Polish', 'French', 'German', 'Spanish',
+  'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian',
+  'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese',
+]
+
 export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
   const { user } = useAuth()
   const router = useRouter()
@@ -53,7 +59,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
   const [artists, setArtists] = useState<PersonEntry[]>([])
   const [form, setForm] = useState<FormState>({
     publisher: '',
-    language: 'EN', generalSaleDate: '', price: '', currency: 'EUR', notes: '',
+    language: 'English', generalSaleDate: '', price: '', currency: 'EUR', notes: '',
   })
 
   if (!user) return null
@@ -63,7 +69,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
       setForm(prev => ({ ...prev, [k]: e.target.value }))
 
   const reset = () => {
-    setForm({ publisher: '', language: 'EN', generalSaleDate: '', price: '', currency: 'EUR', notes: '' })
+    setForm({ publisher: '', language: 'English', generalSaleDate: '', price: '', currency: 'EUR', notes: '' })
     setCoverFile(null)
     setCoverPreview(null)
     setArtists([])
@@ -147,7 +153,10 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
           </div>
           <div>
             <label className={labelCls}>Language</label>
-            <input value={form.language} onChange={set('language')} placeholder="EN" className={inputCls} />
+            <select value={form.language} onChange={set('language')} className={inputCls}>
+              <option value="">— select —</option>
+              {BOOK_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
           </div>
           <div>
             <label className={labelCls}>General sale date</label>

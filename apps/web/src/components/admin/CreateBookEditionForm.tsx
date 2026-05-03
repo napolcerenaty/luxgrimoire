@@ -589,8 +589,10 @@ export default function CreateBookEditionForm({
         </div>
         <div>
           <label className={LBL}>Language</label>
-          <input value={language} onChange={e => setLanguage(e.target.value)}
-            placeholder="e.g. English, Polish…" className={INP} />
+          <select value={language} onChange={e => setLanguage(e.target.value)} className={INP}>
+            <option value="">— select —</option>
+            {Object.values(ISO_TO_LANGUAGE).map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
       </div>
 

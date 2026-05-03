@@ -14,6 +14,12 @@ const BTN_PRIMARY = 'px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 tex
 const BTN_GHOST = 'px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors'
 const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
+const BOOK_LANGUAGES = [
+  'English', 'Polish', 'French', 'German', 'Spanish',
+  'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian',
+  'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese',
+]
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
 type Company = { id: string; name: string; slug: string }
@@ -332,8 +338,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
       {/* Language */}
       <div>
         <label className={LBL}>Language</label>
-        <input value={language} onChange={e => setLanguage(e.target.value)}
-          placeholder="e.g. English, Polish…" className={INP} />
+        <select value={language} onChange={e => setLanguage(e.target.value)} className={INP}>
+          <option value="">— select —</option>
+          {BOOK_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
       </div>
 
       {/* Dates */}

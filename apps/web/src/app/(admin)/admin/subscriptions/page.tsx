@@ -16,7 +16,7 @@ const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 const SELECT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 
-const LANGUAGES = ['EN', 'PL', 'FR', 'DE', 'ES', 'IT', 'PT', 'NL', 'CS', 'HU', 'RO', 'UK', 'JA', 'KO', 'ZH']
+const LANGUAGES = ['English', 'Polish', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian', 'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese']
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -285,10 +285,10 @@ function SubscriptionForm({
             </div>
             <div>
               <label className={LABEL_CLASS}>Language</label>
-              <input list="language-datalist" className={INPUT_CLASS} value={form.language} onChange={setStr('language')} placeholder="EN" />
-              <datalist id="language-datalist">
-                {LANGUAGES.map((l) => <option key={l} value={l} />)}
-              </datalist>
+              <select className={INPUT_CLASS} value={form.language} onChange={setStr('language')}>
+                <option value="">— select —</option>
+                {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
             </div>
           </div>
 
