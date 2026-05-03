@@ -203,6 +203,9 @@ export class BooksService {
 
   async delete(slug: string) {
     const book = await this.findBySlug(slug);
+    // Remove relations that don't have onDelete: Cascade on the Book side
+    await this.prisma.subscriptionMonthBook.deleteMany({ where: { bookId: book.id } });
+    await this.prisma.userBookEntry.deleteMany({ where: { bookId: book.id } });
     await this.typesense.deleteDocument('books', book.id);
     return this.prisma.book.delete({ where: { slug } });
   }

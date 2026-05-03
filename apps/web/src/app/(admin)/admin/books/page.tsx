@@ -212,6 +212,7 @@ export default function AdminBooksPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'books'] })
       setDeleteBook(null)
     },
+    onError: (e: Error) => alert(`Error deleting book: ${e.message}`),
   })
 
   const approveMutation = useMutation({
