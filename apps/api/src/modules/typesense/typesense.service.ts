@@ -150,7 +150,7 @@ export class TypesenseService implements OnModuleInit {
   }
 
   async multiSearch(
-    searches: Array<{ collection: string; q: string; query_by: string; per_page: number }>,
+    searches: Array<{ collection: string; q: string; query_by: string; per_page: number; drop_tokens_threshold?: number }>,
   ): Promise<any[]> {
     const result = await this.client.multiSearch.perform({ searches } as any)
     return (result as any).results ?? []

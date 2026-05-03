@@ -35,25 +35,25 @@ export class SearchService {
 
     const searches = [
       (all || filter === 'books')
-        ? { collection: 'books', q: trimmed, query_by: 'title,seriesName,authorNames', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'books', q: trimmed, query_by: 'title,seriesName,authorNames', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'editions')
-        ? { collection: 'editions', q: trimmed, query_by: 'bookTitle,authorNames,publisher,companyName', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'editions', q: trimmed, query_by: 'bookTitle,authorNames,publisher,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'authors')
-        ? { collection: 'authors', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'authors', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'artists')
-        ? { collection: 'artists', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'artists', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'subscriptions')
-        ? { collection: 'subscriptions', q: trimmed, query_by: 'name,companyName', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'subscriptions', q: trimmed, query_by: 'name,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'companies')
-        ? { collection: 'companies', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'companies', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'sales')
-        ? { collection: 'sales', q: trimmed, query_by: 'title,companyName', per_page: LIMIT_PER_GROUP }
+        ? { collection: 'sales', q: trimmed, query_by: 'title,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
     ]
 
