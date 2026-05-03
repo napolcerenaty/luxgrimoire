@@ -5,11 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { getPurchaseGroups, getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, Package, ShoppingBag, Tag, X, Pencil, Truck } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
@@ -491,7 +491,6 @@ export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
-  const [tab, setTab] = useState<'books' | 'bundles'>('books')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -524,11 +523,6 @@ export default function CollectionPage() {
   const { data: stats } = useQuery({
     queryKey: ['collection-stats'],
     queryFn: () => authFetch<CollectionStats>('/collection/stats'),
-  })
-
-  const { data: bundles = [] } = useQuery({
-    queryKey: ['purchase-groups'],
-    queryFn: getPurchaseGroups,
   })
 
   const { data: saleGroups = [] } = useQuery({
@@ -743,84 +737,9 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-stone-800 pb-0">
-        <button
-          onClick={() => setTab('books')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'books'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-stone-400 hover:text-stone-200'
-          }`}
-        >
-          Books
-        </button>
-        <button
-          onClick={() => setTab('bundles')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'bundles'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-stone-400 hover:text-stone-200'
-          }`}
-        >
-          Bundles {bundles.length > 0 && <span className="ml-1 text-xs">({bundles.length})</span>}
-        </button>
-      </div>
-
-      {tab === 'bundles' ? (
-        /* ─── Bundles tab ─── */
-        <div>
-          {bundles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
-              <Package size={48} className="mb-4 opacity-30" />
-              <p className="font-serif text-lg">No bundles yet</p>
-              <p className="text-sm mt-1">Add a bundle to track a group purchase</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {bundles.map((bundle) => (
-                <div key={bundle.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-stone-200 font-medium">
-                        {bundle.title ?? new Date(bundle.purchasedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
-                      {bundle.saleAnnouncement && (
-                        <a
-                          href={`/sale-announcements/${bundle.saleAnnouncement.id}`}
-                          className="text-xs text-amber-400 hover:underline"
-                        >
-                          {bundle.saleAnnouncement.title}
-                        </a>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
-                        {bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <div>
-                      <p className="text-xs text-stone-500">Total</p>
-                      <p className="text-lg font-bold text-amber-400">{bundle.totalAmount} {bundle.currency}</p>
-                    </div>
-                    {bundle.perBookCost != null && (bundle.bookCount ?? 0) > 1 && (
-                      <div>
-                        <p className="text-xs text-stone-500">Per book</p>
-                        <p className="text-sm font-medium text-stone-300">{bundle.perBookCost} {bundle.currency}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ─── Books tab ─── */
-        <>
-          {/* Search + Filters — all inline */}
+      {/* Books */}
+      <>
+        {/* Search + Filters — all inline */}
           <div className="flex gap-2 flex-wrap items-center mb-6">
             <input
               type="text"
@@ -1184,8 +1103,7 @@ export default function CollectionPage() {
           })}
         </div>
       )}
-        </>
-      )}
+      </>
 
       {/* Add to Collection modal */}
       <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add to Collection">
