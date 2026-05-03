@@ -25,8 +25,13 @@ interface CollectionEntry {
   signatureType: string | null
   trackingNumber: string | null
   tags: string[]
-  purchaseFees: Array<{ id: string; name: string; amount: string; currency: string; category: string }>
-  purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null; fromSubscription: boolean; _count: { bookEntries: number } } | null
+  purchaseGroup: {
+    id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null
+    fromSubscription: boolean; _count: { bookEntries: number }
+    fees: Array<{ id: string; amount: string; currency: string; date: string }>
+    discounts: Array<{ id: string; amount: string; currency: string; date: string }>
+    refunds: Array<{ id: string; amount: string; currency: string; date: string }>
+  } | null
   edition: {
     id: string
     slug: string
@@ -581,23 +586,34 @@ export default function CollectionPage() {
   })
 
   // Fetch currency conversion rates for entries with purchase groups
-  // Includes: costCur→dc (for display) and feeCurrency→costCur (for fee normalization)
+  // Includes: pgCur→dc (display), feeCur→pgCur, discountCur→pgCur, refundCur→pgCur
   useEffect(() => {
     const defaultCurrency = user?.preferredCurrency
     if (!defaultCurrency || entries.length === 0) return
     const combos = new Set<string>()
     for (const e of entries) {
       if (!e.purchaseGroup) continue
-      const from = e.purchaseGroup.currency
-      const date = e.purchaseGroup.purchasedAt.slice(0, 10)
-      // costCur → defaultCurrency (for display conversion)
-      if (from !== defaultCurrency) {
-        combos.add(`${from}:${defaultCurrency}:${date}`)
+      const pg = e.purchaseGroup
+      const pgCur = pg.currency
+      const pgDate = pg.purchasedAt.slice(0, 10)
+      // pgCur → defaultCurrency (for display conversion)
+      if (pgCur !== defaultCurrency) {
+        combos.add(`${pgCur}:${defaultCurrency}:${pgDate}`)
       }
-      // feeCurrency → costCur (to normalize fees into purchase currency)
-      for (const fee of e.purchaseFees ?? []) {
-        if (fee.currency !== from) {
-          combos.add(`${fee.currency}:${from}:${date}`)
+      // fee/discount/refund currencies → pgCur (to normalize into purchase currency)
+      for (const fee of pg.fees ?? []) {
+        if (fee.currency !== pgCur) {
+          combos.add(`${fee.currency}:${pgCur}:${fee.date?.slice(0, 10) ?? pgDate}`)
+        }
+      }
+      for (const discount of pg.discounts ?? []) {
+        if (discount.currency !== pgCur) {
+          combos.add(`${discount.currency}:${pgCur}:${discount.date?.slice(0, 10) ?? pgDate}`)
+        }
+      }
+      for (const refund of pg.refunds ?? []) {
+        if (refund.currency !== pgCur) {
+          combos.add(`${refund.currency}:${pgCur}:${refund.date?.slice(0, 10) ?? pgDate}`)
         }
       }
     }
@@ -1057,14 +1073,42 @@ export default function CollectionPage() {
                           {/* Cost display */}
                           {entry.purchaseGroup ? (() => {
                             const pg = entry.purchaseGroup
-                            const total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
-                            const dc = user?.preferredCurrency
+                            const pgCur = pg.currency
                             const dateStr = pg.purchasedAt.slice(0, 10)
+                            let total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
+                            // Add fees (normalized to pgCur)
+                            for (const fee of pg.fees ?? []) {
+                              if (fee.currency === pgCur) {
+                                total += Number(fee.amount)
+                              } else {
+                                const rate = conversionRates[`${fee.currency}:${pgCur}:${fee.date?.slice(0, 10) ?? dateStr}`]
+                                if (rate) total += Number(fee.amount) * rate
+                              }
+                            }
+                            // Subtract discounts (normalized to pgCur)
+                            for (const discount of pg.discounts ?? []) {
+                              if (discount.currency === pgCur) {
+                                total -= Number(discount.amount)
+                              } else {
+                                const rate = conversionRates[`${discount.currency}:${pgCur}:${discount.date?.slice(0, 10) ?? dateStr}`]
+                                if (rate) total -= Number(discount.amount) * rate
+                              }
+                            }
+                            // Subtract refunds (normalized to pgCur)
+                            for (const refund of pg.refunds ?? []) {
+                              if (refund.currency === pgCur) {
+                                total -= Number(refund.amount)
+                              } else {
+                                const rate = conversionRates[`${refund.currency}:${pgCur}:${refund.date?.slice(0, 10) ?? dateStr}`]
+                                if (rate) total -= Number(refund.amount) * rate
+                              }
+                            }
+                            const dc = user?.preferredCurrency
                             return (
                               <p className="text-[10px] text-stone-400">
-                                {total.toFixed(2)} {pg.currency}
-                                {dc && pg.currency !== dc && (() => {
-                                  const key = `${pg.currency}:${dc}:${dateStr}`
+                                {total.toFixed(2)} {pgCur}
+                                {dc && pgCur !== dc && (() => {
+                                  const key = `${pgCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
                                   return <span className="text-stone-500"> · ~{(total * rate).toFixed(2)} {dc}</span>

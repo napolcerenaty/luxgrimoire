@@ -58,7 +58,16 @@ export class CollectionService {
           },
           salePrice: true,
           saleCurrency: true,
-          purchaseGroup: { select: { id: true, currency: true, purchasedAt: true, totalAmount: true, shippingAmount: true, fromSubscription: true, _count: { select: { bookEntries: true } } } },
+          purchaseGroup: {
+            select: {
+              id: true, currency: true, purchasedAt: true, totalAmount: true,
+              shippingAmount: true, fromSubscription: true,
+              _count: { select: { bookEntries: true } },
+              fees: { select: { id: true, amount: true, currency: true, date: true } },
+              discounts: { select: { id: true, amount: true, currency: true, date: true } },
+              refunds: { select: { id: true, amount: true, currency: true, date: true } },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
