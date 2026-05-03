@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { Database, CheckCircle, Clock, XCircle, ExternalLink, PlusCircle, ChevronDown } from 'lucide-react'
+import { Database, CheckCircle, Clock, XCircle, ExternalLink, PlusCircle, ChevronDown, Send } from 'lucide-react'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const DATA_TYPES = [
@@ -64,6 +64,7 @@ export default function DataRequestsPage() {
   })
 
   const [addMode, setAddMode] = useState<null | 'book'>(null)
+  const [requestOpen, setRequestOpen] = useState(false)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
@@ -111,45 +112,66 @@ export default function DataRequestsPage() {
         )}
       </div>
 
-      {submitted ? (
-        <div className="bg-green-950/30 border border-green-700/40 rounded-2xl p-6 text-center">
-          <CheckCircle size={36} className="text-green-400 mx-auto mb-3" />
-          <p className="text-green-400 font-semibold text-lg">Request submitted!</p>
-          <p className="text-stone-400 text-sm mt-1">We'll review it and add it to the database.</p>
-        </div>
-      ) : (
-        <form onSubmit={e => { e.preventDefault(); submit.mutate() }} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
-          <div>
-            <label className={LBL}>Type *</label>
-            <select required className={INP} value={type} onChange={e => setType(e.target.value)}>
-              {DATA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+      {/* ── Request form ── */}
+      <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setRequestOpen(o => !o)}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-stone-800/60 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Send size={20} className="text-stone-400" />
+            <div className="text-left">
+              <p className="text-sm font-semibold text-stone-100">Send a Data Request</p>
+              <p className="text-xs text-stone-500">Can't add it yourself? Let us know what's missing.</p>
+            </div>
           </div>
-          <div>
-            <label className={LBL}>Name *</label>
-            <input required minLength={2} maxLength={200} className={INP} value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. FairyLoot December 2024, The Poppy War by R.F. Kuang…" />
+          <ChevronDown size={16} className={`text-stone-500 transition-transform ${requestOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {requestOpen && (
+          <div className="border-t border-stone-800 p-6">
+            {submitted ? (
+              <div className="bg-green-950/30 border border-green-700/40 rounded-2xl p-6 text-center">
+                <CheckCircle size={36} className="text-green-400 mx-auto mb-3" />
+                <p className="text-green-400 font-semibold text-lg">Request submitted!</p>
+                <p className="text-stone-400 text-sm mt-1">We'll review it and add it to the database.</p>
+              </div>
+            ) : (
+              <form onSubmit={e => { e.preventDefault(); submit.mutate() }} className="space-y-4">
+                <div>
+                  <label className={LBL}>Type *</label>
+                  <select required className={INP} value={type} onChange={e => setType(e.target.value)}>
+                    {DATA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={LBL}>Name *</label>
+                  <input required minLength={2} maxLength={200} className={INP} value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="e.g. FairyLoot December 2024, The Poppy War by R.F. Kuang…" />
+                </div>
+                <div>
+                  <label className={LBL}>Description (optional)</label>
+                  <textarea rows={3} maxLength={1000} className={INP} value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Any additional details that would help us find or add it…" />
+                </div>
+                <div>
+                  <label className={LBL}>Reference URL (optional)</label>
+                  <input type="url" className={INP} value={referenceUrl}
+                    onChange={e => setReferenceUrl(e.target.value)}
+                    placeholder="https://fairyloot.com/… or Goodreads link, etc." />
+                </div>
+                {submit.isError && <p className="text-red-400 text-sm">{(submit.error as Error).message}</p>}
+                <button type="submit" disabled={submit.isPending}
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                  {submit.isPending ? 'Submitting…' : 'Submit Request'}
+                </button>
+              </form>
+            )}
           </div>
-          <div>
-            <label className={LBL}>Description (optional)</label>
-            <textarea rows={3} maxLength={1000} className={INP} value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Any additional details that would help us find or add it…" />
-          </div>
-          <div>
-            <label className={LBL}>Reference URL (optional)</label>
-            <input type="url" className={INP} value={referenceUrl}
-              onChange={e => setReferenceUrl(e.target.value)}
-              placeholder="https://fairyloot.com/… or Goodreads link, etc." />
-          </div>
-          {submit.isError && <p className="text-red-400 text-sm">{(submit.error as Error).message}</p>}
-          <button type="submit" disabled={submit.isPending}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
-            {submit.isPending ? 'Submitting…' : 'Submit Request'}
-          </button>
-        </form>
-      )}
+        )}
+      </div>
 
       {user && (
         <div>
