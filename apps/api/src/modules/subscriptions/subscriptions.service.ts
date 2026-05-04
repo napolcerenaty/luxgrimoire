@@ -1055,9 +1055,9 @@ export class SubscriptionsService {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = nextMonthDate.getFullYear();
-    const startMonth = nextMonthDate.getMonth() + 1;
+    // First eligible month = the month of the subscription start date (inclusive)
+    const startYear = startDateObj.getFullYear();
+    const startMonth = startDateObj.getMonth() + 1;
 
     if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
       return [];
