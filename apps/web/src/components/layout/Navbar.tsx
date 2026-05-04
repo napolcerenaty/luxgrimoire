@@ -20,6 +20,15 @@ const NAV_LINKS = [
   { href: '/sale-announcements', label: 'Sale Announcements' },
 ]
 
+const USER_NAV_LINKS = [
+  { href: '/calendar',         label: 'Calendar',      icon: CalendarDays },
+  { href: '/collection',       label: 'My Collection', icon: BookOpen },
+  { href: '/sold',             label: 'Sold Books',    icon: ShoppingBag },
+  { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
+  { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
+  { href: '/spending',         label: 'Spending',      icon: DollarSign },
+  { href: '/profile',          label: 'Profile',       icon: User },
+]
 
 export function Navbar() {
   const pathname = usePathname()
@@ -131,7 +140,7 @@ export function Navbar() {
                     {[
                       { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
                       { href: '/collection',        icon: BookOpen,     label: 'Collection' },
-                      { href: '/sold',              icon: ShoppingBag,  label: 'My Sales' },
+                      { href: '/sold',              icon: ShoppingBag,  label: 'Sold Books' },
                       { href: '/my-subscriptions',  icon: BookMarked,   label: 'Subscriptions' },
                       { href: '/wishlist',          icon: Heart,        label: 'Wishlist' },
                     ].map(({ href, icon: Icon, label }) => (
@@ -276,19 +285,22 @@ export function Navbar() {
             {user && (
               <>
                 <div className="h-px bg-stone-800 my-1" />
-                <Link
-                  href="/collection"
-                  onClick={() => setMobileNavOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
-                    ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/spending', '/sold'].some(p => pathname.startsWith(p))
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
-                  `}
-                >
-                  <Library size={15} />
-                  My Library
-                </Link>
+                {USER_NAV_LINKS.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
+                      ${isActive(href)
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
+                    `}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </Link>
+                ))}
               </>
             )}
             {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
