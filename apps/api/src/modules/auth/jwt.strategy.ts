@@ -31,13 +31,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: string; email: string; role: string; username: string; managedCompanyId?: string | null; jti?: string }) {
     if (!payload.sub) throw new UnauthorizedException();
 
-    // If token has a session ID (jti), verify session still exists and is not expired
+    // If token has a session ID (jti), verify session and re-read role/managedCompanyId from DB
+    // so role changes take effect without requiring a re-login
     if (payload.jti) {
       const session = await this.prisma.session.findFirst({
         where: { id: payload.jti, userId: payload.sub, expiresAt: { gt: new Date() } },
         select: { id: true },
       });
       if (!session) throw new UnauthorizedException('Session expired or revoked');
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { role: true, managedCompanyId: true },
+      });
+      if (!user) throw new UnauthorizedException();
+
+      return { id: payload.sub, email: payload.email, role: user.role, username: payload.username, managedCompanyId: user.managedCompanyId ?? null, jti: payload.jti };
     }
 
     return { id: payload.sub, email: payload.email, role: payload.role, username: payload.username, managedCompanyId: payload.managedCompanyId ?? null, jti: payload.jti ?? null };
