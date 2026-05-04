@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 
-export function GenreTagsPicker({ genres, onChange }: { genres: string[]; onChange: (v: string[]) => void }) {
+export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres: string[]; onChange: (v: string[]) => void; allowNew?: boolean }) {
   const [q, setQ] = useState('')
   const [dq, setDq] = useState('')
   const [open, setOpen] = useState(false)
@@ -41,9 +41,9 @@ export function GenreTagsPicker({ genres, onChange }: { genres: string[]; onChan
         <input value={q} onChange={e => handleChange(e.target.value)}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(q) } }}
-          placeholder="Search or type genre + Enter…" className={INP} />
-        {open && (filtered.length > 0 || q.trim()) && (
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (allowNew) add(q) } }}
+          placeholder={allowNew ? 'Search or type genre + Enter…' : 'Search genre…'} className={INP} />
+        {open && (filtered.length > 0 || (allowNew && q.trim())) && (
           <div className="absolute z-20 top-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
             {filtered.map(g => (
               <button key={g} type="button" onMouseDown={() => add(g)}
@@ -51,7 +51,7 @@ export function GenreTagsPicker({ genres, onChange }: { genres: string[]; onChan
                 {g}
               </button>
             ))}
-            {q.trim() && !filtered.includes(q.trim()) && (
+            {allowNew && q.trim() && !filtered.includes(q.trim()) && (
               <button type="button" onMouseDown={() => add(q.trim())}
                 className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors">
                 + Add &ldquo;{q.trim()}&rdquo;

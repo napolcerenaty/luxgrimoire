@@ -487,7 +487,7 @@ export default function CreateBookEditionForm({
       {/* Genres */}
       <div>
         <label className={LBL}>Genres</label>
-        <GenreTagsPicker genres={genres} onChange={setGenres} />
+        <GenreTagsPicker genres={genres} onChange={setGenres} allowNew={isPrivileged} />
       </div>
 
       <div className="flex gap-2 pt-1">
