@@ -119,8 +119,8 @@ export function CompaniesClient({ companies }: Props) {
           })}
         </div>
       )}
-      <p className="mt-10 text-center text-xs text-stone-600">
-        All company names and logos are property of their respective owners and are used for informational purposes only.
+      <p className="mt-10 text-center text-xs text-stone-400">
+        LuxGrimoire is an independent, fan-made database and is not affiliated with any listed companies. All trademarks and images belong to their respective owners.
       </p>
     </div>
   )

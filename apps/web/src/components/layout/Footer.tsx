@@ -117,10 +117,9 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-stone-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-stone-600">© {YEAR} LuxGrimoire. All rights reserved.</p>
-          <p className="text-xs text-stone-700">
-            Cover images and trademarks belong to their respective owners.
-            LuxGrimoire is a fan-made, community database.
+          <p className="text-xs text-stone-500">© {YEAR} LuxGrimoire. All rights reserved.</p>
+          <p className="text-xs text-stone-400 text-center sm:text-right">
+            LuxGrimoire is an independent, fan-made database and is not affiliated with any listed companies. All trademarks and images belong to their respective owners.
           </p>
         </div>
       </div>
