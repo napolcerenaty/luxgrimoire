@@ -261,7 +261,8 @@ model BookBoxCompany {
   defaultCurrency   String?
   facebook          String?
   instagram         String?
-  iossImplemented   Boolean               @default(false)
+  iossImplemented              Boolean               @default(false)
+  hasOfficialImagePermission   Boolean               @default(false)
   threads           String?
   tiktok            String?
   x                 String?

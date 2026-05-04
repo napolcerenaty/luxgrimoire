@@ -130,6 +130,7 @@ interface CompanyFormData {
   x: string
   bluesky: string
   iossImplemented: boolean
+  hasOfficialImagePermission: boolean
 }
 
 const EMPTY_FORM: CompanyFormData = {
@@ -137,6 +138,7 @@ const EMPTY_FORM: CompanyFormData = {
   logoUrl: '', defaultCurrency: '',
   instagram: '', threads: '', tiktok: '', facebook: '', x: '', bluesky: '',
   iossImplemented: false,
+  hasOfficialImagePermission: false,
 }
 
 function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
@@ -154,6 +156,7 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
     x: c.x ?? '',
     bluesky: c.bluesky ?? '',
     iossImplemented: c.iossImplemented ?? false,
+    hasOfficialImagePermission: c.hasOfficialImagePermission ?? false,
   }
 }
 
@@ -172,6 +175,7 @@ function formToPayload(form: CompanyFormData) {
     x: form.x || undefined,
     bluesky: form.bluesky || undefined,
     iossImplemented: form.iossImplemented,
+    hasOfficialImagePermission: form.hasOfficialImagePermission,
   }
 }
 
@@ -321,6 +325,17 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
           className="accent-amber-400 w-4 h-4"
         />
         IOSS Implemented
+      </label>
+
+      {/* Official image permission */}
+      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.hasOfficialImagePermission}
+          onChange={(e) => setForm((f) => ({ ...f, hasOfficialImagePermission: e.target.checked }))}
+          className="accent-amber-400 w-4 h-4"
+        />
+        Permission to use brand images
       </label>
 
       <button

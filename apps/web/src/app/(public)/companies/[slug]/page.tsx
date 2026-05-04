@@ -246,6 +246,9 @@ export default async function CompanyPage({ params }: Props) {
             {hasActiveSponsored && (
               <Badge variant="warning">✦ Featured Partner</Badge>
             )}
+            {company.hasOfficialImagePermission && (
+              <Badge variant="outline">✓ Images used with brand permission</Badge>
+            )}
           </div>
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3">{company.name}</h1>
           {company.country && (
