@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 const NAV_LINKS = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/collection', label: 'My Collection', icon: BookOpen },
-  { href: '/sold', label: 'My Sales', icon: ShoppingBag },
+  { href: '/sold', label: 'Sold Books', icon: ShoppingBag },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/spending', label: 'Spending', icon: DollarSign },

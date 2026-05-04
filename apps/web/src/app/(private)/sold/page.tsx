@@ -413,7 +413,7 @@ export default function SoldPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-stone-100">My Sales</h1>
+          <h1 className="text-3xl font-serif font-bold text-stone-100">Sold Books</h1>
           <p className="text-stone-400 text-sm mt-1">{soldEntries.length} book{soldEntries.length !== 1 ? 's' : ''} sold</p>
         </div>
         <button
