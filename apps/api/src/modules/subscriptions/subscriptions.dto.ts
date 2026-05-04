@@ -139,11 +139,11 @@ export class UpdateSubscriptionDto {
 
   @IsOptional()
   @IsString()
-  coverImage?: string;
+  coverImage?: string | null;
 
   @IsOptional()
   @IsString()
-  logoUrl?: string;
+  logoUrl?: string | null;
 
   @IsOptional()
   @IsString()

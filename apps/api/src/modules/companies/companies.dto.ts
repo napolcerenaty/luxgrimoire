@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCompanyDto {
@@ -64,48 +64,59 @@ export class UpdateCompanyDto {
   name?: string;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  logoUrl?: string;
+  logoUrl?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  website?: string;
+  website?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  country?: string;
+  country?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  defaultCurrency?: string;
+  defaultCurrency?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  instagram?: string;
+  instagram?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  threads?: string;
+  threads?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  tiktok?: string;
+  tiktok?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  facebook?: string;
+  facebook?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  x?: string;
+  x?: string | null;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
   @IsString()
-  bluesky?: string;
+  bluesky?: string | null;
 
   @IsOptional()
   @IsBoolean()

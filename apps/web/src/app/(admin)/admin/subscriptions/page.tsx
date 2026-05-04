@@ -171,7 +171,7 @@ function formToUpdatePayload(form: SubFormData) {
     description: form.description || undefined,
     genres: form.genres,
     currency: form.currency || 'EUR',
-    coverImage: form.coverImage || undefined,
+    coverImage: form.coverImage === null ? null : (form.coverImage || undefined),
     price: form.price ? form.price.replace(',', '.') : undefined,
     language: form.language || undefined,
     type: form.type || undefined,
@@ -264,7 +264,9 @@ function SubscriptionForm({
             <textarea rows={4} className={INPUT_CLASS} value={form.description} onChange={setStr('description')} />
           </div>
           <ImageUpload label="Cover Image" folder="luxgrimoire/subscriptions"
-            value={form.coverImage} onChange={(id) => setField('coverImage', id)} aspectRatio="2/3" />
+            value={form.coverImage ?? ''} onChange={(id) => setField('coverImage', id)}
+            onClear={() => setField('coverImage', null as unknown as string)}
+            aspectRatio="2/3" />
         </div>
 
         {/* RIGHT: settings */}

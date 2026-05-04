@@ -121,7 +121,7 @@ interface CompanyFormData {
   description: string
   country: string
   website: string
-  logoUrl: string
+  logoUrl: string | null
   defaultCurrency: string
   instagram: string
   threads: string
@@ -135,7 +135,7 @@ interface CompanyFormData {
 
 const EMPTY_FORM: CompanyFormData = {
   name: '', description: '', country: '', website: '',
-  logoUrl: '', defaultCurrency: '',
+  logoUrl: null, defaultCurrency: '',
   instagram: '', threads: '', tiktok: '', facebook: '', x: '', bluesky: '',
   iossImplemented: false,
   hasOfficialImagePermission: false,
@@ -147,7 +147,7 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
     description: c.description ?? '',
     country: c.country ?? '',
     website: c.website ?? '',
-    logoUrl: c.logoUrl ?? '',
+    logoUrl: c.logoUrl ?? null,
     defaultCurrency: c.defaultCurrency ?? '',
     instagram: c.instagram ?? '',
     threads: c.threads ?? '',
@@ -160,20 +160,26 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
   }
 }
 
+function nullIfEmpty(v: string | null | undefined): string | null | undefined {
+  if (v === null) return null       // explicit clear
+  if (v === '' || v === undefined) return null  // cleared by user
+  return v
+}
+
 function formToPayload(form: CompanyFormData) {
   return {
     name: form.name,
-    description: form.description || undefined,
-    country: form.country || undefined,
-    website: form.website || undefined,
-    logoUrl: form.logoUrl || undefined,
-    defaultCurrency: form.defaultCurrency || undefined,
-    instagram: form.instagram || undefined,
-    threads: form.threads || undefined,
-    tiktok: form.tiktok || undefined,
-    facebook: form.facebook || undefined,
-    x: form.x || undefined,
-    bluesky: form.bluesky || undefined,
+    description: nullIfEmpty(form.description),
+    country: nullIfEmpty(form.country),
+    website: nullIfEmpty(form.website),
+    logoUrl: form.logoUrl === null ? null : (form.logoUrl || undefined),
+    defaultCurrency: nullIfEmpty(form.defaultCurrency),
+    instagram: nullIfEmpty(form.instagram),
+    threads: nullIfEmpty(form.threads),
+    tiktok: nullIfEmpty(form.tiktok),
+    facebook: nullIfEmpty(form.facebook),
+    x: nullIfEmpty(form.x),
+    bluesky: nullIfEmpty(form.bluesky),
     iossImplemented: form.iossImplemented,
     hasOfficialImagePermission: form.hasOfficialImagePermission,
   }
@@ -281,14 +287,25 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
             <img src={previewUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover border border-stone-700" />
           )}
           <div className="flex-1">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
-            >
-              {uploading ? 'Uploading…' : previewUrl ? 'Change image' : 'Upload image'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
+              >
+                {uploading ? 'Uploading…' : previewUrl ? 'Change image' : 'Upload image'}
+              </button>
+              {previewUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setForm((f) => ({ ...f, logoUrl: null })); setPreviewUrl(null) }}
+                  className="px-3 py-2 rounded-lg border border-red-800 text-red-400 hover:border-red-500 hover:text-red-300 text-sm transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
             {form.logoUrl && <p className="text-xs text-stone-500 mt-1 truncate">{form.logoUrl}</p>}
             {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
           </div>

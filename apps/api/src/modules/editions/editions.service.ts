@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { UploadService } from '../upload/upload.service';
 import {
   CreateEditionDto,
   UpdateEditionDto,
@@ -16,7 +17,14 @@ export class EditionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
+    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
+    if (!valid.length) return;
+    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
+  }
 
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {
     const book = await this.prisma.book.findUnique({ where: { id: dto.bookId } });
@@ -213,7 +221,7 @@ export class EditionsService {
   }
 
   async update(slug: string, dto: UpdateEditionDto) {
-    await this.findBySlug(slug);
+    const existing = await this.findBySlug(slug);
 
     // Build a plain update object — never pass a class instance directly to Prisma
     const data: Record<string, unknown> = {};
@@ -243,6 +251,13 @@ export class EditionsService {
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
+    // Delete removed images from Cloudinary
+    if (dto.additionalImages !== undefined) {
+      const removed = (existing.additionalImages as string[]).filter(
+        (img) => !(dto.additionalImages as string[]).includes(img),
+      );
+      await this.deleteCloudinaryImages(removed);
+    }
     await this.indexEdition(edition.id);
     return edition;
   }
@@ -257,6 +272,7 @@ export class EditionsService {
       throw new ConflictException(`Cannot delete edition that is in ${collectionCount} user collection(s)`);
     }
 
+    await this.deleteCloudinaryImages(edition.additionalImages as string[]);
     await this.typesense.deleteDocument('editions', edition.id);
     const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
     return { ...deleted, collectionsAffected: collectionCount };
