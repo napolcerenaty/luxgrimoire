@@ -5,25 +5,39 @@ import Link from 'next/link'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import type { ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { Megaphone, Search } from 'lucide-react'
-import { AddToCollectionButton } from './[id]/AddToCollectionButton'
-import { useAuth } from '@/components/AuthProvider'
+import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useDebounce } from '@/hooks/useDebounce'
 
 const PAGE_SIZE = 15
+
+interface ListSaleAnnouncement {
+  id: string
+  title: string
+  imageUrl: string | null
+  basePrice: number | null
+  currency: string | null
+  isBundle: boolean
+  availableForPurchase: boolean
+  generalSaleDate: string | null
+  firstAccessDate: string | null
+  earlyAccessDate: string | null
+  company: { name: string } | null
+  editions: Array<{ edition: { additionalImages: string[] } | null }>
+  regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
+}
 
 function formatDate(iso: string | null) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | null | undefined }) {
+function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const firstEdition = a.editions?.[0]?.edition
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_300,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
-  const editionIds = a.editions?.map((e) => e.editionId) ?? []
 
   return (
     <div
@@ -44,6 +58,12 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | 
               <Megaphone size={32} className="text-amber-700/40" />
             </div>
           )}
+          {/* Company ribbon */}
+          {a.company?.name && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-stone-950/85 to-transparent px-3 pt-6 pb-2 pointer-events-none">
+              <p className="text-[11px] font-serif text-stone-300 truncate">{a.company.name}</p>
+            </div>
+          )}
           {a.isBundle && (
             <span className="absolute top-2 left-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-900/80 border border-stone-600 text-amber-400">
               Bundle
@@ -60,10 +80,6 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | 
           <p className="text-sm font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
             {a.title}
           </p>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {(a as any).company?.name && (
-            <p className="text-[11px] text-stone-500">{(a as any).company.name}</p>
-          )}
           {saleDate && <p className="text-xs text-amber-500 font-sans">🗓 {saleDate}</p>}
           {a.basePrice != null && a.currency && (
             <p className="text-xs text-stone-400">from {a.basePrice} {a.currency}</p>
@@ -71,17 +87,10 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | 
         </div>
       </Link>
 
-      {user && editionIds.length > 0 && (
-        <div className="px-4 pb-4 mt-auto">
-          <AddToCollectionButton
-            saleAnnouncementId={a.id}
-            editionIds={editionIds}
-            basePrice={a.basePrice ?? undefined}
-            currency={a.currency ?? 'USD'}
-            compact
-          />
-        </div>
-      )}
+      <div className="px-4 pb-4 mt-auto">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <SaleInterestButton sale={a as any} />
+      </div>
     </div>
   )
 }
@@ -89,7 +98,6 @@ function AnnouncementCard({ a, user }: { a: ApiSaleAnnouncement; user: object | 
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
-  const { user } = useAuth()
 
   const {
     data,
@@ -106,7 +114,7 @@ export default function SaleAnnouncementsPage() {
         page: String(pageParam),
       })
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
-      return apiFetch<PaginatedResponse<ApiSaleAnnouncement>>(`/announcements?${params}`)
+      return apiFetch<PaginatedResponse<ListSaleAnnouncement>>(`/announcements?${params}`)
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
@@ -164,7 +172,7 @@ export default function SaleAnnouncementsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {announcements.map((a) => <AnnouncementCard key={a.id} a={a} user={user} />)}
+            {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
           </div>
           {hasNextPage && (
             <div className="text-center mt-10">

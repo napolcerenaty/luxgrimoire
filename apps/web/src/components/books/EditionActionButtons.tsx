@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, MoveRight, Plus, X } from 'lucide-react'
+import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Megaphone, MoveRight, Plus, X } from 'lucide-react'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -32,9 +33,10 @@ interface Props {
   currency?: string | null
   bundles: Array<{ id: string; title: string }>
   generalSaleDate?: string | null
+  saleAnnouncementId?: string | null
 }
 
-export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles, generalSaleDate }: Props) {
+export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles, generalSaleDate, saleAnnouncementId }: Props) {
   const { user } = useAuth()
   const isFutureSale = !!generalSaleDate && new Date(generalSaleDate) > new Date()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
@@ -208,18 +210,28 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {/* Wishlist toggle — hidden once in collection */}
-        {!isInCollection && (
-          status === 'wishlist' ? (
-            <button onClick={handleRemoveWishlist} disabled={isPending}
-              className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-amber-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700">
-              <BookmarkCheck size={16} />On Wishlist
-            </button>
-          ) : (
-            <button onClick={handleAddWishlist} disabled={isPending}
-              className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700 hover:border-stone-600">
-              <Bookmark size={16} />{isPending ? 'Adding…' : 'Add to Wishlist'}
-            </button>
+        {/* Sale Announcement button — shown instead of wishlist when there's a linked future sale */}
+        {isFutureSale && saleAnnouncementId ? (
+          <Link
+            href={`/sale-announcements/${saleAnnouncementId}`}
+            className="inline-flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Megaphone size={16} />View Sale Announcement
+          </Link>
+        ) : (
+          /* Wishlist toggle — hidden once in collection */
+          !isInCollection && (
+            status === 'wishlist' ? (
+              <button onClick={handleRemoveWishlist} disabled={isPending}
+                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-amber-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700">
+                <BookmarkCheck size={16} />On Wishlist
+              </button>
+            ) : (
+              <button onClick={handleAddWishlist} disabled={isPending}
+                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700 hover:border-stone-600">
+                <Bookmark size={16} />{isPending ? 'Adding…' : 'Add to Wishlist'}
+              </button>
+            )
           )
         )}
 

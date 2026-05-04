@@ -96,27 +96,22 @@ export function Footer() {
           {/* Report / Legal */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Legal &amp; Safety</p>
-            <ul className="space-y-2 mb-5">
-              {LINKS.legal.map(({ href, label }) => (
+            <ul className="space-y-2">
+              <li>
+                <Link href="/report" className="flex items-start gap-2 hover:text-stone-200 transition-colors group">
+                  <AlertTriangle size={13} className="text-stone-500 group-hover:text-rose-400 transition-colors mt-0.5 shrink-0" />
+                  <span>
+                    <span className="text-sm block">Report Abuse / DMCA</span>
+                    <span className="text-[11px] text-stone-600 leading-relaxed">Copyright, incorrect data, or other concerns</span>
+                  </span>
+                </Link>
+              </li>
+              {LINKS.legal.filter(l => l.href !== '/report').map(({ href, label }) => (
                 <li key={href}>
                   <Link href={href} className="text-sm hover:text-stone-200 transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
-
-            {/* Report abuse box */}
-            <Link
-              href="/report"
-              className="flex items-start gap-2.5 p-3 rounded-lg border border-rose-900/60 bg-rose-950/20 hover:border-rose-700/60 transition-colors group"
-            >
-              <AlertTriangle size={14} className="text-rose-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-rose-400 group-hover:text-rose-300 transition-colors">Report an issue</p>
-                <p className="text-[11px] text-stone-500 leading-relaxed mt-0.5">
-                  Copyright violation, incorrect data, or other concerns.
-                </p>
-              </div>
-            </Link>
           </div>
         </div>
 

@@ -90,8 +90,13 @@ export class BooksService {
           id: true,
           slug: true,
           title: true,
+          status: true,
+          genres: true,
+          description: true,
+          language: true,
           volumeNumber: true,
           seriesName: true,
+          createdAt: true,
           authors: {
             select: {
               author: {
@@ -214,6 +219,10 @@ export class BooksService {
 
   async delete(slug: string) {
     const book = await this.findBySlug(slug);
+    const editionCount = await this.prisma.bookEdition.count({ where: { bookId: book.id } });
+    if (editionCount > 0) {
+      throw new ConflictException(`Cannot delete book with ${editionCount} edition(s). Remove all editions first.`);
+    }
     // Remove relations that don't have onDelete: Cascade on the Book side
     await this.prisma.subscriptionMonthBook.deleteMany({ where: { bookId: book.id } });
     await this.prisma.userBookEntry.deleteMany({ where: { bookId: book.id } });

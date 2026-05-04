@@ -625,6 +625,15 @@ export class SubscriptionsService {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
         },
+        feeTemplates: {
+          select: {
+            customAmount: true,
+            customCurrency: true,
+            feeTemplate: {
+              select: { defaultAmount: true, defaultCurrency: true },
+            },
+          },
+        },
         subscription: {
           select: {
             id: true,
@@ -664,6 +673,19 @@ export class SubscriptionsService {
       const cur = entry.costCurrency ?? sub.currency ?? null;
       const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
       const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+      const subCurrency = cur?.toUpperCase() ?? '';
+      const sameCurrencyFees = (entry as any).feeTemplates
+        ? ((entry as any).feeTemplates as Array<{
+            customAmount: { toString(): string } | null;
+            customCurrency: string | null;
+            feeTemplate: { defaultAmount: { toString(): string } | null; defaultCurrency: string };
+          }>).reduce((sum, link) => {
+            const feeCurrency = (link.customCurrency ?? link.feeTemplate.defaultCurrency).toUpperCase();
+            if (feeCurrency !== subCurrency) return sum;
+            const amt = parseFloat((link.customAmount ?? link.feeTemplate.defaultAmount ?? 0).toString());
+            return sum + (isNaN(amt) ? 0 : amt);
+          }, 0)
+        : 0;
 
       // Determine next renewal month/year (use UTC to avoid timezone issues)
       let nextBase = fallbackBase;
@@ -693,10 +715,10 @@ export class SubscriptionsService {
       }
 
       const nextRenewalAmount = nextBase !== null
-        ? (nextBase + (shipping ?? 0))
+        ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
-      const { skipRecords: _sr, ...entryWithoutSkips } = entry;
+      const { skipRecords: _sr, feeTemplates: _ft, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[] };
       return {
         ...entryWithoutSkips,
         subscription: { ...sub },
@@ -1033,9 +1055,9 @@ export class SubscriptionsService {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = nextMonthDate.getFullYear();
-    const startMonth = nextMonthDate.getMonth() + 1;
+    // First eligible month = the month of the subscription start date (inclusive)
+    const startYear = startDateObj.getFullYear();
+    const startMonth = startDateObj.getMonth() + 1;
 
     if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
       return [];

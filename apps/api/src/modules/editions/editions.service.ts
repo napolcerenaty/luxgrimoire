@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import {
@@ -110,6 +110,9 @@ export class EditionsService {
           artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
           bookBoxCompany: { select: { name: true, slug: true } },
           collection: { select: { id: true, name: true, slug: true } },
+          ...(query.needsVerification
+            ? { _count: { select: { userEntries: true } } }
+            : {}),
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -124,6 +127,23 @@ export class EditionsService {
     }));
 
     return { data: flatData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async findPublishers(search?: string): Promise<string[]> {
+    const rows = await this.prisma.bookEdition.findMany({
+      where: {
+        publisher: {
+          not: null,
+          ...(search ? { contains: search, mode: 'insensitive' as const } : {}),
+        },
+        verifiedAt: { not: null },
+      },
+      select: { publisher: true },
+      distinct: ['publisher'],
+      orderBy: { publisher: 'asc' },
+      take: 25,
+    });
+    return rows.map(r => r.publisher).filter(Boolean) as string[];
   }
 
   async findBySlug(slug: string) {
@@ -230,15 +250,16 @@ export class EditionsService {
   async delete(slug: string, userRole?: string) {
     const edition = await this.findBySlug(slug);
     const collectionCount = await this.prisma.userBookEntry.count({ where: { editionId: edition.id } });
-    if (userRole === 'COMPANY_MANAGER') {
-      if (collectionCount > 0) {
-        throw new ConflictException('Cannot delete edition that is already in users\' collections');
-      }
-    } else if (userRole && userRole !== 'ADMIN' && userRole !== 'MODERATOR') {
-      throw new ForbiddenException('Only admins can delete editions');
+
+    if (userRole === 'ADMIN') {
+      // Admin can force-delete even if in collections
+    } else if (collectionCount > 0) {
+      throw new ConflictException(`Cannot delete edition that is in ${collectionCount} user collection(s)`);
     }
+
     await this.typesense.deleteDocument('editions', edition.id);
-    return this.prisma.bookEdition.delete({ where: { slug } });
+    const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
+    return { ...deleted, collectionsAffected: collectionCount };
   }
 
   async addArtist(slug: string, dto: AddArtistDto) {

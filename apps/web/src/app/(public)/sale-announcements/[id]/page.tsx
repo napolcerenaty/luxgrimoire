@@ -125,19 +125,19 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               const authors = book?.authors ?? []
               const coverUrl = edition.additionalImages?.[0]
               const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
-              const bookSlug = book?.slug
+              const displayTitle = book?.title ?? (edition as any).editionName ?? 'Edition'
 
               return (
                 <Link
                   key={editionId}
-                  href={bookSlug ? `/books/${bookSlug}` : '#'}
+                  href={`/editions/${edition.slug}`}
                   className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/30 transition-colors"
                 >
                   {coverSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={coverSrc}
-                      alt={book?.title ?? 'Edition'}
+                      alt={displayTitle}
                       className="w-full aspect-[2/3] object-cover"
                     />
                   ) : (
@@ -147,7 +147,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                   )}
                   <div className="p-3">
                     <p className="text-stone-200 text-sm font-medium leading-tight line-clamp-2">
-                      {book?.title ?? 'Unknown'}
+                      {displayTitle}
                     </p>
                     {authors.length > 0 && (
                       <p className="text-stone-500 text-xs mt-1 line-clamp-1">

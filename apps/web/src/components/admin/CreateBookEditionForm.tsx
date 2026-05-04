@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
+import { PublisherPicker } from './pickers/PublisherPicker'
 import MultiImageUpload, { uploadImage } from './MultiImageUpload'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -486,7 +487,7 @@ export default function CreateBookEditionForm({
       {/* Genres */}
       <div>
         <label className={LBL}>Genres</label>
-        <GenreTagsPicker genres={genres} onChange={setGenres} />
+        <GenreTagsPicker genres={genres} onChange={setGenres} allowNew={isPrivileged} />
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -584,8 +585,7 @@ export default function CreateBookEditionForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Publisher</label>
-          <input value={publisher} onChange={e => setPublisher(e.target.value)}
-            placeholder="e.g. Fairyloot Exclusive" className={INP} />
+          <PublisherPicker value={publisher} onChange={setPublisher} />
         </div>
         <div>
           <label className={LBL}>Language</label>

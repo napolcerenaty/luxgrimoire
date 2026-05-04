@@ -44,6 +44,12 @@ export class EditionsController {
   }
 
   @Public()
+  @Get('publishers')
+  findPublishers(@Query('search') search?: string) {
+    return this.editionsService.findPublishers(search);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const edition = await this.editionsService.findBySlug(slug);
@@ -104,7 +110,7 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'COMPANY_MANAGER')
+  @Roles('ADMIN')
   @Delete(':slug')
   async delete(@Param('slug') slug: string, @CurrentUser() user: CurrentUserType) {
     const result = await this.editionsService.delete(slug, user.role);

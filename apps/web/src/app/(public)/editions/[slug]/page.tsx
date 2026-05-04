@@ -121,6 +121,7 @@ export default async function EditionPage({ params }: Props) {
   const monthBooks = edition.monthBooks ?? []
   const saleEditions = edition.saleEditions ?? []
   const bundles = saleEditions.filter(se => se.announcement.isBundle)
+  const mainSaleAnnouncementId = saleEditions.find(se => !se.announcement.isBundle)?.announcement.id ?? null
 
   // Build all carousel images: cover first, then remaining additional
   const allImages: string[] = []
@@ -271,6 +272,7 @@ export default async function EditionPage({ params }: Props) {
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
                   generalSaleDate={edition.generalSaleDate}
+                  saleAnnouncementId={mainSaleAnnouncementId}
                 />
               </div>
 
