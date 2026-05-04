@@ -104,6 +104,24 @@ export class BooksService {
               },
             },
           },
+          // Include editions when browsing a series
+          ...(query.seriesName
+            ? {
+                editions: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    editionName: true,
+                    additionalImages: true,
+                    bookBoxCompanyCustomName: true,
+                    bookBoxCompany: { select: { name: true, slug: true } },
+                    verifiedAt: true,
+                  },
+                  where: { verifiedAt: { not: null } },
+                  orderBy: { createdAt: 'asc' },
+                },
+              }
+            : {}),
         },
         orderBy: { createdAt: 'desc' },
       }),
