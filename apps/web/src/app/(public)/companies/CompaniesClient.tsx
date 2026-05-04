@@ -31,7 +31,7 @@ export function CompaniesClient({ companies }: Props) {
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1">Book Boxes</h1>
-      <p className="text-sm text-stone-400 mb-6">This is an independent directory of subscription box companies.</p>
+      <p className="text-sm text-stone-400 mb-6">This is an independent directory of book box companies.</p>
 
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
