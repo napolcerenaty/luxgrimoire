@@ -74,7 +74,7 @@ export function CompaniesClient({ companies }: Props) {
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-all hover:shadow-lg hover:shadow-amber-900/10 flex flex-col"
               >
                 {/* Logo area with blur bg */}
-                <div className="relative h-32 overflow-hidden bg-stone-800 flex items-center justify-center">
+                <div className="relative h-24 overflow-hidden bg-stone-800 flex items-center justify-center">
                   {bgImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -89,10 +89,10 @@ export function CompaniesClient({ companies }: Props) {
                     <img
                       src={logoImage}
                       alt={company.name}
-                      className="relative z-10 max-w-[80%] max-h-[80%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
+                      className="relative z-10 max-w-[60%] max-h-[60%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <span className="relative z-10 text-4xl font-serif font-bold text-amber-600/60">
+                    <span className="relative z-10 text-3xl font-serif font-bold text-amber-600/60">
                       {company.name.charAt(0)}
                     </span>
                   )}
@@ -100,7 +100,7 @@ export function CompaniesClient({ companies }: Props) {
 
                 {/* Info */}
                 <div className="p-4 flex flex-col gap-1.5 flex-1">
-                  <h2 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">
+                  <h2 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">
                     {company.name}
                   </h2>
 
