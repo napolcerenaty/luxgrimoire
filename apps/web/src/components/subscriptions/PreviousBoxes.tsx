@@ -50,12 +50,17 @@ interface Props {
   subscriptionSlug: string
   accentColors?: string[] | null
   totalMonths?: number
+  isCombo?: boolean
+  comboComponents?: { slug: string; name: string }[]
 }
 
 const PAGE_SIZE = 12
 
-export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths }: Props) {
-  const [visible, setVisible] = useState(false)
+function PreviousBoxesList({
+  subscriptionSlug,
+  accentColors,
+  totalMonths,
+}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number }) {
   const [page, setPage] = useState(1)
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -66,7 +71,6 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
       apiFetch<PaginatedMonths>(
         `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}`,
       ),
-    enabled: visible,
     staleTime: 1000 * 60 * 5,
   })
 
@@ -82,28 +86,15 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
 
   const hasMore = page < totalPages
 
-  if (!visible) {
-    return (
-      <div className="mt-10 text-center">
-        <button
-          onClick={() => setVisible(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium"
-        >
-          View previous boxes
-          {totalMonths != null && totalMonths > 0 && (
-            <span className="text-stone-500 text-xs">({totalMonths})</span>
-          )}
-        </button>
-      </div>
-    )
-  }
-
   return (
-    <section className="mt-10">
+    <>
       <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
         Previous Boxes
         {allMonths.length > 0 && (
           <span className="text-stone-500 text-lg ml-2 font-sans">({allMonths.length}{hasMore ? '+' : ''})</span>
+        )}
+        {totalMonths != null && allMonths.length === 0 && (
+          <span className="text-stone-500 text-lg ml-2 font-sans">({totalMonths})</span>
         )}
       </h2>
 
@@ -145,6 +136,63 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
           )}
         </>
       )}
+    </>
+  )
+}
+
+export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents }: Props) {
+  const [visible, setVisible] = useState(false)
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
+
+  // For combo: show selector first; for regular: show "View previous boxes" button
+  if (!visible) {
+    return (
+      <div className="mt-10 text-center">
+        <button
+          onClick={() => setVisible(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium"
+        >
+          View previous boxes
+          {totalMonths != null && totalMonths > 0 && (
+            <span className="text-stone-500 text-xs">({totalMonths})</span>
+          )}
+        </button>
+      </div>
+    )
+  }
+
+  // Combo: show component selector, load only after selection
+  if (isCombo && comboComponents && comboComponents.length > 0) {
+    return (
+      <section className="mt-10">
+        <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-4">Previous Boxes</h2>
+        <p className="text-sm text-stone-400 mb-4">Select a subscription to view its previous boxes:</p>
+        <div className="flex flex-wrap gap-2 mb-8">
+          {comboComponents.map((c) => (
+            <button
+              key={c.slug}
+              onClick={() => setSelectedSlug(c.slug)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                selectedSlug === c.slug
+                  ? 'border-amber-600 bg-amber-600/10 text-amber-400'
+                  : 'border-stone-700 text-stone-300 hover:border-amber-700/50 hover:text-amber-400'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        {selectedSlug && (
+          <PreviousBoxesList subscriptionSlug={selectedSlug} accentColors={accentColors} />
+        )}
+      </section>
+    )
+  }
+
+  // Regular subscription
+  return (
+    <section className="mt-10">
+      <PreviousBoxesList subscriptionSlug={subscriptionSlug} accentColors={accentColors} totalMonths={totalMonths} />
     </section>
   )
 }

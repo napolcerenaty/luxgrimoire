@@ -195,7 +195,51 @@ export class SubscriptionsService {
       include: {
         company: true,
         skipPolicy: true,
-        comboComponents: { select: { componentId: true } },
+        comboComponents: {
+          include: {
+            component: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                coverImage: true,
+                months: {
+                  where: {
+                    OR: [
+                      { year: { gt: nowYear } },
+                      { year: nowYear, month: { gte: nowMonth } },
+                    ],
+                  },
+                  orderBy: [{ year: 'desc' }, { month: 'desc' }],
+                  include: {
+                    cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+                    books: {
+                      include: {
+                        book: {
+                          select: {
+                            id: true,
+                            title: true,
+                            slug: true,
+                            authors: { select: { author: { select: { name: true, slug: true } } } },
+                          },
+                        },
+                        edition: {
+                          select: {
+                            id: true,
+                            slug: true,
+                            editionName: true,
+                            publisher: true,
+                            additionalImages: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         months: {
           where: {
             OR: [
@@ -233,7 +277,11 @@ export class SubscriptionsService {
     });
     if (!subscription) throw new NotFoundException(`Subscription '${slug}' not found`);
     const { comboComponents, ...rest } = subscription;
-    return { ...rest, componentIds: comboComponents.map((c) => c.componentId) };
+    return {
+      ...rest,
+      componentIds: comboComponents.map((c) => c.componentId),
+      components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
+    };
   }
 
   async update(slug: string, dto: UpdateSubscriptionDto) {

@@ -86,6 +86,21 @@ export default async function SubscriptionPage({ params }: Props) {
 
   const brandColors = (sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null
 
+  // Combo: derive featured months from component subscriptions
+  const comboComponents = sub.isCombo
+    ? (sub.components ?? []).filter((c) => c.component)
+    : []
+
+  // Build per-component current + upcoming for combo
+  const comboFeatured = comboComponents.map(({ component }) => {
+    if (!component) return null
+    const compMonths = ((component as unknown as { months?: ApiSubscriptionMonth[] }).months ?? [])
+      .sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
+    const cur = compMonths.find((m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1)
+    const upc = compMonths.find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
+    return { component: component as unknown as { id: string; slug: string; name: string }, currentMonth: cur, upcomingMonth: upc }
+  }).filter(Boolean) as { component: { id: string; slug: string; name: string }; currentMonth?: ApiSubscriptionMonth; upcomingMonth?: ApiSubscriptionMonth }[]
+
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Back to previous page */}
@@ -164,31 +179,63 @@ export default async function SubscriptionPage({ params }: Props) {
       </div>
 
       {/* Featured months (current + upcoming) */}
-      {(currentMonth || upcomingMonth) && (
-        <section className="mb-12">
-          <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
-            {currentMonth && (
-              <FeaturedMonthCard
-                label="Current Month"
-                labelVariant="current"
-                monthData={currentMonth}
-                accentColors={brandColors}
-              />
+      {sub.isCombo ? (
+        /* Combo: show current + upcoming per component sub */
+        comboFeatured.length > 0 && (
+          <section className="mb-12 space-y-8">
+            {comboFeatured.map(({ component, currentMonth: cur, upcomingMonth: upc }) =>
+              (cur || upc) ? (
+                <div key={component.id}>
+                  <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">{component.name}</h3>
+                  <div className={`grid gap-6 ${cur && upc ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
+                    {cur && (
+                      <FeaturedMonthCard label="Current Month" labelVariant="current" monthData={cur} accentColors={brandColors} />
+                    )}
+                    {upc && (
+                      <FeaturedMonthCard label="Upcoming Theme" labelVariant="upcoming" monthData={upc} accentColors={brandColors} />
+                    )}
+                  </div>
+                </div>
+              ) : null
             )}
-            {upcomingMonth && (
-              <FeaturedMonthCard
-                label="Upcoming Theme"
-                labelVariant="upcoming"
-                monthData={upcomingMonth}
-                accentColors={brandColors}
-              />
-            )}
-          </div>
-        </section>
+          </section>
+        )
+      ) : (
+        /* Regular: single current + upcoming */
+        (currentMonth || upcomingMonth) && (
+          <section className="mb-12">
+            <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
+              {currentMonth && (
+                <FeaturedMonthCard
+                  label="Current Month"
+                  labelVariant="current"
+                  monthData={currentMonth}
+                  accentColors={brandColors}
+                />
+              )}
+              {upcomingMonth && (
+                <FeaturedMonthCard
+                  label="Upcoming Theme"
+                  labelVariant="upcoming"
+                  monthData={upcomingMonth}
+                  accentColors={brandColors}
+                />
+              )}
+            </div>
+          </section>
+        )
       )}
 
       {/* Previous boxes — lazy loaded on demand */}
-      <PreviousBoxes subscriptionSlug={slug} accentColors={brandColors} />
+      <PreviousBoxes
+        subscriptionSlug={slug}
+        accentColors={brandColors}
+        isCombo={sub.isCombo}
+        comboComponents={comboComponents.map(({ component }) => ({
+          slug: (component as unknown as { slug: string }).slug,
+          name: (component as unknown as { name: string }).name,
+        }))}
+      />
 
       {/* Series history */}
       {seriesList.length > 0 && (
