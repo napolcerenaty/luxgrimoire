@@ -69,7 +69,7 @@ export class UpdateCompanyDto {
 
   @IsOptional()
   @IsString()
-  logoUrl?: string;
+  logoUrl?: string | null;
 
   @IsOptional()
   @IsString()

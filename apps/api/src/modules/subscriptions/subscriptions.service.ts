@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { UploadService } from '../upload/upload.service';
 import { $Enums } from '@prisma/client';
 import {
   CreateSubscriptionDto,
@@ -47,7 +48,14 @@ export class SubscriptionsService {
     private readonly typesense: TypesenseService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
     private readonly renewalCron: RenewalCronService,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
+    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
+    if (!valid.length) return;
+    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
+  }
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -291,12 +299,20 @@ export class SubscriptionsService {
   }
 
   async update(slug: string, dto: UpdateSubscriptionDto) {
-    await this.findBySlug(slug);
+    const existing = await this.findBySlug(slug);
     const { componentIds, ...rest } = dto;
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
     const updated = await this.prisma.subscription.update({ where: { slug }, data });
+
+    // Delete old images from Cloudinary if replaced or cleared
+    if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
+      await this.deleteCloudinaryImages([existing.coverImage]);
+    }
+    if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
+      await this.deleteCloudinaryImages([existing.logoUrl]);
+    }
 
     // Replace combo components if provided
     if (componentIds !== undefined) {
@@ -315,6 +331,7 @@ export class SubscriptionsService {
 
   async delete(slug: string) {
     const sub = await this.findBySlug(slug);
+    await this.deleteCloudinaryImages([sub.coverImage, sub.logoUrl]);
     await this.typesense.deleteDocument('subscriptions', sub.id);
     return this.prisma.subscription.delete({ where: { slug } });
   }

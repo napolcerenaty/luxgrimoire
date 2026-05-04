@@ -4,9 +4,10 @@ import { SubscriptionsService } from './subscriptions.service';
 import { SkipPolicyModule } from '../skip-policy/skip-policy.module';
 import { RenewalCronService } from './renewal.cron';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
-  imports: [SkipPolicyModule, AnalyticsModule],
+  imports: [SkipPolicyModule, AnalyticsModule, UploadModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, RenewalCronService],
 })

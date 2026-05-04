@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { UploadService } from '../upload/upload.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 
@@ -11,7 +12,14 @@ export class CompaniesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
+    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
+    if (!valid.length) return;
+    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
+  }
 
   async create(dto: CreateCompanyDto) {
     const slug = generateSlug(dto.name);
@@ -31,6 +39,7 @@ export class CompaniesService {
         x: dto.x,
         bluesky: dto.bluesky,
         iossImplemented: dto.iossImplemented ?? false,
+        hasOfficialImagePermission: dto.hasOfficialImagePermission ?? false,
       },
     });
     await this.indexCompany(company);
@@ -120,8 +129,12 @@ export class CompaniesService {
   }
 
   async update(slug: string, dto: UpdateCompanyDto) {
-    await this.findBySlug(slug);
+    const existing = await this.findBySlug(slug);
     const company = await this.prisma.bookBoxCompany.update({ where: { slug }, data: dto });
+    // Delete old logo from Cloudinary if it was replaced or cleared
+    if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
+      await this.deleteCloudinaryImages([existing.logoUrl]);
+    }
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
     return company;
@@ -129,6 +142,7 @@ export class CompaniesService {
 
   async delete(slug: string) {
     const company = await this.findBySlug(slug);
+    await this.deleteCloudinaryImages([company.logoUrl]);
     await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }

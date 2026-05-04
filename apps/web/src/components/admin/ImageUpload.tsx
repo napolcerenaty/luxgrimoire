@@ -17,10 +17,11 @@ interface Props {
   folder: string             // e.g. 'luxgrimoire/books'
   value: string              // Cloudinary publicId stored in state
   onChange: (publicId: string) => void
+  onClear?: () => void       // optional — shows "Remove" button when provided
   aspectRatio?: string       // e.g. '2/3' (default) or '1/1'
 }
 
-export default function ImageUpload({ label, folder, value, onChange, aspectRatio = '2/3' }: Props) {
+export default function ImageUpload({ label, folder, value, onChange, onClear, aspectRatio = '2/3' }: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -86,6 +87,15 @@ export default function ImageUpload({ label, folder, value, onChange, aspectRati
           >
             {uploading ? 'Uploading…' : value ? 'Change image' : 'Upload image'}
           </button>
+          {value && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="ml-2 px-3 py-2 rounded-lg border border-red-800 text-red-400 hover:border-red-500 hover:text-red-300 text-sm transition-colors"
+            >
+              Remove
+            </button>
+          )}
           {value && (
             <p className="text-[11px] text-stone-600 mt-1 truncate font-mono">{value}</p>
           )}
