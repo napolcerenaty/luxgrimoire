@@ -119,6 +119,9 @@ export function CompaniesClient({ companies }: Props) {
           })}
         </div>
       )}
+      <p className="mt-10 text-center text-xs text-stone-600">
+        All company names and logos are property of their respective owners and are used for informational purposes only.
+      </p>
     </div>
   )
 }
