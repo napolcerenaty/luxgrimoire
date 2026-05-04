@@ -93,8 +93,7 @@ export class UpdateSaleAnnouncementDto {
   currency?: string;
 
   @IsOptional()
-  @IsString()
-  imageUrl?: string;
+  imageUrl?: string | null;
 
   @IsOptional()
   @IsBoolean()
