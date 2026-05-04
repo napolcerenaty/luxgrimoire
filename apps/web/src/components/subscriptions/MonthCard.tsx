@@ -59,7 +59,7 @@ export default function MonthCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image area */}
-      <div className="aspect-[2/3] overflow-hidden bg-stone-800 relative">
+      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative">
         {thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

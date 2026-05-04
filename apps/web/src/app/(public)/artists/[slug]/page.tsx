@@ -211,7 +211,7 @@ export default async function ArtistPage({ params }: Props) {
                     className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
                   >
                     {/* Cover image */}
-                    <div className="relative aspect-[2/3] bg-stone-800 overflow-hidden">
+                    <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
                       {cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img

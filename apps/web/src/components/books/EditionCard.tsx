@@ -43,7 +43,7 @@ export function EditionCard({
         unverified ? 'border-amber-800/50' : 'border-stone-800'
       }`}
     >
-      <div className="relative aspect-[2/3] bg-stone-800 overflow-hidden rounded-t-2xl">
+      <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden rounded-t-2xl">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

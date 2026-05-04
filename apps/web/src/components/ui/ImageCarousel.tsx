@@ -35,7 +35,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
       <div className="flex flex-col gap-3 w-full">
         {/* Main image */}
         <div
-          className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-stone-800 ring-1 ring-stone-700/50 shadow-2xl cursor-zoom-in group"
+          className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 ring-1 ring-stone-700/50 shadow-2xl cursor-zoom-in group"
           onClick={() => setLightbox(true)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
