@@ -356,58 +356,5 @@ export class RenewalCronService {
         }).catch(() => {});
       }
     }
-
-    // Also retroactively add this book to active combo subscribers whose combo
-    // includes this component subscription and had a renewal in the same month
-    const combosWithComponent = await this.prisma.subscriptionComboComponent.findMany({
-      where: { componentId: subscriptionId },
-      select: { comboId: true },
-    });
-    if (combosWithComponent.length === 0) return;
-
-    const comboIds = combosWithComponent.map((c) => c.comboId);
-    const comboEntries = await this.prisma.userSubscriptionEntry.findMany({
-      where: { subscriptionId: { in: comboIds }, active: true },
-      select: { id: true, userId: true, subscriptionId: true },
-    });
-
-    for (const comboEntry of comboEntries) {
-      const comboRenewal = await this.prisma.userSubscriptionRenewal.findFirst({
-        where: {
-          entryId: comboEntry.id,
-          renewalDate: { gte: monthStart, lt: monthEnd },
-        },
-        select: { renewalDate: true },
-      });
-      if (!comboRenewal) continue;
-
-      const existingComboGroup = await this.prisma.userPurchaseGroup.findFirst({
-        where: {
-          userId: comboEntry.userId,
-          subscriptionEntryId: comboEntry.id,
-          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
-        },
-        select: { id: true },
-      });
-
-      const existingComboBookEntry = await this.prisma.userBookEntry.findFirst({
-        where: { userId: comboEntry.userId, editionId: book.editionId!, subscriptionEntryId: comboEntry.id },
-        select: { id: true },
-      });
-      if (!existingComboBookEntry) {
-        await this.prisma.userBookEntry.create({
-          data: {
-            userId: comboEntry.userId,
-            bookId: book.bookId,
-            editionId: book.editionId!,
-            ownershipStatus: 'PREORDER',
-            readingStatus: 'UNREAD',
-            subscriptionEntryId: comboEntry.id,
-            purchaseGroupId: existingComboGroup?.id ?? null,
-            signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
-          },
-        }).catch(() => {});
-      }
-    }
   }
 }
