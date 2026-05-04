@@ -226,6 +226,16 @@ export default function AdminDashboard() {
     void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
   }
 
+  async function rejectEdition(slug: string) {
+    if (!confirm('Reject and delete this edition? This cannot be undone.')) return
+    try {
+      await authFetch(`/editions/${slug}`, { method: 'DELETE' })
+      void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
+    } catch (e: unknown) {
+      alert(`Error: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   async function approveBook(slug: string) {
     await authFetch(`/books/${slug}`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) })
     void qc.invalidateQueries({ queryKey: ['admin', 'pending-books'] })
@@ -319,6 +329,12 @@ export default function AdminDashboard() {
                       className="text-xs text-stone-300 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
                     >
                       ✎ Edit
+                    </button>
+                    <button
+                      onClick={() => rejectEdition(edition.slug)}
+                      className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-700/60 px-2 py-1 rounded transition-colors"
+                    >
+                      ✕ Reject
                     </button>
                     <button
                       onClick={() => verifyEdition(edition.slug)}

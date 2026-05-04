@@ -230,11 +230,10 @@ export class EditionsService {
   async delete(slug: string, userRole?: string) {
     const edition = await this.findBySlug(slug);
     const collectionCount = await this.prisma.userBookEntry.count({ where: { editionId: edition.id } });
-    if (userRole === 'COMPANY_MANAGER') {
-      if (collectionCount > 0) {
-        throw new ConflictException('Cannot delete edition that is already in users\' collections');
-      }
-    } else if (userRole && userRole !== 'ADMIN' && userRole !== 'MODERATOR') {
+    if (collectionCount > 0) {
+      throw new ConflictException('Cannot delete edition that is already in users\' collections');
+    }
+    if (userRole && userRole !== 'ADMIN' && userRole !== 'MODERATOR') {
       throw new ForbiddenException('Only admins can delete editions');
     }
     await this.typesense.deleteDocument('editions', edition.id);
