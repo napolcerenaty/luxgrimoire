@@ -91,6 +91,7 @@ export class RenewalCronService {
    * Skipped if the user has an active skip record for that month.
    * Uses upsert so re-runs are safe.
    * Creates a UserPurchaseGroup with cost data and UserPurchaseFee records for fee templates.
+   * For combo subscriptions, collects books from ALL component subscriptions' months.
    */
   async addBooksForSubscriptionMonth(
     entry: {
@@ -106,6 +107,18 @@ export class RenewalCronService {
     month: number,
     renewalDate: Date,
   ) {
+    // Check if this is a combo subscription
+    const sub = await this.prisma.subscription.findUnique({
+      where: { id: entry.subscriptionId },
+      select: { isCombo: true, comboComponents: { select: { componentId: true } } },
+    });
+
+    if (sub?.isCombo) {
+      const componentIds = sub.comboComponents.map((c) => c.componentId);
+      await this.addBooksForComboMonth(entry, year, month, renewalDate, componentIds);
+      return;
+    }
+
     const monthRecord = await this.prisma.subscriptionMonth.findUnique({
       where: { subscriptionId_year_month: { subscriptionId: entry.subscriptionId, year, month } },
       include: {
@@ -121,6 +134,25 @@ export class RenewalCronService {
     });
     if (skip && !skip.undoneAt) return;
 
+    await this.createPurchaseGroupAndBooks(entry, year, month, renewalDate, monthRecord.books, monthRecord.signatureType ?? null);
+  }
+
+  private async createPurchaseGroupAndBooks(
+    entry: {
+      id: string;
+      userId: string;
+      subscriptionId: string;
+      costCurrency: string | null;
+      basePrice?: { toString(): string } | null;
+      shippingCost?: { toString(): string } | null;
+      isDefaultPricing?: boolean | null;
+    },
+    year: number,
+    month: number,
+    renewalDate: Date,
+    books: Array<{ bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null }>,
+    defaultSignatureType: $Enums.SignatureType | null,
+  ) {
     const currency = entry.costCurrency ?? 'USD';
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
     const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
@@ -139,13 +171,11 @@ export class RenewalCronService {
     );
     const basePrice = resolved.price ?? fallbackBase;
 
+    const groupTitle = `Subscription – ${year}/${String(month).padStart(2, '0')}`;
+
     // Idempotency: reuse existing purchase group for this entry + month if already created
     let group = await this.prisma.userPurchaseGroup.findFirst({
-      where: {
-        userId: entry.userId,
-        subscriptionEntryId: entry.id,
-        title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
-      },
+      where: { userId: entry.userId, subscriptionEntryId: entry.id, title: groupTitle },
       select: { id: true },
     });
 
@@ -159,7 +189,7 @@ export class RenewalCronService {
           shippingAmount: shippingCost,
           currency,
           purchasedAt: renewalDate,
-          title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
+          title: groupTitle,
         },
       });
     }
@@ -181,7 +211,7 @@ export class RenewalCronService {
       purchaseGroupId: string;
     }> = [];
 
-    for (const mb of monthRecord.books) {
+    for (const mb of books) {
       if (!mb.bookId || !mb.editionId) continue;
 
       const existingEntry = await this.prisma.userBookEntry.findFirst({
@@ -198,7 +228,7 @@ export class RenewalCronService {
             readingStatus: 'UNREAD',
             subscriptionEntryId: entry.id,
             purchaseGroupId: group.id,
-            signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
+            signatureType: mb.signatureType ?? defaultSignatureType,
           },
         }).catch(() => {});
       }
@@ -226,6 +256,35 @@ export class RenewalCronService {
         skipDuplicates: true,
       });
     }
+  }
+
+  private async addBooksForComboMonth(
+    entry: {
+      id: string;
+      userId: string;
+      subscriptionId: string;
+      costCurrency: string | null;
+      basePrice?: { toString(): string } | null;
+      shippingCost?: { toString(): string } | null;
+      isDefaultPricing?: boolean | null;
+    },
+    year: number,
+    month: number,
+    renewalDate: Date,
+    componentIds: string[],
+  ) {
+    if (componentIds.length === 0) return;
+
+    // Collect books from all component subscriptions' months
+    const componentMonths = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: { in: componentIds }, year, month },
+      include: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+    });
+
+    const allBooks = componentMonths.flatMap((m) => m.books).filter((b) => b.bookId && b.editionId);
+    if (allBooks.length === 0) return;
+
+    await this.createPurchaseGroupAndBooks(entry, year, month, renewalDate, allBooks, null);
   }
 
   /**
@@ -292,6 +351,59 @@ export class RenewalCronService {
             readingStatus: 'UNREAD',
             subscriptionEntryId: entry.id,
             purchaseGroupId: existingGroup?.id ?? null,
+            signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+          },
+        }).catch(() => {});
+      }
+    }
+
+    // Also retroactively add this book to active combo subscribers whose combo
+    // includes this component subscription and had a renewal in the same month
+    const combosWithComponent = await this.prisma.subscriptionComboComponent.findMany({
+      where: { componentId: subscriptionId },
+      select: { comboId: true },
+    });
+    if (combosWithComponent.length === 0) return;
+
+    const comboIds = combosWithComponent.map((c) => c.comboId);
+    const comboEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: { in: comboIds }, active: true },
+      select: { id: true, userId: true, subscriptionId: true },
+    });
+
+    for (const comboEntry of comboEntries) {
+      const comboRenewal = await this.prisma.userSubscriptionRenewal.findFirst({
+        where: {
+          entryId: comboEntry.id,
+          renewalDate: { gte: monthStart, lt: monthEnd },
+        },
+        select: { renewalDate: true },
+      });
+      if (!comboRenewal) continue;
+
+      const existingComboGroup = await this.prisma.userPurchaseGroup.findFirst({
+        where: {
+          userId: comboEntry.userId,
+          subscriptionEntryId: comboEntry.id,
+          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
+        },
+        select: { id: true },
+      });
+
+      const existingComboBookEntry = await this.prisma.userBookEntry.findFirst({
+        where: { userId: comboEntry.userId, editionId: book.editionId!, subscriptionEntryId: comboEntry.id },
+        select: { id: true },
+      });
+      if (!existingComboBookEntry) {
+        await this.prisma.userBookEntry.create({
+          data: {
+            userId: comboEntry.userId,
+            bookId: book.bookId,
+            editionId: book.editionId!,
+            ownershipStatus: 'PREORDER',
+            readingStatus: 'UNREAD',
+            subscriptionEntryId: comboEntry.id,
+            purchaseGroupId: existingComboGroup?.id ?? null,
             signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
           },
         }).catch(() => {});

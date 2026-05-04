@@ -195,6 +195,7 @@ export class SubscriptionsService {
       include: {
         company: true,
         skipPolicy: true,
+        comboComponents: { select: { componentId: true } },
         months: {
           where: {
             OR: [
@@ -231,7 +232,8 @@ export class SubscriptionsService {
       },
     });
     if (!subscription) throw new NotFoundException(`Subscription '${slug}' not found`);
-    return subscription;
+    const { comboComponents, ...rest } = subscription;
+    return { ...rest, componentIds: comboComponents.map((c) => c.componentId) };
   }
 
   async update(slug: string, dto: UpdateSubscriptionDto) {
