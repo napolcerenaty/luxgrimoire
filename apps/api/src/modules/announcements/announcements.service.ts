@@ -79,14 +79,28 @@ export class AnnouncementsService {
         skip,
         take: pageSize,
         orderBy: { generalSaleDate: 'asc' },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          imageUrl: true,
+          basePrice: true,
+          currency: true,
+          isBundle: true,
+          availableForPurchase: true,
+          generalSaleDate: true,
+          firstAccessDate: true,
+          earlyAccessDate: true,
+          company: { select: { name: true } },
           editions: {
+            take: 1,
             orderBy: { sortOrder: 'asc' as const },
-            include: {
+            select: {
               edition: { select: { additionalImages: true } },
             },
           },
-          company: { select: { name: true, slug: true } },
+          regions: {
+            select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
+          },
         },
       }),
       this.prisma.saleAnnouncement.count({ where }),
