@@ -90,8 +90,13 @@ export class BooksService {
           id: true,
           slug: true,
           title: true,
+          status: true,
+          genres: true,
+          description: true,
+          language: true,
           volumeNumber: true,
           seriesName: true,
+          createdAt: true,
           authors: {
             select: {
               author: {

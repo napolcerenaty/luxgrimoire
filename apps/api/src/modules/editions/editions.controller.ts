@@ -104,7 +104,7 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN', 'COMPANY_MANAGER')
+  @Roles('ADMIN')
   @Delete(':slug')
   async delete(@Param('slug') slug: string, @CurrentUser() user: CurrentUserType) {
     const result = await this.editionsService.delete(slug, user.role);

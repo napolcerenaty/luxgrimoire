@@ -32,6 +32,7 @@ interface RecentEdition extends ApiBookEdition {
     userId: string | null
     createdAt: string
   } | null
+  _count?: { userEntries: number }
 }
 
 interface PendingBook {
@@ -226,8 +227,11 @@ export default function AdminDashboard() {
     void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
   }
 
-  async function rejectEdition(slug: string) {
-    if (!confirm('Reject and delete this edition? This cannot be undone.')) return
+  async function rejectEdition(slug: string, collectionCount?: number) {
+    const warningMsg = collectionCount && collectionCount > 0
+      ? `This edition is in ${collectionCount} user collection(s). Deleting it will remove it from their collections too. Continue?`
+      : 'Reject and delete this edition? This cannot be undone.'
+    if (!confirm(warningMsg)) return
     try {
       await authFetch(`/editions/${slug}`, { method: 'DELETE' })
       void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
@@ -314,6 +318,11 @@ export default function AdminDashboard() {
                       </p>
                     )}
                     <p className="text-[11px] text-stone-600 mt-1 font-mono">{edition.slug}</p>
+                    {(edition._count?.userEntries ?? 0) > 0 && (
+                      <p className="text-[11px] text-amber-500/70 mt-1">
+                        ⚠ In {edition._count!.userEntries} user collection(s)
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 items-center flex-shrink-0">
                     <a
@@ -331,7 +340,7 @@ export default function AdminDashboard() {
                       ✎ Edit
                     </button>
                     <button
-                      onClick={() => rejectEdition(edition.slug)}
+                      onClick={() => rejectEdition(edition.slug, edition._count?.userEntries)}
                       className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-700/60 px-2 py-1 rounded transition-colors"
                     >
                       ✕ Reject
