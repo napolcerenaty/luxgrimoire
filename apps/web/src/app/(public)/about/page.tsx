@@ -35,9 +35,19 @@ export default function AboutPage() {
 
         <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">Disclaimer</h2>
         <p>
-          LuxGrimoire is not affiliated with, endorsed by, or sponsored by any subscription box company
-          unless explicitly marked as a Featured Partner (a paid sponsorship). All trademarks, cover images,
-          and brand materials belong to their respective owners. We are a fan-made reference database.
+          LuxGrimoire is an independent, fan-made reference database dedicated to book subscription boxes, special editions, and related publishing content.
+        </p>
+        <p>
+          We are not affiliated with, endorsed by, or sponsored by any subscription box company unless explicitly marked as a Featured Partner (a paid or approved collaboration clearly disclosed on the platform).
+        </p>
+        <p>
+          Some brands featured on LuxGrimoire may be displayed with permission from their respective owners.
+        </p>
+        <p>
+          All trademarks, cover images, logos, and other brand materials belong to their respective owners and are used for identification and informational purposes only.
+        </p>
+        <p>
+          Our goal is to provide a structured, community-driven reference for readers and collectors.
         </p>
 
         <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">Get involved</h2>

@@ -30,7 +30,9 @@ export function CompaniesClient({ companies }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      <h1 className="text-4xl font-serif font-bold text-stone-100 mb-2">Book Boxes</h1>
+      <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1">Book Boxes</h1>
+      <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 mb-1">Independent directory of book box companies.</p>
+      <p className="text-sm text-stone-400 mb-6">A curated overview of subscription box brands. Some listings may include content displayed with permission from the respective owners.</p>
 
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -73,7 +75,7 @@ export function CompaniesClient({ companies }: Props) {
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-all hover:shadow-lg hover:shadow-amber-900/10 flex flex-col"
               >
                 {/* Logo area with blur bg */}
-                <div className="relative h-32 overflow-hidden bg-stone-800 flex items-center justify-center">
+                <div className="relative h-24 overflow-hidden bg-stone-800 flex items-center justify-center">
                   {bgImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -88,10 +90,10 @@ export function CompaniesClient({ companies }: Props) {
                     <img
                       src={logoImage}
                       alt={company.name}
-                      className="relative z-10 max-w-[80%] max-h-[80%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
+                      className="relative z-10 max-w-[60%] max-h-[60%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <span className="relative z-10 text-4xl font-serif font-bold text-amber-600/60">
+                    <span className="relative z-10 text-3xl font-serif font-bold text-amber-600/60">
                       {company.name.charAt(0)}
                     </span>
                   )}
@@ -99,7 +101,7 @@ export function CompaniesClient({ companies }: Props) {
 
                 {/* Info */}
                 <div className="p-4 flex flex-col gap-1.5 flex-1">
-                  <h2 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">
+                  <h2 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">
                     {company.name}
                   </h2>
 
@@ -119,6 +121,12 @@ export function CompaniesClient({ companies }: Props) {
           })}
         </div>
       )}
+      <p className="mt-10 text-center text-xs text-stone-400 max-w-2xl mx-auto leading-relaxed">
+        LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
+        We are not affiliated with, endorsed by, or sponsored by any listed companies unless explicitly stated as a Featured Partner.
+        Some brands featured on LuxGrimoire are displayed with permission from their respective owners.
+        All trademarks, cover images, logos, and brand materials belong to their respective owners.
+      </p>
     </div>
   )
 }

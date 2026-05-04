@@ -99,7 +99,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                 href={`/subscriptions/${sub.slug}`}
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
               >
-                <div className="aspect-[3/2] relative overflow-hidden bg-stone-950">
+                <div className="aspect-[2/1] relative overflow-hidden bg-stone-950">
                   {cover ? (
                     <>
                       {/* Blurred background fill */}
@@ -115,7 +115,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                       <img
                         src={cover}
                         alt={sub.name}
-                        className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        className="relative z-10 w-full h-full object-contain max-h-[60%] self-center group-hover:scale-105 transition-transform duration-300"
                       />
                     </>
                   ) : (
@@ -129,7 +129,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                   {sub.company && (
                     <p className="text-xs text-amber-600 mb-1">{sub.company.name}</p>
                   )}
-                  <h2 className="font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors mb-2">
+                  <h2 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors mb-2">
                     {sub.name}
                   </h2>
                   <div className="flex items-center gap-1.5 flex-wrap">

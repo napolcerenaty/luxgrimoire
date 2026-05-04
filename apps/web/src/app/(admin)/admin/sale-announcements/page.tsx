@@ -554,7 +554,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
-    imageUrl: f.allImages[0] || undefined,
+    imageUrl: f.allImages[0] ?? null,
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,

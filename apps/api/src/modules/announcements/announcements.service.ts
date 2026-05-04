@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { UploadService } from '../upload/upload.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 
 // Full include — used for public endpoints where book authors/artists are displayed
@@ -50,7 +51,17 @@ export class AnnouncementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private isCloudinaryId(s: string | null | undefined): s is string {
+    return !!s && !s.startsWith('http');
+  }
+
+  private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
+    const valid = ids.filter(this.isCloudinaryId);
+    await Promise.allSettled(valid.map(id => this.uploadService.deleteImage(id)));
+  }
 
   async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
     const page = query.page ?? 1;
@@ -267,6 +278,18 @@ export class AnnouncementsService {
       },
     });
 
+    // Clean up orphaned Cloudinary images
+    const oldExtras: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
+    const newExtras = extraImages ?? oldExtras;
+    const removedExtras = oldExtras.filter(img => !newExtras.includes(img));
+
+    void this.deleteCloudinaryImages([
+      // Main image replaced or removed
+      ...(data.imageUrl !== undefined && data.imageUrl !== existing.imageUrl ? [existing.imageUrl] : []),
+      // Extra images removed
+      ...removedExtras,
+    ]);
+
     if (editionIds !== undefined) {
       await this.prisma.saleAnnouncementEdition.deleteMany({ where: { saleId: id } });
       if (editionIds.length > 0) {
@@ -288,8 +311,10 @@ export class AnnouncementsService {
   async delete(id: string) {
     const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Sale announcement not found');
+    const extraImages: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
     await this.typesense.deleteDocument('sales', id);
     await this.prisma.saleAnnouncement.delete({ where: { id } });
+    void this.deleteCloudinaryImages([existing.imageUrl, ...extraImages]);
   }
 
   async adminUpsertRegion(saleId: string, data: {

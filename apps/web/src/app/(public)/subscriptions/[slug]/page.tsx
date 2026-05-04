@@ -126,6 +126,9 @@ export default async function SubscriptionPage({ params }: Props) {
             <Badge variant={sub.isDiscontinued ? 'destructive' : 'success'}>
               {sub.isDiscontinued ? 'Discontinued' : 'Active'}
             </Badge>
+            {(sub.company as unknown as { hasOfficialImagePermission?: boolean })?.hasOfficialImagePermission && (
+              <Badge variant="outline">✓ Images used with brand permission</Badge>
+            )}
           </div>
 
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">
