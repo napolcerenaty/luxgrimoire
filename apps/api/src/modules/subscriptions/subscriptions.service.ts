@@ -340,21 +340,43 @@ export class SubscriptionsService {
       );
     }
 
-    return this.prisma.subscriptionMonth.create({
-      data: {
-        subscriptionId: subscription.id,
-        year: dto.year,
-        month: dto.month,
-        theme: dto.theme,
-        coverImage: dto.coverImage,
-        spoilerImage: dto.spoilerImage,
-        isSpoiler: dto.isSpoiler ?? false,
-        actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
-        boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
-        signatureType: dto.signatureType ?? null,
-        cardArtistId: dto.cardArtistId ?? null,
-      },
+    const monthData = {
+      year: dto.year,
+      month: dto.month,
+      theme: dto.theme,
+      coverImage: dto.coverImage,
+      spoilerImage: dto.spoilerImage,
+      isSpoiler: dto.isSpoiler ?? false,
+      actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
+      boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
+      signatureType: dto.signatureType ?? null,
+      cardArtistId: dto.cardArtistId ?? null,
+    };
+
+    const created = await this.prisma.subscriptionMonth.create({
+      data: { subscriptionId: subscription.id, ...monthData },
     });
+
+    // Propagate to active (non-discontinued) variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .upsert({
+              where: { subscriptionId_year_month: { subscriptionId: v.id, year: dto.year, month: dto.month } },
+              create: { subscriptionId: v.id, ...monthData },
+              update: {},
+            })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return created;
   }
 
   async updateMonth(
@@ -371,13 +393,33 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    return this.prisma.subscriptionMonth.update({
+    const updated = await this.prisma.subscriptionMonth.update({
       where: { id: existing.id },
       data: {
         ...dto,
         cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
       },
     });
+
+    // Propagate to active variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .updateMany({
+              where: { subscriptionId: v.id, year, month },
+              data: { ...dto, cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId },
+            })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return updated;
   }
 
   async deleteMonth(subscriptionSlug: string, year: number, month: number) {
@@ -389,7 +431,24 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    return this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+    const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+
+    // Propagate deletion to active variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .deleteMany({ where: { subscriptionId: v.id, year, month } })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return deleted;
   }
 
   private async getMonth(subscriptionId: string, year: number, month: number) {
