@@ -1185,7 +1185,7 @@ export class SubscriptionsService {
           where: { userId, editionId: mb.editionId!, subscriptionEntryId: entryId },
           select: { id: true },
         });
-        const bookEntry = existingSub
+        existingSub
           ? await this.prisma.userBookEntry.update({
               where: { id: existingSub.id },
               data: { purchaseGroupId: group.id },
@@ -1202,28 +1202,26 @@ export class SubscriptionsService {
                 signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
               },
             });
-
-        // Fee templates linked to group
-        for (const link of feeTemplateLinks) {
-          const template = link.feeTemplate;
-          const amount = link.customAmount ?? template.defaultAmount;
-          if (!amount) continue;
-          feesToCreate.push({
-            userId,
-            feeTemplateId: template.id,
-            name: template.name,
-            amount: parseFloat(amount.toString()),
-            currency: link.customCurrency ?? template.defaultCurrency,
-            date: purchaseDate,
-            category: template.category,
-            purchaseGroupId: group.id,
-          });
-        }
-
-        // Taxes & fees linked to group (shipping already in group.shippingAmount)
       } catch {
         // skip if already exists
       }
+    }
+
+    // Fee templates once per purchase group
+    for (const link of feeTemplateLinks) {
+      const template = link.feeTemplate;
+      const amount = link.customAmount ?? template.defaultAmount;
+      if (!amount) continue;
+      feesToCreate.push({
+        userId,
+        feeTemplateId: template.id,
+        name: template.name,
+        amount: parseFloat(amount.toString()),
+        currency: link.customCurrency ?? template.defaultCurrency,
+        date: purchaseDate,
+        category: template.category,
+        purchaseGroupId: group.id,
+      });
     }
 
     if (feesToCreate.length > 0) {
@@ -1345,25 +1343,26 @@ export class SubscriptionsService {
               });
             }
             booksAdded++;
-
-            for (const link of (entry as any).feeTemplates ?? []) {
-              const template = link.feeTemplate;
-              const amount = link.customAmount ?? template.defaultAmount;
-              if (!amount) continue;
-              feesToCreate.push({
-                userId,
-                feeTemplateId: template.id,
-                name: template.name,
-                amount: parseFloat(amount.toString()),
-                currency: link.customCurrency ?? template.defaultCurrency,
-                date: renewalDate,
-                category: template.category,
-                purchaseGroupId: group.id,
-              });
-            }
           } catch {
             // skip duplicates silently
           }
+        }
+
+        // Fee templates once per purchase group (not per book)
+        for (const link of (entry as any).feeTemplates ?? []) {
+          const template = link.feeTemplate;
+          const amount = link.customAmount ?? template.defaultAmount;
+          if (!amount) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: template.id,
+            name: template.name,
+            amount: parseFloat(amount.toString()),
+            currency: link.customCurrency ?? template.defaultCurrency,
+            date: renewalDate,
+            category: template.category,
+            purchaseGroupId: group.id,
+          });
         }
       }
 
@@ -1449,7 +1448,6 @@ export class SubscriptionsService {
 
       for (const mb of monthBooks) {
         const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
-        // If override price exists, update group total to match (per book overrides are unusual for groups)
         if (override != null) {
           await this.prisma.userPurchaseGroup.update({
             where: { id: group.id },
@@ -1482,26 +1480,26 @@ export class SubscriptionsService {
             });
           }
           booksAdded++;
-
-          // Accumulate fee records linked to group
-          for (const link of (entry as any).feeTemplates ?? []) {
-            const template = link.feeTemplate;
-            const amount = link.customAmount ?? template.defaultAmount;
-            if (!amount) continue;
-            feesToCreate.push({
-              userId,
-              feeTemplateId: template.id,
-              name: template.name,
-              amount: parseFloat(amount.toString()),
-              currency: link.customCurrency ?? template.defaultCurrency,
-              date: renewalDate,
-              category: template.category,
-              purchaseGroupId: group.id,
-            });
-          }
         } catch {
           // skip duplicates silently
         }
+      }
+
+      // Fee templates once per purchase group (not per book)
+      for (const link of (entry as any).feeTemplates ?? []) {
+        const template = link.feeTemplate;
+        const amount = link.customAmount ?? template.defaultAmount;
+        if (!amount) continue;
+        feesToCreate.push({
+          userId,
+          feeTemplateId: template.id,
+          name: template.name,
+          amount: parseFloat(amount.toString()),
+          currency: link.customCurrency ?? template.defaultCurrency,
+          date: renewalDate,
+          category: template.category,
+          purchaseGroupId: group.id,
+        });
       }
     }
 

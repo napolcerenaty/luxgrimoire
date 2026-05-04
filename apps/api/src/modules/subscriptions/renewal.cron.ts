@@ -232,22 +232,23 @@ export class RenewalCronService {
           },
         }).catch(() => {});
       }
+    }
 
-      for (const link of feeTemplateLinks) {
-        const template = link.feeTemplate;
-        const amount = link.customAmount ?? template.defaultAmount;
-        if (!amount) continue;
-        feesToCreate.push({
-          userId: entry.userId,
-          feeTemplateId: template.id,
-          name: template.name,
-          amount: parseFloat(amount.toString()),
-          currency: link.customCurrency ?? template.defaultCurrency,
-          date: renewalDate,
-          category: (template.category ?? 'OTHER') as FeeCategory,
-          purchaseGroupId: group.id,
-        });
-      }
+    // Add fee templates once per purchase group (not per book)
+    for (const link of feeTemplateLinks) {
+      const template = link.feeTemplate;
+      const amount = link.customAmount ?? template.defaultAmount;
+      if (!amount) continue;
+      feesToCreate.push({
+        userId: entry.userId,
+        feeTemplateId: template.id,
+        name: template.name,
+        amount: parseFloat(amount.toString()),
+        currency: link.customCurrency ?? template.defaultCurrency,
+        date: renewalDate,
+        category: (template.category ?? 'OTHER') as FeeCategory,
+        purchaseGroupId: group.id,
+      });
     }
 
     if (feesToCreate.length > 0) {
