@@ -31,7 +31,13 @@ export function DevBanner() {
         <span style={{ color: '#b0956a' }}>
           LuxGrimoire is under active development — you may encounter bugs or incomplete features.
           Found something?{' '}
-          <strong className="font-semibold" style={{ color: '#d4a843' }}>Use the Report a Bug button.</strong>
+          <button
+            onClick={() => window.dispatchEvent(new Event('open-bug-report'))}
+            className="underline underline-offset-2 font-semibold transition-colors hover:text-amber-300"
+            style={{ color: '#d4a843' }}
+          >
+            Report a Bug
+          </button>
         </span>
       </div>
       <button
