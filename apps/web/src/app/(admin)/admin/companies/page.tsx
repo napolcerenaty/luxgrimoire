@@ -160,20 +160,26 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
   }
 }
 
+function nullIfEmpty(v: string | null | undefined): string | null | undefined {
+  if (v === null) return null       // explicit clear
+  if (v === '' || v === undefined) return null  // cleared by user
+  return v
+}
+
 function formToPayload(form: CompanyFormData) {
   return {
     name: form.name,
-    description: form.description || undefined,
-    country: form.country || undefined,
-    website: form.website || undefined,
+    description: nullIfEmpty(form.description),
+    country: nullIfEmpty(form.country),
+    website: nullIfEmpty(form.website),
     logoUrl: form.logoUrl === null ? null : (form.logoUrl || undefined),
-    defaultCurrency: form.defaultCurrency || undefined,
-    instagram: form.instagram || undefined,
-    threads: form.threads || undefined,
-    tiktok: form.tiktok || undefined,
-    facebook: form.facebook || undefined,
-    x: form.x || undefined,
-    bluesky: form.bluesky || undefined,
+    defaultCurrency: nullIfEmpty(form.defaultCurrency),
+    instagram: nullIfEmpty(form.instagram),
+    threads: nullIfEmpty(form.threads),
+    tiktok: nullIfEmpty(form.tiktok),
+    facebook: nullIfEmpty(form.facebook),
+    x: nullIfEmpty(form.x),
+    bluesky: nullIfEmpty(form.bluesky),
     iossImplemented: form.iossImplemented,
     hasOfficialImagePermission: form.hasOfficialImagePermission,
   }

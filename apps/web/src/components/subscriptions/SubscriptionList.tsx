@@ -99,7 +99,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                 href={`/subscriptions/${sub.slug}`}
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
               >
-                <div className="aspect-[2/1] relative overflow-hidden bg-stone-950">
+                <div className="aspect-[2/1] relative overflow-hidden bg-stone-950 flex items-center justify-center">
                   {cover ? (
                     <>
                       {/* Blurred background fill */}
@@ -115,7 +115,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                       <img
                         src={cover}
                         alt={sub.name}
-                        className="relative z-10 w-full h-full object-contain max-h-[60%] self-center group-hover:scale-105 transition-transform duration-300"
+                        className="relative z-10 max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
                     </>
                   ) : (
