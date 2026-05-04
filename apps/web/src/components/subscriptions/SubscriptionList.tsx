@@ -119,8 +119,8 @@ export default function SubscriptionList({ subscriptions }: Props) {
                       />
                     </>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-stone-600 text-sm">
-                      No image
+                    <div className="w-full h-full flex items-center justify-center px-4">
+                      <span className="font-serif text-stone-400 text-lg text-center leading-snug">{sub.name}</span>
                     </div>
                   )}
                 </div>

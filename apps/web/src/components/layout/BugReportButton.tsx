@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bug, X, ChevronDown } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
@@ -17,6 +17,12 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 export function BugReportButton() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener('open-bug-report', handler)
+    return () => window.removeEventListener('open-bug-report', handler)
+  }, [])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('ui')

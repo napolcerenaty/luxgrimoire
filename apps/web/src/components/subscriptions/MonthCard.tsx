@@ -59,7 +59,7 @@ export default function MonthCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image area */}
-      <div className="aspect-[2/3] overflow-hidden bg-stone-800 relative">
+      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative">
         {thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -68,19 +68,21 @@ export default function MonthCard({
             className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverThumbUrl ? 'opacity-0' : 'opacity-100'}`}
           />
         ) : (
-          <div
-            className="w-full h-full flex flex-col items-center justify-center gap-1.5 px-3"
-            style={
-              accentColors?.length
-                ? { background: `linear-gradient(135deg, ${accentColors[1] ?? '#1c1917'} 0%, ${accentColors[0] ?? '#292524'} 60%, ${accentColors[2] ?? '#1c1917'} 100%)` }
-                : { background: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 60%, #1c1917 100%)' }
-            }
-          >
-            <span className="text-stone-400 font-serif text-xs tracking-widest uppercase text-center">
+          <div className="w-full h-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
+            {/* Very subtle brand gradient overlay */}
+            <div
+              className="absolute inset-0 opacity-[0.18]"
+              style={
+                accentColors?.length
+                  ? { background: `linear-gradient(135deg, ${accentColors[1] ?? '#1c1917'} 0%, ${accentColors[0] ?? '#292524'} 60%, ${accentColors[2] ?? '#1c1917'} 100%)` }
+                  : { background: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 60%, #1c1917 100%)' }
+              }
+            />
+            <span className="relative z-10 text-stone-400 font-serif text-xs tracking-widest uppercase text-center">
               {monthName} {year}
             </span>
             {theme && (
-              <span className="text-stone-500 text-xs italic text-center line-clamp-3">
+              <span className="relative z-10 text-stone-500 text-xs italic text-center line-clamp-3">
                 {theme}
               </span>
             )}

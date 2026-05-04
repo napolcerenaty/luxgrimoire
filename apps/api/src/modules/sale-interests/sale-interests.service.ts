@@ -29,6 +29,8 @@ export class SaleInterestsService {
             id: true,
             title: true,
             imageUrl: true,
+            basePrice: true,
+            currency: true,
             firstAccessDate: true,
             earlyAccessDate: true,
             generalSaleDate: true,

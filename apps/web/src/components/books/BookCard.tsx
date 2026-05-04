@@ -18,7 +18,7 @@ export function BookCard({ book }: BookCardProps) {
       href={`/books/${book.slug}`}
       className="group flex flex-col gap-3 hover:opacity-90 transition-opacity"
     >
-      <div className="aspect-[2/3] overflow-hidden rounded-lg bg-stone-800 shadow-md">
+      <div className="aspect-[2/3] overflow-hidden rounded-lg bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 shadow-md">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

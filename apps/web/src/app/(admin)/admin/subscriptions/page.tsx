@@ -685,14 +685,25 @@ export default function AdminSubscriptionsPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (row: ApiSubscription) =>
-        row.isHidden ? (
-          <span className="text-stone-500 text-xs font-medium">Hidden</span>
-        ) : row.isDiscontinued ? (
-          <span className="text-red-400 text-xs font-medium">Discontinued</span>
-        ) : (
-          <span className="text-emerald-400 text-xs font-medium">Active</span>
-        ),
+      render: (row: ApiSubscription) => (
+        <div className="flex flex-col gap-0.5">
+          {row.isHidden ? (
+            <span className="text-stone-500 text-xs font-medium">Hidden</span>
+          ) : row.isDiscontinued ? (
+            <span className="text-red-400 text-xs font-medium">Discontinued</span>
+          ) : (
+            <span className="text-emerald-400 text-xs font-medium">Active</span>
+          )}
+          {row.parentSubscriptionId && (() => {
+            const parent = subs.find((s) => s.id === row.parentSubscriptionId)
+            return (
+              <span className="text-sky-400 text-[10px]">
+                Copy of {parent?.name ?? row.parentSubscriptionId}
+              </span>
+            )
+          })()}
+        </div>
+      ),
     },
     {
       key: 'months',
@@ -704,7 +715,7 @@ export default function AdminSubscriptionsPage() {
       label: 'Manage',
       render: (row: ApiSubscription) => (
         <>
-          {row.contentType !== 'SERIES' && (
+          {row.contentType !== 'SERIES' && !row.isCombo && (
             <Link
               href={`/admin/subscriptions/${row.slug}/months`}
               className="text-amber-400 text-xs hover:underline"

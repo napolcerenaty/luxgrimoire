@@ -38,6 +38,7 @@ interface SubscriptionMonth {
   theme: string | null
   series: { id: string; name: string; slug: string } | null
   books: MonthBook[]
+  isComboMonth?: boolean
 }
 
 interface JoinResult {
@@ -540,8 +541,8 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
         </div>
       </label>
 
-      {/* Per-book price inputs for multi-book months */}
-      {isMultiBook && checked && (
+      {/* Per-book price inputs for multi-book months (not shown for combo months — priced as a unit) */}
+      {isMultiBook && checked && !month.isComboMonth && (
         <div className="px-3 pb-3 space-y-1.5">
           <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-1">Price per book</p>
           {allBooks.map(b => {

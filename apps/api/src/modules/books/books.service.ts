@@ -90,20 +90,31 @@ export class BooksService {
           id: true,
           slug: true,
           title: true,
-          language: true,
-          seriesName: true,
           volumeNumber: true,
-          genres: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
+          seriesName: true,
           authors: {
             select: {
               author: {
-                select: { id: true, name: true, slug: true, photoUrl: true },
+                select: { id: true, name: true, slug: true },
               },
             },
           },
+          // Editions only needed for series browsing
+          ...(query.seriesName
+            ? {
+                editions: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    additionalImages: true,
+                    bookBoxCompanyCustomName: true,
+                    bookBoxCompany: { select: { name: true, slug: true } },
+                  },
+                  where: { verifiedAt: { not: null } },
+                  orderBy: { createdAt: 'asc' },
+                },
+              }
+            : {}),
         },
         orderBy: { createdAt: 'desc' },
       }),

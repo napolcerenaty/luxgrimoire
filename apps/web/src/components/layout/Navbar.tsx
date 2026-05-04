@@ -9,7 +9,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, DollarSign,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
-  Heart, BookMarked, ShoppingBag,
+  Heart, BookMarked, ShoppingBag, Library,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -17,16 +17,17 @@ import { SearchDropdown } from '@/components/search/SearchDropdown'
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
+  { href: '/sale-announcements', label: 'Sale Announcements' },
 ]
 
 const USER_NAV_LINKS = [
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/collection', label: 'My Collection', icon: BookOpen },
-  { href: '/sold', label: 'My Sales', icon: ShoppingBag },
+  { href: '/calendar',         label: 'Calendar',      icon: CalendarDays },
+  { href: '/collection',       label: 'My Collection', icon: BookOpen },
+  { href: '/sold',             label: 'Sold Books',    icon: ShoppingBag },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
-  { href: '/wishlist', label: 'Wishlist', icon: Heart },
-  { href: '/spending', label: 'Spending', icon: DollarSign },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
+  { href: '/spending',         label: 'Spending',      icon: DollarSign },
+  { href: '/profile',          label: 'Profile',       icon: User },
 ]
 
 export function Navbar() {
@@ -139,7 +140,7 @@ export function Navbar() {
                     {[
                       { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
                       { href: '/collection',        icon: BookOpen,     label: 'Collection' },
-                      { href: '/sold',              icon: ShoppingBag,  label: 'My Sales' },
+                      { href: '/sold',              icon: ShoppingBag,  label: 'Sold Books' },
                       { href: '/my-subscriptions',  icon: BookMarked,   label: 'Subscriptions' },
                       { href: '/wishlist',          icon: Heart,        label: 'Wishlist' },
                     ].map(({ href, icon: Icon, label }) => (
@@ -226,27 +227,18 @@ export function Navbar() {
           {user && (
             <>
               <div className="w-px h-4 bg-stone-700 mx-2 shrink-0" />
-              {[
-                { href: '/collection',       icon: BookOpen,     label: 'Collection' },
-                { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
-                { href: '/wishlist',         icon: Heart,        label: 'Wishlist' },
-                { href: '/my-subscriptions', icon: BookMarked,   label: 'Subscriptions' },
-                { href: '/spending',         icon: DollarSign,   label: 'Spending' },
-              ].map(({ href, icon: Icon, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`
-                    flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
-                    ${isActive(href)
-                      ? 'border-amber-400 text-amber-400'
-                      : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
-                  `}
-                >
-                  <Icon size={12} />
-                  {label}
-                </Link>
-              ))}
+              <Link
+                href="/collection"
+                className={`
+                  flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
+                  ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/spending', '/sold'].some(p => pathname.startsWith(p))
+                    ? 'border-amber-400 text-amber-400'
+                    : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
+                `}
+              >
+                <Library size={12} />
+                My Library
+              </Link>
             </>
           )}
 

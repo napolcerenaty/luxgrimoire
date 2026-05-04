@@ -1,18 +1,22 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Bell, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Bell, X, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/AuthProvider'
 
 interface CalEntry {
   id: string
   active: boolean
   renewalDay: number | null
+  basePrice: string | null
+  costCurrency: string | null
+  isDefaultPricing: boolean
   subscription: {
     slug: string
     name: string
@@ -21,6 +25,8 @@ interface CalEntry {
     type: string
     startingMonth: number
     renewalDay: number | null
+    price: string | null
+    currency: string
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
@@ -33,6 +39,8 @@ interface SaleInterest {
     id: string
     title: string
     imageUrl: string | null
+    basePrice: number | null
+    currency: string | null
     firstAccessDate: string | null
     earlyAccessDate: string | null
     generalSaleDate: string | null
@@ -136,7 +144,9 @@ function resolveInterestDate(interest: SaleInterest): string | null {
 
 export default function CalendarPage() {
   const { theme } = useTheme()
+  const { user } = useAuth()
   const lightMode = theme === 'light'
+  const preferredCurrency = (user?.preferredCurrency ?? 'EUR').toUpperCase()
   const today = new Date()
   const [viewDate, setViewDate] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
@@ -246,6 +256,85 @@ export default function CalendarPage() {
 
   const isToday = (day: number) =>
     day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
+
+  // ─── Spending estimate for displayed month ───────────────────────────────
+  const monthRenewals = useMemo(() => {
+    const byCurrency: Record<string, { total: number; names: string[] }> = {}
+    for (const entry of activeEntries) {
+      if (renewalDayInMonth(entry, year, month0) === null) continue
+      const amount = entry.isDefaultPricing
+        ? (entry.subscription.price ? parseFloat(entry.subscription.price) : null)
+        : (entry.basePrice ? parseFloat(entry.basePrice) : null)
+      const currency = (entry.isDefaultPricing ? entry.subscription.currency : entry.costCurrency)?.toUpperCase()
+      if (amount == null || !currency) continue
+      if (!byCurrency[currency]) byCurrency[currency] = { total: 0, names: [] }
+      byCurrency[currency].total += amount
+      byCurrency[currency].names.push(entry.subscription.name)
+    }
+    return byCurrency
+  }, [activeEntries, year, month0])
+
+  const monthSales = useMemo(() => {
+    const byCurrency: Record<string, { total: number; names: string[] }> = {}
+    for (const i of interests) {
+      const dateStr = resolveInterestDate(i)
+      if (!dateStr) continue
+      const d = new Date(dateStr)
+      if (d.getFullYear() !== year || d.getMonth() !== month0) continue
+      const { basePrice, currency } = i.announcement
+      if (basePrice == null || !currency) continue
+      const key = currency.toUpperCase()
+      if (!byCurrency[key]) byCurrency[key] = { total: 0, names: [] }
+      byCurrency[key].total += basePrice
+      byCurrency[key].names.push(i.announcement.title)
+    }
+    return byCurrency
+  }, [interests, year, month0])
+
+  const foreignCurrencies = useMemo(() => {
+    const set = new Set<string>()
+    Object.keys(monthRenewals).forEach(c => set.add(c))
+    Object.keys(monthSales).forEach(c => set.add(c))
+    return Array.from(set).filter(c => c !== preferredCurrency)
+  }, [monthRenewals, monthSales, preferredCurrency])
+
+  const rateResults = useQueries({
+    queries: foreignCurrencies.map(from => ({
+      queryKey: ['fx-rate', from, preferredCurrency],
+      queryFn: () => authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${preferredCurrency}`),
+      staleTime: 1000 * 60 * 60,
+    })),
+  })
+
+  const rates = useMemo(() => {
+    const r: Record<string, number> = { [preferredCurrency]: 1 }
+    foreignCurrencies.forEach((currency, i) => {
+      const data = rateResults[i]?.data as { rate?: number } | undefined
+      if (data?.rate) r[currency] = data.rate
+    })
+    return r
+  }, [foreignCurrencies, rateResults, preferredCurrency])
+
+  const fmt = (amount: number, currency: string) =>
+    new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount)
+
+  const allRatesLoaded= foreignCurrencies.every((_, i) => rateResults[i]?.data != null)
+  const hasSpending = Object.keys(monthRenewals).length > 0 || Object.keys(monthSales).length > 0
+
+  const combinedByCurrency = useMemo(() => {
+    const acc: Record<string, number> = {}
+    for (const [c, { total }] of Object.entries(monthRenewals)) acc[c] = (acc[c] ?? 0) + total
+    for (const [c, { total }] of Object.entries(monthSales)) acc[c] = (acc[c] ?? 0) + total
+    return acc
+  }, [monthRenewals, monthSales])
+
+  const grandTotal = useMemo(
+    () => Object.entries(combinedByCurrency).reduce((sum, [c, total]) => {
+      const rate = rates[c]
+      return rate != null ? sum + total * rate : sum
+    }, 0),
+    [combinedByCurrency, rates],
+  )
 
   const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale', subtitle?: string) => {
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
@@ -417,6 +506,90 @@ export default function CalendarPage() {
           })}
         </div>
       </div>
+
+      {/* Monthly spending estimate */}
+      {hasSpending && (
+        <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={14} className="text-amber-400/70" />
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+              Expected spending · {monthLabel}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Renewals */}
+            {Object.keys(monthRenewals).length > 0 && (
+              <div className="bg-stone-950/50 rounded-lg p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">Renewals</p>
+                {Object.entries(monthRenewals).map(([currency, { total, names }]) => (
+                  <div key={currency} className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-stone-400 truncate flex-1" title={names.join(', ')}>
+                      {names.length === 1 ? names[0] : `${names.length} subscriptions`}
+                    </p>
+                    <p className="text-xs font-semibold text-stone-200 shrink-0">{fmt(total, currency)}</p>
+                  </div>
+                ))}
+                {Object.keys(monthRenewals).length > 1 && (
+                  <div className="border-t border-stone-800 pt-1.5 flex justify-between">
+                    <p className="text-[10px] text-stone-500">subtotal</p>
+                    <p className="text-[10px] text-stone-400">
+                      {Object.entries(monthRenewals).map(([c, { total }]) => fmt(total, c)).join(' + ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sale announcements */}
+            {Object.keys(monthSales).length > 0 && (
+              <div className="bg-stone-950/50 rounded-lg p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">Sale Announcements</p>
+                {Object.entries(monthSales).map(([currency, { total, names }]) => (
+                  <div key={currency} className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-stone-400 truncate flex-1" title={names.join(', ')}>
+                      {names.length === 1 ? names[0] : `${names.length} sales`}
+                    </p>
+                    <p className="text-xs font-semibold text-stone-200 shrink-0">{fmt(total, currency)}</p>
+                  </div>
+                ))}
+                {Object.keys(monthSales).length > 1 && (
+                  <div className="border-t border-stone-800 pt-1.5 flex justify-between">
+                    <p className="text-[10px] text-stone-500">subtotal</p>
+                    <p className="text-[10px] text-stone-400">
+                      {Object.entries(monthSales).map(([c, { total }]) => fmt(total, c)).join(' + ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Total in preferred currency */}
+          {hasSpending && (
+            <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-[10px] uppercase tracking-widest text-stone-500">
+                  Total in {preferredCurrency}
+                  {!allRatesLoaded && foreignCurrencies.length > 0 && (
+                    <span className="ml-1 text-stone-600">(loading rates…)</span>
+                  )}
+                </p>
+                {Object.keys(combinedByCurrency).length > 1 && (
+                  <p className="text-[10px] text-stone-600 mt-0.5">
+                    {Object.entries(combinedByCurrency).map(([c, t]) => fmt(t, c)).join(' + ')}
+                  </p>
+                )}
+              </div>
+              {allRatesLoaded && (
+                <p className="text-xl font-serif font-bold text-amber-400">
+                  ~{fmt(grandTotal, preferredCurrency)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mobile agenda — shown below calendar grid on small screens */}
       <div className="sm:hidden">

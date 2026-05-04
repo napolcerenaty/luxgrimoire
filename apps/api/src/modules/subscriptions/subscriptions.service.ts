@@ -195,6 +195,7 @@ export class SubscriptionsService {
       include: {
         company: true,
         skipPolicy: true,
+        comboComponents: { select: { componentId: true } },
         months: {
           where: {
             OR: [
@@ -231,7 +232,8 @@ export class SubscriptionsService {
       },
     });
     if (!subscription) throw new NotFoundException(`Subscription '${slug}' not found`);
-    return subscription;
+    const { comboComponents, ...rest } = subscription;
+    return { ...rest, componentIds: comboComponents.map((c) => c.componentId) };
   }
 
   async update(slug: string, dto: UpdateSubscriptionDto) {
@@ -340,21 +342,43 @@ export class SubscriptionsService {
       );
     }
 
-    return this.prisma.subscriptionMonth.create({
-      data: {
-        subscriptionId: subscription.id,
-        year: dto.year,
-        month: dto.month,
-        theme: dto.theme,
-        coverImage: dto.coverImage,
-        spoilerImage: dto.spoilerImage,
-        isSpoiler: dto.isSpoiler ?? false,
-        actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
-        boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
-        signatureType: dto.signatureType ?? null,
-        cardArtistId: dto.cardArtistId ?? null,
-      },
+    const monthData = {
+      year: dto.year,
+      month: dto.month,
+      theme: dto.theme,
+      coverImage: dto.coverImage,
+      spoilerImage: dto.spoilerImage,
+      isSpoiler: dto.isSpoiler ?? false,
+      actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
+      boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
+      signatureType: dto.signatureType ?? null,
+      cardArtistId: dto.cardArtistId ?? null,
+    };
+
+    const created = await this.prisma.subscriptionMonth.create({
+      data: { subscriptionId: subscription.id, ...monthData },
     });
+
+    // Propagate to active (non-discontinued) variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .upsert({
+              where: { subscriptionId_year_month: { subscriptionId: v.id, year: dto.year, month: dto.month } },
+              create: { subscriptionId: v.id, ...monthData },
+              update: {},
+            })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return created;
   }
 
   async updateMonth(
@@ -371,13 +395,33 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    return this.prisma.subscriptionMonth.update({
+    const updated = await this.prisma.subscriptionMonth.update({
       where: { id: existing.id },
       data: {
         ...dto,
         cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
       },
     });
+
+    // Propagate to active variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .updateMany({
+              where: { subscriptionId: v.id, year, month },
+              data: { ...dto, cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId },
+            })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return updated;
   }
 
   async deleteMonth(subscriptionSlug: string, year: number, month: number) {
@@ -389,7 +433,24 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    return this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+    const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+
+    // Propagate deletion to active variants if this is a parent subscription
+    if (!subscription.parentSubscriptionId) {
+      const variants = await this.prisma.subscription.findMany({
+        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
+        select: { id: true },
+      });
+      await Promise.all(
+        variants.map((v) =>
+          this.prisma.subscriptionMonth
+            .deleteMany({ where: { subscriptionId: v.id, year, month } })
+            .catch(() => {}),
+        ),
+      );
+    }
+
+    return deleted;
   }
 
   private async getMonth(subscriptionId: string, year: number, month: number) {
@@ -884,11 +945,16 @@ export class SubscriptionsService {
     }
 
     // Compute eligible past months: from startDate+1 to current month (inclusive)
-    const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds = (sub as any).componentIds as string[];
+    const eligibleMonths = isCombo
+      ? await this.getComboEligibleMonths(componentIds, startDateObj)
+      : await this.getEligibleMonths(sub.id, startDateObj);
 
     // If paymentOnStartup: register the first upcoming month's books as preorders
+    // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
-    if (paymentOnStartup && startDateObj) {
+    if (paymentOnStartup && startDateObj && !isCombo) {
       await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
     }
 
@@ -952,6 +1018,89 @@ export class SubscriptionsService {
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
+  }
+
+  /**
+   * Returns eligible past months for a combo subscription.
+   * Each entry is a synthetic month (no real DB ID) aggregating books from
+   * ALL component subscriptions' months for the same year/month slot.
+   * Synthetic ID format: `COMBO_${year}_${month}` (no colons to avoid key-parsing issues).
+   */
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null) {
+    if (!startDateObj || componentIds.length === 0) return [];
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
+    const startYear = nextMonthDate.getFullYear();
+    const startMonth = nextMonthDate.getMonth() + 1;
+
+    if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
+      return [];
+    }
+
+    const componentMonths = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: { in: componentIds },
+        AND: [
+          {
+            OR: [
+              { year: { gt: startYear } },
+              { year: startYear, month: { gte: startMonth } },
+            ],
+          },
+          {
+            OR: [
+              { year: { lt: currentYear } },
+              { year: currentYear, month: { lte: currentMonth } },
+            ],
+          },
+        ],
+      },
+      include: {
+        books: {
+          include: {
+            edition: {
+              include: {
+                book: {
+                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                },
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    // Group by year/month, merge books (deduplicate by editionId)
+    const grouped = new Map<string, { year: number; month: number; booksMap: Map<string, (typeof componentMonths)[0]['books'][0]> }>();
+    for (const m of componentMonths) {
+      const key = `${m.year}_${m.month}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { year: m.year, month: m.month, booksMap: new Map() });
+      }
+      for (const b of m.books) {
+        if (b.editionId && !grouped.get(key)!.booksMap.has(b.editionId)) {
+          grouped.get(key)!.booksMap.set(b.editionId, b);
+        }
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, { year, month, booksMap }]) => ({
+        id: `COMBO_${year}_${month}`,
+        year,
+        month,
+        theme: null as string | null,
+        series: null as { id: string; name: string; slug: string } | null,
+        books: Array.from(booksMap.values()),
+        isComboMonth: true,
+      }));
   }
 
   /**
@@ -1036,7 +1185,7 @@ export class SubscriptionsService {
           where: { userId, editionId: mb.editionId!, subscriptionEntryId: entryId },
           select: { id: true },
         });
-        const bookEntry = existingSub
+        existingSub
           ? await this.prisma.userBookEntry.update({
               where: { id: existingSub.id },
               data: { purchaseGroupId: group.id },
@@ -1053,28 +1202,26 @@ export class SubscriptionsService {
                 signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
               },
             });
-
-        // Fee templates linked to group
-        for (const link of feeTemplateLinks) {
-          const template = link.feeTemplate;
-          const amount = link.customAmount ?? template.defaultAmount;
-          if (!amount) continue;
-          feesToCreate.push({
-            userId,
-            feeTemplateId: template.id,
-            name: template.name,
-            amount: parseFloat(amount.toString()),
-            currency: link.customCurrency ?? template.defaultCurrency,
-            date: purchaseDate,
-            category: template.category,
-            purchaseGroupId: group.id,
-          });
-        }
-
-        // Taxes & fees linked to group (shipping already in group.shippingAmount)
       } catch {
         // skip if already exists
       }
+    }
+
+    // Fee templates once per purchase group
+    for (const link of feeTemplateLinks) {
+      const template = link.feeTemplate;
+      const amount = link.customAmount ?? template.defaultAmount;
+      if (!amount) continue;
+      feesToCreate.push({
+        userId,
+        feeTemplateId: template.id,
+        name: template.name,
+        amount: parseFloat(amount.toString()),
+        currency: link.customCurrency ?? template.defaultCurrency,
+        date: purchaseDate,
+        category: template.category,
+        purchaseGroupId: group.id,
+      });
     }
 
     if (feesToCreate.length > 0) {
@@ -1087,6 +1234,9 @@ export class SubscriptionsService {
 
   async backfillSubscription(userId: string, slug: string, dto: BackfillSubscriptionDto) {
     const sub = await this.findBySlug(slug);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds = (sub as any).componentIds as string[];
+
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
       include: {
@@ -1103,7 +1253,132 @@ export class SubscriptionsService {
     let booksAdded = 0;
     let skipsRecorded = 0;
 
-    // Batch-load ALL months with their books in a single query
+    // ── Combo path ────────────────────────────────────────────────────────────
+    if (isCombo) {
+      // Server-side validation: only accept IDs that are in the computed eligible set
+      const startDateObj = entry.startDate ? (() => {
+        const parts = entry.startDate.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
+      })() : null;
+      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj);
+      const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
+
+      const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
+
+      const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
+      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+        where: { subscriptionId: sub.id },
+        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+      });
+      const isDefaultPricing = (entry as any).isDefaultPricing !== false;
+
+      const feesToCreate: {
+        userId: string; feeTemplateId?: string | null; name: string; amount: number;
+        currency: string; date: Date; category: any; purchaseGroupId: string;
+      }[] = [];
+
+      for (const comboId of validComboIds) {
+        // Parse year/month from synthetic ID: COMBO_YEAR_MONTH
+        const parts = comboId.split('_');
+        const year = parseInt(parts[1]);
+        const month = parseInt(parts[2]);
+
+        // Fetch books from all component months for this year/month
+        const componentMonths = await this.prisma.subscriptionMonth.findMany({
+          where: { subscriptionId: { in: componentIds }, year, month },
+          select: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+        });
+        // Deduplicate books by editionId
+        const bookMap = new Map<string, { bookId: string; editionId: string; signatureType: $Enums.SignatureType | null }>();
+        for (const m of componentMonths) {
+          for (const b of m.books) {
+            if (b.editionId && b.bookId && !bookMap.has(b.editionId)) {
+              bookMap.set(b.editionId, { bookId: b.bookId, editionId: b.editionId, signatureType: b.signatureType });
+            }
+          }
+        }
+        const monthBooks = Array.from(bookMap.values());
+        if (monthBooks.length === 0) continue;
+
+        const renewalDate = new Date(Date.UTC(year, month - 1, renewalDay));
+        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, isDefaultPricing);
+        const basePrice = resolved.price ?? fallbackBase;
+
+        const group = await this.prisma.userPurchaseGroup.create({
+          data: {
+            userId,
+            fromSubscription: true,
+            subscriptionEntryId: entry.id,
+            totalAmount: basePrice,
+            shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
+            currency: entry.costCurrency ?? 'USD',
+            purchasedAt: renewalDate,
+            title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
+          },
+        });
+
+        for (const mb of monthBooks) {
+          try {
+            const existingSubEntry = await this.prisma.userBookEntry.findFirst({
+              where: { userId, editionId: mb.editionId, subscriptionEntryId: entry.id },
+              select: { id: true },
+            });
+            if (existingSubEntry) {
+              await this.prisma.userBookEntry.update({
+                where: { id: existingSubEntry.id },
+                data: { purchaseGroupId: group.id },
+              });
+            } else {
+              await this.prisma.userBookEntry.create({
+                data: {
+                  userId,
+                  bookId: mb.bookId,
+                  editionId: mb.editionId,
+                  ownershipStatus: 'OWNED',
+                  readingStatus: 'UNREAD',
+                  subscriptionEntryId: entry.id,
+                  purchaseGroupId: group.id,
+                  signatureType: mb.signatureType,
+                },
+              });
+            }
+            booksAdded++;
+          } catch {
+            // skip duplicates silently
+          }
+        }
+
+        // Fee templates once per purchase group (not per book)
+        for (const link of (entry as any).feeTemplates ?? []) {
+          const template = link.feeTemplate;
+          const amount = link.customAmount ?? template.defaultAmount;
+          if (!amount) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: template.id,
+            name: template.name,
+            amount: parseFloat(amount.toString()),
+            currency: link.customCurrency ?? template.defaultCurrency,
+            date: renewalDate,
+            category: template.category,
+            purchaseGroupId: group.id,
+          });
+        }
+      }
+
+      if (feesToCreate.length > 0) {
+        await this.prisma.userPurchaseFee.createMany({
+          data: feesToCreate,
+          skipDuplicates: true,
+        });
+      }
+
+      // Backfill past renewal history for calendar display
+      backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+      return { booksAdded, skipsRecorded };
+    }
+
+    // ── Regular (non-combo) path ──────────────────────────────────────────────
     const monthRecords = await this.prisma.subscriptionMonth.findMany({
       where: { id: { in: dto.selectedMonthIds } },
       select: {
@@ -1173,7 +1448,6 @@ export class SubscriptionsService {
 
       for (const mb of monthBooks) {
         const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
-        // If override price exists, update group total to match (per book overrides are unusual for groups)
         if (override != null) {
           await this.prisma.userPurchaseGroup.update({
             where: { id: group.id },
@@ -1206,26 +1480,26 @@ export class SubscriptionsService {
             });
           }
           booksAdded++;
-
-          // Accumulate fee records linked to group
-          for (const link of (entry as any).feeTemplates ?? []) {
-            const template = link.feeTemplate;
-            const amount = link.customAmount ?? template.defaultAmount;
-            if (!amount) continue;
-            feesToCreate.push({
-              userId,
-              feeTemplateId: template.id,
-              name: template.name,
-              amount: parseFloat(amount.toString()),
-              currency: link.customCurrency ?? template.defaultCurrency,
-              date: renewalDate,
-              category: template.category,
-              purchaseGroupId: group.id,
-            });
-          }
         } catch {
           // skip duplicates silently
         }
+      }
+
+      // Fee templates once per purchase group (not per book)
+      for (const link of (entry as any).feeTemplates ?? []) {
+        const template = link.feeTemplate;
+        const amount = link.customAmount ?? template.defaultAmount;
+        if (!amount) continue;
+        feesToCreate.push({
+          userId,
+          feeTemplateId: template.id,
+          name: template.name,
+          amount: parseFloat(amount.toString()),
+          currency: link.customCurrency ?? template.defaultCurrency,
+          date: renewalDate,
+          category: template.category,
+          purchaseGroupId: group.id,
+        });
       }
     }
 
