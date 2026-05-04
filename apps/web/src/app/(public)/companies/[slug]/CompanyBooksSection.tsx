@@ -65,9 +65,9 @@ export function CompanyBooksSection({ groups }: Props) {
   return (
     <section className="mt-12">
       {/* Header row: title + search */}
-      <div className="flex items-center gap-4 mb-5 flex-wrap">
-        <h2 className="text-2xl font-serif font-semibold text-stone-100">Books</h2>
-        <div className="ml-auto relative">
+      <div className="flex items-center gap-3 mb-5">
+        <h2 className="text-2xl font-serif font-semibold text-stone-100 shrink-0">Books</h2>
+        <div className="ml-auto relative w-full max-w-[12rem]">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none">
             <SearchIcon />
           </span>
@@ -76,27 +76,29 @@ export function CompanyBooksSection({ groups }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search books…"
-            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-600/60 w-48"
+            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-600/60 w-full"
           />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0 border-b border-stone-800 mb-6">
-        {groups.map((group, idx) => (
-          <button
-            key={group.label}
-            onClick={() => handleTabChange(idx)}
-            className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
-              activeTab === idx
-                ? 'border-amber-600 text-amber-400'
-                : 'border-transparent text-stone-400 hover:text-stone-200'
-            }`}
-          >
-            {group.label}
-            <span className="ml-1.5 text-xs text-stone-500">({group.editions.length})</span>
-          </button>
-        ))}
+      {/* Tabs — scrollable on mobile */}
+      <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-800 mb-6">
+        <div className="flex gap-0 min-w-max">
+          {groups.map((group, idx) => (
+            <button
+              key={group.label}
+              onClick={() => handleTabChange(idx)}
+              className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                activeTab === idx
+                  ? 'border-amber-600 text-amber-400'
+                  : 'border-transparent text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              {group.label}
+              <span className="ml-1.5 text-xs text-stone-500">({group.editions.length})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Grid */}

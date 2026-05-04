@@ -201,7 +201,6 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
     setUploading(true)
     setUploadError(null)
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('luxgrimoire_token') : null
       const dataUri = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
@@ -210,10 +209,8 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
       })
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/image`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/book-boxes' }),
       })
       if (!res.ok) throw new Error(await res.text())

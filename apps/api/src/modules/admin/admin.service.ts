@@ -132,6 +132,9 @@ export class AdminService {
       select: { id: true, username: true, email: true, role: true, managedCompanyId: true },
     });
 
+    // Invalidate cached role so the change takes effect on next request
+    void this.cache.del(`user-meta:${userId}`);
+
     void this.auditService.log({
       userId: actor.id,
       username: actor.username,
