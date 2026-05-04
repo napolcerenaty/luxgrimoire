@@ -14,9 +14,8 @@ interface CalEntry {
   id: string
   active: boolean
   renewalDay: number | null
-  basePrice: string | null
-  costCurrency: string | null
-  isDefaultPricing: boolean
+  nextRenewalAmount: string | null
+  nextRenewalCurrency: string | null
   subscription: {
     slug: string
     name: string
@@ -25,8 +24,6 @@ interface CalEntry {
     type: string
     startingMonth: number
     renewalDay: number | null
-    price: string | null
-    currency: string
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
@@ -262,11 +259,9 @@ export default function CalendarPage() {
     const byCurrency: Record<string, { total: number; names: string[] }> = {}
     for (const entry of activeEntries) {
       if (renewalDayInMonth(entry, year, month0) === null) continue
-      const amount = entry.isDefaultPricing
-        ? (entry.subscription.price ? parseFloat(entry.subscription.price) : null)
-        : (entry.basePrice ? parseFloat(entry.basePrice) : null)
-      const currency = (entry.isDefaultPricing ? entry.subscription.currency : entry.costCurrency)?.toUpperCase()
-      if (amount == null || !currency) continue
+      const amount = entry.nextRenewalAmount ? parseFloat(entry.nextRenewalAmount) : null
+      const currency = entry.nextRenewalCurrency?.toUpperCase()
+      if (amount == null || isNaN(amount) || !currency) continue
       if (!byCurrency[currency]) byCurrency[currency] = { total: 0, names: [] }
       byCurrency[currency].total += amount
       byCurrency[currency].names.push(entry.subscription.name)
