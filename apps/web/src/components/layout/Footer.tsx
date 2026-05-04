@@ -118,8 +118,11 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-stone-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-stone-500">© {YEAR} LuxGrimoire. All rights reserved.</p>
-          <p className="text-xs text-stone-400 text-center sm:text-right">
-            LuxGrimoire is an independent, fan-made database and is not affiliated with any listed companies. All trademarks and images belong to their respective owners.
+          <p className="text-xs text-stone-400 text-center sm:text-right max-w-xl leading-relaxed">
+            LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
+            We are not affiliated with, endorsed by, or sponsored by any listed companies unless explicitly stated as a Featured Partner.
+            Some brands featured on LuxGrimoire are displayed with permission from their respective owners.
+            All trademarks, cover images, logos, and brand materials belong to their respective owners.
           </p>
         </div>
       </div>

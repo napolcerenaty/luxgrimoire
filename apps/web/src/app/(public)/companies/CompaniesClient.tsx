@@ -31,7 +31,8 @@ export function CompaniesClient({ companies }: Props) {
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1">Book Boxes</h1>
-      <p className="text-sm text-stone-400 mb-6">This is an independent directory of book box companies.</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 mb-1">Independent directory of book box companies.</p>
+      <p className="text-sm text-stone-400 mb-6">A curated overview of subscription box brands. Some listings may include content displayed with permission from the respective owners.</p>
 
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -120,8 +121,11 @@ export function CompaniesClient({ companies }: Props) {
           })}
         </div>
       )}
-      <p className="mt-10 text-center text-xs text-stone-400">
-        LuxGrimoire is an independent, fan-made database and is not affiliated with any listed companies. All trademarks and images belong to their respective owners.
+      <p className="mt-10 text-center text-xs text-stone-400 max-w-2xl mx-auto leading-relaxed">
+        LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
+        We are not affiliated with, endorsed by, or sponsored by any listed companies unless explicitly stated as a Featured Partner.
+        Some brands featured on LuxGrimoire are displayed with permission from their respective owners.
+        All trademarks, cover images, logos, and brand materials belong to their respective owners.
       </p>
     </div>
   )
