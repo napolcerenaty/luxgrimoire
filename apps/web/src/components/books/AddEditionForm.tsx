@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
+import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
 
 interface Props {
   bookId: string
@@ -149,7 +150,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Publisher</label>
-            <input value={form.publisher} onChange={set('publisher')} placeholder="Publisher" className={inputCls} />
+            <PublisherPicker value={form.publisher} onChange={v => setForm(prev => ({ ...prev, publisher: v }))} />
           </div>
           <div>
             <label className={labelCls}>Language</label>
