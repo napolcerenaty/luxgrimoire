@@ -61,17 +61,6 @@ interface PaginatedEntries {
   pageSize: number
 }
 
-interface SaleRegion {
-  id: string
-  name: string
-  isDefault: boolean
-  countryCodes: string[]
-  firstAccessDate: string | null
-  earlyAccessDate: string | null
-  generalSaleDate: string | null
-  saleTimezone: string | null
-}
-
 interface SaleInterestItem {
   userId: string
   announcementId: string
@@ -81,14 +70,10 @@ interface SaleInterestItem {
     id: string
     title: string
     imageUrl: string | null
-    basePrice: string | null
-    currency: string | null
-    firstAccessDate: string | null
-    earlyAccessDate: string | null
     generalSaleDate: string | null
-    saleTimezone: string | null
-    company: { id: string; name: string; logoUrl: string | null; brandColors: string[] }
-    regions: SaleRegion[]
+    earlyAccessDate: string | null
+    firstAccessDate: string | null
+    company: { id: string; name: string }
   }
 }
 
@@ -121,8 +106,9 @@ export default function WishlistPage() {
   const discountKeyRef = useRef(0)
 
   const { data: result, isLoading } = useQuery({
-    queryKey: ['collection', true],
-    queryFn: () => authFetch<PaginatedEntries>('/collection?isWishlist=true&pageSize=100'),
+    queryKey: ['collection', 'wishlist-slim'],
+    queryFn: () => authFetch<PaginatedEntries>('/collection?isWishlist=true&slim=true&pageSize=100'),
+    enabled: activeTab === 'wishlist',
   })
 
   const { data: saleInterests = [], isLoading: isLoadingSales } = useQuery({
@@ -251,7 +237,7 @@ export default function WishlistPage() {
           }`}
         >
           <BookOpen size={15} />
-          Wishlist
+          Books I want
           {entries.length > 0 && (
             <span className="bg-stone-700 text-stone-300 text-xs px-1.5 py-0.5 rounded-full">{entries.length}</span>
           )}
