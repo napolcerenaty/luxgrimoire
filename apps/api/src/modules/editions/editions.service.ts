@@ -129,6 +129,23 @@ export class EditionsService {
     return { data: flatData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
+  async findPublishers(search?: string): Promise<string[]> {
+    const rows = await this.prisma.bookEdition.findMany({
+      where: {
+        publisher: {
+          not: null,
+          ...(search ? { contains: search, mode: 'insensitive' as const } : {}),
+        },
+        verifiedAt: { not: null },
+      },
+      select: { publisher: true },
+      distinct: ['publisher'],
+      orderBy: { publisher: 'asc' },
+      take: 25,
+    });
+    return rows.map(r => r.publisher).filter(Boolean) as string[];
+  }
+
   async findBySlug(slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },

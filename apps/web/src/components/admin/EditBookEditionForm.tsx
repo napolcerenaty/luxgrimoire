@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
+import { PublisherPicker } from './pickers/PublisherPicker'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
 import MultiImageUpload from './MultiImageUpload'
 
@@ -325,8 +326,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LBL}>Publisher</label>
-          <input value={publisher} onChange={e => setPublisher(e.target.value)}
-            placeholder="e.g. Fairyloot Exclusive" className={INP} />
+          <PublisherPicker value={publisher} onChange={setPublisher} />
         </div>
         <div>
           <label className={LBL}>Photo by (IG handle)</label>

@@ -44,6 +44,12 @@ export class EditionsController {
   }
 
   @Public()
+  @Get('publishers')
+  findPublishers(@Query('search') search?: string) {
+    return this.editionsService.findPublishers(search);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const edition = await this.editionsService.findBySlug(slug);
