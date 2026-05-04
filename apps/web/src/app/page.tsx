@@ -65,7 +65,7 @@ export default async function HomePage() {
             LuxGrimoire
           </h1>
           <p className="text-xs font-serif uppercase tracking-[0.3em] font-semibold text-[#1a4f6e] dark:text-[#4a88a8] mb-7">
-            Limited books. Unlimited obsession.
+            Limited books.<br className="sm:hidden" /> Unlimited obsession.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link

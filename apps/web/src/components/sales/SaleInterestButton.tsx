@@ -78,7 +78,13 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
     }
     if (btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      const dropdownWidth = 288 // w-72
+      const vw = window.innerWidth
+      // Align dropdown to right edge of button, clamped so it stays on screen
+      let left = rect.right - dropdownWidth
+      left = Math.max(8, Math.min(left, vw - dropdownWidth - 8))
+      const top = rect.bottom + 8
+      setDropdownPos({ top, right: vw - left - dropdownWidth })
     }
     setOpen(v => !v)
   }

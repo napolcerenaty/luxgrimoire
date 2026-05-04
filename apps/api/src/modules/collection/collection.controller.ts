@@ -30,13 +30,16 @@ export class CollectionController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('isWishlist') isWishlist?: string,
+    @Query('slim') slim?: string,
   ) {
     const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
+    const slimMode = slim === 'true';
     return this.collectionService.getCollection(
       user.id,
       page ? Number(page) : 1,
       pageSize ? Number(pageSize) : 20,
       wishlistFilter,
+      slimMode,
     );
   }
 

@@ -8,10 +8,46 @@ import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 export class CollectionService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false) {
     const skip = (page - 1) * pageSize;
     const where: { userId: string; isWishlist?: boolean } = { userId };
     if (isWishlist !== undefined) where.isWishlist = isWishlist;
+
+    if (slim) {
+      const [data, total] = await Promise.all([
+        this.prisma.userBookEntry.findMany({
+          where,
+          select: {
+            id: true,
+            isWishlist: true,
+            edition: {
+              select: {
+                id: true,
+                slug: true,
+                additionalImages: true,
+                bookBoxCompany: { select: { id: true, name: true, slug: true } },
+                book: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    seriesName: true,
+                    volumeNumber: true,
+                    authors: { select: { author: { select: { id: true, name: true, slug: true } } } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: pageSize,
+        }),
+        this.prisma.userBookEntry.count({ where }),
+      ]);
+      return { data, total, page, pageSize };
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.userBookEntry.findMany({
         where,
