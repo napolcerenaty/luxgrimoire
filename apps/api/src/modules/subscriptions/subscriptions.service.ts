@@ -177,13 +177,19 @@ export class SubscriptionsService {
         include: {
           company: { select: { id: true, slug: true, name: true, logoUrl: true } },
           skipPolicy: true,
+          comboComponents: { select: { componentId: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.subscription.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const mapped = data.map(({ comboComponents, ...rest }) => ({
+      ...rest,
+      componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
+    }));
+
+    return { data: mapped, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   async findBySlug(slug: string) {
