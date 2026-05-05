@@ -126,6 +126,13 @@ export class CreateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   paymentOnStartup?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @Type(() => Number)
+  renewalMonthOffset?: number;
 }
 
 export class UpdateSubscriptionDto {
@@ -234,6 +241,13 @@ export class UpdateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   paymentOnStartup?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @Type(() => Number)
+  renewalMonthOffset?: number;
 }
 
 export class CreatePrepayOptionDto {

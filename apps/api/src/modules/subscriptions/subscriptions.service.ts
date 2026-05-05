@@ -1393,7 +1393,16 @@ export class SubscriptionsService {
         const monthBooks = Array.from(bookMap.values());
         if (monthBooks.length === 0) continue;
 
-        const renewalDate = new Date(Date.UTC(year, month - 1, renewalDay));
+        const comboOffset: number = (sub as any).renewalMonthOffset ?? 0;
+        const [renewalYear, renewalMonth] = comboOffset === 0
+          ? [year, month]
+          : (() => {
+              let m = month - comboOffset; let y = year;
+              while (m <= 0) { m += 12; y--; }
+              while (m > 12) { m -= 12; y++; }
+              return [y, m] as [number, number];
+            })();
+        const renewalDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
         const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, isDefaultPricing);
         const basePrice = resolved.price ?? fallbackBase;
 
@@ -1517,9 +1526,20 @@ export class SubscriptionsService {
       const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
+      const nonComboOffset: number = (sub as any).renewalMonthOffset ?? 0;
       const renewalDate = (earliestMonthId === monthId && entry.startDate)
         ? new Date(entry.startDate)
-        : new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, renewalDay));
+        : (() => {
+            const [ry, rm] = nonComboOffset === 0
+              ? [monthRecord.year, monthRecord.month]
+              : (() => {
+                  let m = monthRecord.month - nonComboOffset; let y = monthRecord.year;
+                  while (m <= 0) { m += 12; y--; }
+                  while (m > 12) { m -= 12; y++; }
+                  return [y, m] as [number, number];
+                })();
+            return new Date(Date.UTC(ry, rm - 1, renewalDay));
+          })();
       const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
       // Create ONE purchase group per month

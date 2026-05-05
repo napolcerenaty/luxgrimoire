@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 import { resolveEffectiveBasePrice } from './price-change.util';
 
 @Injectable()
@@ -40,6 +40,7 @@ export class RenewalCronService {
         shippingCost: true,
         isDefaultPricing: true,
         nextRenewalDate: true,
+        subscription: { select: { renewalMonthOffset: true } },
       },
     });
 
@@ -63,10 +64,19 @@ export class RenewalCronService {
     shippingCost: { toString(): string } | null;
     isDefaultPricing?: boolean | null;
     nextRenewalDate: Date | null;
+    subscription: { renewalMonthOffset: number } | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
-    const year = renewalDate.getUTCFullYear();
-    const month = renewalDate.getUTCMonth() + 1;
+    const offset = entry.subscription?.renewalMonthOffset ?? 0;
+    // Box month = renewal month + offset (e.g. April renewal + 1 = May box)
+    const [year, month] = offset === 0
+      ? [renewalDate.getUTCFullYear(), renewalDate.getUTCMonth() + 1]
+      : (() => {
+          let m = renewalDate.getUTCMonth() + 1 + offset;
+          let y = renewalDate.getUTCFullYear();
+          while (m > 12) { m -= 12; y++; }
+          return [y, m] as [number, number];
+        })();
 
     // Idempotency: if we already recorded this exact renewal date → skip book-add
     // (nextRenewalDate might not have advanced yet if the API was down)
@@ -307,8 +317,15 @@ export class RenewalCronService {
     });
     if (entries.length === 0) return;
 
-    const monthStart = new Date(Date.UTC(monthRecord.year, monthRecord.month - 1, 1));
-    const monthEnd = new Date(Date.UTC(monthRecord.year, monthRecord.month, 1));
+    // For subscriptions with renewalMonthOffset, renewals happen offset months BEFORE the box month
+    const subInfo = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: { renewalMonthOffset: true },
+    });
+    const offset = subInfo?.renewalMonthOffset ?? 0;
+    const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(monthRecord.year, monthRecord.month, offset);
+    const monthStart = new Date(Date.UTC(renewalYear, renewalMonth - 1, 1));
+    const monthEnd = new Date(Date.UTC(renewalYear, renewalMonth, 1));
 
     for (const entry of entries) {
       // Was there a renewal in this month?

@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 
 export interface SkipStatus {
   policyType: string;
@@ -35,6 +35,8 @@ export class SkipPolicyEngine {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // 1-12
 
+    const offset: number = (subscription as any).renewalMonthOffset ?? 0;
+
     const skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     const skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
 
@@ -44,9 +46,13 @@ export class SkipPolicyEngine {
     const renewalDay = entry.effectiveRenewalDay;
     const skipWindowOpen = !renewalDay || now.getDate() >= renewalDay;
 
-    // "Next month" in calendar terms
-    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    // "Next month" in calendar terms — with offset, candidates start at nextMonth + offset
+    // (e.g. offset=1: after April renewal for May box, next skippable is June)
+    const nextCalendarMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextCalendarYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    let candidateMonth = nextCalendarMonth + offset;
+    let candidateYear = nextCalendarYear;
+    while (candidateMonth > 12) { candidateMonth -= 12; candidateYear++; }
 
     let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
     let subscriptionStarted = true; // assume started unless proven otherwise
@@ -81,15 +87,15 @@ export class SkipPolicyEngine {
         firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, effectiveStartDate);
 
         // Find the first upcoming month the user CAN skip:
-        // - must be >= next calendar month
+        // - must be >= candidate month (next calendar month + offset)
         // - must not already be skipped
         // - must NOT be the first standalone box, or any month in the first series
         const candidates = await this.prisma.subscriptionMonth.findMany({
           where: {
             subscriptionId: subscription.id,
             OR: [
-              { year: { gt: nextYear } },
-              { year: nextYear, month: { gte: nextMonth } },
+              { year: { gt: candidateYear } },
+              { year: candidateYear, month: { gte: candidateMonth } },
             ],
           },
           select: { id: true, year: true, month: true, seriesId: true },
@@ -112,7 +118,7 @@ export class SkipPolicyEngine {
       }
     }
 
-    const deadline = this.computeDeadline(policy, entry, targetMonth);
+    const deadline = this.computeDeadline(policy, entry, targetMonth, offset);
     const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable);
@@ -216,7 +222,7 @@ export class SkipPolicyEngine {
       await this.adjustPrepaidBillingPeriod(entry.id, 1, entry.effectiveRenewalDay ?? 1);
     }
 
-    const deadline = this.computeDeadline(policy, entry, { year, month });
+    const deadline = this.computeDeadline(policy, entry, { year, month }, (subscription as any).renewalMonthOffset ?? 0);
     // Fetch fresh skip records after the new record was created
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
@@ -262,7 +268,7 @@ export class SkipPolicyEngine {
       await this.adjustPrepaidBillingPeriod(entry.id, -1, entry.effectiveRenewalDay ?? 1);
     }
 
-    const deadline = this.computeDeadline(policy, entry, { year, month });
+    const deadline = this.computeDeadline(policy, entry, { year, month }, (subscription as any).renewalMonthOffset ?? 0);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
       include: { month: { select: { year: true, month: true } } },
@@ -343,7 +349,7 @@ export class SkipPolicyEngine {
     }
 
     const lastMonth = series.months[series.months.length - 1];
-    const deadline = this.computeDeadline(policy, entry, lastMonth);
+    const deadline = this.computeDeadline(policy, entry, lastMonth, (subscription as any).renewalMonthOffset ?? 0);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
       include: { month: { select: { year: true, month: true } } },
@@ -375,7 +381,7 @@ export class SkipPolicyEngine {
 
     const updatedState = await this.recomputeState(userId, subscription.id, policy);
 
-    const deadline = this.computeDeadline(policy, entry, null);
+    const deadline = this.computeDeadline(policy, entry, null, (subscription as any).renewalMonthOffset ?? 0);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
       include: { month: { select: { year: true, month: true } } },
@@ -557,14 +563,14 @@ export class SkipPolicyEngine {
   }
 
   /**
-   * Computes the skip deadline for a given month.
-   * Deadline = day `renewalDay` of that month, minus `skipDeadlineDaysBefore` days.
-   * Uses the effective renewal day (entry's or subscription's default).
+   * Computes the skip deadline for a given box month.
+   * Deadline = renewalDay of the RENEWAL month (box month - offset), minus `skipDeadlineDaysBefore` days.
    */
   private computeDeadline(
     policy: { skipDeadlineDaysBefore: number } | null,
     entry: { effectiveRenewalDay: number | null },
     targetMonth: { year: number; month: number } | null,
+    renewalMonthOffset = 0,
   ): Date | null {
     if (!policy || !targetMonth) return null;
 
@@ -573,8 +579,13 @@ export class SkipPolicyEngine {
 
     const daysBefore = policy.skipDeadlineDaysBefore ?? 0;
 
-    // Renewal date for the target month (end of that day)
-    const renewal = new Date(targetMonth.year, targetMonth.month - 1, renewalDay, 23, 59, 59, 999);
+    // Convert box month → renewal month (deadline is when the renewal charge happens)
+    const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(
+      targetMonth.year, targetMonth.month, renewalMonthOffset,
+    );
+
+    // Renewal date for the target renewal month (end of that day)
+    const renewal = new Date(renewalYear, renewalMonth - 1, renewalDay, 23, 59, 59, 999);
 
     // Subtract daysBefore
     if (daysBefore > 0) {
