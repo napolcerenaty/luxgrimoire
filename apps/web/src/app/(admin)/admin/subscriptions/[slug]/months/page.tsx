@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useRef } from 'react'
+import { use, useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import ImageUpload from '@/components/admin/ImageUpload'
@@ -1325,14 +1325,17 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
 
   const { data: firstPage, isLoading } = useQuery<MonthsPage>({
     queryKey: ['admin', 'subscriptions', slug, 'months', 1],
-    queryFn: async () => {
-      const r = await authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=1&pageSize=${PAGE_SIZE}`)
-      setLoadedPages(r.data)
-      setCurrentPage(1)
-      setTotalPages(r.totalPages)
-      return r
-    },
+    queryFn: () => authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=1&pageSize=${PAGE_SIZE}`),
   })
+
+  // Populate loadedPages from firstPage on initial load only (not after manual reloads)
+  useEffect(() => {
+    if (firstPage && loadedPages.length === 0) {
+      setLoadedPages(firstPage.data)
+      setTotalPages(firstPage.totalPages)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstPage])
 
   const months = loadedPages.length > 0 ? loadedPages : (firstPage?.data ?? [])
 
@@ -1350,10 +1353,28 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     }
   }
 
-  const invalidateMonths = () => {
-    setLoadedPages([])
-    setCurrentPage(1)
-    queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', slug, 'months'] })
+  const invalidateMonths = async () => {
+    // Re-fetch all currently loaded pages so the user doesn't lose their scroll position
+    const pagesToReload = currentPage
+    setLoadingMore(true)
+    try {
+      const allMonths: Month[] = []
+      let lastTotalPages = totalPages
+      for (let p = 1; p <= pagesToReload; p++) {
+        const r = await authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=${p}&pageSize=${PAGE_SIZE}`)
+        allMonths.push(...r.data)
+        lastTotalPages = r.totalPages
+      }
+      setLoadedPages(allMonths)
+      setTotalPages(lastTotalPages)
+      // Sync React Query cache so stale-time doesn't cause a double-fetch
+      queryClient.setQueryData(['admin', 'subscriptions', slug, 'months', 1], {
+        data: allMonths.slice(0, PAGE_SIZE),
+        totalPages: lastTotalPages,
+      })
+    } finally {
+      setLoadingMore(false)
+    }
   }
 
   return (
