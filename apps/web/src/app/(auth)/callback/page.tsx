@@ -16,7 +16,11 @@ export default function OAuthCallbackPage() {
       .then(me => {
         if (!me) { router.replace('/login?error=oauth_failed'); return }
         auth.login(me)
-        router.replace('/calendar')
+        if (me.needsConsent) {
+          router.replace('/consent')
+        } else {
+          router.replace('/calendar')
+        }
       })
       .catch(() => router.replace('/login?error=oauth_failed'))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

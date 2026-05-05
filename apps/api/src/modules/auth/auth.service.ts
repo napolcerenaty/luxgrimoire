@@ -285,10 +285,24 @@ export class AuthService {
         bio: true,
         shippingCountry: true,
         createdAt: true,
+        termsAcceptedAt: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return { ...user, needsConsent: !user.termsAcceptedAt };
+  }
+
+  async saveConsent(userId: string) {
+    const now = new Date();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        termsAcceptedAt: now,
+        termsVersion: CONSENT_VERSION,
+        privacyAcceptedAt: now,
+        privacyVersion: CONSENT_VERSION,
+      },
+    });
   }
 
   async oauthCallback(profile: OAuthProfile) {
