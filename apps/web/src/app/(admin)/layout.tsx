@@ -111,7 +111,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading && !isAuthorized) {
-      router.push('/')
+      router.push('/login')
     }
   }, [loading, isAuthorized, router])
 
