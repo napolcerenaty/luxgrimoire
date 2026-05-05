@@ -21,6 +21,9 @@ import {
 import { MailService } from '../mail/mail.service';
 import { randomBytes, createHash } from 'crypto';
 
+/** Version string for T&C / Privacy Policy consent records — update when docs change */
+const CONSENT_VERSION = '2026-05-05';
+
 /** Constant-time hash for password reset tokens — prevents timing attacks on DB lookup */
 function hashResetToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -64,11 +67,16 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+    const now = new Date();
     const user = await this.prisma.user.create({
       data: {
         username: dto.username,
         email: dto.email,
         passwordHash,
+        termsAcceptedAt: now,
+        termsVersion: CONSENT_VERSION,
+        privacyAcceptedAt: now,
+        privacyVersion: CONSENT_VERSION,
       },
     });
 
@@ -277,10 +285,24 @@ export class AuthService {
         bio: true,
         shippingCountry: true,
         createdAt: true,
+        termsAcceptedAt: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return { ...user, needsConsent: !user.termsAcceptedAt };
+  }
+
+  async saveConsent(userId: string) {
+    const now = new Date();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        termsAcceptedAt: now,
+        termsVersion: CONSENT_VERSION,
+        privacyAcceptedAt: now,
+        privacyVersion: CONSENT_VERSION,
+      },
+    });
   }
 
   async oauthCallback(profile: OAuthProfile) {

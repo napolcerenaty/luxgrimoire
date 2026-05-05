@@ -1304,24 +1304,57 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
 // ─── Page ─────────────────────────────────────────────────────────────────────
 interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
 
+type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
+
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const queryClient = useQueryClient()
-  const qKey = ['admin', 'subscriptions', slug, 'months']
   const [importUrlOpen, setImportUrlOpen] = useState(false)
   const [addMonthOpen, setAddMonthOpen] = useState(false)
+  const [loadedPages, setLoadedPages] = useState<Month[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const PAGE_SIZE = 12
 
   const { data: subscription } = useQuery<SubscriptionInfo>({
     queryKey: ['admin', 'subscriptions', slug],
     queryFn: () => authFetch<SubscriptionInfo>(`/subscriptions/${slug}`),
   })
 
-  const { data: months, isLoading } = useQuery<Month[]>({
-    queryKey: qKey,
-    queryFn: () => authFetch<{ data: Month[] }>(`/subscriptions/${slug}/months?all=true`).then(r => r.data),
+  const { data: firstPage, isLoading } = useQuery<MonthsPage>({
+    queryKey: ['admin', 'subscriptions', slug, 'months', 1],
+    queryFn: async () => {
+      const r = await authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=1&pageSize=${PAGE_SIZE}`)
+      setLoadedPages(r.data)
+      setCurrentPage(1)
+      setTotalPages(r.totalPages)
+      return r
+    },
   })
 
-  const invalidateMonths = () => queryClient.invalidateQueries({ queryKey: qKey })
+  const months = loadedPages.length > 0 ? loadedPages : (firstPage?.data ?? [])
+
+  const loadMore = async () => {
+    if (loadingMore || currentPage >= totalPages) return
+    setLoadingMore(true)
+    try {
+      const next = currentPage + 1
+      const r = await authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=${next}&pageSize=${PAGE_SIZE}`)
+      setLoadedPages(prev => [...prev, ...r.data])
+      setCurrentPage(next)
+      setTotalPages(r.totalPages)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const invalidateMonths = () => {
+    setLoadedPages([])
+    setCurrentPage(1)
+    queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', slug, 'months'] })
+  }
 
   return (
     <div>
@@ -1384,6 +1417,17 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultLanguage={subscription?.language}
               />
             ))}
+            {currentPage < totalPages && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-5 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm transition-colors disabled:opacity-40"
+                >
+                  {loadingMore ? 'Loading…' : `Load older months (${months.length} of ${firstPage?.total ?? '?'})`}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

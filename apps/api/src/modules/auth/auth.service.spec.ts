@@ -55,14 +55,14 @@ describe('AuthService', () => {
     it('should throw ConflictException if email already exists', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: '1', email: 'test@test.com' } as any);
       await expect(
-        service.register({ email: 'test@test.com', username: 'new', password: 'pass123' }),
+        service.register({ email: 'test@test.com', username: 'new', password: 'pass123', termsAccepted: true }),
       ).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException if username already taken', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: '1', email: 'other@test.com' } as any);
       await expect(
-        service.register({ email: 'new@test.com', username: 'taken', password: 'pass123' }),
+        service.register({ email: 'new@test.com', username: 'taken', password: 'pass123', termsAccepted: true }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -71,7 +71,7 @@ describe('AuthService', () => {
       prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
       prisma.emailVerificationToken.create.mockResolvedValue({} as any);
 
-      const result = await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!' });
+      const result = await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true });
 
       expect(result.message).toBeDefined();
       expect(prisma.user.create).toHaveBeenCalledWith(

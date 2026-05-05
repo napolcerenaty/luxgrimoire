@@ -102,6 +102,11 @@ export class AuthController {
     return this.authService.getMe(user.id);
   }
 
+  @Post('consent')
+  saveConsent(@CurrentUser() user: { id: string }) {
+    return this.authService.saveConsent(user.id);
+  }
+
   // ——— Google OAuth ———
   @Public()
   @Get('google')

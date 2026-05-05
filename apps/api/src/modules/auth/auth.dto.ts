@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsBoolean, Equals, IsNotEmpty } from 'class-validator';
 
 /** bcrypt silently truncates inputs at 72 bytes — cap passwords there to prevent DoS via long inputs */
 const BCRYPT_MAX = 72;
@@ -16,6 +16,10 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(BCRYPT_MAX)
   password!: string;
+
+  @IsBoolean()
+  @Equals(true, { message: 'You must accept the Terms of Service and Privacy Policy to register.' })
+  termsAccepted!: boolean;
 }
 
 export class LoginDto {

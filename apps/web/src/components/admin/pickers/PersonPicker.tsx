@@ -26,6 +26,7 @@ export function PersonPicker({ endpoint, placeholder, onAdd }: {
     enabled: dq.length >= 2,
   })
   const results = data?.data ?? []
+  const exactMatch = results.some(r => r.name.toLowerCase() === q.trim().toLowerCase())
 
   const handleQ = (v: string) => {
     setQ(v)
@@ -68,10 +69,12 @@ export function PersonPicker({ endpoint, placeholder, onAdd }: {
               {r.name}
             </button>
           ))}
-          <button type="button" onClick={createNew} disabled={creating}
-            className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
-            {creating ? 'Creating…' : `+ Create "${q}"`}
-          </button>
+          {!exactMatch && (
+            <button type="button" onClick={createNew} disabled={creating}
+              className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
+              {creating ? 'Creating…' : `+ Create "${q}"`}
+            </button>
+          )}
         </div>
       )}
     </div>
