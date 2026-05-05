@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Put, Post, Query, Patch, Delete, Param, Body, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators/auth.decorators';
+import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
-import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
+import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto } from './admin.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -11,6 +11,18 @@ import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto }
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Public()
+  @Get('maintenance')
+  getMaintenance() {
+    return this.adminService.getMaintenance();
+  }
+
+  @Roles('ADMIN')
+  @Put('maintenance')
+  setMaintenance(@Body() dto: SetMaintenanceDto) {
+    return this.adminService.setMaintenance(dto);
+  }
 
   @Get('audit-logs')
   getAuditLogs(@Query() query: AuditLogQueryDto) {

@@ -3,10 +3,15 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto } from './admin.dto';
+import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto } from './admin.dto';
 import { Role } from '@prisma/client';
 import { UploadService } from '../upload/upload.service';
 import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+
+const MAINTENANCE_KEY = 'system:maintenance';
+const MAINTENANCE_TTL = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
+
+export interface MaintenanceState { enabled: boolean; message: string }
 
 @Injectable()
 export class AdminService {
@@ -16,6 +21,20 @@ export class AdminService {
     private readonly auditService: AuditService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
+
+  async getMaintenance(): Promise<MaintenanceState> {
+    const state = await this.cache.get<MaintenanceState>(MAINTENANCE_KEY);
+    return state ?? { enabled: false, message: "We'll be back shortly. Thank you for your patience." };
+  }
+
+  async setMaintenance(dto: SetMaintenanceDto): Promise<MaintenanceState> {
+    const state: MaintenanceState = {
+      enabled: dto.enabled,
+      message: dto.message ?? "We'll be back shortly. Thank you for your patience.",
+    };
+    await this.cache.set(MAINTENANCE_KEY, state, MAINTENANCE_TTL);
+    return state;
+  }
 
   async getAuditLogs(query: AuditLogQueryDto) {
     const page = query.page ?? 1;
