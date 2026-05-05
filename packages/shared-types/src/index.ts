@@ -229,6 +229,7 @@ export interface ApiSubscription {
   renewalDay: number | null;
   renewalDayUserSet: boolean;
   startingMonth: number | null;
+  renewalMonthOffset: number;
   paymentOnStartup: boolean;
   skipPolicy?: ApiSubscriptionSkipPolicy | null;
   company?: ApiBookBoxCompany;

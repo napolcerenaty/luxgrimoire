@@ -5,6 +5,26 @@ function incrementMonth(year: number, month: number): [number, number] {
 }
 
 /**
+ * Shifts (year, month) by `offset` months (positive = forward, negative = backward).
+ * Used to convert between box month and renewal month when renewalMonthOffset > 0.
+ */
+function shiftMonth(year: number, month: number, offset: number): [number, number] {
+  let m = month + offset;
+  let y = year;
+  while (m > 12) { m -= 12; y++; }
+  while (m <= 0) { m += 12; y--; }
+  return [y, m];
+}
+
+/**
+ * Converts a box month to its corresponding renewal month.
+ * renewal month = box month - offset  (e.g. May box, offset=1 → April renewal)
+ */
+export function renewalMonthFromBoxMonth(year: number, month: number, offset: number): [number, number] {
+  return shiftMonth(year, month, -offset);
+}
+
+/**
  * Computes all past renewal dates for a subscription entry.
  * Used to backfill UserSubscriptionRenewal records for calendar display.
  */
@@ -129,6 +149,7 @@ export async function refreshNextRenewalDate(
           type: true,
           startingMonth: true,
           paymentOnStartup: true,
+          renewalMonthOffset: true,
         },
       },
     },
@@ -146,10 +167,12 @@ export async function refreshNextRenewalDate(
 
   const sub = entry.subscription as any;
   const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-  const skippedMonths = (entry.skipRecords as any[]).map((r) => ({
-    year: r.month.year,
-    month: r.month.month,
-  }));
+  const offset: number = sub.renewalMonthOffset ?? 0;
+  // Skip records are keyed by box month; convert to renewal month for the renewal-date computation
+  const skippedMonths = (entry.skipRecords as any[]).map((r) => {
+    const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
+    return { year: ry, month: rm };
+  });
 
   // For paymentOnStartup: determine which month was already paid at signup
   let paidUpFrontDate: Date | null = null;
@@ -177,7 +200,9 @@ export async function refreshNextRenewalDate(
     });
     const paidYear = firstSubMonth?.year ?? firstEligibleYear;
     const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
-    paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
+    // Convert box month → renewal month (paidUpFrontDate is used to skip the already-charged renewal)
+    const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(paidYear, paidMonth, offset);
+    paidUpFrontDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
   }
 
   const nextDate = computeNextRenewalDate(
@@ -217,7 +242,7 @@ export async function backfillRenewalHistory(
         include: { month: { select: { year: true, month: true } } },
       },
       subscription: {
-        select: { renewalDay: true, type: true, startingMonth: true },
+        select: { renewalDay: true, type: true, startingMonth: true, renewalMonthOffset: true },
       },
     },
   });
@@ -226,10 +251,12 @@ export async function backfillRenewalHistory(
 
   const sub = entry.subscription as any;
   const renewalDay: number = entry.renewalDay ?? sub.renewalDay ?? 1;
-  const skippedMonths = (entry.skipRecords as any[]).map((r) => ({
-    year: r.month.year,
-    month: r.month.month,
-  }));
+  const offset: number = sub.renewalMonthOffset ?? 0;
+  // Convert skipped box months → renewal months for computePastRenewalDates
+  const skippedMonths = (entry.skipRecords as any[]).map((r) => {
+    const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
+    return { year: ry, month: rm };
+  });
 
   // Parse startDate: supports YYYY-MM-DD and YYYY-MM
   const parts = entry.startDate.split('-').map(Number);

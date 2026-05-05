@@ -324,6 +324,7 @@ model Subscription {
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
   paymentOnStartup     Boolean                      @default(false)
+  renewalMonthOffset   Int                          @default(0)
   priceChanges             SubscriptionPriceChange[]
   comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
   comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")

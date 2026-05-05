@@ -42,6 +42,7 @@ interface SubFormData {
   isDiscontinued: boolean
   isHidden: boolean
   paymentOnStartup: boolean
+  renewalMonthOffset: string
   startDate: string
   endDate: string
   // Skip policy (saved separately via PUT /skip-policy/:slug)
@@ -78,6 +79,7 @@ const EMPTY_FORM: SubFormData = {
   isDiscontinued: false,
   isHidden: false,
   paymentOnStartup: false,
+  renewalMonthOffset: '0',
   startDate: '',
   endDate: '',
   skipPolicyType: 'NONE',
@@ -115,6 +117,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     isDiscontinued: sub.isDiscontinued,
     isHidden: sub.isHidden ?? false,
     paymentOnStartup: (sub as any).paymentOnStartup ?? false,
+    renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
     skipPolicyType: p?.type ?? 'NONE',
@@ -160,6 +163,7 @@ function formToCreatePayload(form: SubFormData) {
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
     paymentOnStartup: form.paymentOnStartup,
+    renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -185,6 +189,7 @@ function formToUpdatePayload(form: SubFormData) {
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
     paymentOnStartup: form.paymentOnStartup,
+    renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
   }
@@ -343,6 +348,11 @@ function SubscriptionForm({
                   value={form.renewalDay} onChange={setStr('renewalDay')} placeholder="e.g. 15" />
               </div>
             )}
+            <div>
+              <label className={LABEL_CLASS}>Renewal month offset (0 = same month, 1 = charged 1 month before box)</label>
+              <input type="number" min={0} max={11} className={INPUT_CLASS}
+                value={form.renewalMonthOffset} onChange={setStr('renewalMonthOffset')} placeholder="0" />
+            </div>
             {(form.type === 'BIMONTHLY' || form.type === 'QUARTERLY') && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
