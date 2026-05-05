@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -30,6 +31,10 @@ export default function RegisterPage() {
       setError('Passwords do not match.')
       return
     }
+    if (!termsAccepted) {
+      setError('You must accept the Terms of Service and Privacy Policy to register.')
+      return
+    }
 
     setLoading(true)
 
@@ -37,7 +42,7 @@ export default function RegisterPage() {
       const registerRes = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, username }),
+        body: JSON.stringify({ email, password, username, termsAccepted }),
       })
 
       const registerData = await registerRes.json()
@@ -124,6 +129,26 @@ export default function RegisterPage() {
           />
         </div>
 
+        {/* Terms & Privacy consent */}
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-600 bg-stone-800 accent-amber-400 cursor-pointer"
+          />
+          <span className="text-sm text-stone-400 leading-relaxed">
+            I have read and agree to the{' '}
+            <Link href="/terms" target="_blank" className="text-amber-400 hover:text-amber-300 underline transition-colors">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" target="_blank" className="text-amber-400 hover:text-amber-300 underline transition-colors">
+              Privacy Policy
+            </Link>
+          </span>
+        </label>
+
         {error && (
           <p className="text-sm text-rose-400 bg-rose-950/30 border border-rose-900 rounded-lg px-4 py-2.5">
             {error}
@@ -132,7 +157,7 @@ export default function RegisterPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !termsAccepted}
           className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
         >
           {loading ? 'Creating account…' : 'Create account'}

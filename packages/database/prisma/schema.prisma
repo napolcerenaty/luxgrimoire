@@ -25,6 +25,10 @@ model User {
   timeFormat               String                      @default("24h")
   defaultTaxRate           Decimal?                    @db.Decimal(5, 2)
   shippingCountry          String?                     @db.VarChar(2)
+  termsAcceptedAt          DateTime?
+  termsVersion             String?
+  privacyAcceptedAt        DateTime?
+  privacyVersion           String?
   accounts                 Account[]
   auditLogs                AuditLog[]
   submittedEditions        BookEdition[]               @relation("SubmittedEditions")
