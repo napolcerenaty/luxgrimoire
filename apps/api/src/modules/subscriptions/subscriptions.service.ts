@@ -382,9 +382,29 @@ export class SubscriptionsService {
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
           books: {
             select: {
+              bookId: true,
+              editionId: true,
               isMainBook: true,
-              book: { select: { id: true, title: true, slug: true } },
-              edition: { select: { id: true, slug: true, additionalImages: true } },
+              signatureType: true,
+              book: {
+                select: {
+                  id: true,
+                  title: true,
+                  slug: true,
+                  authors: { select: { author: { select: { name: true } } } },
+                },
+              },
+              edition: {
+                select: {
+                  id: true,
+                  slug: true,
+                  additionalImages: true,
+                  editionName: true,
+                  publisher: true,
+                  bookBoxCompanyCustomName: true,
+                  bookBoxCompany: { select: { id: true, name: true } },
+                },
+              },
             },
           },
         },

@@ -38,9 +38,15 @@ function Cover({ id, size = 56 }: { id?: string | null; size?: number }) {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+function editionCompany(ed: EditionInfo): string | null {
+  return ed.bookBoxCompanyCustomName ?? ed.bookBoxCompany?.name ?? null
+}
+
 type EditionInfo = {
   id: string; slug: string; additionalImages: string[]
   editionName: string | null; publisher: string | null
+  bookBoxCompanyCustomName: string | null
+  bookBoxCompany: { id: string; name: string } | null
 }
 type BookInfo = {
   id: string; title: string; slug: string
@@ -172,8 +178,8 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
             >
               <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">{ed.editionName ?? ed.publisher ?? ''}</div>
-                <div className="text-stone-500 text-xs">{ed.editionName ? (ed.publisher ?? '') : ''}</div>
+                <div className="text-stone-100 text-xs">{ed.editionName ?? editionCompany(ed) ?? ed.publisher ?? ''}</div>
+                <div className="text-stone-500 text-xs">{ed.editionName ? (editionCompany(ed) ?? ed.publisher ?? '') : ''}</div>
               </div>
             </button>
           ))}
@@ -391,7 +397,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
-                          {[mb.edition.editionName, mb.edition.publisher].filter(Boolean).join(' · ') || null}
+                          {[mb.edition.editionName, editionCompany(mb.edition) ?? mb.edition.publisher].filter(Boolean).join(' · ') || null}
                         </div>
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }
