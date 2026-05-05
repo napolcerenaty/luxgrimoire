@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn, IsInt, Min } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsInt, Min, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AuditLogQueryDto {
@@ -34,4 +34,13 @@ export class UserQueryDto {
   @IsOptional() @IsString() search?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number = 20;
+}
+
+export class SetMaintenanceDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
 }

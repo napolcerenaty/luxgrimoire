@@ -207,6 +207,19 @@ export default function AdminDashboard() {
     }
   }, [user, router])
 
+  // ─── Maintenance mode ─────────────────────────────────────────────────────
+  const { data: maintenance } = useQuery<{ enabled: boolean; message: string }>({
+    queryKey: ['admin', 'maintenance'],
+    queryFn: () => authFetch('/admin/maintenance'),
+    staleTime: 10_000,
+  })
+
+  const { mutate: toggleMaintenance, isPending: togglingMaintenance } = useMutation({
+    mutationFn: (enabled: boolean) =>
+      authFetch('/admin/maintenance', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'maintenance'] }),
+  })
+
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
     queryKey: ['admin', 'pending-editions'],
     queryFn: () => authFetch<PaginatedResponse<RecentEdition>>('/editions?needsVerification=true&pageSize=50'),
@@ -258,6 +271,37 @@ export default function AdminDashboard() {
           <p className="text-stone-400 text-sm">Monitor content changes and recent activity</p>
         </div>
       </div>
+
+      {/* Maintenance mode banner */}
+      {user?.role === 'ADMIN' && (
+        <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 mb-6 transition-colors ${
+          maintenance?.enabled
+            ? 'bg-red-950/40 border-red-700/50'
+            : 'bg-stone-900 border-stone-800'
+        }`}>
+          <div>
+            <p className={`text-sm font-semibold ${maintenance?.enabled ? 'text-red-300' : 'text-stone-200'}`}>
+              {maintenance?.enabled ? '🔴 Maintenance mode is ON' : '🟢 Site is live'}
+            </p>
+            <p className="text-xs text-stone-500 mt-0.5">
+              {maintenance?.enabled
+                ? 'Non-admin users see the maintenance page.'
+                : 'All users can access the site normally.'}
+            </p>
+          </div>
+          <button
+            onClick={() => toggleMaintenance(!maintenance?.enabled)}
+            disabled={togglingMaintenance}
+            className={`shrink-0 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 ${
+              maintenance?.enabled
+                ? 'bg-green-700 hover:bg-green-600 text-white'
+                : 'bg-red-700 hover:bg-red-600 text-white'
+            }`}
+          >
+            {togglingMaintenance ? '…' : maintenance?.enabled ? 'Turn off' : 'Enable maintenance'}
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-6 border-b border-stone-800 pb-2">

@@ -105,6 +105,31 @@ export class ArtistsService {
     return artist;
   }
 
+  async findCardMonths(slug: string) {
+    const artist = await this.prisma.artist.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
+
+    const months = await this.prisma.subscriptionMonth.findMany({
+      where: { cardArtistId: artist.id },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      select: {
+        id: true,
+        year: true,
+        month: true,
+        theme: true,
+        coverImage: true,
+        isSpoiler: true,
+        subscription: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+    });
+    return months;
+  }
+
   async update(slug: string, dto: UpdateArtistDto) {
     await this.findBySlug(slug);
     const artist = await this.prisma.artist.update({ where: { slug }, data: dto });
