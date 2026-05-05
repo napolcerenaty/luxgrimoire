@@ -75,13 +75,17 @@ html {
 
 /* Navbar logo glow effect */
 .nav-logo {
-  text-shadow: 0 0 20px rgba(0, 140, 190, 0.4);
-  transition: text-shadow 0.2s ease, color 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 .nav-logo:hover {
-  color: var(--accent-bright) !important;
-  text-shadow: 0 0 40px rgba(0, 150, 200, 0.65), 0 0 80px rgba(0, 130, 180, 0.3);
+  opacity: 0.85;
 }
+
+/* Theme-aware logo visibility (for server components like Footer) */
+.logo-for-light { display: none; }
+.logo-for-dark  { display: block; }
+[data-theme="light"] .logo-for-dark  { display: none; }
+[data-theme="light"] .logo-for-light { display: block; }
 
 /* Selection color */
 ::selection {

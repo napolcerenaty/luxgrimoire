@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { AlertTriangle } from 'lucide-react'
 
 const YEAR = new Date().getFullYear()
@@ -43,7 +44,24 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <p className="font-serif text-lg font-bold text-amber-400 mb-2">LuxGrimoire</p>
+            <Link href="/" aria-label="LuxGrimoire" className="inline-block mb-2">
+              {/* Logo light — shown on dark theme (default) */}
+              <Image
+                src="/logo-light.png"
+                alt="LuxGrimoire"
+                width={52}
+                height={52}
+                className="h-12 w-auto logo-for-dark"
+              />
+              {/* Logo dark — shown on light theme */}
+              <Image
+                src="/logo-dark.png"
+                alt="LuxGrimoire"
+                width={52}
+                height={52}
+                className="h-12 w-auto logo-for-light"
+              />
+            </Link>
             <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] mt-1">
               Limited books.<br className="sm:hidden" /> Unlimited obsession.
             </p>

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -76,9 +77,17 @@ export function Navbar() {
 
         <Link
           href="/"
-          className="nav-logo relative z-10 font-serif font-bold tracking-widest text-amber-400 text-lg sm:text-xl shrink-0"
+          className="nav-logo relative z-10 flex items-center shrink-0"
+          aria-label="LuxGrimoire"
         >
-          LuxGrimoire
+          <Image
+            src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
+            alt="LuxGrimoire"
+            width={38}
+            height={38}
+            className="h-9 w-auto"
+            priority
+          />
         </Link>
 
         {/* Search bar — next to logo */}
