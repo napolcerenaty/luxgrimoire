@@ -7,7 +7,6 @@ const YEAR = new Date().getFullYear()
 const LINKS = {
   discover: [
     { href: '/subscriptions',      label: 'Subscription Boxes' },
-    { href: '/books',              label: 'Browse Books' },
     { href: '/companies',          label: 'Book Box Companies' },
     { href: '/sale-announcements', label: 'Sale Announcements' },
     { href: '/search',             label: 'Search' },
@@ -44,24 +43,23 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1 flex flex-col items-start">
-            <Link href="/" aria-label="LuxGrimoire" className="inline-flex flex-col items-center gap-1 mb-2">
-              {/* Logo light — shown on dark theme (default) */}
+            <Link href="/" aria-label="LuxGrimoire" className="inline-block mb-3">
+              {/* Logo with text — light version for dark theme */}
               <Image
-                src="/logo-light.png"
+                src="/logo-light-text.png"
                 alt="LuxGrimoire"
-                width={52}
-                height={52}
-                className="h-12 w-auto logo-for-dark"
+                width={160}
+                height={160}
+                className="w-36 h-auto logo-for-dark"
               />
-              {/* Logo dark — shown on light theme */}
+              {/* Logo with text — dark version for light theme */}
               <Image
-                src="/logo-dark.png"
+                src="/logo-dark-text.png"
                 alt="LuxGrimoire"
-                width={52}
-                height={52}
-                className="h-12 w-auto logo-for-light"
+                width={160}
+                height={160}
+                className="w-36 h-auto logo-for-light"
               />
-              <span className="font-serif text-lg font-bold text-amber-400">LuxGrimoire</span>
             </Link>
             <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Limited books.
