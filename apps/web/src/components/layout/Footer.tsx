@@ -63,10 +63,10 @@ export function Footer() {
               />
               <span className="font-serif text-lg font-bold text-amber-400">LuxGrimoire</span>
             </Link>
-            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8]">
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Limited books.
             </p>
-            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8]">
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Unlimited obsession.
             </p>
           </div>
