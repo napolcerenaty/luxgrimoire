@@ -44,6 +44,12 @@ export class ArtistsController {
     return result;
   }
 
+  @Public()
+  @Get(':slug/months')
+  findMonths(@Param('slug') slug: string) {
+    return this.artistsService.findCardMonths(slug);
+  }
+
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
