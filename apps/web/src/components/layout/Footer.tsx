@@ -43,8 +43,8 @@ export function Footer() {
         {/* Main grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" aria-label="LuxGrimoire" className="inline-block mb-2">
+          <div className="col-span-2 md:col-span-1 flex flex-col items-start">
+            <Link href="/" aria-label="LuxGrimoire" className="inline-flex flex-col items-center gap-1 mb-2">
               {/* Logo light — shown on dark theme (default) */}
               <Image
                 src="/logo-light.png"
@@ -61,9 +61,13 @@ export function Footer() {
                 height={52}
                 className="h-12 w-auto logo-for-light"
               />
+              <span className="font-serif text-lg font-bold text-amber-400">LuxGrimoire</span>
             </Link>
-            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] mt-1">
-              Limited books.<br className="sm:hidden" /> Unlimited obsession.
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8]">
+              Limited books.
+            </p>
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8]">
+              Unlimited obsession.
             </p>
           </div>
 

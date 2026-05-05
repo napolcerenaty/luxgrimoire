@@ -77,7 +77,7 @@ export function Navbar() {
 
         <Link
           href="/"
-          className="nav-logo relative z-10 flex items-center shrink-0"
+          className="nav-logo relative z-10 flex items-center gap-2 shrink-0"
           aria-label="LuxGrimoire"
         >
           <Image
@@ -88,6 +88,9 @@ export function Navbar() {
             className="h-9 w-auto"
             priority
           />
+          <span className="font-serif font-bold tracking-widest text-amber-400 text-lg sm:text-xl">
+            LuxGrimoire
+          </span>
         </Link>
 
         {/* Search bar — next to logo */}
