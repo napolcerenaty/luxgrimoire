@@ -386,21 +386,13 @@ export class SubscriptionsService {
               editionId: true,
               isMainBook: true,
               signatureType: true,
-              book: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  authors: { select: { author: { select: { name: true } } } },
-                },
-              },
+              book: { select: { id: true, title: true, slug: true } },
               edition: {
                 select: {
                   id: true,
                   slug: true,
                   additionalImages: true,
                   editionName: true,
-                  publisher: true,
                   bookBoxCompanyCustomName: true,
                   bookBoxCompany: { select: { id: true, name: true } },
                 },
