@@ -4,13 +4,18 @@ import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto } from './admin.dto';
+import { UserEditionImagesService } from '../editions/user-edition-images.service';
+import { UpdateImageStatusDto } from '../editions/user-edition-images.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
 @Roles('ADMIN', 'MODERATOR')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly userImagesService: UserEditionImagesService,
+  ) {}
 
   @Public()
   @Get('maintenance')
@@ -67,5 +72,24 @@ export class AdminController {
   @Roles('ADMIN')
   backfillRenewalDates() {
     return this.adminService.backfillNextRenewalDates();
+  }
+
+  // Community image moderation
+  @Get('community-images')
+  getCommunityImages(@Query('status') status?: string) {
+    return this.userImagesService.adminListImages(status);
+  }
+
+  @Patch('community-images/:id/status')
+  updateCommunityImageStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateImageStatusDto,
+  ) {
+    return this.userImagesService.adminUpdateStatus(id, dto.status);
+  }
+
+  @Delete('community-images/:id')
+  deleteCommunityImage(@Param('id') id: string) {
+    return this.userImagesService.adminDeleteImage(id);
   }
 }

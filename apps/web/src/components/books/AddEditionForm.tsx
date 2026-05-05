@@ -21,7 +21,18 @@ interface FormState {
   notes: string
 }
 
-async function uploadImage(file: File): Promise<string> {
+interface PendingImage {
+  cloudinaryId: string
+  url: string
+  previewUrl: string
+  sortOrder: number
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+const MAX_IMAGES = 5
+const MAX_BYTES = 5 * 1024 * 1024
+
+async function uploadImage(file: File): Promise<{ cloudinaryId: string; url: string; previewId: string }> {
   const dataUri = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
@@ -29,17 +40,17 @@ async function uploadImage(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/upload/image`,
+    `${API_BASE}/upload/image`,
     {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/editions' }),
+      body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/community' }),
     }
   )
   if (!res.ok) throw new Error('Upload failed')
-  const data = await res.json() as { publicId: string }
-  return data.publicId
+  const data = await res.json() as { publicId: string; url: string }
+  return { cloudinaryId: data.publicId, url: data.url, previewId: URL.createObjectURL(file) }
 }
 
 const BOOK_LANGUAGES = [
@@ -52,6 +63,7 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
   const { user } = useAuth()
   const router = useRouter()
   const coverRef = useRef<HTMLInputElement>(null)
+  const imgInputRef = useRef<HTMLInputElement>(null)
 
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -62,6 +74,15 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
     publisher: '',
     language: 'English', generalSaleDate: '', price: '', currency: 'EUR', notes: '',
   })
+
+  // Community images state
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const [instagramHandle, setInstagramHandle] = useState('')
+  const [consentGiven, setConsentGiven] = useState(false)
+  const [imgUploading, setImgUploading] = useState(false)
+  const [imgProgress, setImgProgress] = useState('')
+  const [imgDragIndex, setImgDragIndex] = useState<number | null>(null)
+  const [imgDragOver, setImgDragOver] = useState<number | null>(null)
 
   if (!user) return null
 
@@ -74,14 +95,55 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
     setCoverFile(null)
     setCoverPreview(null)
     setArtists([])
+    setPendingImages([])
+    setInstagramHandle('')
+    setConsentGiven(false)
+  }
+
+  const handleImageFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    const oversized = files.filter(f => f.size > MAX_BYTES)
+    if (oversized.length > 0) { alert(`File(s) exceed 5 MB: ${oversized.map(f => f.name).join(', ')}`); return }
+    const allowed = files.slice(0, MAX_IMAGES - pendingImages.length)
+    setImgUploading(true)
+    for (let i = 0; i < allowed.length; i++) {
+      setImgProgress(`Uploading ${i + 1}/${allowed.length}…`)
+      try {
+        const { cloudinaryId, url, previewId } = await uploadImage(allowed[i])
+        setPendingImages(prev => [...prev, { cloudinaryId, url, previewUrl: previewId, sortOrder: prev.length }])
+      } catch (err) { alert(err instanceof Error ? err.message : 'Upload failed') }
+    }
+    setImgProgress('')
+    setImgUploading(false)
+    if (imgInputRef.current) imgInputRef.current.value = ''
+  }
+
+  const handleImgDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault()
+    if (imgDragIndex === null || imgDragIndex === targetIndex) { setImgDragIndex(null); setImgDragOver(null); return }
+    const reordered = [...pendingImages]
+    const [moved] = reordered.splice(imgDragIndex, 1)
+    reordered.splice(targetIndex, 0, moved)
+    setPendingImages(reordered.map((img, i) => ({ ...img, sortOrder: i })))
+    setImgDragIndex(null); setImgDragOver(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    if (pendingImages.length > 0 && !consentGiven) {
+      alert('Please confirm authorship of the photos before submitting.')
+      return
+    }
+
     setBusy(true)
     try {
       let uploadedCover: string | undefined
-      if (coverFile) uploadedCover = await uploadImage(coverFile)
+      if (coverFile) {
+        const { cloudinaryId } = await uploadImage(coverFile)
+        uploadedCover = cloudinaryId
+      }
 
       const edition = await authFetch<{ id: string; slug: string }>('/editions', {
         method: 'POST',
@@ -112,6 +174,20 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
         }
         await authFetch(`/editions/${edition.slug}/artists`, {
           method: 'POST', body: JSON.stringify({ artistId, role: 'cover art' }),
+        })
+      }
+
+      // Submit community images (if any with consent)
+      if (pendingImages.length > 0 && consentGiven) {
+        await fetch(`${API_BASE}/editions/${edition.slug}/community-images`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: pendingImages.map(({ cloudinaryId, url, sortOrder }) => ({ cloudinaryId, url, sortOrder })),
+            instagramHandle: instagramHandle.replace(/^@/, '') || undefined,
+            consentGiven: true,
+          }),
         })
       }
 
@@ -229,6 +305,99 @@ export function AddEditionForm({ bookId, bookSlug: _bookSlug }: Props) {
         <div>
           <label className={labelCls}>Notes</label>
           <textarea value={form.notes} onChange={set('notes')} rows={2} placeholder="Any extra info…" className={inputCls + ' resize-none'} />
+        </div>
+
+        {/* Community photos */}
+        <div className="pt-1 border-t border-stone-700/50">
+          <label className={labelCls}>Additional photos <span className="text-stone-600">(optional, up to {MAX_IMAGES})</span></label>
+          <div className="flex items-center gap-2 mb-2 mt-1">
+            <button
+              type="button"
+              disabled={imgUploading || pendingImages.length >= MAX_IMAGES}
+              onClick={() => imgInputRef.current?.click()}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 transition-colors"
+            >
+              {imgUploading ? imgProgress : '+ Add photos'}
+            </button>
+            <span className="text-stone-600 text-xs">
+              {pendingImages.length > 0 ? `${pendingImages.length}/${MAX_IMAGES} · drag to reorder` : `up to ${MAX_IMAGES} · first = main`}
+            </span>
+          </div>
+          <input ref={imgInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageFiles} />
+
+          {pendingImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {pendingImages.map((img, i) => {
+                const isMain = i === 0
+                const isDragging = imgDragIndex === i
+                const isOver = imgDragOver === i && imgDragIndex !== i
+                return (
+                  <div
+                    key={img.cloudinaryId}
+                    draggable
+                    onDragStart={() => setImgDragIndex(i)}
+                    onDragOver={(e) => { e.preventDefault(); setImgDragOver(i) }}
+                    onDrop={(e) => handleImgDrop(e, i)}
+                    onDragEnd={() => { setImgDragIndex(null); setImgDragOver(null) }}
+                    className={`relative group cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
+                  >
+                    <div className={`w-16 h-20 rounded-lg overflow-hidden bg-stone-800 border transition-all ${
+                      isOver ? 'border-amber-400 ring-2 ring-amber-400/40 scale-105'
+                        : isMain ? 'border-amber-500 ring-1 ring-amber-500/40'
+                        : 'border-stone-700'
+                    }`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.previewUrl} alt="" className="w-full h-full object-cover pointer-events-none" />
+                    </div>
+                    {isMain && (
+                      <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-amber-400 bg-stone-950/70 px-0.5 py-px leading-tight">
+                        main
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i).map((x, idx) => ({ ...x, sortOrder: idx })))}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {pendingImages.length > 0 && (
+            <>
+              <div className="mb-2">
+                <label className="block text-xs text-stone-500 mb-1">
+                  Instagram handle <span className="text-stone-600">(optional)</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <span className="text-stone-500 text-sm">@</span>
+                  <input
+                    type="text"
+                    value={instagramHandle.replace(/^@/, '')}
+                    onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ''))}
+                    placeholder="yourhandle"
+                    className="w-48 bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:border-amber-600"
+                  />
+                </div>
+              </div>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consentGiven}
+                  onChange={e => setConsentGiven(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-amber-500 flex-shrink-0"
+                />
+                <span className="text-xs text-stone-400 leading-relaxed">
+                  I confirm I am the author of these photos and consent to their use on LuxGrimoire.
+                  I understand photos may be removed without notice.
+                </span>
+              </label>
+            </>
+          )}
         </div>
 
         <p className="text-xs text-stone-500 italic">
