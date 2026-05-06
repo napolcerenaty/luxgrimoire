@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Megaphone, MoveRight, Plus, X } from 'lucide-react'
+import { createPurchaseGroup } from '@/lib/api'
+import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, Megaphone, Plus, X } from 'lucide-react'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -45,6 +46,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [modalOpen, setModalOpen] = useState(false)
   const [step, setStep] = useState<'bundle' | 'form'>('form')
   const [addedOnce, setAddedOnce] = useState(false)
+  const [selectedBundle, setSelectedBundle] = useState<{ id: string; title: string } | null>(null)
+  const [bundleFetching, setBundleFetching] = useState(false)
 
   // Form state — mirrors wishlist "Move to Collection" modal exactly
   const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -103,58 +106,91 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setShippingPrice('')
     setFeeEntries([])
     setDiscountEntries([])
+    setSelectedBundle(null)
     setStep(bundles.length > 0 ? 'bundle' : 'form')
     setModalOpen(true)
+  }
+
+  const handleAddAsSet = async (bundle: { id: string; title: string }) => {
+    setBundleFetching(true)
+    try {
+      const ann = await authFetch<{ editions?: { editionId: string }[] }>(`/sale-announcements/${bundle.id}`)
+      setSelectedBundle({ ...bundle, editionIds: ann.editions?.map(e => e.editionId) ?? [] } as any)
+      setStep('form')
+    } catch {
+      setError('Failed to load bundle editions. Please try again.')
+    } finally {
+      setBundleFetching(false)
+    }
   }
 
   const handleConfirm = async () => {
     setSubmitting(true)
     setError(null)
     const feeDate = moveDate || new Date().toISOString().slice(0, 10)
+    const parsedPrice = parseDecimalInput(movePrice)
+    const parsedShipping = parseDecimalInput(shippingPrice)
     try {
-      let targetEntryId: string
+      let purchaseGroupId: string | null = null
 
-      if (status === 'wishlist' && entryId) {
-        // Promote wishlist → collection
-        const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
-        if (moveDate) body.acquiredAt = new Date(moveDate).toISOString()
-        await authFetch<void>(`/collection/${entryId}`, { method: 'PATCH', body: JSON.stringify(body) })
-        targetEntryId = entryId
+      if (selectedBundle) {
+        // ── Bundle / set path ──────────────────────────────────────────────
+        const bundleEditionIds: string[] = (selectedBundle as any).editionIds ?? []
+        // Make sure current edition is included
+        const allIds = bundleEditionIds.includes(editionId)
+          ? bundleEditionIds
+          : [...bundleEditionIds, editionId]
+        const result = await createPurchaseGroup({
+          saleAnnouncementId: selectedBundle.id,
+          editionIds: allIds,
+          totalAmount: parsedPrice > 0 ? parsedPrice : 0,
+          currency: moveCurrency,
+          shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
+          purchasedAt: feeDate,
+          ownershipStatus,
+        })
+        purchaseGroupId = (result as any).group?.id ?? (result as any).id
         setStatus('collection')
       } else {
-        // Fresh add — create new entry
-        const res = await authFetch<{ id: string }>('/collection', {
-          method: 'POST',
-          body: JSON.stringify({ bookEditionId: editionId, ownershipStatus }),
-        })
-        targetEntryId = res.id
-        if (moveDate) {
-          await authFetch<void>(`/collection/${targetEntryId}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ acquiredAt: new Date(moveDate).toISOString() }),
-          })
-        }
-        setEntryId(res.id)
-        if (status !== 'collection') setStatus('collection')
-      }
+        // ── Single-edition path ────────────────────────────────────────────
+        let targetEntryId: string
 
-      // Create purchase group when any monetary data is present
-      const parsedPrice = parseDecimalInput(movePrice)
-      const parsedShipping = parseDecimalInput(shippingPrice)
-      const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)
-      const hasDiscounts = discountEntries.some(d => parseDecimalInput(d.amount) > 0)
-      let purchaseGroupId: string | null = null
-      if (parsedPrice > 0 || parsedShipping > 0 || hasFees || hasDiscounts) {
-        const pgRes = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${targetEntryId}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            totalAmount: parsedPrice > 0 ? parsedPrice : 0,
-            currency: moveCurrency,
-            shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
-            purchasedAt: feeDate,
-          }),
-        })
-        purchaseGroupId = pgRes.id
+        if (status === 'wishlist' && entryId) {
+          const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
+          if (moveDate) body.acquiredAt = new Date(moveDate).toISOString()
+          await authFetch<void>(`/collection/${entryId}`, { method: 'PATCH', body: JSON.stringify(body) })
+          targetEntryId = entryId
+          setStatus('collection')
+        } else {
+          const res = await authFetch<{ id: string }>('/collection', {
+            method: 'POST',
+            body: JSON.stringify({ bookEditionId: editionId, ownershipStatus }),
+          })
+          targetEntryId = res.id
+          if (moveDate) {
+            await authFetch<void>(`/collection/${targetEntryId}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ acquiredAt: new Date(moveDate).toISOString() }),
+            })
+          }
+          setEntryId(res.id)
+          if (status !== 'collection') setStatus('collection')
+        }
+
+        const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)
+        const hasDiscounts = discountEntries.some(d => parseDecimalInput(d.amount) > 0)
+        if (parsedPrice > 0 || parsedShipping > 0 || hasFees || hasDiscounts) {
+          const pgRes = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${targetEntryId}`, {
+            method: 'POST',
+            body: JSON.stringify({
+              totalAmount: parsedPrice > 0 ? parsedPrice : 0,
+              currency: moveCurrency,
+              shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
+              purchasedAt: feeDate,
+            }),
+          })
+          purchaseGroupId = pgRes.id
+        }
       }
 
       // Additional custom fees
@@ -281,19 +317,27 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                 {bundles.map(b => (
                   <p key={b.id} className="text-sm font-medium text-stone-200">📦 {b.title}</p>
                 ))}
+                {error && <p className="text-xs text-red-400">{error}</p>}
                 <div className="flex flex-col gap-2 pt-2">
-                  <button onClick={() => setStep('form')}
+                  <button onClick={() => { setSelectedBundle(null); setStep('form') }}
                     className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
                     Add just this book
                   </button>
-                  <button onClick={() => setStep('form')}
-                    className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 px-4 py-2 rounded-xl text-sm transition-colors">
-                    I&apos;ll track the bundle separately
+                  <button
+                    onClick={() => handleAddAsSet(bundles[0])}
+                    disabled={bundleFetching}
+                    className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                    {bundleFetching ? <><Loader2 size={14} className="animate-spin" />Loading…</> : 'Add as set'}
                   </button>
                 </div>
               </div>
             ) : (
               <>
+                {selectedBundle && (
+                  <p className="text-xs text-stone-400 -mt-1">
+                    📦 Adding as set: <span className="text-stone-200 font-medium">{selectedBundle.title}</span>
+                  </p>
+                )}
                 <div>
                   <label className={LABEL}>Status</label>
                   <select value={ownershipStatus} onChange={e => setOwnershipStatus(e.target.value as OwnershipOption)} className={INPUT}>
@@ -413,7 +457,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                   </button>
                   <button onClick={handleConfirm} disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
-                    <MoveRight size={14} />
+                    <Plus size={14} />
                     {submitting ? 'Adding…' : status === 'wishlist' ? 'Move' : 'Add'}
                   </button>
                 </div>
