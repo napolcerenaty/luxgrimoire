@@ -39,7 +39,24 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
   const { isInterested, tier, regionId: savedRegionId, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Lock body scroll when bottom sheet is open on mobile
+  useEffect(() => {
+    if (isMobile && open) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = prev }
+    }
+  }, [isMobile, open])
 
   const regions = (sale.regions ?? []) as Region[]
   const hasRegions = regions.length > 1
@@ -76,11 +93,10 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
       else setInterest('GS', effectiveRegion?.id ?? null)
       return
     }
-    if (btnRef.current) {
+    if (!isMobile && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
       const dropdownWidth = 288 // w-72
       const vw = window.innerWidth
-      // Align dropdown to right edge of button, clamped so it stays on screen
       let left = rect.right - dropdownWidth
       left = Math.max(8, Math.min(left, vw - dropdownWidth - 8))
       const top = rect.bottom + 8
@@ -128,75 +144,152 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
         )}
       </button>
 
-      {open && dropdownPos && typeof document !== 'undefined' && createPortal(
+      {open && typeof document !== 'undefined' && createPortal(
         <>
+          {/* Backdrop */}
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
-          <div
-            className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
-            style={{ top: dropdownPos.top, right: dropdownPos.right }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Region selector */}
-            {hasRegions && (
-              <div className="px-2 pb-2 mb-1 border-b border-stone-800">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <MapPin size={11} className="text-stone-500" />
-                  <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your region</span>
+
+          {isMobile ? (
+            /* Bottom sheet on mobile */
+            <div
+              className="fixed inset-x-0 bottom-0 z-[101] rounded-t-2xl border-t border-stone-700 bg-stone-900 shadow-2xl p-4 pb-8"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Drag handle */}
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-stone-700" />
+
+              {hasRegions && (
+                <div className="mb-3 pb-3 border-b border-stone-800">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <MapPin size={12} className="text-stone-500" />
+                    <span className="text-xs text-stone-500 uppercase tracking-wider">Your region</span>
+                  </div>
+                  <select
+                    value={effectiveRegion?.id ?? ''}
+                    onChange={e => changeRegion(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2.5 text-stone-200 text-sm focus:outline-none focus:border-violet-500"
+                  >
+                    {regions.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={effectiveRegion?.id ?? ''}
-                  onChange={e => changeRegion(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-200 text-xs focus:outline-none focus:border-violet-500"
-                >
-                  {regions.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
-                  ))}
-                </select>
+              )}
+
+              <p className="text-xs text-stone-500 uppercase tracking-wider mb-3">
+                When are you planning to buy?
+              </p>
+
+              <div className="flex flex-col gap-2">
+                {availableTiers.map(t => {
+                  const formattedDate = formatTierDate(dates[t.value])
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => pickTier(t.value)}
+                      className={`
+                        w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm transition-colors
+                        ${tier === t.value && isInterested
+                          ? 'bg-violet-800/60 text-violet-200 border border-violet-600'
+                          : 'bg-stone-800 text-stone-300 border border-stone-700 active:bg-stone-700'}
+                      `}
+                    >
+                      <span className="font-medium">{t.label}</span>
+                      {formattedDate
+                        ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
+                        : <span className="text-xs text-stone-600 font-mono">–</span>
+                      }
+                    </button>
+                  )
+                })}
               </div>
-            )}
 
-            <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5 pt-0.5">
-              When are you planning to buy?
-            </p>
+              {isInterested && (
+                <>
+                  <div className="my-3 border-t border-stone-700" />
+                  <button
+                    type="button"
+                    onClick={async () => { await removeInterest(); setOpen(false) }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm text-red-400 bg-stone-800 border border-stone-700 active:bg-stone-700 transition-colors"
+                  >
+                    <BellOff size={14} />
+                    Remove interest
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            /* Positioned dropdown on desktop */
+            dropdownPos && (
+              <div
+                className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
+                style={{ top: dropdownPos.top, right: dropdownPos.right }}
+                onClick={e => e.stopPropagation()}
+              >
+                {hasRegions && (
+                  <div className="px-2 pb-2 mb-1 border-b border-stone-800">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <MapPin size={11} className="text-stone-500" />
+                      <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your region</span>
+                    </div>
+                    <select
+                      value={effectiveRegion?.id ?? ''}
+                      onChange={e => changeRegion(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-200 text-xs focus:outline-none focus:border-violet-500"
+                    >
+                      {regions.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-            {availableTiers.map(t => {
-              const formattedDate = formatTierDate(dates[t.value])
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => pickTier(t.value)}
-                  className={`
-                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
-                    ${tier === t.value && isInterested
-                      ? 'bg-violet-800/60 text-violet-200'
-                      : 'hover:bg-stone-800 text-stone-300'}
-                  `}
-                >
-                  <span className="font-medium">{t.label}</span>
-                  {formattedDate
-                    ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
-                    : <span className="text-xs text-stone-600 font-mono">–</span>
-                  }
-                </button>
-              )
-            })}
+                <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5 pt-0.5">
+                  When are you planning to buy?
+                </p>
 
-            {isInterested && (
-              <>
-                <div className="my-1.5 border-t border-stone-700" />
-                <button
-                  type="button"
-                  onClick={async () => { await removeInterest(); setOpen(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-stone-800 transition-colors"
-                >
-                  <BellOff size={13} />
-                  Remove interest
-                </button>
-              </>
-            )}
-          </div>
+                {availableTiers.map(t => {
+                  const formattedDate = formatTierDate(dates[t.value])
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => pickTier(t.value)}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
+                        ${tier === t.value && isInterested
+                          ? 'bg-violet-800/60 text-violet-200'
+                          : 'hover:bg-stone-800 text-stone-300'}
+                      `}
+                    >
+                      <span className="font-medium">{t.label}</span>
+                      {formattedDate
+                        ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
+                        : <span className="text-xs text-stone-600 font-mono">–</span>
+                      }
+                    </button>
+                  )
+                })}
+
+                {isInterested && (
+                  <>
+                    <div className="my-1.5 border-t border-stone-700" />
+                    <button
+                      type="button"
+                      onClick={async () => { await removeInterest(); setOpen(false) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-stone-800 transition-colors"
+                    >
+                      <BellOff size={13} />
+                      Remove interest
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          )}
         </>,
         document.body
       )}
