@@ -17,8 +17,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import {
   GoogleInitGuard,
   GoogleCallbackGuard,
-  FacebookInitGuard,
-  FacebookCallbackGuard,
   DiscordInitGuard,
   DiscordCallbackGuard,
 } from './guards/oauth-state.guard';
@@ -117,19 +115,6 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleCallbackGuard)
   async googleCallback(@Req() req: any, @Res() res: any) {
-    return this.handleOAuthCallback(req, res);
-  }
-
-  // ——— Facebook OAuth ———
-  @Public()
-  @Get('facebook')
-  @UseGuards(FacebookInitGuard)
-  facebookLogin() {}
-
-  @Public()
-  @Get('facebook/callback')
-  @UseGuards(FacebookCallbackGuard)
-  async facebookCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
 
