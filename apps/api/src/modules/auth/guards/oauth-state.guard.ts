@@ -58,37 +58,7 @@ export class GoogleCallbackGuard extends AuthGuard('google') {
 // Facebook OAuth removed
 
 // ─── Discord ───────────────────────────────────────────────────────────────────
-
-@Injectable()
-export class DiscordInitGuard extends AuthGuard('discord') {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest();
-    const res = context.switchToHttp().getResponse();
-
-    const state = randomBytes(16).toString('hex');
-    res.setCookie(STATE_COOKIE, state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: STATE_COOKIE_MAX_AGE_SECONDS,
-      path: '/',
-    });
-    req._oauthState = state;
-
-    return super.canActivate(context) as Promise<boolean>;
-  }
-
-  getAuthenticateOptions(context: ExecutionContext) {
-    return { state: context.switchToHttp().getRequest()._oauthState };
-  }
-}
-
-@Injectable()
-export class DiscordCallbackGuard extends AuthGuard('discord') {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    return verifyStateAndProceed(context, () => super.canActivate(context) as Promise<boolean>);
-  }
-}
+// Discord OAuth removed
 
 // ─── Shared callback state verification ────────────────────────────────────────
 

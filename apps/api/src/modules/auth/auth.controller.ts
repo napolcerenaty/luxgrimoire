@@ -14,12 +14,7 @@ import {
 import { Public } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import {
-  GoogleInitGuard,
-  GoogleCallbackGuard,
-  DiscordInitGuard,
-  DiscordCallbackGuard,
-} from './guards/oauth-state.guard';
+import { GoogleInitGuard, GoogleCallbackGuard } from './guards/oauth-state.guard';
 
 @ApiTags('auth')
 @UseGuards(JwtAuthGuard)
@@ -115,19 +110,6 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleCallbackGuard)
   async googleCallback(@Req() req: any, @Res() res: any) {
-    return this.handleOAuthCallback(req, res);
-  }
-
-  // ——— Discord OAuth ———
-  @Public()
-  @Get('discord')
-  @UseGuards(DiscordInitGuard)
-  discordLogin() {}
-
-  @Public()
-  @Get('discord/callback')
-  @UseGuards(DiscordCallbackGuard)
-  async discordCallback(@Req() req: any, @Res() res: any) {
     return this.handleOAuthCallback(req, res);
   }
 
