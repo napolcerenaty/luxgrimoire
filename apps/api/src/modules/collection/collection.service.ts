@@ -178,7 +178,7 @@ export class CollectionService {
       if (!existing.isWishlist) throw new ConflictException('Edition already in your collection');
       return existing;
     }
-    return this.prisma.userBookEntry.create({
+    const created = await this.prisma.userBookEntry.create({
       data: {
         userId,
         bookId: edition.bookId,
@@ -188,6 +188,8 @@ export class CollectionService {
         readingStatus: 'UNREAD',
       },
     });
+    this.recordStatusChange(created.id, created.ownershipStatus);
+    return created;
   }
 
   async getEntriesByEditionId(userId: string, editionId: string) {
