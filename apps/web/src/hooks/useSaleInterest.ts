@@ -1,29 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '@/lib/authFetch'
 
 export type SaleTier = 'FA' | 'EA' | 'GS'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-
-async function authFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  })
-  if (res.status === 204 || res.headers.get('content-length') === '0') return null
-  return res.ok ? res.json() : null
-}
 
 // ─── Shared module-level cache ───────────────────────────────────────────────
 // All hook instances for the same announcementId share state.
 // When any instance writes, all others update immediately (no re-fetch needed).
 
 interface CachedState { isInterested: boolean; tier: SaleTier | null; regionId: string | null }
+type SaleInterestRecord = { announcementId: string; tier: string; regionId?: string | null } | null
 type Listener = (s: CachedState) => void
 
 const cache = new Map<string, CachedState>()
@@ -65,7 +52,7 @@ export function useSaleInterest(announcementId: string | null) {
     // Fetch from server only if no cache yet
     if (!cached) {
       setState(s => ({ ...s, loading: true }))
-      authFetch(`/sale-interests/${announcementId}`)
+      authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`)
         .then(data => {
           const next: CachedState = data?.announcementId
             ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
@@ -101,7 +88,7 @@ export function useSaleInterest(announcementId: string | null) {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
     } catch {
       // rollback — refetch to get real state
-      authFetch(`/sale-interests/${announcementId}`).then(data => {
+      authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`).then(data => {
         const next: CachedState = data?.announcementId
           ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
           : { isInterested: false, tier: null, regionId: null }
