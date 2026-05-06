@@ -235,6 +235,7 @@ export class CollectionService {
                 select: { id: true, amount: true, currency: true, date: true, reason: true },
                 orderBy: { date: 'asc' },
               },
+              _count: { select: { bookEntries: true } },
             },
           },
         },

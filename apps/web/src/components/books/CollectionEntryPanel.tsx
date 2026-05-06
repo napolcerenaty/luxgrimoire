@@ -56,6 +56,7 @@ interface PurchaseGroup {
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
+  _count?: { bookEntries: number }
 }
 
 interface CollectionEntry {
@@ -1061,6 +1062,29 @@ export function CollectionEntryPanel({ editionId }: Props) {
                       </span>
                     </div>
                   )}
+
+                  {/* Per-book price for bundles */}
+                  {(() => {
+                    const bookCount = pg._count?.bookEntries ?? 1
+                    if (bookCount <= 1) return null
+                    const total = grandTotal ?? (pgTotal ?? 0) + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal
+                    const perBook = total / bookCount
+                    return (
+                      <div className="flex justify-between items-baseline gap-2 pt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          Per book <span className="opacity-60">({bookCount} in set)</span>
+                        </span>
+                        <span className="text-right">
+                          <span className="text-xs font-semibold text-amber-400">
+                            {perBook.toFixed(2)} {pg.currency}
+                          </span>
+                          {converted(perBook, pg.currency, pg.purchasedAt) && (
+                            <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{converted(perBook, pg.currency, pg.purchasedAt)}</span>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })()}
 
                   {/* Purchase date */}
                   <p className="text-xs pt-0.5" style={{ color: 'var(--text-muted)' }}>
