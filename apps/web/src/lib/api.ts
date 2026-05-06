@@ -388,6 +388,7 @@ export interface CreatePurchaseGroupData {
   shippingAmount?: number;
   purchasedAt: string;
   notes?: string;
+  ownershipStatus?: string;
   editionIds: string[];
 }
 

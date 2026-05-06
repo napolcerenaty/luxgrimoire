@@ -95,7 +95,7 @@ export class PurchaseGroupsService {
               bookId: edition.bookId,
               editionId: edition.id,
               purchaseGroupId: group.id,
-              ownershipStatus: 'OWNED',
+              ownershipStatus: (dto.ownershipStatus as any) ?? 'OWNED',
             },
           })
         )
