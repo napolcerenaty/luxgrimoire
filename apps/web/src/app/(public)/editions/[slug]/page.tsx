@@ -245,7 +245,7 @@ export default async function EditionPage({ params }: Props) {
               {/* Series */}
               {book?.seriesName && (
                 <Link
-                  href={`/books?series=${encodeURIComponent(book.seriesName)}`}
+                  href={`/search?q=${encodeURIComponent(book.seriesName)}&filter=books`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}

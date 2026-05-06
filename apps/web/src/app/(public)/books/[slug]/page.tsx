@@ -63,7 +63,7 @@ export default async function BookPage({ params }: Props) {
       <div className="mb-10">
         {book.seriesName && (
           <Link
-            href={`/books?series=${encodeURIComponent(book.seriesName)}`}
+            href={`/search?q=${encodeURIComponent(book.seriesName)}&filter=books`}
             className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
           >
             {book.seriesName}
