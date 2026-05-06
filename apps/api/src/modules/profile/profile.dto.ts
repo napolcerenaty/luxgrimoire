@@ -1,5 +1,10 @@
-import { IsString, IsOptional, IsNumber, Min, Max, Length } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min, Max, Length, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
+
+/** Instagram-style: letters, digits, underscores, periods; no leading/trailing/consecutive periods; 3–30 chars */
+const USERNAME_REGEX = /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-zA-Z0-9._]{3,30}$/;
+const USERNAME_MSG =
+  'Username must be 3–30 characters and may only contain letters, numbers, underscores and periods. It cannot start or end with a period, or contain consecutive periods.';
 
 export class UpdateProfileDto {
   @IsOptional() @IsString() displayName?: string;
@@ -13,5 +18,7 @@ export class UpdateProfileDto {
 }
 
 export class ChangeUsernameDto {
-  @IsString() username!: string;
+  @IsString()
+  @Matches(USERNAME_REGEX, { message: USERNAME_MSG })
+  username!: string;
 }

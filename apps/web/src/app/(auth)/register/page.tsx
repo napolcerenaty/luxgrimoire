@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
+import { PasswordStrength, passwordStrong } from '@/components/auth/PasswordStrength'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-const USERNAME_RE = /^[a-zA-Z0-9]{3,20}$/
+/** Instagram-style: letters, digits, underscores, periods; no leading/trailing/consecutive periods; 3–30 chars */
+const USERNAME_RE = /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-zA-Z0-9._]{3,30}$/
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -19,12 +21,18 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const isPasswordStrong = useMemo(() => passwordStrong(password), [password])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!USERNAME_RE.test(username)) {
-      setError('Username must be 3–20 alphanumeric characters.')
+      setError('Username must be 3–30 characters and may only contain letters, numbers, underscores and periods. It cannot start or end with a period.')
+      return
+    }
+    if (!isPasswordStrong) {
+      setError('Please choose a stronger password that meets all requirements.')
       return
     }
     if (password !== confirm) {
@@ -78,10 +86,10 @@ export default function RegisterPage() {
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="bookwitch42"
+            placeholder="book.witch_42"
             className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
           />
-          <p className="text-xs text-stone-500 mt-1">3–20 alphanumeric characters</p>
+          <p className="text-xs text-stone-500 mt-1">3–30 characters · letters, numbers, <code className="text-stone-400">_</code> and <code className="text-stone-400">.</code> allowed</p>
         </div>
 
         <div>
@@ -112,6 +120,7 @@ export default function RegisterPage() {
             placeholder="••••••••"
             className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
           />
+          <PasswordStrength password={password} />
         </div>
 
         <div>

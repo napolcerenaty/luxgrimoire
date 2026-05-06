@@ -1,20 +1,28 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsBoolean, Equals, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsBoolean, Equals, IsNotEmpty, Matches } from 'class-validator';
 
 /** bcrypt silently truncates inputs at 72 bytes — cap passwords there to prevent DoS via long inputs */
 const BCRYPT_MAX = 72;
 
+/** Instagram-style: letters, digits, underscores, periods; no leading/trailing/consecutive periods; 3–30 chars */
+const USERNAME_REGEX = /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-zA-Z0-9._]{3,30}$/;
+const USERNAME_MSG =
+  'Username must be 3–30 characters and may only contain letters, numbers, underscores and periods. It cannot start or end with a period, or contain consecutive periods.';
+
+/** Strong password: min 8, max 72, must have uppercase, lowercase, digit and special character */
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,72}$/;
+const PASSWORD_MSG =
+  'Password must be 8–72 characters and include at least one uppercase letter, one lowercase letter, one number and one special character.';
+
 export class RegisterDto {
   @IsString()
-  @MinLength(3)
-  @MaxLength(30)
+  @Matches(USERNAME_REGEX, { message: USERNAME_MSG })
   username!: string;
 
   @IsEmail()
   email!: string;
 
   @IsString()
-  @MinLength(8)
-  @MaxLength(BCRYPT_MAX)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   password!: string;
 
   @IsBoolean()
@@ -41,8 +49,7 @@ export class ResetPasswordDto {
   token!: string;
 
   @IsString()
-  @MinLength(8)
-  @MaxLength(BCRYPT_MAX)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   password!: string;
 }
 
@@ -52,8 +59,7 @@ export class ChangePasswordDto {
   currentPassword!: string;
 
   @IsString()
-  @MinLength(8)
-  @MaxLength(BCRYPT_MAX)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   newPassword!: string;
 }
 
