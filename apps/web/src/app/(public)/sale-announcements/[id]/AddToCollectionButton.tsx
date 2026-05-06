@@ -190,29 +190,6 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   </select>
                 </div>
 
-                {/* Second hand */}
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isSecondHand}
-                      onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
-                      className="w-4 h-4 rounded border-stone-600 bg-stone-800 accent-orange-500"
-                    />
-                    <span className="text-sm text-stone-300">🔄 Second hand</span>
-                  </label>
-                  {isSecondHand && (
-                    <select
-                      value={sourcePlatform}
-                      onChange={e => setSourcePlatform(e.target.value)}
-                      className={INPUT}
-                    >
-                      <option value="">— Select platform —</option>
-                      {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                    </select>
-                  )}
-                </div>
-
                 <div>
                   <label className={LABEL}>Purchase date</label>
                   <input type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} className={INPUT} />
@@ -316,6 +293,29 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Second hand */}
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isSecondHand}
+                      onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
+                      className="w-4 h-4 rounded border-stone-600 bg-stone-800 accent-orange-500"
+                    />
+                    <span className="text-sm text-stone-300">🔄 Second hand</span>
+                  </label>
+                  {isSecondHand && (
+                    <select
+                      value={sourcePlatform}
+                      onChange={e => setSourcePlatform(e.target.value)}
+                      className={INPUT}
+                    >
+                      <option value="">— Select platform —</option>
+                      {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 <p className="text-xs text-stone-500">

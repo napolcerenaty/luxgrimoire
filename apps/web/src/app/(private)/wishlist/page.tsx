@@ -79,6 +79,17 @@ interface SaleInterestItem {
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
+const SALE_PLATFORMS = [
+  { value: 'vinted', label: '🛍️ Vinted' },
+  { value: 'ebay', label: '🛒 eBay' },
+  { value: 'facebook', label: '📘 Facebook' },
+  { value: 'instagram', label: '📷 Instagram' },
+  { value: 'depop', label: '👗 Depop' },
+  { value: 'whatnot', label: '🎉 Whatnot' },
+  { value: 'local', label: '🤝 Local / In-person' },
+  { value: 'other', label: '✏️ Other' },
+]
+
 const OWNERSHIP_OPTIONS = [
   { value: 'OWNED', label: 'Owned' },
   { value: 'PREORDER', label: 'Pre-order' },
@@ -102,6 +113,8 @@ export default function WishlistPage() {
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
+  const [isSecondHand, setIsSecondHand] = useState(false)
+  const [sourcePlatform, setSourcePlatform] = useState('')
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
@@ -136,9 +149,10 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees, discounts }: {
+    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees, discounts, isSecondHand, sourcePlatform }: {
       id: string; date: string; price: string; currency: string;
-      ownershipStatus: string; shippingPrice: string; fees: FeeEntry[]; discounts: DiscountEntry[]
+      ownershipStatus: string; shippingPrice: string; fees: FeeEntry[]; discounts: DiscountEntry[];
+      isSecondHand: boolean; sourcePlatform: string;
     }) => {
       const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
       if (date) body.acquiredAt = new Date(date).toISOString()
@@ -162,6 +176,8 @@ export default function WishlistPage() {
             currency,
             shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
             purchasedAt: new Date(feeDate).toISOString(),
+            isSecondHand,
+            sourcePlatform: sourcePlatform || undefined,
           }),
         })
         purchaseGroupId = group?.id ?? null
@@ -208,6 +224,8 @@ export default function WishlistPage() {
       setShippingPrice('')
       setFeeEntries([])
       setDiscountEntries([])
+      setIsSecondHand(false)
+      setSourcePlatform('')
       setMoveOwnershipStatus('OWNED')
     },
   })
@@ -561,6 +579,20 @@ export default function WishlistPage() {
               </div>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
+                  className="w-4 h-4 rounded accent-amber-500" />
+                <span className="text-sm text-stone-300">Second-hand purchase</span>
+              </label>
+              {isSecondHand && (
+                <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)} className={INPUT}>
+                  <option value="">Select platform (optional)</option>
+                  {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              )}
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setMoveEntry(null)}
@@ -569,7 +601,7 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries, discounts: discountEntries })}
+                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries, discounts: discountEntries, isSecondHand, sourcePlatform })}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >

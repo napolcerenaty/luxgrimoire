@@ -1316,6 +1316,8 @@ function AddToCollectionSearch({
   const [currency, setCurrency] = useState('GBP')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
+  const [isSecondHand, setIsSecondHand] = useState(false)
+  const [sourcePlatform, setSourcePlatform] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const feeKeyRef = useRef(0)
@@ -1354,6 +1356,8 @@ function AddToCollectionSearch({
     setCurrency('GBP')
     setFeeEntries([])
     setDiscountEntries([])
+    setIsSecondHand(false)
+    setSourcePlatform('')
     setError(null)
     setStep('form')
   }
@@ -1393,6 +1397,8 @@ function AddToCollectionSearch({
             currency,
             shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
             purchasedAt: feeDate,
+            isSecondHand,
+            sourcePlatform: sourcePlatform || undefined,
           }),
         })
         purchaseGroupId = pgRes.id
@@ -1556,6 +1562,21 @@ function AddToCollectionSearch({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
+              className="w-4 h-4 rounded accent-amber-500" />
+            <span className="text-sm text-stone-300">Second-hand purchase</span>
+          </label>
+          {isSecondHand && (
+            <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)}
+              className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition-colors">
+              <option value="">Select platform (optional)</option>
+              {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          )}
         </div>
 
         {error && <p className="text-xs text-red-400">{error}</p>}
