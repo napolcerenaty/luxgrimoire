@@ -88,6 +88,7 @@ interface HistoryEntry {
 interface Props {
   editionId: string
   editionName?: string | null
+  initialEntryId?: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CollectionEntryPanel({ editionId }: Props) {
+export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
   const { user, loading: authLoading } = useAuth()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
@@ -276,7 +277,11 @@ export function CollectionEntryPanel({ editionId }: Props) {
       .then((data) => {
         const entries = data ?? []
         setAllEntries(entries)
-        setEntry(entries[0] ?? null)
+        const initialIdx = initialEntryId
+          ? Math.max(0, entries.findIndex(e => e.id === initialEntryId))
+          : 0
+        setSelectedCopyIdx(initialIdx)
+        setEntry(entries[initialIdx] ?? null)
       })
       .catch(() => setEntry(null))
       .finally(() => setLoading(false))

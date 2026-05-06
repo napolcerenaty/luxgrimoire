@@ -97,6 +97,14 @@ export class CreateGroupForEntryDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isSecondHand?: boolean;
+
+  @IsString()
+  @IsOptional()
+  sourcePlatform?: string;
 }
 
 export class UpdatePurchaseGroupDto {

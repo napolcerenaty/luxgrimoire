@@ -144,7 +144,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
         <div className="flex flex-col items-center mb-6 gap-3">
           <div className="flex items-center gap-4 w-full">
             <span className="flex-1 h-px bg-stone-700" />
-            <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest text-center whitespace-nowrap">
+            <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest text-center sm:whitespace-nowrap">
               Recent Announcements
             </h2>
             <span className="flex-1 h-px bg-stone-700" />

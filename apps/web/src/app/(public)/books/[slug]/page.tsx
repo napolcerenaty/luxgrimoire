@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { BookDescription } from '@/components/books/BookDescription'
 import { BookEditionsSection } from '@/components/books/BookEditionsSection'
-import { BookBundleInfo } from '@/components/books/BookBundleInfo'
 import type { ApiBook } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -117,7 +116,6 @@ export default async function BookPage({ params }: Props) {
         <BookEditionsSection editions={editions} />
       </section>
 
-      <BookBundleInfo editionIds={editions.map(e => e.id)} />
     </div>
   )
 }

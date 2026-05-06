@@ -13,6 +13,17 @@ const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
 
+const SALE_PLATFORMS = [
+  { value: 'vinted', label: '🛍️ Vinted' },
+  { value: 'ebay', label: '🛒 eBay' },
+  { value: 'facebook', label: '📘 Facebook' },
+  { value: 'instagram', label: '📷 Instagram' },
+  { value: 'depop', label: '👗 Depop' },
+  { value: 'whatnot', label: '🎉 Whatnot' },
+  { value: 'local', label: '🤝 Local / In-person' },
+  { value: 'other', label: '✏️ Other' },
+]
+
 const OWNERSHIP_OPTIONS = [
   { value: 'OWNED', label: 'Owned' },
   { value: 'PREORDER', label: 'Pre-order' },
@@ -57,6 +68,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [shippingPrice, setShippingPrice] = useState('')
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
+  const [isSecondHand, setIsSecondHand] = useState(false)
+  const [sourcePlatform, setSourcePlatform] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const feeKeyRef = useRef(0)
@@ -106,6 +119,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setShippingPrice('')
     setFeeEntries([])
     setDiscountEntries([])
+    setIsSecondHand(false)
+    setSourcePlatform('')
     setSelectedBundle(null)
     setStep(bundles.length > 0 ? 'bundle' : 'form')
     setModalOpen(true)
@@ -148,6 +163,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
           purchasedAt: feeDate,
           ownershipStatus,
+          isSecondHand,
+          sourcePlatform: sourcePlatform || undefined,
         })
         purchaseGroupId = (result as any).group?.id ?? (result as any).id
         setStatus('collection')
@@ -187,6 +204,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
               currency: moveCurrency,
               shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
               purchasedAt: feeDate,
+              isSecondHand,
+              sourcePlatform: sourcePlatform || undefined,
             }),
           })
           purchaseGroupId = pgRes.id
@@ -446,6 +465,21 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
+                      className="w-4 h-4 rounded accent-amber-500" />
+                    <span className="text-sm text-stone-300">Second-hand purchase</span>
+                  </label>
+                  {isSecondHand && (
+                    <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)}
+                      className={INPUT}>
+                      <option value="">Select platform (optional)</option>
+                      {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 {error && <p className="text-xs text-red-400">{error}</p>}

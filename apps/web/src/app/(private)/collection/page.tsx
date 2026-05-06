@@ -9,10 +9,12 @@ import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-
+import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
 interface CollectionEntry {
@@ -69,6 +71,16 @@ interface FeeTemplate {
 }
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
+
+interface DiscountEntry { key: number; name: string; amount: string; currency: string }
+
+const ADD_OWNERSHIP_OPTIONS = [
+  { value: 'OWNED', label: 'Owned' },
+  { value: 'PREORDER', label: 'Pre-order' },
+  { value: 'SHIPPING', label: 'Shipping / In transit' },
+  { value: 'BORROWED', label: 'Borrowed' },
+  { value: 'LENDED', label: 'Lent out' },
+] as const
 
 
 const SALE_PLATFORMS = [
@@ -493,7 +505,6 @@ export default function CollectionPage() {
   const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
   // Local tag state per editionId (updated optimistically after saves)
@@ -884,7 +895,7 @@ export default function CollectionPage() {
                   {group.map((entry) => (
                     <EditionCard
                       key={entry.id}
-                      href={`/editions/${entry.edition.slug}`}
+                      href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={entry.edition.additionalImages[0] ?? null}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
@@ -1125,24 +1136,14 @@ export default function CollectionPage() {
 
       {/* Add to Collection modal */}
       <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add to Collection">
-        <div className="space-y-4">
-          <p className="text-sm text-stone-400">
-            Search for an edition to add to your collection.
-          </p>
-          <input
-            type="text"
-            placeholder="Search by title, author, series…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
-          />
-          <a
-            href={`/search?q=${encodeURIComponent(searchQuery)}`}
-            className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
-          >
-            Go to Search
-          </a>
-        </div>
+        <AddToCollectionSearch
+          existingEditionIds={new Set(entries.map(e => e.edition.id))}
+          onAdded={() => {
+            void queryClient.invalidateQueries({ queryKey: ['collection'] })
+            void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+            setAddModalOpen(false)
+          }}
+        />
       </Modal>
 
       {/* ─── Track Shipment Modal ─── */}
@@ -1282,6 +1283,371 @@ export default function CollectionPage() {
           saleBookSearch={saleBookSearch} setSaleBookSearch={setSaleBookSearch}
         />
       </Modal>
+    </div>
+  )
+}
+
+function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }
+}
+
+function AddToCollectionSearch({
+  existingEditionIds,
+  onAdded,
+}: {
+  existingEditionIds: Set<string>
+  onAdded: () => void
+}) {
+  const [step, setStep] = useState<'search' | 'form'>('search')
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<ApiSearchEdition[]>([])
+  const [loading, setLoading] = useState(false)
+  const [selected, setSelected] = useState<ApiSearchEdition | null>(null)
+
+  // Form state
+  const [ownershipStatus, setOwnershipStatus] = useState('OWNED')
+  const [purchasedAt, setPurchasedAt] = useState(() => new Date().toISOString().slice(0, 10))
+  const [price, setPrice] = useState('')
+  const [shipping, setShipping] = useState('')
+  const [currency, setCurrency] = useState('GBP')
+  const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
+  const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
+  const [isSecondHand, setIsSecondHand] = useState(false)
+  const [sourcePlatform, setSourcePlatform] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const feeKeyRef = useRef(0)
+  const discountKeyRef = useRef(0)
+
+  const { data: feeTemplates = [] } = useQuery<FeeTemplate[]>({
+    queryKey: ['fee-templates'],
+    queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
+    enabled: step === 'form',
+  })
+
+  const fetchResults = useCallback(
+    debounce(async (q: string) => {
+      if (q.length < 2) { setResults([]); setLoading(false); return }
+      setLoading(true)
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data: ApiSearchResult = await res.json()
+          setResults(data.editions ?? [])
+        }
+      } catch { /* ignore */ }
+      finally { setLoading(false) }
+    }, 300),
+    [],
+  )
+
+  useEffect(() => { fetchResults(query) }, [query, fetchResults])
+
+  const openForm = (edition: ApiSearchEdition) => {
+    setSelected(edition)
+    setOwnershipStatus('OWNED')
+    setPurchasedAt(new Date().toISOString().slice(0, 10))
+    setPrice('')
+    setShipping('')
+    setCurrency('GBP')
+    setFeeEntries([])
+    setDiscountEntries([])
+    setIsSecondHand(false)
+    setSourcePlatform('')
+    setError(null)
+    setStep('form')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selected) return
+    setSubmitting(true)
+    setError(null)
+    const feeDate = purchasedAt || new Date().toISOString().slice(0, 10)
+    try {
+      const parsedPrice = parseDecimalInput(price)
+      const parsedShipping = parseDecimalInput(shipping)
+
+      // Create the collection entry
+      const res = await authFetch<{ id: string }>('/collection', {
+        method: 'POST',
+        body: JSON.stringify({ bookEditionId: selected.id, ownershipStatus, _entityName: selected.book.title }),
+      })
+      const entryId = res.id
+      if (purchasedAt) {
+        await authFetch(`/collection/${entryId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ acquiredAt: new Date(purchasedAt).toISOString() }),
+        })
+      }
+
+      // Create purchase group if there are any financials
+      const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)
+      const hasDiscounts = discountEntries.some(d => parseDecimalInput(d.amount) > 0)
+      let purchaseGroupId: string | null = null
+      if (parsedPrice > 0 || parsedShipping > 0 || hasFees || hasDiscounts) {
+        const pgRes = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${entryId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            totalAmount: parsedPrice > 0 ? parsedPrice : 0,
+            currency,
+            shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
+            purchasedAt: feeDate,
+            isSecondHand,
+            sourcePlatform: sourcePlatform || undefined,
+          }),
+        })
+        purchaseGroupId = pgRes.id
+      }
+
+      for (const fee of feeEntries) {
+        const amt = parseDecimalInput(fee.amount)
+        if (amt <= 0) continue
+        const tpl = feeTemplates.find(t => t.id === fee.templateId)
+        await authFetch('/fees', {
+          method: 'POST',
+          body: JSON.stringify({
+            feeTemplateId: tpl?.id,
+            name: tpl?.name ?? 'Fee',
+            amount: amt,
+            currency: fee.currency,
+            date: feeDate,
+            category: tpl?.category ?? undefined,
+            ...(purchaseGroupId ? { purchaseGroupId } : {}),
+          }),
+        })
+      }
+
+      for (const disc of discountEntries) {
+        const amt = parseDecimalInput(disc.amount)
+        if (amt <= 0 || !disc.name.trim()) continue
+        await authFetch('/fees/discounts', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: disc.name.trim(),
+            amount: amt,
+            currency: disc.currency,
+            date: feeDate,
+            ...(purchaseGroupId ? { purchaseGroupId } : {}),
+          }),
+        })
+      }
+
+      onAdded()
+    } catch (err) {
+      setError((err as Error).message || 'Something went wrong.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (step === 'form' && selected) {
+    return (
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* Header with back */}
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setStep('search')} className="text-stone-500 hover:text-stone-200 transition-colors">
+            <X size={16} />
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            {selected.additionalImages?.[0] && (
+              <Image src={cloudinaryUrl(selected.additionalImages[0]) ?? ''} alt={selected.book.title} width={32} height={32}
+                className="w-8 h-8 rounded object-cover shrink-0" unoptimized />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-stone-100 truncate">{selected.book.title}</p>
+              <p className="text-xs text-stone-500 truncate">
+                {[selected.bookBoxCompany?.name, selected.publisher].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className={LBL}>Status</label>
+          <select value={ownershipStatus} onChange={e => setOwnershipStatus(e.target.value)} className={INP}>
+            {ADD_OWNERSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className={LBL}>Purchase date</label>
+          <input type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} className={INP} />
+        </div>
+
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <div>
+            <label className={LBL}>Price (optional)</label>
+            <input type="text" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" className={INP} />
+          </div>
+          <div>
+            <label className={LBL}>Shipping (optional)</label>
+            <input type="text" value={shipping} onChange={e => setShipping(e.target.value)} placeholder="0.00" className={INP} />
+          </div>
+          <div>
+            <label className={LBL}>Currency</label>
+            <select value={currency} onChange={e => setCurrency(e.target.value)} className={INP}>
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Fees */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
+            <button type="button"
+              onClick={() => { feeKeyRef.current++; setFeeEntries(p => [...p, { key: feeKeyRef.current, templateId: '', amount: '', currency }]) }}
+              className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+              <Plus size={12} /> Add fee
+            </button>
+          </div>
+          {feeEntries.length === 0 && <p className="text-xs text-stone-500 italic">No additional fees</p>}
+          <div className="space-y-2">
+            {feeEntries.map(fee => (
+              <div key={fee.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+                <select value={fee.templateId}
+                  onChange={e => {
+                    const tpl = feeTemplates.find(t => t.id === e.target.value)
+                    setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, templateId: e.target.value, amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : f.amount, currency: tpl?.defaultCurrency ?? f.currency } : f))
+                  }}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400">
+                  <option value="">— Template —</option>
+                  {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ''}</option>)}
+                </select>
+                <input type="text" value={fee.amount} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
+                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400" />
+                <select value={fee.currency} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400">
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <button type="button" onClick={() => setFeeEntries(p => p.filter(f => f.key !== fee.key))} className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Discounts */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-400">Discounts (optional)</span>
+            <button type="button"
+              onClick={() => { discountKeyRef.current++; setDiscountEntries(p => [...p, { key: discountKeyRef.current, name: '', amount: '', currency }]) }}
+              className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
+              <Plus size={12} /> Add discount
+            </button>
+          </div>
+          {discountEntries.length === 0 && <p className="text-xs text-stone-500 italic">No discounts</p>}
+          <div className="space-y-2">
+            {discountEntries.map(disc => (
+              <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+                <input type="text" value={disc.name} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
+                  placeholder="e.g. Promo code, loyalty…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
+                <input type="text" value={disc.amount} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
+                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
+                <select value={disc.currency} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400">
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <button type="button" onClick={() => setDiscountEntries(p => p.filter(d => d.key !== disc.key))} className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
+              className="w-4 h-4 rounded accent-amber-500" />
+            <span className="text-sm text-stone-300">Second-hand purchase</span>
+          </label>
+          {isSecondHand && (
+            <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)}
+              className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition-colors">
+              <option value="">Select platform (optional)</option>
+              {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={() => setStep('search')}
+            className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors">
+            Back
+          </button>
+          <button type="submit" disabled={submitting}
+            className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+            {submitting ? 'Adding…' : 'Add to Collection'}
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="relative">
+        <input
+          type="text"
+          autoFocus
+          placeholder="Search by title, author, series…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+        />
+        <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 ${loading ? 'animate-pulse' : ''}`} />
+      </div>
+
+      {query.length >= 2 && (
+        <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
+          {results.length === 0 && !loading && (
+            <p className="text-sm text-stone-500 text-center py-4">No editions found</p>
+          )}
+          {results.map((edition) => {
+            const alreadyOwned = existingEditionIds.has(edition.id)
+            return (
+              <div key={edition.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-stone-800 shrink-0 overflow-hidden">
+                  {edition.additionalImages?.[0] ? (
+                    <Image src={cloudinaryUrl(edition.additionalImages[0]) ?? ''} alt={edition.book.title}
+                      width={40} height={40} className="w-full h-full object-cover" unoptimized />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-stone-100 truncate">{edition.book.title}</p>
+                  <p className="text-xs text-stone-500 truncate">
+                    {[edition.bookBoxCompany?.name, edition.publisher].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <button
+                  disabled={alreadyOwned}
+                  onClick={() => openForm(edition)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    alreadyOwned
+                      ? 'bg-stone-700 text-stone-500 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
+                  }`}
+                >
+                  {alreadyOwned ? <><Check size={11} /> Owned</> : <><Plus size={11} /> Add</>}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

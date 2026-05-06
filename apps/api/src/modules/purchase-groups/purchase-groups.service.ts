@@ -212,6 +212,8 @@ export class PurchaseGroupsService {
           shippingAmount: dto.shippingAmount ?? null,
           purchasedAt: new Date(dto.purchasedAt),
           notes: dto.notes ?? null,
+          isSecondHand: dto.isSecondHand ?? false,
+          sourcePlatform: dto.sourcePlatform ?? null,
         },
       });
       await tx.userBookEntry.update({

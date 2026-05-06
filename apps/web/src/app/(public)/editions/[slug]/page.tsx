@@ -68,7 +68,7 @@ interface EditionDetail {
   } | null
 }
 
-interface Props { params: Promise<{ slug: string }> }
+interface Props { params: Promise<{ slug: string }>; searchParams: Promise<{ entry?: string }> }
 
 interface CommunityImage {
   id: string
@@ -114,8 +114,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function EditionPage({ params }: Props) {
+export default async function EditionPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const { entry: initialEntryId } = await searchParams
 
   let edition: EditionDetail
   try {
@@ -308,6 +309,7 @@ export default async function EditionPage({ params }: Props) {
                 <CollectionEntryPanel
                   editionId={edition.id}
                   editionName={edition.editionName ?? edition.bookBoxCompany?.name ?? null}
+                  initialEntryId={initialEntryId ?? null}
                 />
               </div>
 
