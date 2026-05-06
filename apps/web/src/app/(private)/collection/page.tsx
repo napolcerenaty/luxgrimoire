@@ -895,7 +895,7 @@ export default function CollectionPage() {
                   {group.map((entry) => (
                     <EditionCard
                       key={entry.id}
-                      href={`/editions/${entry.edition.slug}`}
+                      href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={entry.edition.additionalImages[0] ?? null}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
