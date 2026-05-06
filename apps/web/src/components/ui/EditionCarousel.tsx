@@ -161,7 +161,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
       )}
 
       {/* Scroll area with side arrows */}
-      <div className="relative group/carousel">
+      <div className="relative group/carousel overflow-hidden">
         {/* Left arrow */}
         <button
           onClick={() => scroll('left')}
@@ -189,7 +189,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
         {/* Cards strip */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scroll-smooth"
+          className="flex gap-4 overflow-x-auto scroll-smooth w-full"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {cards.map((card) => <CarouselCardItem key={card.id} card={card} />)}

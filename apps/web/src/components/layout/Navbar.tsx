@@ -88,7 +88,7 @@ export function Navbar() {
             className="h-9 w-auto"
             priority
           />
-          <span className="font-serif font-bold tracking-widest text-amber-400 text-lg sm:text-xl">
+          <span className="hidden sm:inline font-serif font-bold tracking-widest text-amber-400 text-lg sm:text-xl">
             LuxGrimoire
           </span>
         </Link>
