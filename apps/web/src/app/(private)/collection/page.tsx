@@ -9,9 +9,10 @@ import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
@@ -493,7 +494,6 @@ export default function CollectionPage() {
   const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
   // Local tag state per editionId (updated optimistically after saves)
@@ -1125,24 +1125,14 @@ export default function CollectionPage() {
 
       {/* Add to Collection modal */}
       <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add to Collection">
-        <div className="space-y-4">
-          <p className="text-sm text-stone-400">
-            Search for an edition to add to your collection.
-          </p>
-          <input
-            type="text"
-            placeholder="Search by title, author, series…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
-          />
-          <a
-            href={`/search?q=${encodeURIComponent(searchQuery)}`}
-            className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
-          >
-            Go to Search
-          </a>
-        </div>
+        <AddToCollectionSearch
+          existingEditionIds={new Set(entries.map(e => e.edition.id))}
+          onAdded={() => {
+            void queryClient.invalidateQueries({ queryKey: ['collection'] })
+            void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+            setAddModalOpen(false)
+          }}
+        />
       </Modal>
 
       {/* ─── Track Shipment Modal ─── */}
@@ -1282,6 +1272,126 @@ export default function CollectionPage() {
           saleBookSearch={saleBookSearch} setSaleBookSearch={setSaleBookSearch}
         />
       </Modal>
+    </div>
+  )
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+
+function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }
+}
+
+function AddToCollectionSearch({
+  existingEditionIds,
+  onAdded,
+}: {
+  existingEditionIds: Set<string>
+  onAdded: () => void
+}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<ApiSearchEdition[]>([])
+  const [loading, setLoading] = useState(false)
+  const [addingId, setAddingId] = useState<string | null>(null)
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+
+  const fetchResults = useCallback(
+    debounce(async (q: string) => {
+      if (q.length < 2) { setResults([]); setLoading(false); return }
+      setLoading(true)
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data: ApiSearchResult = await res.json()
+          setResults(data.editions ?? [])
+        }
+      } catch { /* ignore */ }
+      finally { setLoading(false) }
+    }, 300),
+    [],
+  )
+
+  useEffect(() => { fetchResults(query) }, [query, fetchResults])
+
+  const handleAdd = async (edition: ApiSearchEdition) => {
+    setAddingId(edition.id)
+    try {
+      await authFetch('/collection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookEditionId: edition.id, _entityName: edition.book.title }),
+      })
+      setAddedIds(prev => new Set([...prev, edition.id]))
+      onAdded()
+    } catch { /* ignore */ }
+    finally { setAddingId(null) }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="relative">
+        <input
+          type="text"
+          autoFocus
+          placeholder="Search by title, author, series…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+        />
+        <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 ${loading ? 'animate-pulse' : ''}`} />
+      </div>
+
+      {query.length >= 2 && (
+        <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
+          {results.length === 0 && !loading && (
+            <p className="text-sm text-stone-500 text-center py-4">No editions found</p>
+          )}
+          {results.map((edition) => {
+            const alreadyOwned = existingEditionIds.has(edition.id) || addedIds.has(edition.id)
+            const isAdding = addingId === edition.id
+            return (
+              <div key={edition.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-stone-800 shrink-0 overflow-hidden">
+                  {edition.additionalImages?.[0] ? (
+                    <Image
+                      src={cloudinaryUrl(edition.additionalImages[0]) ?? ''}
+                      alt={edition.book.title}
+                      width={40} height={40}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-stone-700">
+                      <BookOpen size={14} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-stone-100 truncate">{edition.book.title}</p>
+                  <p className="text-xs text-stone-500 truncate">
+                    {[edition.bookBoxCompany?.name, edition.publisher].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <button
+                  disabled={alreadyOwned || isAdding}
+                  onClick={() => handleAdd(edition)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    alreadyOwned
+                      ? 'bg-stone-700 text-stone-500 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
+                  }`}
+                >
+                  {alreadyOwned ? <><Check size={11} /> Owned</> : isAdding ? 'Adding…' : <><Plus size={11} /> Add</>}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
