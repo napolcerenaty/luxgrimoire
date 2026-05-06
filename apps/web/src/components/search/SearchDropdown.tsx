@@ -77,6 +77,13 @@ export function SearchDropdown() {
       results.subscriptions.length + results.companies.length + (results.sales?.length ?? 0)
     : 0
 
+  const navigate = useCallback((href: string) => {
+    setOpen(false)
+    setQuery('')
+    setResults(null)
+    router.push(href)
+  }, [router])
+
   const goSearch = () => {
     if (query.trim().length >= 2) {
       setOpen(false)
@@ -112,13 +119,13 @@ export function SearchDropdown() {
               <p className="text-xs text-stone-400">Didn&apos;t find what you&apos;re looking for?</p>
               <div className="flex flex-col gap-1.5">
                 <button
-                  onClick={() => { setOpen(false); router.push('/data-requests') }}
+                  onClick={() => navigate('/data-requests')}
                   className="text-left text-xs text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   ✦ Add it to the database →
                 </button>
                 <button
-                  onClick={() => { setOpen(false); router.push('/sale-announcement-requests') }}
+                  onClick={() => navigate('/sale-announcement-requests')}
                   className="text-left text-xs text-stone-500 hover:text-stone-400 transition-colors"
                 >
                   📢 Report a sale announcement →
@@ -137,7 +144,7 @@ export function SearchDropdown() {
                   image: null,
                   href: `/books/${b.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -151,7 +158,7 @@ export function SearchDropdown() {
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -164,7 +171,7 @@ export function SearchDropdown() {
                   image: a.photoUrl,
                   href: `/authors/${a.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -177,7 +184,7 @@ export function SearchDropdown() {
                   image: a.photoUrl,
                   href: `/artists/${a.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -190,7 +197,7 @@ export function SearchDropdown() {
                   image: cloudinaryUrl(s.company?.logoUrl),
                   href: `/subscriptions/${s.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -203,7 +210,7 @@ export function SearchDropdown() {
                   image: cloudinaryUrl(c.logoUrl),
                   href: `/companies/${c.slug}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
               <ResultGroup
@@ -217,7 +224,7 @@ export function SearchDropdown() {
                   badge: s.availableForPurchase ? 'Live' : null,
                   href: `/sale-announcements/${s.id}`,
                 }))}
-                onNavigate={(href) => { setOpen(false); router.push(href) }}
+                onNavigate={navigate}
                 query={query}
               />
 
@@ -305,3 +312,4 @@ function ResultGroup({
     </div>
   )
 }
+
