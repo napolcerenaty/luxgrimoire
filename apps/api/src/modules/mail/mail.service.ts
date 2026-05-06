@@ -101,7 +101,7 @@ export class MailService {
    */
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
     const sent = await this.sendViaBrevoTemplate(
       'BREVO_RESET_TEMPLATE_ID',
