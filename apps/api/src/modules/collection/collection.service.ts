@@ -223,6 +223,8 @@ export class CollectionService {
               shippingAmount: true,
               purchasedAt: true,
               fromSubscription: true,
+              isSecondHand: true,
+              sourcePlatform: true,
               notes: true,
               saleAnnouncementId: true,
               fees: {

@@ -1055,6 +1055,8 @@ model UserPurchaseGroup {
   shippingAmount      Decimal?               @db.Decimal(10, 2)
   purchasedAt         DateTime
   fromSubscription    Boolean                @default(false)
+  isSecondHand        Boolean                @default(false)
+  sourcePlatform      String?
   notes               String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt

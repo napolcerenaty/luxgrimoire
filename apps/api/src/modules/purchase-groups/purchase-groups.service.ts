@@ -83,6 +83,8 @@ export class PurchaseGroupsService {
           shippingAmount: dto.shippingAmount ?? null,
           purchasedAt: new Date(dto.purchasedAt),
           notes: dto.notes ?? null,
+          isSecondHand: dto.isSecondHand ?? false,
+          sourcePlatform: dto.sourcePlatform ?? null,
         },
       });
 
@@ -126,6 +128,8 @@ export class PurchaseGroupsService {
         ...(dto.purchasedAt !== undefined && { purchasedAt: new Date(dto.purchasedAt) }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.fromSubscription !== undefined && { fromSubscription: dto.fromSubscription }),
+        ...(dto.isSecondHand !== undefined && { isSecondHand: dto.isSecondHand }),
+        ...(dto.sourcePlatform !== undefined && { sourcePlatform: dto.sourcePlatform }),
       },
     });
   }

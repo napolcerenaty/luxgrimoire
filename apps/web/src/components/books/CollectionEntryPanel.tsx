@@ -53,6 +53,8 @@ interface PurchaseGroup {
   notes: string | null
   saleAnnouncementId: string | null
   fromSubscription: boolean
+  isSecondHand: boolean
+  sourcePlatform: string | null
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
@@ -768,11 +770,18 @@ export function CollectionEntryPanel({ editionId }: Props) {
             <p className="text-xs uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
               <Wallet size={11} /> Purchase cost
             </p>
-            {!editingPurchase && (
-              <button onClick={openPurchaseEdit} className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                <Pencil size={11} /> {pg ? 'Edit costs' : 'Add costs'}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {pg?.isSecondHand && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center gap-1">
+                  🔄 2nd hand{pg.sourcePlatform ? ` · ${pg.sourcePlatform}` : ''}
+                </span>
+              )}
+              {!editingPurchase && (
+                <button onClick={openPurchaseEdit} className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  <Pencil size={11} /> {pg ? 'Edit costs' : 'Add costs'}
+                </button>
+              )}
+            </div>
           </div>
 
           {editingPurchase ? (

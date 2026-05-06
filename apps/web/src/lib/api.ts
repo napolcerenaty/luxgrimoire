@@ -389,6 +389,8 @@ export interface CreatePurchaseGroupData {
   purchasedAt: string;
   notes?: string;
   ownershipStatus?: string;
+  isSecondHand?: boolean;
+  sourcePlatform?: string;
   editionIds: string[];
 }
 

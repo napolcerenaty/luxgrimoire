@@ -27,7 +27,7 @@ interface CollectionEntry {
   tags: string[]
   purchaseGroup: {
     id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null
-    fromSubscription: boolean; _count: { bookEntries: number }
+    fromSubscription: boolean; isSecondHand: boolean; sourcePlatform: string | null; _count: { bookEntries: number }
     fees: Array<{ id: string; amount: string; currency: string; date: string }>
     discounts: Array<{ id: string; amount: string; currency: string; date: string }>
     refunds: Array<{ id: string; amount: string; currency: string; date: string }>
