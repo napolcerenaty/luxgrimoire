@@ -27,7 +27,7 @@ interface CollectionEntry {
   tags: string[]
   purchaseGroup: {
     id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null
-    fromSubscription: boolean; _count: { bookEntries: number }
+    fromSubscription: boolean; isSecondHand: boolean; sourcePlatform: string | null; _count: { bookEntries: number }
     fees: Array<{ id: string; amount: string; currency: string; date: string }>
     discounts: Array<{ id: string; amount: string; currency: string; date: string }>
     refunds: Array<{ id: string; amount: string; currency: string; date: string }>
@@ -264,8 +264,8 @@ function AddSaleForm({
         {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
       </div>
 
-      {/* Price distribution */}
-      {count > 0 && total > 0 && (
+      {/* Price distribution — only relevant for multi-book sales */}
+      {count > 1 && total > 0 && (
         <div>
           <label className={LBL}>Price split</label>
           <div className="flex gap-2">
@@ -491,6 +491,7 @@ export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
+  const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -652,6 +653,7 @@ export default function CollectionPage() {
       const entryTags = e.edition?.id ? (tagOverrides[e.edition.id] ?? e.tags) : e.tags
       if (!entryTags.includes(tagFilter)) return false
     }
+    if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
@@ -814,11 +816,24 @@ export default function CollectionPage() {
               </select>
             )}
 
+            {/* Reading status filter */}
+            <select
+              value={readingFilter}
+              onChange={e => setReadingFilter(e.target.value as typeof readingFilter)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-green-400 transition-colors cursor-pointer ${readingFilter !== 'ALL' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Read: Any</option>
+              <option value="UNREAD">📚 Unread</option>
+              <option value="READING">📖 Reading</option>
+              <option value="READ">✅ Read</option>
+              <option value="DNF">❌ DNF</option>
+            </select>
+
             {/* Reset all */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
               <button
                 type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
                 className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
                 ✕ Clear
@@ -1022,15 +1037,18 @@ export default function CollectionPage() {
                                 if (rate) total -= Number(refund.amount) * rate
                               }
                             }
+                            const bookCount = pg._count?.bookEntries ?? 1
+                            const perBook = bookCount > 1 ? total / bookCount : total
                             const dc = user?.preferredCurrency
                             return (
                               <p className="text-[10px] text-stone-400">
-                                {total.toFixed(2)} {pgCur}
+                                {perBook.toFixed(2)} {pgCur}
+                                {bookCount > 1 && <span className="text-stone-600"> /book</span>}
                                 {dc && pgCur !== dc && (() => {
                                   const key = `${pgCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · ~{(total * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-stone-500"> · ~{(perBook * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )

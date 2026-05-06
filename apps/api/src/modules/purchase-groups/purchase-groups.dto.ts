@@ -32,6 +32,14 @@ export class CreatePurchaseGroupDto {
   @IsOptional()
   ownershipStatus?: string;
 
+  @IsBoolean()
+  @IsOptional()
+  isSecondHand?: boolean;
+
+  @IsString()
+  @IsOptional()
+  sourcePlatform?: string;
+
   /** Array of editionIds to add to collection as part of this bundle */
   @IsArray()
   @IsString({ each: true })
@@ -121,4 +129,12 @@ export class UpdatePurchaseGroupDto {
   @IsBoolean()
   @IsOptional()
   fromSubscription?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isSecondHand?: boolean;
+
+  @IsString()
+  @IsOptional()
+  sourcePlatform?: string;
 }

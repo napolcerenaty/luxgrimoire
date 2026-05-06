@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { PasswordStrength, passwordStrong } from '@/components/auth/PasswordStrength'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
@@ -16,10 +17,16 @@ function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const isPasswordStrong = useMemo(() => passwordStrong(password), [password])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
+    if (!isPasswordStrong) {
+      setError('Please choose a stronger password that meets all requirements.')
+      return
+    }
     if (password !== confirm) {
       setError('Passwords do not match.')
       return
@@ -74,6 +81,7 @@ function ResetPasswordForm() {
           placeholder="••••••••"
           className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
         />
+        <PasswordStrength password={password} />
       </div>
 
       <div>

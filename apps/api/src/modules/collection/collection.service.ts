@@ -178,7 +178,7 @@ export class CollectionService {
       if (!existing.isWishlist) throw new ConflictException('Edition already in your collection');
       return existing;
     }
-    return this.prisma.userBookEntry.create({
+    const created = await this.prisma.userBookEntry.create({
       data: {
         userId,
         bookId: edition.bookId,
@@ -188,6 +188,8 @@ export class CollectionService {
         readingStatus: 'UNREAD',
       },
     });
+    this.recordStatusChange(created.id, created.ownershipStatus);
+    return created;
   }
 
   async getEntriesByEditionId(userId: string, editionId: string) {
@@ -221,6 +223,8 @@ export class CollectionService {
               shippingAmount: true,
               purchasedAt: true,
               fromSubscription: true,
+              isSecondHand: true,
+              sourcePlatform: true,
               notes: true,
               saleAnnouncementId: true,
               fees: {
@@ -235,6 +239,7 @@ export class CollectionService {
                 select: { id: true, amount: true, currency: true, date: true, reason: true },
                 orderBy: { date: 'asc' },
               },
+              _count: { select: { bookEntries: true } },
             },
           },
         },

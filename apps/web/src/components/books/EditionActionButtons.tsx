@@ -114,7 +114,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const handleAddAsSet = async (bundle: { id: string; title: string }) => {
     setBundleFetching(true)
     try {
-      const ann = await authFetch<{ editions?: { editionId: string }[] }>(`/sale-announcements/${bundle.id}`)
+      const ann = await authFetch<{ editions?: { editionId: string }[] }>(`/announcements/${bundle.id}`)
       setSelectedBundle({ ...bundle, editionIds: ann.editions?.map(e => e.editionId) ?? [] } as any)
       setStep('form')
     } catch {
