@@ -275,27 +275,30 @@ export default function SpendingPage() {
               )}
             </div>
 
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
                 <Tag size={14} className="text-amber-400" />
                 <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">By Subscription</h2>
               </div>
               {stats.bySubscription.length === 0 ? (
                 <p className="text-stone-600 text-sm text-center py-8">No subscription data</p>
               ) : (
-                <div className="space-y-3">
-                  {stats.bySubscription.map((s) => {
+                <div className="divide-y divide-stone-800/50">
+                  {stats.bySubscription.map((s, i) => {
                     const pct = stats.totalAllTime > 0 ? (s.amount / stats.totalAllTime) * 100 : 0
+                    const maxAmt = stats.bySubscription[0]?.amount ?? 1
+                    const barPct = maxAmt > 0 ? (s.amount / maxAmt) * 100 : 0
                     return (
-                      <div key={s.slug} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone-300 font-medium">{s.name}</span>
-                          <span className="text-stone-400">
-                            {fmt(s.amount, currency)} <span className="text-stone-600">· {s.books} books</span>
-                          </span>
+                      <div key={s.slug} className="px-5 py-3.5 hover:bg-stone-800/30 transition-colors">
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <span className="text-xs text-stone-600 w-4 text-right font-mono shrink-0">{i + 1}</span>
+                          <span className="flex-1 text-sm font-medium text-stone-200 truncate">{s.name}</span>
+                          <span className="text-sm font-semibold text-amber-400 shrink-0">{fmt(s.amount, currency)}</span>
+                          <span className="text-xs text-stone-600 shrink-0">· {s.books}b</span>
+                          <span className="text-[10px] text-stone-500 w-8 text-right shrink-0">{pct.toFixed(0)}%</span>
                         </div>
-                        <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-amber-500/70 transition-all duration-500" style={{ width: `${pct}%` }} />
+                        <div className="ml-7 h-1 bg-stone-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-amber-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
                         </div>
                       </div>
                     )
@@ -307,24 +310,28 @@ export default function SpendingPage() {
 
           {/* Spending by company */}
           {stats.byCompany.length > 0 && (
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
                 <Tag size={14} className="text-amber-400" />
-                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">By Company</h2>
+                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending by Company</h2>
+                <span className="ml-auto text-[10px] text-stone-600 font-medium">{stats.byCompany.length} companies</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {stats.byCompany.map((c) => {
+              <div className="divide-y divide-stone-800/50">
+                {stats.byCompany.map((c, i) => {
                   const pct = stats.totalAllTime > 0 ? (c.amount / stats.totalAllTime) * 100 : 0
+                  const maxAmt = stats.byCompany[0]?.amount ?? 1
+                  const barPct = maxAmt > 0 ? (c.amount / maxAmt) * 100 : 0
                   return (
-                    <div key={c.slug} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-stone-300 font-medium">{c.name}</span>
-                        <span className="text-stone-400">
-                          {fmt(c.amount, currency)} <span className="text-stone-600">· {c.books} books</span>
-                        </span>
+                    <div key={c.slug} className="px-6 py-4 hover:bg-stone-800/30 transition-colors">
+                      <div className="flex items-center gap-4 mb-2">
+                        <span className="text-xs text-stone-600 w-5 text-right font-mono shrink-0">{i + 1}</span>
+                        <span className="flex-1 text-sm font-medium text-stone-200 truncate">{c.name}</span>
+                        <span className="text-sm font-semibold text-amber-400 shrink-0">{fmt(c.amount, currency)}</span>
+                        <span className="text-xs text-stone-600 shrink-0">· {c.books} book{c.books !== 1 ? 's' : ''}</span>
+                        <span className="text-[11px] text-stone-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
                       </div>
-                      <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-amber-500/60 transition-all duration-500" style={{ width: `${pct}%` }} />
+                      <div className="ml-9 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-amber-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
                       </div>
                     </div>
                   )
@@ -546,28 +553,32 @@ export default function SpendingPage() {
 
               {/* Sales by company */}
               {stats.salesByCompany.length > 0 && (
-                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
+                <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
                     <Tag size={14} className="text-green-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Sales by Company</h2>
+                    <span className="ml-auto text-[10px] text-stone-600 font-medium">{stats.salesByCompany.length} companies</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {stats.salesByCompany.map((c) => (
-                      <div key={c.slug} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone-300 font-medium">{c.name}</span>
-                          <span className="text-stone-400">
-                            {fmt(c.amount, currency)} <span className="text-stone-600">· {c.count} book{c.count !== 1 ? 's' : ''}</span>
-                          </span>
+                  <div className="divide-y divide-stone-800/50">
+                    {stats.salesByCompany.map((c, i) => {
+                      const pct = stats.totalSalesRevenue > 0 ? (c.amount / stats.totalSalesRevenue) * 100 : 0
+                      const maxAmt = stats.salesByCompany[0]?.amount ?? 1
+                      const barPct = maxAmt > 0 ? (c.amount / maxAmt) * 100 : 0
+                      return (
+                        <div key={c.slug} className="px-6 py-4 hover:bg-stone-800/30 transition-colors">
+                          <div className="flex items-center gap-4 mb-2">
+                            <span className="text-xs text-stone-600 w-5 text-right font-mono shrink-0">{i + 1}</span>
+                            <span className="flex-1 text-sm font-medium text-stone-200 truncate">{c.name}</span>
+                            <span className="text-sm font-semibold text-green-400 shrink-0">{fmt(c.amount, currency)}</span>
+                            <span className="text-xs text-stone-600 shrink-0">· {c.count} book{c.count !== 1 ? 's' : ''}</span>
+                            <span className="text-[11px] text-stone-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
+                          </div>
+                          <div className="ml-9 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full bg-green-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-green-500/60 transition-all duration-500"
-                            style={{ width: `${stats.totalSalesRevenue > 0 ? (c.amount / stats.totalSalesRevenue) * 100 : 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
