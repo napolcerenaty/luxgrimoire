@@ -491,6 +491,7 @@ export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
+  const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -652,6 +653,7 @@ export default function CollectionPage() {
       const entryTags = e.edition?.id ? (tagOverrides[e.edition.id] ?? e.tags) : e.tags
       if (!entryTags.includes(tagFilter)) return false
     }
+    if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!e.acquiredAt
     return true
@@ -814,11 +816,24 @@ export default function CollectionPage() {
               </select>
             )}
 
+            {/* Reading status filter */}
+            <select
+              value={readingFilter}
+              onChange={e => setReadingFilter(e.target.value as typeof readingFilter)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-green-400 transition-colors cursor-pointer ${readingFilter !== 'ALL' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Read: Any</option>
+              <option value="UNREAD">📚 Unread</option>
+              <option value="READING">📖 Reading</option>
+              <option value="READ">✅ Read</option>
+              <option value="DNF">❌ DNF</option>
+            </select>
+
             {/* Reset all */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
               <button
                 type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
                 className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
                 ✕ Clear
