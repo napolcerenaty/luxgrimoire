@@ -11,7 +11,7 @@ import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/Ad
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -23,6 +23,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const [showPurchase, setShowPurchase] = useState(false)
   const { isInterested, tier, regionId } = useSaleInterest(sale?.id ?? null)
   const saleOpen = sale ? isOpenForPurchase(sale, regionId) : false
+  const salePast = sale ? isSalePast(sale, regionId) : false
 
   // Close on Escape
   useEffect(() => {
@@ -120,16 +121,28 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                 View full page <ExternalLink size={11} />
               </Link>
               <div className="mt-3 flex items-center gap-2">
-                <SaleInterestButton sale={sale} />
-                {isInterested && saleOpen && (
-                  <button
-                    type="button"
-                    onClick={() => setShowPurchase(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-600 text-xs font-medium transition-colors"
-                  >
-                    <ShoppingBag size={13} />
-                    Confirm Purchase
-                  </button>
+                {salePast ? (
+                  <AddToCollectionButton
+                    saleAnnouncementId={sale.id}
+                    editionIds={allEditionIds}
+                    basePrice={sale.basePrice ?? undefined}
+                    currency={sale.currency ?? 'USD'}
+                    compact
+                  />
+                ) : (
+                  <>
+                    <SaleInterestButton sale={sale} />
+                    {isInterested && saleOpen && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPurchase(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-600 text-xs font-medium transition-colors"
+                      >
+                        <ShoppingBag size={13} />
+                        Confirm Purchase
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -157,18 +170,6 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               <span className="text-stone-500">Expected shipping: </span>
               <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
             </p>
-          )}
-
-          {/* Add to collection */}
-          {sale.availableForPurchase && allEditionIds.length > 0 && (
-            <div className="mb-5">
-              <AddToCollectionButton
-                saleAnnouncementId={sale.id}
-                editionIds={allEditionIds}
-                basePrice={sale.basePrice ?? undefined}
-                currency={sale.currency ?? 'USD'}
-              />
-            </div>
           )}
 
           {/* Editions grid */}

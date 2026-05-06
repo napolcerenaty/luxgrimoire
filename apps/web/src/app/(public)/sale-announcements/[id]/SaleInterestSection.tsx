@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { ShoppingBag } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
+import { AddToCollectionButton } from './AddToCollectionButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -17,6 +18,22 @@ export function SaleInterestSection({ sale }: Props) {
   const [showPurchase, setShowPurchase] = useState(false)
 
   const saleOpen = isOpenForPurchase(sale, regionId)
+  const salePast = isSalePast(sale, regionId)
+
+  const allEditionIds = (sale.editions ?? []).map(e => e.editionId)
+
+  if (salePast) {
+    return (
+      <div className="mt-4">
+        <AddToCollectionButton
+          saleAnnouncementId={sale.id}
+          editionIds={allEditionIds}
+          basePrice={sale.basePrice ?? undefined}
+          currency={sale.currency ?? 'USD'}
+        />
+      </div>
+    )
+  }
 
   return (
     <>
