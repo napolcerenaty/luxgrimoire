@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
-import type { ApiBook, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { BackButton } from '@/components/ui/BackButton'
 import { EditionCard } from '@/components/books/EditionCard'
 
@@ -15,14 +15,17 @@ interface Props {
 interface RawEdition {
   id: string
   slug: string
-  editionName: string | null
   additionalImages: string[]
-  bookBoxCompanyCustomName: string | null
   bookBoxCompany: { name: string; slug: string } | null
   verifiedAt: string | null
+  generalSaleDate: string | null
 }
 
-interface RawBook extends Omit<ApiBook, 'authors' | 'editions'> {
+interface RawBook {
+  id: string
+  slug: string
+  title: string
+  volumeNumber: number | null
   authors: { author: { id: string; name: string; slug: string } }[]
   editions?: RawEdition[]
 }
@@ -114,19 +117,16 @@ function SeriesBookSection({ book }: { book: RawBook }) {
       {editions.length === 0 ? (
         <p className="text-stone-600 text-sm italic">No verified editions yet.</p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {editions.map((edition) => (
             <EditionCard
               key={edition.id}
               href={`/editions/${edition.slug}`}
               coverImage={edition.additionalImages?.[0] ?? null}
-              companyName={edition.bookBoxCompanyCustomName ?? edition.bookBoxCompany?.name ?? 'Unknown'}
-              companySlug={edition.bookBoxCompany?.slug ?? null}
-              title={book.title}
-              seriesName={book.seriesName}
-              volumeNumber={book.volumeNumber}
-              authors={book.authors.map((ba) => ({ name: ba.author.name }))}
+              companyName={edition.bookBoxCompany?.name}
+              companySlug={edition.bookBoxCompany?.slug}
               unverified={!edition.verifiedAt}
+              generalSaleDate={edition.generalSaleDate}
             />
           ))}
         </div>
