@@ -36,7 +36,7 @@ interface SaleInterest {
     id: string
     title: string
     imageUrl: string | null
-    basePrice: number | null
+    basePrice: string | null
     currency: string | null
     firstAccessDate: string | null
     earlyAccessDate: string | null
@@ -279,8 +279,10 @@ export default function CalendarPage() {
       const { basePrice, currency } = i.announcement
       if (basePrice == null || !currency) continue
       const key = currency.toUpperCase()
+      const price = parseFloat(String(basePrice))
+      if (isNaN(price)) continue
       if (!byCurrency[key]) byCurrency[key] = { total: 0, names: [] }
-      byCurrency[key].total += basePrice
+      byCurrency[key].total += price
       byCurrency[key].names.push(i.announcement.title)
     }
     return byCurrency
