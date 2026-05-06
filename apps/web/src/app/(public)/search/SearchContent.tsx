@@ -4,10 +4,9 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Loader2, PlusCircle, ChevronDown, Megaphone } from 'lucide-react'
+import { Search, Loader2, Megaphone } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
-import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
@@ -40,7 +39,6 @@ export function SearchContent() {
   const [results, setResults] = useState<ApiSearchResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<SearchTab>(filterParam)
-  const [showAddForm, setShowAddForm] = useState(false)
 
   const doSearch = useCallback(
     debounce(async (searchQuery: string, tab: SearchTab) => {
@@ -136,16 +134,15 @@ export function SearchContent() {
             <div className="py-10 space-y-5">
               <div className="text-center">
                 <p className="text-stone-300 text-lg mb-1">Didn&apos;t find what you&apos;re looking for?</p>
-                <p className="text-stone-500 text-sm">Help us grow the database — add missing books, editions or subscription boxes.</p>
+                <p className="text-stone-500 text-sm">Send us a data request and we&apos;ll add it to the database.</p>
               </div>
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                <button
-                  onClick={() => setShowAddForm(v => !v)}
+                <Link
+                  href="/data-requests"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-700 hover:bg-amber-600 text-stone-950 font-semibold rounded-full text-sm transition-colors"
                 >
-                  <PlusCircle size={15} /> Add book &amp; edition
-                  <ChevronDown size={13} className={`transition-transform ${showAddForm ? 'rotate-180' : ''}`} />
-                </button>
+                  Request missing data
+                </Link>
                 <Link
                   href="/sale-announcement-requests"
                   className="inline-flex items-center gap-2 px-5 py-2.5 border border-stone-700 hover:border-stone-500 text-stone-300 hover:text-stone-100 rounded-full text-sm transition-colors"
@@ -153,14 +150,6 @@ export function SearchContent() {
                   <span>📣</span> Report a sale
                 </Link>
               </div>
-              {showAddForm && (
-                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 mt-2">
-                  <CreateBookEditionForm
-                    onSuccess={() => { setShowAddForm(false); router.push('/data-requests') }}
-                    onCancel={() => setShowAddForm(false)}
-                  />
-                </div>
-              )}
             </div>
           )}
 
