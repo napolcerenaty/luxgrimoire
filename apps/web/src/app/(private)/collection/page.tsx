@@ -1022,15 +1022,18 @@ export default function CollectionPage() {
                                 if (rate) total -= Number(refund.amount) * rate
                               }
                             }
+                            const bookCount = pg._count?.bookEntries ?? 1
+                            const perBook = bookCount > 1 ? total / bookCount : total
                             const dc = user?.preferredCurrency
                             return (
                               <p className="text-[10px] text-stone-400">
-                                {total.toFixed(2)} {pgCur}
+                                {perBook.toFixed(2)} {pgCur}
+                                {bookCount > 1 && <span className="text-stone-600"> /book</span>}
                                 {dc && pgCur !== dc && (() => {
                                   const key = `${pgCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · ~{(total * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-stone-500"> · ~{(perBook * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )
