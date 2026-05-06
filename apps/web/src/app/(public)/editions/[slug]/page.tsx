@@ -229,7 +229,7 @@ export default async function EditionPage({ params }: Props) {
             <div>
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm text-stone-500 mb-4 flex-wrap">
-                <Link href="/books" className="hover:text-amber-400 transition-colors">Books</Link>
+                <span className="text-stone-500">Books</span>
                 <span>›</span>
                 {book && (
                   <>
@@ -245,7 +245,7 @@ export default async function EditionPage({ params }: Props) {
               {/* Series */}
               {book?.seriesName && (
                 <Link
-                  href={`/search?q=${encodeURIComponent(book.seriesName)}&filter=books`}
+                  href={`/series/${encodeURIComponent(book.seriesName)}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}
