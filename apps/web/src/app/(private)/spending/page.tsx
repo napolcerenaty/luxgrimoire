@@ -24,6 +24,7 @@ interface ComprehensiveStats {
   byYear: Array<{ year: number; amount: number }>
   byMonth: Array<{ month: string; amount: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
+  byCompany: Array<{ name: string; slug: string; amount: number; books: number }>
   topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
@@ -32,6 +33,7 @@ interface ComprehensiveStats {
   totalSalesProfit: number | null
   totalBooksSold: number
   salesByPlatform: Array<{ platform: string; amount: number; count: number }>
+  salesByCompany: Array<{ name: string; slug: string; amount: number; count: number }>
   salesByMonth: Array<{ month: string; amount: number }>
 }
 
@@ -303,6 +305,34 @@ export default function SpendingPage() {
             </div>
           </div>
 
+          {/* Spending by company */}
+          {stats.byCompany.length > 0 && (
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Tag size={14} className="text-amber-400" />
+                <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">By Company</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {stats.byCompany.map((c) => {
+                  const pct = stats.totalAllTime > 0 ? (c.amount / stats.totalAllTime) * 100 : 0
+                  return (
+                    <div key={c.slug} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-stone-300 font-medium">{c.name}</span>
+                        <span className="text-stone-400">
+                          {fmt(c.amount, currency)} <span className="text-stone-600">· {c.books} books</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-amber-500/60 transition-all duration-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Top 10 most expensive + sale prices side by side */}
           {stats.topExpensive.length > 0 && (
             <div className={`grid gap-4 ${stats.topSalePrice.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
@@ -468,7 +498,7 @@ export default function SpendingPage() {
                 />
               </div>
 
-              {/* Spending vs Sales dual chart + Platform breakdown */}
+              {/* Spending vs Sales dual chart + Platform breakdown + Company breakdown */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -513,6 +543,34 @@ export default function SpendingPage() {
                   )}
                 </div>
               </div>
+
+              {/* Sales by company */}
+              {stats.salesByCompany.length > 0 && (
+                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Tag size={14} className="text-green-400" />
+                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Sales by Company</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {stats.salesByCompany.map((c) => (
+                      <div key={c.slug} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-stone-300 font-medium">{c.name}</span>
+                          <span className="text-stone-400">
+                            {fmt(c.amount, currency)} <span className="text-stone-600">· {c.count} book{c.count !== 1 ? 's' : ''}</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-green-500/60 transition-all duration-500"
+                            style={{ width: `${stats.totalSalesRevenue > 0 ? (c.amount / stats.totalSalesRevenue) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </>

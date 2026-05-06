@@ -140,7 +140,7 @@ export class SpendingService {
             },
           },
           subscriptionEntry: {
-            include: { subscription: { select: { name: true, slug: true } } },
+            include: { subscription: { select: { name: true, slug: true, company: { select: { id: true, name: true, slug: true } } } } },
           },
           edition: {
             include: {
@@ -151,6 +151,7 @@ export class SpendingService {
                   authors: { include: { author: { select: { name: true } } } },
                 },
               },
+              bookBoxCompany: { select: { id: true, name: true, slug: true } },
             },
           },
         },
@@ -158,7 +159,26 @@ export class SpendingService {
       this.prisma.userSaleGroup.findMany({
         where: { userId },
         include: {
-          entries: { select: { id: true } },
+          entries: {
+            include: {
+              userBookEntry: {
+                include: {
+                  edition: {
+                    include: {
+                      bookBoxCompany: { select: { id: true, name: true, slug: true } },
+                    },
+                  },
+                  subscriptionEntry: {
+                    include: {
+                      subscription: {
+                        select: { company: { select: { id: true, name: true, slug: true } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       }),
     ]);
@@ -195,6 +215,7 @@ export class SpendingService {
     const byYearMap: Record<number, number> = {};
     const byMonthMap: Record<string, number> = {};
     const bySubMap: Record<string, { name: string; slug: string; amount: number; books: number }> = {};
+    const byCompanyMap: Record<string, { name: string; slug: string; amount: number; books: number }> = {};
     const topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
     const topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
     const topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
@@ -268,6 +289,13 @@ export class SpendingService {
         bySubMap[sub.slug].books++;
       }
 
+      const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
+      if (company) {
+        if (!byCompanyMap[company.id]) byCompanyMap[company.id] = { name: company.name, slug: company.slug, amount: 0, books: 0 };
+        byCompanyMap[company.id].amount += entryTotal;
+        byCompanyMap[company.id].books++;
+      }
+
       const bookTitle = entry.edition?.book?.title ?? 'Unknown';
       const bookAuthor = entry.edition?.book?.authors?.[0]?.author?.name ?? '';
       const editionSlug = entry.edition?.slug ?? null;
@@ -323,6 +351,7 @@ export class SpendingService {
 
     const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
     const salesByMonthMap: Record<string, number> = {};
+    const salesByCompanyMap: Record<string, { name: string; slug: string; amount: number; count: number }> = {};
 
     for (const group of saleGroups) {
       const soldDate = new Date(group.soldAt);
@@ -334,6 +363,18 @@ export class SpendingService {
       if (!salesByPlatformMap[platform]) salesByPlatformMap[platform] = { platform, amount: 0, count: 0 };
       salesByPlatformMap[platform].amount += revenue;
       salesByPlatformMap[platform].count += group.entries.length;
+
+      // Sales by company — use allocatedAmount per entry for accurate split
+      for (const saleEntry of group.entries) {
+        const entryRevenue = await convert(Number(saleEntry.allocatedAmount), group.currency, soldDate);
+        const ube = saleEntry.userBookEntry;
+        const co = ube?.edition?.bookBoxCompany ?? ube?.subscriptionEntry?.subscription?.company ?? null;
+        if (co) {
+          if (!salesByCompanyMap[co.id]) salesByCompanyMap[co.id] = { name: co.name, slug: co.slug, amount: 0, count: 0 };
+          salesByCompanyMap[co.id].amount += entryRevenue;
+          salesByCompanyMap[co.id].count++;
+        }
+      }
 
       const soldYear = soldDate.getFullYear();
       const soldMonth = soldDate.getMonth() + 1;
@@ -369,6 +410,9 @@ export class SpendingService {
       bySubscription: Object.values(bySubMap)
         .map((s) => ({ ...s, amount: Math.round(s.amount * 100) / 100 }))
         .sort((a, b) => b.amount - a.amount),
+      byCompany: Object.values(byCompanyMap)
+        .map((c) => ({ ...c, amount: Math.round(c.amount * 100) / 100 }))
+        .sort((a, b) => b.amount - a.amount),
       topExpensive: top10,
       topSalePrice: top10SalePrice,
       topProfit: top10Profit,
@@ -378,6 +422,9 @@ export class SpendingService {
       totalBooksSold,
       salesByPlatform: Object.values(salesByPlatformMap)
         .map((p) => ({ ...p, amount: Math.round(p.amount * 100) / 100 }))
+        .sort((a, b) => b.amount - a.amount),
+      salesByCompany: Object.values(salesByCompanyMap)
+        .map((c) => ({ ...c, amount: Math.round(c.amount * 100) / 100 }))
         .sort((a, b) => b.amount - a.amount),
       salesByMonth,
     };
