@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
 export type SaleTier = 'FA' | 'EA' | 'GS'
@@ -30,6 +31,7 @@ function subscribe(id: string, fn: Listener) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useSaleInterest(announcementId: string | null) {
+  const queryClient = useQueryClient()
   const [state, setState] = useState<CachedState & { loading: boolean }>({
     isInterested: false,
     tier: null,
@@ -76,16 +78,18 @@ export function useSaleInterest(announcementId: string | null) {
         method: 'POST',
         body: JSON.stringify({ tier, regionId: regionId ?? null }),
       })
+      queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
     } catch {
       broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
     }
-  }, [announcementId])
+  }, [announcementId, queryClient])
 
   const removeInterest = useCallback(async () => {
     if (!announcementId) return
     broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
     try {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
+      queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
     } catch {
       // rollback — refetch to get real state
       authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`).then(data => {
@@ -95,7 +99,7 @@ export function useSaleInterest(announcementId: string | null) {
         broadcast(announcementId, next)
       }).catch(() => {})
     }
-  }, [announcementId])
+  }, [announcementId, queryClient])
 
   return { ...state, setInterest, removeInterest }
 }
