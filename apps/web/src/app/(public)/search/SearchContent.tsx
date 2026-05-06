@@ -295,7 +295,7 @@ export function SearchContent() {
               <div className="space-y-2">
                 {results.sales!.map((sale) => {
                   const isPast = sale.generalSaleDate && new Date(sale.generalSaleDate) < new Date()
-                  const saleImage = sale.imageUrl ?? sale.company?.logoUrl ?? null
+                  const saleImage = cloudinaryUrl(sale.imageUrl) ?? cloudinaryUrl(sale.company?.logoUrl) ?? null
                   return (
                     <Link key={sale.id} href={`/sale-announcements/${sale.id}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-10 rounded bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">

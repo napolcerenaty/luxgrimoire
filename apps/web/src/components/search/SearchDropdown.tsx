@@ -187,7 +187,7 @@ export function SearchDropdown() {
                   key: s.id,
                   label: s.name,
                   sub: s.company?.name,
-                  image: s.company?.logoUrl,
+                  image: cloudinaryUrl(s.company?.logoUrl),
                   href: `/subscriptions/${s.slug}`,
                 }))}
                 onNavigate={(href) => { setOpen(false); router.push(href) }}
@@ -200,7 +200,7 @@ export function SearchDropdown() {
                   key: c.id,
                   label: c.name,
                   sub: c.country,
-                  image: c.logoUrl,
+                  image: cloudinaryUrl(c.logoUrl),
                   href: `/companies/${c.slug}`,
                 }))}
                 onNavigate={(href) => { setOpen(false); router.push(href) }}
@@ -213,7 +213,7 @@ export function SearchDropdown() {
                   key: s.id,
                   label: s.title,
                   sub: s.company?.name,
-                  image: s.imageUrl ?? s.company?.logoUrl,
+                  image: cloudinaryUrl(s.imageUrl) ?? cloudinaryUrl(s.company?.logoUrl),
                   badge: s.availableForPurchase ? 'Live' : null,
                   href: `/sale-announcements/${s.id}`,
                 }))}
