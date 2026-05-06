@@ -3,12 +3,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
 import { BackButton } from '@/components/ui/BackButton'
+import { CommunityImageSection } from '@/components/editions/CommunityImageSection'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -68,6 +70,15 @@ interface EditionDetail {
 
 interface Props { params: Promise<{ slug: string }> }
 
+interface CommunityImage {
+  id: string
+  url: string
+  sortOrder: number
+  instagramHandle: string | null
+  status: 'PENDING' | 'APPROVED'
+  user: { username: string }
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | null | undefined) {
@@ -112,6 +123,22 @@ export default async function EditionPage({ params }: Props) {
   } catch {
     notFound()
   }
+
+  // Fetch community images when edition has no official images
+  const hasOfficialImages = Array.isArray(edition.additionalImages) && edition.additionalImages.length > 0
+  let communityImages: CommunityImage[] = []
+  if (!hasOfficialImages) {
+    try {
+      communityImages = await apiFetch<CommunityImage[]>(`/editions/${slug}/community-images`)
+    } catch {
+      // Non-fatal — show empty section
+    }
+  }
+
+  // Check if user is authenticated (cookie-based)
+  const cookieStore = await cookies()
+  const JWT_COOKIE = process.env.JWT_COOKIE_NAME ?? 'luxgrimoire_auth'
+  const isAuthenticated = Boolean(cookieStore.get(JWT_COOKIE)?.value)
 
   const book = edition.book
   const features = Array.isArray(edition.features) ? edition.features : []
@@ -172,11 +199,11 @@ export default async function EditionPage({ params }: Props) {
               {allImages.length > 0 ? (
                 <ImageCarousel images={allImages} alt={book?.title ?? 'Edition'} />
               ) : (
-                <div className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 flex items-center justify-center text-stone-600 ring-1 ring-stone-700/50">
-                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
+                <CommunityImageSection
+                  editionSlug={slug}
+                  initialImages={communityImages}
+                  isAuthenticated={isAuthenticated}
+                />
               )}
 
               {/* Photo credit */}
@@ -218,7 +245,7 @@ export default async function EditionPage({ params }: Props) {
               {/* Series */}
               {book?.seriesName && (
                 <Link
-                  href={`/books?series=${encodeURIComponent(book.seriesName)}`}
+                  href={`/search?q=${encodeURIComponent(book.seriesName)}&filter=books`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}

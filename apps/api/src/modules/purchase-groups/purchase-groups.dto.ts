@@ -28,6 +28,10 @@ export class CreatePurchaseGroupDto {
   @IsOptional()
   notes?: string;
 
+  @IsString()
+  @IsOptional()
+  ownershipStatus?: string;
+
   /** Array of editionIds to add to collection as part of this bundle */
   @IsArray()
   @IsString({ each: true })

@@ -365,7 +365,7 @@ export default function CreateBookEditionForm({
           subscriptionId: subscriptionId || undefined,
           publisher: publisher.trim() || undefined,
           photoCredit: photoCredit.trim() || undefined,
-          basePrice: price ? Number(price) : undefined,
+          basePrice: price ? Number(price.replace(',', '.')) : undefined,
           currency: currency || undefined,
           language: language || undefined,
           firstAccessDate: firstAccessDate || undefined,

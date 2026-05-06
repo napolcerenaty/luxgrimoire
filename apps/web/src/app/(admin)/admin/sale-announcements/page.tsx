@@ -288,7 +288,7 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
@@ -297,7 +297,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   defaultGeneralSaleDate?: string | null
   defaultPrice?: number | null
   defaultCurrency?: string | null
-}) {
+  defaultCompanyId?: string | null
+}){
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -371,6 +372,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultGeneralSaleDate={defaultGeneralSaleDate}
           defaultPrice={defaultPrice}
           defaultCurrency={defaultCurrency}
+          defaultCompanyId={defaultCompanyId}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -763,6 +765,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
               defaultGeneralSaleDate={form.generalSaleDate ? form.generalSaleDate.slice(0, 10) : null}
               defaultPrice={form.basePrice ? Number(form.basePrice) : null}
               defaultCurrency={form.currency || null}
+              defaultCompanyId={form.companyId || null}
             />
           </div>
         )}
@@ -1198,6 +1201,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 defaultGeneralSaleDate={defaultGeneralSaleDate}
                 defaultPrice={announcement.basePrice ?? null}
                 defaultCurrency={announcement.currency ?? null}
+                defaultCompanyId={announcement.companyId ?? null}
               />
               <button
                 type="button"

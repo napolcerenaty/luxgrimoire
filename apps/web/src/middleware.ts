@@ -42,10 +42,17 @@ const ADMIN_ROLES = ['ADMIN', 'MODERATOR']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Always allow: maintenance page itself, admin routes, API, static files
+  // Always allow: maintenance page itself, admin routes, auth routes, API, static files
   if (
     pathname.startsWith('/maintenance') ||
     pathname.startsWith('/admin') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/verify-email') ||
+    pathname.startsWith('/callback') ||
+    pathname.startsWith('/consent') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||

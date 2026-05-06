@@ -5,7 +5,6 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
-import { AddToCollectionButton } from './AddToCollectionButton'
 import SaleDateSelector from './SaleDateSelector'
 import { SaleInterestSection } from './SaleInterestSection'
 
@@ -96,17 +95,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             />
           </div>
 
-          {/* Add to collection button */}
-          {sale.availableForPurchase && (
-            <AddToCollectionButton
-              saleAnnouncementId={sale.id}
-              editionIds={allEditionIds}
-              basePrice={sale.basePrice ?? undefined}
-              currency={sale.currency ?? 'USD'}
-            />
-          )}
-
-          {/* Interest / preorder */}
+          {/* Interest / preorder / add to collection */}
           <SaleInterestSection sale={sale} />
         </div>
       </div>

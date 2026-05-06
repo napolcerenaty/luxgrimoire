@@ -47,9 +47,18 @@ export function formatTierDate(isoDate: string | null | undefined): string | nul
 }
 
 /**
- * Returns true when the sale is open for purchase for the given user.
- * A sale is considered open when the earliest available date (FA → EA → GS) is in the past.
+ * Returns true when the latest sale tier date (GS → EA → FA) is in the past.
+ * Used to switch from "Interested?" to "Add to Collection".
  */
+export function isSalePast(
+  sale: ApiSaleAnnouncement,
+  regionId?: string | null,
+): boolean {
+  const { FA, EA, GS } = resolveSaleDates(sale, regionId)
+  const latest = GS ?? EA ?? FA
+  if (!latest) return false
+  return Date.now() > new Date(latest).getTime()
+}
 export function isOpenForPurchase(
   sale: ApiSaleAnnouncement,
   regionId?: string | null,

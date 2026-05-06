@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
-import { AddEditionModal } from '@/components/books/AddEditionModal'
 import { BookDescription } from '@/components/books/BookDescription'
 import { BookEditionsSection } from '@/components/books/BookEditionsSection'
 import { BookBundleInfo } from '@/components/books/BookBundleInfo'
@@ -64,7 +63,7 @@ export default async function BookPage({ params }: Props) {
       <div className="mb-10">
         {book.seriesName && (
           <Link
-            href={`/books?series=${encodeURIComponent(book.seriesName)}`}
+            href={`/search?q=${encodeURIComponent(book.seriesName)}&filter=books`}
             className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
           >
             {book.seriesName}
@@ -114,7 +113,6 @@ export default async function BookPage({ params }: Props) {
               <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
             )}
           </h2>
-          <AddEditionModal bookId={book.id} />
         </div>
         <BookEditionsSection editions={editions} />
       </section>

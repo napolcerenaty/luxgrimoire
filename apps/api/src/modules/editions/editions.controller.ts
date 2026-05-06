@@ -18,6 +18,8 @@ import {
   AddArtistDto,
   EditionQueryDto,
 } from './editions.dto';
+import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
+import { UserEditionImagesService } from './user-edition-images.service';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -35,6 +37,7 @@ export class EditionsController {
     private readonly editionsService: EditionsService,
     private readonly auditService: AuditService,
     private readonly analyticsService: AnalyticsService,
+    private readonly userImagesService: UserEditionImagesService,
   ) {}
 
   @Public()
@@ -136,5 +139,23 @@ export class EditionsController {
   @Delete(':slug/artists/:artistId')
   removeArtist(@Param('slug') slug: string, @Param('artistId') artistId: string) {
     return this.editionsService.removeArtist(slug, artistId);
+  }
+
+  // Community images
+  @Public()
+  @Get(':slug/community-images')
+  getCommunityImages(@Param('slug') slug: string) {
+    return this.userImagesService.getPublicImages(slug);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':slug/community-images')
+  submitCommunityImages(
+    @Param('slug') slug: string,
+    @Body() dto: SubmitUserEditionImagesDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.userImagesService.submitImages(slug, user.id, dto);
   }
 }

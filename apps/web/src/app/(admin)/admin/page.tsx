@@ -218,6 +218,7 @@ export default function AdminDashboard() {
     mutationFn: (enabled: boolean) =>
       authFetch('/admin/maintenance', { method: 'PUT', body: JSON.stringify({ enabled }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'maintenance'] }),
+    onError: (err: unknown) => alert(`Failed to toggle maintenance: ${err instanceof Error ? err.message : String(err)}`),
   })
 
   const { data: pendingData, isLoading: pendingLoading } = useQuery({

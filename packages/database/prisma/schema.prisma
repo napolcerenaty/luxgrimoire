@@ -32,6 +32,7 @@ model User {
   accounts                 Account[]
   auditLogs                AuditLog[]
   submittedEditions        BookEdition[]               @relation("SubmittedEditions")
+  communityImages          UserEditionImage[]
   purchases                PurchaseTransaction[]
   sessions                 Session[]
   waitlistEntries          SubscriptionWaitlistEntry[]
@@ -238,6 +239,7 @@ model BookEdition {
   monthBooks               SubscriptionMonthBook[]
   userEntries              UserBookEntry[]
   tags                     UserEditionTag[]
+  communityImages          UserEditionImage[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -1246,4 +1248,32 @@ model PendingMonthImport {
   @@index([status])
   @@index([subscriptionId, year, month])
   @@map("pending_month_imports")
+}
+
+enum UserImageStatus {
+  PENDING
+  APPROVED
+  REMOVED
+}
+
+model UserEditionImage {
+  id              String          @id @default(cuid())
+  editionId       String
+  userId          String
+  cloudinaryId    String          // Cloudinary public_id (used for deletion)
+  url             String          // Cloudinary secure_url
+  sortOrder       Int             @default(0)
+  instagramHandle String?         // normalized handle without @
+  consentGiven    Boolean
+  consentedAt     DateTime
+  status          UserImageStatus @default(PENDING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  edition         BookEdition     @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([editionId, status])
+  @@index([userId])
+  @@index([status])
+  @@map("user_edition_images")
 }

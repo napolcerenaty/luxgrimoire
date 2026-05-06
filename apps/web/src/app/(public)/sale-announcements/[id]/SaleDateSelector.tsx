@@ -64,7 +64,7 @@ function useCountdown(target: string | null | undefined) {
 
 function Countdown({ ms }: { ms: number | null }) {
   if (ms === null) return null
-  if (ms <= 0) return <span className="text-green-400 font-semibold">Open now!</span>
+  if (ms <= 0) return null
 
   const days = Math.floor(ms / 86400000)
   const hours = Math.floor((ms % 86400000) / 3600000)
