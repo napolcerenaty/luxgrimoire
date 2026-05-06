@@ -21,7 +21,12 @@ export class CurrencyService {
 
     const from = fromCurrency.toUpperCase();
     const to = toCurrency.toUpperCase();
-    const dateStr = date.toISOString().slice(0, 10);
+
+    // Cap future dates to today — ECB/Frankfurter doesn't publish future rates
+    const today = new Date();
+    const effectiveDate = date > today ? today : date;
+
+    const dateStr = effectiveDate.toISOString().slice(0, 10);
     const targetDate = new Date(dateStr + 'T00:00:00.000Z');
     const cacheKey = `${from}:${to}:${dateStr}`;
 
