@@ -264,8 +264,8 @@ function AddSaleForm({
         {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
       </div>
 
-      {/* Price distribution */}
-      {count > 0 && total > 0 && (
+      {/* Price distribution — only relevant for multi-book sales */}
+      {count > 1 && total > 0 && (
         <div>
           <label className={LBL}>Price split</label>
           <div className="flex gap-2">
