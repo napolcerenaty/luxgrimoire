@@ -697,18 +697,20 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
     : null
   const hasBreakdown = pgShipping !== null || pgFeesTotal > 0 || pgDiscountsTotal > 0 || pgRefundsTotal > 0
 
-  // For P/L — use grandTotal (base + shipping + fees - discounts - refunds), converted to sale currency
+  // For P/L — use grandTotal per book (divide by set size), converted to sale currency
   const saleCur = entry.saleCurrency ?? pg?.currency ?? null
   const pgCur = pg?.currency ?? null
+  const pgBookCount = pg?._count?.bookEntries ?? 1
+  const costPerBook = grandTotal !== null ? grandTotal / Math.max(pgBookCount, 1) : null
   let costForPL: number | null = null
-  if (grandTotal !== null && pgCur) {
+  if (costPerBook !== null && pgCur) {
     if (!saleCur || saleCur === pgCur) {
-      costForPL = grandTotal
+      costForPL = costPerBook
     } else {
-      // convert grandTotal from purchase currency to sale currency using purchase date
+      // convert costPerBook from purchase currency to sale currency using purchase date
       const rateKey = `${pgCur}:${saleCur}:${pgDate}`
       const rate = rates[rateKey]
-      costForPL = rate ? grandTotal * rate : null
+      costForPL = rate ? costPerBook * rate : null
     }
   }
   const profit = entry.salePrice && costForPL !== null
