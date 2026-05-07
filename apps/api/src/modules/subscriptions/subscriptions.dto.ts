@@ -261,6 +261,37 @@ export class CreatePrepayOptionDto {
   @IsOptional()
   @IsString()
   label?: string;
+
+  @IsOptional()
+  @IsDateString()
+  validFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string;
+}
+
+export class UpdatePrepayOptionDto {
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  months?: number;
+
+  @IsOptional()
+  @IsString()
+  price?: string;
+
+  @IsOptional()
+  @IsString()
+  label?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  validFrom?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string | null;
 }
 
 export class CreateMonthDto {

@@ -23,6 +23,8 @@ import {
   BackfillBillingBatchDto,
   CreatePriceChangeDto,
   UpdateBillingModeDto,
+  CreatePrepayOptionDto,
+  UpdatePrepayOptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
@@ -211,6 +213,7 @@ export class SubscriptionsService {
       include: {
         company: true,
         skipPolicy: true,
+        prepayOptions: { orderBy: { months: 'asc' } },
         comboComponents: {
           include: {
             component: {
@@ -2086,5 +2089,60 @@ export class SubscriptionsService {
     } catch (err) {
       this.logger.error(`Failed to index subscription ${subscriptionId}`, err);
     }
+  }
+
+  // ── Prepay Options CRUD ──────────────────────────────────────────────────────
+
+  async getPrepayOptions(slug: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug } });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    return this.prisma.subscriptionPrepayOption.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: { months: 'asc' },
+    });
+  }
+
+  async createPrepayOption(slug: string, dto: CreatePrepayOptionDto) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug } });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    return this.prisma.subscriptionPrepayOption.create({
+      data: {
+        subscriptionId: sub.id,
+        months: dto.months,
+        price: dto.price,
+        label: dto.label ?? null,
+        validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
+        validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
+      },
+    });
+  }
+
+  async updatePrepayOption(slug: string, id: string, dto: UpdatePrepayOptionDto) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug } });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    const existing = await this.prisma.subscriptionPrepayOption.findUnique({ where: { id } });
+    if (!existing || existing.subscriptionId !== sub.id) {
+      throw new NotFoundException(`Prepay option '${id}' not found for subscription '${slug}'`);
+    }
+    return this.prisma.subscriptionPrepayOption.update({
+      where: { id },
+      data: {
+        ...(dto.months !== undefined && { months: dto.months }),
+        ...(dto.price !== undefined && { price: dto.price }),
+        ...(dto.label !== undefined && { label: dto.label ?? null }),
+        ...(dto.validFrom !== undefined && { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }),
+        ...(dto.validUntil !== undefined && { validUntil: dto.validUntil ? new Date(dto.validUntil) : null }),
+      },
+    });
+  }
+
+  async deletePrepayOption(slug: string, id: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug } });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    const existing = await this.prisma.subscriptionPrepayOption.findUnique({ where: { id } });
+    if (!existing || existing.subscriptionId !== sub.id) {
+      throw new NotFoundException(`Prepay option '${id}' not found for subscription '${slug}'`);
+    }
+    return this.prisma.subscriptionPrepayOption.delete({ where: { id } });
   }
 }

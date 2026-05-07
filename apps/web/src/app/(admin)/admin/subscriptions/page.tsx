@@ -565,6 +565,211 @@ function SubscriptionForm({
   )
 }
 
+// ─── Prepay Options Panel ─────────────────────────────────────────────────────
+
+interface PrepayOption {
+  id: string
+  months: number
+  price: string
+  label: string | null
+  validFrom: string | null
+  validUntil: string | null
+}
+
+function PrepayOptionsPanel({ slug }: { slug: string }) {
+  const queryClient = useQueryClient()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [newForm, setNewForm] = useState({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
+  const [editForm, setEditForm] = useState({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
+  const [adding, setAdding] = useState(false)
+
+  const { data: options = [], isLoading } = useQuery<PrepayOption[]>({
+    queryKey: ['prepay-options', slug],
+    queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options`),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      authFetch(`/subscriptions/${slug}/prepay-options`, {
+        method: 'POST',
+        body: JSON.stringify({
+          months: parseInt(newForm.months, 10),
+          price: newForm.price,
+          label: newForm.label || undefined,
+          validFrom: newForm.validFrom || undefined,
+          validUntil: newForm.validUntil || undefined,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      setNewForm({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
+      setAdding(false)
+    },
+    onError: (err: Error) => alert(`Error: ${err.message}`),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (id: string) =>
+      authFetch(`/subscriptions/${slug}/prepay-options/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          months: editForm.months ? parseInt(editForm.months, 10) : undefined,
+          price: editForm.price || undefined,
+          label: editForm.label || null,
+          validFrom: editForm.validFrom || null,
+          validUntil: editForm.validUntil || null,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      setEditingId(null)
+    },
+    onError: (err: Error) => alert(`Error: ${err.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      authFetch(`/subscriptions/${slug}/prepay-options/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] }),
+    onError: (err: Error) => alert(`Error: ${err.message}`),
+  })
+
+  const startEdit = (o: PrepayOption) => {
+    setEditingId(o.id)
+    setEditForm({
+      months: String(o.months),
+      price: o.price,
+      label: o.label ?? '',
+      validFrom: o.validFrom ? o.validFrom.slice(0, 10) : '',
+      validUntil: o.validUntil ? o.validUntil.slice(0, 10) : '',
+    })
+  }
+
+  return (
+    <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-amber-400">Prepay Options</p>
+        {!adding && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="text-xs bg-amber-400 text-stone-950 px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+          >
+            + Add Option
+          </button>
+        )}
+      </div>
+
+      {isLoading && <p className="text-xs text-stone-500">Loading…</p>}
+
+      {options.length === 0 && !isLoading && !adding && (
+        <p className="text-xs text-stone-500 italic">No prepay options yet</p>
+      )}
+
+      {options.map((o) =>
+        editingId === o.id ? (
+          <div key={o.id} className="flex flex-wrap gap-2 items-end bg-stone-800 rounded p-2">
+            <div>
+              <label className={LABEL_CLASS}>Months</label>
+              <input type="number" min={1} className={`${INPUT_CLASS} w-20`} value={editForm.months}
+                onChange={(e) => setEditForm((f) => ({ ...f, months: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Price</label>
+              <input className={`${INPUT_CLASS} w-28`} value={editForm.price}
+                onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} placeholder="e.g. 169.99" />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Label</label>
+              <input className={`${INPUT_CLASS} w-40`} value={editForm.label}
+                onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} placeholder="e.g. Half-year" />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Valid From</label>
+              <input type="date" className={`${INPUT_CLASS} w-36`} value={editForm.validFrom}
+                onChange={(e) => setEditForm((f) => ({ ...f, validFrom: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Valid Until</label>
+              <input type="date" className={`${INPUT_CLASS} w-36`} value={editForm.validUntil}
+                onChange={(e) => setEditForm((f) => ({ ...f, validUntil: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button type="button" disabled={updateMutation.isPending}
+                onClick={() => updateMutation.mutate(o.id)}
+                className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
+                {updateMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setEditingId(null)}
+                className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div key={o.id} className="flex items-center justify-between gap-2 text-sm text-stone-300 bg-stone-800/50 rounded px-3 py-2">
+            <span>
+              <span className="font-semibold text-stone-100">{o.label ?? `${o.months} months`}</span>
+              {' '}— {o.months} mo · {o.price}
+              {(o.validFrom || o.validUntil) && (
+                <span className="text-xs text-stone-500 ml-2">
+                  {o.validFrom ? `from ${o.validFrom.slice(0, 10)}` : ''}
+                  {o.validFrom && o.validUntil ? ' · ' : ''}
+                  {o.validUntil ? `until ${o.validUntil.slice(0, 10)}` : ''}
+                </span>
+              )}
+            </span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => startEdit(o)}
+                className="text-xs text-amber-400 hover:underline">Edit</button>
+              <button type="button" disabled={deleteMutation.isPending}
+                onClick={() => { if (confirm('Delete this prepay option?')) deleteMutation.mutate(o.id) }}
+                className="text-xs text-red-400 hover:underline disabled:opacity-50">Delete</button>
+            </div>
+          </div>
+        )
+      )}
+
+      {adding && (
+        <div className="flex flex-wrap gap-2 items-end bg-stone-800 rounded p-2">
+          <div>
+            <label className={LABEL_CLASS}>Months *</label>
+            <input type="number" min={1} required className={`${INPUT_CLASS} w-20`} value={newForm.months}
+              onChange={(e) => setNewForm((f) => ({ ...f, months: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Price *</label>
+            <input required className={`${INPUT_CLASS} w-28`} value={newForm.price}
+              onChange={(e) => setNewForm((f) => ({ ...f, price: e.target.value }))} placeholder="e.g. 169.99" />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Label</label>
+            <input className={`${INPUT_CLASS} w-40`} value={newForm.label}
+              onChange={(e) => setNewForm((f) => ({ ...f, label: e.target.value }))} placeholder="e.g. Half-year" />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Valid From</label>
+            <input type="date" className={`${INPUT_CLASS} w-36`} value={newForm.validFrom}
+              onChange={(e) => setNewForm((f) => ({ ...f, validFrom: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Valid Until</label>
+            <input type="date" className={`${INPUT_CLASS} w-36`} value={newForm.validUntil}
+              onChange={(e) => setNewForm((f) => ({ ...f, validUntil: e.target.value }))} />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="button" disabled={createMutation.isPending || !newForm.months || !newForm.price}
+              onClick={() => createMutation.mutate()}
+              className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
+              {createMutation.isPending ? 'Adding…' : 'Add'}
+            </button>
+            <button type="button" onClick={() => setAdding(false)}
+              className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSubscriptionsPage() {
@@ -801,6 +1006,7 @@ export default function AdminSubscriptionsPage() {
             submitting={editMutation.isPending}
             onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form })}
           />
+          <PrepayOptionsPanel slug={editSub.slug} />
         </div>
       )}
 

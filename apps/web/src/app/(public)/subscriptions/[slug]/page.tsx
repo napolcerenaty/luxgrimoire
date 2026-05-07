@@ -178,6 +178,7 @@ export default async function SubscriptionPage({ params }: Props) {
           country={sub.company?.country ?? null}
           renewalDay={sub.renewalDay ?? null}
           months={months}
+          prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[] }).prepayOptions}
         />
       </div>
 
