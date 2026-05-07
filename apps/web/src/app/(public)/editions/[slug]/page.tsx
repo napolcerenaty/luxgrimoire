@@ -213,16 +213,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 />
               )}
 
-              {/* Community photos strip — shown below official carousel */}
-              {allImages.length > 0 && (
-                <CommunityImageSection
-                  editionSlug={slug}
-                  initialImages={communityImages}
-                  isAuthenticated={isAuthenticated}
-                  compact
-                />
-              )}
-
               {/* Photo credit */}
               {edition.photoCredit && (() => {
                 const handle = edition.photoCredit.replace(/^@/, '')

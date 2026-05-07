@@ -27,8 +27,6 @@ interface Props {
   editionSlug: string
   initialImages: CommunityImage[]
   isAuthenticated: boolean
-  /** When true, renders a compact strip below an existing carousel instead of the full placeholder */
-  compact?: boolean
 }
 
 function cloudThumb(url: string, size = 'w_120,h_160,c_fill,q_auto,f_auto') {
@@ -63,7 +61,7 @@ async function uploadToCloudinary(file: File): Promise<{ cloudinaryId: string; u
   return { cloudinaryId: data.publicId, url: data.url }
 }
 
-export function CommunityImageSection({ editionSlug, initialImages, isAuthenticated, compact = false }: Props) {
+export function CommunityImageSection({ editionSlug, initialImages, isAuthenticated }: Props) {
   const [images, setImages] = useState<CommunityImage[]>(initialImages)
   const [showUpload, setShowUpload] = useState(false)
   const [pending, setPending] = useState<PendingImage[]>([])
@@ -171,22 +169,13 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
 
   return (
     <div className="w-full">
-      {/* ── Compact mode header (shown below an official carousel) ── */}
-      {compact && (
-        <div className="mt-3 border-t border-stone-800 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-2">
-            📷 Community photos
-          </p>
-        </div>
-      )}
-
-      {/* Existing community images */}
+      {/* Existing community images — shown read-only; no add button once a submission exists */}
       {images.length > 0 && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             {images.map((img) => (
               <div key={img.id} className="relative">
-                <div className={`${compact ? 'w-14 h-20' : 'w-full aspect-[2/3]'} rounded-xl overflow-hidden bg-stone-800 ring-1 ring-stone-700/50`}>
+                <div className="w-full aspect-[2/3] rounded-xl overflow-hidden bg-stone-800 ring-1 ring-stone-700/50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={cloudThumb(img.url, 'w_400,h_600,c_fill,q_auto,f_auto')}
@@ -215,8 +204,8 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
         </div>
       )}
 
-      {/* Placeholder when no images at all — full version only */}
-      {!compact && images.length === 0 && !showUpload && (
+      {/* Upload placeholder — only when no community images exist yet */}
+      {images.length === 0 && !showUpload && (
         <button
           type="button"
           onClick={isAuthenticated ? () => { setShowUpload(true); setSuccess(false) } : undefined}
@@ -234,21 +223,10 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
         </button>
       )}
 
-      {/* Upload button — always visible in compact mode, or when images exist in full mode */}
-      {!showUpload && isAuthenticated && (images.length > 0 || compact) && images.length < MAX_IMAGES && (
-        <button
-          type="button"
-          onClick={() => { setShowUpload(true); setSuccess(false) }}
-          className="mt-2 w-full text-xs text-center text-stone-500 hover:text-amber-400 transition-colors py-1"
-        >
-          + {images.length === 0 ? 'Share your photo of this edition' : 'Add your photo'}
-        </button>
-      )}
-
       {/* Success message */}
       {success && (
         <p className="mt-2 text-xs text-amber-400 text-center">
-          ✓ Photos submitted! They will appear after review.
+          ✓ Photo submitted! It will appear after admin review.
         </p>
       )}
 
@@ -350,8 +328,8 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
               />
             </div>
             <span className="text-xs text-stone-400 group-hover:text-stone-300 transition-colors leading-relaxed">
-              I confirm I am the author of these photos and I consent to their use on LuxGrimoire.
-              I understand that photos may be removed from the system without notice.
+              I confirm this photo is mine, I grant LuxGrimoire permission to display it in the application,
+              and I acknowledge that my photos may be removed from the application at any time without notice or reason.
             </span>
           </label>
 

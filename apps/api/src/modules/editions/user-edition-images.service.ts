@@ -3,12 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
 
-const MAX_IMAGES_PER_EDITION = 5;
 
 @Injectable()
 export class UserEditionImagesService {
@@ -59,16 +59,17 @@ export class UserEditionImagesService {
     });
     if (!edition) throw new NotFoundException('Edition not found');
 
-    // Enforce total cap per edition (across all users)
+    // Only one submission allowed at a time — first uploader locks the slot.
+    // Slot reopens only after admin removes all community images.
     const existingCount = await this.prisma.userEditionImage.count({
       where: {
         editionId: edition.id,
         status: { not: 'REMOVED' },
       },
     });
-    if (existingCount + dto.images.length > MAX_IMAGES_PER_EDITION) {
-      throw new BadRequestException(
-        `This edition already has ${existingCount} community image(s). Maximum is ${MAX_IMAGES_PER_EDITION}.`,
+    if (existingCount > 0) {
+      throw new ConflictException(
+        'This edition already has a community photo submission. The slot opens again only after an admin removes existing photos.',
       );
     }
 
