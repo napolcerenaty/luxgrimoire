@@ -1,11 +1,11 @@
 -- DropForeignKey
-ALTER TABLE "user_subscription_entries" DROP CONSTRAINT "user_subscription_entries_subscriptionId_fkey";
+ALTER TABLE "user_subscription_entries" DROP CONSTRAINT IF EXISTS "user_subscription_entries_subscriptionId_fkey";
 
 -- DropIndex
-DROP INDEX "audit_logs_action_trgm_gin";
+DROP INDEX IF EXISTS "audit_logs_action_trgm_gin";
 
 -- DropIndex
-DROP INDEX "books_title_trgm_gin";
+DROP INDEX IF EXISTS "books_title_trgm_gin";
 
 -- AlterTable
 ALTER TABLE "subscription_prepay_options" ADD COLUMN     "validFrom" TIMESTAMP(3),
@@ -32,5 +32,12 @@ ALTER TABLE "user_subscription_entries" ADD CONSTRAINT "user_subscription_entrie
 -- AddForeignKey
 ALTER TABLE "user_purchase_groups" ADD CONSTRAINT "user_purchase_groups_billingPeriodId_fkey" FOREIGN KEY ("billingPeriodId") REFERENCES "user_sub_billing_periods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- RenameIndex
-ALTER INDEX "subscription_price_changes_subscriptionId_effectiveYear_effecti" RENAME TO "subscription_price_changes_subscriptionId_effectiveYear_eff_key";
+-- RenameIndex (only if old name exists)
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'subscription_price_changes_subscriptionId_effectiveYear_effecti'
+  ) THEN
+    ALTER INDEX "subscription_price_changes_subscriptionId_effectiveYear_effecti"
+      RENAME TO "subscription_price_changes_subscriptionId_effectiveYear_eff_key";
+  END IF;
+END $$;
