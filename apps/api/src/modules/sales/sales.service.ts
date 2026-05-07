@@ -189,20 +189,27 @@ export class SalesService {
     if (!existing) throw new NotFoundException("Sale group not found");
     if (existing.userId !== userId) throw new ForbiddenException();
 
-    const newTotal = dto.totalAmount ?? toNum(existing.totalAmount as any);
+    const hasCustomAmounts = dto.customAmounts && Object.keys(dto.customAmounts).length > 0;
+
+    // If customAmounts provided, derive total from their sum (unless explicitly set)
+    const customTotal = hasCustomAmounts
+      ? Object.values(dto.customAmounts!).reduce((a, b) => a + b, 0)
+      : undefined;
+
+    const newTotal = dto.totalAmount ?? customTotal ?? toNum(existing.totalAmount as any);
     const count = existing.entries.length;
     const equalAmount = count > 0 ? Math.round((newTotal / count) * 100) / 100 : 0;
 
     const shouldRedistribute =
-      dto.totalAmount !== undefined &&
-      dto.totalAmount !== toNum(existing.totalAmount as any);
+      (dto.totalAmount !== undefined && dto.totalAmount !== toNum(existing.totalAmount as any)) ||
+      hasCustomAmounts;
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.userSaleGroup.update({
         where: { id: groupId },
         data: {
           ...(dto.title !== undefined && { title: dto.title }),
-          ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
+          ...((dto.totalAmount !== undefined || hasCustomAmounts) && { totalAmount: newTotal }),
           ...(dto.currency !== undefined && { currency: dto.currency }),
           ...(dto.platform !== undefined && { platform: dto.platform }),
           ...(dto.soldAt !== undefined && { soldAt: new Date(dto.soldAt) }),
@@ -216,7 +223,9 @@ export class SalesService {
         for (const entry of existing.entries) {
           const oldAlloc = toNum(entry.allocatedAmount as any);
           let newAlloc: number;
-          if (existing.priceDistribution === 'EQUAL') {
+          if (hasCustomAmounts && dto.customAmounts![entry.id] !== undefined) {
+            newAlloc = dto.customAmounts![entry.id];
+          } else if (existing.priceDistribution === 'EQUAL') {
             newAlloc = equalAmount;
           } else {
             newAlloc =
