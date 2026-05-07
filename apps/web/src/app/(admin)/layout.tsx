@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
@@ -23,6 +23,8 @@ import {
   ScrollText,
   BarChart3,
   Image,
+  Menu,
+  X,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -103,10 +105,65 @@ const ADMIN_GROUPS: NavGroup[] = [
   },
 ]
 
+function NavContent({
+  navGroups,
+  pathname,
+  userEmail,
+  userRole,
+  onNavigate,
+}: {
+  navGroups: NavGroup[]
+  pathname: string
+  userEmail: string
+  userRole: string
+  onNavigate?: () => void
+}) {
+  return (
+    <>
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
+        {navGroups.map((group) => (
+          <div key={group.heading}>
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">
+              {group.heading}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {group.items.map(({ href, label, icon: Icon }) => {
+                const isActive =
+                  href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onNavigate}
+                    className={clsx(
+                      'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
+                    )}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+      <div className="px-4 py-4 border-t border-stone-800">
+        <p className="text-stone-500 text-xs truncate">{userEmail}</p>
+        <p className="text-amber-400/70 text-xs mt-0.5">{userRole}</p>
+      </div>
+    </>
+  )
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isAuthorized =
     user?.role === 'ADMIN' || user?.role === 'MODERATOR' || user?.role === 'COMPANY_MANAGER'
@@ -116,6 +173,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.push('/login')
     }
   }, [loading, isAuthorized, router])
+
+  // Close drawer on route change
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [pathname])
 
   if (loading || !user) {
     return (
@@ -134,48 +196,72 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-stone-950">
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 bg-stone-950 border-r border-stone-800">
         <div className="px-6 py-5 border-b border-stone-800">
           <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
         </div>
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
-          {navGroups.map((group) => (
-            <div key={group.heading}>
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">
-                {group.heading}
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map(({ href, label, icon: Icon }) => {
-                  const isActive =
-                    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={clsx(
-                        'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
-                      )}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-        <div className="px-4 py-4 border-t border-stone-800">
-          <p className="text-stone-500 text-xs truncate">{user.email}</p>
-          <p className="text-amber-400/70 text-xs mt-0.5">{user.role}</p>
-        </div>
+        <NavContent
+          navGroups={navGroups}
+          pathname={pathname}
+          userEmail={user.email}
+          userRole={user.role}
+        />
       </aside>
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 md:p-8">{children}</div>
-      </main>
+
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-950/80 backdrop-blur-sm md:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={clsx(
+          'fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-stone-950 border-r border-stone-800 transition-transform duration-300 md:hidden',
+          drawerOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-stone-800">
+          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="text-stone-400 hover:text-stone-100 transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <NavContent
+          navGroups={navGroups}
+          pathname={pathname}
+          userEmail={user.email}
+          userRole={user.role}
+          onNavigate={() => setDrawerOpen(false)}
+        />
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile top bar */}
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-stone-950 border-b border-stone-800 sticky top-0 z-30">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="text-stone-400 hover:text-stone-100 transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu size={22} />
+          </button>
+          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
+        </header>
+
+        <main className="flex-1 overflow-auto">
+          <div className="p-4 md:p-8">{children}</div>
+        </main>
+      </div>
     </div>
   )
 }
+
