@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 /**
@@ -7,7 +7,8 @@ import { AuthGuard } from '@nestjs/passport';
  *
  * Flow:
  *  Init guard  → generates a random nonce, stores it as a short-lived httpOnly cookie,
- *                and passes it as `state` to the OAuth provider's authorization URL.
+ *                then manually redirects to the provider's authorization URL (avoids
+ *                Passport's Express-only res.setHeader/res.end which break on Fastify).
  *  Callback guard → verifies that `?state` in the callback URL matches the stored cookie
  *                   before allowing Passport to exchange the authorization code for a token.
  *
@@ -21,12 +22,18 @@ import { AuthGuard } from '@nestjs/passport';
 const STATE_COOKIE = 'oauth_state';
 const STATE_COOKIE_MAX_AGE_SECONDS = 300; // 5 minutes
 
+const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+
 // ─── Google ────────────────────────────────────────────────────────────────────
 
+/**
+ * Manually builds the Google OAuth2 authorization URL and redirects via Fastify's
+ * reply.redirect(). Passport's built-in redirect uses res.setHeader + res.end (Express API)
+ * which are not available on Fastify's Reply object, causing a 500.
+ */
 @Injectable()
-export class GoogleInitGuard extends AuthGuard('google') {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest();
+export class GoogleInitGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
     const res = context.switchToHttp().getResponse();
 
     const state = randomBytes(16).toString('hex');
@@ -37,13 +44,19 @@ export class GoogleInitGuard extends AuthGuard('google') {
       maxAge: STATE_COOKIE_MAX_AGE_SECONDS,
       path: '/',
     });
-    req._oauthState = state;
 
-    return super.canActivate(context) as Promise<boolean>;
-  }
+    const callbackUrl = `${process.env.OAUTH_CALLBACK_BASE_URL ?? 'http://localhost:3001'}/api/auth/google/callback`;
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: process.env.GOOGLE_CLIENT_ID ?? 'not-configured',
+      redirect_uri: callbackUrl,
+      scope: 'email profile',
+      state,
+      access_type: 'offline',
+    });
 
-  getAuthenticateOptions(context: ExecutionContext) {
-    return { state: context.switchToHttp().getRequest()._oauthState };
+    res.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`, 302);
+    return false; // response already handled — NestJS must not process further
   }
 }
 

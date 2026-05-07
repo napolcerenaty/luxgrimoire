@@ -38,7 +38,7 @@ interface Props {
 export function SaleInterestButton({ sale, compact = false }: Props) {
   const { isInterested, tier, regionId: savedRegionId, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
 
@@ -97,10 +97,17 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
       const rect = btnRef.current.getBoundingClientRect()
       const dropdownWidth = 288 // w-72
       const vw = window.innerWidth
+      const vh = window.innerHeight
       let left = rect.right - dropdownWidth
       left = Math.max(8, Math.min(left, vw - dropdownWidth - 8))
-      const top = rect.bottom + 8
-      setDropdownPos({ top, right: vw - left - dropdownWidth })
+      const right = vw - left - dropdownWidth
+      const ESTIMATED_HEIGHT = 320
+      const spaceBelow = vh - rect.bottom - 8
+      if (spaceBelow >= ESTIMATED_HEIGHT || spaceBelow >= rect.top - 8) {
+        setDropdownPos({ top: rect.bottom + 8, right })
+      } else {
+        setDropdownPos({ bottom: vh - rect.top + 8, right })
+      }
     }
     setOpen(v => !v)
   }
@@ -224,8 +231,12 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
             /* Positioned dropdown on desktop */
             dropdownPos && (
               <div
-                className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2"
-                style={{ top: dropdownPos.top, right: dropdownPos.right }}
+                className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2 overflow-y-auto"
+                style={{
+                  ...(dropdownPos.top != null ? { top: dropdownPos.top } : { bottom: dropdownPos.bottom }),
+                  right: dropdownPos.right,
+                  maxHeight: 'calc(100vh - 16px)',
+                }}
                 onClick={e => e.stopPropagation()}
               >
                 {hasRegions && (

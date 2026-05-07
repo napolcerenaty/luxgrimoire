@@ -26,6 +26,7 @@ import {
   UpdateMyEntryCostsDto,
   RemoveMyEntryDto,
   CreatePriceChangeDto,
+  UpdateBillingModeDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -295,6 +296,16 @@ export class SubscriptionsController {
       value: String((dto as any)?.selectedMonthIds?.length ?? 0),
     });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Patch(':slug/my-entry/billing-mode')
+  updateMyBillingMode(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: UpdateBillingModeDto,
+  ) {
+    return this.subscriptionsService.updateMyBillingMode(user.id, slug, dto);
   }
 
   // ── Waitlist ──────────────────────────────────────────────────────────────

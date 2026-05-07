@@ -58,6 +58,7 @@ interface Props {
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
   userDefaultTaxRate?: number | null
+  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onJoined: () => void
   onClose: () => void
 }
@@ -327,11 +328,13 @@ interface Step2Props {
   eligibleMonths: SubscriptionMonth[]
   subscriptionSlug: string
   entry: JoinResult['entry']
+  hasPrepayOptions?: boolean
   onDone: () => void
   onSkip: () => void
+  onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string> }) => void
 }
 
-function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step2Props) {
+function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onNextWithBilling }: Step2Props) {
   const [wantBackfill, setWantBackfill] = useState<boolean | null>(null)
   // monthId → 'selected' | 'skipped'
   const [choices, setChoices] = useState<Record<string, 'selected' | 'skipped'>>(() => {
@@ -368,10 +371,17 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, onDone, onSkip }: Step
   }
 
   async function submit() {
+    const selectedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'selected').map(m => m.id)
+
+    // If onNextWithBilling is provided, pass data upstream instead of calling API
+    if (onNextWithBilling) {
+      onNextWithBilling({ selectedMonthIds, bookPrices })
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     try {
-      const selectedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'selected').map(m => m.id)
       const skippedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'skipped').map(m => m.id)
       const bookPricesPayload = Object.entries(bookPrices)
         .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
@@ -571,6 +581,242 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
   )
 }
 
+// ── Step 3: Billing batches ───────────────────────────────────────────────────
+
+interface Step3Props {
+  selectedMonthIds: string[]
+  bookPrices: Record<string, string>
+  prepayOptions: { id: string; months: number; price: number | string; label: string | null }[]
+  subscriptionSlug: string
+  entry: JoinResult['entry']
+  eligibleMonths: SubscriptionMonth[]
+  onDone: () => void
+  onBack: () => void
+}
+
+function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, entry, eligibleMonths, onDone, onBack }: Step3Props) {
+  const currency = entry.costCurrency ?? 'USD'
+
+  // Batch state: list of batches
+  const [batches, setBatches] = useState<Array<{
+    billedAt: string
+    baseAmount: string
+    shippingAmount: string
+    monthIds: string[]
+  }>>([{
+    billedAt: '',
+    baseAmount: '',
+    shippingAmount: '',
+    monthIds: [...selectedMonthIds],
+  }])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function addBatch() {
+    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [] }])
+  }
+
+  function removeBatch(idx: number) {
+    setBatches(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateBatch(idx: number, field: string, value: string) {
+    setBatches(prev => prev.map((b, i) => i === idx ? { ...b, [field]: value } : b))
+  }
+
+  function toggleMonth(batchIdx: number, monthId: string) {
+    setBatches(prev => prev.map((b, i) => {
+      if (i !== batchIdx) return b
+      const has = b.monthIds.includes(monthId)
+      return { ...b, monthIds: has ? b.monthIds.filter(id => id !== monthId) : [...b.monthIds, monthId] }
+    }))
+  }
+
+  async function submit() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const skippedMonthIds = eligibleMonths
+        .filter(m => !selectedMonthIds.includes(m.id))
+        .map(m => m.id)
+      const bookPricesPayload = Object.entries(bookPrices)
+        .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
+        .map(([key, v]) => {
+          const [monthId, editionId] = key.split(':')
+          return { monthId, editionId, price: parseDecimalInput(v) }
+        })
+
+      const billingBatches = batches
+        .filter(b => b.monthIds.length > 0 && b.billedAt)
+        .map(b => ({
+          billedAt: b.billedAt,
+          baseAmount: parseDecimalInput(b.baseAmount) || 0,
+          monthsCovered: b.monthIds.length,
+          currency,
+          shippingAmount: b.shippingAmount ? parseDecimalInput(b.shippingAmount) : undefined,
+          monthIds: b.monthIds,
+        }))
+
+      await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedMonthIds,
+          skippedMonthIds,
+          ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
+          ...(billingBatches.length > 0 && { billingBatches }),
+        }),
+      })
+      onDone()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to submit')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const monthMap = new Map(eligibleMonths.map(m => [m.id, m]))
+  const assignedMonthIds = new Set(batches.flatMap(b => b.monthIds))
+
+  return (
+    <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing batches</h3>
+        <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+      </div>
+      <p className="text-xs text-stone-400">
+        Group months you paid for together into billing batches. Each batch represents one payment.
+      </p>
+
+      {batches.map((batch, idx) => (
+        <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
+            {batches.length > 1 && (
+              <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Payment date</label>
+              <input
+                type="date"
+                value={batch.billedAt}
+                onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
+              <input
+                type="number"
+                step="0.01"
+                value={batch.baseAmount}
+                onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
+              <input
+                type="number"
+                step="0.01"
+                value={batch.shippingAmount}
+                onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
+            <div className="flex flex-wrap gap-1">
+              {selectedMonthIds.map(mid => {
+                const m = monthMap.get(mid)
+                if (!m) return null
+                const inThis = batch.monthIds.includes(mid)
+                const inOther = !inThis && assignedMonthIds.has(mid)
+                return (
+                  <button
+                    key={mid}
+                    onClick={() => toggleMonth(idx, mid)}
+                    disabled={inOther}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      inThis
+                        ? 'bg-amber-700 border-amber-600 text-stone-100'
+                        : inOther
+                        ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
+                        : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
+                    }`}
+                  >
+                    {MONTH_NAMES[m.month - 1]} {m.year}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <button
+        onClick={addBatch}
+        className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+      >
+        + Add another batch
+      </button>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={() => submit()}
+          disabled={submitting}
+          className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          {submitting ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          onClick={async () => {
+            // Submit without billing batches
+            setSubmitting(true)
+            setError(null)
+            try {
+              const skippedMonthIds = eligibleMonths
+                .filter(m => !selectedMonthIds.includes(m.id))
+                .map(m => m.id)
+              const bookPricesPayload = Object.entries(bookPrices)
+                .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
+                .map(([key, v]) => {
+                  const [monthId, editionId] = key.split(':')
+                  return { monthId, editionId, price: parseDecimalInput(v) }
+                })
+              await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  selectedMonthIds,
+                  skippedMonthIds,
+                  ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
+                }),
+              })
+              onDone()
+            } catch (e: unknown) {
+              setError(e instanceof Error ? e.message : 'Failed')
+            } finally {
+              setSubmitting(false)
+            }
+          }}
+          disabled={submitting}
+          className="py-2 px-4 rounded-lg border border-stone-600 text-stone-400 text-sm hover:text-stone-300 transition-colors disabled:opacity-50"
+        >
+          Skip batches
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main modal ────────────────────────────────────────────────────────────────
 
 export default function JoinSubscriptionModal({
@@ -579,11 +825,13 @@ export default function JoinSubscriptionModal({
   subscriptionRenewalDay,
   subscriptionPrice,
   userDefaultTaxRate,
+  prepayOptions,
   onJoined,
   onClose,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 'done'>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
+  const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string> } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
@@ -670,8 +918,26 @@ export default function JoinSubscriptionModal({
             eligibleMonths={joinResult.eligibleMonths}
             subscriptionSlug={subscriptionSlug}
             entry={joinResult.entry}
+            hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
             onDone={() => { setStep('done'); onJoined() }}
             onSkip={() => { setStep('done'); onJoined() }}
+            onNextWithBilling={(prepayOptions?.length ?? 0) > 0
+              ? (data) => { setStep2Data(data); setStep(3) }
+              : undefined
+            }
+          />
+        )}
+
+        {!joining && step === 3 && joinResult && step2Data && (prepayOptions?.length ?? 0) > 0 && (
+          <Step3
+            selectedMonthIds={step2Data.selectedMonthIds}
+            bookPrices={step2Data.bookPrices}
+            prepayOptions={prepayOptions!}
+            subscriptionSlug={subscriptionSlug}
+            entry={joinResult.entry}
+            eligibleMonths={joinResult.eligibleMonths}
+            onDone={() => { setStep('done'); onJoined() }}
+            onBack={() => setStep(2)}
           />
         )}
 

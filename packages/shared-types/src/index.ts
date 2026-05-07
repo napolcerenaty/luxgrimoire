@@ -503,6 +503,7 @@ export interface ApiSaleEntry {
   saleGroupId: string;
   userBookEntryId: string;
   allocatedAmount: number;
+  purchaseCostInSaleCurrency: number | null;
   userBookEntry?: {
     id: string;
     ownershipStatus: string;
@@ -528,7 +529,7 @@ export interface ApiSaleGroup {
   createdAt: string;
   updatedAt: string;
   entries: ApiSaleEntry[];
-  totalPurchaseCost: number;
+  totalPurchaseCost: number | null;
   profitLoss: number | null;
 }
 

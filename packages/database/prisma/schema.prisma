@@ -436,12 +436,15 @@ model UserSubscriptionSkipState {
 }
 
 model SubscriptionPrepayOption {
-  id             String       @id @default(uuid())
-  subscriptionId String
-  months         Int
-  price          Decimal      @db.Decimal(10, 2)
-  label          String?
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  id               String                  @id @default(uuid())
+  subscriptionId   String
+  months           Int
+  price            Decimal                 @db.Decimal(10, 2)
+  label            String?
+  validFrom        DateTime?
+  validUntil       DateTime?
+  subscription     Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  scheduledEntries UserSubscriptionEntry[] @relation("ScheduledPrepay")
 
   @@map("subscription_prepay_options")
 }
@@ -662,6 +665,7 @@ model UserSubscriptionEntry {
   cancellationReason String?
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?
+  scheduledPrepayOptionId String?
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]
@@ -672,6 +676,7 @@ model UserSubscriptionEntry {
   user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeTemplates       UserSubscriptionEntryFeeTemplate[]
   purchaseGroups     UserPurchaseGroup[]
+  scheduledPrepayOption   SubscriptionPrepayOption? @relation("ScheduledPrepay", fields: [scheduledPrepayOptionId], references: [id])
 
   @@unique([userId, subscriptionId])
   @@index([userId])
@@ -701,6 +706,7 @@ model UserSubBillingPeriod {
   purchaseRefunds       UserPurchaseRefund[]
   entry                 UserSubscriptionEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
   month                 SubscriptionMonth?     @relation(fields: [monthId], references: [id])
+  purchaseGroups        UserPurchaseGroup[]
 
   @@index([entryId])
   @@index([monthId])
@@ -1058,6 +1064,7 @@ model UserPurchaseGroup {
   isSecondHand        Boolean                @default(false)
   sourcePlatform      String?
   notes               String?
+  billingPeriodId     String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   bookEntries         UserBookEntry[]
@@ -1067,11 +1074,13 @@ model UserPurchaseGroup {
   subscriptionEntry   UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
   user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   refunds             UserPurchaseRefund[]
+  billingPeriod       UserSubBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, purchasedAt])
   @@index([saleAnnouncementId])
   @@index([subscriptionEntryId])
+  @@index([billingPeriodId])
   @@map("user_purchase_groups")
 }
 

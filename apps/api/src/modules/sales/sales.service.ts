@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CurrencyService } from "../currency/currency.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 
 type Decimal = { toNumber: () => number };
@@ -33,13 +34,17 @@ type SaleGroupWithEntries = {
     allocatedAmount: NumOrDec;
     userBookEntry: {
       edition?: unknown;
+      purchaseGroup?: unknown;
     } | null;
   }>;
 };
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly currencyService: CurrencyService,
+  ) {}
 
   private get entryInclude() {
     return {
@@ -49,6 +54,16 @@ export class SalesService {
             include: {
               book: { select: { id: true, title: true, slug: true } },
               bookBoxCompany: { select: { id: true, name: true } },
+            },
+          },
+          purchaseGroup: {
+            select: {
+              id: true,
+              totalAmount: true,
+              shippingAmount: true,
+              currency: true,
+              purchasedAt: true,
+              _count: { select: { bookEntries: true } },
             },
           },
         },
@@ -70,7 +85,7 @@ export class SalesService {
       this.prisma.userSaleGroup.count({ where }),
     ]);
     return {
-      data: (groups as unknown as SaleGroupWithEntries[]).map((g) => this.withProfit(g)),
+      data: await Promise.all((groups as unknown as SaleGroupWithEntries[]).map((g) => this.withProfit(g))),
       total,
       page,
       pageSize,
@@ -167,21 +182,80 @@ export class SalesService {
   }
 
   async updateSaleGroup(userId: string, groupId: string, dto: UpdateSaleGroupDto) {
-    const existing = await this.prisma.userSaleGroup.findUnique({ where: { id: groupId } });
+    const existing = await this.prisma.userSaleGroup.findUnique({
+      where: { id: groupId },
+      include: { entries: true },
+    });
     if (!existing) throw new NotFoundException("Sale group not found");
     if (existing.userId !== userId) throw new ForbiddenException();
 
-    return this.prisma.userSaleGroup.update({
-      where: { id: groupId },
-      data: {
-        ...(dto.title !== undefined && { title: dto.title }),
-        ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
-        ...(dto.currency !== undefined && { currency: dto.currency }),
-        ...(dto.platform !== undefined && { platform: dto.platform }),
-        ...(dto.soldAt !== undefined && { soldAt: new Date(dto.soldAt) }),
-        ...(dto.notes !== undefined && { notes: dto.notes }),
-      },
-      include: { entries: { include: this.entryInclude } },
+    const newTotal = dto.totalAmount ?? toNum(existing.totalAmount as any);
+    const count = existing.entries.length;
+    const equalAmount = count > 0 ? Math.round((newTotal / count) * 100) / 100 : 0;
+
+    const shouldRedistribute =
+      dto.totalAmount !== undefined &&
+      dto.totalAmount !== toNum(existing.totalAmount as any);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.userSaleGroup.update({
+        where: { id: groupId },
+        data: {
+          ...(dto.title !== undefined && { title: dto.title }),
+          ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
+          ...(dto.currency !== undefined && { currency: dto.currency }),
+          ...(dto.platform !== undefined && { platform: dto.platform }),
+          ...(dto.soldAt !== undefined && { soldAt: new Date(dto.soldAt) }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+        },
+        include: { entries: { include: this.entryInclude } },
+      });
+
+      if (shouldRedistribute && count > 0) {
+        const oldTotal = toNum(existing.totalAmount as any);
+        for (const entry of existing.entries) {
+          const oldAlloc = toNum(entry.allocatedAmount as any);
+          let newAlloc: number;
+          if (existing.priceDistribution === 'EQUAL') {
+            newAlloc = equalAmount;
+          } else {
+            newAlloc =
+              oldTotal > 0
+                ? Math.round((oldAlloc / oldTotal) * newTotal * 100) / 100
+                : equalAmount;
+          }
+          await tx.userSaleEntry.update({
+            where: { id: entry.id },
+            data: { allocatedAmount: newAlloc },
+          });
+          await tx.userBookEntry.update({
+            where: { id: entry.userBookEntryId },
+            data: {
+              salePrice: newAlloc,
+              ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
+              ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
+              ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+            },
+          });
+        }
+      } else if (
+        dto.currency !== undefined ||
+        dto.soldAt !== undefined ||
+        dto.platform !== undefined
+      ) {
+        for (const entry of existing.entries) {
+          await tx.userBookEntry.update({
+            where: { id: entry.userBookEntryId },
+            data: {
+              ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
+              ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
+              ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+            },
+          });
+        }
+      }
+
+      return updated;
     });
   }
 
@@ -209,18 +283,60 @@ export class SalesService {
     await this.prisma.userSaleGroup.delete({ where: { id: groupId } });
   }
 
-  private withProfit(g: SaleGroupWithEntries) {
+  private async withProfit(g: SaleGroupWithEntries) {
     const totalSale = toNum(g.totalAmount);
+    const saleCurrency = g.currency;
+    const soldAt = g.soldAt;
+
+    let totalPurchaseCostInSaleCurrency = 0;
+    let allHavePurchaseCost = true;
+
+    const enrichedEntries = await Promise.all(
+      g.entries.map(async (e) => {
+        const pg = (e.userBookEntry as any)?.purchaseGroup;
+        let purchaseCostInSaleCurrency: number | null = null;
+
+        if (pg && pg.totalAmount != null) {
+          const bookCount = pg._count?.bookEntries ?? 1;
+          const rawCost =
+            (toNum(pg.totalAmount) + toNum(pg.shippingAmount ?? 0)) /
+            Math.max(bookCount, 1);
+
+          try {
+            purchaseCostInSaleCurrency = await this.currencyService.convert(
+              rawCost,
+              pg.currency,
+              saleCurrency,
+              new Date(soldAt),
+            );
+          } catch {
+            purchaseCostInSaleCurrency = null;
+          }
+        } else {
+          allHavePurchaseCost = false;
+        }
+
+        if (purchaseCostInSaleCurrency == null) allHavePurchaseCost = false;
+        else totalPurchaseCostInSaleCurrency += purchaseCostInSaleCurrency;
+
+        return {
+          ...e,
+          allocatedAmount: toNum(e.allocatedAmount),
+          purchaseCostInSaleCurrency,
+        };
+      }),
+    );
 
     return {
       ...g,
       totalAmount: totalSale,
-      totalPurchaseCost: null,
-      profitLoss: null,
-      entries: g.entries.map((e) => ({
-        ...e,
-        allocatedAmount: toNum(e.allocatedAmount),
-      })),
+      totalPurchaseCost: allHavePurchaseCost
+        ? Math.round(totalPurchaseCostInSaleCurrency * 100) / 100
+        : null,
+      profitLoss: allHavePurchaseCost
+        ? Math.round((totalSale - totalPurchaseCostInSaleCurrency) * 100) / 100
+        : null,
+      entries: enrichedEntries,
     };
   }
 }

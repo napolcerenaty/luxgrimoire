@@ -20,7 +20,9 @@ import {
   SubscriptionQueryDto,
   JoinSubscriptionDto,
   BackfillSubscriptionDto,
+  BackfillBillingBatchDto,
   CreatePriceChangeDto,
+  UpdateBillingModeDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
@@ -1354,6 +1356,16 @@ export class SubscriptionsService {
     });
     if (!entry) throw new NotFoundException('You must join this subscription before backfilling');
 
+    // Pre-process billing batches into a map: monthId → { batch, batchIndex }
+    const batchByMonthId = new Map<string, { batch: BackfillBillingBatchDto; batchIndex: number }>();
+    if (dto.billingBatches?.length) {
+      dto.billingBatches.forEach((batch, idx) => {
+        batch.monthIds.forEach(mid => batchByMonthId.set(mid, { batch, batchIndex: idx }));
+      });
+    }
+    // Track created billing period IDs by batch index (to reuse within same batch)
+    const billingPeriodIdByBatch = new Map<number, string>();
+
     const renewalDay = entry.renewalDay ?? 1;
     let booksAdded = 0;
     let skipsRecorded = 0;
@@ -1554,22 +1566,82 @@ export class SubscriptionsService {
           })();
       const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
+      const batchInfo = batchByMonthId.get(monthId);
+      const batch = batchInfo?.batch;
+      const batchIdx = batchInfo?.batchIndex;
+
+      // Determine amounts
+      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, isDefaultPricing);
+      const baseAmount = batch
+        ? batch.baseAmount / batch.monthsCovered
+        : (resolvedBase.price ?? fallbackBase);
+      const shippingAmt = batch
+        ? (batch.shippingAmount != null ? batch.shippingAmount / batch.monthsCovered : null)
+        : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null);
+      const purchasedAtDate = batch ? new Date(batch.billedAt) : renewalDate;
+
       // Create ONE purchase group per month
       const group = await this.prisma.userPurchaseGroup.create({
         data: {
           userId,
           fromSubscription: true,
           subscriptionEntryId: entry.id,
-          totalAmount: (() => {
-            const resolved = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, isDefaultPricing);
-            return resolved.price ?? fallbackBase;
-          })(),
-          shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
+          totalAmount: baseAmount,
+          shippingAmount: shippingAmt,
           currency: entry.costCurrency ?? 'USD',
-          purchasedAt: renewalDate,
+          purchasedAt: purchasedAtDate,
           title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
         },
       });
+
+      // Link to billing period if this month is part of a batch
+      if (batch && batchIdx !== undefined) {
+        let periodId = billingPeriodIdByBatch.get(batchIdx);
+        if (!periodId) {
+          const n = batch.monthsCovered;
+          const sortedMonths = [...batch.monthIds].sort();
+          const firstMonthId = sortedMonths[0];
+          const firstMonthRec = monthRecords.find(m => m.id === firstMonthId) ?? monthRecord;
+          const lastMonthId = sortedMonths[sortedMonths.length - 1];
+          const lastMonthRec = monthRecords.find(m => m.id === lastMonthId) ?? monthRecord;
+
+          const period = await this.prisma.userSubBillingPeriod.create({
+            data: {
+              entryId: entry.id,
+              baseAmount: batch.baseAmount,
+              shipping: batch.shippingAmount ?? null,
+              monthsCovered: n,
+              coveredFromYear: firstMonthRec.year,
+              coveredFromMonth: firstMonthRec.month,
+              coveredToYear: lastMonthRec.year,
+              coveredToMonth: lastMonthRec.month,
+              paidCurrency: batch.currency,
+              billedAt: new Date(batch.billedAt),
+            },
+          });
+          periodId = period.id;
+          billingPeriodIdByBatch.set(batchIdx, periodId);
+        }
+        await this.prisma.userPurchaseGroup.update({
+          where: { id: group.id },
+          data: { billingPeriodId: periodId },
+        });
+
+        // Add batch-level fees to this purchase group (divided by N if same currency)
+        if (batch.fees?.length) {
+          for (const f of batch.fees) {
+            feesToCreate.push({
+              userId,
+              name: f.name,
+              amount: f.currency === batch.currency ? f.amount / batch.monthsCovered : f.amount,
+              currency: f.currency,
+              date: purchasedAtDate,
+              category: 'OTHER' as any,
+              purchaseGroupId: group.id,
+            });
+          }
+        }
+      }
 
       for (const mb of monthBooks) {
         const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
@@ -1621,7 +1693,7 @@ export class SubscriptionsService {
           name: template.name,
           amount: parseFloat(amount.toString()),
           currency: link.customCurrency ?? template.defaultCurrency,
-          date: renewalDate,
+          date: purchasedAtDate,
           category: template.category,
           purchaseGroupId: group.id,
         });
@@ -1683,6 +1755,28 @@ export class SubscriptionsService {
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
 
     return { booksAdded, skipsRecorded };
+  }
+
+  async updateMyBillingMode(userId: string, slug: string, dto: UpdateBillingModeDto) {
+    const sub = await this.findBySlug(slug);
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    });
+    if (!entry) throw new NotFoundException('Subscription entry not found');
+
+    if (dto.scheduledPrepayOptionId) {
+      const option = await this.prisma.subscriptionPrepayOption.findFirst({
+        where: { id: dto.scheduledPrepayOptionId, subscriptionId: sub.id },
+      });
+      if (!option) throw new BadRequestException('Invalid prepay option');
+    }
+
+    await this.prisma.userSubscriptionEntry.update({
+      where: { id: entry.id },
+      data: { scheduledPrepayOptionId: dto.scheduledPrepayOptionId },
+    });
+
+    return { ok: true };
   }
 
   private computeWindowKeyForBackfill(

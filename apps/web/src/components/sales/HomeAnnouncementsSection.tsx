@@ -160,7 +160,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
         </div>
 
         {/* Scroll area */}
-        <div className="relative group/carousel">
+        <div className="relative group/carousel overflow-hidden">
           <button
             onClick={() => scroll('left')}
             aria-label="Scroll left"
@@ -185,7 +185,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
 
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth"
+            className="flex gap-4 overflow-x-auto scroll-smooth w-full"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {announcements.map((sale) => (
