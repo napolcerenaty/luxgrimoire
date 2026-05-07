@@ -127,10 +127,11 @@ model Book {
   updatedAt    DateTime                @updatedAt
   status       String                  @default("approved")
   genres       String[]
-  authors      BookAuthor[]
-  editions     BookEdition[]
-  monthBooks   SubscriptionMonthBook[]
-  userEntries  UserBookEntry[]
+  authors           BookAuthor[]
+  editions          BookEdition[]
+  monthBooks        SubscriptionMonthBook[]
+  userEntries       UserBookEntry[]
+  editionComponents BookEditionComponent[]
 
   @@index([language])
   @@index([seriesName])
@@ -213,6 +214,9 @@ model BookEdition {
   photoCredit              String?
   additionalImages         String[]
   isSpecial                Boolean                   @default(false)
+  isOmnibus                Boolean                   @default(false)
+  componentCount           Int                       @default(0)
+  components               BookEditionComponent[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   basePrice                Decimal?                  @db.Decimal(10, 2)
@@ -251,6 +255,20 @@ model BookEdition {
   @@index([updatedAt])
   @@index([verifiedAt])
   @@map("book_editions")
+}
+
+model BookEditionComponent {
+  id           String      @id @default(uuid())
+  editionId    String
+  bookId       String?
+  customTitle  String?
+  volumeNumber Float?
+  order        Int         @default(0)
+  edition      BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  book         Book?       @relation(fields: [bookId], references: [id], onDelete: SetNull)
+
+  @@index([editionId])
+  @@map("book_edition_components")
 }
 
 model BookBoxCompany {

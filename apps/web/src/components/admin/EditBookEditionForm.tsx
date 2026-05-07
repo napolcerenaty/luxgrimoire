@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { PublisherPicker } from './pickers/PublisherPicker'
@@ -133,6 +133,196 @@ function AiParseSection({ onResult }: { onResult: (r: AiParseResult) => void }) 
   )
 }
 
+// ─── OmnibusComponentsPanel ──────────────────────────────────────────────────
+
+interface EditionComponent {
+  id: string
+  bookId: string | null
+  customTitle: string | null
+  volumeNumber: number | null
+  order: number
+  book: { id: string; slug: string; title: string } | null
+}
+
+function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
+  const qc = useQueryClient()
+  const [bookSearch, setBookSearch] = useState('')
+  const [selectedBook, setSelectedBook] = useState<{ id: string; title: string } | null>(null)
+  const [customTitle, setCustomTitle] = useState('')
+  const [volumeNumber, setVolumeNumber] = useState('')
+  const [order, setOrder] = useState('')
+  const [addError, setAddError] = useState('')
+
+  const { data: components = [], isLoading } = useQuery<EditionComponent[]>({
+    queryKey: ['omnibus-components', editionSlug],
+    queryFn: () => authFetch<EditionComponent[]>(`/editions/${editionSlug}/components`),
+  })
+
+  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string }[]>({
+    queryKey: ['book-search', bookSearch],
+    queryFn: async () => {
+      const res = await authFetch<{ data: { id: string; title: string; slug: string }[] }>(
+        `/books?search=${encodeURIComponent(bookSearch)}&pageSize=8`
+      )
+      return res.data ?? []
+    },
+    enabled: bookSearch.length >= 2,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: (payload: {
+      bookId?: string
+      customTitle?: string
+      volumeNumber?: number
+      order?: number
+    }) => authFetch(`/editions/${editionSlug}/components`, { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['omnibus-components', editionSlug] })
+      setSelectedBook(null)
+      setBookSearch('')
+      setCustomTitle('')
+      setVolumeNumber('')
+      setOrder('')
+      setAddError('')
+    },
+    onError: (e: unknown) => setAddError(e instanceof Error ? e.message : String(e)),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (componentId: string) =>
+      authFetch(`/editions/${editionSlug}/components/${componentId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['omnibus-components', editionSlug] }),
+  })
+
+  const handleAdd = () => {
+    if (!selectedBook && !customTitle.trim()) {
+      setAddError('Select a book or enter a custom title')
+      return
+    }
+    addMutation.mutate({
+      bookId: selectedBook?.id,
+      customTitle: !selectedBook && customTitle.trim() ? customTitle.trim() : undefined,
+      volumeNumber: volumeNumber ? parseFloat(volumeNumber) : undefined,
+      order: order ? parseInt(order, 10) : undefined,
+    })
+  }
+
+  return (
+    <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
+      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Omnibus Components</p>
+
+      {isLoading ? (
+        <p className="text-stone-500 text-xs">Loading…</p>
+      ) : components.length === 0 ? (
+        <p className="text-stone-500 text-xs">No components yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {components.map(c => (
+            <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+              {c.volumeNumber != null && (
+                <span className="text-xs text-amber-600/80 font-semibold w-14 shrink-0">Vol. {c.volumeNumber}</span>
+              )}
+              <span className="flex-1">
+                {c.book ? c.book.title : (c.customTitle ?? '—')}
+              </span>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(c.id)}
+                className={`${BTN_SM} bg-red-900/30 text-red-400 hover:bg-red-900/50`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add component form */}
+      <div className="border-t border-stone-700 pt-3 space-y-2">
+        <p className="text-xs text-stone-500">Add component</p>
+
+        {/* Book search */}
+        {!selectedBook ? (
+          <div className="relative">
+            <input
+              value={bookSearch}
+              onChange={e => setBookSearch(e.target.value)}
+              placeholder="Search book (2+ chars) or leave blank for custom title…"
+              className={INP}
+            />
+            {bookSearch.length >= 2 && bookResults.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                {bookResults.map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { setSelectedBook({ id: b.id, title: b.title }); setBookSearch('') }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                  >
+                    {b.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+            <span className="flex-1">{selectedBook.title}</span>
+            <button type="button" onClick={() => setSelectedBook(null)} className="text-stone-500 hover:text-red-400">×</button>
+          </div>
+        )}
+
+        {/* Custom title (only when no book selected) */}
+        {!selectedBook && (
+          <input
+            value={customTitle}
+            onChange={e => setCustomTitle(e.target.value)}
+            placeholder="…or custom title"
+            className={INP}
+          />
+        )}
+
+        {/* Vol. number + order */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={LBL}>Volume number</label>
+            <input
+              value={volumeNumber}
+              onChange={e => setVolumeNumber(e.target.value)}
+              placeholder="e.g. 1.5"
+              type="number"
+              step="0.5"
+              className={INP}
+            />
+          </div>
+          <div>
+            <label className={LBL}>Order (sort)</label>
+            <input
+              value={order}
+              onChange={e => setOrder(e.target.value)}
+              placeholder="0"
+              type="number"
+              min="0"
+              className={INP}
+            />
+          </div>
+        </div>
+
+        {addError && <p className="text-xs text-red-400">{addError}</p>}
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={addMutation.isPending}
+          className={BTN_PRIMARY}
+        >
+          {addMutation.isPending ? 'Adding…' : '+ Add component'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export interface EditBookEditionFormProps {
   edition: ApiBookEdition
@@ -160,6 +350,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
   const [features, setFeatures] = useState<string[]>(edition.features ?? [])
+  const [isOmnibus, setIsOmnibus] = useState((edition as any).isOmnibus ?? false)
   const [artists, setArtists] = useState<ArtistEntry[]>(
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
@@ -228,6 +419,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
           features: features.filter(Boolean),
+          isOmnibus,
         }),
       })
 
@@ -414,6 +606,20 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         <label className={LBL}>Features / extras</label>
         <FeatureTags features={features} onChange={setFeatures} />
       </div>
+
+      {/* Omnibus */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isOmnibus}
+            onChange={e => setIsOmnibus(e.target.checked)}
+            className="w-4 h-4 accent-amber-400"
+          />
+          <span className={LBL}>Is omnibus (contains multiple volumes/titles)</span>
+        </label>
+      </div>
+      {isOmnibus && <OmnibusComponentsPanel editionSlug={edition.slug} />}
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={handleSubmit}

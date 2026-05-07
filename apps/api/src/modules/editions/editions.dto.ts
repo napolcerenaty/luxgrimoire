@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsArray,
   IsDecimal,
+  IsNumber,
   Min,
   Max,
 } from 'class-validator';
@@ -106,6 +107,10 @@ export class UpdateEditionDto {
   @IsOptional()
   @IsBoolean()
   isSpecial?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isOmnibus?: boolean;
 
   @IsOptional()
   @IsString()
@@ -212,4 +217,42 @@ export class EditionQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   needsVerification?: boolean;
+}
+
+export class CreateComponentDto {
+  @IsOptional()
+  @IsString()
+  bookId?: string;
+
+  @IsOptional()
+  @IsString()
+  customTitle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  volumeNumber?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  order?: number;
+}
+
+export class UpdateComponentDto {
+  @IsOptional()
+  @IsString()
+  customTitle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  volumeNumber?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  order?: number;
 }

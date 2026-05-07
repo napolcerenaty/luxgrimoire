@@ -42,6 +42,7 @@ interface EditionDetail {
   bookBoxCompanyId?: string | null
   publisher: string | null
   isSpecial: boolean
+  isOmnibus?: boolean
   additionalImages: string[]
   language?: string | null
   basePrice?: string | null
@@ -60,6 +61,14 @@ interface EditionDetail {
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
+  components?: Array<{
+    id: string
+    bookId: string | null
+    customTitle: string | null
+    volumeNumber: number | null
+    order: number
+    book: { id: string; slug: string; title: string } | null
+  }>
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
@@ -468,6 +477,29 @@ export default async function EditionPage({ params, searchParams }: Props) {
               })}
             </div>
           </section>
+        )}
+
+        {/* ── Contains (omnibus) ───────────────────────────────────────────── */}
+        {edition.components && edition.components.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Contains</h3>
+            <div className="space-y-1">
+              {edition.components.map(c => (
+                <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+                  {c.volumeNumber != null && (
+                    <span className="text-xs text-amber-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
+                  )}
+                  {c.book ? (
+                    <Link href={`/books/${c.book.slug}`} className="hover:text-amber-400 transition-colors">
+                      {c.book.title}
+                    </Link>
+                  ) : (
+                    <span>{c.customTitle ?? '—'}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
       </div>
