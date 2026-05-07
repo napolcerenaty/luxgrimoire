@@ -460,7 +460,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                         {cleanName}
                       </p>
                       {roles.map((r) => (
-                          <p key={r} className="text-sm text-stone-400">{r}</p>
+                          <p key={r} className="text-sm text-stone-400">{r.charAt(0).toUpperCase() + r.slice(1).toLowerCase()}</p>
                         ))}
                     </div>
                   </Link>
