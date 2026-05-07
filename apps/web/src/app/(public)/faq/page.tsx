@@ -36,6 +36,10 @@ const FAQ: { q: string; a: string }[] = [
     a: 'The Spending Tracker lets you log the price you paid for each edition and gives you a summary of your spending per month, year, or subscription box.',
   },
   {
+    q: 'How do I change the start date of my subscription?',
+    a: 'There is no edit option for the start date once a subscription has been added. To correct it, remove the subscription from your list and add it again with the correct start date.',
+  },
+  {
     q: 'I found incorrect data. How do I report it?',
     a: 'Use the "Report Abuse / DMCA" page (linked in the footer) and select "Incorrect data". Describe the issue and we\'ll investigate and correct it.',
   },
