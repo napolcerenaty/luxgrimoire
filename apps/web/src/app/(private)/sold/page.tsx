@@ -237,10 +237,14 @@ function EditSaleModal({
   open,
   onClose,
   saleGroup,
+  rates = {},
+  userCurrency,
 }: {
   open: boolean
   onClose: () => void
   saleGroup: ApiSaleGroup | null
+  rates?: Record<string, number>
+  userCurrency?: string | null
 }) {
   const queryClient = useQueryClient()
   const [title, setTitle] = useState('')
@@ -324,15 +328,29 @@ function EditSaleModal({
                   const sold = entry.allocatedAmount
                   const cost = entry.purchaseCostInSaleCurrency
                   const pl = cost != null ? sold - cost : null
+                  const sgCur = saleGroup.currency
+                  const sgDate = saleGroup.soldAt?.slice(0, 10) ?? ''
+                  const soldConverted = userCurrency && sgCur !== userCurrency
+                    ? (() => { const r = rates[`${sgCur}:${userCurrency}:${sgDate}`]; return r ? `≈ ${(sold * r).toFixed(2)} ${userCurrency}` : null })()
+                    : null
+                  const plConverted = pl != null && userCurrency && sgCur !== userCurrency
+                    ? (() => { const r = rates[`${sgCur}:${userCurrency}:${sgDate}`]; return r ? `${pl >= 0 ? '+' : ''}${(pl * r).toFixed(2)} ${userCurrency}` : null })()
+                    : null
                   return (
                     <div key={entry.id} className="flex items-center justify-between text-sm">
                       <span className="text-stone-300 truncate flex-1">{title}</span>
-                      <div className="flex items-center gap-3 shrink-0 ml-2">
-                        <span className="text-amber-400 text-xs">{sold.toFixed(2)}</span>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0 ml-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 text-xs">{sold.toFixed(2)} {sgCur}</span>
+                          {soldConverted && <span className="text-stone-500 text-[10px]">{soldConverted}</span>}
+                        </div>
                         {pl != null && (
-                          <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
+                            </span>
+                            {plConverted && <span className="text-stone-500 text-[10px]">{plConverted}</span>}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -398,12 +416,14 @@ function EditSaleModal({
 export default function SoldPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const userCurrency = user?.preferredCurrency ?? null
 
   const [bookFilter, setBookFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
   const [addSaleOpen, setAddSaleOpen] = useState(false)
   const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
+  const [rates, setRates] = useState<Record<string, number>>({})
 
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ['collection', false],
@@ -440,6 +460,46 @@ export default function SoldPage() {
     if (tagFilter !== 'ALL' && !e.tags.includes(tagFilter)) return false
     return true
   }), [soldEntries, bookFilter, companyFilter, tagFilter])
+
+  // Fetch currency rates for all sale currencies vs user's preferred currency
+  useEffect(() => {
+    if (!userCurrency || saleGroups.length === 0) return
+    const tuples: { from: string; to: string; date: string }[] = []
+    ;(saleGroups as ApiSaleGroup[]).forEach(sg => {
+      if (sg.currency !== userCurrency) {
+        const date = sg.soldAt?.slice(0, 10) ?? ''
+        tuples.push({ from: sg.currency, to: userCurrency, date })
+      }
+    })
+    soldEntries.forEach(e => {
+      if (e.saleCurrency && e.saleCurrency !== userCurrency) {
+        tuples.push({ from: e.saleCurrency, to: userCurrency, date: '' })
+      }
+    })
+    const unique = tuples.filter((t, i) =>
+      tuples.findIndex(u => u.from === t.from && u.to === t.to && u.date === t.date) === i
+    )
+    if (unique.length === 0) return
+    Promise.all(
+      unique.map(({ from, to, date }) =>
+        authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${to}${date ? `&date=${date}` : ''}`)
+          .then(r => ({ key: `${from}:${to}:${date}`, rate: r.rate }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      const newRates: Record<string, number> = {}
+      results.forEach(r => { if (r) newRates[r.key] = r.rate })
+      setRates(prev => ({ ...prev, ...newRates }))
+    })
+  }, [saleGroups, soldEntries, userCurrency])
+
+  function converted(amount: number, fromCurrency: string | null, date?: string): string | null {
+    if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
+    const dateKey = date?.slice(0, 10) ?? ''
+    const rate = rates[`${fromCurrency}:${userCurrency}:${dateKey}`]
+    if (!rate) return null
+    return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
+  }
 
   if (isLoading) {
     return (
@@ -527,9 +587,12 @@ export default function SoldPage() {
                         <div className="mt-1 flex flex-wrap gap-1">
                           <Badge variant="default">SOLD</Badge>
                           {entry.salePrice && entry.saleCurrency && (
-                            <span className="text-[10px] text-amber-400">
-                              {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
-                            </span>
+                            <div className="flex flex-col gap-0">
+                              <span className="text-[10px] text-amber-400">
+                                {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
+                              </span>
+                              {(() => { const c = converted(parseFloat(entry.salePrice), entry.saleCurrency); return c ? <span className="text-[10px] text-stone-500">{c}</span> : null })()}
+                            </div>
                           )}
                         </div>
                       }
@@ -593,6 +656,7 @@ export default function SoldPage() {
                   <div>
                     <p className="text-xs text-stone-500">Sold for</p>
                     <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
+                    {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
                   </div>
                   {sg.profitLoss != null && (
                     <div>
@@ -600,6 +664,7 @@ export default function SoldPage() {
                       <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
                       </p>
+                      {(() => { const c = converted(sg.profitLoss, sg.currency, sg.soldAt); return c ? <p className={`text-xs ${sg.profitLoss >= 0 ? 'text-green-400/60' : 'text-red-400/60'}`}>{sg.profitLoss >= 0 ? '+' : ''}{c.replace('≈ ', '≈ ')}</p> : null })()}
                     </div>
                   )}
                 </div>
@@ -621,6 +686,8 @@ export default function SoldPage() {
         open={editingSale !== null}
         onClose={() => setEditingSale(null)}
         saleGroup={editingSale}
+        rates={rates}
+        userCurrency={userCurrency}
       />
     </div>
   )
