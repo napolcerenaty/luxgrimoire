@@ -31,6 +31,7 @@ interface Props {
   country: string | null
   renewalDay?: number | null
   months: ApiSubscriptionMonth[]
+  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
 }
 
 type FeeTemplateLink = {
@@ -59,6 +60,7 @@ type MyEntry = {
   nextRenewalNewPrice: string | null
   cancellationDate: string | null
   cancellationReason: string | null
+  scheduledPrepayOptionId: string | null
   feeTemplates: FeeTemplateLink[]
 } | null
 
@@ -101,6 +103,7 @@ export default function SubscriptionInfoPanel({
   country,
   renewalDay,
   months,
+  prepayOptions,
 }: Props) {
   const { user } = useAuth()
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
@@ -337,6 +340,40 @@ export default function SubscriptionInfoPanel({
               </div>
             )}
           </div>
+          {(prepayOptions?.length ?? 0) > 0 && (
+            <div className="pt-3 border-t border-stone-700/60">
+              <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Billing Mode</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-stone-400">
+                  {myEntry?.scheduledPrepayOptionId
+                    ? `Prepaid: ${prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.label ?? prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.months + ' months'}`
+                    : 'Standard (monthly)'}
+                </p>
+                <select
+                  className="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  value={myEntry?.scheduledPrepayOptionId ?? ''}
+                  onChange={async e => {
+                    const val = e.target.value || null
+                    try {
+                      await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scheduledPrepayOptionId: val }),
+                      })
+                      refreshEntry()
+                    } catch {}
+                  }}
+                >
+                  <option value="">Standard (monthly)</option>
+                  {prepayOptions?.map(o => (
+                    <option key={o.id} value={o.id}>
+                      {o.label ?? `${o.months} months`} — {o.price}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </>
       ) : user ? (
         <>

@@ -509,6 +509,52 @@ export class BookPriceOverrideDto {
   price!: number;
 }
 
+export class BackfillBillingBatchFeeDto {
+  @IsString()
+  name!: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  amount!: number;
+
+  @IsString()
+  currency!: string;
+}
+
+export class BackfillBillingBatchDto {
+  /** ISO date string — the actual payment date */
+  @IsString()
+  billedAt!: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  baseAmount!: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  monthsCovered!: number;
+
+  @IsString()
+  currency!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  shippingAmount?: number;
+
+  /** Month IDs covered by this billing batch (must be a subset of selectedMonthIds) */
+  @IsArray()
+  @IsString({ each: true })
+  monthIds!: string[];
+
+  /** Additional fees paid as part of this billing batch */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BackfillBillingBatchFeeDto)
+  fees?: BackfillBillingBatchFeeDto[];
+}
+
 export class BackfillSubscriptionDto {
   /** Month IDs the user received (creates UserBookEntry per edition) */
   @IsArray()
@@ -530,6 +576,13 @@ export class BackfillSubscriptionDto {
   @ValidateNested({ each: true })
   @Type(() => BookPriceOverrideDto)
   bookPrices?: BookPriceOverrideDto[];
+
+  /** Billing batches for prepaid subscriptions */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BackfillBillingBatchDto)
+  billingBatches?: BackfillBillingBatchDto[];
 }
 
 export class CancelMyEntryDto {
@@ -594,4 +647,10 @@ export class CreatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+}
+
+export class UpdateBillingModeDto {
+  @IsOptional()
+  @IsString()
+  scheduledPrepayOptionId!: string | null;
 }

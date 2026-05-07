@@ -167,19 +167,67 @@ export class RenewalCronService {
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
     const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
 
-    // Apply subscription-level price changes if this is a default-pricing entry
-    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: entry.subscriptionId },
-      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    // Load billing periods for this entry
+    const fullEntry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entry.id },
+      select: {
+        billingPeriods: {
+          orderBy: { billedAt: 'asc' },
+        },
+      },
     });
-    const resolved = resolveEffectiveBasePrice(
-      subPriceChanges,
-      year,
-      month,
-      fallbackBase,
-      (entry as any).isDefaultPricing !== false,
-    );
-    const basePrice = resolved.price ?? fallbackBase;
+
+    // Find active billing period for [year, month]
+    type BillingPeriod = NonNullable<typeof fullEntry>['billingPeriods'][0];
+    let activePeriod: BillingPeriod | null = null;
+    if (fullEntry?.billingPeriods) {
+      for (const period of fullEntry.billingPeriods) {
+        const fromY = period.coveredFromYear, fromM = period.coveredFromMonth;
+        const toY = period.coveredToYear ?? period.coveredFromYear;
+        const toM = period.coveredToMonth ?? period.coveredFromMonth;
+        const cur = year * 12 + month;
+        if (cur >= fromY * 12 + fromM && cur <= toY * 12 + toM) {
+          // Check slots filled
+          const slotsFilled = await this.prisma.userPurchaseGroup.count({
+            where: { subscriptionEntryId: entry.id, billingPeriodId: period.id },
+          });
+          if (slotsFilled < period.monthsCovered) {
+            activePeriod = period;
+            break;
+          }
+        }
+      }
+    }
+
+    // Determine pricing
+    let basePrice: number;
+    let shippingAmount: number | null;
+    let purchasedAt: Date;
+    let billingPeriodId: string | undefined;
+
+    if (activePeriod) {
+      const n = activePeriod.monthsCovered;
+      basePrice = activePeriod.baseAmount ? parseFloat(activePeriod.baseAmount.toString()) / n : fallbackBase;
+      shippingAmount = activePeriod.shipping ? parseFloat(activePeriod.shipping.toString()) / n : shippingCost;
+      purchasedAt = activePeriod.billedAt ?? renewalDate;
+      billingPeriodId = activePeriod.id;
+    } else {
+      // Apply subscription-level price changes if this is a default-pricing entry
+      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+        where: { subscriptionId: entry.subscriptionId },
+        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+      });
+      const resolved = resolveEffectiveBasePrice(
+        subPriceChanges,
+        year,
+        month,
+        fallbackBase,
+        (entry as any).isDefaultPricing !== false,
+      );
+      basePrice = resolved.price ?? fallbackBase;
+      shippingAmount = shippingCost;
+      purchasedAt = renewalDate;
+    }
 
     const groupTitle = `Subscription – ${year}/${String(month).padStart(2, '0')}`;
 
@@ -196,10 +244,11 @@ export class RenewalCronService {
           fromSubscription: true,
           subscriptionEntryId: entry.id,
           totalAmount: basePrice,
-          shippingAmount: shippingCost,
+          shippingAmount,
           currency,
-          purchasedAt: renewalDate,
+          purchasedAt,
           title: groupTitle,
+          ...(billingPeriodId ? { billingPeriodId } : {}),
         },
       });
     }
@@ -249,13 +298,19 @@ export class RenewalCronService {
       const template = link.feeTemplate;
       const amount = link.customAmount ?? template.defaultAmount;
       if (!amount) continue;
+      // If active billing period: divide fees in same currency by monthsCovered
+      const feeCurrency = link.customCurrency ?? template.defaultCurrency;
+      const rawAmount = parseFloat(amount.toString());
+      const effectiveAmount = (activePeriod && feeCurrency === (activePeriod.paidCurrency ?? currency))
+        ? rawAmount / activePeriod.monthsCovered
+        : rawAmount;
       feesToCreate.push({
         userId: entry.userId,
         feeTemplateId: template.id,
         name: template.name,
-        amount: parseFloat(amount.toString()),
-        currency: link.customCurrency ?? template.defaultCurrency,
-        date: renewalDate,
+        amount: effectiveAmount,
+        currency: feeCurrency,
+        date: purchasedAt,
         category: (template.category ?? 'OTHER') as FeeCategory,
         purchaseGroupId: group.id,
       });

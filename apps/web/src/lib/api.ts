@@ -254,6 +254,7 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
   nextRenewalNewPrice: string | null;
   cancellationDate: string | null;
   cancellationReason: string | null;
+  scheduledPrepayOptionId: string | null;
   feeTemplates: Array<{
     customAmount: string | null;
     customCurrency: string | null;
