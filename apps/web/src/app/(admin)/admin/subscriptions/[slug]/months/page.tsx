@@ -233,11 +233,14 @@ interface MonthCardProps {
   defaultPrice?: number | null
   renewalDay?: number | null
   defaultLanguage?: string | null
+  onRefresh?: () => void
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, onRefresh }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
+
+  const refresh = () => { queryClient.invalidateQueries({ queryKey: qKey }); onRefresh?.() }
   const [editing, setEditing] = useState(false)
   const [editTheme, setEditTheme] = useState(month.theme ?? '')
   const [editCover, setEditCover] = useState(month.coverImage ?? '')
@@ -258,7 +261,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
         cardArtistId: editCardArtistId ?? null,
       }),
     }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); setEditing(false) },
+    onSuccess: () => { refresh(); setEditing(false) },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -271,7 +274,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const removeBookMutation = useMutation({
     mutationFn: (bookId: string) =>
       authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${bookId}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onSuccess: () => refresh(),
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -281,7 +284,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
         method: 'PATCH',
         body: JSON.stringify({ signatureType: signatureType || null }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+    onSuccess: () => refresh(),
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -446,7 +449,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               defaultCompanyId={defaultCompanyId} defaultPrice={defaultPrice} renewalDay={renewalDay}
               defaultLanguage={defaultLanguage}
               monthYear={month.year} monthMonth={month.month}
-              onDone={() => setBooksOpen(true)} />
+              onDone={() => { setBooksOpen(true); refresh() }} />
           </div>
         </div>
       )}
@@ -1442,6 +1445,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultPrice={subscription?.price}
                 renewalDay={subscription?.renewalDay}
                 defaultLanguage={subscription?.language}
+                onRefresh={invalidateMonths}
               />
             ))}
             {currentPage < totalPages && (

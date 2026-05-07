@@ -231,10 +231,10 @@ export default function AdminEditionsPage() {
     },
     {
       key: 'publisher',
-      label: 'Publisher / Edition',
+      label: 'Edition',
       render: (row: ApiBookEdition) => (
         <div>
-          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.publisher ?? row.slug}</a>
+          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.editionName ?? row.slug}</a>
         </div>
       ),
     },
