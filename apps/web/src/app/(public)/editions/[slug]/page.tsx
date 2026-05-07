@@ -470,17 +470,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
           </section>
         )}
 
-        {/* ── Back link ────────────────────────────────────────────────────── */}
-        {book && (
-          <div>
-            <BackButton className="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              All editions of &quot;{book.title}&quot;
-            </BackButton>
-          </div>
-        )}
       </div>
     </div>
   )
