@@ -118,7 +118,7 @@ export class AuthController {
     try {
       const result = await this.authService.oauthCallback(req.user);
       this.setAuthCookie(res, result.accessToken);
-      return res.redirect(`${frontendUrl}/auth/callback`, 302); // NO token in URL
+      return res.redirect(`${frontendUrl}/callback`, 302); // NO token in URL
     } catch {
       return res.redirect(`${frontendUrl}/login?error=oauth_failed`, 302);
     }
