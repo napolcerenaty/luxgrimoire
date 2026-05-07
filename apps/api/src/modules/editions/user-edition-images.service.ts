@@ -117,6 +117,12 @@ export class UserEditionImagesService {
     const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
     if (!img) throw new NotFoundException('Image not found');
 
+    if (status === 'REMOVED') {
+      // Delete from Cloudinary and hard-delete the record
+      await this.upload.deleteImage(img.cloudinaryId);
+      return this.prisma.userEditionImage.delete({ where: { id: imageId } });
+    }
+
     return this.prisma.userEditionImage.update({
       where: { id: imageId },
       data: { status },

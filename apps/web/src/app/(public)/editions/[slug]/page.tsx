@@ -134,15 +134,12 @@ export default async function EditionPage({ params, searchParams }: Props) {
     notFound()
   }
 
-  // Fetch community images when edition has no official images
-  const hasOfficialImages = Array.isArray(edition.additionalImages) && edition.additionalImages.length > 0
+  // Always fetch community images (shown below official carousel, or as main section when no official photos)
   let communityImages: CommunityImage[] = []
-  if (!hasOfficialImages) {
-    try {
-      communityImages = await apiFetch<CommunityImage[]>(`/editions/${slug}/community-images`)
-    } catch {
-      // Non-fatal — show empty section
-    }
+  try {
+    communityImages = await apiFetch<CommunityImage[]>(`/editions/${slug}/community-images`)
+  } catch {
+    // Non-fatal — show empty section
   }
 
   // Check if user is authenticated (cookie-based)
@@ -213,6 +210,16 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   editionSlug={slug}
                   initialImages={communityImages}
                   isAuthenticated={isAuthenticated}
+                />
+              )}
+
+              {/* Community photos strip — shown below official carousel */}
+              {allImages.length > 0 && (
+                <CommunityImageSection
+                  editionSlug={slug}
+                  initialImages={communityImages}
+                  isAuthenticated={isAuthenticated}
+                  compact
                 />
               )}
 
