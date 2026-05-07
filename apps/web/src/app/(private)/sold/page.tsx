@@ -271,11 +271,16 @@ function EditSaleModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saleGroup?.id, open])
 
+  const totalNum = parseDecimalInput(total)
+  const count = saleGroup?.entries.length ?? 0
+  const originalTotal = saleGroup?.totalAmount ?? 0
+  const totalChanged = totalNum > 0 && totalNum !== originalTotal
+  const newPerBook = count > 0 ? (totalNum / count).toFixed(2) : '0.00'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!saleGroup) return
     setError(null)
-    const totalNum = parseDecimalInput(total)
     if (!total || totalNum <= 0) { setError('Enter a valid total amount'); return }
     if (!soldAt) { setError('Enter the sale date'); return }
     const plat = platform === 'other' ? customPlatform : platform
@@ -290,6 +295,7 @@ function EditSaleModal({
         notes: notes || undefined,
       })
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['collection'] })
       setSuccess(true)
       setTimeout(() => { onClose(); setSuccess(false) }, 1000)
     } catch (err) {
@@ -307,48 +313,83 @@ function EditSaleModal({
           <p className="text-green-400 font-semibold">Sale updated!</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className={LBL}>Sale title (optional)</label>
-            <input className={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Book set" />
-          </div>
-          <div>
-            <label className={LBL}>Platform</label>
-            <select className={INP} value={platform} onChange={e => setPlatform(e.target.value)}>
-              <option value="">— Select platform —</option>
-              {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-            {platform === 'other' && (
-              <input className={`${INP} mt-2`} value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Platform name…" />
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <>
+          {/* Books in this sale */}
+          {saleGroup && saleGroup.entries.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Books in this sale</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {saleGroup.entries.map(entry => {
+                  const title = (entry.userBookEntry as any)?.edition?.book?.title ?? '—'
+                  const sold = entry.allocatedAmount
+                  const cost = entry.purchaseCostInSaleCurrency
+                  const pl = cost != null ? sold - cost : null
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between text-sm">
+                      <span className="text-stone-300 truncate flex-1">{title}</span>
+                      <div className="flex items-center gap-3 shrink-0 ml-2">
+                        <span className="text-amber-400 text-xs">{sold.toFixed(2)}</span>
+                        {pl != null && (
+                          <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className={LBL}>Total sold for *</label>
-              <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
+              <label className={LBL}>Sale title (optional)</label>
+              <input className={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Book set" />
             </div>
             <div>
-              <label className={LBL}>Currency</label>
-              <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              <label className={LBL}>Platform</label>
+              <select className={INP} value={platform} onChange={e => setPlatform(e.target.value)}>
+                <option value="">— Select platform —</option>
+                {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
+              {platform === 'other' && (
+                <input className={`${INP} mt-2`} value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Platform name…" />
+              )}
             </div>
-          </div>
-          <div>
-            <label className={LBL}>Sale date *</label>
-            <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
-          </div>
-          <div>
-            <label className={LBL}>Notes</label>
-            <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <button type="submit" disabled={pending}
-            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
-          >
-            {pending ? 'Saving…' : 'Save Changes'}
-          </button>
-        </form>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LBL}>Total sold for *</label>
+                <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
+              </div>
+              <div>
+                <label className={LBL}>Currency</label>
+                <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className={LBL}>Sale date *</label>
+              <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
+            </div>
+            <div>
+              <label className={LBL}>Notes</label>
+              <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
+            </div>
+            {totalChanged && count > 0 && (
+              <p className="text-xs text-stone-400">
+                Allocated amounts will be redistributed equally ({newPerBook} {currency} per book)
+              </p>
+            )}
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button type="submit" disabled={pending}
+              className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {pending ? 'Saving…' : 'Save Changes'}
+            </button>
+          </form>
+        </>
       )}
     </Modal>
   )
@@ -485,24 +526,10 @@ export default function SoldPage() {
                       footer={
                         <div className="mt-1 flex flex-wrap gap-1">
                           <Badge variant="default">SOLD</Badge>
-                          {entry.salePrice && entry.saleCurrency && (() => {
-                            const sold = parseFloat(entry.salePrice!)
-                            const paid = entry.purchaseGroup ? parseFloat(entry.purchaseGroup.totalAmount) : null
-                            const sameCur = paid !== null && entry.saleCurrency === entry.purchaseGroup?.currency
-                            if (sameCur && paid !== null) {
-                              const diff = sold - paid
-                              return (
-                                <span className={`text-[10px] font-semibold ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                  {diff >= 0 ? '+' : ''}{diff.toFixed(2)} {entry.saleCurrency}
-                                </span>
-                              )
-                            }
-                            return (
-                              <span className="text-[10px] text-amber-400">{sold.toFixed(2)} {entry.saleCurrency}</span>
-                            )
-                          })()}
-                          {!entry.salePrice && entry.purchaseGroup && (
-                            <span className="text-[10px] text-stone-400">{parseFloat(entry.purchaseGroup.totalAmount).toFixed(2)} {entry.purchaseGroup.currency}</span>
+                          {entry.salePrice && entry.saleCurrency && (
+                            <span className="text-[10px] text-amber-400">
+                              {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
+                            </span>
                           )}
                         </div>
                       }
