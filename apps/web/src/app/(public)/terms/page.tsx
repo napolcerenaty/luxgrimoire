@@ -109,6 +109,28 @@ export default function TermsPage() {
             LuxGrimoire will respond promptly to valid copyright takedown notices. See Section 11 (DMCA / Copyright)
             for details.
           </p>
+
+          <h3 className="text-base font-semibold text-stone-200 mt-6 mb-2">6a. Community Edition Photos</h3>
+          <p>
+            For editions that do not have official imagery, logged-in users may submit a community photo of their
+            own physical copy. By submitting a community photo you explicitly confirm all of the following:
+          </p>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+            <li>The photo is your own original work and you are its author.</li>
+            <li>You grant LuxGrimoire a non-exclusive, worldwide, royalty-free licence to display the photo
+                within the platform for as long as it remains published.</li>
+            <li>You acknowledge and accept that your community photo may be removed from the platform at any time,
+                for any reason or no reason, without prior notice. No compensation or explanation will be provided
+                upon removal.</li>
+            <li>You understand that if official imagery for the edition becomes available, your community photo will
+                be replaced and permanently deleted from the platform and from our image storage.</li>
+          </ul>
+          <p className="mt-3">
+            Only one community photo submission is permitted per edition at any given time. The first user to submit
+            locks the slot; the slot reopens only when an admin removes the existing community photo.
+            Attempting to circumvent this restriction (e.g. by creating multiple accounts) is a violation of Section 7
+            (Prohibited Conduct) and may result in account termination.
+          </p>
         </section>
 
         <section>
