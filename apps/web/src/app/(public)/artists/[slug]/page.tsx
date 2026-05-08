@@ -84,6 +84,9 @@ export default async function ArtistPage({ params }: Props) {
       const handle = raw.match(/instagram\.com\/([^/?#]+)/)?.[1] ?? raw.replace(/^@/, '')
       const href = raw.startsWith('http') ? raw : `https://instagram.com/${handle}`
       socials.push({ href, label: `@${handle}`, icon: igIcon })
+    } else if (artist.name.startsWith('@')) {
+      const handle = artist.name.slice(1)
+      socials.push({ href: `https://instagram.com/${handle}`, label: `@${handle}`, icon: igIcon })
     }
   }
   if (artist.twitter) socials.push({
