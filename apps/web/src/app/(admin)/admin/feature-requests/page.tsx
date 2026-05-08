@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiFeatureRequest } from '@luxgrimoire/shared-types'
 import {
@@ -9,6 +10,7 @@ import {
   adminDeleteFeatureRequest,
 } from '@/lib/api'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { useAuth } from '@/components/AuthProvider'
 
 const STATUS_BADGE: Record<string, string> = {
   pending: 'bg-amber-900/40 text-amber-400',
@@ -124,6 +126,8 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
 }
 
 export default function AdminFeatureRequestsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [deleteItem, setDeleteItem] = useState<ApiFeatureRequest | null>(null)
@@ -138,6 +142,11 @@ export default function AdminFeatureRequestsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'feature-requests'] }); setDeleteItem(null) },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
+
+  if (user && user.role !== 'ADMIN') {
+    router.replace('/admin')
+    return null
+  }
 
   const items: ApiFeatureRequest[] = data?.data ?? []
   const pending = items.filter(r => r.status === 'pending')
