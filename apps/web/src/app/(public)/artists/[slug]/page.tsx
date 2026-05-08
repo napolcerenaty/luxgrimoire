@@ -45,9 +45,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
     const artist = await apiFetch<ApiArtistDetail>(`/artists/${slug}`)
+    const displayName = artist.name.replace(/^@/, '')
     return {
-      title: `@${artist.name} · Artist`,
-      description: artist.bio ?? `Artwork and illustrations by @${artist.name}`,
+      title: `${displayName} · Artist`,
+      description: artist.bio ?? `Artwork and illustrations by ${displayName}`,
       openGraph: {
         title: `@${artist.name}`,
         description: artist.bio ?? undefined,
@@ -83,10 +84,6 @@ export default async function ArtistPage({ params }: Props) {
       const handle = raw.match(/instagram\.com\/([^/?#]+)/)?.[1] ?? raw.replace(/^@/, '')
       const href = raw.startsWith('http') ? raw : `https://instagram.com/${handle}`
       socials.push({ href, label: `@${handle}`, icon: igIcon })
-    } else {
-      // Fallback: derive handle from artist name
-      const handle = artist.name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_.]/g, '')
-      socials.push({ href: `https://instagram.com/${handle}`, label: `@${handle}`, icon: igIcon })
     }
   }
   if (artist.twitter) socials.push({
