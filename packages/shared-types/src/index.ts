@@ -554,6 +554,7 @@ export interface ApiSaleAnnouncement {
   expectedShipping: string | null;
   photoCredit: string | null;
   availableForPurchase: boolean;
+  sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
   editions?: Array<{

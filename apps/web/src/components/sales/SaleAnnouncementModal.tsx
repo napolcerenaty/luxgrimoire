@@ -114,12 +114,24 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               <h2 className="text-lg sm:text-xl font-serif font-bold text-stone-100 leading-tight mb-3 pr-6">
                 {sale.title}
               </h2>
-              <Link
-                href={`/sale-announcements/${sale.id}`}
-                className="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 transition-colors"
-              >
-                View full page <ExternalLink size={11} />
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/sale-announcements/${sale.id}`}
+                  className="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 transition-colors"
+                >
+                  View full page <ExternalLink size={11} />
+                </Link>
+                {sale.sourceUrl && (
+                  <a
+                    href={sale.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-200 transition-colors"
+                  >
+                    Original announcement <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
               <div className="mt-3 flex items-center gap-2">
                 {salePast ? (
                   <AddToCollectionButton
