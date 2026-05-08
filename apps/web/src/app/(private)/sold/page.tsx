@@ -634,7 +634,7 @@ export default function SoldPage() {
                 {filtered.map(entry => (
                   <div key={entry.id} className="relative">
                     <EditionCard
-                      href={`/editions/${entry.edition.slug}`}
+                      href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={entry.edition.additionalImages[0] ?? null}
                       title={entry.edition.book.title}
                       authors={entry.edition.book.authors}
