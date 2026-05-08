@@ -500,6 +500,7 @@ export interface UpdateSaleGroupData {
   platform?: string;
   soldAt?: string;
   notes?: string;
+  customAmounts?: Record<string, number>;
 }
 
 export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup[]> {

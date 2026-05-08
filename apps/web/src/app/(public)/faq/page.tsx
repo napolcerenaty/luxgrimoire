@@ -36,12 +36,28 @@ const FAQ: { q: string; a: string }[] = [
     a: 'The Spending Tracker lets you log the price you paid for each edition and gives you a summary of your spending per month, year, or subscription box.',
   },
   {
+    q: 'How do I change the start date of my subscription?',
+    a: 'There is no edit option for the start date once a subscription has been added. To correct it, remove the subscription from your list and add it again with the correct start date.',
+  },
+  {
     q: 'I found incorrect data. How do I report it?',
     a: 'Use the "Report Abuse / DMCA" page (linked in the footer) and select "Incorrect data". Describe the issue and we\'ll investigate and correct it.',
   },
   {
     q: 'Can I become a moderator or contributor?',
     a: 'Send us a message via the Contact page! We\'re always looking for passionate book lovers who want to help keep the database accurate and up to date.',
+  },
+  {
+    q: 'Can I upload a photo for an edition?',
+    a: 'Yes — for editions that do not yet have an official cover image, any logged-in user can submit a community photo. The slot is available as long as no other community photo exists for that edition: the first user to submit locks the slot. The slot reopens only if an admin removes the existing community photo. When submitting you must confirm that the photo is yours and that you grant LuxGrimoire permission to display it.',
+  },
+  {
+    q: 'What happens after I submit a community photo?',
+    a: 'Your photo goes through admin review before it appears publicly. While pending it shows an "⏳ Awaiting review" badge. Once approved by an admin it becomes visible on the edition page. Community photos can be removed from the platform at any time, for any reason or no reason, without prior notice — by accepting the terms on upload you acknowledge this.',
+  },
+  {
+    q: 'Why can only one user upload a community photo per edition?',
+    a: 'Community photos are a stopgap for editions where we have no official imagery (e.g. when a publisher has not granted usage rights). We allow one submission at a time to keep quality consistent and avoid competing photos. If official artwork becomes available later, it will replace the community photo.',
   },
 ]
 

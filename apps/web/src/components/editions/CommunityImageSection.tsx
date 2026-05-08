@@ -169,7 +169,7 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
 
   return (
     <div className="w-full">
-      {/* Existing community images */}
+      {/* Existing community images — shown read-only; no add button once a submission exists */}
       {images.length > 0 && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -204,7 +204,7 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
         </div>
       )}
 
-      {/* Placeholder when no images at all */}
+      {/* Upload placeholder — only when no community images exist yet */}
       {images.length === 0 && !showUpload && (
         <button
           type="button"
@@ -223,21 +223,10 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
         </button>
       )}
 
-      {/* "Add your photo" button when images exist */}
-      {images.length > 0 && !showUpload && isAuthenticated && images.length < MAX_IMAGES && (
-        <button
-          type="button"
-          onClick={() => { setShowUpload(true); setSuccess(false) }}
-          className="mt-2 w-full text-xs text-center text-stone-500 hover:text-amber-400 transition-colors py-1"
-        >
-          + Add your photo
-        </button>
-      )}
-
       {/* Success message */}
       {success && (
         <p className="mt-2 text-xs text-amber-400 text-center">
-          ✓ Photos submitted! They will appear after review.
+          ✓ Photo submitted! It will appear after admin review.
         </p>
       )}
 
@@ -339,8 +328,8 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
               />
             </div>
             <span className="text-xs text-stone-400 group-hover:text-stone-300 transition-colors leading-relaxed">
-              I confirm I am the author of these photos and I consent to their use on LuxGrimoire.
-              I understand that photos may be removed from the system without notice.
+              I confirm this photo is mine, I grant LuxGrimoire permission to display it in the application,
+              and I acknowledge that my photos may be removed from the application at any time without notice or reason.
             </span>
           </label>
 

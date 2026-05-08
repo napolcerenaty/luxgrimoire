@@ -127,10 +127,11 @@ model Book {
   updatedAt    DateTime                @updatedAt
   status       String                  @default("approved")
   genres       String[]
-  authors      BookAuthor[]
-  editions     BookEdition[]
-  monthBooks   SubscriptionMonthBook[]
-  userEntries  UserBookEntry[]
+  authors           BookAuthor[]
+  editions          BookEdition[]
+  monthBooks        SubscriptionMonthBook[]
+  userEntries       UserBookEntry[]
+  editionComponents BookEditionComponent[]
 
   @@index([language])
   @@index([seriesName])
@@ -166,6 +167,7 @@ model BookAuthor {
   book     Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@id([bookId, authorId])
+  @@index([authorId])
   @@map("book_authors")
 }
 
@@ -213,6 +215,9 @@ model BookEdition {
   photoCredit              String?
   additionalImages         String[]
   isSpecial                Boolean                   @default(false)
+  isOmnibus                Boolean                   @default(false)
+  componentCount           Int                       @default(0)
+  components               BookEditionComponent[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   basePrice                Decimal?                  @db.Decimal(10, 2)
@@ -245,12 +250,28 @@ model BookEdition {
   @@index([bookBoxCompanyId])
   @@index([subscriptionId])
   @@index([subscriptionMonthId])
+  @@index([collectionId])
   @@index([language])
   @@index([generalSaleDate])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([verifiedAt])
   @@map("book_editions")
+}
+
+model BookEditionComponent {
+  id           String      @id @default(uuid())
+  editionId    String
+  bookId       String?
+  customTitle  String?
+  volumeNumber Float?
+  order        Int         @default(0)
+  edition      BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  book         Book?       @relation(fields: [bookId], references: [id], onDelete: SetNull)
+
+  @@index([editionId])
+  @@index([bookId])
+  @@map("book_edition_components")
 }
 
 model BookBoxCompany {
@@ -359,6 +380,7 @@ model SubscriptionComboComponent {
   component   Subscription @relation("SubscriptionAsComponent", fields: [componentId], references: [id], onDelete: Cascade)
 
   @@id([comboId, componentId])
+  @@index([componentId])
   @@map("subscription_combo_components")
 }
 
@@ -447,6 +469,7 @@ model SubscriptionPrepayOption {
   scheduledEntries UserSubscriptionEntry[] @relation("ScheduledPrepay")
 
   @@map("subscription_prepay_options")
+  @@index([subscriptionId])
 }
 
 model SubscriptionMonth {
@@ -681,6 +704,7 @@ model UserSubscriptionEntry {
   @@unique([userId, subscriptionId])
   @@index([userId])
   @@index([userId, active])
+  @@index([active, nextRenewalDate])
   @@index([subscriptionId, shippingCountry])
   @@map("user_subscription_entries")
 }
@@ -722,6 +746,7 @@ model UserSubscriptionCostChange {
   shippingCost       Decimal?              @db.Decimal(10, 2)
   entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
+  @@index([entryId])
   @@map("user_subscription_cost_changes")
 }
 

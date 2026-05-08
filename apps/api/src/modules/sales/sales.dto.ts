@@ -75,4 +75,8 @@ export class UpdateSaleGroupDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  /** Per-entry custom amounts (entryId -> amount). When provided, overrides equal redistribution. */
+  @IsOptional()
+  customAmounts?: Record<string, number>;
 }

@@ -237,10 +237,14 @@ function EditSaleModal({
   open,
   onClose,
   saleGroup,
+  rates = {},
+  userCurrency,
 }: {
   open: boolean
   onClose: () => void
   saleGroup: ApiSaleGroup | null
+  rates?: Record<string, number>
+  userCurrency?: string | null
 }) {
   const queryClient = useQueryClient()
   const [title, setTitle] = useState('')
@@ -253,6 +257,9 @@ function EditSaleModal({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({})
+
+  const isCustom = saleGroup?.priceDistribution === 'CUSTOM'
 
   // Populate fields when the target sale group changes
   useEffect(() => {
@@ -268,32 +275,53 @@ function EditSaleModal({
     setNotes(saleGroup.notes ?? '')
     setError(null)
     setSuccess(false)
+    // Pre-fill custom amounts from existing allocations
+    const amounts: Record<string, string> = {}
+    saleGroup.entries.forEach(e => { amounts[e.id] = String(e.allocatedAmount) })
+    setCustomAmounts(amounts)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saleGroup?.id, open])
 
-  const totalNum = parseDecimalInput(total)
   const count = saleGroup?.entries.length ?? 0
   const originalTotal = saleGroup?.totalAmount ?? 0
-  const totalChanged = totalNum > 0 && totalNum !== originalTotal
+
+  // For CUSTOM mode: total is sum of custom amounts
+  const customSum = isCustom
+    ? Object.values(customAmounts).reduce((a, v) => a + (parseDecimalInput(v) || 0), 0)
+    : null
+  const totalNum = isCustom ? (customSum ?? 0) : parseDecimalInput(total)
+  const totalChanged = totalNum > 0 && Math.abs(totalNum - originalTotal) > 0.001
   const newPerBook = count > 0 ? (totalNum / count).toFixed(2) : '0.00'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!saleGroup) return
     setError(null)
-    if (!total || totalNum <= 0) { setError('Enter a valid total amount'); return }
+    if (totalNum <= 0) { setError('Total must be greater than 0'); return }
     if (!soldAt) { setError('Enter the sale date'); return }
+    if (isCustom) {
+      const missing = saleGroup.entries.some(e => !customAmounts[e.id] || parseDecimalInput(customAmounts[e.id]) <= 0)
+      if (missing) { setError('Enter a valid amount for each book'); return }
+    }
     const plat = platform === 'other' ? customPlatform : platform
     setPending(true)
     try {
-      await updateSaleGroup(saleGroup.id, {
+      const payload: import('@/lib/api').UpdateSaleGroupData = {
         title: title || undefined,
         platform: plat || undefined,
-        totalAmount: totalNum,
         currency,
         soldAt,
         notes: notes || undefined,
-      })
+      }
+      if (isCustom) {
+        // Send customAmounts keyed by entry id; backend computes total
+        payload.customAmounts = Object.fromEntries(
+          saleGroup.entries.map(e => [e.id, parseDecimalInput(customAmounts[e.id] ?? '0')])
+        )
+      } else {
+        payload.totalAmount = totalNum
+      }
+      await updateSaleGroup(saleGroup.id, payload)
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       setSuccess(true)
@@ -320,25 +348,72 @@ function EditSaleModal({
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Books in this sale</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {saleGroup.entries.map(entry => {
-                  const title = (entry.userBookEntry as any)?.edition?.book?.title ?? '—'
+                  const bookTitle = (entry.userBookEntry as any)?.edition?.book?.title ?? '—'
+                  const sgCur = saleGroup.currency
+                  const sgDate = saleGroup.soldAt?.slice(0, 10) ?? ''
+                  const rate = userCurrency && sgCur !== userCurrency ? rates[`${sgCur}:${userCurrency}:${sgDate}`] : null
+
+                  if (isCustom) {
+                    const inputVal = customAmounts[entry.id] ?? ''
+                    const inputNum = parseDecimalInput(inputVal)
+                    const cost = entry.purchaseCostInSaleCurrency
+                    const pl = cost != null && inputNum > 0 ? inputNum - cost : null
+                    return (
+                      <div key={entry.id} className="flex items-center gap-2">
+                        <span className="text-stone-300 truncate flex-1 text-sm">{bookTitle}</span>
+                        <div className="shrink-0 flex flex-col items-end gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number" step="0.01" min="0.01"
+                              value={inputVal}
+                              onChange={ev => setCustomAmounts(prev => ({ ...prev, [entry.id]: ev.target.value }))}
+                              className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-amber-400 focus:outline-none focus:border-amber-400"
+                            />
+                            <span className="text-stone-500 text-xs">{sgCur}</span>
+                          </div>
+                          {pl != null && (
+                            <span className={`text-[10px] font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
+                              {rate ? ` (≈ ${(pl * rate).toFixed(2)} ${userCurrency})` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+
                   const sold = entry.allocatedAmount
                   const cost = entry.purchaseCostInSaleCurrency
                   const pl = cost != null ? sold - cost : null
+                  const soldConverted = rate ? `≈ ${(sold * rate).toFixed(2)} ${userCurrency}` : null
+                  const plConverted = pl != null && rate ? `${pl >= 0 ? '+' : ''}${(pl * rate).toFixed(2)} ${userCurrency}` : null
                   return (
                     <div key={entry.id} className="flex items-center justify-between text-sm">
-                      <span className="text-stone-300 truncate flex-1">{title}</span>
-                      <div className="flex items-center gap-3 shrink-0 ml-2">
-                        <span className="text-amber-400 text-xs">{sold.toFixed(2)}</span>
+                      <span className="text-stone-300 truncate flex-1">{bookTitle}</span>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0 ml-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 text-xs">{sold.toFixed(2)} {sgCur}</span>
+                          {soldConverted && <span className="text-stone-500 text-[10px]">{soldConverted}</span>}
+                        </div>
                         {pl != null && (
-                          <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
+                            </span>
+                            {plConverted && <span className="text-stone-500 text-[10px]">{plConverted}</span>}
+                          </div>
                         )}
                       </div>
                     </div>
                   )
                 })}
               </div>
+              {isCustom && (
+                <div className="mt-2 flex justify-between items-center text-xs text-stone-400 border-t border-stone-800 pt-2">
+                  <span>Total</span>
+                  <span className="text-amber-400 font-medium">{(customSum ?? 0).toFixed(2)} {saleGroup.currency}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -358,11 +433,13 @@ function EditSaleModal({
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={LBL}>Total sold for *</label>
-                <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
-              </div>
-              <div>
+              {!isCustom && (
+                <div>
+                  <label className={LBL}>Total sold for *</label>
+                  <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
+                </div>
+              )}
+              <div className={isCustom ? 'col-span-2' : ''}>
                 <label className={LBL}>Currency</label>
                 <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -377,7 +454,7 @@ function EditSaleModal({
               <label className={LBL}>Notes</label>
               <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
             </div>
-            {totalChanged && count > 0 && (
+            {!isCustom && totalChanged && count > 0 && (
               <p className="text-xs text-stone-400">
                 Allocated amounts will be redistributed equally ({newPerBook} {currency} per book)
               </p>
@@ -398,12 +475,14 @@ function EditSaleModal({
 export default function SoldPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const userCurrency = user?.preferredCurrency ?? null
 
   const [bookFilter, setBookFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
   const [addSaleOpen, setAddSaleOpen] = useState(false)
   const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
+  const [rates, setRates] = useState<Record<string, number>>({})
 
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ['collection', false],
@@ -440,6 +519,46 @@ export default function SoldPage() {
     if (tagFilter !== 'ALL' && !e.tags.includes(tagFilter)) return false
     return true
   }), [soldEntries, bookFilter, companyFilter, tagFilter])
+
+  // Fetch currency rates for all sale currencies vs user's preferred currency
+  useEffect(() => {
+    if (!userCurrency || saleGroups.length === 0) return
+    const tuples: { from: string; to: string; date: string }[] = []
+    ;(saleGroups as ApiSaleGroup[]).forEach(sg => {
+      if (sg.currency !== userCurrency) {
+        const date = sg.soldAt?.slice(0, 10) ?? ''
+        tuples.push({ from: sg.currency, to: userCurrency, date })
+      }
+    })
+    soldEntries.forEach(e => {
+      if (e.saleCurrency && e.saleCurrency !== userCurrency) {
+        tuples.push({ from: e.saleCurrency, to: userCurrency, date: '' })
+      }
+    })
+    const unique = tuples.filter((t, i) =>
+      tuples.findIndex(u => u.from === t.from && u.to === t.to && u.date === t.date) === i
+    )
+    if (unique.length === 0) return
+    Promise.all(
+      unique.map(({ from, to, date }) =>
+        authFetch<{ rate: number }>(`/currency/rate?from=${from}&to=${to}${date ? `&date=${date}` : ''}`)
+          .then(r => ({ key: `${from}:${to}:${date}`, rate: r.rate }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      const newRates: Record<string, number> = {}
+      results.forEach(r => { if (r) newRates[r.key] = r.rate })
+      setRates(prev => ({ ...prev, ...newRates }))
+    })
+  }, [saleGroups, soldEntries, userCurrency])
+
+  function converted(amount: number, fromCurrency: string | null, date?: string): string | null {
+    if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
+    const dateKey = date?.slice(0, 10) ?? ''
+    const rate = rates[`${fromCurrency}:${userCurrency}:${dateKey}`]
+    if (!rate) return null
+    return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
+  }
 
   if (isLoading) {
     return (
@@ -527,9 +646,12 @@ export default function SoldPage() {
                         <div className="mt-1 flex flex-wrap gap-1">
                           <Badge variant="default">SOLD</Badge>
                           {entry.salePrice && entry.saleCurrency && (
-                            <span className="text-[10px] text-amber-400">
-                              {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
-                            </span>
+                            <div className="flex flex-col gap-0">
+                              <span className="text-[10px] text-amber-400">
+                                {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
+                              </span>
+                              {(() => { const c = converted(parseFloat(entry.salePrice), entry.saleCurrency); return c ? <span className="text-[10px] text-stone-500">{c}</span> : null })()}
+                            </div>
                           )}
                         </div>
                       }
@@ -593,6 +715,7 @@ export default function SoldPage() {
                   <div>
                     <p className="text-xs text-stone-500">Sold for</p>
                     <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
+                    {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
                   </div>
                   {sg.profitLoss != null && (
                     <div>
@@ -600,6 +723,7 @@ export default function SoldPage() {
                       <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
                       </p>
+                      {(() => { const c = converted(sg.profitLoss, sg.currency, sg.soldAt); return c ? <p className={`text-xs ${sg.profitLoss >= 0 ? 'text-green-400/60' : 'text-red-400/60'}`}>{sg.profitLoss >= 0 ? '+' : ''}{c.replace('≈ ', '≈ ')}</p> : null })()}
                     </div>
                   )}
                 </div>
@@ -621,6 +745,8 @@ export default function SoldPage() {
         open={editingSale !== null}
         onClose={() => setEditingSale(null)}
         saleGroup={editingSale}
+        rates={rates}
+        userCurrency={userCurrency}
       />
     </div>
   )

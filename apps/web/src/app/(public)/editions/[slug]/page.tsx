@@ -42,6 +42,7 @@ interface EditionDetail {
   bookBoxCompanyId?: string | null
   publisher: string | null
   isSpecial: boolean
+  isOmnibus?: boolean
   additionalImages: string[]
   language?: string | null
   basePrice?: string | null
@@ -60,6 +61,14 @@ interface EditionDetail {
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
+  components?: Array<{
+    id: string
+    bookId: string | null
+    customTitle: string | null
+    volumeNumber: number | null
+    order: number
+    book: { id: string; slug: string; title: string } | null
+  }>
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
@@ -125,15 +134,12 @@ export default async function EditionPage({ params, searchParams }: Props) {
     notFound()
   }
 
-  // Fetch community images when edition has no official images
-  const hasOfficialImages = Array.isArray(edition.additionalImages) && edition.additionalImages.length > 0
+  // Always fetch community images (shown below official carousel, or as main section when no official photos)
   let communityImages: CommunityImage[] = []
-  if (!hasOfficialImages) {
-    try {
-      communityImages = await apiFetch<CommunityImage[]>(`/editions/${slug}/community-images`)
-    } catch {
-      // Non-fatal — show empty section
-    }
+  try {
+    communityImages = await apiFetch<CommunityImage[]>(`/editions/${slug}/community-images`)
+  } catch {
+    // Non-fatal — show empty section
   }
 
   // Check if user is authenticated (cookie-based)
@@ -460,7 +466,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                         {cleanName}
                       </p>
                       {roles.map((r) => (
-                          <p key={r} className="text-sm text-stone-400">{r}</p>
+                          <p key={r} className="text-sm text-stone-400">{r.charAt(0).toUpperCase() + r.slice(1).toLowerCase()}</p>
                         ))}
                     </div>
                   </Link>
@@ -470,17 +476,29 @@ export default async function EditionPage({ params, searchParams }: Props) {
           </section>
         )}
 
-        {/* ── Back link ────────────────────────────────────────────────────── */}
-        {book && (
-          <div>
-            <BackButton className="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              All editions of &quot;{book.title}&quot;
-            </BackButton>
+        {/* ── Contains (omnibus) ───────────────────────────────────────────── */}
+        {edition.components && edition.components.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Contains</h3>
+            <div className="space-y-1">
+              {edition.components.map(c => (
+                <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+                  {c.volumeNumber != null && (
+                    <span className="text-xs text-amber-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
+                  )}
+                  {c.book ? (
+                    <Link href={`/books/${c.book.slug}`} className="hover:text-amber-400 transition-colors">
+                      {c.book.title}
+                    </Link>
+                  ) : (
+                    <span>{c.customTitle ?? '—'}</span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
+
       </div>
     </div>
   )

@@ -17,6 +17,8 @@ import {
   UpdateEditionDto,
   AddArtistDto,
   EditionQueryDto,
+  CreateComponentDto,
+  UpdateComponentDto,
 } from './editions.dto';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
 import { UserEditionImagesService } from './user-edition-images.service';
@@ -157,5 +159,37 @@ export class EditionsController {
     @CurrentUser() user: CurrentUserType,
   ) {
     return this.userImagesService.submitImages(slug, user.id, dto);
+  }
+
+  // Components (omnibus)
+  @Public()
+  @Get(':slug/components')
+  getComponents(@Param('slug') slug: string) {
+    return this.editionsService.getComponents(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/components')
+  addComponent(@Param('slug') slug: string, @Body() dto: CreateComponentDto) {
+    return this.editionsService.addComponent(slug, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/components/:componentId')
+  updateComponent(
+    @Param('slug') slug: string,
+    @Param('componentId') componentId: string,
+    @Body() dto: UpdateComponentDto,
+  ) {
+    return this.editionsService.updateComponent(slug, componentId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/components/:componentId')
+  removeComponent(@Param('slug') slug: string, @Param('componentId') componentId: string) {
+    return this.editionsService.removeComponent(slug, componentId);
   }
 }

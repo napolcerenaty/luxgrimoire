@@ -7,6 +7,8 @@ import {
   UpdateEditionDto,
   AddArtistDto,
   EditionQueryDto,
+  CreateComponentDto,
+  UpdateComponentDto,
 } from './editions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 
@@ -200,6 +202,17 @@ export class EditionsService {
             announcement: { select: { id: true, title: true, isBundle: true } },
           },
         },
+        components: {
+          select: {
+            id: true,
+            bookId: true,
+            customTitle: true,
+            volumeNumber: true,
+            order: true,
+            book: { select: { id: true, slug: true, title: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
@@ -230,6 +243,7 @@ export class EditionsService {
     if (dto.language !== undefined) data.language = dto.language;
     if (dto.additionalImages !== undefined) data.additionalImages = dto.additionalImages;
     if (dto.isSpecial !== undefined) data.isSpecial = dto.isSpecial;
+    if (dto.isOmnibus !== undefined) data.isOmnibus = dto.isOmnibus;
     if (dto.basePrice !== undefined) {
       if (dto.basePrice) {
         // Normalize comma decimal separator (e.g. "12,99" → "12.99")
@@ -298,6 +312,79 @@ export class EditionsService {
     return this.prisma.artistContribution.deleteMany({
       where: { editionId: edition.id, artistId },
     });
+  }
+
+  async getComponents(slug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        components: {
+          select: {
+            id: true, bookId: true, customTitle: true, volumeNumber: true, order: true,
+            book: { select: { id: true, slug: true, title: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    return edition.components;
+  }
+
+  async addComponent(slug: string, dto: CreateComponentDto) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const [component] = await this.prisma.$transaction([
+      this.prisma.bookEditionComponent.create({
+        data: {
+          editionId: edition.id,
+          bookId: dto.bookId ?? null,
+          customTitle: dto.customTitle ?? null,
+          volumeNumber: dto.volumeNumber ?? null,
+          order: dto.order ?? 0,
+        },
+        select: {
+          id: true, bookId: true, customTitle: true, volumeNumber: true, order: true,
+          book: { select: { id: true, slug: true, title: true } },
+        },
+      }),
+      this.prisma.bookEdition.update({
+        where: { id: edition.id },
+        data: { componentCount: { increment: 1 } },
+      }),
+    ]);
+    return component;
+  }
+
+  async updateComponent(slug: string, componentId: string, dto: UpdateComponentDto) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    return this.prisma.bookEditionComponent.update({
+      where: { id: componentId, editionId: edition.id },
+      data: {
+        customTitle: dto.customTitle,
+        volumeNumber: dto.volumeNumber,
+        order: dto.order,
+      },
+      select: {
+        id: true, bookId: true, customTitle: true, volumeNumber: true, order: true,
+        book: { select: { id: true, slug: true, title: true } },
+      },
+    });
+  }
+
+  async removeComponent(slug: string, componentId: string) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const [deleted] = await this.prisma.$transaction([
+      this.prisma.bookEditionComponent.delete({ where: { id: componentId, editionId: edition.id } }),
+      this.prisma.bookEdition.update({
+        where: { id: edition.id },
+        data: { componentCount: { decrement: 1 } },
+      }),
+    ]);
+    return deleted;
   }
 
   private async indexEdition(editionId: string): Promise<void> {

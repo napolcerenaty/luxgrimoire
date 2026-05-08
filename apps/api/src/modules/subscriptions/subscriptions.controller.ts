@@ -27,6 +27,8 @@ import {
   RemoveMyEntryDto,
   CreatePriceChangeDto,
   UpdateBillingModeDto,
+  CreatePrepayOptionDto,
+  UpdatePrepayOptionDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -392,5 +394,52 @@ export class SubscriptionsController {
   ) {
     await this.subscriptionsService.deletePriceChange(slug, id);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
+  }
+
+  // ── Prepay Options ───────────────────────────────────────────────────────────
+
+  @Public()
+  @Get(':slug/prepay-options')
+  getPrepayOptions(@Param('slug') slug: string) {
+    return this.subscriptionsService.getPrepayOptions(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/prepay-options')
+  async createPrepayOption(
+    @Param('slug') slug: string,
+    @Body() dto: CreatePrepayOptionDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.createPrepayOption(slug, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_PREPAY_OPTION', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/prepay-options/:id')
+  async updatePrepayOption(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() dto: UpdatePrepayOptionDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.updatePrepayOption(slug, id, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_PREPAY_OPTION', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/prepay-options/:id')
+  async deletePrepayOption(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    await this.subscriptionsService.deletePrepayOption(slug, id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_PREPAY_OPTION', entityType: 'subscription', entityId: slug });
   }
 }
