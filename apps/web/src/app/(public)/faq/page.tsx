@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -6,14 +8,14 @@ export const metadata: Metadata = {
   description: 'Frequently asked questions about LuxGrimoire — the community database for luxury book editions and subscription boxes.',
 }
 
-const FAQ: { q: string; a: string }[] = [
+const FAQ: { q: string; a: ReactNode }[] = [
   {
     q: 'What is LuxGrimoire?',
     a: 'LuxGrimoire is a community-driven database and tracking tool for luxury special edition books and book subscription boxes. You can browse editions, track what you own, follow upcoming sales, and discover new subscription boxes.',
   },
   {
     q: 'Is LuxGrimoire free to use?',
-    a: 'Yes — browsing, searching, and adding data is completely free. Creating an account unlocks personal features like collection tracking, spending reports, and calendars.',
+    a: <>Yes — browsing, searching, and adding data is completely free. Creating an account unlocks personal features like collection tracking, spending reports, and calendars. The hosting and infrastructure costs are covered personally by the creator. If you&apos;d like to support the project, visit our <Link href="/support" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Support Us</Link> page.</>,
   },
   {
     q: 'How do I add a missing book or edition?',
@@ -83,7 +85,7 @@ export default function FaqPage() {
                 className="text-stone-500 shrink-0 transition-transform group-open:rotate-180"
               />
             </summary>
-            <p className="mt-3 text-sm text-stone-400 leading-relaxed">{a}</p>
+            <div className="mt-3 text-sm text-stone-400 leading-relaxed">{a}</div>
           </details>
         ))}
       </div>
