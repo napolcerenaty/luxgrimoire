@@ -206,21 +206,34 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
 
       {/* Upload placeholder — only when no community images exist yet */}
       {images.length === 0 && !showUpload && (
-        <button
-          type="button"
-          onClick={isAuthenticated ? () => { setShowUpload(true); setSuccess(false) } : undefined}
-          disabled={!isAuthenticated}
-          className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 flex flex-col items-center justify-center text-stone-500 ring-1 ring-stone-700/50 hover:ring-amber-700/50 hover:text-stone-400 transition-all group disabled:cursor-default"
-        >
-          <svg className="w-10 h-10 mb-3 group-hover:text-stone-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+        <>
           {isAuthenticated ? (
-            <span className="text-sm font-medium">Upload image</span>
+            <button
+              type="button"
+              onClick={() => { setShowUpload(true); setSuccess(false) }}
+              className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 flex flex-col items-center justify-center text-stone-500 ring-1 ring-stone-700/50 hover:ring-amber-600/60 hover:text-stone-300 hover:bg-gradient-to-br hover:from-stone-700 hover:via-stone-800 hover:to-amber-900/20 transition-all group cursor-pointer"
+            >
+              <svg className="w-10 h-10 mb-3 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-semibold text-stone-300 group-hover:text-amber-400 transition-colors">Upload community photo</span>
+              <span className="text-xs text-stone-600 mt-1">Be the first to contribute</span>
+            </button>
           ) : (
-            <span className="text-xs text-stone-600">No image available</span>
+            <div className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-800 via-stone-900 to-stone-950 flex flex-col items-center justify-center text-stone-500 ring-1 ring-stone-700/50 gap-2 px-4 text-center">
+              <svg className="w-10 h-10 mb-1 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs text-stone-500">No official image yet</span>
+              <a
+                href="/login"
+                className="text-xs text-amber-600 hover:text-amber-400 underline underline-offset-2 transition-colors"
+              >
+                Sign in to add a community photo
+              </a>
+            </div>
           )}
-        </button>
+        </>
       )}
 
       {/* Success message */}
