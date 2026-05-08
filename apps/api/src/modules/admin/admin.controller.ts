@@ -5,7 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto } from './admin.dto';
 import { UserEditionImagesService } from '../editions/user-edition-images.service';
-import { UpdateImageStatusDto } from '../editions/user-edition-images.dto';
+import { UpdateImageStatusDto, ReorderImagesDto } from '../editions/user-edition-images.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -86,6 +86,11 @@ export class AdminController {
     @Body() dto: UpdateImageStatusDto,
   ) {
     return this.userImagesService.adminUpdateStatus(id, dto.status);
+  }
+
+  @Put('community-images/reorder')
+  reorderCommunityImages(@Body() dto: ReorderImagesDto) {
+    return this.userImagesService.adminReorderImages(dto.items);
   }
 
   @Delete('community-images/:id')

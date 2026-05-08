@@ -43,3 +43,23 @@ export class UpdateImageStatusDto {
   @IsString()
   status!: 'APPROVED' | 'REMOVED';
 }
+
+export class ReorderImageItemDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  id!: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  sortOrder!: number;
+}
+
+export class ReorderImagesDto {
+  @ApiProperty({ type: [ReorderImageItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReorderImageItemDto)
+  items!: ReorderImageItemDto[];
+}

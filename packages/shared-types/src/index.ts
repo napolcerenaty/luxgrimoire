@@ -107,6 +107,7 @@ export interface ApiBookEdition {
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
   artists?: Array<{ artist: ApiArtist; role: string }>;
+  communityPhotoCover?: string | null;
   verifiedAt: string | null;
   submittedByUserId: string | null;
   // Edition commerce / access fields
@@ -138,6 +139,7 @@ export interface ApiCompanyEdition {
   id: string;
   slug: string;
   additionalImages: string[];
+  communityPhotoCover?: string | null;
   editionName: string | null;
   collectionId: string | null;
   subscriptionId: string | null;

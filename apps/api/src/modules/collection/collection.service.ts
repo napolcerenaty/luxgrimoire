@@ -26,6 +26,12 @@ export class CollectionService {
                 slug: true,
                 additionalImages: true,
                 bookBoxCompany: { select: { id: true, name: true, slug: true } },
+                communityImages: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                  select: { url: true },
+                },
                 book: {
                   select: {
                     id: true,
@@ -45,7 +51,21 @@ export class CollectionService {
         }),
         this.prisma.userBookEntry.count({ where }),
       ]);
-      return { data, total, page, pageSize };
+      const slimMapped = data.map((entry) => {
+        const edition = entry.edition as typeof entry.edition & { communityImages?: Array<{ url: string }> };
+        if (!edition) return entry;
+        const { communityImages, ...editionRest } = edition;
+        return {
+          ...entry,
+          edition: {
+            ...editionRest,
+            communityPhotoCover: (edition.additionalImages as string[]).length === 0
+              ? (communityImages?.[0]?.url ?? null)
+              : null,
+          },
+        };
+      });
+      return { data: slimMapped, total, page, pageSize };
     }
 
     const [data, total] = await Promise.all([
@@ -68,6 +88,12 @@ export class CollectionService {
               publisher: true,
               additionalImages: true,
               bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+              communityImages: {
+                where: { status: 'APPROVED' },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: { url: true },
+              },
               book: {
                 select: {
                   id: true,
@@ -112,14 +138,24 @@ export class CollectionService {
       this.prisma.userBookEntry.count({ where }),
     ]);
     // Flatten tags to string[]
-    const dataWithTags = data.map((entry) => ({
-      ...entry,
-      tags: (entry.entryTags ?? []).map((t) => t.tag),
-      entryTags: undefined,
-      edition: entry.edition
-        ? { ...entry.edition, tags: undefined }
-        : entry.edition,
-    }));
+    const dataWithTags = data.map((entry) => {
+      const edition = entry.edition as typeof entry.edition & { communityImages?: Array<{ url: string }> };
+      return {
+        ...entry,
+        tags: (entry.entryTags ?? []).map((t) => t.tag),
+        entryTags: undefined,
+        edition: edition
+          ? {
+              ...edition,
+              tags: undefined,
+              communityImages: undefined,
+              communityPhotoCover: (edition.additionalImages as string[]).length === 0
+                ? (edition.communityImages?.[0]?.url ?? null)
+                : null,
+            }
+          : edition,
+      };
+    });
     return { data: dataWithTags, total, page, pageSize };
   }
 

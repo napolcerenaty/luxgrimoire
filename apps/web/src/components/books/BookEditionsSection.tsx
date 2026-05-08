@@ -20,7 +20,7 @@ export function BookEditionsSection({ editions }: Props) {
         <EditionCard
           key={edition.id}
           href={`/editions/${edition.slug}`}
-          coverImage={edition.additionalImages?.[0] ?? null}
+          coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
           companyName={edition.bookBoxCompany?.name}
           companySlug={edition.bookBoxCompany?.slug}
           unverified={!edition.verifiedAt}

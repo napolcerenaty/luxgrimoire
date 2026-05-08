@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
 import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
@@ -141,11 +140,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
   } catch {
     // Non-fatal — show empty section
   }
-
-  // Check if user is authenticated (cookie-based)
-  const cookieStore = await cookies()
-  const JWT_COOKIE = process.env.JWT_COOKIE_NAME ?? 'luxgrimoire_auth'
-  const isAuthenticated = Boolean(cookieStore.get(JWT_COOKIE)?.value)
 
   const book = edition.book
   const features = Array.isArray(edition.features) ? edition.features : []

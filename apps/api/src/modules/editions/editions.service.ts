@@ -120,6 +120,12 @@ export class EditionsService {
           artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
           bookBoxCompany: { select: { name: true, slug: true } },
           collection: { select: { id: true, name: true, slug: true } },
+          communityImages: {
+            where: { status: 'APPROVED' },
+            orderBy: { sortOrder: 'asc' },
+            take: 1,
+            select: { url: true },
+          },
           ...(query.needsVerification
             ? { _count: { select: { userEntries: true } } }
             : {}),
@@ -129,12 +135,18 @@ export class EditionsService {
       this.prisma.bookEdition.count({ where }),
     ]);
 
-    const flatData = data.map((e) => ({
-      ...e,
-      book: e.book
-        ? { ...e.book, authors: e.book.authors.map((ba: { author: unknown }) => ba.author) }
-        : e.book,
-    }));
+    const flatData = data.map((e) => {
+      const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+      return {
+        ...rest,
+        communityPhotoCover: (e.additionalImages as string[]).length === 0
+          ? (communityImages?.[0]?.url ?? null)
+          : null,
+        book: e.book
+          ? { ...e.book, authors: e.book.authors.map((ba: { author: unknown }) => ba.author) }
+          : e.book,
+      };
+    });
 
     return { data: flatData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }

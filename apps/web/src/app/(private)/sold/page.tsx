@@ -29,6 +29,7 @@ interface CollectionEntry {
     slug: string
     publisher: string | null
     additionalImages: string[]
+    communityPhotoCover?: string | null
     bookBoxCompany: { id: string; name: string; slug: string } | null
     book: {
       id: string
@@ -635,7 +636,7 @@ export default function SoldPage() {
                   <div key={entry.id} className="relative">
                     <EditionCard
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                      coverImage={entry.edition.additionalImages[0] ?? null}
+                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
                       title={entry.edition.book.title}
                       authors={entry.edition.book.authors}
                       companyName={entry.edition.bookBoxCompany?.name}

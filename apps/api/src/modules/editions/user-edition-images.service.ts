@@ -140,4 +140,25 @@ export class UserEditionImagesService {
     await this.upload.deleteImage(img.cloudinaryId);
     await this.prisma.userEditionImage.delete({ where: { id: imageId } });
   }
+
+  // Admin: reorder images within an edition
+  async adminReorderImages(items: { id: string; sortOrder: number }[]) {
+    await this.prisma.$transaction(
+      items.map((item) =>
+        this.prisma.userEditionImage.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        }),
+      ),
+    );
+  }
+
+  // User: delete their own image
+  async userDeleteImage(imageId: string, userId: string) {
+    const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
+    if (!img) throw new NotFoundException('Image not found');
+    if (img.userId !== userId) throw new ForbiddenException('You can only delete your own images');
+    await this.upload.deleteImage(img.cloudinaryId);
+    await this.prisma.userEditionImage.delete({ where: { id: imageId } });
+  }
 }

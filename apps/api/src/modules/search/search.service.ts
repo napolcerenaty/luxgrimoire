@@ -119,6 +119,12 @@ export class SearchService {
               publisher: true,
               generalSaleDate: true,
               bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
+              communityImages: {
+                where: { status: 'APPROVED' },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: { url: true },
+              },
               book: {
                 select: {
                   id: true, slug: true, title: true, seriesName: true, volumeNumber: true,
@@ -179,7 +185,10 @@ export class SearchService {
         : [],
     ])
 
-    return { books, editions, authors, artists, subscriptions, companies, sales, query: trimmed, filter }
+    return { books, editions: editions.map((e: any) => {
+      const { communityImages, ...rest } = e;
+      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
+    }), authors, artists, subscriptions, companies, sales, query: trimmed, filter }
   }
 
   private async postgresSearch(trimmed: string, filter: string) {
@@ -236,6 +245,12 @@ export class SearchService {
               publisher: true,
               generalSaleDate: true,
               bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
+              communityImages: {
+                where: { status: 'APPROVED' },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: { url: true },
+              },
               book: {
                 select: {
                   id: true, slug: true, title: true, seriesName: true, volumeNumber: true,
@@ -315,6 +330,9 @@ export class SearchService {
         : [],
     ])
 
-    return { books, editions, authors, artists, subscriptions, companies, sales, query: trimmed, filter }
+    return { books, editions: (editions as any[]).map((e) => {
+      const { communityImages, ...rest } = e;
+      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
+    }), authors, artists, subscriptions, companies, sales, query: trimmed, filter }
   }
 }

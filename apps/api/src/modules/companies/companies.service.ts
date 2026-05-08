@@ -104,6 +104,12 @@ export class CompaniesService {
             collectionId: true,
             subscriptionId: true,
             collection: { select: { id: true, name: true, slug: true } },
+            communityImages: {
+              where: { status: 'APPROVED' },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              select: { url: true },
+            },
             book: {
               select: {
                 id: true,
@@ -125,7 +131,18 @@ export class CompaniesService {
       },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
-    return company;
+    return {
+      ...company,
+      editions: company.editions.map((e) => {
+        const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+        return {
+          ...rest,
+          communityPhotoCover: (e.additionalImages as string[]).length === 0
+            ? (communityImages?.[0]?.url ?? null)
+            : null,
+        };
+      }),
+    };
   }
 
   async update(slug: string, dto: UpdateCompanyDto) {
