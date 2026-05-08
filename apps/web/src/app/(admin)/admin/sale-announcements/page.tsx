@@ -496,6 +496,7 @@ interface FormState {
   isBundle: boolean
   expectedShipping: string
   photoCredit: string
+  sourceUrl: string
   linkedEditions: LinkedEdition[]
 }
 
@@ -512,6 +513,7 @@ const EMPTY_FORM: FormState = {
   isBundle: false,
   expectedShipping: '',
   photoCredit: '',
+  sourceUrl: '',
   linkedEditions: [],
 }
 
@@ -541,6 +543,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     isBundle: a.isBundle,
     expectedShipping: (a as any).expectedShipping ?? '',
     photoCredit: a.photoCredit ?? '',
+    sourceUrl: (a as any).sourceUrl ?? '',
     linkedEditions,
   }
 }
@@ -561,6 +564,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
     photoCredit: f.photoCredit || undefined,
+    sourceUrl: f.sourceUrl || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
 }
@@ -724,6 +728,18 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           value={form.photoCredit}
           onChange={set('photoCredit')}
           placeholder="@photographer"
+        />
+      </div>
+
+      {/* Source URL */}
+      <div>
+        <label className={LBL}>Source URL <span className="text-stone-600 font-normal">(original announcement link)</span></label>
+        <input
+          type="url"
+          className={INP}
+          value={form.sourceUrl}
+          onChange={set('sourceUrl')}
+          placeholder="https://instagram.com/p/… or https://company.com/blog/…"
         />
       </div>
 

@@ -154,11 +154,15 @@ export default function AdminArtistsPage() {
   const [editArtist, setEditArtist] = useState<ApiArtist | null>(null)
   const [deleteArtist, setDeleteArtist] = useState<ApiArtist | null>(null)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'artists', page],
-    queryFn: () =>
-      authFetch<PaginatedResponse<ApiArtist>>(`/artists?page=${page}&pageSize=15`),
+    queryKey: ['admin', 'artists', page, search],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: '15' })
+      if (search) params.set('search', search)
+      return authFetch<PaginatedResponse<ApiArtist>>(`/artists?${params}`)
+    },
     placeholderData: keepPreviousData,
   })
 
@@ -211,6 +215,16 @@ export default function AdminArtistsPage() {
         >
           Add Artist
         </button>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="Search artists…"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400"
+        />
       </div>
 
       {isLoading ? (
