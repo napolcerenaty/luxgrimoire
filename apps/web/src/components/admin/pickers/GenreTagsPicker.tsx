@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
@@ -10,7 +10,11 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres:
   const [q, setQ] = useState('')
   const [dq, setDq] = useState('')
   const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [openUpward, setOpenUpward] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   const { data: suggestions } = useQuery({
     queryKey: ['genres-search', dq],
@@ -19,7 +23,7 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres:
   })
 
   const handleChange = (v: string) => {
-    setQ(v); setOpen(true)
+    setQ(v); setOpen(true); setActiveIndex(-1)
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => setDq(v), 300)
   }
@@ -28,32 +32,83 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres:
     const trimmed = name.trim()
     if (!trimmed || genres.includes(trimmed)) return
     onChange([...genres, trimmed])
-    setQ(''); setDq(''); setOpen(false)
+    setQ(''); setDq(''); setOpen(false); setActiveIndex(-1)
   }
 
   const filtered = (suggestions ?? []).filter(g =>
     !genres.includes(g) && (dq ? g.toLowerCase().includes(dq.toLowerCase()) : true)
   )
 
+  // All dropdown items: filtered suggestions + optional "add new" entry
+  const hasAddNew = allowNew && q.trim() && !filtered.includes(q.trim())
+  const allItems: Array<{ type: 'suggestion' | 'add'; value: string }> = [
+    ...filtered.map(g => ({ type: 'suggestion' as const, value: g })),
+    ...(hasAddNew ? [{ type: 'add' as const, value: q.trim() }] : []),
+  ]
+
+  const checkOpenDirection = useCallback(() => {
+    if (!wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    setOpenUpward(spaceBelow < 220)
+  }, [])
+
+  const handleFocus = () => {
+    checkOpenDirection()
+    setOpen(true)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || allItems.length === 0) {
+      if (e.key === 'Enter') { e.preventDefault(); if (allowNew) add(q) }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex(i => Math.min(i + 1, allItems.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (activeIndex >= 0 && activeIndex < allItems.length) {
+        add(allItems[activeIndex].value)
+      } else if (allowNew) {
+        add(q)
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false); setActiveIndex(-1)
+    }
+  }
+
+  const dropdownClasses = openUpward
+    ? 'absolute z-50 bottom-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mb-1 shadow-2xl max-h-52 overflow-y-auto'
+    : 'absolute z-50 top-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mt-1 shadow-2xl max-h-52 overflow-y-auto'
+
   return (
     <div>
-      <div className="relative">
-        <input value={q} onChange={e => handleChange(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (allowNew) add(q) } }}
-          placeholder={allowNew ? 'Search or type genre + Enter…' : 'Search genre…'} className={INP} />
-        {open && (filtered.length > 0 || (allowNew && q.trim())) && (
-          <div className="absolute z-20 top-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
-            {filtered.map(g => (
+      <div className="relative" ref={wrapperRef}>
+        <input
+          ref={inputRef}
+          value={q}
+          onChange={e => handleChange(e.target.value)}
+          onFocus={handleFocus}
+          onBlur={() => setTimeout(() => { setOpen(false); setActiveIndex(-1) }, 150)}
+          onKeyDown={handleKeyDown}
+          placeholder={allowNew ? 'Search or type genre + Enter…' : 'Search genre…'}
+          className={INP}
+        />
+        {open && allItems.length > 0 && (
+          <div className={dropdownClasses}>
+            {filtered.map((g, idx) => (
               <button key={g} type="button" onMouseDown={() => add(g)}
-                className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors">
+                className={`w-full text-left px-3 py-2 text-sm text-stone-200 transition-colors ${activeIndex === idx ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
                 {g}
               </button>
             ))}
-            {allowNew && q.trim() && !filtered.includes(q.trim()) && (
+            {hasAddNew && (
               <button type="button" onMouseDown={() => add(q.trim())}
-                className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors">
+                className={`w-full text-left px-3 py-2 text-xs text-amber-400 transition-colors border-t border-stone-700 ${activeIndex === filtered.length ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
                 + Add &ldquo;{q.trim()}&rdquo;
               </button>
             )}
