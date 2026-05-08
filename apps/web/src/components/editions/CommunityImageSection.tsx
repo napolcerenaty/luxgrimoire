@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
@@ -26,7 +27,6 @@ interface PendingImage {
 interface Props {
   editionSlug: string
   initialImages: CommunityImage[]
-  isAuthenticated: boolean
 }
 
 function cloudThumb(url: string, size = 'w_120,h_160,c_fill,q_auto,f_auto') {
@@ -61,7 +61,9 @@ async function uploadToCloudinary(file: File): Promise<{ cloudinaryId: string; u
   return { cloudinaryId: data.publicId, url: data.url }
 }
 
-export function CommunityImageSection({ editionSlug, initialImages, isAuthenticated }: Props) {
+export function CommunityImageSection({ editionSlug, initialImages }: Props) {
+  const { user, loading: authLoading } = useAuth()
+  const isAuthenticated = Boolean(user)
   const [images, setImages] = useState<CommunityImage[]>(initialImages)
   const [showUpload, setShowUpload] = useState(false)
   const [pending, setPending] = useState<PendingImage[]>([])
@@ -207,7 +209,9 @@ export function CommunityImageSection({ editionSlug, initialImages, isAuthentica
       {/* Upload placeholder — only when no community images exist yet */}
       {images.length === 0 && !showUpload && (
         <>
-          {isAuthenticated ? (
+          {authLoading ? (
+            <div className="w-full aspect-[2/3] rounded-xl bg-stone-900 ring-1 ring-stone-800 animate-pulse" />
+          ) : isAuthenticated ? (
             <button
               type="button"
               onClick={() => { setShowUpload(true); setSuccess(false) }}

@@ -209,7 +209,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 <CommunityImageSection
                   editionSlug={slug}
                   initialImages={communityImages}
-                  isAuthenticated={isAuthenticated}
                 />
               )}
 
