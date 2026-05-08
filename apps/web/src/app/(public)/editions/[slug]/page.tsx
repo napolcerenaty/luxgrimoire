@@ -419,7 +419,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
                   <span className="text-amber-500 mt-0.5 shrink-0">✦</span>
-                  <span>{f}</span>
+                  <span>{f.charAt(0).toUpperCase() + f.slice(1)}</span>
                 </li>
               ))}
             </ul>
