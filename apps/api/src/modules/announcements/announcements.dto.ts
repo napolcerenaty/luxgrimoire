@@ -49,6 +49,10 @@ export class CreateSaleAnnouncementDto {
   photoCredit?: string;
 
   @IsOptional()
+  @IsString()
+  sourceUrl?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   extraImages?: string[];
@@ -106,6 +110,10 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   photoCredit?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceUrl?: string;
 
   @IsOptional()
   @IsArray()

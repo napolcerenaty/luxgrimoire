@@ -537,6 +537,7 @@ model SaleAnnouncement {
   isBundle             Boolean                   @default(false)
   expectedShipping     String?
   photoCredit          String?
+  sourceUrl            String?
   earlyAccessDate      DateTime?
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?

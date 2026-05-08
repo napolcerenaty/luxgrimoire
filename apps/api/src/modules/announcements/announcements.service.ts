@@ -227,6 +227,7 @@ export class AnnouncementsService {
         isBundle: data.isBundle ?? false,
         expectedShipping: data.expectedShipping ?? null,
         photoCredit: data.photoCredit ?? null,
+        sourceUrl: data.sourceUrl ?? null,
       },
     });
 
@@ -275,6 +276,7 @@ export class AnnouncementsService {
         ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
         ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
         ...(data.photoCredit !== undefined && { photoCredit: data.photoCredit || null }),
+        ...(data.sourceUrl !== undefined && { sourceUrl: data.sourceUrl || null }),
       },
     });
 
