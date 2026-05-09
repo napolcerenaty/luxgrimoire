@@ -1470,14 +1470,14 @@ export class SubscriptionsService {
                   userId,
                   bookId: mb.bookId,
                   editionId: mb.editionId,
-                  ownershipStatus: 'OWNED',
+                  ownershipStatus: 'PREORDER',
                   readingStatus: 'UNREAD',
                   subscriptionEntryId: entry.id,
                   purchaseGroupId: group.id,
                   signatureType: mb.signatureType,
                 },
               }).then(created =>
-                this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'OWNED' } }).catch(() => {}),
+                this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
               );
             }
             booksAdded++;
@@ -1680,14 +1680,14 @@ export class SubscriptionsService {
                 userId,
                 bookId: mb.bookId!,
                 editionId: mb.editionId!,
-                ownershipStatus: 'OWNED',
+                ownershipStatus: 'PREORDER',
                 readingStatus: 'UNREAD',
                 subscriptionEntryId: entry.id,
                 purchaseGroupId: group.id,
                 signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
               },
             }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'OWNED' } }).catch(() => {}),
+              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: purchasedAtDate } }).catch(() => {}),
             );
           }
           booksAdded++;
