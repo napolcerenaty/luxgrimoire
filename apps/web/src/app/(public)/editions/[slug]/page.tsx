@@ -313,18 +313,11 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 />
               </div>
 
-              {/* Community stats (mock data — real API wiring in next iteration) */}
+              {/* Community stats */}
               <div className="mb-6">
                 <EditionCommunityStats
-                  collectionCount={47}
-                  saleStats={{
-                    avg: 42.50,
-                    median: 41.00,
-                    min: 28.00,
-                    max: 80.00,
-                    count: 23,
-                    currency: 'EUR',
-                  }}
+                  editionSlug={slug}
+                  fallbackCurrency={edition.currency}
                 />
               </div>
 

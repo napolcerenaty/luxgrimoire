@@ -1,20 +1,48 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { CrowdStatsService } from './crowd-stats.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Controller()
 export class CrowdStatsController {
   constructor(
     private readonly crowdStatsService: CrowdStatsService,
     private readonly prisma: PrismaService,
+    private readonly currencyService: CurrencyService,
   ) {}
 
   @Get('editions/:slug/stats/sale-price')
-  async getEditionSalePriceStats(@Param('slug') slug: string) {
+  async getEditionSalePriceStats(
+    @Param('slug') slug: string,
+    @Query('currency') currency?: string,
+  ) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException('Edition not found');
+
     const snapshot = await this.crowdStatsService.getSnapshotForEdition(edition.id);
-    return snapshot?.saleStats ?? { avg: null, median: null, min: null, max: null, count: 0 };
+    const raw = (snapshot?.saleStats ?? null) as {
+      avg: number | null; median: number | null; min: number | null; max: number | null; count: number;
+    } | null;
+
+    if (!raw || raw.count === 0) {
+      return { avg: null, median: null, min: null, max: null, count: 0, currency: currency?.toUpperCase() ?? 'EUR' };
+    }
+
+    const toCurrency = (currency ?? 'EUR').toUpperCase();
+    const now = new Date();
+
+    if (toCurrency === 'EUR') {
+      return { ...raw, currency: 'EUR' };
+    }
+
+    const [avg, median, min, max] = await Promise.all([
+      raw.avg !== null ? this.currencyService.convert(raw.avg, 'EUR', toCurrency, now) : null,
+      raw.median !== null ? this.currencyService.convert(raw.median, 'EUR', toCurrency, now) : null,
+      raw.min !== null ? this.currencyService.convert(raw.min, 'EUR', toCurrency, now) : null,
+      raw.max !== null ? this.currencyService.convert(raw.max, 'EUR', toCurrency, now) : null,
+    ]);
+
+    return { avg, median, min, max, count: raw.count, currency: toCurrency };
   }
 
   @Get('editions/:slug/stats/collection')
