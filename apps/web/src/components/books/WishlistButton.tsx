@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { Bookmark, BookmarkCheck } from 'lucide-react'
@@ -16,6 +17,7 @@ interface WishlistButtonProps {
 
 export function WishlistButton({ editionId }: WishlistButtonProps) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -37,6 +39,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
       })
       setStatus('wishlist')
       setEntryId(res.id)
+      void queryClient.invalidateQueries({ queryKey: ['collection'] })
     } catch {
       // silently fail — user may not be logged in or edition already tracked
     } finally {
@@ -51,6 +54,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
       await authFetch<void>(`/collection/${entryId}`, { method: 'DELETE' })
       setStatus('none')
       setEntryId(null)
+      void queryClient.invalidateQueries({ queryKey: ['collection'] })
     } finally {
       setIsPending(false)
     }

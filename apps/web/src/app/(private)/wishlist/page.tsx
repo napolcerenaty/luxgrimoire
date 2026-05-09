@@ -123,6 +123,8 @@ export default function WishlistPage() {
     queryKey: ['collection', 'wishlist-slim'],
     queryFn: () => authFetch<PaginatedEntries>('/collection?isWishlist=true&slim=true&pageSize=100'),
     enabled: activeTab === 'wishlist',
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   const { data: saleInterests = [], isLoading: isLoadingSales } = useQuery({
