@@ -146,7 +146,7 @@ export default function WishlistPage() {
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => authFetch<void>(`/collection/${id}`, { method: 'DELETE' }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['collection', true] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['collection'] }),
   })
 
   const moveMutation = useMutation({
