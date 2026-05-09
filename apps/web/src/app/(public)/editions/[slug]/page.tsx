@@ -1,4 +1,4 @@
-import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
+﻿import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
@@ -81,6 +81,7 @@ interface Props { params: Promise<{ slug: string }>; searchParams: Promise<{ ent
 
 interface CommunityImage {
   id: string
+  cloudinaryId: string
   url: string
   sortOrder: number
   instagramHandle: string | null
