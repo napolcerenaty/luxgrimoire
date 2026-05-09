@@ -1935,6 +1935,18 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) return [];
 
+    // Try to read from DB snapshot first (calculated by cron every 3 days)
+    const snapshot = await this.prisma.subscriptionCountryFeeSnapshot.findUnique({
+      where: { subscriptionId_country: { subscriptionId: subscription.id, country: country.toUpperCase() } },
+    });
+
+    if (snapshot) {
+      const data = snapshot.data as unknown as CountryFeeHint[];
+      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h L1 cache
+      return data;
+    }
+
+    // Fallback: live aggregation (snapshot not yet calculated — first visit before first cron run)
     const countryUpper = country.toUpperCase();
 
     const entries = await this.prisma.userSubscriptionEntry.findMany({
@@ -2029,7 +2041,7 @@ export class SubscriptionsService {
 
     data.sort((a, b) => b.count - a.count);
 
-    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 86_400_000 }); // 24h TTL
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h TTL (fallback path)
     return data;
   }
 

@@ -369,6 +369,7 @@ model Subscription {
   importSources        ImportSource[]
   pendingImports       PendingMonthImport[]
   statsSnapshot        SubscriptionStatsSnapshot?
+  countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
   @@index([companyId])
   @@index([isDiscontinued])
@@ -1348,4 +1349,17 @@ model SubscriptionStatsSnapshot {
   subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("subscription_stats_snapshots")
+}
+
+model SubscriptionCountryFeeSnapshot {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  country        String
+  data           Json         // CountryFeeHint[]
+  calculatedAt   DateTime     @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, country])
+  @@index([subscriptionId])
+  @@map("subscription_country_fee_snapshots")
 }
