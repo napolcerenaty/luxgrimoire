@@ -24,27 +24,47 @@ export default function SupportPage() {
 
       <div className="space-y-6 text-stone-300 text-sm leading-relaxed">
         <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">Always free</h2>
+          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">✨ Always free</h2>
           <p>
-            LuxGrimoire is completely free to use — browsing, tracking your collection, following sale announcements, and all other features.
-            That's how it has always been and how it will stay.
+            LuxGrimoire was made for people who genuinely love collecting books 📚 Special editions, subscription boxes,
+            signed copies, beautiful shelves, preorder stress — all of it.
+          </p>
+          <p className="mt-3">
+            The app is completely free to use and always will be. There are no ads, no premium subscriptions, no locked
+            features, and no selling user data 🤍
+          </p>
+          <p className="mt-3">
+            You can freely track your collection, manage subscriptions, follow upcoming editions, keep an eye on your
+            spending, and organize everything in one place ✨
           </p>
         </div>
 
         <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">Running costs</h2>
+          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">🌙 An independent passion project</h2>
           <p>
-            The hosting, database, image storage, and other infrastructure costs are covered personally by the creator of LuxGrimoire.
-            There are no ads, no paid plans, and no data selling — just a straightforward tool for the community.
+            LuxGrimoire is developed and maintained by one person who simply wanted a better way to keep track of the
+            books they love.
+          </p>
+          <p className="mt-3">
+            All hosting, database, image storage, and infrastructure costs are paid personally by the creator of
+            LuxGrimoire to keep the platform running and continuously improving 💫
+          </p>
+          <p className="mt-3">
+            This isn't a startup backed by investors or a large company — just a small independent project built with
+            care for fellow collectors.
           </p>
         </div>
 
         <div className="rounded-xl border border-amber-800/40 bg-amber-950/20 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">Want to help?</h2>
+          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">☕ Support the project</h2>
           <p className="mb-5">
-            If LuxGrimoire has been useful to you and you'd like to support its continued development and hosting,
-            you're very welcome to buy the creator a coffee. Every contribution — however small — is genuinely appreciated
-            and helps keep the project going. ☕
+            If LuxGrimoire has helped you discover a new edition, avoid missing a preorder, organize your collection, or
+            simply made collecting more enjoyable 📖, and you'd like to support the project, you're very welcome to buy
+            the creator a coffee ☕ — or a book 📚
+          </p>
+          <p className="mb-5">
+            Every bit of support genuinely helps with development, server costs, and keeping LuxGrimoire alive, growing,
+            and independent ♡
           </p>
           <a
             href="https://buymeacoffee.com/luxgrimoire"

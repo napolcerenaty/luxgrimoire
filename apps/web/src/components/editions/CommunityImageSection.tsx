@@ -3,14 +3,15 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 const MAX_IMAGES = 5
 const MAX_BYTES = 5 * 1024 * 1024
 
 interface CommunityImage {
   id: string
+  cloudinaryId: string
   url: string
   sortOrder: number
   instagramHandle: string | null
@@ -28,17 +29,6 @@ interface PendingImage {
 interface Props {
   editionSlug: string
   initialImages: CommunityImage[]
-}
-
-function cloudThumb(url: string, size = 'w_120,h_160,c_fill,q_auto,f_auto') {
-  if (!url) return url
-  if (url.startsWith('http') && url.includes('cloudinary.com')) {
-    return url.replace('/upload/', `/upload/${size}/`)
-  }
-  if (CLOUD_NAME && !url.startsWith('http')) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${size}/${url}`
-  }
-  return url
 }
 
 async function uploadToCloudinary(file: File): Promise<{ cloudinaryId: string; url: string }> {
@@ -170,22 +160,6 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
     setShowUpload(false)
   }
 
-  const deleteMyImage = async (imageId: string) => {
-    setError(null)
-    try {
-      const res = await fetch(`${API_BASE}/editions/${editionSlug}/community-images/${imageId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { message?: string }
-        throw new Error(data.message ?? 'Delete failed')
-      }
-      setImages(prev => prev.filter(img => img.id !== imageId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
-    }
-  }
 
   return (
     <div className="w-full">
@@ -193,41 +167,35 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
       {images.length > 0 && (
         <div className="space-y-2">
           <ImageCarousel
-            images={images.map((img) => cloudThumb(img.url, 'w_800,h_1200,c_fill,q_auto,f_auto'))}
+            images={images.map((img) => cloudinaryUrl(img.cloudinaryId, 'w_800,h_1200,c_fill,q_auto,f_auto') ?? img.url)}
             alt="Community photo"
           />
-          {/* Per-image attribution + delete for own images */}
+          {/* Per-image attribution */}
           <div className="space-y-1 mt-1">
             {images.map((img, i) => (
-              <div key={img.id} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-500/80 shrink-0">
-                    {img.status === 'PENDING' ? '⏳' : '📷'}
-                  </span>
-                  {img.instagramHandle ? (
-                    <a
-                      href={`https://instagram.com/${img.instagramHandle}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[10px] text-stone-400 hover:text-amber-400 transition-colors truncate"
-                    >
-                      @{img.instagramHandle}
-                    </a>
-                  ) : (
-                    <span className="text-[10px] text-stone-500 truncate">
-                      {img.status === 'PENDING' ? 'Awaiting review' : `Photo ${i + 1}`}
-                    </span>
-                  )}
-                </div>
-                {user?.username === img.user.username && (
-                  <button
-                    type="button"
-                    onClick={() => { if (confirm('Delete your photo?')) void deleteMyImage(img.id) }}
-                    className="shrink-0 text-[10px] text-red-500 hover:text-red-400 transition-colors"
-                    title="Delete my photo"
+              <div key={img.id} className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-500/80 shrink-0">
+                  {img.status === 'PENDING' ? '⏳' : '📷'}
+                </span>
+                {img.instagramHandle ? (
+                  <a
+                    href={`https://instagram.com/${img.instagramHandle}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-stone-400 hover:text-amber-400 transition-colors truncate"
                   >
-                    Delete
-                  </button>
+                    @{img.instagramHandle}
+                  </a>
+                ) : (
+                  <span className="text-[10px] text-stone-500 truncate">
+                    {img.status === 'PENDING' ? 'Awaiting review' : `Photo ${i + 1}`}
+                  </span>
+                )}
+                {user?.username === img.user.username && (
+                  <span className="text-[10px] text-stone-600 ml-auto shrink-0">
+                    manage in{' '}
+                    <a href="/profile" className="text-amber-600 hover:text-amber-400 underline underline-offset-2">profile</a>
+                  </span>
                 )}
               </div>
             ))}

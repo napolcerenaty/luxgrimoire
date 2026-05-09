@@ -373,6 +373,7 @@ export default function AdminCompaniesPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -380,9 +381,18 @@ export default function AdminCompaniesPage() {
   })
 
   const allCompanies = data ? (Array.isArray(data) ? data : data.data) : []
-  const companies = isManager && user?.managedCompanyId
+  const managedCompanies = isManager && user?.managedCompanyId
     ? allCompanies.filter((c) => c.id === user.managedCompanyId)
     : allCompanies
+
+  const q = search.trim().toLowerCase()
+  const companies = q
+    ? managedCompanies.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.country ?? '').toLowerCase().includes(q),
+      )
+    : managedCompanies
 
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
@@ -440,8 +450,17 @@ export default function AdminCompaniesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <h1 className="text-2xl font-bold text-stone-100">Book Boxes</h1>
+        <div className="flex items-center gap-3 flex-1 max-w-sm">
+          <input
+            type="search"
+            placeholder="Search by name or country…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
+          />
+        </div>
         {!isManager && !createOpen && !editCompany && (
           <button
             onClick={() => setCreateOpen(true)}
@@ -501,6 +520,8 @@ export default function AdminCompaniesPage() {
       {/* Company table */}
       {isLoading ? (
         <div className="text-stone-400 py-8 text-center">Loading…</div>
+      ) : companies.length === 0 && q ? (
+        <div className="text-stone-500 py-8 text-center">No companies match "{search}".</div>
       ) : (
         <DataTable
           columns={columns}

@@ -34,6 +34,7 @@ export class UserEditionImagesService {
       orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: {
         id: true,
+        cloudinaryId: true,
         url: true,
         sortOrder: true,
         instagramHandle: true,
@@ -153,7 +154,36 @@ export class UserEditionImagesService {
     );
   }
 
-  // User: delete their own image
+  // User: list all their own community photos
+  async getMyImages(userId: string) {
+    return this.prisma.userEditionImage.findMany({
+      where: { userId, status: { not: 'REMOVED' } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        cloudinaryId: true,
+        url: true,
+        sortOrder: true,
+        instagramHandle: true,
+        status: true,
+        createdAt: true,
+        edition: {
+          select: { slug: true, editionName: true, bookBoxCompany: { select: { name: true } } },
+        },
+      },
+    });
+  }
+
+  // User: delete their own image by id (no slug needed — auth check by userId)
+  async deleteMyImageById(imageId: string, userId: string) {
+    const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
+    if (!img) throw new NotFoundException('Image not found');
+    if (img.userId !== userId) throw new ForbiddenException('You can only delete your own images');
+    await this.upload.deleteImage(img.cloudinaryId);
+    await this.prisma.userEditionImage.delete({ where: { id: imageId } });
+  }
+
+  // User: delete their own image (by slug route — kept for existing endpoint)
   async userDeleteImage(imageId: string, userId: string) {
     const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
     if (!img) throw new NotFoundException('Image not found');

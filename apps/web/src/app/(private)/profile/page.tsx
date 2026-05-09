@@ -1,14 +1,30 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+
+interface CommunityPhoto {
+  id: string
+  cloudinaryId: string
+  url: string
+  status: 'PENDING' | 'APPROVED'
+  instagramHandle: string | null
+  createdAt: string
+  edition: {
+    slug: string
+    editionName: string | null
+    bookBoxCompany: { name: string } | null
+  }
+}
 
 interface UpdateProfilePayload {
   displayName?: string
@@ -29,13 +45,14 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Settings },
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
   { id: 'subscriptions', label: 'Subscriptions & Fees', icon: BookOpen },
+  { id: 'photos', label: 'My Photos', icon: Image },
 ]
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -149,7 +166,6 @@ export default function ProfilePage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
       const dataUri = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
@@ -459,8 +475,142 @@ export default function ProfilePage() {
           <WaitlistPanel />
         </div>
       )}
+
+      {/* My Photos tab */}
+      {activeTab === 'photos' && <MyCommunityPhotos />}
     </div>
   )
 }
 
+function MyCommunityPhotos() {
+  const [photos, setPhotos] = useState<CommunityPhoto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    fetch(`${API_BASE}/profile/community-images`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: CommunityPhoto[]) => setPhotos(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const toggle = (id: string) =>
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const toggleAll = () =>
+    setSelected(prev => prev.size === photos.length ? new Set() : new Set(photos.map(p => p.id)))
+
+  const deleteSelected = async () => {
+    if (!selected.size) return
+    if (!confirm(`Delete ${selected.size} photo${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setDeleting(true)
+    setError(null)
+    const ids = [...selected]
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        fetch(`${API_BASE}/profile/community-images/${id}`, { method: 'DELETE', credentials: 'include' })
+      )
+    )
+    const failed = results.filter(r => r.status === 'rejected').length
+    if (failed > 0) setError(`${failed} photo${failed > 1 ? 's' : ''} could not be deleted.`)
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled')
+    setPhotos(prev => prev.filter(p => !succeeded.includes(p.id)))
+    setSelected(new Set())
+    setDeleting(false)
+  }
+
+  if (loading) return (
+    <div className="grid grid-cols-3 gap-3">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="aspect-[2/3] rounded-xl bg-stone-800 animate-pulse" />
+      ))}
+    </div>
+  )
+
+  if (photos.length === 0) return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 text-center text-stone-500">
+      <p className="text-sm">You haven&apos;t submitted any community photos yet.</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-serif font-semibold text-stone-100">My Community Photos</h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleAll}
+              className="text-xs text-stone-400 hover:text-stone-200 transition-colors"
+            >
+              {selected.size === photos.length ? 'Deselect all' : 'Select all'}
+            </button>
+            {selected.size > 0 && (
+              <button
+                onClick={() => void deleteSelected()}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/60 hover:bg-red-800 text-red-200 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                Delete {selected.size} selected
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
+
+        <div className="grid grid-cols-3 gap-3">
+          {photos.map(photo => {
+            const isSelected = selected.has(photo.id)
+            const thumb = cloudinaryUrl(photo.cloudinaryId, 'w_240,h_360,c_fill,q_auto,f_auto')
+            const editionLabel = photo.edition.editionName ?? photo.edition.bookBoxCompany?.name ?? 'Edition'
+            return (
+              <div
+                key={photo.id}
+                onClick={() => toggle(photo.id)}
+                className={`relative cursor-pointer rounded-xl overflow-hidden aspect-[2/3] ring-2 transition-all ${
+                  isSelected ? 'ring-amber-500 ring-offset-2 ring-offset-stone-900' : 'ring-transparent hover:ring-stone-600'
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={thumb ?? photo.url} alt={editionLabel} className="w-full h-full object-cover" />
+                {/* Status badge */}
+                {photo.status === 'PENDING' && (
+                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/80 text-stone-950">
+                    Pending
+                  </span>
+                )}
+                {/* Selection overlay */}
+                {isSelected && (
+                  <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                      <Check size={14} className="text-stone-950" />
+                    </div>
+                  </div>
+                )}
+                {/* Edition label */}
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-stone-950/90 to-transparent px-2 py-2">
+                  <a
+                    href={`/editions/${photo.edition.slug}`}
+                    onClick={e => e.stopPropagation()}
+                    className="text-[10px] text-stone-200 hover:text-amber-400 transition-colors line-clamp-2 leading-tight"
+                  >
+                    {editionLabel}
+                  </a>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}

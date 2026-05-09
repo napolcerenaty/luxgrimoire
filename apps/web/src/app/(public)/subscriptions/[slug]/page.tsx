@@ -148,9 +148,9 @@ export default async function SubscriptionPage({ params }: Props) {
             <p className="text-stone-300 leading-relaxed">{sub.description}</p>
           )}
 
-          {/* Subscriber count (mock data — real API wiring in next iteration) */}
+          {/* Subscriber count */}
           <div className="mt-3">
-            <SubscriberCountBadge count={156} />
+            <SubscriberCountBadge subscriptionSlug={slug} />
           </div>
 
           <div className="flex gap-4 mt-4 text-xs text-stone-500">

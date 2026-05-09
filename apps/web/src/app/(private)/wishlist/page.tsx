@@ -146,7 +146,7 @@ export default function WishlistPage() {
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => authFetch<void>(`/collection/${id}`, { method: 'DELETE' }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['collection', true] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['collection'] }),
   })
 
   const moveMutation = useMutation({
@@ -220,6 +220,7 @@ export default function WishlistPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setMoveEntry(null)
       setMovePrice('')
       setShippingPrice('')

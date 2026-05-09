@@ -9,7 +9,7 @@ import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
@@ -554,6 +554,13 @@ export default function CollectionPage() {
   const [trackEntry, setTrackEntry] = useState<{ id: string; trackingNumber: string | null } | null>(null)
   const [trackingInput, setTrackingInput] = useState('')
   const [trackingEditMode, setTrackingEditMode] = useState(false)
+  // Ownership history modal
+  const [historyEntryId, setHistoryEntryId] = useState<string | null>(null)
+  const [historyItems, setHistoryItems] = useState<{ id: string; status: string; changedAt: string }[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyEditId, setHistoryEditId] = useState<string | null>(null)
+  const [historyEditStatus, setHistoryEditStatus] = useState('')
+  const [historyEditDate, setHistoryEditDate] = useState('')
   const [saleTitle, setSaleTitle] = useState('')
   const [salePlatform, setSalePlatform] = useState('')
   const [saleCustomPlatform, setSaleCustomPlatform] = useState('')
@@ -589,6 +596,7 @@ export default function CollectionPage() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
     },
   })
 
@@ -1122,6 +1130,24 @@ export default function CollectionPage() {
                                 Sell
                               </button>
                             )}
+
+                            {/* Ownership history */}
+                            <button
+                              onClick={async (e) => {
+                                e.preventDefault(); e.stopPropagation()
+                                setHistoryEntryId(entry.id)
+                                setHistoryLoading(true)
+                                setHistoryItems([])
+                                const data = await authFetch<{ id: string; status: string; changedAt: string }[]>(`/collection/entry/${entry.id}/history`)
+                                setHistoryItems(data)
+                                setHistoryLoading(false)
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 hover:bg-stone-700/40 transition-colors"
+                              title="Ownership history"
+                            >
+                              <History size={10} />
+                              History
+                            </button>
                           </div>
                         </div>
                       }
@@ -1142,9 +1168,111 @@ export default function CollectionPage() {
           onAdded={() => {
             void queryClient.invalidateQueries({ queryKey: ['collection'] })
             void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+            void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddModalOpen(false)
           }}
         />
+      </Modal>
+
+      {/* ─── Ownership History Modal ─── */}
+      <Modal
+        open={!!historyEntryId}
+        onClose={() => { setHistoryEntryId(null); setHistoryItems([]); setHistoryEditId(null) }}
+        title="Ownership History"
+      >
+        <div className="flex flex-col gap-3 min-w-[320px]">
+          {historyLoading && <p className="text-stone-400 text-sm">Loading…</p>}
+          {!historyLoading && historyItems.length === 0 && (
+            <p className="text-stone-500 text-sm">No history recorded yet.</p>
+          )}
+          {historyItems.map(item => (
+            <div key={item.id} className="flex items-center gap-2 group">
+              {historyEditId === item.id ? (
+                <>
+                  <select
+                    value={historyEditStatus}
+                    onChange={e => setHistoryEditStatus(e.target.value)}
+                    className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                  >
+                    {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','SOLD','GIFTED_AWAY','TO_SELL'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="datetime-local"
+                    value={historyEditDate}
+                    onChange={e => setHistoryEditDate(e.target.value)}
+                    className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                  />
+                  <button
+                    onClick={async () => {
+                      const updated = await authFetch<{ id: string; status: string; changedAt: string }>(
+                        `/collection/entry/${historyEntryId}/history/${item.id}`,
+                        { method: 'PATCH', body: JSON.stringify({ status: historyEditStatus, changedAt: historyEditDate ? new Date(historyEditDate).toISOString() : undefined }) },
+                      )
+                      setHistoryItems(prev => prev.map(h => h.id === item.id ? updated : h))
+                      setHistoryEditId(null)
+                    }}
+                    className="text-xs text-green-400 hover:text-green-300 px-1"
+                  >Save</button>
+                  <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300 px-1">Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs font-medium text-stone-300 w-28 shrink-0">{item.status}</span>
+                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleString()}</span>
+                  <button
+                    onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,16)) }}
+                    className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-stone-300 transition-opacity"
+                    title="Edit"
+                  ><Pencil size={11} /></button>
+                  <button
+                    onClick={async () => {
+                      await authFetch(`/collection/entry/${historyEntryId}/history/${item.id}`, { method: 'DELETE' })
+                      setHistoryItems(prev => prev.filter(h => h.id !== item.id))
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-rose-400 transition-opacity"
+                    title="Delete"
+                  ><X size={11} /></button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Add new entry */}
+          <div className="border-t border-stone-700 pt-3 mt-1">
+            <p className="text-xs text-stone-500 mb-2">Add entry manually</p>
+            <div className="flex gap-2 flex-wrap">
+              <select
+                id="new-hist-status"
+                defaultValue="OWNED"
+                className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+              >
+                {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','SOLD','GIFTED_AWAY','TO_SELL'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <input
+                id="new-hist-date"
+                type="datetime-local"
+                className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+              />
+              <button
+                onClick={async () => {
+                  const statusEl = document.getElementById('new-hist-status') as HTMLSelectElement
+                  const dateEl = document.getElementById('new-hist-date') as HTMLInputElement
+                  const created = await authFetch<{ id: string; status: string; changedAt: string }>(
+                    `/collection/entry/${historyEntryId}/history`,
+                    { method: 'POST', body: JSON.stringify({ status: statusEl.value, changedAt: dateEl.value ? new Date(dateEl.value).toISOString() : undefined }) },
+                  )
+                  setHistoryItems(prev => [...prev, created].sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime()))
+                  dateEl.value = ''
+                }}
+                className="px-3 py-1 rounded-lg bg-stone-700 hover:bg-stone-600 text-xs text-stone-200 transition-colors"
+              >Add</button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       {/* ─── Track Shipment Modal ─── */}
@@ -1209,7 +1337,7 @@ export default function CollectionPage() {
               <p className="text-sm text-stone-400">
                 {trackEntry?.trackingNumber
                   ? 'Edit the tracking number below.'
-                  : 'Paste or enter a tracking number. If the book is in pre-order, the status will automatically change to Shipping.'}
+                  : 'Edit the tracking number below.'}
               </p>
               <input
                 type="text"
@@ -1269,6 +1397,7 @@ export default function CollectionPage() {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
             queryClient.invalidateQueries({ queryKey: ['collection'] })
+            queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddSaleOpen(false)
           }}
           saleTitle={saleTitle} setSaleTitle={setSaleTitle}
