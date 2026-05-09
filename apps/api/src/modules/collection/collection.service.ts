@@ -2,11 +2,15 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
+import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 
 
 @Injectable()
 export class CollectionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crowdStatsService: CrowdStatsService,
+  ) {}
 
   async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false) {
     const skip = (page - 1) * pageSize;
@@ -26,6 +30,12 @@ export class CollectionService {
                 slug: true,
                 additionalImages: true,
                 bookBoxCompany: { select: { id: true, name: true, slug: true } },
+                communityImages: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                  select: { url: true },
+                },
                 book: {
                   select: {
                     id: true,
@@ -45,7 +55,21 @@ export class CollectionService {
         }),
         this.prisma.userBookEntry.count({ where }),
       ]);
-      return { data, total, page, pageSize };
+      const slimMapped = data.map((entry) => {
+        const edition = entry.edition as typeof entry.edition & { communityImages?: Array<{ url: string }> };
+        if (!edition) return entry;
+        const { communityImages, ...editionRest } = edition;
+        return {
+          ...entry,
+          edition: {
+            ...editionRest,
+            communityPhotoCover: (edition.additionalImages as string[]).length === 0
+              ? (communityImages?.[0]?.url ?? null)
+              : null,
+          },
+        };
+      });
+      return { data: slimMapped, total, page, pageSize };
     }
 
     const [data, total] = await Promise.all([
@@ -68,6 +92,12 @@ export class CollectionService {
               publisher: true,
               additionalImages: true,
               bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+              communityImages: {
+                where: { status: 'APPROVED' },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: { url: true },
+              },
               book: {
                 select: {
                   id: true,
@@ -112,14 +142,24 @@ export class CollectionService {
       this.prisma.userBookEntry.count({ where }),
     ]);
     // Flatten tags to string[]
-    const dataWithTags = data.map((entry) => ({
-      ...entry,
-      tags: (entry.entryTags ?? []).map((t) => t.tag),
-      entryTags: undefined,
-      edition: entry.edition
-        ? { ...entry.edition, tags: undefined }
-        : entry.edition,
-    }));
+    const dataWithTags = data.map((entry) => {
+      const edition = entry.edition as typeof entry.edition & { communityImages?: Array<{ url: string }> };
+      return {
+        ...entry,
+        tags: (entry.entryTags ?? []).map((t) => t.tag),
+        entryTags: undefined,
+        edition: edition
+          ? {
+              ...edition,
+              tags: undefined,
+              communityImages: undefined,
+              communityPhotoCover: (edition.additionalImages as string[]).length === 0
+                ? (edition.communityImages?.[0]?.url ?? null)
+                : null,
+            }
+          : edition,
+      };
+    });
     return { data: dataWithTags, total, page, pageSize };
   }
 
@@ -164,6 +204,9 @@ export class CollectionService {
       },
     });
     this.recordStatusChange(entry.id, entry.ownershipStatus);
+    if (entry.editionId && !entry.isWishlist) {
+      this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
+    }
     return entry;
   }
 
@@ -306,6 +349,16 @@ export class CollectionService {
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {
       this.recordStatusChange(entryId, effectiveOwnershipStatus);
     }
+    // Track wishlist ↔ collection transitions
+    if (dto.isWishlist !== undefined && dto.isWishlist !== existing.isWishlist && existing.editionId) {
+      if (!dto.isWishlist) {
+        // promoted from wishlist → collection
+        this.crowdStatsService.incrementCollectionCount(existing.editionId).catch(() => {});
+      } else {
+        // moved from collection → wishlist
+        this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
+      }
+    }
     return updated;
   }
 
@@ -362,11 +415,14 @@ export class CollectionService {
   async removeFromCollection(userId: string, entryId: string) {
     const existing = await this.prisma.userBookEntry.findUnique({
       where: { id: entryId },
-      select: { id: true, userId: true, editionId: true, purchaseGroupId: true },
+      select: { id: true, userId: true, editionId: true, isWishlist: true, purchaseGroupId: true },
     });
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
+    if (existing.editionId && !existing.isWishlist) {
+      this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
+    }
     // Clean up the purchase group if it's now empty
     if (existing.purchaseGroupId) {
       const remaining = await this.prisma.userBookEntry.count({

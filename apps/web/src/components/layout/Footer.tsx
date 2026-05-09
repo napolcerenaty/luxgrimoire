@@ -25,6 +25,7 @@ const LINKS = {
   ],
   company: [
     { href: '/about',   label: 'About' },
+    { href: '/support', label: 'Support Us' },
     { href: '/contact', label: 'Contact' },
     { href: '/faq',     label: 'FAQ' },
   ],

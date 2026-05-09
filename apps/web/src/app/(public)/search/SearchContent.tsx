@@ -329,6 +329,17 @@ export function SearchContent() {
       {!loading && !results && query.length < 2 && (
         <p className="text-stone-500 text-sm">Enter at least 2 characters to search.</p>
       )}
+
+      {/* Always shown below results */}
+      <div className="mt-10 pt-6 border-t border-stone-800 text-center">
+        <p className="text-stone-400 text-sm mb-2">Didn't find what you're looking for?</p>
+        <Link
+          href="/sale-announcement-requests"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-stone-500 text-stone-300 hover:text-stone-100 text-sm transition-colors"
+        >
+          Request missing data
+        </Link>
+      </div>
     </div>
   )
 }

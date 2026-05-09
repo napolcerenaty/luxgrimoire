@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
 import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +10,7 @@ import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
 import { BackButton } from '@/components/ui/BackButton'
 import { CommunityImageSection } from '@/components/editions/CommunityImageSection'
+import { EditionCommunityStats } from '@/components/editions/EditionCommunityStats'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -141,11 +141,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
   } catch {
     // Non-fatal — show empty section
   }
-
-  // Check if user is authenticated (cookie-based)
-  const cookieStore = await cookies()
-  const JWT_COOKIE = process.env.JWT_COOKIE_NAME ?? 'luxgrimoire_auth'
-  const isAuthenticated = Boolean(cookieStore.get(JWT_COOKIE)?.value)
 
   const book = edition.book
   const features = Array.isArray(edition.features) ? edition.features : []
@@ -315,6 +310,21 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   editionId={edition.id}
                   editionName={edition.editionName ?? edition.bookBoxCompany?.name ?? null}
                   initialEntryId={initialEntryId ?? null}
+                />
+              </div>
+
+              {/* Community stats (mock data — real API wiring in next iteration) */}
+              <div className="mb-6">
+                <EditionCommunityStats
+                  collectionCount={47}
+                  saleStats={{
+                    avg: 42.50,
+                    median: 41.00,
+                    min: 28.00,
+                    max: 80.00,
+                    count: 23,
+                    currency: 'EUR',
+                  }}
                 />
               </div>
 

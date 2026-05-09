@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrencyService } from "../currency/currency.service";
+import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 
 type Decimal = { toNumber: () => number };
@@ -44,6 +45,7 @@ export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
+    private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
   private get entryInclude() {
@@ -130,7 +132,7 @@ export class SalesService {
 
     const equalAmount = Math.round((dto.totalAmount / dto.entryIds.length) * 100) / 100;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.userSaleGroup.create({
         data: {
           userId,
@@ -179,6 +181,31 @@ export class SalesService {
         include: { entries: { include: this.entryInclude } },
       });
     });
+
+    // Record crowd stats for each entry with an edition (non-fatal)
+    if (result) {
+      const saleGroup = result as unknown as SaleGroupWithEntries;
+      for (const entry of saleGroup.entries) {
+        const editionId = (entry.userBookEntry as any)?.edition?.id as string | undefined;
+        if (editionId) {
+          try {
+            await this.crowdStatsService.createSaleStat(
+              editionId,
+              typeof entry.allocatedAmount === 'object'
+                ? (entry.allocatedAmount as any).toNumber()
+                : entry.allocatedAmount,
+              dto.currency,
+              new Date(dto.soldAt),
+            );
+            await this.crowdStatsService.refreshEditionSaleStats(editionId);
+          } catch {
+            // stats errors must never block the main operation
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   async updateSaleGroup(userId: string, groupId: string, dto: UpdateSaleGroupDto) {
@@ -275,7 +302,11 @@ export class SalesService {
 
     const saleEntries = await this.prisma.userSaleEntry.findMany({
       where: { saleGroupId: groupId },
-      select: { userBookEntryId: true },
+      select: {
+        userBookEntryId: true,
+        allocatedAmount: true,
+        userBookEntry: { select: { edition: { select: { id: true } } } },
+      },
     });
 
     await this.prisma.userBookEntry.updateMany({
@@ -290,6 +321,26 @@ export class SalesService {
     });
 
     await this.prisma.userSaleGroup.delete({ where: { id: groupId } });
+
+    // Remove crowd stats for each entry with an edition (non-fatal)
+    for (const entry of saleEntries) {
+      const editionId = (entry as any).userBookEntry?.edition?.id as string | undefined;
+      if (editionId) {
+        try {
+          await this.crowdStatsService.deleteSaleStat(
+            editionId,
+            typeof entry.allocatedAmount === 'object'
+              ? (entry.allocatedAmount as any).toNumber()
+              : Number(entry.allocatedAmount),
+            existing.currency,
+            existing.soldAt,
+          );
+          await this.crowdStatsService.refreshEditionSaleStats(editionId);
+        } catch {
+          // stats errors must never block the main operation
+        }
+      }
+    }
   }
 
   private async withProfit(g: SaleGroupWithEntries) {

@@ -82,6 +82,9 @@ export default function TermsPage() {
                 modify the content as part of the platform.</li>
             <li>Contributed database content (book titles, edition details, company information) may be accessible
                 to all users of the platform.</li>
+            <li>By submitting marketplace or collection data, you grant LuxGrimoire the right to use aggregated
+                and anonymized data for analytics, valuation insights, and platform statistics. This data is
+                retained in anonymized form even after account deletion.</li>
           </ul>
           <p className="mt-3">
             We reserve the right to remove any content that violates these Terms, at our sole discretion.

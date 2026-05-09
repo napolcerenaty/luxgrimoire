@@ -115,6 +115,12 @@ export class BooksService {
                     verifiedAt: true,
                     generalSaleDate: true,
                     bookBoxCompany: { select: { name: true, slug: true } },
+                    communityImages: {
+                      where: { status: 'APPROVED' },
+                      orderBy: { sortOrder: 'asc' },
+                      take: 1,
+                      select: { url: true },
+                    },
                   },
                   where: { verifiedAt: { not: null } },
                   orderBy: { createdAt: 'asc' },
@@ -127,7 +133,23 @@ export class BooksService {
       this.prisma.book.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const mappedData = data.map((book) => {
+      if (!('editions' in book) || !book.editions) return book;
+      return {
+        ...book,
+        editions: (book.editions as Array<{ additionalImages: unknown; communityImages?: Array<{ url: string }>; [key: string]: unknown }>).map((e) => {
+          const { communityImages, ...rest } = e;
+          return {
+            ...rest,
+            communityPhotoCover: (e.additionalImages as string[]).length === 0
+              ? (communityImages?.[0]?.url ?? null)
+              : null,
+          };
+        }),
+      };
+    });
+
+    return { data: mappedData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   async findSeriesNames(search?: string): Promise<string[]> {
@@ -202,13 +224,31 @@ export class BooksService {
             verifiedAt: true,
             generalSaleDate: true,
             bookBoxCompany: { select: { slug: true, name: true } },
+            communityImages: {
+              where: { status: 'APPROVED' },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              select: { url: true },
+            },
           },
         },
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);
     // Flatten authors so response matches ApiBook type
-    return { ...book, authors: book.authors.map(ba => ba.author) };
+    return {
+      ...book,
+      authors: book.authors.map(ba => ba.author),
+      editions: book.editions.map((e) => {
+        const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+        return {
+          ...rest,
+          communityPhotoCover: (e.additionalImages as string[]).length === 0
+            ? (communityImages?.[0]?.url ?? null)
+            : null,
+        };
+      }),
+    };
   }
 
   async update(slug: string, dto: UpdateBookDto) {

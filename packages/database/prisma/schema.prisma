@@ -245,6 +245,8 @@ model BookEdition {
   userEntries              UserBookEntry[]
   tags                     UserEditionTag[]
   communityImages          UserEditionImage[]
+  saleStats                EditionSaleStat[]
+  statsSnapshot            EditionStatsSnapshot?
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -366,6 +368,7 @@ model Subscription {
   userEntries          UserSubscriptionEntry[]
   importSources        ImportSource[]
   pendingImports       PendingMonthImport[]
+  statsSnapshot        SubscriptionStatsSnapshot?
 
   @@index([companyId])
   @@index([isDiscontinued])
@@ -1313,4 +1316,36 @@ model UserEditionImage {
   @@index([userId])
   @@index([status])
   @@map("user_edition_images")
+}
+
+model EditionSaleStat {
+  id         String      @id @default(cuid())
+  editionId  String
+  edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  valueEur   Float
+  soldAt     DateTime    // normalized to midnight UTC (date only)
+  recordedAt DateTime    @default(now())
+
+  @@index([editionId])
+  @@index([editionId, valueEur, soldAt])
+  @@map("edition_sale_stats")
+}
+
+model EditionStatsSnapshot {
+  editionId       String      @id
+  saleStats       Json?       // { avg, median, min, max, count } or null
+  collectionCount Int         @default(0)
+  updatedAt       DateTime    @updatedAt
+  edition         BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@map("edition_stats_snapshots")
+}
+
+model SubscriptionStatsSnapshot {
+  subscriptionId  String       @id
+  subscriberCount Int          @default(0)
+  updatedAt       DateTime     @updatedAt
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_stats_snapshots")
 }

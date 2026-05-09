@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Send, Trash2, Settings, Users, CheckCheck } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -21,6 +23,8 @@ interface ApiUser {
 }
 
 export default function AdminNotificationsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const queryClient = useQueryClient()
 
   // ─── Send form state ─────────────────────────────────────────────────────────
@@ -105,6 +109,11 @@ export default function AdminNotificationsPage() {
       setTtlInput('')
     },
   })
+
+  if (user && user.role !== 'ADMIN') {
+    router.replace('/admin')
+    return null
+  }
 
   return (
     <div className="max-w-3xl mx-auto">

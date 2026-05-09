@@ -537,13 +537,14 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {showJoinModal&& (
+      {showJoinModal && (
         <JoinSubscriptionModal
           subscriptionSlug={subscriptionSlug}
           subscriptionCurrency={currency}
           subscriptionRenewalDay={renewalDay ?? null}
           subscriptionPrice={price}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
+          prepayOptions={prepayOptions}
           onJoined={() => {
             setShowJoinModal(false)
             refreshEntry()

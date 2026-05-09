@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bug, Trash2, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved', 'wontfix']
 
@@ -26,6 +28,8 @@ interface BugReport {
 }
 
 export default function AdminBugReportsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
@@ -52,6 +56,11 @@ export default function AdminBugReportsPage() {
       authFetch(`/bug-reports/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'bug-reports'] }),
   })
+
+  if (user && user.role !== 'ADMIN') {
+    router.replace('/admin')
+    return null
+  }
 
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1
 

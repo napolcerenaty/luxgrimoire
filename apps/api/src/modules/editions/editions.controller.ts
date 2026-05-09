@@ -161,6 +161,17 @@ export class EditionsController {
     return this.userImagesService.submitImages(slug, user.id, dto);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete(':slug/community-images/:imageId')
+  deleteCommunityImage(
+    @Param('slug') _slug: string,
+    @Param('imageId') imageId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.userImagesService.userDeleteImage(imageId, user.id);
+  }
+
   // Components (omnibus)
   @Public()
   @Get(':slug/components')

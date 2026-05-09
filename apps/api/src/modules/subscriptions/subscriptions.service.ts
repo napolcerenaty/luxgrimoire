@@ -31,6 +31,7 @@ import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory 
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { resolveEffectiveBasePrice } from './price-change.util';
+import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 
 export interface CountryFeeHint {
   category: string;
@@ -53,6 +54,7 @@ export class SubscriptionsService {
     private readonly skipPolicyEngine: SkipPolicyEngine,
     private readonly renewalCron: RenewalCronService,
     private readonly uploadService: UploadService,
+    private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
@@ -871,6 +873,9 @@ export class SubscriptionsService {
         cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
         cancellationReason: dto.cancellationReason ?? null,
       },
+    }).then((updated) => {
+      this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+      return updated;
     });
   }
 
@@ -1072,6 +1077,8 @@ export class SubscriptionsService {
     await refreshNextRenewalDate(this.prisma, entry.id);
     // Backfill past renewal history for calendar display (fire-and-forget)
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+    // Update subscriber count snapshot (fire-and-forget)
+    this.crowdStatsService.incrementSubscriberCount(sub.id).catch(() => {});
 
     return { entry, eligibleMonths };
   }

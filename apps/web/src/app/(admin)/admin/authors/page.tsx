@@ -154,11 +154,15 @@ export default function AdminAuthorsPage() {
   const [editAuthor, setEditAuthor] = useState<ApiAuthor | null>(null)
   const [deleteAuthor, setDeleteAuthor] = useState<ApiAuthor | null>(null)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'authors', page],
-    queryFn: () =>
-      authFetch<PaginatedResponse<ApiAuthor>>(`/authors?page=${page}&pageSize=15`),
+    queryKey: ['admin', 'authors', page, search],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: '15' })
+      if (search) params.set('search', search)
+      return authFetch<PaginatedResponse<ApiAuthor>>(`/authors?${params}`)
+    },
     placeholderData: keepPreviousData,
   })
 
@@ -211,6 +215,16 @@ export default function AdminAuthorsPage() {
         >
           Add Author
         </button>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="Search authors…"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
+        />
       </div>
 
       {isLoading ? (

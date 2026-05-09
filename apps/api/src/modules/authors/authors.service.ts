@@ -102,6 +102,12 @@ export class AuthorsService {
                     verifiedAt: true,
                     generalSaleDate: true,
                     bookBoxCompany: { select: { name: true } },
+                    communityImages: {
+                      where: { status: 'APPROVED' },
+                      orderBy: { sortOrder: 'asc' },
+                      take: 1,
+                      select: { url: true },
+                    },
                   },
                 },
               },
@@ -113,7 +119,18 @@ export class AuthorsService {
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
     return {
       ...author,
-      books: author.books.map((ba) => ba.book),
+      books: author.books.map((ba) => ({
+        ...ba.book,
+        editions: ba.book.editions.map((e) => {
+          const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+          return {
+            ...rest,
+            communityPhotoCover: (e.additionalImages as string[]).length === 0
+              ? (communityImages?.[0]?.url ?? null)
+              : null,
+          };
+        }),
+      })),
     };
   }
 

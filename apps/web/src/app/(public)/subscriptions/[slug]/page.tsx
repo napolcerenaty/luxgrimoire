@@ -10,6 +10,7 @@ import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 import WaitlistButton from '@/components/subscriptions/WaitlistButton'
 import PreviousBoxes from '@/components/subscriptions/PreviousBoxes'
+import { SubscriberCountBadge } from '@/components/subscriptions/SubscriberCountBadge'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -146,6 +147,11 @@ export default async function SubscriptionPage({ params }: Props) {
           {sub.description && (
             <p className="text-stone-300 leading-relaxed">{sub.description}</p>
           )}
+
+          {/* Subscriber count (mock data — real API wiring in next iteration) */}
+          <div className="mt-3">
+            <SubscriberCountBadge count={156} />
+          </div>
 
           <div className="flex gap-4 mt-4 text-xs text-stone-500">
             {sub.startDate && <span>Started: {sub.startDate.slice(0, 7)}</span>}

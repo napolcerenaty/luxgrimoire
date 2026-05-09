@@ -88,6 +88,7 @@ interface Step1Props {
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
   userDefaultTaxRate?: number | null
+  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onNext: (data: {
     startDate: string
     costCurrency: string
@@ -95,10 +96,11 @@ interface Step1Props {
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
+    selectedPrepayOptionId?: string | null
   }) => void
 }
 
-function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, onNext }: Step1Props) {
+function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -106,6 +108,17 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
   const [costCurrency, setCostCurrency] = useState(currency)
   const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
+  const [selectedPrepayOptionId, setSelectedPrepayOptionId] = useState<string | null>(null)
+
+  function handleSelectPrepay(optionId: string | null) {
+    setSelectedPrepayOptionId(optionId)
+    if (optionId === null) {
+      setBasePrice(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
+    } else {
+      const opt = prepayOptions?.find(o => o.id === optionId)
+      if (opt) setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+    }
+  }
 
   // Fee templates
   const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
@@ -166,6 +179,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
         customCurrency: f.customCurrency,
       })),
       ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
+      selectedPrepayOptionId,
     })
   }
 
@@ -175,7 +189,45 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* First order date */}
+      {/* Billing period (only shown if prepay options exist) */}
+      {prepayOptions && prepayOptions.length > 0 && (
+        <div>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+              <input
+                type="radio"
+                name="billingPeriod"
+                checked={selectedPrepayOptionId === null}
+                onChange={() => handleSelectPrepay(null)}
+                className="text-amber-600 focus:ring-amber-600/30"
+              />
+              <div className="flex-1 flex items-center justify-between">
+                <span className="text-sm text-stone-200">Monthly</span>
+                {subscriptionPrice && (
+                  <span className="text-xs text-stone-400">{parseFloat(subscriptionPrice).toFixed(2)} {currency} / month</span>
+                )}
+              </div>
+            </label>
+            {prepayOptions.map(opt => (
+              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+                <input
+                  type="radio"
+                  name="billingPeriod"
+                  checked={selectedPrepayOptionId === opt.id}
+                  onChange={() => handleSelectPrepay(opt.id)}
+                  className="text-amber-600 focus:ring-amber-600/30"
+                />
+                <div className="flex-1 flex items-center justify-between">
+                  <span className="text-sm text-stone-200">{opt.label ?? `${opt.months} months`}</span>
+                  <span className="text-xs text-stone-400">{parseFloat(String(opt.price)).toFixed(2)} {currency}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
+        </div>
+      )}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
           {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
@@ -842,6 +894,7 @@ export default function JoinSubscriptionModal({
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
+    selectedPrepayOptionId?: string | null
   }) => {
     setError(null)
     setJoining(true)
@@ -864,6 +917,20 @@ export default function JoinSubscriptionModal({
             : undefined,
         }),
       })
+
+      // Set billing mode if user selected a prepay option
+      if (data.selectedPrepayOptionId) {
+        try {
+          await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scheduledPrepayOptionId: data.selectedPrepayOptionId }),
+          })
+        } catch {
+          // Non-fatal — join succeeded, billing mode can be changed later
+        }
+      }
+
       setJoinResult(result)
 
       if (result.eligibleMonths.length > 0) {
@@ -907,6 +974,7 @@ export default function JoinSubscriptionModal({
               subscriptionRenewalDay={subscriptionRenewalDay}
               subscriptionPrice={subscriptionPrice}
               userDefaultTaxRate={userDefaultTaxRate}
+              prepayOptions={prepayOptions}
               onNext={handleStep1}
             />
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}

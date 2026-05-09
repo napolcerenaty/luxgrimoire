@@ -95,6 +95,12 @@ export class ArtistsService {
                 additionalImages: true,
                 editionName: true,
                 bookBoxCompany: { select: { name: true } },
+                communityImages: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                  select: { url: true },
+                },
               },
             },
           },
@@ -102,7 +108,21 @@ export class ArtistsService {
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return artist;
+    return {
+      ...artist,
+      contributions: artist.contributions.map((c) => {
+        const { communityImages, ...editionRest } = c.edition as typeof c.edition & { communityImages: Array<{ url: string }> };
+        return {
+          ...c,
+          edition: {
+            ...editionRest,
+            communityPhotoCover: (c.edition.additionalImages as string[]).length === 0
+              ? (communityImages?.[0]?.url ?? null)
+              : null,
+          },
+        };
+      }),
+    };
   }
 
   async findCardMonths(slug: string) {

@@ -85,7 +85,7 @@ export class SkipPolicyController {
   /** PUT /skip-policy/:slug — upsert skip policy for a subscription */
   @Put(':slug')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'COMPANY_MANAGER')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   upsertPolicy(
     @Param('slug') slug: string,
     @Body() dto: UpsertSkipPolicyDto,

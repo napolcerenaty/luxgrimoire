@@ -83,10 +83,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
   {
     heading: 'Community',
     items: [
-      { href: '/admin/notifications', label: 'Notifications', icon: Bell },
       { href: '/admin/community-images', label: 'Community Images', icon: Image },
-      { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
-      { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
       { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
     ],
   },

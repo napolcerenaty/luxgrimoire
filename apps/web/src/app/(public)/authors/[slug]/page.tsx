@@ -12,6 +12,7 @@ interface EditionSnippet {
   id: string
   slug: string
   additionalImages: string[]
+  communityPhotoCover?: string | null
   verifiedAt: string | null
   generalSaleDate?: string | null
   bookBoxCompany: { name: string } | null
@@ -88,7 +89,7 @@ function BookRow({ book }: { book: BookSnippet }) {
             <EditionCard
               key={edition.id}
               href={`/editions/${edition.slug}`}
-              coverImage={edition.additionalImages?.[0] ?? null}
+              coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
               companyName={edition.bookBoxCompany?.name}
               unverified={!edition.verifiedAt}
               generalSaleDate={edition.generalSaleDate}

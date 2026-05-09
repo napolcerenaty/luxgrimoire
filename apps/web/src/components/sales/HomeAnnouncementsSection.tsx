@@ -9,6 +9,7 @@ import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementModal } from '@/components/sales/SaleAnnouncementModal'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { resolveSaleDates } from '@/lib/saleDates'
+import { apiFetch } from '@/lib/api'
 
 const CARD_WIDTH = 160
 
@@ -124,6 +125,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
 export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<ApiSaleAnnouncement | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return
@@ -132,6 +134,19 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
       behavior: 'smooth',
     })
   }
+
+  const handleOpen = useCallback(async (sale: ApiSaleAnnouncement) => {
+    setLoading(true)
+    try {
+      const full = await apiFetch<ApiSaleAnnouncement>(`/announcements/${sale.id}`)
+      setSelected(full)
+    } catch {
+      // fallback to slim data if fetch fails
+      setSelected(sale)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   const handleClose = useCallback(() => setSelected(null), [])
 
@@ -189,13 +204,20 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {announcements.map((sale) => (
-              <AnnouncementCardItem key={sale.id} sale={sale} onClick={setSelected} />
+              <AnnouncementCardItem key={sale.id} sale={sale} onClick={handleOpen} />
             ))}
           </div>
         </div>
       </section>
 
       <SaleAnnouncementModal sale={selected} onClose={handleClose} />
+
+      {/* Loading overlay while fetching full announcement */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-10 h-10 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+        </div>
+      )}
     </>
   )
 }

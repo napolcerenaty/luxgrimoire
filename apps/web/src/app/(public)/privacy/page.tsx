@@ -126,6 +126,23 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">7a. Anonymous Aggregate Statistics</h2>
+          <p>
+            When users record marketplace sales on LuxGrimoire, an anonymized copy of the sale price (converted to
+            EUR at the transaction date) is stored separately for the purpose of computing community resale statistics
+            (e.g. average, median, min, and max resale prices for a given edition). This anonymized record contains
+            only the edition identifier, the price in EUR, and the sale date — <strong>no personally identifiable
+            information is stored</strong>, and there is no link to your account or the original sale record.
+          </p>
+          <p className="mt-3">
+            Because this data is fully anonymous, it is <strong>retained even after account deletion</strong>. It
+            cannot be attributed to any individual and therefore falls outside the scope of the right to erasure
+            under GDPR (Art. 17). These anonymized statistics help the community understand market values for
+            special edition books.
+          </p>
+        </section>
+
+        <section>
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">8. Your Rights (GDPR)</h2>
           <p>If you are in the EEA, you have the following rights:</p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
