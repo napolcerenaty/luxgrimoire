@@ -114,6 +114,7 @@ function RecordSaleModal({
       })
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
+      queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setSuccess(true)
       setTimeout(() => {
         onClose()
@@ -328,6 +329,7 @@ function EditSaleModal({
       await updateSaleGroup(saleGroup.id, payload)
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
+      queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setSuccess(true)
       setTimeout(() => { onClose(); setSuccess(false) }, 1000)
     } catch (err) {

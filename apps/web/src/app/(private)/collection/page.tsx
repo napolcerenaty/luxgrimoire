@@ -589,6 +589,7 @@ export default function CollectionPage() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
     },
   })
 
@@ -1142,6 +1143,7 @@ export default function CollectionPage() {
           onAdded={() => {
             void queryClient.invalidateQueries({ queryKey: ['collection'] })
             void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+            void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddModalOpen(false)
           }}
         />
@@ -1269,6 +1271,7 @@ export default function CollectionPage() {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
             queryClient.invalidateQueries({ queryKey: ['collection'] })
+            queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddSaleOpen(false)
           }}
           saleTitle={saleTitle} setSaleTitle={setSaleTitle}

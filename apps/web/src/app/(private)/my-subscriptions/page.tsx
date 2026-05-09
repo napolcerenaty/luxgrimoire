@@ -109,7 +109,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
 
   const cancelMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); setShowCancelConfirm(false) },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
   })
 
   const removeMutation = useMutation({
@@ -117,7 +117,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
       method: 'DELETE',
       body: JSON.stringify({ removeBooks, removeSpending }),
     }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); setShowRemoveConfirm(false) },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
   })
 
   const imageSource = sub.logoUrl ?? sub.coverImage

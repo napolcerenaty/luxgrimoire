@@ -175,7 +175,7 @@ export default function SpendingPage() {
   const { data: stats, isLoading } = useQuery<ComprehensiveStats>({
     queryKey: ['spending-stats-v2', currency],
     queryFn: () => authFetch(`/spending/stats/v2?currency=${currency}`),
-    staleTime: 5 * 60_000,
+    staleTime: 10 * 60_000, // invalidated explicitly on collection/subscription/sale mutations
   })
 
   const totalGross = useMemo(() => {

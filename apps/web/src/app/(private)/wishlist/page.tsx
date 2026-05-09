@@ -220,6 +220,7 @@ export default function WishlistPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setMoveEntry(null)
       setMovePrice('')
       setShippingPrice('')
