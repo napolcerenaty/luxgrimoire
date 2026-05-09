@@ -13,26 +13,23 @@ export class CrowdStatsController {
   async getEditionSalePriceStats(@Param('slug') slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException('Edition not found');
-
-    const stats = await this.crowdStatsService.getSalePriceStats(edition.id);
-    return stats;
+    const snapshot = await this.crowdStatsService.getSnapshotForEdition(edition.id);
+    return snapshot?.saleStats ?? { avg: null, median: null, min: null, max: null, count: 0 };
   }
 
   @Get('editions/:slug/stats/collection')
   async getEditionCollectionCount(@Param('slug') slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException('Edition not found');
-
-    const count = await this.crowdStatsService.getCollectionCount(edition.id);
-    return { count };
+    const snapshot = await this.crowdStatsService.getSnapshotForEdition(edition.id);
+    return { count: snapshot?.collectionCount ?? 0 };
   }
 
   @Get('subscriptions/:slug/stats/subscribers')
   async getSubscriptionSubscriberCount(@Param('slug') slug: string) {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) throw new NotFoundException('Subscription not found');
-
-    const count = await this.crowdStatsService.getSubscriberCount(subscription.id);
-    return { count };
+    const snapshot = await this.crowdStatsService.getSnapshotForSubscription(subscription.id);
+    return { count: snapshot?.subscriberCount ?? 0 };
   }
 }

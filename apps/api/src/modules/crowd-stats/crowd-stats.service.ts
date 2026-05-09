@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 
@@ -92,17 +93,62 @@ export class CrowdStatsService {
     };
   }
 
-  async getCollectionCount(editionId: string): Promise<number> {
-    const result = await this.prisma.userBookEntry.count({
-      where: { editionId, isWishlist: false },
+  async refreshEditionSaleStats(editionId: string): Promise<void> {
+    const stats = await this.getSalePriceStats(editionId);
+    const saleStats = stats.count === 0 ? null : stats;
+
+    await this.prisma.editionStatsSnapshot.upsert({
+      where: { editionId },
+      create: { editionId, saleStats: saleStats ?? Prisma.JsonNull, collectionCount: 0 },
+      update: { saleStats: saleStats ?? Prisma.JsonNull },
     });
-    return result;
   }
 
-  async getSubscriberCount(subscriptionId: string): Promise<number> {
-    const result = await this.prisma.userSubscriptionEntry.count({
-      where: { subscriptionId, active: true },
-    });
-    return result;
+  async incrementCollectionCount(editionId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      INSERT INTO edition_stats_snapshots ("editionId", "collectionCount", "updatedAt")
+      VALUES (${editionId}, 1, NOW())
+      ON CONFLICT ("editionId") DO UPDATE
+      SET "collectionCount" = edition_stats_snapshots."collectionCount" + 1,
+          "updatedAt" = NOW()
+    `;
+  }
+
+  async decrementCollectionCount(editionId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      INSERT INTO edition_stats_snapshots ("editionId", "collectionCount", "updatedAt")
+      VALUES (${editionId}, 0, NOW())
+      ON CONFLICT ("editionId") DO UPDATE
+      SET "collectionCount" = GREATEST(edition_stats_snapshots."collectionCount" - 1, 0),
+          "updatedAt" = NOW()
+    `;
+  }
+
+  async incrementSubscriberCount(subscriptionId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      INSERT INTO subscription_stats_snapshots ("subscriptionId", "subscriberCount", "updatedAt")
+      VALUES (${subscriptionId}, 1, NOW())
+      ON CONFLICT ("subscriptionId") DO UPDATE
+      SET "subscriberCount" = subscription_stats_snapshots."subscriberCount" + 1,
+          "updatedAt" = NOW()
+    `;
+  }
+
+  async decrementSubscriberCount(subscriptionId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      INSERT INTO subscription_stats_snapshots ("subscriptionId", "subscriberCount", "updatedAt")
+      VALUES (${subscriptionId}, 0, NOW())
+      ON CONFLICT ("subscriptionId") DO UPDATE
+      SET "subscriberCount" = GREATEST(subscription_stats_snapshots."subscriberCount" - 1, 0),
+          "updatedAt" = NOW()
+    `;
+  }
+
+  async getSnapshotForEdition(editionId: string) {
+    return this.prisma.editionStatsSnapshot.findUnique({ where: { editionId } });
+  }
+
+  async getSnapshotForSubscription(subscriptionId: string) {
+    return this.prisma.subscriptionStatsSnapshot.findUnique({ where: { subscriptionId } });
   }
 }

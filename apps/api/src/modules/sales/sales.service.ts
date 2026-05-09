@@ -132,7 +132,7 @@ export class SalesService {
 
     const equalAmount = Math.round((dto.totalAmount / dto.entryIds.length) * 100) / 100;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.userSaleGroup.create({
         data: {
           userId,
@@ -197,6 +197,7 @@ export class SalesService {
               dto.currency,
               new Date(dto.soldAt),
             );
+            await this.crowdStatsService.refreshEditionSaleStats(editionId);
           } catch {
             // stats errors must never block the main operation
           }
@@ -334,6 +335,7 @@ export class SalesService {
             existing.currency,
             existing.soldAt,
           );
+          await this.crowdStatsService.refreshEditionSaleStats(editionId);
         } catch {
           // stats errors must never block the main operation
         }
