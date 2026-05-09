@@ -51,7 +51,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Settings },
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
-  { id: 'subscriptions', label: 'Subscriptions', icon: BookOpen },
+  { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
   { id: 'photos', label: 'My Photos', icon: Image },
 ]
 
