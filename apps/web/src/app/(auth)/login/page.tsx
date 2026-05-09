@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = searchParams.get('returnTo')
   const auth = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,7 +50,7 @@ export default function LoginPage() {
         .catch(() => null)
 
       auth.login(me ?? data)
-      router.push('/calendar')
+      router.push(returnTo && returnTo.startsWith('/') ? returnTo : '/calendar')
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -139,5 +141,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

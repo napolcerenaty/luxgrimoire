@@ -240,7 +240,7 @@ export function Navbar() {
             <>
               <div className="w-px h-4 bg-stone-700 mx-2 shrink-0" />
               <Link
-                href="/collection"
+                href="/calendar"
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                   ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/spending', '/sold'].some(p => pathname.startsWith(p))
