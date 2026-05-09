@@ -527,9 +527,9 @@ function MyCommunityPhotos() {
   }
 
   if (loading) return (
-    <div className="grid grid-cols-3 gap-3">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl bg-stone-800 animate-pulse" />
+    <div className="grid grid-cols-6 gap-2">
+      {[...Array(12)].map((_, i) => (
+        <div key={i} className="aspect-[2/3] rounded-lg bg-stone-800 animate-pulse" />
       ))}
     </div>
   )
@@ -567,16 +567,16 @@ function MyCommunityPhotos() {
 
         {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-6 gap-2">
           {photos.map(photo => {
             const isSelected = selected.has(photo.id)
-            const thumb = cloudinaryUrl(photo.cloudinaryId, 'w_240,h_360,c_fill,q_auto,f_auto')
+            const thumb = cloudinaryUrl(photo.cloudinaryId, 'w_120,h_180,c_fill,q_auto,f_auto')
             const editionLabel = photo.edition.editionName ?? photo.edition.bookBoxCompany?.name ?? 'Edition'
             return (
               <div
                 key={photo.id}
                 onClick={() => toggle(photo.id)}
-                className={`relative cursor-pointer rounded-xl overflow-hidden aspect-[2/3] ring-2 transition-all ${
+                className={`relative cursor-pointer rounded-lg overflow-hidden aspect-[2/3] ring-2 transition-all ${
                   isSelected ? 'ring-amber-500 ring-offset-2 ring-offset-stone-900' : 'ring-transparent hover:ring-stone-600'
                 }`}
               >
@@ -584,24 +584,24 @@ function MyCommunityPhotos() {
                 <img src={thumb ?? photo.url} alt={editionLabel} className="w-full h-full object-cover" />
                 {/* Status badge */}
                 {photo.status === 'PENDING' && (
-                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/80 text-stone-950">
+                  <span className="absolute top-1 left-1 px-1 py-0.5 rounded-full text-[7px] font-semibold bg-amber-500/80 text-stone-950">
                     Pending
                   </span>
                 )}
                 {/* Selection overlay */}
                 {isSelected && (
                   <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
-                      <Check size={14} className="text-stone-950" />
+                    <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                      <Check size={10} className="text-stone-950" />
                     </div>
                   </div>
                 )}
                 {/* Edition label */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-stone-950/90 to-transparent px-2 py-2">
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-stone-950/90 to-transparent px-1 py-1">
                   <a
                     href={`/editions/${photo.edition.slug}`}
                     onClick={e => e.stopPropagation()}
-                    className="text-[10px] text-stone-200 hover:text-amber-400 transition-colors line-clamp-2 leading-tight"
+                    className="text-[8px] text-stone-200 hover:text-amber-400 transition-colors line-clamp-1 leading-tight"
                   >
                     {editionLabel}
                   </a>
