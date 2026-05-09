@@ -166,6 +166,34 @@ export class CollectionController {
     return this.collectionService.getOwnershipHistory(user.id, entryId);
   }
 
+  @Post('entry/:entryId/history')
+  addOwnershipHistoryEntry(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Body() dto: { status: string; changedAt?: string },
+  ) {
+    return this.collectionService.addOwnershipHistoryEntry(user.id, entryId, dto);
+  }
+
+  @Patch('entry/:entryId/history/:historyId')
+  updateOwnershipHistoryEntry(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Param('historyId') historyId: string,
+    @Body() dto: { status?: string; changedAt?: string },
+  ) {
+    return this.collectionService.updateOwnershipHistoryEntry(user.id, entryId, historyId, dto);
+  }
+
+  @Delete('entry/:entryId/history/:historyId')
+  deleteOwnershipHistoryEntry(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Param('historyId') historyId: string,
+  ) {
+    return this.collectionService.deleteOwnershipHistoryEntry(user.id, entryId, historyId);
+  }
+
   @Put('entry/:entryId/tags')
   setEntryTags(
     @CurrentUser() user: { id: string },

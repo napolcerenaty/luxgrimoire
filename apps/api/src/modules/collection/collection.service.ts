@@ -320,14 +320,7 @@ export class CollectionService {
     if (!existing) throw new NotFoundException('Entry not found');
     if (existing.userId !== userId) throw new ForbiddenException();
 
-    // Auto-promote PREORDER → SHIPPING when a tracking number is added
-    const addingTracking = dto.trackingNumber !== undefined
-      && dto.trackingNumber !== null
-      && dto.trackingNumber.trim() !== ''
-      && !existing.trackingNumber;
-    const autoStatus =
-      addingTracking && existing.ownershipStatus === 'PREORDER' ? 'SHIPPING' : undefined;
-    const effectiveOwnershipStatus = dto.ownershipStatus ?? autoStatus;
+    const effectiveOwnershipStatus = dto.ownershipStatus;
 
     const updated = await this.prisma.userBookEntry.update({
       where: { id: entryId },
@@ -404,6 +397,42 @@ export class CollectionService {
       orderBy: { changedAt: 'asc' },
       select: { id: true, status: true, changedAt: true },
     });
+  }
+
+  async addOwnershipHistoryEntry(userId: string, entryId: string, dto: { status: string; changedAt?: string }) {
+    const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+    return this.prisma.ownershipStatusHistory.create({
+      data: {
+        userBookEntryId: entryId,
+        status: dto.status,
+        ...(dto.changedAt && { changedAt: new Date(dto.changedAt) }),
+      },
+      select: { id: true, status: true, changedAt: true },
+    });
+  }
+
+  async updateOwnershipHistoryEntry(userId: string, entryId: string, historyId: string, dto: { status?: string; changedAt?: string }) {
+    const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+    return this.prisma.ownershipStatusHistory.update({
+      where: { id: historyId },
+      data: {
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.changedAt !== undefined && { changedAt: new Date(dto.changedAt) }),
+      },
+      select: { id: true, status: true, changedAt: true },
+    });
+  }
+
+  async deleteOwnershipHistoryEntry(userId: string, entryId: string, historyId: string) {
+    const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
+    if (!entry) throw new NotFoundException('Entry not found');
+    if (entry.userId !== userId) throw new ForbiddenException();
+    await this.prisma.ownershipStatusHistory.delete({ where: { id: historyId } });
+    return { success: true };
   }
 
   private recordStatusChange(userBookEntryId: string, status: string): void {

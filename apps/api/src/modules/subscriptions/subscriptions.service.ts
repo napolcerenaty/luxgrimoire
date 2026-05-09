@@ -1476,7 +1476,9 @@ export class SubscriptionsService {
                   purchaseGroupId: group.id,
                   signatureType: mb.signatureType,
                 },
-              });
+              }).then(created =>
+                this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'OWNED' } }).catch(() => {}),
+              );
             }
             booksAdded++;
           } catch {
@@ -1684,7 +1686,9 @@ export class SubscriptionsService {
                 purchaseGroupId: group.id,
                 signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
               },
-            });
+            }).then(created =>
+              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'OWNED' } }).catch(() => {}),
+            );
           }
           booksAdded++;
         } catch {

@@ -340,7 +340,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
               )
             })}
             {linkedFees.length > 0 && !allSameCurrency && (
-              <p className="text-xs text-amber-600/80 pt-1">Fees are in different currencies — enter a manual total below if needed.</p>
+              <></>
             )}
             <p className="text-xs text-stone-600 mt-1">
               Selected fees are tracked independently and auto-applied on backfill.
