@@ -223,6 +223,9 @@ function RecordSaleModal({
             </div>
           )}
           {error && <p className="text-red-400 text-sm">{error}</p>}
+          <p className="text-xs text-stone-500 mt-2">
+            ℹ️ Anonymous sale data may contribute to community market statistics.
+          </p>
           <button type="submit" disabled={pending}
             className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
           >

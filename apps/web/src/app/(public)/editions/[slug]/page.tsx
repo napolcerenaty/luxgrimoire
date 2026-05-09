@@ -10,6 +10,7 @@ import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
 import { BackButton } from '@/components/ui/BackButton'
 import { CommunityImageSection } from '@/components/editions/CommunityImageSection'
+import { EditionCommunityStats } from '@/components/editions/EditionCommunityStats'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -309,6 +310,21 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   editionId={edition.id}
                   editionName={edition.editionName ?? edition.bookBoxCompany?.name ?? null}
                   initialEntryId={initialEntryId ?? null}
+                />
+              </div>
+
+              {/* Community stats (mock data — real API wiring in next iteration) */}
+              <div className="mb-6">
+                <EditionCommunityStats
+                  collectionCount={47}
+                  saleStats={{
+                    avg: 42.50,
+                    median: 41.00,
+                    min: 28.00,
+                    max: 80.00,
+                    count: 23,
+                    currency: 'EUR',
+                  }}
                 />
               </div>
 

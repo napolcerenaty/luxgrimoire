@@ -4,9 +4,10 @@ import { SalesController } from './sales.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CurrencyModule } from '../currency/currency.module';
+import { CrowdStatsModule } from '../crowd-stats/crowd-stats.module';
 
 @Module({
-  imports: [PrismaModule, AnalyticsModule, CurrencyModule],
+  imports: [PrismaModule, AnalyticsModule, CurrencyModule, CrowdStatsModule],
   controllers: [SalesController],
   providers: [SalesService],
   exports: [SalesService],
