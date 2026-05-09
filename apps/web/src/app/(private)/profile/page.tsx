@@ -51,7 +51,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Settings },
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
-  { id: 'subscriptions', label: 'Subscriptions & Fees', icon: BookOpen },
+  { id: 'subscriptions', label: 'Subscriptions', icon: BookOpen },
   { id: 'photos', label: 'My Photos', icon: Image },
 ]
 
@@ -237,7 +237,7 @@ export default function ProfilePage() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === id
                 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
