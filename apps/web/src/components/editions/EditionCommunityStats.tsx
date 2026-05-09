@@ -79,7 +79,7 @@ export function EditionCommunityStats({ editionSlug, fallbackCurrency }: Edition
               )}
 
               {/* Sale price stats */}
-              {saleStats && saleStats.count > 0 && (
+              {saleStats && saleStats.count > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-stone-400">
                     <span className="text-lg">💰</span>
@@ -108,10 +108,12 @@ export function EditionCommunityStats({ editionSlug, fallbackCurrency }: Edition
                     Based on anonymized, user-contributed resale data. Values in {saleStats.currency}.
                   </p>
                 </div>
-              )}
-
-              {collectionCount === 0 && (!saleStats || saleStats.count === 0) && (
-                <p className="text-xs text-stone-500 mt-3">No community data yet for this edition.</p>
+              ) : (collectionCount !== null && collectionCount > 0) ? (
+                <p className="text-xs text-stone-500 italic mt-1">
+                  No resale price data available for this edition yet.
+                </p>
+              ) : (
+                <p className="text-xs text-stone-500 mt-1">No community data yet for this edition.</p>
               )}
             </>
           )}
