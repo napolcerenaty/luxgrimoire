@@ -7,6 +7,7 @@ import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, 
 import { Role } from '@prisma/client';
 import { UploadService } from '../upload/upload.service';
 import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
+import { bookAuthorsInclude } from '../../common/prisma-includes';
 
 const MAINTENANCE_KEY = 'system:maintenance';
 const MAINTENANCE_TTL = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
@@ -104,7 +105,7 @@ export class AdminService {
               id: true,
               slug: true,
               title: true,
-              authors: { include: { author: { select: { id: true, name: true } } } },
+              ...bookAuthorsInclude,
             },
           },
           bookBoxCompany: { select: { id: true, name: true, slug: true } },

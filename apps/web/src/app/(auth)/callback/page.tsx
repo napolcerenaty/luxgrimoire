@@ -2,8 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 export default function OAuthCallbackPage() {
   const router = useRouter()
@@ -11,7 +10,7 @@ export default function OAuthCallbackPage() {
 
   useEffect(() => {
     // Cookie was set by API during OAuth redirect — just fetch user info
-    fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+    fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(me => {
         if (!me) { router.replace('/login?error=oauth_failed'); return }

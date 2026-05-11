@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { API_BASE } from '@/lib/authFetch'
 
 const REPORT_TYPES = [
   { value: 'copyright',    label: '© Copyright / DMCA Violation', description: 'Unauthorized use of copyrighted images, text, or artwork' },
@@ -12,7 +13,6 @@ const REPORT_TYPES = [
   { value: 'other',        label: '✏️ Other',                      description: 'Something else not listed above' },
 ]
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 export default function ReportPage() {
   const [type, setType] = useState('')
@@ -36,7 +36,7 @@ export default function ReportPage() {
       : description
 
     try {
-      const res = await fetch(`${API_URL}/bug-reports`, {
+      const res = await fetch(`${API_BASE}/bug-reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

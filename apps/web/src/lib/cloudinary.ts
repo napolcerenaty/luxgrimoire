@@ -1,3 +1,5 @@
+import { API_BASE } from './authFetch'
+
 const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
 /**
@@ -21,3 +23,26 @@ export function cloudinaryUrl(
   const id = normalizePublicId(publicId)
   return `https://res.cloudinary.com/${CLOUD}/image/upload/${transforms}/${id}`
 }
+
+/**
+ * Reads a file as a data URI, then POSTs it to the API upload endpoint.
+ * Returns the Cloudinary publicId on success.
+ */
+export async function uploadImage(file: File, folder: string): Promise<string> {
+  const dataUri = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+  const res = await fetch(`${API_BASE}/upload/image`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: dataUri, folder }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const json = await res.json() as { publicId: string; url: string }
+  return json.publicId
+}
+

@@ -3,19 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
-
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-
-function cloudThumb(url: string, size = 'w_80,h_120,c_fill,q_auto,f_auto') {
-  if (!url) return url
-  if (url.startsWith('http') && url.includes('cloudinary.com')) {
-    return url.replace('/upload/', `/upload/${size}/`)
-  }
-  if (CLOUD_NAME && !url.startsWith('http')) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${size}/${url}`
-  }
-  return url
-}
+import { cloudinaryUrl } from '@/lib/cloudinary'
 
 interface CommunityImage {
   id: string
@@ -204,7 +192,7 @@ export default function AdminCommunityImagesPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={cloudThumb(img.url)}
+                    src={cloudinaryUrl(img.url, 'w_80,h_120,c_fill,q_auto,f_auto') ?? img.url}
                     alt="thumbnail"
                     className="w-full h-full object-cover"
                   />
@@ -311,7 +299,7 @@ export default function AdminCommunityImagesPage() {
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={cloudThumb(lightboxUrl, 'w_1200,h_1800,c_fill,q_auto,f_auto')}
+            src={cloudinaryUrl(lightboxUrl, 'w_1200,h_1800,c_fill,q_auto,f_auto') ?? lightboxUrl}
             alt="Full size"
             className="max-h-[90vh] max-w-[90vw] object-contain rounded shadow-2xl"
             onClick={e => e.stopPropagation()}

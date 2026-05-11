@@ -35,7 +35,7 @@ export function PublisherPicker({ value, onChange }: { value: string; onChange: 
         onChange={e => handleChange(e.target.value)}
         onFocus={() => { if (q.length >= 1) setOpen(true) }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="e.g. Fairyloot Exclusive"
+        placeholder="e.g. HarperVoyager"
         className={INP}
       />
       {open && q.length >= 1 && (

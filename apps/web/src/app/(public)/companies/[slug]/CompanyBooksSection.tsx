@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 
 export interface EditionGroup {
   label: string
@@ -109,7 +110,7 @@ export function CompanyBooksSection({ groups }: Props) {
               <EditionCard
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
-                coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
+                coverImage={resolveEditionCoverRaw(edition)}
                 title={edition.book.title}
                 seriesName={edition.book.seriesName}
                 volumeNumber={edition.book.volumeNumber}

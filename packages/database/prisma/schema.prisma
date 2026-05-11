@@ -347,6 +347,7 @@ model Subscription {
   shippingCountries    String[]
   shipsInternationally Boolean                      @default(false)
   startingMonth        Int?
+  intervalMonths       Int                          @default(1)
   type                 String?
   language             String?
   price                String?
@@ -373,7 +374,7 @@ model Subscription {
 
   @@index([companyId])
   @@index([isDiscontinued])
-  @@index([type])
+  @@index([intervalMonths])
   @@map("subscriptions")
 }
 

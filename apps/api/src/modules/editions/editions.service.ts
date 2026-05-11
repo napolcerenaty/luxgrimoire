@@ -11,6 +11,7 @@ import {
   UpdateComponentDto,
 } from './editions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 @Injectable()
 export class EditionsService {
@@ -67,9 +68,7 @@ export class EditionsService {
   }
 
   async findAll(query: EditionQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = {};
     if (query.bookId) {
@@ -148,7 +147,7 @@ export class EditionsService {
       };
     });
 
-    return { data: flatData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data: flatData, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findPublishers(search?: string): Promise<string[]> {

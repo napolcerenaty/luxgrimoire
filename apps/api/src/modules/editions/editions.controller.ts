@@ -7,7 +7,6 @@ import {
   Param,
   Body,
   Query,
-  ForbiddenException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -27,6 +26,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { assertCompanyAccess } from '../../common/utils/assert-company-access.util';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
 
@@ -77,8 +77,8 @@ export class EditionsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() dto: CreateEditionDto, @CurrentUser() user: CurrentUserType) {
-    if (user.role === 'COMPANY_MANAGER' && dto.bookBoxCompanyId && dto.bookBoxCompanyId !== user.managedCompanyId) {
-      throw new ForbiddenException('You can only create editions for your own company');
+    if (user.role === 'COMPANY_MANAGER' && dto.bookBoxCompanyId) {
+      assertCompanyAccess(user, dto.bookBoxCompanyId, 'You can only create editions for your own company');
     }
     // Privileged roles get auto-verified; regular users need verification
     const isPrivileged = PRIVILEGED.includes(user.role);
@@ -104,10 +104,7 @@ export class EditionsController {
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateEditionDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.editionsService.findBySlug(slug);
-      if (existing.bookBoxCompanyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage editions for your own company');
-      }
+      assertCompanyAccess(user, (await this.editionsService.findBySlug(slug)).bookBoxCompanyId, 'You can only manage editions for your own company');
     }
     const result = await this.editionsService.update(slug, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_EDITION', entityType: 'edition', entityId: result.id, entityTitle: result.slug });
@@ -128,10 +125,7 @@ export class EditionsController {
   @Post(':slug/artists')
   async addArtist(@Param('slug') slug: string, @Body() dto: AddArtistDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.editionsService.findBySlug(slug);
-      if (existing.bookBoxCompanyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage editions for your own company');
-      }
+      assertCompanyAccess(user, (await this.editionsService.findBySlug(slug)).bookBoxCompanyId, 'You can only manage editions for your own company');
     }
     return this.editionsService.addArtist(slug, dto);
   }

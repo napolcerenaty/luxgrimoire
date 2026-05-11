@@ -3,8 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 export default function ConsentPage() {
   const router = useRouter()
@@ -19,13 +18,13 @@ export default function ConsentPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${API_URL}/auth/consent`, {
+      const res = await fetch(`${API_BASE}/auth/consent`, {
         method: 'POST',
         credentials: 'include',
       })
       if (!res.ok) throw new Error('Failed to save consent')
       // Refresh user info so needsConsent is cleared
-      const me = await fetch(`${API_URL}/auth/me`, { credentials: 'include' }).then(r => r.json())
+      const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' }).then(r => r.json())
       auth.login(me)
       router.replace('/calendar')
     } catch {

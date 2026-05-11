@@ -5,6 +5,7 @@ import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 
 jest.mock('../../common/utils/renewal-date.util', () => ({
   refreshNextRenewalDate: jest.fn().mockResolvedValue(undefined),
+  renewalMonthFromBoxMonth: jest.requireActual('../../common/utils/renewal-date.util').renewalMonthFromBoxMonth,
   computeNextRenewalDate: jest.requireActual('../../common/utils/renewal-date.util').computeNextRenewalDate,
   computePastRenewalDates: jest.requireActual('../../common/utils/renewal-date.util').computePastRenewalDates,
 }));
@@ -76,13 +77,25 @@ describe('RenewalCronService', () => {
   // -------------------------------------------------------------------------
 
   describe('addBooksForSubscriptionMonth', () => {
+    beforeEach(() => {
+      // Default mocks for createPurchaseGroupAndBooks internals
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null); // not a combo
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue({ billingPeriods: [] });
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'pg-1' });
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+    });
+
     it('returns early when no subscription month record exists', async () => {
       (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce(null);
 
       await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
 
       expect(prisma.userSkipRecord.findUnique).not.toHaveBeenCalled();
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
 
     it('returns early when subscription month has no books', async () => {
@@ -94,7 +107,7 @@ describe('RenewalCronService', () => {
 
       await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
 
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
 
     it('returns early when user has an active skip for the month', async () => {
@@ -107,7 +120,7 @@ describe('RenewalCronService', () => {
 
       await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
 
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
 
     it('upserts book entries for each book when no active skip exists', async () => {
@@ -117,20 +130,16 @@ describe('RenewalCronService', () => {
         books: [{ bookId: 'book-1', editionId: 'edition-1', signatureType: null }],
       });
       (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.upsert as jest.Mock).mockResolvedValueOnce({});
 
       await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
 
-      expect(prisma.userBookEntry.upsert).toHaveBeenCalledTimes(1);
-      expect(prisma.userBookEntry.upsert).toHaveBeenCalledWith(
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            userId_bookId_editionId: {
-              userId: 'user-1',
-              bookId: 'book-1',
-              editionId: 'edition-1',
-            },
-          },
+          data: expect.objectContaining({
+            userId: 'user-1',
+            bookId: 'book-1',
+            editionId: 'edition-1',
+          }),
         }),
       );
     });
@@ -148,7 +157,7 @@ describe('RenewalCronService', () => {
 
       await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
 
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
   });
 
@@ -193,7 +202,7 @@ describe('RenewalCronService', () => {
         { bookId: 'book-1', editionId: 'edition-1', signatureType: null },
       );
 
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
 
     it('skips entry when user has an active skip for the month', async () => {
@@ -211,7 +220,7 @@ describe('RenewalCronService', () => {
         { bookId: 'book-1', editionId: 'edition-1', signatureType: null },
       );
 
-      expect(prisma.userBookEntry.upsert).not.toHaveBeenCalled();
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
     });
 
     it('upserts book entry for subscribers who have a renewal and no active skip', async () => {
@@ -222,7 +231,9 @@ describe('RenewalCronService', () => {
         renewalDate,
       });
       (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.upsert as jest.Mock).mockResolvedValueOnce({});
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
 
       await service.retroactivelyAddBookForSubscribers(
         'sub-1',
@@ -230,16 +241,13 @@ describe('RenewalCronService', () => {
         { bookId: 'book-1', editionId: 'edition-1', signatureType: null },
       );
 
-      expect(prisma.userBookEntry.upsert).toHaveBeenCalledTimes(1);
-      expect(prisma.userBookEntry.upsert).toHaveBeenCalledWith(
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            userId_bookId_editionId: {
-              userId: 'user-1',
-              bookId: 'book-1',
-              editionId: 'edition-1',
-            },
-          },
+          data: expect.objectContaining({
+            userId: 'user-1',
+            bookId: 'book-1',
+            editionId: 'edition-1',
+          }),
         }),
       );
     });

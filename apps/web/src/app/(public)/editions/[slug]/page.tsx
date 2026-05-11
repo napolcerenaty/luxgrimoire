@@ -314,13 +314,15 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 />
               </div>
 
-              {/* Community stats */}
+              {/* Community stats — only show after general sale date has passed */}
+              {(!edition.generalSaleDate || new Date(edition.generalSaleDate) <= new Date()) && (
               <div className="mb-6">
                 <EditionCommunityStats
                   editionSlug={slug}
                   fallbackCurrency={edition.currency}
                 />
               </div>
+              )}
 
               {/* Meta grid */}
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">

@@ -8,6 +8,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CurrencyService } from "../currency/currency.service";
 import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
+import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 
 type Decimal = { toNumber: () => number };
 type NumOrDec = number | Decimal;
@@ -101,7 +103,7 @@ export class SalesService {
       include: { entries: { include: this.entryInclude } },
     });
     if (!g) throw new NotFoundException("Sale group not found");
-    if (g.userId !== userId) throw new ForbiddenException();
+    assertOwnership(g.userId, userId);
     return this.withProfit(g as unknown as SaleGroupWithEntries);
   }
 
@@ -171,9 +173,7 @@ export class SalesService {
           },
         });
 
-        await tx.ownershipStatusHistory.create({
-          data: { userBookEntryId: entryId, status: "SOLD" },
-        });
+        await recordOwnershipHistory(tx, [{ id: entryId }], 'SOLD', new Date(dto.soldAt));
       }
 
       return tx.userSaleGroup.findUnique({
@@ -189,15 +189,14 @@ export class SalesService {
         const editionId = (entry.userBookEntry as any)?.edition?.id as string | undefined;
         if (editionId) {
           try {
-            await this.crowdStatsService.createSaleStat(
+            const price = typeof entry.allocatedAmount === 'object'
+              ? (entry.allocatedAmount as any).toNumber()
+              : entry.allocatedAmount;
+            await this.crowdStatsService.syncSaleStats(
               editionId,
-              typeof entry.allocatedAmount === 'object'
-                ? (entry.allocatedAmount as any).toNumber()
-                : entry.allocatedAmount,
-              dto.currency,
-              new Date(dto.soldAt),
+              null,
+              { price, currency: dto.currency, date: new Date(dto.soldAt) },
             );
-            await this.crowdStatsService.refreshEditionSaleStats(editionId);
           } catch {
             // stats errors must never block the main operation
           }
@@ -214,7 +213,7 @@ export class SalesService {
       include: { entries: true },
     });
     if (!existing) throw new NotFoundException("Sale group not found");
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     const hasCustomAmounts = dto.customAmounts && Object.keys(dto.customAmounts).length > 0;
 
@@ -298,7 +297,7 @@ export class SalesService {
   async deleteSaleGroup(userId: string, groupId: string) {
     const existing = await this.prisma.userSaleGroup.findUnique({ where: { id: groupId } });
     if (!existing) throw new NotFoundException("Sale group not found");
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     const saleEntries = await this.prisma.userSaleEntry.findMany({
       where: { saleGroupId: groupId },

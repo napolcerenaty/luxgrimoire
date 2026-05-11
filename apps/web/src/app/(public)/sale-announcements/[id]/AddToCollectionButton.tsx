@@ -6,21 +6,10 @@ import { authFetch } from '@/lib/authFetch'
 import { createPurchaseGroup } from '@/lib/api'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { BookPlus, Plus, X, MoveRight } from 'lucide-react'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
-
-const SALE_PLATFORMS = [
-  { value: 'vinted', label: '🛍️ Vinted' },
-  { value: 'ebay', label: '🛒 eBay' },
-  { value: 'facebook', label: '📘 Facebook' },
-  { value: 'instagram', label: '📷 Instagram' },
-  { value: 'depop', label: '👗 Depop' },
-  { value: 'whatnot', label: '🎉 Whatnot' },
-  { value: 'local', label: '🤝 Local / In-person' },
-  { value: 'other', label: '✏️ Other' },
-]
 
 const OWNERSHIP_OPTIONS = [
   { value: 'OWNED', label: 'Owned' },

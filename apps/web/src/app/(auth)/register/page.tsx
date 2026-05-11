@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { PasswordStrength, passwordStrong } from '@/components/auth/PasswordStrength'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 /** Instagram-style: letters, digits, underscores, periods; no leading/trailing/consecutive periods; 3–30 chars */
 const USERNAME_RE = /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-zA-Z0-9._]{3,30}$/
@@ -50,7 +49,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const registerRes = await fetch(`${API_URL}/auth/register`, {
+      const registerRes = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, username, termsAccepted }),

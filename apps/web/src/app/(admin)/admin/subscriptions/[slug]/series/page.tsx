@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import ImageUpload from '@/components/admin/ImageUpload'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSubscriptionSeries, ApiSubscription } from '@luxgrimoire/shared-types'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -236,12 +237,7 @@ function SeriesCard({
   const qKey = ['admin', 'subscription-series', subscriptionSlug]
   const [editing, setEditing] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
-  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-
-  const coverUrl = series.coverImage
-    ? series.coverImage.startsWith('http') ? series.coverImage
-      : `https://res.cloudinary.com/${CLOUD}/image/upload/w_160,h_90,c_fill,q_auto,f_auto/${series.coverImage}`
-    : null
+  const coverUrl = cloudinaryUrl(series.coverImage, 'w_160,h_90,c_fill,q_auto,f_auto')
 
   const updateMutation = useMutation({
     mutationFn: (payload: Partial<SeriesFormData>) =>

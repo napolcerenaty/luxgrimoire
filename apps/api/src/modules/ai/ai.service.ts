@@ -2,6 +2,24 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+export interface AiSaleRegion {
+  name: string;
+  isDefault: boolean;
+  countryCodes?: string;
+  price?: number;
+  currency?: string;
+  saleTimezone?: string;
+  firstAccessDate?: string;
+  earlyAccessDate?: string;
+  generalSaleDate?: string;
+}
+
+export interface AiSaleAnnouncementResult {
+  title?: string;
+  expectedShipping?: string;
+  regions?: AiSaleRegion[];
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -75,6 +93,17 @@ FEATURES RULES:
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
+- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions (e.g. "Book size: 5 ⅜" x 8 ¼"", "234 x 153 mm", etc.). Add the full size string as a feature exactly as written, prefixed with "book size:" if a label is present.
+  Example: "Book size: 5 ⅜" x 8 ¼"" → features: ["book size: 5 ⅜\" x 8 ¼\""]
+  Example: "B format paperback" → features: ["B format", "paperback"]
+  Example: "Royal hardcover" → features: ["Royal", "hardcover"]
+- COVER DESCRIPTIONS: Add cover descriptions to features even when no artist is credited. This includes phrases like "Original trade cover (from the publisher)", "exclusive cover featuring a colourway variation of the trade cover", "special edition cover", "variant cover", etc.
+  Example: "Original trade cover (from the publisher)" → features: ["Original trade cover (from the publisher)"]
+  Example: "exclusive cover featuring a colourway variation of the trade cover" → features: ["exclusive cover featuring a colourway variation of the trade cover"]
+- SEMICOLON QUALIFIERS: When a feature line contains a semicolon after the artist attribution parenthetical, the text after the semicolon is an additional qualifier/description that belongs to BOTH the feature and the artist role. Append it (preceded by "; ") to the feature string and to the artist role.
+  Example: "Illustrated endpapers (by @nekokonut22); different front and back" →
+    features: ["Illustrated endpapers; different front and back"]
+    artists: [{ name: "@nekokonut22", role: "Illustrated endpapers; different front and back" }]
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - When a feature includes "of [title/name]" — e.g. "first chapter of A Ballad for the Broken", "preview of Book 2", "excerpt of..." — keep the FULL phrase including "of [title]". Do NOT truncate to just "first chapter" or "preview".
 - IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.
@@ -87,6 +116,57 @@ FEATURES RULES:
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
+For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
+Given a sale announcement post (usually from a book subscription box company), extract structured information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "title": "announcement title, e.g. 'All Hail Chaos Exclusive Edition'",
+  "expectedShipping": "e.g. November/December 2025",
+  "regions": [
+    {
+      "name": "region name, e.g. UK/INT or US/Canada",
+      "isDefault": true,
+      "countryCodes": "comma-separated ISO country codes, e.g. GB,US,CA",
+      "price": 24.00,
+      "currency": "GBP",
+      "saleTimezone": "BST",
+      "firstAccessDate": "2025-07-15T09:00:00.000Z",
+      "earlyAccessDate": "2025-07-15T13:00:00.000Z",
+      "generalSaleDate": "2025-07-16T09:00:00.000Z"
+    }
+  ]
+}
+
+TITLE RULES:
+- Extract the edition title from the announcement. Usually quoted or explicitly named.
+- Keep "Exclusive Edition" if it's part of the product name.
+- Example: "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition"
+
+REGION RULES:
+- Look for different price/currency combinations or different regions mentioned (UK/INT, US/Canada, EU, AUS, etc.)
+- The FIRST region/price mentioned = isDefault: true
+- If NO regions are mentioned (single global price/date), do NOT create a regions array
+- Each region should have: name, price, currency, and dates where available
+- For dates: convert all times to UTC using the timezone mentioned
+  - "10am BST" = BST is UTC+1 → 09:00 UTC
+  - "10am ET" = ET/EDT is UTC-4 → 14:00 UTC; EST is UTC-5 → 15:00 UTC
+  - firstAccessDate = earliest access date (e.g. previous customers/edition holders)
+  - earlyAccessDate = subscriber/presale early access date
+  - generalSaleDate = public/general sale date
+- If multiple time slots exist for the same region (different customer tiers), use:
+  - firstAccessDate = earliest slot, earlyAccessDate = subscriber slot, generalSaleDate = general public slot
+- Extract timezone from the text and set saleTimezone (e.g. "BST", "ET", "UTC")
+- For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
+- If only one price/date is given for the entire announcement (no regional split), do NOT create regions array
+
+SHIPPING:
+- Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
+- Include year if determinable from context (current year is 2026)
+
+For dates, use ISO 8601 format with time and Z suffix (UTC). If only a date is given without time, use 00:00:00.000Z.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
 @Injectable()
@@ -173,6 +253,33 @@ export class AiService {
 
     try {
       return JSON.parse(content) as AiParseResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  async parseSaleAnnouncement(text: string): Promise<AiSaleAnnouncementResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'user', content: `Extract sale announcement information from this text:\n\n${text}` },
+    ];
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 2000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new BadRequestException('No response from AI model');
+
+    try {
+      return JSON.parse(content) as AiSaleAnnouncementResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }

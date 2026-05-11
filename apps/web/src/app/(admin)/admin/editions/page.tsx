@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import dynamic from 'next/dynamic'
@@ -12,17 +15,8 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 const CreateBookEditionForm = dynamic(() => import('@/components/admin/CreateBookEditionForm'), { ssr: false })
 const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
-
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-function cloudThumb(id: string | null | undefined) {
-  if (!id) return null
-  if (id.startsWith('http')) return id
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/w_64,h_80,c_fill,q_auto,f_auto/${id}`
-}
+
 
 interface BookSearchResult {
   id: string
@@ -85,8 +79,8 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
               <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
                 className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stone-800 hover:bg-stone-700 transition-colors"
               >
-                {cloudThumb(book.coverImage)
-                  ? <img src={cloudThumb(book.coverImage)!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
+                {cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')
+                  ? <img src={cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
                   : <div className="w-8 h-10 bg-stone-700 rounded shrink-0" />
                 }
                 <div>
@@ -129,7 +123,7 @@ export default function AdminEditionsPage() {
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managedCompanyId = (user as (typeof user & { managedCompanyId?: string }) | null)?.managedCompanyId ?? ''
 
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -272,7 +266,7 @@ export default function AdminEditionsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Editions</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Edition
@@ -343,11 +337,11 @@ export default function AdminEditionsPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Edition" onClose={() => createModal.close()}>
         <AddEditionFlow
           defaultCompanyId={isManager ? managedCompanyId : undefined}
-          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setCreateOpen(false) }}
-          onCancel={() => setCreateOpen(false)}
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); createModal.close() }}
+          onCancel={() => createModal.close()}
         />
       </FormModal>
 

@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 const GENRES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — genres change rarely
 const SERIES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — series change rarely
@@ -54,9 +55,7 @@ export class BooksService {
   }
 
   async findAll(query: BookQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = {};
     // Default to only approved books for public access; allow admins to filter
@@ -149,7 +148,7 @@ export class BooksService {
       };
     });
 
-    return { data: mappedData, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data: mappedData, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findSeriesNames(search?: string): Promise<string[]> {

@@ -4,6 +4,7 @@ import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 @Injectable()
 export class CompaniesService {
@@ -47,9 +48,7 @@ export class CompaniesService {
   }
 
   async findAll(query: CompanyQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = {};
     if (query.country) where.country = query.country;
@@ -78,7 +77,7 @@ export class CompaniesService {
       this.prisma.bookBoxCompany.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {

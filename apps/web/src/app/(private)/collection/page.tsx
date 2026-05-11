@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authFetch } from '@/lib/authFetch'
+import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
+import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
@@ -13,8 +15,8 @@ import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Che
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
 interface CollectionEntry {
@@ -70,9 +72,7 @@ interface FeeTemplate {
   defaultCurrency: string | null
   isActive: boolean
 }
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
-
+
 interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 
 const ADD_OWNERSHIP_OPTIONS = [
@@ -82,18 +82,6 @@ const ADD_OWNERSHIP_OPTIONS = [
   { value: 'BORROWED', label: 'Borrowed' },
   { value: 'LENDED', label: 'Lent out' },
 ] as const
-
-
-const SALE_PLATFORMS = [
-  { value: 'vinted', label: '🛍️ Vinted' },
-  { value: 'ebay', label: '🛒 eBay' },
-  { value: 'facebook', label: '📘 Facebook' },
-  { value: 'instagram', label: '📷 Instagram' },
-  { value: 'depop', label: '👗 Depop' },
-  { value: 'whatnot', label: '🎉 Whatnot' },
-  { value: 'local', label: '🤝 Local / In-person' },
-  { value: 'other', label: '✏️ Other (custom)' },
-]
 
 interface AddSaleFormProps {
   entries: CollectionEntry[]
@@ -126,6 +114,7 @@ function AddSaleForm({
   saleCustomAmounts, setSaleCustomAmounts,
   saleBookSearch, setSaleBookSearch,
 }: AddSaleFormProps) {
+  const createSaleMutation = useCreateSaleGroup()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -172,7 +161,7 @@ function AddSaleForm({
 
     setPending(true)
     try {
-      await createSaleGroup({
+      await createSaleMutation.mutateAsync({
         entryIds: saleSelectedEntries,
         title: saleTitle || undefined,
         platform: platform || undefined,
@@ -905,7 +894,7 @@ export default function CollectionPage() {
                     <EditionCard
                       key={entry.id}
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                      coverImage={resolveEditionCoverRaw(entry.edition)}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}
@@ -1220,7 +1209,7 @@ export default function CollectionPage() {
               ) : (
                 <>
                   <span className="text-xs font-medium text-stone-300 w-28 shrink-0">{item.status}</span>
-                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleString()}</span>
+                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   <button
                     onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,16)) }}
                     className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-stone-300 transition-opacity"

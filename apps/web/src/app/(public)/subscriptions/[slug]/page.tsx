@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
@@ -179,7 +179,7 @@ export default async function SubscriptionPage({ params }: Props) {
           name={sub.name}
           price={sub.price}
           currency={sub.currency}
-          type={sub.type}
+          intervalMonths={sub.intervalMonths}
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
           country={sub.company?.country ?? null}
           renewalDay={sub.renewalDay ?? null}

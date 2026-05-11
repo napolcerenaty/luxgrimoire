@@ -12,8 +12,9 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { BaseSubscriptionPriceCurrencyDto } from '../../common/dto/price.dto';
 
-export class CreateSubscriptionDto {
+export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsString()
   companyId!: string;
 
@@ -55,14 +56,6 @@ export class CreateSubscriptionDto {
 
   @IsOptional()
   @IsString()
-  currency?: string;
-
-  @IsOptional()
-  @IsString()
-  price?: string;
-
-  @IsOptional()
-  @IsString()
   language?: string;
 
   @IsOptional()
@@ -70,8 +63,11 @@ export class CreateSubscriptionDto {
   shipsInternationally?: boolean;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  intervalMonths?: number;
 
   @IsOptional()
   @IsString()
@@ -89,7 +85,7 @@ export class CreateSubscriptionDto {
   @IsString()
   parentSubscriptionId?: string;
 
-  /** If provided, copy all months+books from this subscription slug */
+  /** Copy all months+books from this subscription slug */
   @IsOptional()
   @IsString()
   copyFromSlug?: string;
@@ -135,7 +131,7 @@ export class CreateSubscriptionDto {
   renewalMonthOffset?: number;
 }
 
-export class UpdateSubscriptionDto {
+export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -175,14 +171,6 @@ export class UpdateSubscriptionDto {
 
   @IsOptional()
   @IsString()
-  currency?: string;
-
-  @IsOptional()
-  @IsString()
-  price?: string;
-
-  @IsOptional()
-  @IsString()
   language?: string;
 
   @IsOptional()
@@ -190,8 +178,11 @@ export class UpdateSubscriptionDto {
   shipsInternationally?: boolean;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  intervalMonths?: number;
 
   @IsOptional()
   @IsString()
@@ -459,10 +450,6 @@ export class SubscriptionQueryDto {
   genre?: string;
 
   @IsOptional()
-  @IsString()
-  type?: string;
-
-  @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   isDiscontinued?: boolean;
@@ -477,7 +464,6 @@ export class SubscriptionQueryDto {
   @IsBoolean()
   includeHidden?: boolean;
 }
-
 export class LinkedFeeTemplateDto {
   @IsString()
   templateId!: string;

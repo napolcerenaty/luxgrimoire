@@ -3,8 +3,7 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 function ResendVerificationContent() {
   const searchParams = useSearchParams()
@@ -18,7 +17,7 @@ function ResendVerificationContent() {
     setStatus('loading')
 
     try {
-      const res = await fetch(`${API_URL}/auth/resend-verification`, {
+      const res = await fetch(`${API_BASE}/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

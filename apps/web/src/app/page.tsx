@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
 import type { ApiSponsoredSlot, ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -36,7 +37,7 @@ export default async function HomePage() {
     return {
       id: e.id,
       href: `/editions/${e.slug}`,
-      coverImage: e.additionalImages?.[0] ?? e.communityPhotoCover ?? null,
+      coverImage: resolveEditionCoverRaw(e),
       title: e.book?.title ?? 'Unknown',
       subtitle: e.book?.seriesName
         ? `${e.book.seriesName}${e.book.volumeNumber != null ? ` #${e.book.volumeNumber}` : ''}`

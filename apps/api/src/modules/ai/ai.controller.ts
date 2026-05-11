@@ -17,6 +17,12 @@ class AiParseDto {
   imageUrl?: string;
 }
 
+class AiParseSaleDto {
+  @IsString()
+  @MaxLength(20_000)
+  text!: string;
+}
+
 @ApiTags('ai')
 @ApiBearerAuth()
 @Controller('ai')
@@ -32,5 +38,12 @@ export class AiController {
       throw new BadRequestException('Provide either text or imageUrl');
     }
     return this.aiService.parse(dto);
+  }
+
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post('parse-sale')
+  parseSale(@Body() dto: AiParseSaleDto) {
+    return this.aiService.parseSaleAnnouncement(dto.text);
   }
 }

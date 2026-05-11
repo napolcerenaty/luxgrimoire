@@ -6,8 +6,8 @@ import Image from 'next/image'
 import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { resolveEditionCoverUrl } from '@/lib/editionCover'
+import { API_BASE } from '@/lib/authFetch'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
   let timer: ReturnType<typeof setTimeout>
@@ -36,7 +36,7 @@ export function SearchDropdown() {
       }
       setLoading(true)
       try {
-        const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`)
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`)
         if (res.ok) {
           const data: ApiSearchResult = await res.json()
           setResults(data)
@@ -155,7 +155,7 @@ export function SearchDropdown() {
                   key: e.id,
                   label: e.book.title,
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
-                  image: cloudinaryUrl(e.additionalImages?.[0]) ?? e.communityPhotoCover ?? null,
+                  image: resolveEditionCoverUrl(e),
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}

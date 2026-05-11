@@ -1,18 +1,16 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 // ── Manual Brand Color Editor ────────────────────────────────────────────────
 function ManualColorEditor({
@@ -197,7 +195,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initial.logoUrl ? `https://res.cloudinary.com/${CLOUD}/image/upload/w_120,h_120,c_fill/${initial.logoUrl}` : null
+    cloudinaryUrl(initial.logoUrl, 'w_120,h_120,c_fill')
   )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -211,22 +209,9 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
     setUploading(true)
     setUploadError(null)
     try {
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/book-boxes' }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const json = await res.json() as { publicId: string; url: string }
-      setForm((f) => ({ ...f, logoUrl: json.publicId }))
-      setPreviewUrl(json.url)
+      const publicId = await uploadImage(file, 'luxgrimoire/book-boxes')
+      setForm((f) => ({ ...f, logoUrl: publicId }))
+      setPreviewUrl(cloudinaryUrl(publicId, 'w_120,h_120,c_fill'))
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -370,7 +355,7 @@ export default function AdminCompaniesPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isManager = user?.role === 'COMPANY_MANAGER'
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
   const [search, setSearch] = useState('')
@@ -397,7 +382,7 @@ export default function AdminCompaniesPage() {
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
       authFetch('/companies', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setCreateOpen(false) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); createModal.close() },
   })
 
   const editMutation = useMutation({
@@ -415,7 +400,7 @@ export default function AdminCompaniesPage() {
     {
       key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
         row.logoUrl
-          ? <img src={`https://res.cloudinary.com/${CLOUD}/image/upload/w_40,h_40,c_fill/${row.logoUrl}`} alt="" className="w-9 h-9 rounded object-cover" />
+          ? <img src={cloudinaryUrl(row.logoUrl, 'w_40,h_40,c_fill') ?? ''} alt="" className="w-9 h-9 rounded object-cover" />
           : <div className="w-9 h-9 rounded bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">{row.name.charAt(0)}</div>,
     },
     { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-stone-200">{row.name}</span> },
@@ -461,9 +446,9 @@ export default function AdminCompaniesPage() {
             className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
           />
         </div>
-        {!isManager && !createOpen && !editCompany && (
+        {!isManager && !createModal.isOpen && !editCompany && (
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => createModal.open()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
           >
             + Add Book Box
@@ -472,11 +457,11 @@ export default function AdminCompaniesPage() {
       </div>
 
       {/* Inline Create form */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Add Book Box</h2>
-            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <CompanyForm
             initial={EMPTY_FORM}
@@ -526,7 +511,7 @@ export default function AdminCompaniesPage() {
         <DataTable
           columns={columns}
           data={companies}
-          onEdit={(row) => { setEditCompany(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          onEdit={(row) => { setEditCompany(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
           onDelete={isManager ? undefined : (row) => setDeleteCompany(row)}
         />
       )}

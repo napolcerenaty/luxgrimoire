@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Bug, X, ChevronDown } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { API_BASE } from '@/lib/authFetch'
 
 const CATEGORIES = [
   { value: 'ui', label: '🖥️ UI / Visual bug' },
@@ -12,7 +13,7 @@ const CATEGORIES = [
   { value: 'other', label: '🔧 Other' },
 ]
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+
 
 export function BugReportButton() {
   const pathname = usePathname()

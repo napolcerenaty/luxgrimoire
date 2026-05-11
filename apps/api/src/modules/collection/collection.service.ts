@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
+import { recordOwnershipHistoryAsync } from '../../common/utils/ownership-history.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
@@ -203,7 +205,7 @@ export class CollectionService {
         readingStatus: dto.readingStatus ?? 'UNREAD',
       },
     });
-    this.recordStatusChange(entry.id, entry.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus);
     if (entry.editionId && !entry.isWishlist) {
       this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
     }
@@ -231,7 +233,7 @@ export class CollectionService {
         readingStatus: 'UNREAD',
       },
     });
-    this.recordStatusChange(created.id, created.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, created.id, created.ownershipStatus);
     return created;
   }
 
@@ -318,7 +320,7 @@ export class CollectionService {
   async updateEntry(userId: string, entryId: string, dto: UpdateCollectionEntryDto) {
     const existing = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Entry not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     const effectiveOwnershipStatus = dto.ownershipStatus;
 
@@ -340,7 +342,14 @@ export class CollectionService {
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {
-      this.recordStatusChange(entryId, effectiveOwnershipStatus);
+      const saleDate = dto.saleDate
+        ? new Date(dto.saleDate)
+        : (existing.saleDate as Date | null) ?? undefined;
+      recordOwnershipHistoryAsync(this.prisma, 
+        entryId,
+        effectiveOwnershipStatus,
+        effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
+      );
     }
     // Track wishlist ↔ collection transitions
     if (dto.isWishlist !== undefined && dto.isWishlist !== existing.isWishlist && existing.editionId) {
@@ -350,6 +359,28 @@ export class CollectionService {
       } else {
         // moved from collection → wishlist
         this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
+      }
+    }
+    // Sync sale crowd stats when sale info is updated
+    const editionId = existing.editionId;
+    if (editionId && (dto.salePrice !== undefined || dto.saleCurrency !== undefined || dto.saleDate !== undefined)) {
+      const oldPrice = existing.salePrice !== null ? Number(existing.salePrice) : null;
+      const oldCurrency = existing.saleCurrency as string | null;
+      const oldDate = existing.saleDate as Date | null;
+
+      const newPrice = dto.salePrice !== undefined ? (dto.salePrice ? Number(dto.salePrice) : null) : oldPrice;
+      const newCurrency = (dto.saleCurrency !== undefined ? dto.saleCurrency : oldCurrency) ?? 'EUR';
+      const newDate = (dto.saleDate !== undefined ? (dto.saleDate ? new Date(dto.saleDate) : null) : oldDate) ?? new Date();
+
+      const oldSale = (oldPrice !== null && oldCurrency !== null && oldDate !== null)
+        ? { price: oldPrice, currency: oldCurrency, date: oldDate }
+        : null;
+      const newSale = newPrice !== null
+        ? { price: newPrice, currency: newCurrency, date: newDate }
+        : null;
+
+      if (oldSale || newSale) {
+        this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
       }
     }
     return updated;
@@ -377,7 +408,7 @@ export class CollectionService {
 
     for (const e of entries) {
       if (e.ownershipStatus !== ownershipStatus) {
-        this.recordStatusChange(e.id, ownershipStatus);
+        recordOwnershipHistoryAsync(this.prisma, e.id, ownershipStatus);
       }
     }
 
@@ -390,7 +421,7 @@ export class CollectionService {
       select: { userId: true },
     });
     if (!entry) throw new NotFoundException('Entry not found');
-    if (entry.userId !== userId) throw new ForbiddenException();
+    assertOwnership(entry.userId, userId);
 
     return this.prisma.ownershipStatusHistory.findMany({
       where: { userBookEntryId: entryId },
@@ -402,7 +433,7 @@ export class CollectionService {
   async addOwnershipHistoryEntry(userId: string, entryId: string, dto: { status: string; changedAt?: string }) {
     const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
     if (!entry) throw new NotFoundException('Entry not found');
-    if (entry.userId !== userId) throw new ForbiddenException();
+    assertOwnership(entry.userId, userId);
     return this.prisma.ownershipStatusHistory.create({
       data: {
         userBookEntryId: entryId,
@@ -416,7 +447,7 @@ export class CollectionService {
   async updateOwnershipHistoryEntry(userId: string, entryId: string, historyId: string, dto: { status?: string; changedAt?: string }) {
     const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
     if (!entry) throw new NotFoundException('Entry not found');
-    if (entry.userId !== userId) throw new ForbiddenException();
+    assertOwnership(entry.userId, userId);
     return this.prisma.ownershipStatusHistory.update({
       where: { id: historyId },
       data: {
@@ -430,15 +461,9 @@ export class CollectionService {
   async deleteOwnershipHistoryEntry(userId: string, entryId: string, historyId: string) {
     const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
     if (!entry) throw new NotFoundException('Entry not found');
-    if (entry.userId !== userId) throw new ForbiddenException();
+    assertOwnership(entry.userId, userId);
     await this.prisma.ownershipStatusHistory.delete({ where: { id: historyId } });
     return { success: true };
-  }
-
-  private recordStatusChange(userBookEntryId: string, status: string): void {
-    this.prisma.ownershipStatusHistory
-      .create({ data: { userBookEntryId, status } })
-      .catch(() => {});
   }
 
   async removeFromCollection(userId: string, entryId: string) {
@@ -447,7 +472,7 @@ export class CollectionService {
       select: { id: true, userId: true, editionId: true, isWishlist: true, purchaseGroupId: true },
     });
     if (!existing) throw new NotFoundException('Entry not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
     if (existing.editionId && !existing.isWishlist) {
       this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});

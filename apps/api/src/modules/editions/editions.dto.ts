@@ -10,8 +10,9 @@ import {
   Max,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { BasePriceCurrencyDto } from '../../common/dto/price.dto';
 
-export class CreateEditionDto {
+export class CreateEditionDto extends BasePriceCurrencyDto {
   @IsString()
   bookId!: string;
 
@@ -35,14 +36,6 @@ export class CreateEditionDto {
   @IsOptional()
   @IsBoolean()
   isSpecial?: boolean;
-
-  @IsOptional()
-  @IsString()
-  basePrice?: string;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
 
   @IsOptional()
   @IsString()
@@ -86,7 +79,7 @@ export class CreateEditionDto {
   photoCredit?: string;
 }
 
-export class UpdateEditionDto {
+export class UpdateEditionDto extends BasePriceCurrencyDto {
   @IsOptional()
   @IsString()
   editionName?: string;
@@ -111,14 +104,6 @@ export class UpdateEditionDto {
   @IsOptional()
   @IsBoolean()
   isOmnibus?: boolean;
-
-  @IsOptional()
-  @IsString()
-  basePrice?: string;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
 
   @IsOptional()
   @IsString()

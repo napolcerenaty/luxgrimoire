@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import {
@@ -19,10 +20,10 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
-import { uploadImage } from '@/components/admin/MultiImageUpload'
+import { uploadImage } from '@/lib/cloudinary'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+import { Sparkles } from 'lucide-react'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -258,9 +259,7 @@ function ComboBox({
 
 
 function cloudThumb(id: string, w = 80, h = 100) {
-  if (!id) return null
-  if (id.startsWith('http')) return id
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/w_${w},h_${h},c_fill,q_auto,f_auto/${id}`
+  return cloudinaryUrl(id, `w_${w},h_${h},c_fill,q_auto,f_auto`)
 }
 
 // ─── Edition picker ───────────────────────────────────────────────────────────
@@ -563,7 +562,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
-    photoCredit: f.photoCredit || undefined,
+    photoCredit: f.photoCredit,
     sourceUrl: f.sourceUrl || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
@@ -577,12 +576,7 @@ function SingleImageUpload({ imageId, folder, onChange }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-  const thumb = imageId
-    ? imageId.startsWith('http')
-      ? imageId
-      : `https://res.cloudinary.com/${CLOUD}/image/upload/w_160,h_240,c_fill,q_auto,f_auto/${imageId}`
-    : null
+  const thumb = cloudinaryUrl(imageId, 'w_160,h_240,c_fill,q_auto,f_auto')
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -761,7 +755,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           className="w-full flex items-center justify-between px-4 py-3 bg-stone-800/60 hover:bg-stone-800 transition-colors text-left"
         >
           <span className="flex items-center gap-2 text-sm text-stone-300 font-medium">
-            Linked Books
+            Linked Books and Signature Types
             {form.linkedEditions.length > 0 && (
               <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
                 {form.linkedEditions.length}
@@ -840,7 +834,7 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
 
 function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): RegionFormData {
   let codes: string[] = []
-  try { codes = JSON.parse(r.countryCodes) } catch {}
+  try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
   const tz = r.saleTimezone ?? 'UTC'
   return {
     id: r.id,
@@ -956,7 +950,8 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Currency</label>
-            <input className={INP} list="sale-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
+            <input className={INP} list="region-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
+            <datalist id="region-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
           </div>
         </div>
         <div className="flex gap-2">
@@ -989,7 +984,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         <div className="px-4 pb-4 space-y-3">
           {regions.map(r => {
             let codes: string[] = []
-            try { codes = JSON.parse(r.countryCodes) } catch {}
+            try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
             const isEditing = editingRegion?.id === r.id
 
             if (isEditing) {
@@ -1108,7 +1103,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
         className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
       >
         <span className="flex items-center gap-2 text-sm text-stone-400">
-          Linked Books
+          Linked Books and Signature Types
           {editions.length > 0 && (
             <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{editions.length}</span>
           )}
@@ -1146,6 +1141,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   </button>
                 </div>
                 <div className="flex flex-col gap-1.5 pl-1">
+                  <p className="text-xs text-stone-500 mb-1">Select all that apply. Enter a price only if this variant differs from the main price.</p>
                   {SIGNATURE_TYPES.map(sig => {
                     const checked = activeVariants.has(sig.value)
                     const variant = (e.variants ?? []).find(v => v.signatureType === sig.value)
@@ -1313,9 +1309,143 @@ function AnnouncementCard({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+
+// ─── AI Sale Parse types ──────────────────────────────────────────────────────
+interface AiSaleRegion {
+  name: string
+  isDefault: boolean
+  countryCodes?: string
+  price?: number
+  currency?: string
+  saleTimezone?: string
+  firstAccessDate?: string
+  earlyAccessDate?: string
+  generalSaleDate?: string
+}
+
+interface AiSaleResult {
+  title?: string
+  expectedShipping?: string
+  regions?: AiSaleRegion[]
+}
+
+// ─── AI Sale Parse Modal ──────────────────────────────────────────────────────
+function AiSaleParseModal({ onApply, onClose }: {
+  onApply: (result: AiSaleResult) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<AiSaleResult | null>(null)
+
+  const handleParse = async () => {
+    if (!text.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await authFetch<AiSaleResult>('/ai/parse-sale', {
+        method: 'POST',
+        body: JSON.stringify({ text: text.trim() }),
+      })
+      setResult(r)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-stone-100 font-semibold text-lg">Parse announcement with AI</h2>
+          <button type="button" onClick={onClose} className="text-stone-500 hover:text-stone-300 text-xl">✕</button>
+        </div>
+
+        {!result ? (
+          <>
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Paste the full announcement text here…"
+              rows={10}
+              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
+            />
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+              <button type="button" onClick={handleParse} disabled={loading || !text.trim()}
+                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                {loading ? 'Parsing…' : 'Parse with AI'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-4 text-sm">
+              {result.title && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Title</p>
+                  <p className="text-stone-100 font-medium">{result.title}</p>
+                </div>
+              )}
+              {result.expectedShipping && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Expected shipping</p>
+                  <p className="text-stone-300">{result.expectedShipping}</p>
+                </div>
+              )}
+              {result.regions && result.regions.length > 0 && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-2">Regional windows ({result.regions.length})</p>
+                  <div className="space-y-2">
+                    {result.regions.map((r, i) => (
+                      <div key={i} className="bg-stone-800 rounded-lg p-3 border border-stone-700">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-stone-100 font-medium">{r.name}</span>
+                          {r.isDefault && <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">default</span>}
+                          {r.currency && r.price != null && (
+                            <span className="text-amber-400 text-xs ml-auto">{r.currency} {r.price}</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-stone-500 space-y-0.5">
+                          {r.countryCodes && <p>Countries: {r.countryCodes}</p>}
+                          {r.firstAccessDate && <p>First access: {new Date(r.firstAccessDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.earlyAccessDate && <p>Early access: {new Date(r.earlyAccessDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.generalSaleDate && <p>General sale: {new Date(r.generalSaleDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.saleTimezone && <p>Timezone: {r.saleTimezone}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-stone-800">
+              <button type="button" onClick={() => setResult(null)} className="text-sm text-stone-500 hover:text-stone-300">
+                ← Re-parse
+              </button>
+              <div className="flex gap-3">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+                <button type="button" onClick={() => onApply(result)}
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 transition-colors">
+                  Apply to form
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editItem, setEditItem] = useState<ApiSaleAnnouncement | null>(null)
   const [deleteItem, setDeleteItem] = useState<ApiSaleAnnouncement | null>(null)
 
@@ -1323,6 +1453,12 @@ export default function AdminSaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
+
+  // AI parse state
+  const [showAiModal, setShowAiModal] = useState(false)
+  const [createInitial, setCreateInitial] = useState<FormState>(EMPTY_FORM)
+  const [createFormKey, setCreateFormKey] = useState(0)
+  const pendingRegionsRef = useRef<AiSaleRegion[]>([])
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
@@ -1348,7 +1484,36 @@ export default function AdminSaleAnnouncementsPage() {
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); setCreateOpen(false) },
+    onSuccess: (newAnnouncement) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+      createModal.close()
+      setCreateInitial(EMPTY_FORM)
+      setCreateFormKey(k => k + 1)
+      const regions = pendingRegionsRef.current
+      if (regions.length > 0) {
+        pendingRegionsRef.current = []
+        Promise.all(
+          regions.map(r => {
+            const codes = r.countryCodes
+              ? r.countryCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean)
+              : []
+            return adminUpsertAnnouncementRegion(newAnnouncement.id, {
+              name: r.name,
+              countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
+              isDefault: r.isDefault,
+              generalSaleDate: r.generalSaleDate ?? null,
+              firstAccessDate: r.firstAccessDate ?? null,
+              earlyAccessDate: r.earlyAccessDate ?? null,
+              saleTimezone: r.saleTimezone ?? null,
+              basePrice: r.price ?? null,
+              currency: r.currency ?? null,
+            })
+          })
+        ).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+        }).catch(e => alert(`Error creating regions: ${(e as Error).message}`))
+      }
+    },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -1364,24 +1529,63 @@ export default function AdminSaleAnnouncementsPage() {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const handleAiApply = (result: AiSaleResult) => {
+    setShowAiModal(false)
+    const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
+    const tz = defaultRegion?.saleTimezone ?? 'UTC'
+    const newInitial: FormState = {
+      ...EMPTY_FORM,
+      title: result.title ?? '',
+      expectedShipping: result.expectedShipping ?? '',
+      photoCredit: '',
+      saleTimezone: tz,
+      firstAccessDate: defaultRegion?.firstAccessDate ? utcIsoToTzLocal(defaultRegion.firstAccessDate, tz) : '',
+      earlyAccessDate: defaultRegion?.earlyAccessDate ? utcIsoToTzLocal(defaultRegion.earlyAccessDate, tz) : '',
+      generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
+      basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
+      currency: defaultRegion?.currency ?? 'USD',
+    }
+    setCreateInitial(newInitial)
+    setCreateFormKey(k => k + 1)
+    pendingRegionsRef.current = result.regions ?? []
+    setEditItem(null)
+    createModal.open()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Sale Announcements</h1>
-        <button
-          onClick={() => { setCreateOpen(o => !o); setEditItem(null) }}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
-        >
-          {createOpen ? '✕ Cancel' : '+ Add Sale'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowAiModal(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700 hover:border-stone-600 transition-colors">
+            <Sparkles size={14} className="text-amber-400" />
+            Parse with AI
+          </button>
+          <button
+            onClick={() => {
+              if (!createModal.isOpen) {
+                setCreateInitial(EMPTY_FORM)
+                setCreateFormKey(k => k + 1)
+                pendingRegionsRef.current = []
+              }
+              createModal.toggle()
+              setEditItem(null)
+            }}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          >
+            {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
+          </button>
+        </div>
       </div>
 
       {/* Inline create form */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-amber-500/40 rounded-xl p-5 mb-5">
           <h2 className="text-amber-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
           <SaleAnnouncementForm
-            initial={EMPTY_FORM}
+            key={createFormKey}
+            initial={createInitial}
             submitLabel="Create"
             submitting={createMutation.isPending}
             onSubmit={form => createMutation.mutate(form)}
@@ -1423,7 +1627,7 @@ export default function AdminSaleAnnouncementsPage() {
               <AnnouncementCard
                 announcement={a}
                 companyMap={companyMap}
-                onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); setCreateOpen(false) }}
+                onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); createModal.close() }}
                 onDelete={() => setDeleteItem(a)}
                 isEditing={editItem?.id === a.id}
               />
@@ -1471,6 +1675,13 @@ export default function AdminSaleAnnouncementsPage() {
         onConfirm={() => deleteItem && deleteMutation.mutate(deleteItem.id)}
         onCancel={() => setDeleteItem(null)}
       />
+
+      {showAiModal && (
+        <AiSaleParseModal
+          onApply={handleAiApply}
+          onClose={() => setShowAiModal(false)}
+        />
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto';
 import { generateSlug } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 @Injectable()
 export class ArtistsService {
@@ -34,9 +35,7 @@ export class ArtistsService {
   }
 
   async findAll(query: ArtistQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = {};
     if (query.search) {
@@ -67,7 +66,7 @@ export class ArtistsService {
       this.prisma.artist.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {

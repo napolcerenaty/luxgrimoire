@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { $Enums } from '@prisma/client';
+import { bookAuthorsInclude } from '../../common/prisma-includes';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -27,11 +28,19 @@ import {
   UpdatePrepayOptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { resolveEffectiveBasePrice } from './price-change.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
+
+function formatIntervalForTypesense(intervalMonths: number): string {
+  if (intervalMonths === 1) return 'Monthly';
+  if (intervalMonths === 2) return 'Bimonthly';
+  if (intervalMonths === 3) return 'Quarterly';
+  return `Every ${intervalMonths} months`;
+}
 
 export interface CountryFeeHint {
   category: string;
@@ -57,11 +66,6 @@ export class SubscriptionsService {
     private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
-  private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
-    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
-    if (!valid.length) return;
-    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
-  }
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -89,7 +93,8 @@ export class SubscriptionsService {
         price: dto.price,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
-        type: dto.type,
+        type: undefined, // kept in DB for phase-2 migration
+        intervalMonths: dto.intervalMonths ?? 1,
         bookishMerch: dto.bookishMerch ?? false,
         isCombo: dto.isCombo ?? false,
         parentSubscriptionId: dto.parentSubscriptionId,
@@ -167,15 +172,12 @@ export class SubscriptionsService {
   }
 
   async findAll(query: SubscriptionQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false };
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
-    if (query.type) where.type = query.type;
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
@@ -203,7 +205,7 @@ export class SubscriptionsService {
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
 
-    return { data: mapped, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data: mapped, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {
@@ -315,10 +317,10 @@ export class SubscriptionsService {
 
     // Delete old images from Cloudinary if replaced or cleared
     if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
-      await this.deleteCloudinaryImages([existing.coverImage]);
+      await this.uploadService.deleteImages([existing.coverImage]);
     }
     if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
-      await this.deleteCloudinaryImages([existing.logoUrl]);
+      await this.uploadService.deleteImages([existing.logoUrl]);
     }
 
     // Replace combo components if provided
@@ -338,7 +340,7 @@ export class SubscriptionsService {
 
   async delete(slug: string) {
     const sub = await this.findBySlug(slug);
-    await this.deleteCloudinaryImages([sub.coverImage, sub.logoUrl]);
+    await this.uploadService.deleteImages([sub.coverImage, sub.logoUrl]);
     await this.typesense.deleteDocument('subscriptions', sub.id);
     return this.prisma.subscription.delete({ where: { slug } });
   }
@@ -637,7 +639,7 @@ export class SubscriptionsService {
     if (!entry) return null;
 
     const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-    const type = (sub as any).type as string | null;
+    const intervalMonths = (sub as any).intervalMonths as number ?? 1;
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
@@ -674,7 +676,7 @@ export class SubscriptionsService {
     }
 
     const nextRenewalDate = this.computeNextRenewalDate(
-      renewalDay, type, startingMonth, userStartDate, skippedMonths,
+      renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths,
       paidUpFrontDate,
     );
 
@@ -684,13 +686,13 @@ export class SubscriptionsService {
 
   private computeNextRenewalDate(
     renewalDay: number,
-    type: string | null,
+    intervalMonths: number,
     startingMonth: number | null,
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
     paidUpFrontDate: Date | null = null,
   ): Date | null {
-    return computeNextRenewalDate(renewalDay, type, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
+    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {
@@ -736,7 +738,7 @@ export class SubscriptionsService {
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
-            type: true,
+            intervalMonths: true,
             startingMonth: true,
             company: { select: { name: true, slug: true } },
           },
@@ -1141,7 +1143,7 @@ export class SubscriptionsService {
             edition: {
               include: {
                 book: {
-                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                  include: { ...bookAuthorsInclude },
                 },
               },
             },
@@ -1200,7 +1202,7 @@ export class SubscriptionsService {
             edition: {
               include: {
                 book: {
-                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                  include: { ...bookAuthorsInclude },
                 },
               },
             },
@@ -1316,29 +1318,16 @@ export class SubscriptionsService {
 
     for (const mb of monthBooks) {
       try {
-        const existingSub = await this.prisma.userBookEntry.findFirst({
-          where: { userId, editionId: mb.editionId!, subscriptionEntryId: entryId },
-          select: { id: true },
+        await this.upsertSubscriptionBookEntry({
+          userId,
+          bookId: mb.bookId!,
+          editionId: mb.editionId!,
+          subscriptionEntryId: entryId,
+          purchaseGroupId: group.id,
+          signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
+          changedAt: startDateObj,
         });
-        existingSub
-          ? await this.prisma.userBookEntry.update({
-              where: { id: existingSub.id },
-              data: { purchaseGroupId: group.id },
-            })
-          : await this.prisma.userBookEntry.create({
-              data: {
-                userId,
-                bookId: mb.bookId!,
-                editionId: mb.editionId!,
-                ownershipStatus: 'PREORDER',
-                readingStatus: 'UNREAD',
-                subscriptionEntryId: entryId,
-                purchaseGroupId: group.id,
-                signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
-              },
-            }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: startDateObj } }).catch(() => {}),
-            );
+
       } catch {
         // skip if already exists
       }
@@ -1367,6 +1356,48 @@ export class SubscriptionsService {
         skipDuplicates: true,
       });
     }
+  }
+
+  /**
+   * Upsert a subscription book entry: if the entry already exists link it to the purchase group,
+   * otherwise create it (PREORDER) and record ownership history with the correct date.
+   */
+  private async upsertSubscriptionBookEntry(opts: {
+    userId: string;
+    bookId: string;
+    editionId: string;
+    subscriptionEntryId: string;
+    purchaseGroupId: string;
+    signatureType: $Enums.SignatureType | null;
+    changedAt: Date;
+  }): Promise<void> {
+    const existing = await this.prisma.userBookEntry.findFirst({
+      where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.userBookEntry.update({
+        where: { id: existing.id },
+        data: { purchaseGroupId: opts.purchaseGroupId },
+      });
+      return;
+    }
+    await this.prisma.userBookEntry.create({
+      data: {
+        userId: opts.userId,
+        bookId: opts.bookId,
+        editionId: opts.editionId,
+        ownershipStatus: 'PREORDER',
+        readingStatus: 'UNREAD',
+        subscriptionEntryId: opts.subscriptionEntryId,
+        purchaseGroupId: opts.purchaseGroupId,
+        signatureType: opts.signatureType,
+      },
+    }).then(created =>
+      this.prisma.ownershipStatusHistory.create({
+        data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: opts.changedAt },
+      }).catch(() => {}),
+    );
   }
 
   async backfillSubscription(userId: string, slug: string, dto: BackfillSubscriptionDto) {
@@ -1475,31 +1506,15 @@ export class SubscriptionsService {
 
         for (const mb of monthBooks) {
           try {
-            const existingSubEntry = await this.prisma.userBookEntry.findFirst({
-              where: { userId, editionId: mb.editionId, subscriptionEntryId: entry.id },
-              select: { id: true },
+            await this.upsertSubscriptionBookEntry({
+              userId,
+              bookId: mb.bookId,
+              editionId: mb.editionId,
+              subscriptionEntryId: entry.id,
+              purchaseGroupId: group.id,
+              signatureType: mb.signatureType,
+              changedAt: renewalDate,
             });
-            if (existingSubEntry) {
-              await this.prisma.userBookEntry.update({
-                where: { id: existingSubEntry.id },
-                data: { purchaseGroupId: group.id },
-              });
-            } else {
-              await this.prisma.userBookEntry.create({
-                data: {
-                  userId,
-                  bookId: mb.bookId,
-                  editionId: mb.editionId,
-                  ownershipStatus: 'PREORDER',
-                  readingStatus: 'UNREAD',
-                  subscriptionEntryId: entry.id,
-                  purchaseGroupId: group.id,
-                  signatureType: mb.signatureType,
-                },
-              }).then(created =>
-                this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
-              );
-            }
             booksAdded++;
           } catch {
             // skip duplicates silently
@@ -1685,31 +1700,15 @@ export class SubscriptionsService {
         }
 
         try {
-          const existingSubEntry = await this.prisma.userBookEntry.findFirst({
-            where: { userId, editionId: mb.editionId!, subscriptionEntryId: entry.id },
-            select: { id: true },
+          await this.upsertSubscriptionBookEntry({
+            userId,
+            bookId: mb.bookId!,
+            editionId: mb.editionId!,
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: group.id,
+            signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
+            changedAt: renewalDate,
           });
-          if (existingSubEntry) {
-            await this.prisma.userBookEntry.update({
-              where: { id: existingSubEntry.id },
-              data: { purchaseGroupId: group.id },
-            });
-          } else {
-            await this.prisma.userBookEntry.create({
-              data: {
-                userId,
-                bookId: mb.bookId!,
-                editionId: mb.editionId!,
-                ownershipStatus: 'PREORDER',
-                readingStatus: 'UNREAD',
-                subscriptionEntryId: entry.id,
-                purchaseGroupId: group.id,
-                signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-              },
-            }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
-            );
-          }
           booksAdded++;
         } catch {
           // skip duplicates silently
@@ -2115,7 +2114,7 @@ export class SubscriptionsService {
           id: true,
           slug: true,
           name: true,
-          type: true,
+          intervalMonths: true,
           isDiscontinued: true,
           company: { select: { name: true } },
         },
@@ -2126,7 +2125,7 @@ export class SubscriptionsService {
         slug: sub.slug,
         name: sub.name,
         companyName: sub.company?.name ?? '',
-        type: sub.type ?? '',
+        type: formatIntervalForTypesense(sub.intervalMonths ?? 1),
         isDiscontinued: sub.isDiscontinued,
       });
     } catch (err) {

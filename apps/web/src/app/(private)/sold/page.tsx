@@ -2,15 +2,18 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useModalState } from '@/hooks/useModalState'
+import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { authFetch } from '@/lib/authFetch'
 import { EditionCard } from '@/components/books/EditionCard'
-import { getSaleGroups, createSaleGroup, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { getSaleGroups, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
 import type { ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Plus, Pencil, Trash2, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/SaleFormFields'
 
 interface CollectionEntry {
   id: string
@@ -45,17 +48,6 @@ interface CollectionEntry {
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 
-const SALE_PLATFORMS = [
-  { value: 'ebay', label: 'eBay' },
-  { value: 'facebook', label: 'Facebook Marketplace' },
-  { value: 'vinted', label: 'Vinted' },
-  { value: 'depop', label: 'Depop' },
-  { value: 'discord', label: 'Discord' },
-  { value: 'other', label: 'Other' },
-]
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
-
 function RecordSaleModal({
   open,
   onClose,
@@ -65,7 +57,7 @@ function RecordSaleModal({
   onClose: () => void
   entries: CollectionEntry[]
 }) {
-  const queryClient = useQueryClient()
+  const createSaleMutation = useCreateSaleGroup()
   const [title, setTitle] = useState('')
   const [platform, setPlatform] = useState('')
   const [customPlatform, setCustomPlatform] = useState('')
@@ -101,7 +93,7 @@ function RecordSaleModal({
       : undefined
     setPending(true)
     try {
-      await createSaleGroup({
+      await createSaleMutation.mutateAsync({
         entryIds: selected,
         title: title || undefined,
         platform: plat || undefined,
@@ -112,9 +104,6 @@ function RecordSaleModal({
         priceDistribution: distribution,
         customAmounts: customs,
       })
-      queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
-      queryClient.invalidateQueries({ queryKey: ['collection'] })
-      queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setSuccess(true)
       setTimeout(() => {
         onClose()
@@ -139,99 +128,73 @@ function RecordSaleModal({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <label className={LBL}>Sale title (optional)</label>
-            <input className={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Book set" />
-          </div>
-          <div>
-            <label className={LBL}>Platform</label>
-            <select className={INP} value={platform} onChange={e => setPlatform(e.target.value)}>
-              <option value="">— Select platform —</option>
-              {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-            {platform === 'other' && (
-              <input className={`${INP} mt-2`} value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Platform name…" />
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LBL}>Total sold for *</label>
-              <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
-            </div>
-            <div>
-              <label className={LBL}>Currency</label>
-              <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className={LBL}>Sale date *</label>
-            <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
-          </div>
-          <div>
-            <label className={LBL}>Notes</label>
-            <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-          <div>
-            <label className={LBL}>Books *</label>
-            <input className={`${INP} mb-2`} value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title…" />
-            <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
-              {visible.length === 0 && <p className="text-stone-500 text-sm px-3 py-2">No books found</p>}
-              {visible.map(e => (
-                <button key={e.id} type="button" onClick={() => toggle(e.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-amber-500/10 text-amber-400' : 'text-stone-300 hover:bg-stone-800'}`}
-                >
-                  <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
-                    {selected.includes(e.id) ? '✓' : ''}
-                  </span>
-                  <span className="flex-1 truncate">{e.edition.book.title}</span>
-                  {e.purchaseGroup && <span className="text-stone-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
-                </button>
-              ))}
-            </div>
-            {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
-          </div>
-          {count > 0 && totalNum > 0 && (
-            <div>
-              <label className={LBL}>Price split</label>
-              <div className="flex gap-2">
-                {(['EQUAL', 'CUSTOM'] as const).map(d => (
-                  <button key={d} type="button" onClick={() => setDistribution(d)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'}`}
-                  >
-                    {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
-                  </button>
-                ))}
+          <SaleFormFields
+            title={title} setTitle={setTitle}
+            platform={platform} setPlatform={setPlatform}
+            customPlatform={customPlatform} setCustomPlatform={setCustomPlatform}
+            total={total} setTotal={setTotal}
+            currency={currency} setCurrency={setCurrency}
+            soldAt={soldAt} setSoldAt={setSoldAt}
+            notes={notes} setNotes={setNotes}
+            pending={pending}
+            submitLabel="Record Sale"
+            beforeSubmit={<>
+              <div>
+                <label className={LBL}>Books *</label>
+                <input className={`${INP} mb-2`} value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title…" />
+                <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
+                  {visible.length === 0 && <p className="text-stone-500 text-sm px-3 py-2">No books found</p>}
+                  {visible.map(e => (
+                    <button key={e.id} type="button" onClick={() => toggle(e.id)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-amber-500/10 text-amber-400' : 'text-stone-300 hover:bg-stone-800'}`}
+                    >
+                      <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
+                        {selected.includes(e.id) ? '✓' : ''}
+                      </span>
+                      <span className="flex-1 truncate">{e.edition.book.title}</span>
+                      {e.purchaseGroup && <span className="text-stone-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
+                    </button>
+                  ))}
+                </div>
+                {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
               </div>
-              {distribution === 'EQUAL' && <p className="text-xs text-stone-400 mt-1">{perBook} {currency} per book</p>}
-              {distribution === 'CUSTOM' && (
-                <div className="mt-2 flex flex-col gap-2">
-                  {selected.map(eid => {
-                    const entry = entries.find(e => e.id === eid)
-                    if (!entry) return null
-                    return (
-                      <div key={eid} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm text-stone-300 truncate">{entry.edition.book.title}</span>
-                        <input type="number" step="0.01" min="0" className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
-                          value={customAmounts[eid] ?? ''} onChange={e => setCustomAmounts(prev => ({ ...prev, [eid]: e.target.value }))} placeholder="0.00" />
-                        <span className="text-xs text-stone-500">{currency}</span>
-                      </div>
-                    )
-                  })}
+              {count > 0 && totalNum > 0 && (
+                <div>
+                  <label className={LBL}>Price split</label>
+                  <div className="flex gap-2">
+                    {(['EQUAL', 'CUSTOM'] as const).map(d => (
+                      <button key={d} type="button" onClick={() => setDistribution(d)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'}`}
+                      >
+                        {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
+                      </button>
+                    ))}
+                  </div>
+                  {distribution === 'EQUAL' && <p className="text-xs text-stone-400 mt-1">{perBook} {currency} per book</p>}
+                  {distribution === 'CUSTOM' && (
+                    <div className="mt-2 flex flex-col gap-2">
+                      {selected.map(eid => {
+                        const entry = entries.find(e => e.id === eid)
+                        if (!entry) return null
+                        return (
+                          <div key={eid} className="flex items-center gap-2">
+                            <span className="flex-1 text-sm text-stone-300 truncate">{entry.edition.book.title}</span>
+                            <input type="number" step="0.01" min="0" className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
+                              value={customAmounts[eid] ?? ''} onChange={e => setCustomAmounts(prev => ({ ...prev, [eid]: e.target.value }))} placeholder="0.00" />
+                            <span className="text-xs text-stone-500">{currency}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <p className="text-xs text-stone-500 mt-2">
-            ℹ️ Anonymous sale data may contribute to community market statistics.
-          </p>
-          <button type="submit" disabled={pending}
-            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
-          >
-            {pending ? 'Saving…' : 'Record Sale'}
-          </button>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
+              <p className="text-xs text-stone-500 mt-2">
+                ℹ️ Anonymous sale data may contribute to community market statistics.
+              </p>
+            </>}
+          />
         </form>
       )}
     </Modal>
@@ -424,53 +387,26 @@ function EditSaleModal({
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className={LBL}>Sale title (optional)</label>
-              <input className={INP} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Book set" />
-            </div>
-            <div>
-              <label className={LBL}>Platform</label>
-              <select className={INP} value={platform} onChange={e => setPlatform(e.target.value)}>
-                <option value="">— Select platform —</option>
-                {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-              {platform === 'other' && (
-                <input className={`${INP} mt-2`} value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Platform name…" />
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {!isCustom && (
-                <div>
-                  <label className={LBL}>Total sold for *</label>
-                  <input required type="number" step="0.01" min="0.01" className={INP} value={total} onChange={e => setTotal(e.target.value)} />
-                </div>
-              )}
-              <div className={isCustom ? 'col-span-2' : ''}>
-                <label className={LBL}>Currency</label>
-                <select className={INP} value={currency} onChange={e => setCurrency(e.target.value)}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className={LBL}>Sale date *</label>
-              <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
-            </div>
-            <div>
-              <label className={LBL}>Notes</label>
-              <input className={INP} value={notes} onChange={e => setNotes(e.target.value)} />
-            </div>
-            {!isCustom && totalChanged && count > 0 && (
-              <p className="text-xs text-stone-400">
-                Allocated amounts will be redistributed equally ({newPerBook} {currency} per book)
-              </p>
-            )}
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button type="submit" disabled={pending}
-              className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
-            >
-              {pending ? 'Saving…' : 'Save Changes'}
-            </button>
+            <SaleFormFields
+              title={title} setTitle={setTitle}
+              platform={platform} setPlatform={setPlatform}
+              customPlatform={customPlatform} setCustomPlatform={setCustomPlatform}
+              total={total} setTotal={isCustom ? undefined : setTotal}
+              currency={currency} setCurrency={setCurrency}
+              soldAt={soldAt} setSoldAt={setSoldAt}
+              notes={notes} setNotes={setNotes}
+              hideTotalField={isCustom}
+              pending={pending}
+              submitLabel="Save Changes"
+              beforeSubmit={<>
+                {!isCustom && totalChanged && count > 0 && (
+                  <p className="text-xs text-stone-400">
+                    Allocated amounts will be redistributed equally ({newPerBook} {currency} per book)
+                  </p>
+                )}
+                {error && <p className="text-red-400 text-sm">{error}</p>}
+              </>}
+            />
           </form>
         </>
       )}
@@ -486,7 +422,7 @@ export default function SoldPage() {
   const [bookFilter, setBookFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
-  const [addSaleOpen, setAddSaleOpen] = useState(false)
+  const addSaleModal = useModalState()
   const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
 
@@ -583,7 +519,7 @@ export default function SoldPage() {
           <p className="text-stone-400 text-sm mt-1">{soldEntries.length} book{soldEntries.length !== 1 ? 's' : ''} sold</p>
         </div>
         <button
-          onClick={() => setAddSaleOpen(true)}
+          onClick={() => addSaleModal.open()}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
         >
           <Plus size={14} /> Record Sale
@@ -743,8 +679,8 @@ export default function SoldPage() {
       </section>
 
       <RecordSaleModal
-        open={addSaleOpen}
-        onClose={() => setAddSaleOpen(false)}
+        open={addSaleModal.isOpen}
+        onClose={() => addSaleModal.close()}
         entries={allEntries.filter(e => e.ownershipStatus !== 'SOLD')}
       />
       <EditSaleModal

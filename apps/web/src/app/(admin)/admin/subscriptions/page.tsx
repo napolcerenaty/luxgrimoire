@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
@@ -29,7 +30,7 @@ interface SubFormData {
   coverImage: string
   price: string
   language: string
-  type: string
+  intervalMonths: string
   contentType: string
   bookishMerch: boolean
   renewalDayUserSet: boolean
@@ -66,7 +67,7 @@ const EMPTY_FORM: SubFormData = {
   coverImage: '',
   price: '',
   language: '',
-  type: '',
+  intervalMonths: '1',
   contentType: 'MONTH',
   bookishMerch: false,
   renewalDayUserSet: false,
@@ -104,7 +105,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     coverImage: sub.coverImage ?? '',
     price: sub.price ?? '',
     language: sub.language ?? '',
-    type: sub.type ?? '',
+    intervalMonths: String(sub.intervalMonths ?? 1),
     contentType: sub.contentType ?? 'MIX',
     bookishMerch: sub.bookishMerch ?? false,
     renewalDayUserSet: sub.renewalDayUserSet ?? false,
@@ -150,7 +151,7 @@ function formToCreatePayload(form: SubFormData) {
     coverImage: form.coverImage || undefined,
     price: form.price ? form.price.replace(',', '.') : undefined,
     language: form.language || undefined,
-    type: form.type || undefined,
+    intervalMonths: parseInt(form.intervalMonths, 10) || 1,
     contentType: form.contentType || 'MIX',
     bookishMerch: form.bookishMerch,
     renewalDayUserSet: form.renewalDayUserSet,
@@ -178,7 +179,7 @@ function formToUpdatePayload(form: SubFormData) {
     coverImage: form.coverImage === null ? null : (form.coverImage || undefined),
     price: form.price ? form.price.replace(',', '.') : undefined,
     language: form.language || undefined,
-    type: form.type || undefined,
+    intervalMonths: parseInt(form.intervalMonths, 10) || 1,
     contentType: form.contentType || 'MIX',
     bookishMerch: form.bookishMerch,
     renewalDayUserSet: form.renewalDayUserSet,
@@ -299,16 +300,20 @@ function SubscriptionForm({
             </div>
           </div>
 
-          {/* Type / Content type */}
+          {/* Billing Interval / Content type */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL_CLASS}>Type</label>
-              <select className={SELECT_CLASS} value={form.type} onChange={setStr('type')}>
-                <option value="">— Select type —</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="BIMONTHLY">Bi-monthly</option>
-                <option value="QUARTERLY">Quarterly</option>
+              <label className={LABEL_CLASS}>Billing Interval</label>
+              <select className={SELECT_CLASS} value={form.intervalMonths} onChange={setStr('intervalMonths')}>
+                <option value="1">Monthly</option>
+                <option value="2">Bimonthly (every 2 months)</option>
+                <option value="3">Quarterly (every 3 months)</option>
+                <option value="custom">Custom…</option>
               </select>
+              {form.intervalMonths !== '1' && form.intervalMonths !== '2' && form.intervalMonths !== '3' && (
+                <input type="number" min={1} max={12} className={`${INPUT_CLASS} mt-2`}
+                  value={form.intervalMonths} onChange={setStr('intervalMonths')} placeholder="Months between renewals" />
+              )}
             </div>
             <div>
               <label className={LABEL_CLASS}>Content Type</label>
@@ -353,7 +358,7 @@ function SubscriptionForm({
               <input type="number" min={0} max={11} className={INPUT_CLASS}
                 value={form.renewalMonthOffset} onChange={setStr('renewalMonthOffset')} placeholder="0" />
             </div>
-            {(form.type === 'BIMONTHLY' || form.type === 'QUARTERLY') && (
+            {parseInt(form.intervalMonths, 10) > 1 && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
                 <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
@@ -775,7 +780,7 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
 export default function AdminSubscriptionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const [page, setPage] = useState(1)
@@ -833,7 +838,7 @@ export default function AdminSubscriptionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
-      setCreateOpen(false)
+      createModal.close()
     },
     onError: (err: Error) => alert(`Błąd tworzenia subskrypcji: ${err.message}`),
   })
@@ -964,9 +969,9 @@ export default function AdminSubscriptionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-stone-100">Subscriptions</h1>
-        {!createOpen && !editSub && (
+        {!createModal.isOpen && !editSub && (
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => createModal.open()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
           >
             + Add Subscription
@@ -975,11 +980,11 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {/* Inline Create panel */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Add Subscription</h2>
-            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <SubscriptionForm
             {...commonFormProps}
@@ -1017,7 +1022,7 @@ export default function AdminSubscriptionsPage() {
           <DataTable
             columns={columns}
             data={subs}
-            onEdit={(row) => { setEditSub(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            onEdit={(row) => { setEditSub(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
           {(subsData?.totalPages ?? 1) > 1 && (

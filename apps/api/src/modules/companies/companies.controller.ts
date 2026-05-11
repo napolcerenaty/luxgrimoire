@@ -7,7 +7,6 @@ import {
   Param,
   Body,
   Query,
-  ForbiddenException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -18,6 +17,7 @@ import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { assertCompanyAccess } from '../../common/utils/assert-company-access.util';
 
 @ApiTags('companies')
 @Controller('companies')
@@ -64,12 +64,7 @@ export class CompaniesController {
     @Body() dto: UpdateCompanyDto,
     @CurrentUser() user: { id: string; username: string; role: string; managedCompanyId: string | null },
   ) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const company = await this.companiesService.findBySlug(slug);
-      if (company.id !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage your own company');
-      }
-    }
+    assertCompanyAccess(user, (await this.companiesService.findBySlug(slug)).id, 'You can only manage your own company');
     const result = await this.companiesService.update(slug, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_COMPANY', entityType: 'company', entityId: result.id, entityTitle: result.slug });
     return result;
@@ -93,12 +88,7 @@ export class CompaniesController {
     @Body() body: { colors: string[] },
     @CurrentUser() user: { id: string; username: string; role: string; managedCompanyId: string | null },
   ) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const company = await this.companiesService.findBySlug(slug);
-      if (company.id !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage your own company');
-      }
-    }
+    assertCompanyAccess(user, (await this.companiesService.findBySlug(slug)).id, 'You can only manage your own company');
     const colors = await this.companiesService.setBrandColors(slug, body.colors ?? []);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'SET_BRAND_COLORS', entityType: 'company', entityId: slug, entityTitle: slug });
     return { brandColors: colors };

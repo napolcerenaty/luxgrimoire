@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -43,7 +44,7 @@ export class NotificationsService {
   async markAsRead(userId: string, notificationId: string) {
     const notification = await this.prisma.userNotification.findUnique({ where: { id: notificationId } });
     if (!notification) throw new NotFoundException('Notification not found');
-    if (notification.userId !== userId) throw new ForbiddenException();
+    assertOwnership(notification.userId, userId);
     return this.prisma.userNotification.update({
       where: { id: notificationId },
       data: { readAt: new Date() },
@@ -60,7 +61,7 @@ export class NotificationsService {
   async deleteNotification(userId: string, notificationId: string) {
     const notification = await this.prisma.userNotification.findUnique({ where: { id: notificationId } });
     if (!notification) throw new NotFoundException('Notification not found');
-    if (notification.userId !== userId) throw new ForbiddenException();
+    assertOwnership(notification.userId, userId);
     await this.prisma.userNotification.delete({ where: { id: notificationId } });
     return { ok: true };
   }

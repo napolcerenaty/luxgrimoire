@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiSponsoredSlot, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -166,7 +167,7 @@ interface RevenueStats {
 
 export default function AdminSponsoredSlotsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editSlot, setEditSlot] = useState<ApiSponsoredSlot | null>(null)
   const [deleteSlot, setDeleteSlot] = useState<ApiSponsoredSlot | null>(null)
 
@@ -188,7 +189,7 @@ export default function AdminSponsoredSlotsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sponsored-slots'] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'sponsored-stats'] })
-      setCreateOpen(false)
+      createModal.close()
     },
   })
 
@@ -272,7 +273,7 @@ export default function AdminSponsoredSlotsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Sponsored Slots</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Sponsored Slot
@@ -331,7 +332,7 @@ export default function AdminSponsoredSlotsPage() {
       )}
 
       {/* Create modal */}
-      <FormModal open={createOpen} title="Add Sponsored Slot" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Sponsored Slot" onClose={() => createModal.close()}>
         <SlotForm
           initial={EMPTY_FORM}
           isEdit={false}

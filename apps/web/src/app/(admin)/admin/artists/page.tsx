@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import type { ApiArtist, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
@@ -10,9 +12,6 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 import ImageUpload from '@/components/admin/ImageUpload'
 
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 interface ArtistFormData {
   name: string
@@ -150,7 +149,7 @@ function ArtistForm({ initial, onSubmit, submitting, submitLabel }: ArtistFormPr
 
 export default function AdminArtistsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editArtist, setEditArtist] = useState<ApiArtist | null>(null)
   const [deleteArtist, setDeleteArtist] = useState<ApiArtist | null>(null)
   const [page, setPage] = useState(1)
@@ -173,7 +172,7 @@ export default function AdminArtistsPage() {
       authFetch('/artists', { method: 'POST', body: JSON.stringify(payload) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'artists'] })
-      setCreateOpen(false)
+      createModal.close()
     },
   })
 
@@ -210,7 +209,7 @@ export default function AdminArtistsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Artists</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Artist
@@ -249,7 +248,7 @@ export default function AdminArtistsPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Artist" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Artist" onClose={() => createModal.close()}>
         <ArtistForm
           initial={EMPTY_FORM}
           submitLabel="Create Artist"
