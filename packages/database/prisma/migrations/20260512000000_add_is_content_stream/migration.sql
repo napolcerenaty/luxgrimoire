@@ -1,0 +1,1 @@
+ALTER TABLE "subscriptions" ADD COLUMN IF NOT EXISTS "isContentStream" BOOLEAN NOT NULL DEFAULT false;

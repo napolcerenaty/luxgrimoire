@@ -70,7 +70,7 @@ export class CompaniesService {
         take: pageSize,
         include: {
           subscriptions: {
-            select: { id: true, slug: true, name: true, isDiscontinued: true },
+            where: { isHidden: false, isContentStream: false },
           },
           _count: {
             select: {
@@ -92,6 +92,7 @@ export class CompaniesService {
       where: { slug },
       include: {
         subscriptions: {
+          where: { isHidden: false, isContentStream: false },
           select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true },
         },
         collections: {

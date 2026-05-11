@@ -1308,7 +1308,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1402,6 +1402,14 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             <Link href={`/admin/subscriptions/${subscription.parentSubscription?.slug}/months`} className="text-amber-400 underline text-sm ml-2">
               Go to parent months →
             </Link>
+          </div>
+        )}
+
+        {subscription?.isContentStream && (
+          <div className="bg-blue-900/20 border border-blue-700/40 rounded-lg p-4 mb-6">
+            <span className="text-blue-400 text-sm">
+              📋 This is a content stream — months added here are shared with all variants.
+            </span>
           </div>
         )}
 

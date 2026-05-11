@@ -352,6 +352,7 @@ model Subscription {
   price                String?
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
+  isContentStream      Boolean                      @default(false)
   paymentOnStartup     Boolean                      @default(false)
   renewalMonthOffset   Int                          @default(0)
   priceChanges             SubscriptionPriceChange[]

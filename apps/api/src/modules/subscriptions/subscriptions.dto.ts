@@ -116,6 +116,10 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isContentStream?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   paymentOnStartup?: boolean;
 
   @IsOptional()
@@ -126,7 +130,7 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   renewalMonthOffset?: number;
 }
 
-export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
+export class UpdateSubscriptionDtoextends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -223,6 +227,10 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isContentStream?: boolean;
 
   @IsOptional()
   @IsBoolean()

@@ -104,6 +104,7 @@ export class SubscriptionsService {
         paymentOnStartup: dto.paymentOnStartup ?? false,
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
+        isContentStream: dto.isContentStream ?? false,
       },
     });
 
@@ -122,7 +123,7 @@ export class SubscriptionsService {
   async findAll(query: SubscriptionQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
 
-    const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false };
+    const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false, isContentStream: false };
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
@@ -2041,10 +2042,15 @@ export class SubscriptionsService {
           name: true,
           intervalMonths: true,
           isDiscontinued: true,
+          isContentStream: true,
           company: { select: { name: true } },
         },
       });
       if (!sub) return;
+      if (sub.isContentStream) {
+        await this.typesense.deleteDocument('subscriptions', sub.id).catch(() => {});
+        return;
+      }
       await this.typesense.upsertDocument('subscriptions', {
         id: sub.id,
         slug: sub.slug,

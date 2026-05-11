@@ -219,6 +219,7 @@ export interface ApiSubscription {
   endDate: string | null;
   isDiscontinued: boolean;
   isHidden: boolean;
+  isContentStream: boolean;
   currency: string;
   price: string | null;
   language: string | null;

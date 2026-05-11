@@ -41,6 +41,7 @@ interface SubFormData {
   componentIds: string[]
   isDiscontinued: boolean
   isHidden: boolean
+  isContentStream: boolean
   paymentOnStartup: boolean
   renewalMonthOffset: string
   startDate: string
@@ -77,6 +78,7 @@ const EMPTY_FORM: SubFormData = {
   componentIds: [],
   isDiscontinued: false,
   isHidden: false,
+  isContentStream: false,
   paymentOnStartup: false,
   renewalMonthOffset: '0',
   startDate: '',
@@ -114,6 +116,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     componentIds: (sub as any).componentIds ?? [],
     isDiscontinued: sub.isDiscontinued,
     isHidden: sub.isHidden ?? false,
+    isContentStream: sub.isContentStream ?? false,
     paymentOnStartup: (sub as any).paymentOnStartup ?? false,
     renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
@@ -159,6 +162,7 @@ function formToCreatePayload(form: SubFormData) {
     componentIds: form.componentIds.length > 0 ? form.componentIds : undefined,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
+    isContentStream: form.isContentStream,
     paymentOnStartup: form.paymentOnStartup,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -185,6 +189,7 @@ function formToUpdatePayload(form: SubFormData) {
     componentIds: form.componentIds,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
+    isContentStream: form.isContentStream,
     paymentOnStartup: form.paymentOnStartup,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -375,6 +380,7 @@ function SubscriptionForm({
               { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
               { field: 'isDiscontinued', label: 'Discontinued' },
               { field: 'isHidden', label: 'Hidden (draft / historical data)' },
+              { field: 'isContentStream', label: 'Content stream (hidden parent, holds all months)' },
             ] as { field: keyof SubFormData; label: string }[]).map(({ field, label }) => (
               <label key={field} className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form[field] as boolean}
@@ -427,7 +433,7 @@ function SubscriptionForm({
           <label className={LABEL_CLASS}>Variant of</label>
           <select className={SELECT_CLASS} value={form.parentSubscriptionId} onChange={setStr('parentSubscriptionId')}>
             <option value="">— None —</option>
-            {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId) : allSubscriptions)
+            {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId && s.isContentStream) : allSubscriptions.filter((s) => s.isContentStream))
               .map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
           </select>
         </div>
