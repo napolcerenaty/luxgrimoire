@@ -23,8 +23,8 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!loading && !user) router.push('/login')
-  }, [user, loading, router])
+    if (!loading && !user) router.push(`/login?returnTo=${encodeURIComponent(pathname)}`)
+  }, [user, loading, router, pathname])
 
   if (loading || !user) {
     return (

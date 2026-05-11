@@ -994,6 +994,13 @@ export class SubscriptionsService {
       throw new ConflictException('You are already subscribed to this subscription');
     }
 
+    // Parse cancellationDate (for historical cancelled entries)
+    let cancellationDateObj: Date | null = null;
+    if (dto.alreadyCancelled && dto.cancellationDate) {
+      const parts = dto.cancellationDate.split('-').map(Number);
+      cancellationDateObj = new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
+    }
+
     // Parse startDate: accepts YYYY-MM-DD or YYYY-MM
     let startDateObj: Date | null = null;
     let startDateStr: string | null = null;
@@ -1021,17 +1028,23 @@ export class SubscriptionsService {
       create: {
         userId,
         subscriptionId: sub.id,
-        active: true,
+        active: !dto.alreadyCancelled,
         startDate: startDateStr,
         basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
+        ...(dto.alreadyCancelled && {
+          cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
+          cancellationReason: dto.cancellationReason ?? null,
+        }),
       },
       update: {
-        active: true,
-        cancellationDate: null,
-        cancellationReason: null,
+        active: !dto.alreadyCancelled,
+        cancellationDate: dto.alreadyCancelled
+          ? (dto.cancellationDate ?? new Date().toISOString().slice(0, 10))
+          : null,
+        cancellationReason: dto.alreadyCancelled ? (dto.cancellationReason ?? null) : null,
         startDate: startDateStr ?? undefined,
         basePrice: dto.basePrice !== undefined ? parseFloat(dto.basePrice) : undefined,
         shippingCost: dto.shippingCost !== undefined ? parseFloat(dto.shippingCost) : undefined,
@@ -1059,44 +1072,48 @@ export class SubscriptionsService {
       }
     }
 
-    // Compute eligible past months: from startDate+1 to current month (inclusive)
+    // Compute eligible past months: from startDate+1 to cancellationDate month (or current month)
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, startDateObj)
-      : await this.getEligibleMonths(sub.id, startDateObj);
+      ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj)
+      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
 
-    // If paymentOnStartup: register the first upcoming month's books as preorders
+    // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
-    if (paymentOnStartup && startDateObj && !isCombo) {
+    if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
       await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
     }
 
-    // Persist nextRenewalDate so cron jobs can query it
+    // Persist nextRenewalDate (will be null for cancelled entries)
     await refreshNextRenewalDate(this.prisma, entry.id);
     // Backfill past renewal history for calendar display (fire-and-forget)
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
-    // Update subscriber count snapshot (fire-and-forget)
-    this.crowdStatsService.incrementSubscriberCount(sub.id).catch(() => {});
+    // Update subscriber count snapshot (fire-and-forget, skip for already-cancelled historical entries)
+    if (!dto.alreadyCancelled) {
+      this.crowdStatsService.incrementSubscriberCount(sub.id).catch(() => {});
+    }
 
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null) {
     if (!startDateObj) return [];
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    // Use endDate if provided (cancelled subscription), otherwise current month
+    const limitDate = endDateObj ?? now;
+    const limitYear = limitDate.getFullYear();
+    const limitMonth = limitDate.getMonth() + 1;
 
     // First eligible month = startDate + 1 month
     const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
     const startYear = nextMonthDate.getFullYear();
     const startMonth = nextMonthDate.getMonth() + 1;
 
-    // If startDate is in current month or later → nothing to backfill
-    if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
+    // If startDate is at or after limit month → nothing to backfill
+    if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
     }
 
@@ -1112,8 +1129,8 @@ export class SubscriptionsService {
           },
           {
             OR: [
-              { year: { lt: currentYear } },
-              { year: currentYear, month: { lte: currentMonth } },
+              { year: { lt: limitYear } },
+              { year: limitYear, month: { lte: limitMonth } },
             ],
           },
         ],
@@ -1143,18 +1160,19 @@ export class SubscriptionsService {
    * ALL component subscriptions' months for the same year/month slot.
    * Synthetic ID format: `COMBO_${year}_${month}` (no colons to avoid key-parsing issues).
    */
-  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null) {
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null) {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    const limitDate = endDateObj ?? now;
+    const limitYear = limitDate.getFullYear();
+    const limitMonth = limitDate.getMonth() + 1;
 
     // First eligible month = the month of the subscription start date (inclusive)
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
 
-    if (startYear > currentYear || (startYear === currentYear && startMonth > currentMonth)) {
+    if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
     }
 
@@ -1170,8 +1188,8 @@ export class SubscriptionsService {
           },
           {
             OR: [
-              { year: { lt: currentYear } },
-              { year: currentYear, month: { lte: currentMonth } },
+              { year: { lt: limitYear } },
+              { year: limitYear, month: { lte: limitMonth } },
             ],
           },
         ],
@@ -1687,7 +1705,7 @@ export class SubscriptionsService {
                 signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
               },
             }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: purchasedAtDate } }).catch(() => {}),
+              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
             );
           }
           booksAdded++;
@@ -1935,6 +1953,18 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) return [];
 
+    // Try to read from DB snapshot first (calculated by cron every 3 days)
+    const snapshot = await this.prisma.subscriptionCountryFeeSnapshot.findUnique({
+      where: { subscriptionId_country: { subscriptionId: subscription.id, country: country.toUpperCase() } },
+    });
+
+    if (snapshot) {
+      const data = snapshot.data as unknown as CountryFeeHint[];
+      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h L1 cache
+      return data;
+    }
+
+    // Fallback: live aggregation (snapshot not yet calculated — first visit before first cron run)
     const countryUpper = country.toUpperCase();
 
     const entries = await this.prisma.userSubscriptionEntry.findMany({
@@ -2029,7 +2059,7 @@ export class SubscriptionsService {
 
     data.sort((a, b) => b.count - a.count);
 
-    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 86_400_000 }); // 24h TTL
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h TTL (fallback path)
     return data;
   }
 

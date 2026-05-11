@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
+import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -44,6 +45,7 @@ export class SubscriptionsController {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly auditService: AuditService,
     private readonly analyticsService: AnalyticsService,
+    private readonly countryFeeSnapshotCron: CountryFeeSnapshotCronService,
   ) {}
 
   @Public()
@@ -209,6 +211,14 @@ export class SubscriptionsController {
   ) {
     if (!country) return [];
     return this.subscriptionsService.getCountryFeeHints(slug, country);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @Post('admin/refresh-country-fee-snapshots')
+  async refreshCountryFeeSnapshots() {
+    await this.countryFeeSnapshotCron.recalculateAll();
+    return { ok: true };
   }
 
   @ApiBearerAuth()

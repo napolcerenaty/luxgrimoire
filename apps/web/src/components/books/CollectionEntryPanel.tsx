@@ -180,6 +180,42 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
   )
 }
 
+// ─── Add history entry form ───────────────────────────────────────────────────
+
+function AddHistoryEntryForm({ onSave, onCancel, saving }: {
+  onSave: (status: string, changedAt: string) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [status, setStatus] = useState('OWNED')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16))
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+      <select
+        value={status}
+        onChange={e => setStatus(e.target.value)}
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+      >
+        {(['OWNED', 'PREORDER', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD'] as const).map(s => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      <input
+        type="datetime-local"
+        value={date}
+        onChange={e => setDate(e.target.value)}
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+      />
+      <button
+        onClick={() => onSave(status, date)}
+        disabled={saving}
+        className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+      ><Check size={11} /></button>
+      <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
@@ -253,6 +289,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyEditId, setHistoryEditId] = useState<string | null>(null)
+  const [historyEditStatus, setHistoryEditStatus] = useState('')
+  const [historyEditDate, setHistoryEditDate] = useState('')
+  const [historySaving, setHistorySaving] = useState(false)
+  const [historyAddOpen, setHistoryAddOpen] = useState(false)
 
   // Reset cached history whenever entry ID changes (e.g. copy switcher)
   // If history panel is open, re-fetch immediately for the new copy
@@ -661,6 +702,44 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
       }
     }
     setShowHistory(prev => !prev)
+  }
+
+  async function refreshHistory() {
+    const data = await authFetch<HistoryEntry[]>(`/collection/entry/${entry!.id}/history`)
+    setHistory(data)
+  }
+
+  async function saveHistoryEdit(id: string) {
+    setHistorySaving(true)
+    try {
+      await authFetch(`/collection/entry/${entry!.id}/history/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: historyEditStatus, changedAt: new Date(historyEditDate).toISOString() }),
+      })
+      setHistoryEditId(null)
+      await refreshHistory()
+    } finally {
+      setHistorySaving(false)
+    }
+  }
+
+  async function deleteHistoryEntry(id: string) {
+    await authFetch(`/collection/entry/${entry!.id}/history/${id}`, { method: 'DELETE' })
+    await refreshHistory()
+  }
+
+  async function addHistoryEntry(status: string, changedAt: string) {
+    setHistorySaving(true)
+    try {
+      await authFetch(`/collection/entry/${entry!.id}/history`, {
+        method: 'POST',
+        body: JSON.stringify({ status, changedAt: new Date(changedAt).toISOString() }),
+      })
+      setHistoryAddOpen(false)
+      await refreshHistory()
+    } finally {
+      setHistorySaving(false)
+    }
   }
 
   // ── Computed values ───────────────────────────────────────────────────────
@@ -1410,23 +1489,74 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
               {showHistory ? 'Hide' : 'Show'} ownership history
             </button>
             {showHistory && (
-              <div className="pt-1">
+              <div className="pt-1 space-y-1">
                 {loadingHistory ? (
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
                 ) : !history || history.length === 0 ? (
                   <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No history recorded</p>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    {history.map((h) => (
-                      <div key={h.id} className="flex items-center gap-2.5 text-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
-                        <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
-                          {h.status}
-                        </span>
-                        <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-col gap-1">
+                    {history.map((h) =>
+                      historyEditId === h.id ? (
+                        <div key={h.id} className="flex items-center gap-1.5 flex-wrap">
+                          <select
+                            value={historyEditStatus}
+                            onChange={e => setHistoryEditStatus(e.target.value)}
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                          >
+                            {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <input
+                            type="datetime-local"
+                            value={historyEditDate}
+                            onChange={e => setHistoryEditDate(e.target.value)}
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            onClick={() => saveHistoryEdit(h.id)}
+                            disabled={historySaving}
+                            className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                          ><Check size={11} /></button>
+                          <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
+                        </div>
+                      ) : (
+                        <div key={h.id} className="group flex items-center gap-2 text-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
+                            {h.status}
+                          </span>
+                          <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
+                          <span className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 16)) }}
+                              className="text-stone-500 hover:text-amber-400 transition-colors"
+                            ><Pencil size={10} /></button>
+                            <button
+                              onClick={() => deleteHistoryEntry(h.id)}
+                              className="text-stone-500 hover:text-red-400 transition-colors"
+                            ><Trash2 size={10} /></button>
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
+                )}
+
+                {/* Add entry */}
+                {historyAddOpen ? (
+                  <AddHistoryEntryForm
+                    onSave={addHistoryEntry}
+                    onCancel={() => setHistoryAddOpen(false)}
+                    saving={historySaving}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setHistoryAddOpen(true)}
+                    className="flex items-center gap-1 text-xs mt-1 transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <Plus size={10} /> Add entry
+                  </button>
                 )}
               </div>
             )}

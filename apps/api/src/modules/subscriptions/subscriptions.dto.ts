@@ -526,6 +526,21 @@ export class JoinSubscriptionDto {
   @ValidateNested({ each: true })
   @Type(() => LinkedFeeTemplateDto)
   linkedFeeTemplates?: LinkedFeeTemplateDto[];
+
+  /** If true, the subscription was already cancelled before joining (historical entry) */
+  @IsOptional()
+  @IsBoolean()
+  alreadyCancelled?: boolean;
+
+  /** ISO date (YYYY-MM-DD) when the subscription was cancelled — required when alreadyCancelled=true */
+  @IsOptional()
+  @IsString()
+  cancellationDate?: string;
+
+  /** Optional reason for cancellation */
+  @IsOptional()
+  @IsString()
+  cancellationReason?: string;
 }
 
 export class BookPriceOverrideDto {

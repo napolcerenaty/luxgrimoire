@@ -25,6 +25,13 @@ const EAGER_TRANSFORMS = [
   { width: 1200, height: 1800, crop: 'fill' as const, quality: 'auto', fetch_format: 'auto' },
 ];
 
+/** Strip accidental 'image/upload/v{version}/' or full-URL prefix from stored publicIds */
+function normalizePublicId(id: string): string {
+  let n = id.replace(/^https?:\/\/res\.cloudinary\.com\/[^/]+\//, '');
+  n = n.replace(/^image\/upload\/(v\d+\/)?/, '');
+  return n;
+}
+
 @Injectable()
 export class UploadService {
   constructor() {
@@ -86,6 +93,6 @@ export class UploadService {
   }
 
   async deleteImage(publicId: string): Promise<void> {
-    await cloudinary.uploader.destroy(publicId);
+    await cloudinary.uploader.destroy(normalizePublicId(publicId));
   }
 }
