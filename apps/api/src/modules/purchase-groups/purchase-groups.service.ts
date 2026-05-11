@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
+import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto } from './purchase-groups.dto';
 
@@ -106,9 +107,7 @@ export class PurchaseGroupsService {
 
       // Record initial ownership history for each entry
       const ownershipStatus = (dto.ownershipStatus as string | undefined) ?? 'OWNED';
-      await tx.ownershipStatusHistory.createMany({
-        data: bookEntries.map((e) => ({ userBookEntryId: e.id, status: ownershipStatus })),
-      });
+      await recordOwnershipHistory(tx, bookEntries, ownershipStatus);
 
       return { group, bookEntries };
     });
@@ -184,9 +183,7 @@ export class PurchaseGroupsService {
       );
 
       // Record initial ownership history for each entry
-      await tx.ownershipStatusHistory.createMany({
-        data: bookEntries.map((e) => ({ userBookEntryId: e.id, status: 'PREORDER' })),
-      });
+      await recordOwnershipHistory(tx, bookEntries, 'PREORDER');
 
       // Remove interest after confirming purchase
       await tx.userSaleInterest.deleteMany({ where: { userId, announcementId } });

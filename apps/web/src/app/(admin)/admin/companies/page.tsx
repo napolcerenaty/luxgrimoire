@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -370,7 +371,7 @@ export default function AdminCompaniesPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isManager = user?.role === 'COMPANY_MANAGER'
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editCompany, setEditCompany] = useState<ApiBookBoxCompany | null>(null)
   const [deleteCompany, setDeleteCompany] = useState<ApiBookBoxCompany | null>(null)
   const [search, setSearch] = useState('')
@@ -397,7 +398,7 @@ export default function AdminCompaniesPage() {
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
       authFetch('/companies', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); setCreateOpen(false) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] }); createModal.close() },
   })
 
   const editMutation = useMutation({
@@ -461,9 +462,9 @@ export default function AdminCompaniesPage() {
             className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
           />
         </div>
-        {!isManager && !createOpen && !editCompany && (
+        {!isManager && !createModal.isOpen && !editCompany && (
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => createModal.open()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
           >
             + Add Book Box
@@ -472,11 +473,11 @@ export default function AdminCompaniesPage() {
       </div>
 
       {/* Inline Create form */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Add Book Box</h2>
-            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <CompanyForm
             initial={EMPTY_FORM}
@@ -526,7 +527,7 @@ export default function AdminCompaniesPage() {
         <DataTable
           columns={columns}
           data={companies}
-          onEdit={(row) => { setEditCompany(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          onEdit={(row) => { setEditCompany(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
           onDelete={isManager ? undefined : (row) => setDeleteCompany(row)}
         />
       )}

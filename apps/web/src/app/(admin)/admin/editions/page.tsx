@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -129,7 +130,7 @@ export default function AdminEditionsPage() {
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managedCompanyId = (user as (typeof user & { managedCompanyId?: string }) | null)?.managedCompanyId ?? ''
 
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -272,7 +273,7 @@ export default function AdminEditionsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Editions</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Edition
@@ -343,11 +344,11 @@ export default function AdminEditionsPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Edition" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Edition" onClose={() => createModal.close()}>
         <AddEditionFlow
           defaultCompanyId={isManager ? managedCompanyId : undefined}
-          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setCreateOpen(false) }}
-          onCancel={() => setCreateOpen(false)}
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); createModal.close() }}
+          onCancel={() => createModal.close()}
         />
       </FormModal>
 

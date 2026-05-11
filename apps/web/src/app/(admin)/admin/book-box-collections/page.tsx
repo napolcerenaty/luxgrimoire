@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookBoxCollection, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -92,7 +93,7 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
 
 export default function AdminBookBoxCollectionsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editItem, setEditItem] = useState<ApiBookBoxCollection | null>(null)
   const [deleteItem, setDeleteItem] = useState<ApiBookBoxCollection | null>(null)
   const [companyFilter, setCompanyFilter] = useState('')
@@ -123,7 +124,7 @@ export default function AdminBookBoxCollectionsPage() {
   const createMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof formToPayload>) =>
       authFetch('/book-box-collections', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'book-box-collections'] }); setCreateOpen(false) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'book-box-collections'] }); createModal.close() },
   })
 
   const editMutation = useMutation({
@@ -175,7 +176,7 @@ export default function AdminBookBoxCollectionsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Book Box Collections</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Collection
@@ -229,7 +230,7 @@ export default function AdminBookBoxCollectionsPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Collection" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Collection" onClose={() => createModal.close()}>
         <CollectionForm
           initial={emptyForm}
           submitLabel="Create Collection"

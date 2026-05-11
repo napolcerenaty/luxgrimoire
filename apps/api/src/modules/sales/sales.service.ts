@@ -9,6 +9,7 @@ import { CurrencyService } from "../currency/currency.service";
 import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
+import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 
 type Decimal = { toNumber: () => number };
 type NumOrDec = number | Decimal;
@@ -172,9 +173,7 @@ export class SalesService {
           },
         });
 
-        await tx.ownershipStatusHistory.create({
-          data: { userBookEntryId: entryId, status: "SOLD", changedAt: new Date(dto.soldAt) },
-        });
+        await recordOwnershipHistory(tx, [{ id: entryId }], 'SOLD', new Date(dto.soldAt));
       }
 
       return tx.userSaleGroup.findUnique({

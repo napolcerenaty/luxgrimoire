@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
+import { recordOwnershipHistoryAsync } from '../../common/utils/ownership-history.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
@@ -204,7 +205,7 @@ export class CollectionService {
         readingStatus: dto.readingStatus ?? 'UNREAD',
       },
     });
-    this.recordStatusChange(entry.id, entry.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus);
     if (entry.editionId && !entry.isWishlist) {
       this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
     }
@@ -232,7 +233,7 @@ export class CollectionService {
         readingStatus: 'UNREAD',
       },
     });
-    this.recordStatusChange(created.id, created.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, created.id, created.ownershipStatus);
     return created;
   }
 
@@ -344,7 +345,7 @@ export class CollectionService {
       const saleDate = dto.saleDate
         ? new Date(dto.saleDate)
         : (existing.saleDate as Date | null) ?? undefined;
-      this.recordStatusChange(
+      recordOwnershipHistoryAsync(this.prisma, 
         entryId,
         effectiveOwnershipStatus,
         effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
@@ -407,7 +408,7 @@ export class CollectionService {
 
     for (const e of entries) {
       if (e.ownershipStatus !== ownershipStatus) {
-        this.recordStatusChange(e.id, ownershipStatus);
+        recordOwnershipHistoryAsync(this.prisma, e.id, ownershipStatus);
       }
     }
 
@@ -463,12 +464,6 @@ export class CollectionService {
     assertOwnership(entry.userId, userId);
     await this.prisma.ownershipStatusHistory.delete({ where: { id: historyId } });
     return { success: true };
-  }
-
-  private recordStatusChange(userBookEntryId: string, status: string, changedAt?: Date): void {
-    this.prisma.ownershipStatusHistory
-      .create({ data: { userBookEntryId, status, ...(changedAt && { changedAt }) } })
-      .catch(() => {});
   }
 
   async removeFromCollection(userId: string, entryId: string) {

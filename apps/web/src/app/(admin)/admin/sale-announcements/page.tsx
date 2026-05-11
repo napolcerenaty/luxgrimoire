@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import {
@@ -1316,7 +1317,7 @@ function AnnouncementCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editItem, setEditItem] = useState<ApiSaleAnnouncement | null>(null)
   const [deleteItem, setDeleteItem] = useState<ApiSaleAnnouncement | null>(null)
 
@@ -1349,7 +1350,7 @@ export default function AdminSaleAnnouncementsPage() {
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); setCreateOpen(false) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); createModal.close() },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -1370,15 +1371,15 @@ export default function AdminSaleAnnouncementsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Sale Announcements</h1>
         <button
-          onClick={() => { setCreateOpen(o => !o); setEditItem(null) }}
+          onClick={() => { createModal.toggle(); setEditItem(null) }}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
-          {createOpen ? '✕ Cancel' : '+ Add Sale'}
+          {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
         </button>
       </div>
 
       {/* Inline create form */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-amber-500/40 rounded-xl p-5 mb-5">
           <h2 className="text-amber-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
           <SaleAnnouncementForm
@@ -1424,7 +1425,7 @@ export default function AdminSaleAnnouncementsPage() {
               <AnnouncementCard
                 announcement={a}
                 companyMap={companyMap}
-                onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); setCreateOpen(false) }}
+                onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); createModal.close() }}
                 onDelete={() => setDeleteItem(a)}
                 isEditing={editItem?.id === a.id}
               />

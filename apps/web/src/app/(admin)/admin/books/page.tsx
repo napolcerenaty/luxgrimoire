@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -36,7 +37,7 @@ export default function AdminBooksPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isManager = user?.role === 'COMPANY_MANAGER'
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editBook, setEditBook] = useState<RawBook | null>(null)
   const [deleteBook, setDeleteBook] = useState<RawBook | null>(null)
 
@@ -187,7 +188,7 @@ export default function AdminBooksPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Books</h1>
-        <button onClick={() => setCreateOpen(true)}
+        <button onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors">
           Add Book
         </button>
@@ -257,11 +258,11 @@ export default function AdminBooksPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Book" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Book" onClose={() => createModal.close()}>
         <CreateBookEditionForm
           bookOnly
-          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'books'] }); setCreateOpen(false) }}
-          onCancel={() => setCreateOpen(false)}
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'books'] }); createModal.close() }}
+          onCancel={() => createModal.close()}
         />
       </FormModal>
 

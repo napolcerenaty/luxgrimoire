@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiAuthor, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -150,7 +151,7 @@ function AuthorForm({ initial, onSubmit, submitting, submitLabel }: AuthorFormPr
 
 export default function AdminAuthorsPage() {
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editAuthor, setEditAuthor] = useState<ApiAuthor | null>(null)
   const [deleteAuthor, setDeleteAuthor] = useState<ApiAuthor | null>(null)
   const [page, setPage] = useState(1)
@@ -173,7 +174,7 @@ export default function AdminAuthorsPage() {
       authFetch('/authors', { method: 'POST', body: JSON.stringify(payload) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'authors'] })
-      setCreateOpen(false)
+      createModal.close()
     },
   })
 
@@ -210,7 +211,7 @@ export default function AdminAuthorsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Authors</h1>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => createModal.open()}
           className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
         >
           Add Author
@@ -249,7 +250,7 @@ export default function AdminAuthorsPage() {
         </>
       )}
 
-      <FormModal open={createOpen} title="Add Author" onClose={() => setCreateOpen(false)}>
+      <FormModal open={createModal.isOpen} title="Add Author" onClose={() => createModal.close()}>
         <AuthorForm
           initial={EMPTY_FORM}
           submitLabel="Create Author"

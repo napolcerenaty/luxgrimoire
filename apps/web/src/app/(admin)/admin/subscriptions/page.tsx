@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
@@ -775,7 +776,7 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
 export default function AdminSubscriptionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const [page, setPage] = useState(1)
@@ -833,7 +834,7 @@ export default function AdminSubscriptionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
-      setCreateOpen(false)
+      createModal.close()
     },
     onError: (err: Error) => alert(`Błąd tworzenia subskrypcji: ${err.message}`),
   })
@@ -964,9 +965,9 @@ export default function AdminSubscriptionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-stone-100">Subscriptions</h1>
-        {!createOpen && !editSub && (
+        {!createModal.isOpen && !editSub && (
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => createModal.open()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
           >
             + Add Subscription
@@ -975,11 +976,11 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {/* Inline Create panel */}
-      {createOpen && (
+      {createModal.isOpen && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Add Subscription</h2>
-            <button onClick={() => setCreateOpen(false)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <SubscriptionForm
             {...commonFormProps}
@@ -1017,7 +1018,7 @@ export default function AdminSubscriptionsPage() {
           <DataTable
             columns={columns}
             data={subs}
-            onEdit={(row) => { setEditSub(row); setCreateOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            onEdit={(row) => { setEditSub(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
           {(subsData?.totalPages ?? 1) > 1 && (

@@ -7,7 +7,6 @@ import {
   Param,
   Body,
   Query,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
@@ -35,6 +34,7 @@ import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { assertCompanyAccess } from '../../common/utils/assert-company-access.util';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
 
@@ -71,9 +71,7 @@ export class SubscriptionsController {
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
   async create(@Body() dto: CreateSubscriptionDto, @CurrentUser() user: CurrentUserType) {
-    if (user.role === 'COMPANY_MANAGER' && dto.companyId !== user.managedCompanyId) {
-      throw new ForbiddenException('You can only create subscriptions for your own company');
-    }
+    assertCompanyAccess(user, dto.companyId, 'You can only create subscriptions for your own company');
     const result = await this.subscriptionsService.create(dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_SUBSCRIPTION', entityType: 'subscription', entityId: result.id, entityTitle: result.slug });
     return result;
@@ -83,12 +81,7 @@ export class SubscriptionsController {
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateSubscriptionDto, @CurrentUser() user: CurrentUserType) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.subscriptionsService.findBySlug(slug);
-      if (existing.companyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage subscriptions for your own company');
-      }
-    }
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
     const result = await this.subscriptionsService.update(slug, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SUBSCRIPTION', entityType: 'subscription', entityId: result.id, entityTitle: result.slug });
     return result;
@@ -113,12 +106,7 @@ export class SubscriptionsController {
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post(':slug/months')
   async addMonth(@Param('slug') slug: string, @Body() dto: CreateMonthDto, @CurrentUser() user: CurrentUserType) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.subscriptionsService.findBySlug(slug);
-      if (existing.companyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage subscriptions for your own company');
-      }
-    }
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
     return this.subscriptionsService.addMonth(slug, dto);
   }
 
@@ -132,12 +120,7 @@ export class SubscriptionsController {
     @Body() dto: UpdateMonthDto,
     @CurrentUser() user: CurrentUserType,
   ) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.subscriptionsService.findBySlug(slug);
-      if (existing.companyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage subscriptions for your own company');
-      }
-    }
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
     return this.subscriptionsService.updateMonth(slug, parseInt(year, 10), parseInt(month, 10), dto);
   }
 
@@ -162,12 +145,7 @@ export class SubscriptionsController {
     @Body() dto: AddMonthBookDto,
     @CurrentUser() user: CurrentUserType,
   ) {
-    if (user.role === 'COMPANY_MANAGER') {
-      const existing = await this.subscriptionsService.findBySlug(slug);
-      if (existing.companyId !== user.managedCompanyId) {
-        throw new ForbiddenException('You can only manage subscriptions for your own company');
-      }
-    }
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
     return this.subscriptionsService.addBookToMonth(slug, parseInt(year, 10), parseInt(month, 10), dto);
   }
 
