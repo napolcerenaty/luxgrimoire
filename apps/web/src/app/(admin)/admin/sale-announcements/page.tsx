@@ -1309,6 +1309,179 @@ function AnnouncementCard({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+
+// ─── AI Sale Parse types ──────────────────────────────────────────────────────
+interface AiSaleRegion {
+  name: string
+  isDefault: boolean
+  countryCodes?: string
+  price?: number
+  currency?: string
+  saleTimezone?: string
+  firstAccessDate?: string
+  earlyAccessDate?: string
+  generalSaleDate?: string
+}
+
+interface AiSaleResult {
+  title?: string
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
+  features?: string[]
+  artists?: { name: string; role: string }[]
+  expectedShipping?: string
+  photoCredit?: string
+  regions?: AiSaleRegion[]
+}
+
+// ─── AI Sale Parse Modal ──────────────────────────────────────────────────────
+function AiSaleParseModal({ onApply, onClose }: {
+  onApply: (result: AiSaleResult) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<AiSaleResult | null>(null)
+
+  const handleParse = async () => {
+    if (!text.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await authFetch<AiSaleResult>('/ai/parse-sale', {
+        method: 'POST',
+        body: JSON.stringify({ text: text.trim() }),
+      })
+      setResult(r)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-stone-100 font-semibold text-lg">Parse announcement with AI</h2>
+          <button type="button" onClick={onClose} className="text-stone-500 hover:text-stone-300 text-xl">✕</button>
+        </div>
+
+        {!result ? (
+          <>
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Paste the full announcement text here…"
+              rows={10}
+              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
+            />
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+              <button type="button" onClick={handleParse} disabled={loading || !text.trim()}
+                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                {loading ? 'Parsing…' : 'Parse with AI'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-4 text-sm">
+              {result.title && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Title</p>
+                  <p className="text-stone-100 font-medium">{result.title}</p>
+                </div>
+              )}
+              {result.signatureType && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Signature type</p>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    {result.signatureType.replace('_', ' ')}
+                  </span>
+                </div>
+              )}
+              {result.features && result.features.length > 0 && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Features ({result.features.length})</p>
+                  <ul className="space-y-1">
+                    {result.features.map((f, i) => (
+                      <li key={i} className="text-stone-300 flex items-start gap-2">
+                        <span className="text-amber-500 mt-0.5">•</span>{f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.artists && result.artists.length > 0 && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Artists ({result.artists.length})</p>
+                  <div className="space-y-1">
+                    {result.artists.map((a, i) => (
+                      <div key={i} className="text-stone-300">
+                        <span className="text-amber-400 font-medium">{a.name}</span>
+                        <span className="text-stone-500"> — </span>
+                        {a.role}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {result.expectedShipping && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Expected shipping</p>
+                  <p className="text-stone-300">{result.expectedShipping}</p>
+                </div>
+              )}
+              {result.regions && result.regions.length > 0 && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-2">Regional windows ({result.regions.length})</p>
+                  <div className="space-y-2">
+                    {result.regions.map((r, i) => (
+                      <div key={i} className="bg-stone-800 rounded-lg p-3 border border-stone-700">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-stone-100 font-medium">{r.name}</span>
+                          {r.isDefault && <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">default</span>}
+                          {r.currency && r.price != null && (
+                            <span className="text-amber-400 text-xs ml-auto">{r.currency} {r.price}</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-stone-500 space-y-0.5">
+                          {r.countryCodes && <p>Countries: {r.countryCodes}</p>}
+                          {r.firstAccessDate && <p>First access: {new Date(r.firstAccessDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.earlyAccessDate && <p>Early access: {new Date(r.earlyAccessDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.generalSaleDate && <p>General sale: {new Date(r.generalSaleDate).toLocaleString('en-GB')} UTC</p>}
+                          {r.saleTimezone && <p>Timezone: {r.saleTimezone}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-stone-800">
+              <button type="button" onClick={() => setResult(null)} className="text-sm text-stone-500 hover:text-stone-300">
+                ← Re-parse
+              </button>
+              <div className="flex gap-3">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+                <button type="button" onClick={() => onApply(result)}
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 transition-colors">
+                  Apply to form
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
   const createModal = useModalState()
   const [editItem, setEditItem] = useState<ApiSaleAnnouncement | null>(null)
@@ -1318,6 +1491,12 @@ function AnnouncementCard({
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
+
+  // AI parse state
+  const [showAiModal, setShowAiModal] = useState(false)
+  const [createInitial, setCreateInitial] = useState<FormState>(EMPTY_FORM)
+  const [createFormKey, setCreateFormKey] = useState(0)
+  const pendingRegionsRef = useRef<AiSaleRegion[]>([])
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
@@ -1343,7 +1522,36 @@ function AnnouncementCard({
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); createModal.close() },
+    onSuccess: (newAnnouncement) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+      createModal.close()
+      setCreateInitial(EMPTY_FORM)
+      setCreateFormKey(k => k + 1)
+      const regions = pendingRegionsRef.current
+      if (regions.length > 0) {
+        pendingRegionsRef.current = []
+        Promise.all(
+          regions.map(r => {
+            const codes = r.countryCodes
+              ? r.countryCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean)
+              : []
+            return adminUpsertAnnouncementRegion(newAnnouncement.id, {
+              name: r.name,
+              countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
+              isDefault: r.isDefault,
+              generalSaleDate: r.generalSaleDate ?? null,
+              firstAccessDate: r.firstAccessDate ?? null,
+              earlyAccessDate: r.earlyAccessDate ?? null,
+              saleTimezone: r.saleTimezone ?? null,
+              basePrice: r.price ?? null,
+              currency: r.currency ?? null,
+            })
+          })
+        ).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+        }).catch(e => alert(`Error creating regions: ${(e as Error).message}`))
+      }
+    },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -1359,16 +1567,54 @@ function AnnouncementCard({
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const handleAiApply = (result: AiSaleResult) => {
+    setShowAiModal(false)
+    const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
+    const tz = defaultRegion?.saleTimezone ?? 'UTC'
+    const newInitial: FormState = {
+      ...EMPTY_FORM,
+      title: result.title ?? '',
+      expectedShipping: result.expectedShipping ?? '',
+      photoCredit: result.photoCredit ?? '',
+      saleTimezone: tz,
+      firstAccessDate: defaultRegion?.firstAccessDate ? utcIsoToTzLocal(defaultRegion.firstAccessDate, tz) : '',
+      earlyAccessDate: defaultRegion?.earlyAccessDate ? utcIsoToTzLocal(defaultRegion.earlyAccessDate, tz) : '',
+      generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
+      basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
+      currency: defaultRegion?.currency ?? 'USD',
+    }
+    setCreateInitial(newInitial)
+    setCreateFormKey(k => k + 1)
+    pendingRegionsRef.current = result.regions ?? []
+    setEditItem(null)
+    createModal.open()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Sale Announcements</h1>
-        <button
-          onClick={() => { createModal.toggle(); setEditItem(null) }}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
-        >
-          {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowAiModal(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700 hover:border-stone-600 transition-colors">
+            <Sparkles size={14} className="text-amber-400" />
+            Parse with AI
+          </button>
+          <button
+            onClick={() => {
+              if (!createModal.isOpen) {
+                setCreateInitial(EMPTY_FORM)
+                setCreateFormKey(k => k + 1)
+                pendingRegionsRef.current = []
+              }
+              createModal.toggle()
+              setEditItem(null)
+            }}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          >
+            {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
+          </button>
+        </div>
       </div>
 
       {/* Inline create form */}
@@ -1376,7 +1622,8 @@ function AnnouncementCard({
         <div className="bg-stone-900 border border-amber-500/40 rounded-xl p-5 mb-5">
           <h2 className="text-amber-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
           <SaleAnnouncementForm
-            initial={EMPTY_FORM}
+            key={createFormKey}
+            initial={createInitial}
             submitLabel="Create"
             submitting={createMutation.isPending}
             onSubmit={form => createMutation.mutate(form)}
@@ -1466,6 +1713,13 @@ function AnnouncementCard({
         onConfirm={() => deleteItem && deleteMutation.mutate(deleteItem.id)}
         onCancel={() => setDeleteItem(null)}
       />
+
+      {showAiModal && (
+        <AiSaleParseModal
+          onApply={handleAiApply}
+          onClose={() => setShowAiModal(false)}
+        />
+      )}
     </div>
   )
 }
