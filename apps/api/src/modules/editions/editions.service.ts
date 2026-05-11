@@ -203,6 +203,15 @@ export class EditionsService {
                 id: true, year: true, month: true, theme: true,
                 subscription: { select: { id: true, slug: true, name: true } },
                 series: { select: { id: true, slug: true, name: true } },
+                books: {
+                  select: {
+                    sortOrder: true,
+                    isMainBook: true,
+                    book: { select: { id: true, title: true, slug: true } },
+                    edition: { select: { id: true, slug: true } },
+                  },
+                  orderBy: { sortOrder: 'asc' },
+                },
               },
             },
           },

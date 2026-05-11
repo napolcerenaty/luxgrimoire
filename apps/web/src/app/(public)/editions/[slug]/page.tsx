@@ -20,6 +20,12 @@ interface EditionMonthBook {
     id: string; year: number; month: number; theme: string | null
     subscription: { id: string; slug: string; name: string }
     series: { id: string; slug: string; name: string } | null
+    books: Array<{
+      sortOrder: number
+      isMainBook: boolean
+      book: { id: string; title: string; slug: string }
+      edition: { id: string; slug: string } | null
+    }>
   }
 }
 
@@ -373,26 +379,56 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   </>
                 )}
                 {/* Subscription info */}
-                {monthBooks.map((mb) => (
-                  <Fragment key={mb.month.id}>
-                    <dt className="text-stone-500">Subscription</dt>
-                    <dd>
-                      <Link
-                        href={`/subscriptions/${mb.month.subscription.slug}`}
-                        className="text-amber-400 hover:underline"
-                      >
-                        {mb.month.subscription.name}
-                      </Link>
-                      {mb.month.series && (
-                        <span className="text-stone-400 ml-1">· {mb.month.series.name}</span>
-                      )}
-                      <span className="text-stone-500 ml-1 text-xs">
-                        {new Date(mb.month.year, mb.month.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                        {mb.month.theme ? ` · ${mb.month.theme}` : ''}
-                      </span>
-                    </dd>
-                  </Fragment>
-                ))}
+                {monthBooks.map((mb) => {
+                  const siblings = mb.month.books.filter(
+                    (b) => !(b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug))
+                  )
+                  return (
+                    <Fragment key={mb.month.id}>
+                      <dt className="text-stone-500">Subscription</dt>
+                      <dd>
+                        <Link
+                          href={`/subscriptions/${mb.month.subscription.slug}`}
+                          className="text-amber-400 hover:underline"
+                        >
+                          {mb.month.subscription.name}
+                        </Link>
+                        {mb.month.series && (
+                          <span className="text-stone-400 ml-1">· {mb.month.series.name}</span>
+                        )}
+                        <span className="text-stone-500 ml-1 text-xs">
+                          {new Date(mb.month.year, mb.month.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          {mb.month.theme ? ` · ${mb.month.theme}` : ''}
+                        </span>
+                        {siblings.length > 0 && (
+                          <span className="text-stone-400 text-xs ml-1">
+                            · set with{' '}
+                            {siblings.map((s, i) => (
+                              <span key={s.book.slug}>
+                                {i > 0 && ', '}
+                                {s.edition?.slug ? (
+                                  <Link
+                                    href={`/editions/${s.edition.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={`/books/${s.book.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                )}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </dd>
+                    </Fragment>
+                  )
+                })}
                 {/* Bundle info */}
                 {bundles.map((se) => (
                   <Fragment key={se.announcement.id}>
