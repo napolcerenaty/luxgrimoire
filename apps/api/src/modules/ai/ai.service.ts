@@ -20,6 +20,15 @@ export interface AiSaleAnnouncementResult {
   regions?: AiSaleRegion[];
 }
 
+export interface AiBookResult {
+  title?: string;
+  authors?: { name: string }[];
+  seriesName?: string;
+  volumeNumber?: number;
+  description?: string;
+  genres?: string[];
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -117,6 +126,26 @@ FEATURES RULES:
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+const GOODREADS_BOOK_PROMPT = `You are a book data extractor. Given text copied from a Goodreads book page, extract structured book information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "title": "book title only, without series or volume info",
+  "authors": [{ "name": "Full Author Name" }],
+  "seriesName": "series name if present, e.g. Deception Duet",
+  "volumeNumber": 2,
+  "description": "full book blurb/synopsis",
+  "genres": ["genre1", "genre2", "genre3"]
+}
+
+RULES:
+- title: only the actual book title. Remove any "Series Name #N" prefix/suffix.
+- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
+- volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
+- description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
+- genres: take at most 5 genres from the Genres section. Omit if not present.
+- authors: list all authors found.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
@@ -258,6 +287,99 @@ export class AiService {
     }
   }
 
+  private guardSsrf(rawUrl: string): URL {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid URL');
+    }
+    if (url.protocol !== 'https:') {
+      throw new BadRequestException('URL must use https://');
+    }
+    const host = url.hostname.toLowerCase();
+    const blocked =
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+    if (blocked) {
+      throw new BadRequestException('URL points to a disallowed host');
+    }
+    return url;
+  }
+
+  private extractTextFromHtml(html: string): string {
+    // Remove script/style blocks and their content
+    let text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+      .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+      .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+      // Replace block-level tags with newlines
+      .replace(/<\/(p|div|section|article|li|h[1-6]|br|tr|td|th|blockquote)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      // Strip all remaining tags
+      .replace(/<[^>]+>/g, ' ')
+      // Decode common HTML entities
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      // Collapse whitespace
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    // Truncate to 15k chars to stay within token limits
+    if (text.length > 15_000) {
+      text = text.slice(0, 15_000) + '\n[content truncated]';
+    }
+    return text;
+  }
+
+  async parseSaleAnnouncementFromUrl(rawUrl: string): Promise<AiSaleAnnouncementResult> {
+    this.guardSsrf(rawUrl);
+
+    let html: string;
+    try {
+      const response = await fetch(rawUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; LuxGrimoire/1.0; +https://luxgrimoire.com)',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) {
+        throw new BadRequestException(`Failed to fetch URL: HTTP ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('html') && !contentType.includes('text')) {
+        throw new BadRequestException('URL did not return an HTML page');
+      }
+      html = await response.text();
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Could not fetch URL: ${(e as Error).message}`);
+    }
+
+    const text = this.extractTextFromHtml(html);
+    if (!text) {
+      throw new BadRequestException('Could not extract text content from URL');
+    }
+
+    return this.parseSaleAnnouncement(text);
+  }
+
   async parseSaleAnnouncement(text: string): Promise<AiSaleAnnouncementResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
@@ -280,6 +402,33 @@ export class AiService {
 
     try {
       return JSON.parse(content) as AiSaleAnnouncementResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  async parseBookFromText(text: string): Promise<AiBookResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: GOODREADS_BOOK_PROMPT },
+      { role: 'user', content: `Extract book information from this Goodreads text:\n\n${text.slice(0, 8_000)}` },
+    ];
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 800,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new BadRequestException('No response from AI model');
+
+    try {
+      return JSON.parse(content) as AiBookResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }

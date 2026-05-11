@@ -11,7 +11,7 @@ import type { GroupedEdition } from './ArtistTabs'
 
 interface EditionSnippet {
   id: string; slug: string; additionalImages: string[]; editionName: string | null
-  bookBoxCompany: { name: string } | null
+  bookBoxCompany: { name: string } | null; communityPhotoCover?: string | null
 }
 
 interface Contribution {

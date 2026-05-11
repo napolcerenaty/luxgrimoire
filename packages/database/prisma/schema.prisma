@@ -348,7 +348,6 @@ model Subscription {
   shipsInternationally Boolean                      @default(false)
   startingMonth        Int?
   intervalMonths       Int                          @default(1)
-  type                 String?
   language             String?
   price                String?
   contentType          String                       @default("MIX")

@@ -313,7 +313,7 @@ export default async function CompanyPage({ params }: Props) {
       )}
 
       {/* Books with tabs, search, load-more */}
-      <CompanyBooksSection groups={orderedGroups} />
+      <CompanyBooksSection groups={orderedGroups} brandColors={company.brandColors} />
 
       {subscriptions.length === 0 && editions.length === 0 && (
         <p className="text-stone-500 text-sm">No content found for this company.</p>

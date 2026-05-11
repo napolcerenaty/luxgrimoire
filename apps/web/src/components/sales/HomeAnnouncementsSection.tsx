@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRef, memo } from 'react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementModal } from '@/components/sales/SaleAnnouncementModal'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
@@ -54,6 +55,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   const imgUrl = raw ? cloudinaryUrl(raw, 'w_320,h_480,c_fill,q_auto,f_auto') : null
 
   const companyName = (sale as any).company?.name ?? null
+  const brandColors: string[] | null = (sale as any).company?.brandColors ?? null
 
   return (
     <div
@@ -74,8 +76,9 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl font-serif text-amber-700/50">{sale.title.charAt(0)}</span>
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(brandColors)} />
+            <span className="relative z-10 text-4xl font-serif text-amber-700/50">{sale.title.charAt(0)}</span>
           </div>
         )}
 

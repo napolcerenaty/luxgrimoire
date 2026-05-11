@@ -4,6 +4,13 @@ import { TypesenseService } from '../typesense/typesense.service'
 
 const LIMIT_PER_GROUP = 6
 
+function formatSearchInterval(n: number): string {
+  if (n === 1) return 'Monthly';
+  if (n === 2) return 'Bimonthly';
+  if (n === 3) return 'Quarterly';
+  return `Every ${n} months`;
+}
+
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name)
@@ -156,7 +163,7 @@ export class SearchService {
         ? this.prisma.subscription.findMany({
             where: { id: { in: subscriptionIds } },
             select: {
-              id: true, slug: true, name: true, coverImage: true, type: true, isDiscontinued: true,
+              id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
               company: { select: { slug: true, name: true, logoUrl: true } },
             },
           })
@@ -188,7 +195,10 @@ export class SearchService {
     return { books, editions: editions.map((e: any) => {
       const { communityImages, ...rest } = e;
       return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
-    }), authors, artists, subscriptions, companies, sales, query: trimmed, filter }
+    }), authors, artists, subscriptions: subscriptions.map((s: any) => {
+      const { intervalMonths, ...rest } = s;
+      return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };
+    }), companies, sales, query: trimmed, filter }
   }
 
   private async postgresSearch(trimmed: string, filter: string) {
@@ -289,7 +299,7 @@ export class SearchService {
         ? this.prisma.subscription.findMany({
             where: { name: { contains: trimmed, mode: 'insensitive' } },
             select: {
-              id: true, slug: true, name: true, coverImage: true, type: true, isDiscontinued: true,
+              id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
               company: { select: { slug: true, name: true, logoUrl: true } },
             },
             take,
@@ -333,6 +343,9 @@ export class SearchService {
     return { books, editions: (editions as any[]).map((e) => {
       const { communityImages, ...rest } = e;
       return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
-    }), authors, artists, subscriptions, companies, sales, query: trimmed, filter }
+    }), authors, artists, subscriptions: (subscriptions as any[]).map((s) => {
+      const { intervalMonths, ...rest } = s;
+      return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };
+    }), companies, sales, query: trimmed, filter }
   }
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
+import { authFetch } from '@/lib/authFetch'
 
 const LBL = 'block text-xs text-stone-400 mb-1'
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-amber-400'
@@ -30,11 +31,94 @@ interface Props {
   onCancel?: () => void
 }
 
+interface AiBookResult {
+  title?: string
+  authors?: { name: string }[]
+  seriesName?: string
+  volumeNumber?: number
+  description?: string
+  genres?: string[]
+}
+
+function GoodreadsParser({ onResult }: { onResult: (patch: Partial<BookFormState>) => void }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleParse() {
+    if (!text.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await authFetch<AiBookResult>('/ai/parse-book', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      })
+      const patch: Partial<BookFormState> = {}
+      if (data.title) patch.title = data.title
+      if (data.description) patch.description = data.description
+      if (data.seriesName) patch.seriesName = data.seriesName
+      if (data.volumeNumber != null) patch.volumeNumber = String(data.volumeNumber)
+      if (Array.isArray(data.genres) && data.genres.length) patch.genres = data.genres.slice(0, 5)
+      if (Array.isArray(data.authors) && data.authors.length) {
+        patch.authors = data.authors.map((a) => ({ name: a.name }))
+      }
+      onResult(patch)
+      setOpen(false)
+      setText('')
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-stone-600 rounded-lg px-3 py-2 text-sm text-stone-400 hover:border-amber-500 hover:text-amber-400 transition-colors">
+        🤖 Parse from Goodreads
+      </button>
+    )
+  }
+
+  return (
+    <div className="border border-stone-700 rounded-xl p-3 flex flex-col gap-2 bg-stone-900/50">
+      <p className="text-xs text-stone-400">Paste text copied from a Goodreads book page:</p>
+      <textarea
+        autoFocus
+        rows={6}
+        className={`${INP} font-mono text-xs`}
+        placeholder={'Deception Duet #2\nDeath Wish\n\nK. Webster\n3.66\n...\n\nGenres\nDark Romance\n...'}
+        value={text}
+        onChange={e => setText(e.target.value)}
+      />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={handleParse} disabled={loading || !text.trim()}
+          className="flex-1 bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-amber-300 disabled:opacity-50 transition-colors">
+          {loading ? 'Parsing…' : 'Fill form'}
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setText(''); setError(null) }}
+          className="px-3 py-1.5 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel }: Props) {
   const [form, setForm] = useState<BookFormState>(initial)
 
+  function applyParserResult(patch: Partial<BookFormState>) {
+    setForm(f => ({ ...f, ...patch }))
+  }
+
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
+      <GoodreadsParser onResult={applyParserResult} />
       <div>
         <label className={LBL}>Title *</label>
         <input required className={INP} value={form.title}

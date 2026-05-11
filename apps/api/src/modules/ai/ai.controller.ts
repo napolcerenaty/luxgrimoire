@@ -18,8 +18,20 @@ class AiParseDto {
 }
 
 class AiParseSaleDto {
+  @IsOptional()
   @IsString()
   @MaxLength(20_000)
+  text?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(2048)
+  url?: string;
+}
+
+class AiParseBookDto {
+  @IsString()
+  @MaxLength(8_000)
   text!: string;
 }
 
@@ -44,6 +56,19 @@ export class AiController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('parse-sale')
   parseSale(@Body() dto: AiParseSaleDto) {
-    return this.aiService.parseSaleAnnouncement(dto.text);
+    if (!dto.text && !dto.url) {
+      throw new BadRequestException('Provide either text or url');
+    }
+    if (dto.url) {
+      return this.aiService.parseSaleAnnouncementFromUrl(dto.url);
+    }
+    return this.aiService.parseSaleAnnouncement(dto.text!);
+  }
+
+  @Roles('ADMIN', 'MODERATOR')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('parse-book')
+  parseBook(@Body() dto: AiParseBookDto) {
+    return this.aiService.parseBookFromText(dto.text);
   }
 }
