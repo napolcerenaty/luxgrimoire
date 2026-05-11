@@ -28,6 +28,7 @@ import {
   UpdatePrepayOptionDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
@@ -163,9 +164,7 @@ export class SubscriptionsService {
   }
 
   async findAll(query: SubscriptionQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false };
     if (query.companyId) where.companyId = query.companyId;
@@ -199,7 +198,7 @@ export class SubscriptionsService {
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
 
-    return { data: mapped, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data: mapped, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {

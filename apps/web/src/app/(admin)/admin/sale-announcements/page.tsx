@@ -23,6 +23,7 @@ import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { Sparkles } from 'lucide-react'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -1308,7 +1309,6 @@ function AnnouncementCard({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function AdminSaleAnnouncementsPage() {
   const queryClient = useQueryClient()
   const createModal = useModalState()
   const [editItem, setEditItem] = useState<ApiSaleAnnouncement | null>(null)
