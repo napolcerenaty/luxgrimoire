@@ -31,7 +31,7 @@ interface Props {
   onCancel?: () => void
 }
 
-interface AiBookResult {
+export interface AiBookResult {
   title?: string
   authors?: { name: string }[]
   seriesName?: string
@@ -40,7 +40,7 @@ interface AiBookResult {
   genres?: string[]
 }
 
-function GoodreadsParser({ onResult }: { onResult: (patch: Partial<BookFormState>) => void }) {
+export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) => void }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,16 +55,7 @@ function GoodreadsParser({ onResult }: { onResult: (patch: Partial<BookFormState
         method: 'POST',
         body: JSON.stringify({ text }),
       })
-      const patch: Partial<BookFormState> = {}
-      if (data.title) patch.title = data.title
-      if (data.description) patch.description = data.description
-      if (data.seriesName) patch.seriesName = data.seriesName
-      if (data.volumeNumber != null) patch.volumeNumber = String(data.volumeNumber)
-      if (Array.isArray(data.genres) && data.genres.length) patch.genres = data.genres.slice(0, 5)
-      if (Array.isArray(data.authors) && data.authors.length) {
-        patch.authors = data.authors.map((a) => ({ name: a.name }))
-      }
-      onResult(patch)
+      onResult(data)
       setOpen(false)
       setText('')
     } catch (e) {
@@ -112,7 +103,14 @@ function GoodreadsParser({ onResult }: { onResult: (patch: Partial<BookFormState
 export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel }: Props) {
   const [form, setForm] = useState<BookFormState>(initial)
 
-  function applyParserResult(patch: Partial<BookFormState>) {
+  function applyParserResult(data: AiBookResult) {
+    const patch: Partial<BookFormState> = {}
+    if (data.title) patch.title = data.title
+    if (data.description) patch.description = data.description
+    if (data.seriesName) patch.seriesName = data.seriesName
+    if (data.volumeNumber != null) patch.volumeNumber = String(data.volumeNumber)
+    if (Array.isArray(data.genres) && data.genres.length) patch.genres = data.genres.slice(0, 5)
+    if (Array.isArray(data.authors) && data.authors.length) patch.authors = data.authors.map(a => ({ name: a.name }))
     setForm(f => ({ ...f, ...patch }))
   }
 

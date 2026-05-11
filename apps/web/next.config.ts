@@ -67,9 +67,7 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(nextConfig, {
   // Only upload source maps when SENTRY_DSN is set (i.e., production)
   silent: !process.env.SENTRY_DSN,
-  disableLogger: true,
   tunnelRoute: '/monitoring',
   sourcemaps: { disable: !process.env.SENTRY_DSN },
-  autoInstrumentServerFunctions: true,
 });
 
