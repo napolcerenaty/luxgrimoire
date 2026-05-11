@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
+import { CURRENCIES } from '@/components/sale/SaleFormFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,6 @@ interface Props {
 
 const OWNERSHIP_STATUSES = ['OWNED', 'PREORDER', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD'] as const
 const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
 const OWNERSHIP_COLORS: Record<string, string> = {
   OWNED: 'badge-owned',

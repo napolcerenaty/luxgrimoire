@@ -75,6 +75,17 @@ FEATURES RULES:
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
+- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions (e.g. "Book size: 5 ⅜" x 8 ¼"", "234 x 153 mm", etc.). Add the full size string as a feature exactly as written, prefixed with "book size:" if a label is present.
+  Example: "Book size: 5 ⅜" x 8 ¼"" → features: ["book size: 5 ⅜\" x 8 ¼\""]
+  Example: "B format paperback" → features: ["B format", "paperback"]
+  Example: "Royal hardcover" → features: ["Royal", "hardcover"]
+- COVER DESCRIPTIONS: Add cover descriptions to features even when no artist is credited. This includes phrases like "Original trade cover (from the publisher)", "exclusive cover featuring a colourway variation of the trade cover", "special edition cover", "variant cover", etc.
+  Example: "Original trade cover (from the publisher)" → features: ["Original trade cover (from the publisher)"]
+  Example: "exclusive cover featuring a colourway variation of the trade cover" → features: ["exclusive cover featuring a colourway variation of the trade cover"]
+- SEMICOLON QUALIFIERS: When a feature line contains a semicolon after the artist attribution parenthetical, the text after the semicolon is an additional qualifier/description that belongs to BOTH the feature and the artist role. Append it (preceded by "; ") to the feature string and to the artist role.
+  Example: "Illustrated endpapers (by @nekokonut22); different front and back" →
+    features: ["Illustrated endpapers; different front and back"]
+    artists: [{ name: "@nekokonut22", role: "Illustrated endpapers; different front and back" }]
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - When a feature includes "of [title/name]" — e.g. "first chapter of A Ballad for the Broken", "preview of Book 2", "excerpt of..." — keep the FULL phrase including "of [title]". Do NOT truncate to just "first chapter" or "preview".
 - IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.
