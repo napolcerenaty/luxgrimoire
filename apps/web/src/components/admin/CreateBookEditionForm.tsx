@@ -323,7 +323,7 @@ export default function CreateBookEditionForm({
       <div>
         <label className={LBL}>Description</label>
         <textarea value={description} onChange={e => setDescription(e.target.value)}
-          rows={3} placeholder="Short synopsis or description…" className={`${INP} resize-none`} />
+          rows={3} placeholder="Short synopsis or description…" className={`${INP} resize-y min-h-[4.5rem]`} />
       </div>
 
       {/* Authors */}

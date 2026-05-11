@@ -125,7 +125,7 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel 
 
       <div>
         <label className={LBL}>Description</label>
-        <textarea rows={3} className={INP} value={form.description}
+        <textarea rows={3} className={`${INP} resize-y min-h-[4.5rem]`} value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
       </div>
 
