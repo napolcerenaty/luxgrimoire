@@ -189,10 +189,18 @@ export default function CreateBookEditionForm({
       for (const auth of authors) {
         let authorId = auth.id
         if (!authorId) {
-          const created = await authFetch<{ id: string }>('/authors', {
-            method: 'POST', body: JSON.stringify({ name: auth.name }),
-          })
-          authorId = created.id
+          const searchRes = await authFetch<{ data: { id: string; name: string }[] }>(
+            `/authors?search=${encodeURIComponent(auth.name.trim())}&pageSize=5`
+          )
+          const match = searchRes.data?.find(a => a.name.toLowerCase() === auth.name.trim().toLowerCase())
+          if (match) {
+            authorId = match.id
+          } else {
+            const created = await authFetch<{ id: string }>('/authors', {
+              method: 'POST', body: JSON.stringify({ name: auth.name }),
+            })
+            authorId = created.id
+          }
         }
         await authFetch(`/books/${book.slug}/authors/${authorId}`, { method: 'POST' })
       }
