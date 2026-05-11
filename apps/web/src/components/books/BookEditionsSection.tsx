@@ -24,6 +24,7 @@ export function BookEditionsSection({ editions }: Props) {
           coverImage={resolveEditionCoverRaw(edition)}
           companyName={edition.bookBoxCompany?.name}
           companySlug={edition.bookBoxCompany?.slug}
+          companyBrandColors={(edition.bookBoxCompany as any)?.brandColors}
           unverified={!edition.verifiedAt}
           generalSaleDate={edition.generalSaleDate}
         />

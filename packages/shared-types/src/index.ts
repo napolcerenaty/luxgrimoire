@@ -103,7 +103,7 @@ export interface ApiBookEdition {
   editionName: string | null;
   bookBoxCompanyCustomName: string | null;
   bookBoxCompanyId?: string | null;
-  bookBoxCompany?: { name: string; slug: string } | null;
+  bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
   artists?: Array<{ artist: ApiArtist; role: string }>;

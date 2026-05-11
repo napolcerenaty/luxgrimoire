@@ -22,7 +22,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
-    bookBoxCompany: { id: string; name: string; slug: string } | null
+    bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
       title: string
@@ -285,7 +285,7 @@ export default function WishlistPage() {
                 href={`/editions/${entry.edition.slug}`}
                 coverImage={resolveEditionCoverRaw(entry.edition)}
                 companyName={entry.edition.bookBoxCompany?.name}
-                seriesName={entry.edition.book.seriesName}
+                companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
                 volumeNumber={entry.edition.book.volumeNumber}
                 title={entry.edition.book.title}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
