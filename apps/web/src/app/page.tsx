@@ -44,6 +44,7 @@ export default async function HomePage() {
         : null,
       author: authors,
       ribbon: e.bookBoxCompanyCustomName ?? e.bookBoxCompany?.name ?? null,
+      brandColors: e.bookBoxCompany?.brandColors ?? null,
     }
   })
 

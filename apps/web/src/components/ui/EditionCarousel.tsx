@@ -4,6 +4,7 @@ import { memo, useRef } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 
 export interface CarouselCard {
   id: string
@@ -14,6 +15,7 @@ export interface CarouselCard {
   author?: string | null
   badge?: string | null
   ribbon?: string | null
+  brandColors?: string[] | null
 }
 
 interface Props {
@@ -50,8 +52,14 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl font-serif text-amber-700/50">{card.title.charAt(0)}</span>
+          <div className="w-full h-full flex items-center justify-center relative">
+            {card.brandColors && (
+              <div
+                className="absolute inset-0 opacity-[0.18]"
+                style={brandGradientStyle(card.brandColors)}
+              />
+            )}
+            <span className="relative text-4xl font-serif text-amber-700/50">{card.title.charAt(0)}</span>
           </div>
         )}
 
