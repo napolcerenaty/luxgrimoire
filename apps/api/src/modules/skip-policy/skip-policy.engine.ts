@@ -160,6 +160,13 @@ export class SkipPolicyEngine {
       throw new NotFoundException(`Month ${month}/${year} not found for this subscription`);
     }
 
+    // If month belongs to a NO_SKIP series, skipping is not allowed at all
+    if (subMonth.series && subMonth.series.skipMode === 'NO_SKIP') {
+      throw new ForbiddenException(
+        `Month ${month}/${year} belongs to series "${subMonth.series.name}" which does not allow skips.`,
+      );
+    }
+
     // If month belongs to a series that requires whole-series skipping, block individual skip
     const seriesBlockModes = ['SERIES_ONLY', 'SERIES_AS_ONE', 'SERIES_AS_MANY'];
     if (subMonth.series && seriesBlockModes.includes(subMonth.series.skipMode)) {
@@ -296,6 +303,9 @@ export class SkipPolicyEngine {
     }
     if (series.months.length === 0) {
       throw new BadRequestException('Series has no months assigned');
+    }
+    if (series.skipMode === 'NO_SKIP') {
+      throw new ForbiddenException(`Series "${series.name}" does not allow skips.`);
     }
 
     const windowKey = this.computeWindowKey(policy, state, entry);

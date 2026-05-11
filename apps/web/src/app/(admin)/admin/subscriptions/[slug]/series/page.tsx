@@ -112,6 +112,7 @@ function SeriesForm({
       <div>
         <label className={LABEL}>Skip Mode</label>
         <select className={INPUT} value={f.skipMode} onChange={e => set('skipMode', e.target.value)}>
+          <option value="NO_SKIP">NO_SKIP — skipping not allowed for this series</option>
           <option value="INDIVIDUAL">INDIVIDUAL — each month skipped separately (1 skip each)</option>
           <option value="SERIES_AS_ONE">SERIES_AS_ONE — skip entire series at once = 1 skip</option>
           <option value="SERIES_AS_MANY">SERIES_AS_MANY — skip entire series at once = 1 skip per volume</option>
@@ -267,6 +268,7 @@ function SeriesCard({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-stone-100 font-semibold">{series.name}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded ${
+              series.skipMode === 'NO_SKIP' ? 'bg-red-500/20 text-red-400' :
               series.skipMode === 'SERIES_AS_ONE' || series.skipMode === 'SERIES_ONLY' ? 'bg-purple-500/20 text-purple-300' :
               series.skipMode === 'SERIES_AS_MANY' ? 'bg-blue-500/20 text-blue-300' :
               'bg-stone-700 text-stone-400'

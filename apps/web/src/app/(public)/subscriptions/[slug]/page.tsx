@@ -302,7 +302,10 @@ function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries }) {
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-800/60 text-amber-300">Upcoming</span>
             )}
             <span className="text-[10px] px-2 py-0.5 rounded-full border border-stone-700 text-stone-400">
-              {series.skipMode === 'SERIES_ONLY' ? 'Skip as series' : 'Individual skips'}
+              {series.skipMode === 'NO_SKIP' ? 'No skips' :
+               series.skipMode === 'SERIES_AS_ONE' || series.skipMode === 'SERIES_ONLY' ? 'Skip as series (1 skip)' :
+               series.skipMode === 'SERIES_AS_MANY' ? 'Skip as series (per volume)' :
+               'Individual skips'}
             </span>
             {!series.canCancelDuring && (
               <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-700/50 text-amber-600/80">no cancel during</span>
