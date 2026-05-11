@@ -289,7 +289,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   })
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl">
       {/* Header row */}
       <div className="flex items-center gap-4 p-4">
         <Cover id={month.coverImage} size={64} />

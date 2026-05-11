@@ -41,6 +41,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: 'Do I have to add every subscription book manually?',
     a: 'No — when you add a subscription to your collection you can use the Backfill feature to automatically import all books from that subscription going as far back as you joined. We know this can mean years of history, so we built it to save you that work. That said, please review the imported data: because we don\'t have access to your original invoices or historical pricing, backfill uses the current subscription price and standard renewal dates. If the amounts or dates don\'t match your actual payments, you can edit them afterwards.',
   },
+  {
+    q: 'How do I change the start date of my subscription?',
     a: 'There is no edit option for the start date once a subscription has been added. To correct it, remove the subscription from your list and add it again with the correct start date.',
   },
   {
