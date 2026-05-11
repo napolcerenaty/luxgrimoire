@@ -31,8 +31,7 @@ export class CollectionService {
                 id: true,
                 slug: true,
                 additionalImages: true,
-                bookBoxCompany: { select: { id: true, name: true, slug: true } },
-                communityImages: {
+                bookBoxCompany: { select: { id: true, name: true, slug: true, brandColors: true } },
                   where: { status: 'APPROVED' },
                   orderBy: { sortOrder: 'asc' },
                   take: 1,

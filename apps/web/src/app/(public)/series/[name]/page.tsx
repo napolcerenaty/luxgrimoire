@@ -18,7 +18,7 @@ interface RawEdition {
   slug: string
   additionalImages: string[]
   communityPhotoCover?: string | null
-  bookBoxCompany: { name: string; slug: string } | null
+  bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null
   verifiedAt: string | null
   generalSaleDate: string | null
 }
@@ -127,6 +127,7 @@ function SeriesBookSection({ book }: { book: RawBook }) {
               coverImage={resolveEditionCoverRaw(edition)}
               companyName={edition.bookBoxCompany?.name}
               companySlug={edition.bookBoxCompany?.slug}
+              companyBrandColors={edition.bookBoxCompany?.brandColors}
               unverified={!edition.verifiedAt}
               generalSaleDate={edition.generalSaleDate}
             />

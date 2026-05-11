@@ -33,7 +33,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
-    bookBoxCompany: { id: string; name: string; slug: string } | null
+    bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
       title: string
@@ -582,6 +582,7 @@ export default function SoldPage() {
                       authors={entry.edition.book.authors}
                       companyName={entry.edition.bookBoxCompany?.name}
                       companySlug={entry.edition.bookBoxCompany?.slug}
+                      companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}
                       footer={

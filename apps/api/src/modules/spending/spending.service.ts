@@ -152,7 +152,7 @@ export class SpendingService {
                   authors: { include: { author: { select: { name: true } } } },
                 },
               },
-              bookBoxCompany: { select: { id: true, name: true, slug: true } },
+              bookBoxCompany: { select: { id: true, name: true, slug: true, brandColors: true } },
             },
           },
         },
@@ -166,7 +166,7 @@ export class SpendingService {
                 include: {
                   edition: {
                     include: {
-                      bookBoxCompany: { select: { id: true, name: true, slug: true } },
+                      bookBoxCompany: { select: { id: true, name: true, slug: true, brandColors: true } },
                     },
                   },
                   subscriptionEntry: {

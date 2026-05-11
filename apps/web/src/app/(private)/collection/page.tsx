@@ -42,7 +42,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
-    bookBoxCompany: { id: string; name: string; slug: string } | null
+    bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
       title: string
@@ -896,6 +896,7 @@ export default function CollectionPage() {
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={resolveEditionCoverRaw(entry.edition)}
                       companyName={entry.edition.bookBoxCompany?.name}
+                      companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}
                       title={entry.edition.book.title}

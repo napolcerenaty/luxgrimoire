@@ -117,8 +117,7 @@ export class EditionsService {
             },
           },
           artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
-          bookBoxCompany: { select: { name: true, slug: true } },
-          collection: { select: { id: true, name: true, slug: true } },
+          bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
           communityImages: {
             where: { status: 'APPROVED' },
             orderBy: { sortOrder: 'asc' },
