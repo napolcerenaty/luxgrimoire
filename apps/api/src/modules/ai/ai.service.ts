@@ -2,6 +2,28 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+export interface AiSaleRegion {
+  name: string;
+  isDefault: boolean;
+  countryCodes?: string;
+  price?: number;
+  currency?: string;
+  saleTimezone?: string;
+  firstAccessDate?: string;
+  earlyAccessDate?: string;
+  generalSaleDate?: string;
+}
+
+export interface AiSaleAnnouncementResult {
+  title?: string;
+  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate';
+  features?: string[];
+  artists?: { name: string; role: string }[];
+  expectedShipping?: string;
+  photoCredit?: string;
+  regions?: AiSaleRegion[];
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -100,6 +122,78 @@ FEATURES RULES:
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
+const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
+Given a sale announcement post (usually from a book subscription box company), extract structured information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "title": "announcement title, e.g. 'All Hail Chaos Exclusive Edition'",
+  "signatureType": "signed | digitally_signed | signed_bookplate | unsigned",
+  "features": ["list of physical features of the edition"],
+  "artists": [{ "name": "@artisthandle", "role": "what they created" }],
+  "expectedShipping": "e.g. November/December 2025",
+  "photoCredit": "photographer handle or name if mentioned",
+  "regions": [
+    {
+      "name": "region name, e.g. UK/INT or US/Canada",
+      "isDefault": true,
+      "countryCodes": "comma-separated ISO country codes, e.g. GB,US,CA",
+      "price": 24.00,
+      "currency": "GBP",
+      "saleTimezone": "BST",
+      "firstAccessDate": "2025-07-15T09:00:00.000Z",
+      "earlyAccessDate": "2025-07-15T13:00:00.000Z",
+      "generalSaleDate": "2025-07-16T09:00:00.000Z"
+    }
+  ]
+}
+
+TITLE RULES:
+- Extract the edition title from the announcement. Usually quoted or explicitly named.
+- Remove generic marketing words like "Exclusive Edition" only if the title would be redundant. Keep "Exclusive Edition" if it's part of the product name.
+- Example: "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition"
+
+SIGNATURE RULES:
+- "signed by the author" or "signed copy" → signatureType: "signed"
+- "digitally signed" → signatureType: "digitally_signed"
+- "signed bookplate" → signatureType: "signed_bookplate"
+- No mention of signing → omit signatureType field (do not set to "unsigned")
+- Do NOT add signer as an artist entry.
+
+FEATURES AND ARTISTS RULES:
+- Same rules as edition features: extract all physical extras (sprayed edges, foil, ribbon, art prints, bookplates, stickers, maps, endpapers, etc.)
+- For artists: look for @mentions with descriptions of what they created. Keep @ prefix. Role = full description of what they created.
+- When a feature is attributed to an artist, BOTH the feature and the artist entry must be created.
+- SEMICOLON QUALIFIERS: text after '; ' following artist attribution belongs to both feature and artist role.
+  Example: "Character artwork on the endpapers by @wendibones with foil by @blanca.design (different front and back)" →
+    features: ["character artwork on the endpapers (different front and back)", "foil on the endpapers (different front and back)"]
+    artists: [@wendibones: "character artwork on the endpapers (different front and back)", @blanca.design: "foil on the endpapers (different front and back)"]
+- Cover descriptions without artists also go to features.
+
+REGION RULES:
+- Look for different price/currency combinations or different regions mentioned (UK/INT, US/Canada, EU, AUS, etc.)
+- The FIRST region/price mentioned = isDefault: true
+- If NO regions are mentioned (single global price/date), do NOT create a regions array
+- Each region should have: name, price, currency, and dates where available
+- For dates: convert all times to UTC using the timezone mentioned (e.g. "10am BST" = BST is UTC+1, so 09:00 UTC)
+  - firstAccessDate = earliest access date (e.g. for previous customers/edition holders)
+  - earlyAccessDate = subscriber early access date
+  - generalSaleDate = public/general sale date
+- If multiple time slots exist for the same region (different customer tiers), use:
+  - firstAccessDate = earliest slot
+  - earlyAccessDate = subscriber slot
+  - generalSaleDate = general public slot
+- Extract timezone from the text (e.g. "BST", "EST", "UTC") and use it in saleTimezone field
+- For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → use common EU country codes, AUS → "AU"
+- For a region labeled "INT" or "International", countryCodes can be omitted
+
+SHIPPING:
+- Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
+- Include year if determinable from context (current year is 2026)
+
+For dates, use ISO 8601 format with time and Z suffix (UTC). If only a date is given without time, use 00:00:00.000Z.
+For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -184,6 +278,33 @@ export class AiService {
 
     try {
       return JSON.parse(content) as AiParseResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  async parseSaleAnnouncement(text: string): Promise<AiSaleAnnouncementResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'user', content: `Extract sale announcement information from this text:\n\n${text}` },
+    ];
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 2000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new BadRequestException('No response from AI model');
+
+    try {
+      return JSON.parse(content) as AiSaleAnnouncementResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
