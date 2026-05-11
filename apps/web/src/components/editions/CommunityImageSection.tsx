@@ -170,36 +170,46 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
             images={images.map((img) => cloudinaryUrl(img.cloudinaryId, 'w_800,h_1200,c_fill,q_auto,f_auto') ?? img.url)}
             alt="Community photo"
           />
-          {/* Per-image attribution */}
-          <div className="space-y-1 mt-1">
-            {images.map((img, i) => (
-              <div key={img.id} className="flex items-center gap-1.5 min-w-0">
+          {/* Deduplicated attribution — shown once below the carousel */}
+          {(() => {
+            const handles = Array.from(
+              new Set(images.map(img => img.instagramHandle).filter(Boolean) as string[])
+            )
+            const hasPending = images.some(img => img.status === 'PENDING')
+            return (
+              <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-500/80 shrink-0">
-                  {img.status === 'PENDING' ? '⏳' : '📷'}
+                  {hasPending ? '⏳' : '📷'}
                 </span>
-                {img.instagramHandle ? (
-                  <a
-                    href={`https://instagram.com/${img.instagramHandle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] text-stone-400 hover:text-amber-400 transition-colors truncate"
-                  >
-                    @{img.instagramHandle}
-                  </a>
+                {handles.length > 0 ? (
+                  <>
+                    <span className="text-[10px] text-stone-500 shrink-0">community photo by</span>
+                    {handles.map((handle, i) => (
+                      <span key={handle} className="flex items-center gap-0.5">
+                        {i > 0 && <span className="text-[10px] text-stone-600">·</span>}
+                        <a
+                          href={`https://instagram.com/${handle}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] text-stone-400 hover:text-amber-400 transition-colors"
+                        >
+                          @{handle}
+                        </a>
+                      </span>
+                    ))}
+                  </>
                 ) : (
-                  <span className="text-[10px] text-stone-500 truncate">
-                    {img.status === 'PENDING' ? 'Awaiting review' : `Photo ${i + 1}`}
-                  </span>
+                  <span className="text-[10px] text-stone-500">community photo</span>
                 )}
-                {user?.username === img.user.username && (
+                {images.some(img => user?.username === img.user.username) && (
                   <span className="text-[10px] text-stone-600 ml-auto shrink-0">
                     manage in{' '}
                     <a href="/profile" className="text-amber-600 hover:text-amber-400 underline underline-offset-2">profile</a>
                   </span>
                 )}
               </div>
-            ))}
-          </div>
+            )
+          })()}
         </div>
       )}
 

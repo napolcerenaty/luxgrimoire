@@ -159,7 +159,7 @@ export class UpdateEditionDto {
 
   @IsOptional()
   @IsString()
-  photoCredit?: string;
+  photoCredit?: string | null;
 }
 
 export class AddArtistDto {

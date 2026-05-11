@@ -410,7 +410,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           bookBoxCompanyId: companyId || undefined,
           collectionId: collectionId || undefined,
           publisher: publisher.trim() || undefined,
-          photoCredit: photoCredit.trim() || undefined,
+          photoCredit: photoCredit.trim() || null,
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
