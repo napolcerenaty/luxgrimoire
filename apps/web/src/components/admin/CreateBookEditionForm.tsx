@@ -9,6 +9,7 @@ import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
+import { GoodreadsParser, type AiBookResult } from './BookForm'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -134,6 +135,22 @@ export default function CreateBookEditionForm({
       })
     }
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
+  }
+
+  // ── Goodreads parser handler ─────────────────────────────────────────────
+  const applyGoodreadsResult = (data: AiBookResult) => {
+    if (data.title) setTitle(data.title)
+    if (data.description) setDescription(data.description)
+    if (data.seriesName) setSeriesName(data.seriesName)
+    if (data.volumeNumber != null) setVolumeNumber(String(data.volumeNumber))
+    if (Array.isArray(data.genres) && data.genres.length) setGenres(data.genres.slice(0, 5))
+    if (Array.isArray(data.authors) && data.authors.length) {
+      setAuthors(prev => {
+        const existing = new Set(prev.map(a => a.name.toLowerCase()))
+        const toAdd = data.authors!.filter(a => !existing.has(a.name.toLowerCase()))
+        return [...prev, ...toAdd.map(a => ({ name: a.name }))]
+      })
+    }
   }
 
   // ── Step 1 submit ────────────────────────────────────────────────────────
@@ -292,6 +309,8 @@ export default function CreateBookEditionForm({
           {bookOnly ? 'Book details' : 'Step 1 / 2 — Book'}
         </span>
       </div>
+
+      <GoodreadsParser onResult={applyGoodreadsResult} />
 
       {/* Title */}
       <div>

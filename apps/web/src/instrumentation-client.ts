@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/nextjs';
+import * as Sentry from '@sentry/nextjs'
 
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
@@ -9,5 +9,5 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
     replaysSessionSampleRate: 0.01,
     integrations: [Sentry.replayIntegration()],
     debug: false,
-  });
+  })
 }
