@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import { BaseNumericPriceCurrencyDto } from '../../common/dto/price.dto';
 
-export class CreateSaleAnnouncementDto {
+export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsString()
   title: string = '';
 
@@ -23,14 +24,6 @@ export class CreateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   saleTimezone?: string;
-
-  @IsOptional()
-  @IsNumber()
-  basePrice?: number;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
 
   @IsOptional()
   @IsString()
@@ -63,7 +56,7 @@ export class CreateSaleAnnouncementDto {
   editionIds?: string[];
 }
 
-export class UpdateSaleAnnouncementDto {
+export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsOptional()
   @IsString()
   title?: string;
@@ -87,14 +80,6 @@ export class UpdateSaleAnnouncementDto {
   @IsOptional()
   @IsString()
   saleTimezone?: string;
-
-  @IsOptional()
-  @IsNumber()
-  basePrice?: number;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
 
   @IsOptional()
   imageUrl?: string | null;

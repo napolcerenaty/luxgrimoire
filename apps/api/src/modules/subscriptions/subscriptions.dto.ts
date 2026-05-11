@@ -12,8 +12,9 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { BaseSubscriptionPriceCurrencyDto } from '../../common/dto/price.dto';
 
-export class CreateSubscriptionDto {
+export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsString()
   companyId!: string;
 
@@ -52,14 +53,6 @@ export class CreateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   isDiscontinued?: boolean;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
-
-  @IsOptional()
-  @IsString()
-  price?: string;
 
   @IsOptional()
   @IsString()
@@ -135,7 +128,7 @@ export class CreateSubscriptionDto {
   renewalMonthOffset?: number;
 }
 
-export class UpdateSubscriptionDto {
+export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -172,14 +165,6 @@ export class UpdateSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   isDiscontinued?: boolean;
-
-  @IsOptional()
-  @IsString()
-  currency?: string;
-
-  @IsOptional()
-  @IsString()
-  price?: string;
 
   @IsOptional()
   @IsString()
@@ -477,7 +462,6 @@ export class SubscriptionQueryDto {
   @IsBoolean()
   includeHidden?: boolean;
 }
-
 export class LinkedFeeTemplateDto {
   @IsString()
   templateId!: string;
