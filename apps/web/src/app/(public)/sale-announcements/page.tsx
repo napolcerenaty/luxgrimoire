@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { Megaphone, Search } from 'lucide-react'
+import { Megaphone, Search, LayoutGrid, List } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -108,8 +108,59 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   )
 }
 
+function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
+  const firstEdition = a.editions?.[0]?.edition
+  const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
+  const thumb = cover ? cloudinaryUrl(cover, 'w_80,h_80,c_fill,q_auto,f_auto') : null
+  const saleDate = formatDate(a.generalSaleDate)
+
+  return (
+    <Link
+      href={`/sale-announcements/${a.id}`}
+      className="group flex items-center gap-4 py-3 hover:bg-stone-900/50 px-2 -mx-2 rounded-lg transition-colors"
+    >
+      {/* Thumbnail */}
+      <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-stone-800 flex items-center justify-center relative">
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt={a.title} className="w-full h-full object-cover" />
+        ) : (
+          <>
+            <div className="absolute inset-0 opacity-20" style={brandGradientStyle(a.company?.brandColors)} />
+            <Megaphone size={18} className="relative z-10 text-amber-700/50" />
+          </>
+        )}
+      </div>
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate leading-tight text-sm">
+          {a.title}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+          {a.company?.name && <span className="text-xs text-amber-600/80">{a.company.name}</span>}
+          {saleDate && <span className="text-xs text-stone-400">🗓 {saleDate}</span>}
+          {a.basePrice != null && a.currency && (
+            <span className="text-xs text-stone-500">from {a.basePrice} {a.currency}</span>
+          )}
+        </div>
+      </div>
+      {/* Badges */}
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        {a.availableForPurchase && (
+          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">Live</span>
+        )}
+        {a.isBundle && (
+          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-800 border border-stone-600 text-amber-400">Bundle</span>
+        )}
+      </div>
+    </Link>
+  )
+}
+
+
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
+  const [view, setView] = useState<'grid' | 'list'>('grid')
   const debouncedSearch = useDebounce(search, 300)
 
   const {
@@ -152,15 +203,33 @@ export default function SaleAnnouncementsPage() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-8">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title, company or book…"
-          className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
-        />
+      {/* Search + view toggle */}
+      <div className="flex gap-3 mb-8">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title, company or book…"
+            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
+          <button
+            onClick={() => setView('grid')}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setView('list')}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            aria-label="List view"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -184,9 +253,15 @@ export default function SaleAnnouncementsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
-          </div>
+          {view === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-stone-800">
+              {announcements.map((a) => <AnnouncementListRow key={a.id} a={a} />)}
+            </div>
+          )}
           {hasNextPage && (
             <div className="text-center mt-10">
               <button
