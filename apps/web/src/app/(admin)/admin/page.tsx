@@ -10,13 +10,10 @@ import dynamic from 'next/dynamic'
 import type { ApiBookEdition, PaginatedResponse, ApiBook, ApiAuthor } from '@luxgrimoire/shared-types'
 import FormModal from '@/components/admin/FormModal'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
-import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
-import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
+import { BookForm, type BookFormState } from '@/components/admin/BookForm'
 
 const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
-const LBL = 'block text-sm text-stone-400 mb-1'
 
 interface RecentEdition extends ApiBookEdition {
   createdAt: string
@@ -62,28 +59,15 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
 }
 
 // ─── EditBookForm ──────────────────────────────────────────────────────────────
-interface BookFormState {
-  title: string; description: string; seriesName: string; volumeNumber: string
-  genres: string[]; authors: PersonEntry[]
-}
-
 type FullBook = Omit<ApiBook, 'authors'> & { authors: { author: { id: string; name: string; slug: string } }[] }
 
 function EditBookForm({ book, onSuccess, onCancel }: { book: FullBook; onSuccess: () => void; onCancel: () => void }) {
   const qc = useQueryClient()
   const normAuthors: PersonEntry[] = book.authors.map(a => ({ id: a.author.id, name: a.author.name }))
-  const [form, setForm] = useState<BookFormState>({
-    title: book.title,
-    description: book.description ?? '',
-    seriesName: book.seriesName ?? '',
-    volumeNumber: book.volumeNumber != null ? String(book.volumeNumber) : '',
-    genres: book.genres ?? [],
-    authors: normAuthors,
-  })
   const originalAuthorIds = new Set(normAuthors.map(a => a.id).filter(Boolean) as string[])
 
   const editMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (form: BookFormState) => {
       await authFetch(`/books/${book.slug}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -111,64 +95,23 @@ function EditBookForm({ book, onSuccess, onCancel }: { book: FullBook; onSuccess
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const initial: BookFormState = {
+    title: book.title,
+    description: book.description ?? '',
+    seriesName: book.seriesName ?? '',
+    volumeNumber: book.volumeNumber != null ? String(book.volumeNumber) : '',
+    genres: book.genres ?? [],
+    authors: normAuthors,
+  }
+
   return (
-    <form onSubmit={e => { e.preventDefault(); editMutation.mutate() }} className="flex flex-col gap-4">
-      <div>
-        <label className={LBL}>Title *</label>
-        <input required className={INP} value={form.title}
-          onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-      </div>
-      <div>
-        <label className={LBL}>Description</label>
-        <textarea rows={3} className={INP} value={form.description}
-          onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-      </div>
-      <div>
-        <label className={LBL}>Authors</label>
-        <PersonPicker endpoint="authors" placeholder="Search or create author…"
-          onAdd={a => {
-            if (!form.authors.find(ex => ex.name.toLowerCase() === a.name.toLowerCase()))
-              setForm(f => ({ ...f, authors: [...f.authors, a] }))
-          }} />
-        {form.authors.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {form.authors.map((a, i) => (
-              <span key={i} className="flex items-center gap-1.5 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
-                {!a.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
-                {a.name}
-                <button type="button" onClick={() => setForm(f => ({ ...f, authors: f.authors.filter((_, j) => j !== i) }))}
-                  className="text-stone-500 hover:text-red-400">×</button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LBL}>Series</label>
-          <SeriesPicker value={form.seriesName} onChange={v => setForm(f => ({ ...f, seriesName: v }))} />
-        </div>
-        <div>
-          <label className={LBL}>Volume</label>
-          <input type="number" className={INP} value={form.volumeNumber} min={0} step={0.5}
-            onChange={e => setForm(f => ({ ...f, volumeNumber: e.target.value }))} />
-        </div>
-      </div>
-      <div>
-        <label className={LBL}>Genres</label>
-        <GenreTagsPicker genres={form.genres} onChange={v => setForm(f => ({ ...f, genres: v }))} />
-      </div>
-      <div className="flex gap-2 pt-1">
-        <button type="submit" disabled={editMutation.isPending}
-          className="flex-1 bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
-          {editMutation.isPending ? 'Saving…' : 'Save Changes'}
-        </button>
-        <button type="button" onClick={onCancel}
-          className="px-4 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm transition-colors">
-          Cancel
-        </button>
-      </div>
-    </form>
+    <BookForm
+      initial={initial}
+      onSubmit={form => editMutation.mutate(form)}
+      submitting={editMutation.isPending}
+      submitLabel="Save Changes"
+      onCancel={onCancel}
+    />
   )
 }
 
