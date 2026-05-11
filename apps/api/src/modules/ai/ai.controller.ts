@@ -29,6 +29,12 @@ class AiParseSaleDto {
   url?: string;
 }
 
+class AiParseBookDto {
+  @IsString()
+  @MaxLength(8_000)
+  text!: string;
+}
+
 @ApiTags('ai')
 @ApiBearerAuth()
 @Controller('ai')
@@ -57,5 +63,12 @@ export class AiController {
       return this.aiService.parseSaleAnnouncementFromUrl(dto.url);
     }
     return this.aiService.parseSaleAnnouncement(dto.text!);
+  }
+
+  @Roles('ADMIN', 'MODERATOR')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('parse-book')
+  parseBook(@Body() dto: AiParseBookDto) {
+    return this.aiService.parseBookFromText(dto.text);
   }
 }

@@ -20,6 +20,15 @@ export interface AiSaleAnnouncementResult {
   regions?: AiSaleRegion[];
 }
 
+export interface AiBookResult {
+  title?: string;
+  authors?: { name: string }[];
+  seriesName?: string;
+  volumeNumber?: number;
+  description?: string;
+  genres?: string[];
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -117,6 +126,26 @@ FEATURES RULES:
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+const GOODREADS_BOOK_PROMPT = `You are a book data extractor. Given text copied from a Goodreads book page, extract structured book information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "title": "book title only, without series or volume info",
+  "authors": [{ "name": "Full Author Name" }],
+  "seriesName": "series name if present, e.g. Deception Duet",
+  "volumeNumber": 2,
+  "description": "full book blurb/synopsis",
+  "genres": ["genre1", "genre2", "genre3"]
+}
+
+RULES:
+- title: only the actual book title. Remove any "Series Name #N" prefix/suffix.
+- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
+- volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
+- description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
+- genres: take at most 5 genres from the Genres section. Omit if not present.
+- authors: list all authors found.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
@@ -373,6 +402,33 @@ export class AiService {
 
     try {
       return JSON.parse(content) as AiSaleAnnouncementResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  async parseBookFromText(text: string): Promise<AiBookResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: GOODREADS_BOOK_PROMPT },
+      { role: 'user', content: `Extract book information from this Goodreads text:\n\n${text.slice(0, 8_000)}` },
+    ];
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 800,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new BadRequestException('No response from AI model');
+
+    try {
+      return JSON.parse(content) as AiBookResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
