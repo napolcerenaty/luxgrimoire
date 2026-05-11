@@ -43,10 +43,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [artists, setArtists] = useState<ArtistEntry[]>(
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
-  // Track original roles so we can detect changes and update via DELETE + re-POST
-  const originalRoles = new Map<string, string>(
-    (edition.artists ?? []).map(a => [a.artist.id, a.role])
-  )
   // Track which existing artists were removed
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
@@ -97,17 +93,33 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
       }
 
-      // 2b. Update role for existing artists whose role changed (DELETE + re-POST)
+      // 2b. Sync role changes for existing artists.
+      // An artist can have MULTIPLE roles — group by artistId and compare full sets.
+      // Backend DELETE removes ALL roles for an artist, so we delete-then-repost ALL current roles when any changed.
+      const originalRolesByArtist = new Map<string, Set<string>>()
+      for (const a of (edition.artists ?? [])) {
+        if (!originalRolesByArtist.has(a.artist.id)) originalRolesByArtist.set(a.artist.id, new Set())
+        originalRolesByArtist.get(a.artist.id)!.add((a.role || 'cover art').toLowerCase())
+      }
+      const currentRolesByArtist = new Map<string, string[]>()
       for (const art of artists) {
-        if (!art.existing || !art.id) continue
-        if (removedArtistIds.has(art.id)) continue
-        const originalRole = originalRoles.get(art.id)
-        if (originalRole !== undefined && originalRole.toLowerCase() !== (art.role || 'cover art').toLowerCase()) {
-          await authFetch(`/editions/${edition.slug}/artists/${art.id}`, { method: 'DELETE' })
-          await authFetch(`/editions/${edition.slug}/artists`, {
-            method: 'POST',
-            body: JSON.stringify({ artistId: art.id, role: art.role || 'cover art' }),
-          })
+        if (!art.existing || !art.id || removedArtistIds.has(art.id)) continue
+        if (!currentRolesByArtist.has(art.id)) currentRolesByArtist.set(art.id, [])
+        currentRolesByArtist.get(art.id)!.push(art.role || 'cover art')
+      }
+      for (const [artistId, currentRoles] of currentRolesByArtist) {
+        const origSet = originalRolesByArtist.get(artistId) ?? new Set()
+        const currSet = new Set(currentRoles.map(r => r.toLowerCase()))
+        const changed = currentRoles.some(r => !origSet.has(r.toLowerCase())) ||
+          [...origSet].some(r => !currSet.has(r))
+        if (changed) {
+          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
+          for (const role of currentRoles) {
+            await authFetch(`/editions/${edition.slug}/artists`, {
+              method: 'POST',
+              body: JSON.stringify({ artistId, role }),
+            })
+          }
         }
       }
 
