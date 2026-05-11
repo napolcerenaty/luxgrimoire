@@ -3,9 +3,10 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useModalState } from '@/hooks/useModalState'
+import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { authFetch } from '@/lib/authFetch'
 import { EditionCard } from '@/components/books/EditionCard'
-import { getSaleGroups, createSaleGroup, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { getSaleGroups, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
 import type { ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -56,7 +57,7 @@ function RecordSaleModal({
   onClose: () => void
   entries: CollectionEntry[]
 }) {
-  const queryClient = useQueryClient()
+  const createSaleMutation = useCreateSaleGroup()
   const [title, setTitle] = useState('')
   const [platform, setPlatform] = useState('')
   const [customPlatform, setCustomPlatform] = useState('')
@@ -92,7 +93,7 @@ function RecordSaleModal({
       : undefined
     setPending(true)
     try {
-      await createSaleGroup({
+      await createSaleMutation.mutateAsync({
         entryIds: selected,
         title: title || undefined,
         platform: plat || undefined,
@@ -103,9 +104,6 @@ function RecordSaleModal({
         priceDistribution: distribution,
         customAmounts: customs,
       })
-      queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
-      queryClient.invalidateQueries({ queryKey: ['collection'] })
-      queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setSuccess(true)
       setTimeout(() => {
         onClose()

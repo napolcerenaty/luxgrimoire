@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, Send } from 'lucide-react'
+import { API_BASE } from '@/lib/authFetch'
 
 export default function ContactPage() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
@@ -13,7 +14,7 @@ export default function ContactPage() {
     setStatus('sending')
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/bug-reports`,
+        `${API_BASE}/bug-reports`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

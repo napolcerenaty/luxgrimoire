@@ -8,6 +8,7 @@ import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
+import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -132,24 +133,7 @@ export default function CreateBookEditionForm({
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
     }
-    // Edition fields
-    if (r.edition?.publisher) setPublisher(r.edition.publisher)
-    if (r.edition?.price != null) setPrice(String(r.edition.price))
-    if (r.edition?.currency) setCurrency(r.edition.currency)
-    if (r.edition?.firstAccessDate) setFirstAccessDate(r.edition.firstAccessDate)
-    if (r.edition?.earlyAccessDate) setEarlyAccessDate(r.edition.earlyAccessDate)
-    if (r.edition?.generalSaleDate) setGeneralSaleDate(r.edition.generalSaleDate)
-    if (r.edition?.features?.length) {
-      setFeatures(prev => Array.from(new Set([...prev, ...r.edition!.features!])))
-    }
-    if (r.edition?.artists?.length) {
-      setArtists(prev => {
-        const normalize = (s: string) => s.toLowerCase().replace(/^@/, '')
-        const existing = new Set(prev.map(a => `${normalize(a.name)}|${a.role.toLowerCase()}`))
-        const toAdd = r.edition!.artists!.filter(a => !existing.has(`${normalize(a.name)}|${a.role.toLowerCase()}`))
-        return [...prev, ...toAdd.map(a => ({ name: a.name, role: a.role }))]
-      })
-    }
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
   }
 
   // ── Step 1 submit ────────────────────────────────────────────────────────

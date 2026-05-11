@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
+import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_PRIMARY = 'px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors'
@@ -61,23 +62,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
-    if (r.edition?.publisher) setPublisher(r.edition.publisher)
-    if (r.edition?.price != null) setPrice(String(r.edition.price))
-    if (r.edition?.currency) setCurrency(r.edition.currency)
-    if (r.edition?.firstAccessDate) setFirstAccessDate(r.edition.firstAccessDate)
-    if (r.edition?.earlyAccessDate) setEarlyAccessDate(r.edition.earlyAccessDate)
-    if (r.edition?.generalSaleDate) setGeneralSaleDate(r.edition.generalSaleDate)
-    if (r.edition?.features?.length) {
-      setFeatures(prev => Array.from(new Set([...prev, ...r.edition!.features!])))
-    }
-    if (r.edition?.artists?.length) {
-      setArtists(prev => {
-        const normalize = (s: string) => s.toLowerCase().replace(/^@/, '')
-        const existing = new Set(prev.map(a => `${normalize(a.name)}|${a.role.toLowerCase()}`))
-        const toAdd = r.edition!.artists!.filter(a => !existing.has(`${normalize(a.name)}|${a.role.toLowerCase()}`))
-        return [...prev, ...toAdd.map(a => ({ name: a.name, role: a.role }))]
-      })
-    }
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
   }
 
   const handleSubmit = async () => {

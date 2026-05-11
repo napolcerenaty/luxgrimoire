@@ -58,11 +58,6 @@ export class SubscriptionsService {
     private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
-  private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
-    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
-    if (!valid.length) return;
-    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
-  }
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -316,10 +311,10 @@ export class SubscriptionsService {
 
     // Delete old images from Cloudinary if replaced or cleared
     if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
-      await this.deleteCloudinaryImages([existing.coverImage]);
+      await this.uploadService.deleteImages([existing.coverImage]);
     }
     if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
-      await this.deleteCloudinaryImages([existing.logoUrl]);
+      await this.uploadService.deleteImages([existing.logoUrl]);
     }
 
     // Replace combo components if provided
@@ -339,7 +334,7 @@ export class SubscriptionsService {
 
   async delete(slug: string) {
     const sub = await this.findBySlug(slug);
-    await this.deleteCloudinaryImages([sub.coverImage, sub.logoUrl]);
+    await this.uploadService.deleteImages([sub.coverImage, sub.logoUrl]);
     await this.typesense.deleteDocument('subscriptions', sub.id);
     return this.prisma.subscription.delete({ where: { slug } });
   }

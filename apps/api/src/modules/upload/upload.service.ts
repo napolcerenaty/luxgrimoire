@@ -95,4 +95,10 @@ export class UploadService {
   async deleteImage(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(normalizePublicId(publicId));
   }
+
+  async deleteImages(ids: (string | null | undefined)[]): Promise<void> {
+    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
+    if (!valid.length) return;
+    await Promise.allSettled(valid.map((id) => this.deleteImage(id)));
+  }
 }

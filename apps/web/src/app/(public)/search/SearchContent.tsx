@@ -7,9 +7,8 @@ import Image from 'next/image'
 import { Search, Loader2, Megaphone } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
+import { API_BASE } from '@/lib/authFetch'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies' | 'sales'
 
@@ -46,7 +45,7 @@ export function SearchContent() {
       if (!searchQuery.trim() || searchQuery.trim().length < 2) { setResults(null); setLoading(false); return }
       setLoading(true)
       try {
-        const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}&filter=${tab}`)
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(searchQuery)}&filter=${tab}`)
         if (res.ok) setResults(await res.json())
       } catch { /* ignore */ }
       finally { setLoading(false) }

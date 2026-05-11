@@ -6,7 +6,8 @@ import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
-import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
+import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
@@ -127,6 +128,7 @@ function AddSaleForm({
   saleCustomAmounts, setSaleCustomAmounts,
   saleBookSearch, setSaleBookSearch,
 }: AddSaleFormProps) {
+  const createSaleMutation = useCreateSaleGroup()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -173,7 +175,7 @@ function AddSaleForm({
 
     setPending(true)
     try {
-      await createSaleGroup({
+      await createSaleMutation.mutateAsync({
         entryIds: saleSelectedEntries,
         title: saleTitle || undefined,
         platform: platform || undefined,
