@@ -563,7 +563,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
-    photoCredit: f.photoCredit || undefined,
+    photoCredit: f.photoCredit,
     sourceUrl: f.sourceUrl || undefined,
     editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
@@ -840,7 +840,7 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
 
 function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): RegionFormData {
   let codes: string[] = []
-  try { codes = JSON.parse(r.countryCodes) } catch {}
+  try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
   const tz = r.saleTimezone ?? 'UTC'
   return {
     id: r.id,
@@ -989,7 +989,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         <div className="px-4 pb-4 space-y-3">
           {regions.map(r => {
             let codes: string[] = []
-            try { codes = JSON.parse(r.countryCodes) } catch {}
+            try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
             const isEditing = editingRegion?.id === r.id
 
             if (isEditing) {
@@ -1146,6 +1146,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   </button>
                 </div>
                 <div className="flex flex-col gap-1.5 pl-1">
+                  <p className="text-xs text-stone-500 mb-1">Select all that apply. Enter a price only if this variant differs from the main price.</p>
                   {SIGNATURE_TYPES.map(sig => {
                     const checked = activeVariants.has(sig.value)
                     const variant = (e.variants ?? []).find(v => v.signatureType === sig.value)
