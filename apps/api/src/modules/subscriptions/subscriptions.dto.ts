@@ -130,7 +130,7 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   renewalMonthOffset?: number;
 }
 
-export class UpdateSubscriptionDtoextends BaseSubscriptionPriceCurrencyDto {
+export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsString()
   name?: string;

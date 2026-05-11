@@ -167,7 +167,7 @@ export class SubscriptionsService {
         company: true,
         skipPolicy: true,
         prepayOptions: { orderBy: { months: 'asc' } },
-        parentSubscription: { select: { slug: true, name: true } },
+        parent: { select: { slug: true, name: true } },
         comboComponents: {
           include: {
             component: {
