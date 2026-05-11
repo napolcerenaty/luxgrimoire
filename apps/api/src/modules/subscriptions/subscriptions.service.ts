@@ -1316,29 +1316,15 @@ export class SubscriptionsService {
 
     for (const mb of monthBooks) {
       try {
-        const existingSub = await this.prisma.userBookEntry.findFirst({
-          where: { userId, editionId: mb.editionId!, subscriptionEntryId: entryId },
-          select: { id: true },
+        await this.upsertSubscriptionBookEntry({
+          userId,
+          bookId: mb.bookId!,
+          editionId: mb.editionId!,
+          subscriptionEntryId: entryId,
+          purchaseGroupId: group.id,
+          signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
+          changedAt: startDateObj,
         });
-        existingSub
-          ? await this.prisma.userBookEntry.update({
-              where: { id: existingSub.id },
-              data: { purchaseGroupId: group.id },
-            })
-          : await this.prisma.userBookEntry.create({
-              data: {
-                userId,
-                bookId: mb.bookId!,
-                editionId: mb.editionId!,
-                ownershipStatus: 'PREORDER',
-                readingStatus: 'UNREAD',
-                subscriptionEntryId: entryId,
-                purchaseGroupId: group.id,
-                signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
-              },
-            }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: startDateObj } }).catch(() => {}),
-            );
       } catch {
         // skip if already exists
       }
@@ -1367,6 +1353,48 @@ export class SubscriptionsService {
         skipDuplicates: true,
       });
     }
+  }
+
+  /**
+   * Upsert a subscription book entry: if the entry already exists link it to the purchase group,
+   * otherwise create it (PREORDER) and record ownership history with the correct date.
+   */
+  private async upsertSubscriptionBookEntry(opts: {
+    userId: string;
+    bookId: string;
+    editionId: string;
+    subscriptionEntryId: string;
+    purchaseGroupId: string;
+    signatureType: $Enums.SignatureType | null;
+    changedAt: Date;
+  }): Promise<void> {
+    const existing = await this.prisma.userBookEntry.findFirst({
+      where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.userBookEntry.update({
+        where: { id: existing.id },
+        data: { purchaseGroupId: opts.purchaseGroupId },
+      });
+      return;
+    }
+    await this.prisma.userBookEntry.create({
+      data: {
+        userId: opts.userId,
+        bookId: opts.bookId,
+        editionId: opts.editionId,
+        ownershipStatus: 'PREORDER',
+        readingStatus: 'UNREAD',
+        subscriptionEntryId: opts.subscriptionEntryId,
+        purchaseGroupId: opts.purchaseGroupId,
+        signatureType: opts.signatureType,
+      },
+    }).then(created =>
+      this.prisma.ownershipStatusHistory.create({
+        data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: opts.changedAt },
+      }).catch(() => {}),
+    );
   }
 
   async backfillSubscription(userId: string, slug: string, dto: BackfillSubscriptionDto) {
@@ -1475,31 +1503,15 @@ export class SubscriptionsService {
 
         for (const mb of monthBooks) {
           try {
-            const existingSubEntry = await this.prisma.userBookEntry.findFirst({
-              where: { userId, editionId: mb.editionId, subscriptionEntryId: entry.id },
-              select: { id: true },
+            await this.upsertSubscriptionBookEntry({
+              userId,
+              bookId: mb.bookId,
+              editionId: mb.editionId,
+              subscriptionEntryId: entry.id,
+              purchaseGroupId: group.id,
+              signatureType: mb.signatureType,
+              changedAt: renewalDate,
             });
-            if (existingSubEntry) {
-              await this.prisma.userBookEntry.update({
-                where: { id: existingSubEntry.id },
-                data: { purchaseGroupId: group.id },
-              });
-            } else {
-              await this.prisma.userBookEntry.create({
-                data: {
-                  userId,
-                  bookId: mb.bookId,
-                  editionId: mb.editionId,
-                  ownershipStatus: 'PREORDER',
-                  readingStatus: 'UNREAD',
-                  subscriptionEntryId: entry.id,
-                  purchaseGroupId: group.id,
-                  signatureType: mb.signatureType,
-                },
-              }).then(created =>
-                this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
-              );
-            }
             booksAdded++;
           } catch {
             // skip duplicates silently
@@ -1685,31 +1697,15 @@ export class SubscriptionsService {
         }
 
         try {
-          const existingSubEntry = await this.prisma.userBookEntry.findFirst({
-            where: { userId, editionId: mb.editionId!, subscriptionEntryId: entry.id },
-            select: { id: true },
+          await this.upsertSubscriptionBookEntry({
+            userId,
+            bookId: mb.bookId!,
+            editionId: mb.editionId!,
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: group.id,
+            signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
+            changedAt: renewalDate,
           });
-          if (existingSubEntry) {
-            await this.prisma.userBookEntry.update({
-              where: { id: existingSubEntry.id },
-              data: { purchaseGroupId: group.id },
-            });
-          } else {
-            await this.prisma.userBookEntry.create({
-              data: {
-                userId,
-                bookId: mb.bookId!,
-                editionId: mb.editionId!,
-                ownershipStatus: 'PREORDER',
-                readingStatus: 'UNREAD',
-                subscriptionEntryId: entry.id,
-                purchaseGroupId: group.id,
-                signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
-              },
-            }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
-            );
-          }
           booksAdded++;
         } catch {
           // skip duplicates silently
