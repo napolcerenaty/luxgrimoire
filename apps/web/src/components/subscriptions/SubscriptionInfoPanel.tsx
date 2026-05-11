@@ -498,7 +498,7 @@ export default function SubscriptionInfoPanel({
           {myEntry.cancellationReason && (
             <p className="text-xs text-stone-500">Reason: {myEntry.cancellationReason}</p>
           )}
-          <p className="text-xs text-stone-600 mt-1">You can re-subscribe by clicking the button below.</p>
+          <p className="text-xs text-stone-600 mt-1">Możesz dodać tę subskrypcję do swojej listy ponownie, klikając przycisk poniżej.</p>
           <button
             type="button"
             onClick={() => setShowRemoveModal(true)}
