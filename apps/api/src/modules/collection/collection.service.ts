@@ -352,6 +352,34 @@ export class CollectionService {
         this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
       }
     }
+    // Sync sale crowd stats when sale info is updated
+    const editionId = existing.editionId;
+    if (editionId && (dto.salePrice !== undefined || dto.saleCurrency !== undefined || dto.saleDate !== undefined)) {
+      const oldPrice = existing.salePrice !== null ? Number(existing.salePrice) : null;
+      const oldCurrency = existing.saleCurrency as string | null;
+      const oldDate = existing.saleDate as Date | null;
+
+      const newPrice = dto.salePrice !== undefined ? (dto.salePrice ? Number(dto.salePrice) : null) : oldPrice;
+      const newCurrency = (dto.saleCurrency !== undefined ? dto.saleCurrency : oldCurrency) ?? 'EUR';
+      const newDate = (dto.saleDate !== undefined ? (dto.saleDate ? new Date(dto.saleDate) : null) : oldDate) ?? new Date();
+
+      const hadOldStat = oldPrice !== null && oldCurrency !== null && oldDate !== null;
+      const hasNewStat = newPrice !== null;
+
+      if (hadOldStat) {
+        this.crowdStatsService.deleteSaleStat(editionId, oldPrice!, oldCurrency!, oldDate!)
+          .then(() => hasNewStat
+            ? this.crowdStatsService.createSaleStat(editionId, newPrice!, newCurrency, newDate)
+            : Promise.resolve()
+          )
+          .then(() => this.crowdStatsService.refreshEditionSaleStats(editionId))
+          .catch(() => {});
+      } else if (hasNewStat) {
+        this.crowdStatsService.createSaleStat(editionId, newPrice!, newCurrency, newDate)
+          .then(() => this.crowdStatsService.refreshEditionSaleStats(editionId))
+          .catch(() => {});
+      }
+    }
     return updated;
   }
 
