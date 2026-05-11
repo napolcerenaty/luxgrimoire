@@ -1705,7 +1705,7 @@ export class SubscriptionsService {
                 signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
               },
             }).then(created =>
-              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: purchasedAtDate } }).catch(() => {}),
+              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: renewalDate } }).catch(() => {}),
             );
           }
           booksAdded++;
