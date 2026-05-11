@@ -258,14 +258,14 @@ describe('SalesService', () => {
       (prisma.userSaleGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'sg-new' });
       (prisma.userSaleEntry.create as jest.Mock).mockResolvedValue({});
       (prisma.userBookEntry.update as jest.Mock).mockResolvedValue({});
-      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValue({});
+      (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 2 });
       (prisma.userSaleGroup.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'sg-new', entries: [] });
 
       await service.createSaleGroup('user-1', baseDto);
 
-      expect(prisma.ownershipStatusHistory.create).toHaveBeenCalledTimes(2);
-      expect(prisma.ownershipStatusHistory.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { userBookEntryId: 'ube-1', status: 'SOLD' } }),
+      expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledTimes(2);
+      expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.arrayContaining([expect.objectContaining({ userBookEntryId: 'ube-1', status: 'SOLD' })]) }),
       );
     });
   });
