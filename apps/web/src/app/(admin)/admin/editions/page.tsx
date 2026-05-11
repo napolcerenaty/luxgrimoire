@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import dynamic from 'next/dynamic'
@@ -17,13 +18,6 @@ const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEdi
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
-
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-function cloudThumb(id: string | null | undefined) {
-  if (!id) return null
-  if (id.startsWith('http')) return id
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/w_64,h_80,c_fill,q_auto,f_auto/${id}`
-}
 
 interface BookSearchResult {
   id: string
@@ -86,8 +80,8 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
               <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
                 className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stone-800 hover:bg-stone-700 transition-colors"
               >
-                {cloudThumb(book.coverImage)
-                  ? <img src={cloudThumb(book.coverImage)!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
+                {cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')
+                  ? <img src={cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
                   : <div className="w-8 h-10 bg-stone-700 rounded shrink-0" />
                 }
                 <div>
