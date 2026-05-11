@@ -1336,7 +1336,9 @@ export class SubscriptionsService {
                 purchaseGroupId: group.id,
                 signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
               },
-            });
+            }).then(created =>
+              this.prisma.ownershipStatusHistory.create({ data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: startDateObj } }).catch(() => {}),
+            );
       } catch {
         // skip if already exists
       }
