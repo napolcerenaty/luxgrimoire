@@ -177,7 +177,7 @@ export function SearchContent() {
               {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Editions</h2>}
               <div className="space-y-2">
                 {results.editions!.map((ed) => {
-                  const cover = cloudinaryUrl(ed.additionalImages?.[0] ?? null, 'w_60,c_fill,q_auto,f_auto')
+                  const cover = cloudinaryUrl(ed.additionalImages?.[0] ?? null, 'w_60,c_fill,q_auto,f_auto') ?? ed.communityPhotoCover ?? null
                   const isUpcoming = ed.generalSaleDate && new Date(ed.generalSaleDate) > new Date()
                   return (
                     <Link key={ed.id} href={`/editions/${ed.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
