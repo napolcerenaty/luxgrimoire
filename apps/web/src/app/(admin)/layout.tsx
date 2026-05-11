@@ -71,13 +71,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/editions', label: 'Editions', icon: Layers },
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
-    ],
-  },
-  {
-    heading: 'Sales & Marketing',
-    items: [
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
-      { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
     ],
   },
   {
@@ -85,6 +79,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/community-images', label: 'Community Images', icon: Image },
       { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
+      { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
     ],
   },
 ]
