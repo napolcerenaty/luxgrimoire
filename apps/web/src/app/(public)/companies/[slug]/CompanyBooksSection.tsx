@@ -14,6 +14,7 @@ export interface EditionGroup {
 
 interface Props {
   groups: EditionGroup[]
+  brandColors?: string[] | null
 }
 
 const PAGE_SIZE = 20
@@ -27,7 +28,7 @@ function SearchIcon() {
   )
 }
 
-export function CompanyBooksSection({ groups }: Props) {
+export function CompanyBooksSection({ groups, brandColors }: Props) {
   const [activeTab, setActiveTab] = useState(0)
   const [search, setSearch] = useState('')
   const [visible, setVisible] = useState<Record<number, number>>({})
@@ -115,6 +116,7 @@ export function CompanyBooksSection({ groups }: Props) {
                 seriesName={edition.book.seriesName}
                 volumeNumber={edition.book.volumeNumber}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
+                companyBrandColors={brandColors}
               />
             ))}
           </div>

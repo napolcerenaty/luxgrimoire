@@ -101,7 +101,7 @@ export class AnnouncementsService {
           generalSaleDate: true,
           firstAccessDate: true,
           earlyAccessDate: true,
-          company: { select: { name: true } },
+          company: { select: { name: true, brandColors: true } },
           editions: {
             take: 1,
             orderBy: { sortOrder: 'asc' as const },

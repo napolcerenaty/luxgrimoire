@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { Megaphone, Search } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
@@ -23,7 +24,7 @@ interface ListSaleAnnouncement {
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
-  company: { name: string } | null
+  company: { name: string; brandColors?: string[] } | null
   editions: Array<{ edition: { additionalImages: string[] } | null }>
   regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
 }
@@ -45,7 +46,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
       className="group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
     >
       {/* Image — same 2/3 portrait ratio as EditionCard */}
-      <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden rounded-t-2xl">
+      <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
         {imgUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -54,8 +55,9 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-stone-600">
-            <Megaphone size={32} className="text-amber-700/40" />
+          <div className="relative w-full h-full flex items-center justify-center text-stone-600">
+            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(a.company?.brandColors)} />
+            <Megaphone size={32} className="relative z-10 text-amber-700/40" />
           </div>
         )}
 

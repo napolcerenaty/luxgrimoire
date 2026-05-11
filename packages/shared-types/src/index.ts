@@ -558,6 +558,7 @@ export interface ApiSaleAnnouncement {
   sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
   editions?: Array<{
     id: string;
     edition: (ApiBookEdition & { book: ApiBook }) | null;
