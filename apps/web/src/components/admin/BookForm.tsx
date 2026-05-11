@@ -133,8 +133,10 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel 
         <label className={LBL}>Authors</label>
         <PersonPicker endpoint="authors" placeholder="Search or create author…"
           onAdd={a => {
-            if (!form.authors.find(ex => ex.name.toLowerCase() === a.name.toLowerCase()))
-              setForm(f => ({ ...f, authors: [...f.authors, a] }))
+            setForm(f => {
+              if (f.authors.find(ex => ex.name.toLowerCase() === a.name.toLowerCase())) return f
+              return { ...f, authors: [...f.authors, a] }
+            })
           }} />
         {form.authors.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">

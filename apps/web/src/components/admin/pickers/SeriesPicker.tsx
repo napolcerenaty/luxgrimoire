@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
@@ -11,6 +11,11 @@ export function SeriesPicker({ value, onChange }: { value: string; onChange: (v:
   const [dq, setDq] = useState('')
   const [open, setOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync internal input with value set programmatically (e.g. from AI parser)
+  useEffect(() => {
+    setQ(value)
+  }, [value])
 
   const { data: seriesResults, isFetching } = useQuery({
     queryKey: ['series-search', dq],

@@ -331,8 +331,10 @@ export default function CreateBookEditionForm({
         <label className={LBL}>Author(s)</label>
         <PersonPicker endpoint="authors" placeholder="Search or create author…"
           onAdd={a => {
-            if (!authors.find(ex => ex.name.toLowerCase() === a.name.toLowerCase()))
-              setAuthors(prev => [...prev, a])
+            setAuthors(prev => {
+              if (prev.find(ex => ex.name.toLowerCase() === a.name.toLowerCase())) return prev
+              return [...prev, a]
+            })
           }} />
         {authors.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
