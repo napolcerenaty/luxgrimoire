@@ -1220,7 +1220,7 @@ export default function CollectionPage() {
               ) : (
                 <>
                   <span className="text-xs font-medium text-stone-300 w-28 shrink-0">{item.status}</span>
-                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleString()}</span>
+                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   <button
                     onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,16)) }}
                     className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-stone-300 transition-opacity"
