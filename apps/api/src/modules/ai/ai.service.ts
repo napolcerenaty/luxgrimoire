@@ -16,11 +16,7 @@ export interface AiSaleRegion {
 
 export interface AiSaleAnnouncementResult {
   title?: string;
-  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate';
-  features?: string[];
-  artists?: { name: string; role: string }[];
   expectedShipping?: string;
-  photoCredit?: string;
   regions?: AiSaleRegion[];
 }
 
@@ -128,11 +124,7 @@ Given a sale announcement post (usually from a book subscription box company), e
 Return ONLY valid JSON matching this schema (omit fields you cannot find):
 {
   "title": "announcement title, e.g. 'All Hail Chaos Exclusive Edition'",
-  "signatureType": "signed | digitally_signed | signed_bookplate | unsigned",
-  "features": ["list of physical features of the edition"],
-  "artists": [{ "name": "@artisthandle", "role": "what they created" }],
   "expectedShipping": "e.g. November/December 2025",
-  "photoCredit": "photographer handle or name if mentioned",
   "regions": [
     {
       "name": "region name, e.g. UK/INT or US/Canada",
@@ -150,42 +142,25 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 
 TITLE RULES:
 - Extract the edition title from the announcement. Usually quoted or explicitly named.
-- Remove generic marketing words like "Exclusive Edition" only if the title would be redundant. Keep "Exclusive Edition" if it's part of the product name.
+- Keep "Exclusive Edition" if it's part of the product name.
 - Example: "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition"
-
-SIGNATURE RULES:
-- "signed by the author" or "signed copy" → signatureType: "signed"
-- "digitally signed" → signatureType: "digitally_signed"
-- "signed bookplate" → signatureType: "signed_bookplate"
-- No mention of signing → omit signatureType field (do not set to "unsigned")
-- Do NOT add signer as an artist entry.
-
-FEATURES AND ARTISTS RULES:
-- Same rules as edition features: extract all physical extras (sprayed edges, foil, ribbon, art prints, bookplates, stickers, maps, endpapers, etc.)
-- For artists: look for @mentions with descriptions of what they created. Keep @ prefix. Role = full description of what they created.
-- When a feature is attributed to an artist, BOTH the feature and the artist entry must be created.
-- SEMICOLON QUALIFIERS: text after '; ' following artist attribution belongs to both feature and artist role.
-  Example: "Character artwork on the endpapers by @wendibones with foil by @blanca.design (different front and back)" →
-    features: ["character artwork on the endpapers (different front and back)", "foil on the endpapers (different front and back)"]
-    artists: [@wendibones: "character artwork on the endpapers (different front and back)", @blanca.design: "foil on the endpapers (different front and back)"]
-- Cover descriptions without artists also go to features.
 
 REGION RULES:
 - Look for different price/currency combinations or different regions mentioned (UK/INT, US/Canada, EU, AUS, etc.)
 - The FIRST region/price mentioned = isDefault: true
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
 - Each region should have: name, price, currency, and dates where available
-- For dates: convert all times to UTC using the timezone mentioned (e.g. "10am BST" = BST is UTC+1, so 09:00 UTC)
-  - firstAccessDate = earliest access date (e.g. for previous customers/edition holders)
-  - earlyAccessDate = subscriber early access date
+- For dates: convert all times to UTC using the timezone mentioned
+  - "10am BST" = BST is UTC+1 → 09:00 UTC
+  - "10am ET" = ET/EDT is UTC-4 → 14:00 UTC; EST is UTC-5 → 15:00 UTC
+  - firstAccessDate = earliest access date (e.g. previous customers/edition holders)
+  - earlyAccessDate = subscriber/presale early access date
   - generalSaleDate = public/general sale date
 - If multiple time slots exist for the same region (different customer tiers), use:
-  - firstAccessDate = earliest slot
-  - earlyAccessDate = subscriber slot
-  - generalSaleDate = general public slot
-- Extract timezone from the text (e.g. "BST", "EST", "UTC") and use it in saleTimezone field
-- For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → use common EU country codes, AUS → "AU"
-- For a region labeled "INT" or "International", countryCodes can be omitted
+  - firstAccessDate = earliest slot, earlyAccessDate = subscriber slot, generalSaleDate = general public slot
+- Extract timezone from the text and set saleTimezone (e.g. "BST", "ET", "UTC")
+- For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
+- If only one price/date is given for the entire announcement (no regional split), do NOT create regions array
 
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")

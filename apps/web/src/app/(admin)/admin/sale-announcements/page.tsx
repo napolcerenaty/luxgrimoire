@@ -1325,11 +1325,7 @@ interface AiSaleRegion {
 
 interface AiSaleResult {
   title?: string
-  signatureType?: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
-  features?: string[]
-  artists?: { name: string; role: string }[]
   expectedShipping?: string
-  photoCredit?: string
   regions?: AiSaleRegion[]
 }
 
@@ -1393,40 +1389,6 @@ function AiSaleParseModal({ onApply, onClose }: {
                 <div>
                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Title</p>
                   <p className="text-stone-100 font-medium">{result.title}</p>
-                </div>
-              )}
-              {result.signatureType && (
-                <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Signature type</p>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    {result.signatureType.replace('_', ' ')}
-                  </span>
-                </div>
-              )}
-              {result.features && result.features.length > 0 && (
-                <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Features ({result.features.length})</p>
-                  <ul className="space-y-1">
-                    {result.features.map((f, i) => (
-                      <li key={i} className="text-stone-300 flex items-start gap-2">
-                        <span className="text-amber-500 mt-0.5">•</span>{f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {result.artists && result.artists.length > 0 && (
-                <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Artists ({result.artists.length})</p>
-                  <div className="space-y-1">
-                    {result.artists.map((a, i) => (
-                      <div key={i} className="text-stone-300">
-                        <span className="text-amber-400 font-medium">{a.name}</span>
-                        <span className="text-stone-500"> — </span>
-                        {a.role}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
               {result.expectedShipping && (
@@ -1575,7 +1537,7 @@ export default function AdminSaleAnnouncementsPage() {
       ...EMPTY_FORM,
       title: result.title ?? '',
       expectedShipping: result.expectedShipping ?? '',
-      photoCredit: result.photoCredit ?? '',
+      photoCredit: '',
       saleTimezone: tz,
       firstAccessDate: defaultRegion?.firstAccessDate ? utcIsoToTzLocal(defaultRegion.firstAccessDate, tz) : '',
       earlyAccessDate: defaultRegion?.earlyAccessDate ? utcIsoToTzLocal(defaultRegion.earlyAccessDate, tz) : '',

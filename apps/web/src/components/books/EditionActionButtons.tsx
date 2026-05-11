@@ -9,6 +9,7 @@ import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { createPurchaseGroup } from '@/lib/api'
 import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, Megaphone, Plus, X } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
+import { useModalState } from '@/hooks/useModalState'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
@@ -43,7 +44,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
+  const { isOpen: modalOpen, open: _openModal, close: closeModal } = useModalState()
   const [step, setStep] = useState<'bundle' | 'form'>('form')
   const [addedOnce, setAddedOnce] = useState(false)
   const [selectedBundle, setSelectedBundle] = useState<{ id: string; title: string } | null>(null)
@@ -112,7 +113,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setSourcePlatform('')
     setSelectedBundle(null)
     setStep(bundles.length > 0 ? 'bundle' : 'form')
-    setModalOpen(true)
+    _openModal()
   }
 
   const handleAddAsSet = async (bundle: { id: string; title: string }) => {
@@ -237,7 +238,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
       }
 
       setAddedOnce(true)
-      setModalOpen(false)
+      closeModal()
       window.dispatchEvent(new CustomEvent('collection:updated', { detail: { editionId } }))
     } catch {
       setError('Something went wrong. Please try again.')
@@ -303,13 +304,13 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setModalOpen(false) }}>
+          onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
           <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-semibold text-stone-100">
                 {status === 'wishlist' ? 'Move to Collection' : 'Add to Collection'}
               </h2>
-              <button onClick={() => setModalOpen(false)} className="p-1 text-stone-500 hover:text-stone-200 transition-colors">
+              <button onClick={() => closeModal()} className="p-1 text-stone-500 hover:text-stone-200 transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -474,7 +475,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                 {error && <p className="text-xs text-red-400">{error}</p>}
 
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => setModalOpen(false)}
+                  <button onClick={() => closeModal()}
                     className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors">
                     Cancel
                   </button>
@@ -491,4 +492,4 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
       )}
     </>
   )
-}
+}

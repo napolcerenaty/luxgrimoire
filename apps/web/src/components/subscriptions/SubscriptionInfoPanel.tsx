@@ -10,6 +10,7 @@ import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from
 import JoinSubscriptionModal from './JoinSubscriptionModal'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
+import { useModalState } from '@/hooks/useModalState'
 
 function formatType(type: string): string {
   const map: Record<string, string> = {
@@ -112,10 +113,10 @@ export default function SubscriptionInfoPanel({
   // rates to convert each fee template currency → entryCurrency
   const [feeRates, setFeeRates] = useState<Record<string, number>>({})
   const [seriesList, setSeriesList] = useState<ApiSubscriptionSeries[]>([])
-  const [showJoinModal, setShowJoinModal] = useState(false)
-  const [showEditCosts, setShowEditCosts] = useState(false)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const { isOpen: showJoinModal, open: openJoinModal, close: closeJoinModal } = useModalState()
+  const { isOpen: showEditCosts, open: openEditCosts, close: closeEditCosts } = useModalState()
+  const { isOpen: showCancelModal, open: openCancelModal, close: closeCancelModal } = useModalState()
+  const { isOpen: showRemoveModal, open: openRemoveModal, close: closeRemoveModal } = useModalState()
   const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
 
   const userCurrency = user?.preferredCurrency
@@ -240,7 +241,7 @@ export default function SubscriptionInfoPanel({
             <p className="text-xs text-stone-500 uppercase tracking-wider">Your subscription cost</p>
             <button
               type="button"
-              onClick={() => setShowEditCosts(true)}
+              onClick={() => openEditCosts()}
               className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
             >
               ✏️ Edit costs
@@ -450,14 +451,14 @@ export default function SubscriptionInfoPanel({
           <div className="flex flex-col items-end gap-1">
             <button
               type="button"
-              onClick={() => setShowCancelModal(true)}
+              onClick={() => openCancelModal()}
               className="text-xs text-red-500/70 hover:text-red-400 transition-colors border border-red-900/40 hover:border-red-900/70 rounded-lg px-3 py-1"
             >
               Cancel subscription
             </button>
             <button
               type="button"
-              onClick={() => setShowRemoveModal(true)}
+              onClick={() => openRemoveModal()}
               className="text-xs text-stone-600 hover:text-red-400 transition-colors underline underline-offset-2"
             >
               Remove from my subscriptions
@@ -501,7 +502,7 @@ export default function SubscriptionInfoPanel({
           <p className="text-xs text-stone-600 mt-1">Możesz dodać tę subskrypcję do swojej listy ponownie, klikając przycisk poniżej.</p>
           <button
             type="button"
-            onClick={() => setShowRemoveModal(true)}
+            onClick={() => openRemoveModal()}
             className="text-xs text-stone-500 hover:text-red-400 transition-colors underline underline-offset-2 mt-1"
           >
             Remove from my subscriptions
@@ -528,7 +529,7 @@ export default function SubscriptionInfoPanel({
           {user && !isSubscriber && myEntry !== undefined && (
             <button
               type="button"
-              onClick={() => setShowJoinModal(true)}
+              onClick={() => openJoinModal()}
               className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
             >
               + Add to my subscriptions
@@ -546,10 +547,10 @@ export default function SubscriptionInfoPanel({
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
           prepayOptions={prepayOptions}
           onJoined={() => {
-            setShowJoinModal(false)
+            closeJoinModal()
             refreshEntry()
           }}
-          onClose={() => setShowJoinModal(false)}
+          onClose={() => closeJoinModal()}
         />
       )}
 
@@ -558,16 +559,16 @@ export default function SubscriptionInfoPanel({
           subscriptionSlug={subscriptionSlug}
           entry={myEntry}
           subscriptionCurrency={currency}
-          onSaved={() => { setShowEditCosts(false); refreshEntry() }}
-          onClose={() => setShowEditCosts(false)}
+          onSaved={() => { closeEditCosts(); refreshEntry() }}
+          onClose={() => closeEditCosts()}
         />
       )}
 
       {showCancelModal && (
         <CancelSubscriptionModal
           subscriptionSlug={subscriptionSlug}
-          onCancelled={() => { setShowCancelModal(false); refreshEntry() }}
-          onClose={() => setShowCancelModal(false)}
+          onCancelled={() => { closeCancelModal(); refreshEntry() }}
+          onClose={() => closeCancelModal()}
         />
       )}
 
@@ -575,8 +576,8 @@ export default function SubscriptionInfoPanel({
         <RemoveSubscriptionModal
           subscriptionSlug={subscriptionSlug}
           subscriptionName={name}
-          onRemoved={() => { setShowRemoveModal(false); refreshEntry() }}
-          onClose={() => setShowRemoveModal(false)}
+          onRemoved={() => { closeRemoveModal(); refreshEntry() }}
+          onClose={() => closeRemoveModal()}
         />
       )}
     </div>

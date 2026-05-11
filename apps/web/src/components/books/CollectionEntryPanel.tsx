@@ -8,6 +8,7 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
+import { useModalState } from '@/hooks/useModalState'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -286,14 +287,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
   const [savingTags, setSavingTags] = useState(false)
 
   // History
-  const [showHistory, setShowHistory] = useState(false)
+  const { isOpen: showHistory, toggle: _toggleHistory } = useModalState()
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [historyEditId, setHistoryEditId] = useState<string | null>(null)
   const [historyEditStatus, setHistoryEditStatus] = useState('')
   const [historyEditDate, setHistoryEditDate] = useState('')
   const [historySaving, setHistorySaving] = useState(false)
-  const [historyAddOpen, setHistoryAddOpen] = useState(false)
+  const { isOpen: historyAddOpen, open: openHistoryAdd, close: closeHistoryAdd } = useModalState()
 
   // Reset cached history whenever entry ID changes (e.g. copy switcher)
   // If history panel is open, re-fetch immediately for the new copy
@@ -701,7 +702,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
         setLoadingHistory(false)
       }
     }
-    setShowHistory(prev => !prev)
+    _toggleHistory()
   }
 
   async function refreshHistory() {
@@ -735,7 +736,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
         method: 'POST',
         body: JSON.stringify({ status, changedAt: new Date(changedAt).toISOString() }),
       })
-      setHistoryAddOpen(false)
+      closeHistoryAdd()
       await refreshHistory()
     } finally {
       setHistorySaving(false)
@@ -1546,12 +1547,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
                 {historyAddOpen ? (
                   <AddHistoryEntryForm
                     onSave={addHistoryEntry}
-                    onCancel={() => setHistoryAddOpen(false)}
+                    onCancel={() => closeHistoryAdd()}
                     saving={historySaving}
                   />
                 ) : (
                   <button
-                    onClick={() => setHistoryAddOpen(true)}
+                    onClick={() => openHistoryAdd()}
                     className="flex items-center gap-1 text-xs mt-1 transition-colors"
                     style={{ color: 'var(--text-muted)' }}
                   >
