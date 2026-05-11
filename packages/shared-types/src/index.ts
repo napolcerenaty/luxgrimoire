@@ -225,7 +225,7 @@ export interface ApiSubscription {
   bookishMerch: boolean;
   isCombo: boolean;
   parentSubscriptionId: string | null;
-  type: string | null;
+  intervalMonths: number;
   contentType: string;
   shipsInternationally: boolean;
   renewalDay: number | null;

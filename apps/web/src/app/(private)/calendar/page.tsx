@@ -21,7 +21,7 @@ interface CalEntry {
     name: string
     logoUrl: string | null
     coverImage: string | null
-    type: string
+    intervalMonths: number
     startingMonth: number
     renewalDay: number | null
     company: { name: string; slug: string; brandColors?: string[] | null }
@@ -117,9 +117,9 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   const sub = entry.subscription
   const renewalDay = entry.renewalDay ?? sub.renewalDay
   if (!renewalDay) return null
-  const type = sub.type ?? 'MONTHLY'
-  if (type === 'MONTHLY') return renewalDay
-  const step = type === 'BI_MONTHLY' ? 2 : 3
+  const interval = sub.intervalMonths ?? 1
+  if (interval === 1) return renewalDay
+  const step = interval
   const startMonthIdx = ((sub.startingMonth ?? 1) - 1) % step
   if (((month0 - startMonthIdx) % step + step) % step === 0) return renewalDay
   return null

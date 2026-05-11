@@ -107,18 +107,26 @@ async function main() {
       id: true,
       slug: true,
       name: true,
-      type: true,
+      intervalMonths: true,
       isDiscontinued: true,
       company: { select: { name: true } },
     },
   })
+
+  function formatInterval(n: number): string {
+    if (n === 1) return 'Monthly';
+    if (n === 2) return 'Bimonthly';
+    if (n === 3) return 'Quarterly';
+    return `Every ${n} months`;
+  }
+
   for (const sub of subscriptions) {
     await typesense.upsertDocument('subscriptions', {
       id: sub.id,
       slug: sub.slug,
       name: sub.name,
       companyName: sub.company?.name ?? '',
-      type: sub.type ?? '',
+      type: formatInterval(sub.intervalMonths ?? 1),
       isDiscontinued: sub.isDiscontinued,
     })
   }

@@ -30,12 +30,12 @@ export function renewalMonthFromBoxMonth(year: number, month: number, offset: nu
  */
 export function computePastRenewalDates(
   renewalDay: number,
-  type: string | null,
+  intervalMonths: number,
   startingMonth: number | null,
   startDate: Date,
   skippedMonths: { year: number; month: number }[],
 ): Date[] {
-  const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
+  const interval = intervalMonths;
   const now = new Date();
   const dates: Date[] = [];
 
@@ -73,7 +73,7 @@ export function computePastRenewalDates(
  */
 export function computeNextRenewalDate(
   renewalDay: number,
-  type: string | null,
+  intervalMonths: number,
   startingMonth: number | null,
   userStartDate: string | null,
   skippedMonths: { year: number; month: number }[] = [],
@@ -83,7 +83,7 @@ export function computeNextRenewalDate(
    */
   paidUpFrontDate: Date | null = null,
 ): Date | null {
-  const interval = type === 'QUARTERLY' ? 3 : type === 'BIMONTHLY' ? 2 : 1;
+  const interval = intervalMonths;
   const now = new Date();
   let candYear = now.getFullYear();
   let candMonth = now.getMonth() + 1;
@@ -146,7 +146,7 @@ export async function refreshNextRenewalDate(
         select: {
           id: true,
           renewalDay: true,
-          type: true,
+          intervalMonths: true,
           startingMonth: true,
           paymentOnStartup: true,
           renewalMonthOffset: true,
@@ -207,7 +207,7 @@ export async function refreshNextRenewalDate(
 
   const nextDate = computeNextRenewalDate(
     renewalDay,
-    sub.type ?? null,
+    sub.intervalMonths ?? 1,
     sub.startingMonth ?? null,
     entry.startDate ?? null,
     skippedMonths,
@@ -242,7 +242,7 @@ export async function backfillRenewalHistory(
         include: { month: { select: { year: true, month: true } } },
       },
       subscription: {
-        select: { renewalDay: true, type: true, startingMonth: true, renewalMonthOffset: true },
+        select: { renewalDay: true, intervalMonths: true, startingMonth: true, renewalMonthOffset: true },
       },
     },
   });
@@ -264,7 +264,7 @@ export async function backfillRenewalHistory(
 
   const dates = computePastRenewalDates(
     renewalDay,
-    sub.type ?? null,
+    sub.intervalMonths ?? 1,
     sub.startingMonth ?? null,
     startDate,
     skippedMonths,

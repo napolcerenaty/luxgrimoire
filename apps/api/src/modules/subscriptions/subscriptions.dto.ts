@@ -63,8 +63,11 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   shipsInternationally?: boolean;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  intervalMonths?: number;
 
   @IsOptional()
   @IsString()
@@ -82,7 +85,7 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsString()
   parentSubscriptionId?: string;
 
-  /** If provided, copy all months+books from this subscription slug */
+  /** Copy all months+books from this subscription slug */
   @IsOptional()
   @IsString()
   copyFromSlug?: string;
@@ -175,8 +178,11 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   shipsInternationally?: boolean;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  intervalMonths?: number;
 
   @IsOptional()
   @IsString()
@@ -442,10 +448,6 @@ export class SubscriptionQueryDto {
   @IsOptional()
   @IsString()
   genre?: string;
-
-  @IsOptional()
-  @IsString()
-  type?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')

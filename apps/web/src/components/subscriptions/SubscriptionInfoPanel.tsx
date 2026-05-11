@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -12,22 +12,14 @@ import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
 import { useModalState } from '@/hooks/useModalState'
 
-function formatType(type: string): string {
-  const map: Record<string, string> = {
-    monthly: 'Monthly',
-    quarterly: 'Quarterly',
-    biannual: 'Bi-annual',
-    annual: 'Annual',
-  }
-  return map[type.toLowerCase()] ?? type
-}
+import { formatInterval } from '@/lib/formatInterval'
 
 interface Props {
   subscriptionSlug: string
   name: string
   price: string | null
   currency: string
-  type: string | null
+  intervalMonths: number
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
@@ -99,7 +91,7 @@ export default function SubscriptionInfoPanel({
   name,
   price,
   currency,
-  type,
+  intervalMonths,
   shipsInternationally,
   country,
   renewalDay,
@@ -428,12 +420,10 @@ export default function SubscriptionInfoPanel({
       {/* Metadata row */}
       <div className="flex flex-wrap items-center justify-between gap-y-2 text-sm text-stone-400">
         <div className="flex flex-wrap gap-x-6 gap-y-2">
-          {type && (
-            <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5">
               <span className="text-stone-500">📦</span>
-              <span>{formatType(type)}</span>
+              <span>{formatInterval(intervalMonths)}</span>
             </span>
-          )}
           {country && (
             <span className="flex items-center gap-1.5">
               <span className="text-stone-500">📍</span>

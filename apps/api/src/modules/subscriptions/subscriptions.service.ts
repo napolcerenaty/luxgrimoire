@@ -35,6 +35,13 @@ import { RenewalCronService } from './renewal.cron';
 import { resolveEffectiveBasePrice } from './price-change.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 
+function formatIntervalForTypesense(intervalMonths: number): string {
+  if (intervalMonths === 1) return 'Monthly';
+  if (intervalMonths === 2) return 'Bimonthly';
+  if (intervalMonths === 3) return 'Quarterly';
+  return `Every ${intervalMonths} months`;
+}
+
 export interface CountryFeeHint {
   category: string;
   count: number;
@@ -86,7 +93,8 @@ export class SubscriptionsService {
         price: dto.price,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
-        type: dto.type,
+        type: undefined, // kept in DB for phase-2 migration
+        intervalMonths: dto.intervalMonths ?? 1,
         bookishMerch: dto.bookishMerch ?? false,
         isCombo: dto.isCombo ?? false,
         parentSubscriptionId: dto.parentSubscriptionId,
@@ -170,7 +178,6 @@ export class SubscriptionsService {
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
-    if (query.type) where.type = query.type;
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
@@ -632,7 +639,7 @@ export class SubscriptionsService {
     if (!entry) return null;
 
     const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-    const type = (sub as any).type as string | null;
+    const intervalMonths = (sub as any).intervalMonths as number ?? 1;
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
@@ -669,7 +676,7 @@ export class SubscriptionsService {
     }
 
     const nextRenewalDate = this.computeNextRenewalDate(
-      renewalDay, type, startingMonth, userStartDate, skippedMonths,
+      renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths,
       paidUpFrontDate,
     );
 
@@ -679,13 +686,13 @@ export class SubscriptionsService {
 
   private computeNextRenewalDate(
     renewalDay: number,
-    type: string | null,
+    intervalMonths: number,
     startingMonth: number | null,
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
     paidUpFrontDate: Date | null = null,
   ): Date | null {
-    return computeNextRenewalDate(renewalDay, type, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
+    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {
@@ -731,7 +738,7 @@ export class SubscriptionsService {
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
-            type: true,
+            intervalMonths: true,
             startingMonth: true,
             company: { select: { name: true, slug: true } },
           },
@@ -2106,7 +2113,7 @@ export class SubscriptionsService {
           id: true,
           slug: true,
           name: true,
-          type: true,
+          intervalMonths: true,
           isDiscontinued: true,
           company: { select: { name: true } },
         },
@@ -2117,7 +2124,7 @@ export class SubscriptionsService {
         slug: sub.slug,
         name: sub.name,
         companyName: sub.company?.name ?? '',
-        type: sub.type ?? '',
+        type: formatIntervalForTypesense(sub.intervalMonths ?? 1),
         isDiscontinued: sub.isDiscontinued,
       });
     } catch (err) {
