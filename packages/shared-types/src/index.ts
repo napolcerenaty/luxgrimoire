@@ -348,6 +348,7 @@ export interface ApiSearchEdition {
   id: string;
   slug: string;
   additionalImages: string[];
+  communityPhotoCover: string | null;
   publisher: string | null;
   generalSaleDate: string | null;
   bookBoxCompany: { name: string; slug: string; logoUrl: string | null } | null;

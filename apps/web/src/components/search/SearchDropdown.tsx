@@ -142,6 +142,7 @@ export function SearchDropdown() {
                   label: b.title,
                   sub: b.authors[0]?.author.name,
                   image: null,
+                  noPlaceholder: true,
                   href: `/books/${b.slug}`,
                 }))}
                 onNavigate={navigate}
@@ -154,7 +155,7 @@ export function SearchDropdown() {
                   key: e.id,
                   label: e.book.title,
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
-                  image: cloudinaryUrl(e.additionalImages?.[0]),
+                  image: cloudinaryUrl(e.additionalImages?.[0]) ?? e.communityPhotoCover ?? null,
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}
@@ -251,6 +252,7 @@ interface ResultItem {
   image?: string | null
   badge?: string | null
   href: string
+  noPlaceholder?: boolean
 }
 
 function ResultGroup({
@@ -291,13 +293,15 @@ function ResultGroup({
           onClick={() => onNavigate(item.href)}
           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-800 transition-colors text-left"
         >
-          <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">
-            {item.image ? (
-              <Image src={item.image} alt={item.label} width={32} height={32} className="w-full h-full object-cover" unoptimized />
-            ) : (
-              <span className="text-stone-700"><BookOpen size={12} /></span>
-            )}
-          </div>
+          {(item.image || !item.noPlaceholder) && (
+            <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">
+              {item.image ? (
+                <Image src={item.image} alt={item.label} width={32} height={32} className="w-full h-full object-cover" unoptimized />
+              ) : (
+                <span className="text-stone-700"><BookOpen size={12} /></span>
+              )}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-stone-200 truncate">{highlight(item.label)}</p>
             {item.sub && <p className="text-[10px] text-stone-500 truncate">{item.sub}</p>}
