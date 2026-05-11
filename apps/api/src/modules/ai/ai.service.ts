@@ -132,6 +132,8 @@ FEATURES RULES:
     features: ["naked hardcover (no dust jacket)", "illustrations", "endpapers"]
     artists: [{ name: "@artist", role: "naked hardcover (no dust jacket) with illustrations" }, { name: "@artist2", role: "endpapers" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
+- EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
+- BINDING DETAILS: Physical binding features such as "Smyth sewn binding", "head and tail bands", "rounded and backed", "French links", etc. are physical characteristics and should always be added as features.
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
