@@ -1331,24 +1331,30 @@ interface AiSaleResult {
 
 // ─── AI Sale Parse Modal ──────────────────────────────────────────────────────
 function AiSaleParseModal({ onApply, onClose }: {
-  onApply: (result: AiSaleResult) => void
+  onApply: (result: AiSaleResult, sourceUrl?: string) => void
   onClose: () => void
 }) {
+  const [inputMode, setInputMode] = useState<'text' | 'url'>('text')
   const [text, setText] = useState('')
+  const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AiSaleResult | null>(null)
+  const [parsedUrl, setParsedUrl] = useState<string | undefined>(undefined)
 
   const handleParse = async () => {
-    if (!text.trim()) return
+    const isUrl = inputMode === 'url'
+    if (isUrl ? !url.trim() : !text.trim()) return
     setLoading(true)
     setError(null)
     try {
+      const body = isUrl ? { url: url.trim() } : { text: text.trim() }
       const r = await authFetch<AiSaleResult>('/ai/parse-sale', {
         method: 'POST',
-        body: JSON.stringify({ text: text.trim() }),
+        body: JSON.stringify(body),
       })
       setResult(r)
+      setParsedUrl(isUrl ? url.trim() : undefined)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -1366,17 +1372,43 @@ function AiSaleParseModal({ onApply, onClose }: {
 
         {!result ? (
           <>
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Paste the full announcement text here…"
-              rows={10}
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
-            />
+            {/* Mode toggle */}
+            <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start">
+              <button type="button" onClick={() => setInputMode('text')}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'text' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                Paste text
+              </button>
+              <button type="button" onClick={() => setInputMode('url')}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                Enter URL
+              </button>
+            </div>
+
+            {inputMode === 'text' ? (
+              <textarea
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="Paste the full announcement text here…"
+                rows={10}
+                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
+              />
+            ) : (
+              <div className="space-y-1">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleParse()}
+                  placeholder="https://www.fairyloot.com/blogs/…"
+                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                />
+                <p className="text-xs text-stone-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
+              </div>
+            )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
-              <button type="button" onClick={handleParse} disabled={loading || !text.trim()}
+              <button type="button" onClick={handleParse} disabled={loading || (inputMode === 'text' ? !text.trim() : !url.trim())}
                 className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
                 {loading ? 'Parsing…' : 'Parse with AI'}
               </button>
@@ -1430,7 +1462,7 @@ function AiSaleParseModal({ onApply, onClose }: {
               </button>
               <div className="flex gap-3">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
-                <button type="button" onClick={() => onApply(result)}
+                <button type="button" onClick={() => onApply(result, parsedUrl)}
                   className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 transition-colors">
                   Apply to form
                 </button>
@@ -1529,7 +1561,7 @@ export default function AdminSaleAnnouncementsPage() {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
-  const handleAiApply = (result: AiSaleResult) => {
+  const handleAiApply = (result: AiSaleResult, sourceUrl?: string) => {
     setShowAiModal(false)
     const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
     const tz = defaultRegion?.saleTimezone ?? 'UTC'
@@ -1544,6 +1576,7 @@ export default function AdminSaleAnnouncementsPage() {
       generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
       basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
       currency: defaultRegion?.currency ?? 'USD',
+      sourceUrl: sourceUrl ?? '',
     }
     setCreateInitial(newInitial)
     setCreateFormKey(k => k + 1)

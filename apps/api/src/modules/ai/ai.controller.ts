@@ -18,9 +18,15 @@ class AiParseDto {
 }
 
 class AiParseSaleDto {
+  @IsOptional()
   @IsString()
   @MaxLength(20_000)
-  text!: string;
+  text?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(2048)
+  url?: string;
 }
 
 @ApiTags('ai')
@@ -44,6 +50,12 @@ export class AiController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('parse-sale')
   parseSale(@Body() dto: AiParseSaleDto) {
-    return this.aiService.parseSaleAnnouncement(dto.text);
+    if (!dto.text && !dto.url) {
+      throw new BadRequestException('Provide either text or url');
+    }
+    if (dto.url) {
+      return this.aiService.parseSaleAnnouncementFromUrl(dto.url);
+    }
+    return this.aiService.parseSaleAnnouncement(dto.text!);
   }
 }

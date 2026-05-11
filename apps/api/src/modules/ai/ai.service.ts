@@ -258,6 +258,99 @@ export class AiService {
     }
   }
 
+  private guardSsrf(rawUrl: string): URL {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid URL');
+    }
+    if (url.protocol !== 'https:') {
+      throw new BadRequestException('URL must use https://');
+    }
+    const host = url.hostname.toLowerCase();
+    const blocked =
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+    if (blocked) {
+      throw new BadRequestException('URL points to a disallowed host');
+    }
+    return url;
+  }
+
+  private extractTextFromHtml(html: string): string {
+    // Remove script/style blocks and their content
+    let text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+      .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+      .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+      // Replace block-level tags with newlines
+      .replace(/<\/(p|div|section|article|li|h[1-6]|br|tr|td|th|blockquote)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      // Strip all remaining tags
+      .replace(/<[^>]+>/g, ' ')
+      // Decode common HTML entities
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      // Collapse whitespace
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    // Truncate to 15k chars to stay within token limits
+    if (text.length > 15_000) {
+      text = text.slice(0, 15_000) + '\n[content truncated]';
+    }
+    return text;
+  }
+
+  async parseSaleAnnouncementFromUrl(rawUrl: string): Promise<AiSaleAnnouncementResult> {
+    this.guardSsrf(rawUrl);
+
+    let html: string;
+    try {
+      const response = await fetch(rawUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; LuxGrimoire/1.0; +https://luxgrimoire.com)',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) {
+        throw new BadRequestException(`Failed to fetch URL: HTTP ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('html') && !contentType.includes('text')) {
+        throw new BadRequestException('URL did not return an HTML page');
+      }
+      html = await response.text();
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Could not fetch URL: ${(e as Error).message}`);
+    }
+
+    const text = this.extractTextFromHtml(html);
+    if (!text) {
+      throw new BadRequestException('Could not extract text content from URL');
+    }
+
+    return this.parseSaleAnnouncement(text);
+  }
+
   async parseSaleAnnouncement(text: string): Promise<AiSaleAnnouncementResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
