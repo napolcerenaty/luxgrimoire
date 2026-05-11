@@ -113,6 +113,13 @@ FEATURES RULES:
   Example: "Illustrated endpapers (by @nekokonut22); different front and back" →
     features: ["Illustrated endpapers; different front and back"]
     artists: [{ name: "@nekokonut22", role: "Illustrated endpapers; different front and back" }]
+- MULTI-ARTIST PARENTHETICAL: When a single feature line has a parenthetical that contains multiple "role by @artist" pairs separated by semicolons, split into one artist entry per pair. Each artist's role is: the feature name + " (" + their specific role portion + ")". Also add one feature entry per pair using the same pattern (feature name + " (" + role portion + ")").
+  Example: "Exclusive redesigned covers (art by @penglu_art; design by @chattynora)" →
+    features: ["Exclusive redesigned covers (art)", "Exclusive redesigned covers (design)"]
+    artists: [{ name: "@penglu_art", role: "Exclusive redesigned covers (art)" }, { name: "@chattynora", role: "Exclusive redesigned covers (design)" }]
+  Example: "New chapter headers (illustration by @artist1; lettering by @artist2; colour by @artist3)" →
+    features: ["New chapter headers (illustration)", "New chapter headers (lettering)", "New chapter headers (colour)"]
+    artists: [{ name: "@artist1", role: "New chapter headers (illustration)" }, { name: "@artist2", role: "New chapter headers (lettering)" }, { name: "@artist3", role: "New chapter headers (colour)" }]
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - When a feature includes "of [title/name]" — e.g. "first chapter of A Ballad for the Broken", "preview of Book 2", "excerpt of..." — keep the FULL phrase including "of [title]". Do NOT truncate to just "first chapter" or "preview".
 - IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.

@@ -171,7 +171,7 @@ export class EditionsService {
       where: { slug },
       select: {
         id: true, slug: true,
-        editionName: true, bookBoxCompanyId: true, bookBoxCompanyCustomName: true,
+        editionName: true, bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
         publisher: true, isSpecial: true,
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
