@@ -97,6 +97,9 @@ interface Step1Props {
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
+    alreadyCancelled?: boolean
+    cancellationDate?: string
+    cancellationReason?: string
   }) => void
 }
 
@@ -109,6 +112,11 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
   const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
   const [selectedPrepayOptionId, setSelectedPrepayOptionId] = useState<string | null>(null)
+
+  // Already cancelled fields
+  const [alreadyCancelled, setAlreadyCancelled] = useState(false)
+  const [cancellationDate, setCancellationDate] = useState('')
+  const [cancellationReason, setCancellationReason] = useState('')
 
   function handleSelectPrepay(optionId: string | null) {
     setSelectedPrepayOptionId(optionId)
@@ -180,6 +188,11 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       })),
       ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
       selectedPrepayOptionId,
+      ...(alreadyCancelled && {
+        alreadyCancelled: true,
+        cancellationDate: cancellationDate || undefined,
+        cancellationReason: cancellationReason || undefined,
+      }),
     })
   }
 
@@ -363,6 +376,53 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       <p className="text-xs text-stone-500">
         These values can be updated per-book from your collection view.
       </p>
+
+      {/* Already cancelled */}
+      <div className="border-t border-stone-700/50 pt-4 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={alreadyCancelled}
+            onChange={e => setAlreadyCancelled(e.target.checked)}
+            className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+          />
+          <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
+        </label>
+
+        {alreadyCancelled && (
+          <div className="space-y-3 pl-6">
+            <div>
+              <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+                Cancellation date <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={cancellationDate}
+                max={todayStr}
+                min={firstOrderDate}
+                required
+                onChange={e => setCancellationDate(e.target.value)}
+                className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+                Cancellation reason
+              </label>
+              <input
+                type="text"
+                value={cancellationReason}
+                onChange={e => setCancellationReason(e.target.value)}
+                placeholder="e.g. Too expensive, moved abroad…"
+                className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+              />
+            </div>
+            <p className="text-xs text-stone-500">
+              Backfill will only show months up to the cancellation date. The entry will be saved as cancelled.
+            </p>
+          </div>
+        )}
+      </div>
 
       <button
         type="submit"
@@ -895,6 +955,9 @@ export default function JoinSubscriptionModal({
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
+    alreadyCancelled?: boolean
+    cancellationDate?: string
+    cancellationReason?: string
   }) => {
     setError(null)
     setJoining(true)
@@ -915,6 +978,11 @@ export default function JoinSubscriptionModal({
                 customCurrency: f.customCurrency,
               }))
             : undefined,
+          ...(data.alreadyCancelled && {
+            alreadyCancelled: true,
+            cancellationDate: data.cancellationDate,
+            cancellationReason: data.cancellationReason,
+          }),
         }),
       })
 
