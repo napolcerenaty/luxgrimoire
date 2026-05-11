@@ -36,62 +36,65 @@ function formatDate(iso: string | null) {
 function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const firstEdition = a.editions?.[0]?.edition
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
-  const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+  const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_600,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
 
   return (
-    <div
-      className="flex flex-col rounded-xl border border-stone-700 overflow-hidden transition-all hover:border-amber-600/40"
-      style={{ background: 'var(--bg-raised)' }}
+    <Link
+      href={`/sale-announcements/${a.id}`}
+      className="group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
     >
-      <Link href={`/sale-announcements/${a.id}`} className="group block">
-        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--bg-surface)' }}>
-          {imgUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imgUrl}
-              alt={a.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Megaphone size={32} className="text-amber-700/40" />
-            </div>
-          )}
-          {/* Company ribbon */}
-          {a.company?.name && (
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-stone-950/85 to-transparent px-3 pt-6 pb-2 pointer-events-none">
-              <p className="text-[11px] font-serif text-stone-300 truncate">{a.company.name}</p>
-            </div>
-          )}
-          {a.isBundle && (
-            <span className="absolute top-2 left-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-900/80 border border-stone-600 text-amber-400">
-              Bundle
-            </span>
-          )}
-          {a.availableForPurchase && (
-            <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">
-              Live
-            </span>
-          )}
-        </div>
+      {/* Image — same 2/3 portrait ratio as EditionCard */}
+      <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden rounded-t-2xl">
+        {imgUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imgUrl}
+            alt={a.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-stone-600">
+            <Megaphone size={32} className="text-amber-700/40" />
+          </div>
+        )}
 
-        <div className="px-4 py-3 flex flex-col gap-1">
-          <p className="text-sm font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+        {/* Company ribbon */}
+        {a.company?.name && (
+          <div className="absolute bottom-0 left-0 right-0 bg-stone-950/80 backdrop-blur-sm px-3 py-1.5 pointer-events-none">
+            <p className="text-[11px] font-medium text-amber-300 truncate">{a.company.name}</p>
+          </div>
+        )}
+
+        {a.isBundle && (
+          <span className="absolute top-2 left-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-950/80 border border-stone-600 text-amber-400">
+            Bundle
+          </span>
+        )}
+        {a.availableForPurchase && (
+          <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">
+            Live
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="p-3 flex flex-col flex-1">
+        <div className="flex-1 flex flex-col gap-1">
+          <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
             {a.title}
           </p>
-          {saleDate && <p className="text-xs text-amber-500 font-sans">🗓 {saleDate}</p>}
+          {saleDate && <p className="text-xs text-amber-500">🗓 {saleDate}</p>}
           {a.basePrice != null && a.currency && (
             <p className="text-xs text-stone-400">from {a.basePrice} {a.currency}</p>
           )}
         </div>
-      </Link>
-
-      <div className="px-4 pb-4 mt-auto">
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <SaleInterestButton sale={a as any} />
+        <div className="mt-2">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <SaleInterestButton sale={a as any} />
+        </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
@@ -151,9 +154,9 @@ export default function SaleAnnouncementsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-stone-800 bg-stone-900 animate-pulse" style={{ aspectRatio: '3/4' }} />
+            <div key={i} className="rounded-2xl border border-stone-800 bg-stone-900 animate-pulse aspect-[2/3]" />
           ))}
         </div>
       ) : isEmpty ? (
@@ -171,7 +174,7 @@ export default function SaleAnnouncementsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
           </div>
           {hasNextPage && (
