@@ -949,7 +949,8 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Currency</label>
-            <input className={INP} list="sale-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
+            <input className={INP} list="region-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
+            <datalist id="region-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
           </div>
         </div>
         <div className="flex gap-2">
