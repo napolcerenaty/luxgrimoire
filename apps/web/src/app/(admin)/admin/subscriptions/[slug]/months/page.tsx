@@ -1308,7 +1308,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1394,6 +1394,17 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
       </div>
 
       <div className="space-y-4">
+        {subscription?.parentSubscriptionId && (
+          <div className="bg-amber-900/20 border border-amber-700/40 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <span className="text-amber-400 text-sm">
+              This is a variant subscription. Months are managed on the parent subscription.
+            </span>
+            <Link href={`/admin/subscriptions/${subscription.parentSubscription?.slug}/months`} className="text-amber-400 underline text-sm ml-2">
+              Go to parent months →
+            </Link>
+          </div>
+        )}
+
         {/* Top action row — only buttons, no expanding content */}
         <div className="flex items-center gap-3 flex-wrap">
           <button

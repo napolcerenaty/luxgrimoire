@@ -38,7 +38,6 @@ interface SubFormData {
   startingMonth: string
   isCombo: boolean
   parentSubscriptionId: string
-  copyFromSlug: string
   componentIds: string[]
   isDiscontinued: boolean
   isHidden: boolean
@@ -75,7 +74,6 @@ const EMPTY_FORM: SubFormData = {
   startingMonth: '',
   isCombo: false,
   parentSubscriptionId: '',
-  copyFromSlug: '',
   componentIds: [],
   isDiscontinued: false,
   isHidden: false,
@@ -113,7 +111,6 @@ function subToForm(sub: ApiSubscription): SubFormData {
     startingMonth: sub.startingMonth != null ? String(sub.startingMonth) : '',
     isCombo: sub.isCombo ?? false,
     parentSubscriptionId: sub.parentSubscriptionId ?? '',
-    copyFromSlug: '',
     componentIds: (sub as any).componentIds ?? [],
     isDiscontinued: sub.isDiscontinued,
     isHidden: sub.isHidden ?? false,
@@ -159,7 +156,6 @@ function formToCreatePayload(form: SubFormData) {
     startingMonth: form.startingMonth ? parseInt(form.startingMonth, 10) : undefined,
     isCombo: form.isCombo,
     parentSubscriptionId: form.parentSubscriptionId || undefined,
-    copyFromSlug: form.copyFromSlug || undefined,
     componentIds: form.componentIds.length > 0 ? form.componentIds : undefined,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
@@ -434,15 +430,6 @@ function SubscriptionForm({
             {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId) : allSubscriptions)
               .map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
           </select>
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>Copy months from</label>
-          <select className={SELECT_CLASS} value={form.copyFromSlug} onChange={setStr('copyFromSlug')}>
-            <option value="">— None —</option>
-            {(form.companyId ? allSubscriptions.filter((s) => s.companyId === form.companyId) : allSubscriptions)
-              .map((s) => <option key={s.id} value={s.slug}>{s.name} ({s.slug})</option>)}
-          </select>
-          <p className="text-xs text-stone-500 mt-1">Copies all months and books from the selected subscription</p>
         </div>
       </div>
 

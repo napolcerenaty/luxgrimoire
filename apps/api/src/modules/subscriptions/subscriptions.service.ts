@@ -107,11 +107,6 @@ export class SubscriptionsService {
       },
     });
 
-    // Copy months+books from source subscription
-    if (dto.copyFromSlug) {
-      await this.copyMonthsFrom(subscription.id, dto.copyFromSlug);
-    }
-
     // Set combo components
     if (dto.componentIds?.length) {
       await this.prisma.subscriptionComboComponent.createMany({
@@ -122,52 +117,6 @@ export class SubscriptionsService {
 
     await this.indexSubscription(subscription.id);
     return subscription;
-  }
-
-  private async copyMonthsFrom(targetSubscriptionId: string, sourceSlug: string) {
-    const source = await this.prisma.subscription.findUnique({
-      where: { slug: sourceSlug },
-      include: {
-        months: {
-          include: { books: true },
-        },
-      },
-    });
-    if (!source) throw new NotFoundException(`Source subscription '${sourceSlug}' not found`);
-
-    // Create all months in parallel, then bulk-insert all month_books in a single
-    // query. With 12 months × 10 books this drops 24 sequential round-trips → 2.
-    const newMonths = await Promise.all(
-      source.months.map((month) =>
-        this.prisma.subscriptionMonth.create({
-          data: {
-            subscriptionId: targetSubscriptionId,
-            year: month.year,
-            month: month.month,
-            theme: month.theme,
-            coverImage: month.coverImage,
-            spoilerImage: month.spoilerImage,
-            isSpoiler: month.isSpoiler,
-            actualShipping: month.actualShipping ?? undefined,
-            boxPrice: month.boxPrice ?? undefined,
-          },
-        }),
-      ),
-    );
-
-    const allBooks = newMonths.flatMap((newMonth, idx) =>
-      source.months[idx].books.map((b) => ({
-        monthId: newMonth.id,
-        bookId: b.bookId,
-        editionId: b.editionId,
-        isMainBook: b.isMainBook,
-        sortOrder: b.sortOrder,
-      })),
-    );
-
-    if (allBooks.length) {
-      await this.prisma.subscriptionMonthBook.createMany({ data: allBooks });
-    }
   }
 
   async findAll(query: SubscriptionQueryDto) {
@@ -217,6 +166,7 @@ export class SubscriptionsService {
         company: true,
         skipPolicy: true,
         prepayOptions: { orderBy: { months: 'asc' } },
+        parentSubscription: { select: { slug: true, name: true } },
         comboComponents: {
           include: {
             component: {
@@ -347,29 +297,57 @@ export class SubscriptionsService {
   private async getSubscriptionMonths(slug: string) {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug } });
     if (!subscription) throw new NotFoundException(`Subscription '${slug}' not found`);
+    if (subscription.parentSubscriptionId) {
+      throw new BadRequestException('Cannot manage months on a variant subscription. Use the parent subscription.');
+    }
     return subscription;
   }
 
   async getMonths(slug: string, page = 1, pageSize = 12, all = false) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
-      select: { id: true },
+      select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+
+    const effectiveId = sub.parentSubscriptionId ?? sub.id;
 
     const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
 
-    const where = all
-      ? { subscriptionId: sub.id }
-      : {
-          subscriptionId: sub.id,
-          OR: [
-            { year: { lt: nowYear } },
-            { year: nowYear, month: { lt: nowMonth } },
-          ],
-        };
+    const andConditions: Record<string, unknown>[] = [];
+
+    if (!all) {
+      andConditions.push({
+        OR: [
+          { year: { lt: nowYear } },
+          { year: nowYear, month: { lt: nowMonth } },
+        ],
+      });
+    }
+
+    if (sub.parentSubscriptionId) {
+      if (sub.startDate) {
+        const startYear = sub.startDate.getFullYear();
+        const startMonth = sub.startDate.getMonth() + 1;
+        andConditions.push({
+          OR: [{ year: { gt: startYear } }, { year: startYear, month: { gte: startMonth } }],
+        });
+      }
+      if (sub.endDate) {
+        const endYear = sub.endDate.getFullYear();
+        const endMonth = sub.endDate.getMonth() + 1;
+        andConditions.push({
+          OR: [{ year: { lt: endYear } }, { year: endYear, month: { lte: endMonth } }],
+        });
+      }
+    }
+
+    const where =
+      andConditions.length > 0
+        ? { subscriptionId: effectiveId, AND: andConditions }
+        : { subscriptionId: effectiveId };
 
     const skip = (page - 1) * pageSize;
 
@@ -450,25 +428,6 @@ export class SubscriptionsService {
       data: { subscriptionId: subscription.id, ...monthData },
     });
 
-    // Propagate to active (non-discontinued) variants if this is a parent subscription
-    if (!subscription.parentSubscriptionId) {
-      const variants = await this.prisma.subscription.findMany({
-        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
-        select: { id: true },
-      });
-      await Promise.all(
-        variants.map((v) =>
-          this.prisma.subscriptionMonth
-            .upsert({
-              where: { subscriptionId_year_month: { subscriptionId: v.id, year: dto.year, month: dto.month } },
-              create: { subscriptionId: v.id, ...monthData },
-              update: {},
-            })
-            .catch(() => {}),
-        ),
-      );
-    }
-
     return created;
   }
 
@@ -494,24 +453,6 @@ export class SubscriptionsService {
       },
     });
 
-    // Propagate to active variants if this is a parent subscription
-    if (!subscription.parentSubscriptionId) {
-      const variants = await this.prisma.subscription.findMany({
-        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
-        select: { id: true },
-      });
-      await Promise.all(
-        variants.map((v) =>
-          this.prisma.subscriptionMonth
-            .updateMany({
-              where: { subscriptionId: v.id, year, month },
-              data: { ...dto, cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId },
-            })
-            .catch(() => {}),
-        ),
-      );
-    }
-
     return updated;
   }
 
@@ -525,21 +466,6 @@ export class SubscriptionsService {
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
-
-    // Propagate deletion to active variants if this is a parent subscription
-    if (!subscription.parentSubscriptionId) {
-      const variants = await this.prisma.subscription.findMany({
-        where: { parentSubscriptionId: subscription.id, isDiscontinued: false },
-        select: { id: true },
-      });
-      await Promise.all(
-        variants.map((v) =>
-          this.prisma.subscriptionMonth
-            .deleteMany({ where: { subscriptionId: v.id, year, month } })
-            .catch(() => {}),
-        ),
-      );
-    }
 
     return deleted;
   }

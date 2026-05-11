@@ -85,11 +85,6 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsString()
   parentSubscriptionId?: string;
 
-  /** Copy all months+books from this subscription slug */
-  @IsOptional()
-  @IsString()
-  copyFromSlug?: string;
-
   /** Component subscription IDs (for combo subscriptions) */
   @IsOptional()
   @IsArray()
