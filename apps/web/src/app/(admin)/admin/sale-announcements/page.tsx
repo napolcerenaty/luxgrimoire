@@ -1176,16 +1176,16 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, price })
                               }}
                             />
-                            <input
-                              type="text"
-                              placeholder="Currency"
-                              list="sale-currencies"
+                            <select
                               defaultValue={variant?.currency ?? ''}
-                              className="w-16 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
-                              onBlur={ev => {
+                              className="w-20 bg-stone-700 border border-stone-600 rounded px-1 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                              onChange={ev => {
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, currency: ev.target.value || null })
                               }}
-                            />
+                            >
+                              <option value="">—</option>
+                              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
                           </div>
                         )}
                       </div>

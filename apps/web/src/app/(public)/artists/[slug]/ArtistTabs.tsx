@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { API_BASE } from '@/lib/authFetch'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -23,7 +24,7 @@ function roleColor(role: string) {
 
 interface EditionSnippet {
   id: string; slug: string; additionalImages: string[]; editionName: string | null
-  bookBoxCompany: { name: string } | null
+  bookBoxCompany: { name: string } | null; communityPhotoCover?: string | null
 }
 
 export interface GroupedEdition {
@@ -46,7 +47,7 @@ function EditionGrid({ editions }: { editions: GroupedEdition[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
       {editions.map(({ edition, roles }) => {
-        const cover = cloudinaryUrl(edition.additionalImages?.[0] ?? null, 'w_400,h_600,c_fill,q_auto,f_auto')
+        const cover = resolveEditionCoverUrl(edition, 'w_400,h_600,c_fill,q_auto,f_auto')
         const company = edition.bookBoxCompany
         return (
           <Link
