@@ -100,7 +100,7 @@ export class AuthorsService {
                     additionalImages: true,
                     verifiedAt: true,
                     generalSaleDate: true,
-                    bookBoxCompany: { select: { name: true } },
+                    bookBoxCompany: { select: { name: true, brandColors: true } },
                     communityImages: {
                       where: { status: 'APPROVED' },
                       orderBy: { sortOrder: 'asc' },

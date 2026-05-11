@@ -93,7 +93,7 @@ export class ArtistsService {
                 slug: true,
                 additionalImages: true,
                 editionName: true,
-                bookBoxCompany: { select: { name: true } },
+                bookBoxCompany: { select: { name: true, brandColors: true } },
                 communityImages: {
                   where: { status: 'APPROVED' },
                   orderBy: { sortOrder: 'asc' },
