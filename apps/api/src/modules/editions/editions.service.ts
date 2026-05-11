@@ -191,7 +191,7 @@ export class EditionsService {
         artists: {
           select: {
             id: true, role: true, artistName: true,
-            artist: { select: { id: true, name: true, slug: true } },
+            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
           },
         },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
