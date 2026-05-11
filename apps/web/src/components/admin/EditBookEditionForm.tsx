@@ -43,6 +43,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [artists, setArtists] = useState<ArtistEntry[]>(
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
+  // Track original roles so we can detect changes and update via DELETE + re-POST
+  const originalRoles = new Map<string, string>(
+    (edition.artists ?? []).map(a => [a.artist.id, a.role])
+  )
   // Track which existing artists were removed
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
@@ -91,6 +95,20 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
       // 2. Remove deleted artists
       for (const artistId of removedArtistIds) {
         await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
+      }
+
+      // 2b. Update role for existing artists whose role changed (DELETE + re-POST)
+      for (const art of artists) {
+        if (!art.existing || !art.id) continue
+        if (removedArtistIds.has(art.id)) continue
+        const originalRole = originalRoles.get(art.id)
+        if (originalRole !== undefined && originalRole.toLowerCase() !== (art.role || 'cover art').toLowerCase()) {
+          await authFetch(`/editions/${edition.slug}/artists/${art.id}`, { method: 'DELETE' })
+          await authFetch(`/editions/${edition.slug}/artists`, {
+            method: 'POST',
+            body: JSON.stringify({ artistId: art.id, role: art.role || 'cover art' }),
+          })
+        }
       }
 
       // 3. Add new artists (those without `existing` flag)
