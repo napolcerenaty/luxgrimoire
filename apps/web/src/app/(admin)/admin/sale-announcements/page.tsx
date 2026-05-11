@@ -761,7 +761,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           className="w-full flex items-center justify-between px-4 py-3 bg-stone-800/60 hover:bg-stone-800 transition-colors text-left"
         >
           <span className="flex items-center gap-2 text-sm text-stone-300 font-medium">
-            Linked Books
+            Linked Books and Signature Types
             {form.linkedEditions.length > 0 && (
               <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
                 {form.linkedEditions.length}
@@ -1108,7 +1108,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
         className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
       >
         <span className="flex items-center gap-2 text-sm text-stone-400">
-          Linked Books
+          Linked Books and Signature Types
           {editions.length > 0 && (
             <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{editions.length}</span>
           )}

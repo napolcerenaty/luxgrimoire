@@ -81,22 +81,20 @@ export function AiParseSection({ onResult, disabled }: {
   disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<'text' | 'url'>('text')
   const [text, setText] = useState('')
-  const [url, setUrl] = useState('')
   const [parsing, setParsing] = useState(false)
 
   const parse = async () => {
     setParsing(true)
     try {
-      const payload = tab === 'text' ? { text } : { imageUrl: url }
+      const payload = { text }
       const result = await authFetch<AiParseResult>('/ai/parse', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
       onResult(result)
       setOpen(false)
-      setText(''); setUrl('')
+      setText('')
     } catch (e: unknown) {
       alert(`AI parse failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -104,7 +102,7 @@ export function AiParseSection({ onResult, disabled }: {
     }
   }
 
-  const canParse = tab === 'text' ? text.trim().length > 10 : url.trim().startsWith('http')
+  const canParse = text.trim().length > 10
 
   return (
     <div className="border border-amber-500/30 rounded-xl overflow-hidden bg-stone-900/60">
@@ -117,23 +115,9 @@ export function AiParseSection({ onResult, disabled }: {
       </button>
       {open && (
         <div className="border-t border-stone-700/60 p-4 space-y-3">
-          <div className="flex gap-1 bg-stone-800 rounded-lg p-0.5">
-            {(['text', 'url'] as const).map(t => (
-              <button key={t} type="button" onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${tab === t ? 'bg-stone-700 text-stone-100' : 'text-stone-500 hover:text-stone-300'}`}>
-                {t === 'text' ? 'Paste Text' : 'Image URL'}
-              </button>
-            ))}
-          </div>
-          {tab === 'text' ? (
-            <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
-              placeholder="Paste social media post, newsletter, or announcement text…"
-              className={`${INP} resize-none`} />
-          ) : (
-            <input value={url} onChange={e => setUrl(e.target.value)}
-              placeholder="https://… (public image URL, e.g. Cloudinary or Instagram)"
-              className={INP} />
-          )}
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
+            placeholder="Paste social media post, newsletter, or announcement text…"
+            className={`${INP} resize-none`} />
           <button type="button" disabled={!canParse || parsing} onClick={parse}
             className={`${BTN_SM} bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-40 px-4 py-2 text-sm`}>
             {parsing ? '✨ Parsing…' : '✨ Auto-fill fields'}
