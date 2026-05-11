@@ -114,6 +114,14 @@ export class BooksService {
                     verifiedAt: true,
                     generalSaleDate: true,
                     bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+                    communityImages: {
+                      where: { status: 'APPROVED' },
+                      orderBy: { sortOrder: 'asc' },
+                      take: 1,
+                      select: { url: true },
+                    },
+                  },
+                  where: { verifiedAt: { not: null } },
                   orderBy: { createdAt: 'asc' },
                 },
               }
@@ -215,6 +223,13 @@ export class BooksService {
             verifiedAt: true,
             generalSaleDate: true,
             bookBoxCompany: { select: { slug: true, name: true, brandColors: true } },
+            communityImages: {
+              where: { status: 'APPROVED' },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              select: { url: true },
+            },
+          },
         },
       },
     });
