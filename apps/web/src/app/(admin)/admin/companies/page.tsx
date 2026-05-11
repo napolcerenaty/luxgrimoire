@@ -8,8 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -198,7 +197,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initial.logoUrl ? `https://res.cloudinary.com/${CLOUD}/image/upload/w_120,h_120,c_fill/${initial.logoUrl}` : null
+    cloudinaryUrl(initial.logoUrl, 'w_120,h_120,c_fill')
   )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -212,22 +211,9 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
     setUploading(true)
     setUploadError(null)
     try {
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/book-boxes' }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const json = await res.json() as { publicId: string; url: string }
-      setForm((f) => ({ ...f, logoUrl: json.publicId }))
-      setPreviewUrl(json.url)
+      const publicId = await uploadImage(file, 'luxgrimoire/book-boxes')
+      setForm((f) => ({ ...f, logoUrl: publicId }))
+      setPreviewUrl(cloudinaryUrl(publicId, 'w_120,h_120,c_fill'))
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -416,7 +402,7 @@ export default function AdminCompaniesPage() {
     {
       key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
         row.logoUrl
-          ? <img src={`https://res.cloudinary.com/${CLOUD}/image/upload/w_40,h_40,c_fill/${row.logoUrl}`} alt="" className="w-9 h-9 rounded object-cover" />
+          ? <img src={cloudinaryUrl(row.logoUrl, 'w_40,h_40,c_fill') ?? ''} alt="" className="w-9 h-9 rounded object-cover" />
           : <div className="w-9 h-9 rounded bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">{row.name.charAt(0)}</div>,
     },
     { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-stone-200">{row.name}</span> },

@@ -20,10 +20,9 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
-import { uploadImage } from '@/components/admin/MultiImageUpload'
+import { uploadImage } from '@/lib/cloudinary'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-
-const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -259,9 +258,7 @@ function ComboBox({
 
 
 function cloudThumb(id: string, w = 80, h = 100) {
-  if (!id) return null
-  if (id.startsWith('http')) return id
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/w_${w},h_${h},c_fill,q_auto,f_auto/${id}`
+  return cloudinaryUrl(id, `w_${w},h_${h},c_fill,q_auto,f_auto`)
 }
 
 // ─── Edition picker ───────────────────────────────────────────────────────────
@@ -578,12 +575,7 @@ function SingleImageUpload({ imageId, folder, onChange }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-  const thumb = imageId
-    ? imageId.startsWith('http')
-      ? imageId
-      : `https://res.cloudinary.com/${CLOUD}/image/upload/w_160,h_240,c_fill,q_auto,f_auto/${imageId}`
-    : null
+  const thumb = cloudinaryUrl(imageId, 'w_160,h_240,c_fill,q_auto,f_auto')
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

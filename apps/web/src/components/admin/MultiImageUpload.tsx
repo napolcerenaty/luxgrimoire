@@ -1,37 +1,18 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
+export { uploadImage }
 
 function cloudThumb(id: string) {
-  if (!id) return null
-  if (id.startsWith('http')) return id
-  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/w_120,h_160,c_fill,q_auto,f_auto/${id}`
-}
-
-export async function uploadImage(file: File, folder: string): Promise<string> {
-  const dataUri = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-  const res = await fetch(`${API_BASE}/upload/image`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: dataUri, folder }),
-  })
-  if (!res.ok) throw new Error(await res.text())
-  const json = await res.json() as { publicId: string }
-  return json.publicId
+  return cloudinaryUrl(id, 'w_120,h_160,c_fill,q_auto,f_auto')
 }
 
 export async function deleteImage(publicId: string): Promise<void> {
   if (!publicId || publicId.startsWith('http')) return
-  await fetch(`${API_BASE}/upload/image`, {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+  await fetch(`${apiBase}/upload/image`, {
     method: 'DELETE',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

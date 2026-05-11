@@ -1,16 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-
-function buildPreviewUrl(publicId: string) {
-  if (!publicId) return null
-  // Already a full URL
-  if (publicId.startsWith('http')) return publicId
-  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/w_160,h_160,c_fill,q_auto,f_auto/${publicId}`
-}
+import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 
 interface Props {
   label: string
@@ -26,7 +17,7 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const previewUrl = buildPreviewUrl(value)
+  const previewUrl = cloudinaryUrl(value, 'w_160,h_160,c_fill,q_auto,f_auto')
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -34,26 +25,12 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
     setUploading(true)
     setError(null)
     try {
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      const res = await fetch(`${API_BASE}/upload/image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: dataUri, folder }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const json = await res.json() as { publicId: string; url: string }
-      onChange(json.publicId)
+      const publicId = await uploadImage(file, folder)
+      onChange(publicId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
-      // reset so same file can be re-uploaded
       if (fileRef.current) fileRef.current.value = ''
     }
   }
@@ -106,3 +83,4 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
     </div>
   )
 }
+
