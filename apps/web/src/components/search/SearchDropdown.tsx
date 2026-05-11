@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { resolveEditionCoverUrl } from '@/lib/editionCover'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
@@ -155,7 +156,7 @@ export function SearchDropdown() {
                   key: e.id,
                   label: e.book.title,
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
-                  image: cloudinaryUrl(e.additionalImages?.[0]) ?? e.communityPhotoCover ?? null,
+                  image: resolveEditionCoverUrl(e),
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}

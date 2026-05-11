@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { BackButton } from '@/components/ui/BackButton'
 import { EditionCard } from '@/components/books/EditionCard'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,7 +124,7 @@ function SeriesBookSection({ book }: { book: RawBook }) {
             <EditionCard
               key={edition.id}
               href={`/editions/${edition.slug}`}
-              coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
+              coverImage={resolveEditionCoverRaw(edition)}
               companyName={edition.bookBoxCompany?.name}
               companySlug={edition.bookBoxCompany?.slug}
               unverified={!edition.verifiedAt}

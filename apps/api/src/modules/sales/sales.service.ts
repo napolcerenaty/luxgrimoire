@@ -172,7 +172,7 @@ export class SalesService {
         });
 
         await tx.ownershipStatusHistory.create({
-          data: { userBookEntryId: entryId, status: "SOLD" },
+          data: { userBookEntryId: entryId, status: "SOLD", changedAt: new Date(dto.soldAt) },
         });
       }
 
@@ -189,15 +189,14 @@ export class SalesService {
         const editionId = (entry.userBookEntry as any)?.edition?.id as string | undefined;
         if (editionId) {
           try {
-            await this.crowdStatsService.createSaleStat(
+            const price = typeof entry.allocatedAmount === 'object'
+              ? (entry.allocatedAmount as any).toNumber()
+              : entry.allocatedAmount;
+            await this.crowdStatsService.syncSaleStats(
               editionId,
-              typeof entry.allocatedAmount === 'object'
-                ? (entry.allocatedAmount as any).toNumber()
-                : entry.allocatedAmount,
-              dto.currency,
-              new Date(dto.soldAt),
+              null,
+              { price, currency: dto.currency, date: new Date(dto.soldAt) },
             );
-            await this.crowdStatsService.refreshEditionSaleStats(editionId);
           } catch {
             // stats errors must never block the main operation
           }

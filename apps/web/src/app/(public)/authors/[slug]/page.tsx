@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiAuthor } from '@luxgrimoire/shared-types'
 
@@ -89,7 +90,7 @@ function BookRow({ book }: { book: BookSnippet }) {
             <EditionCard
               key={edition.id}
               href={`/editions/${edition.slug}`}
-              coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
+              coverImage={resolveEditionCoverRaw(edition)}
               companyName={edition.bookBoxCompany?.name}
               unverified={!edition.verifiedAt}
               generalSaleDate={edition.generalSaleDate}

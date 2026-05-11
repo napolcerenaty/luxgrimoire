@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { EditionCard } from '@/components/books/EditionCard'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { BookOpen, Megaphone, Tag, Trash2, MoveRight, X, Plus } from 'lucide-react'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -294,7 +295,7 @@ export default function WishlistPage() {
               <EditionCard
                 key={entry.id}
                 href={`/editions/${entry.edition.slug}`}
-                coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                coverImage={resolveEditionCoverRaw(entry.edition)}
                 companyName={entry.edition.bookBoxCompany?.name}
                 seriesName={entry.edition.book.seriesName}
                 volumeNumber={entry.edition.book.volumeNumber}

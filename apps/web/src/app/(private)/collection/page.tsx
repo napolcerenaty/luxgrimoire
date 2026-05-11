@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { getSaleGroups, createSaleGroup, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -905,7 +906,7 @@ export default function CollectionPage() {
                     <EditionCard
                       key={entry.id}
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                      coverImage={resolveEditionCoverRaw(entry.edition)}
                       companyName={entry.edition.bookBoxCompany?.name}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}

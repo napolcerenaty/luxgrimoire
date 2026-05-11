@@ -2,6 +2,7 @@
 
 import { EditionCard } from './EditionCard'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
+import { resolveEditionCoverRaw } from '@/lib/editionCover'
 
 interface Props {
   editions: ApiBookEdition[]
@@ -20,7 +21,7 @@ export function BookEditionsSection({ editions }: Props) {
         <EditionCard
           key={edition.id}
           href={`/editions/${edition.slug}`}
-          coverImage={edition.additionalImages?.[0] ?? edition.communityPhotoCover ?? null}
+          coverImage={resolveEditionCoverRaw(edition)}
           companyName={edition.bookBoxCompany?.name}
           companySlug={edition.bookBoxCompany?.slug}
           unverified={!edition.verifiedAt}

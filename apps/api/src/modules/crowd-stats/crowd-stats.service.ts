@@ -144,6 +144,20 @@ export class CrowdStatsService {
     `;
   }
 
+  async syncSaleStats(
+    editionId: string,
+    oldSale: { price: number; currency: string; date: Date } | null,
+    newSale: { price: number; currency: string; date: Date } | null,
+  ): Promise<void> {
+    if (oldSale) {
+      await this.deleteSaleStat(editionId, oldSale.price, oldSale.currency, oldSale.date);
+    }
+    if (newSale) {
+      await this.createSaleStat(editionId, newSale.price, newSale.currency, newSale.date);
+    }
+    await this.refreshEditionSaleStats(editionId);
+  }
+
   async getSnapshotForEdition(editionId: string) {
     return this.prisma.editionStatsSnapshot.findUnique({ where: { editionId } });
   }

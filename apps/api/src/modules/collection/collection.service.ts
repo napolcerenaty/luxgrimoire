@@ -370,21 +370,15 @@ export class CollectionService {
       const newCurrency = (dto.saleCurrency !== undefined ? dto.saleCurrency : oldCurrency) ?? 'EUR';
       const newDate = (dto.saleDate !== undefined ? (dto.saleDate ? new Date(dto.saleDate) : null) : oldDate) ?? new Date();
 
-      const hadOldStat = oldPrice !== null && oldCurrency !== null && oldDate !== null;
-      const hasNewStat = newPrice !== null;
+      const oldSale = (oldPrice !== null && oldCurrency !== null && oldDate !== null)
+        ? { price: oldPrice, currency: oldCurrency, date: oldDate }
+        : null;
+      const newSale = newPrice !== null
+        ? { price: newPrice, currency: newCurrency, date: newDate }
+        : null;
 
-      if (hadOldStat) {
-        this.crowdStatsService.deleteSaleStat(editionId, oldPrice!, oldCurrency!, oldDate!)
-          .then(() => hasNewStat
-            ? this.crowdStatsService.createSaleStat(editionId, newPrice!, newCurrency, newDate)
-            : Promise.resolve()
-          )
-          .then(() => this.crowdStatsService.refreshEditionSaleStats(editionId))
-          .catch(() => {});
-      } else if (hasNewStat) {
-        this.crowdStatsService.createSaleStat(editionId, newPrice!, newCurrency, newDate)
-          .then(() => this.crowdStatsService.refreshEditionSaleStats(editionId))
-          .catch(() => {});
+      if (oldSale || newSale) {
+        this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
       }
     }
     return updated;
