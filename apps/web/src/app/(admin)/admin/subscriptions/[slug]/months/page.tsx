@@ -8,13 +8,12 @@ import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { PersonPicker } from '@/components/admin/pickers/PersonPicker'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { CURRENCIES } from '@/components/sale/SaleFormFields'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
-
 // ─── Cloud image helper ───────────────────────────────────────────────────────
 function cloudUrl(publicId: string | null | undefined, size = 80) {
   return cloudinaryUrl(publicId, `w_${size * 2},h_${size * 2},c_fill,q_auto,f_auto`)

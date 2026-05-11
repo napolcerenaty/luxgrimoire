@@ -10,6 +10,9 @@ import { createPurchaseGroup } from '@/lib/api'
 import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, Megaphone, Plus, X } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 
+const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
+
 const OWNERSHIP_OPTIONS = [
   { value: 'OWNED', label: 'Owned' },
   { value: 'PREORDER', label: 'Pre-order' },

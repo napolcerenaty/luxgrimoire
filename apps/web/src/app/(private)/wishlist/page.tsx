@@ -9,6 +9,7 @@ import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { BookOpen, Megaphone, Tag, Trash2, MoveRight, X, Plus } from 'lucide-react'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 
 interface CollectionEntry {
   id: string
@@ -78,19 +79,6 @@ interface SaleInterestItem {
     company: { id: string; name: string }
   }
 }
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
-
-const SALE_PLATFORMS = [
-  { value: 'vinted', label: '🛍️ Vinted' },
-  { value: 'ebay', label: '🛒 eBay' },
-  { value: 'facebook', label: '📘 Facebook' },
-  { value: 'instagram', label: '📷 Instagram' },
-  { value: 'depop', label: '👗 Depop' },
-  { value: 'whatnot', label: '🎉 Whatnot' },
-  { value: 'local', label: '🤝 Local / In-person' },
-  { value: 'other', label: '✏️ Other' },
-]
 
 const OWNERSHIP_OPTIONS = [
   { value: 'OWNED', label: 'Owned' },

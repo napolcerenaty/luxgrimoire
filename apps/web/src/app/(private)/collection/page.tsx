@@ -15,6 +15,7 @@ import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Che
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
@@ -71,9 +72,7 @@ interface FeeTemplate {
   defaultCurrency: string | null
   isActive: boolean
 }
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
-
+
 interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 
 const ADD_OWNERSHIP_OPTIONS = [
@@ -83,18 +82,6 @@ const ADD_OWNERSHIP_OPTIONS = [
   { value: 'BORROWED', label: 'Borrowed' },
   { value: 'LENDED', label: 'Lent out' },
 ] as const
-
-
-const SALE_PLATFORMS = [
-  { value: 'vinted', label: '🛍️ Vinted' },
-  { value: 'ebay', label: '🛒 eBay' },
-  { value: 'facebook', label: '📘 Facebook' },
-  { value: 'instagram', label: '📷 Instagram' },
-  { value: 'depop', label: '👗 Depop' },
-  { value: 'whatnot', label: '🎉 Whatnot' },
-  { value: 'local', label: '🤝 Local / In-person' },
-  { value: 'other', label: '✏️ Other (custom)' },
-]
 
 interface AddSaleFormProps {
   entries: CollectionEntry[]
