@@ -340,7 +340,14 @@ export class CollectionService {
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {
-      this.recordStatusChange(entryId, effectiveOwnershipStatus);
+      const saleDate = dto.saleDate
+        ? new Date(dto.saleDate)
+        : (existing.saleDate as Date | null) ?? undefined;
+      this.recordStatusChange(
+        entryId,
+        effectiveOwnershipStatus,
+        effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
+      );
     }
     // Track wishlist ↔ collection transitions
     if (dto.isWishlist !== undefined && dto.isWishlist !== existing.isWishlist && existing.editionId) {
@@ -463,9 +470,9 @@ export class CollectionService {
     return { success: true };
   }
 
-  private recordStatusChange(userBookEntryId: string, status: string): void {
+  private recordStatusChange(userBookEntryId: string, status: string, changedAt?: Date): void {
     this.prisma.ownershipStatusHistory
-      .create({ data: { userBookEntryId, status } })
+      .create({ data: { userBookEntryId, status, ...(changedAt && { changedAt }) } })
       .catch(() => {});
   }
 
