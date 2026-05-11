@@ -1,5 +1,6 @@
+import { API_BASE } from './authFetch'
+
 const CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD ?? ''
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 /**
  * Strips any Cloudinary-injected prefix from a stored publicId.

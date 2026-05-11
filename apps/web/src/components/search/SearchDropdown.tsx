@@ -7,8 +7,7 @@ import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone } 
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
   let timer: ReturnType<typeof setTimeout>
@@ -37,7 +36,7 @@ export function SearchDropdown() {
       }
       setLoading(true)
       try {
-        const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`)
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`)
         if (res.ok) {
           const data: ApiSearchResult = await res.json()
           setResults(data)

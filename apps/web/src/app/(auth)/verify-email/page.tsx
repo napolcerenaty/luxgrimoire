@@ -4,8 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -25,7 +24,7 @@ function VerifyEmailContent() {
 
     const verify = async () => {
       try {
-        const res = await fetch(`${API_URL}/auth/verify-email`, {
+        const res = await fetch(`${API_BASE}/auth/verify-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
@@ -40,7 +39,7 @@ function VerifyEmailContent() {
         }
 
         // Cookie was set by API during verify-email — fetch /auth/me with credentials:include
-        const me = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+        const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
           .then(r => r.ok ? r.json() : null)
           .catch(() => null)
 

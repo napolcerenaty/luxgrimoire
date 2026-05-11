@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authFetch } from '@/lib/authFetch'
+import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -16,7 +16,6 @@ import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
 interface CollectionEntry {

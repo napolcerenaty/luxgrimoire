@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { API_BASE } from '@/lib/authFetch'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -92,7 +93,7 @@ function EditionGrid({ editions }: { editions: GroupedEdition[] }) {
 function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
   const { data: months, isLoading } = useQuery<CardMonth[]>({
     queryKey: ['artist-card-months', artistSlug],
-    queryFn: () => fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/artists/${artistSlug}/months`)
+    queryFn: () => fetch(`${API_BASE}/artists/${artistSlug}/months`)
       .then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   })

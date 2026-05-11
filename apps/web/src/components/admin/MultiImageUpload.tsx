@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
+import { API_BASE } from '@/lib/authFetch'
 
 export { uploadImage }
 
@@ -11,8 +12,7 @@ function cloudThumb(id: string) {
 
 export async function deleteImage(publicId: string): Promise<void> {
   if (!publicId || publicId.startsWith('http')) return
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-  await fetch(`${apiBase}/upload/image`, {
+  await fetch(`${API_BASE}/upload/image`, {
     method: 'DELETE',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

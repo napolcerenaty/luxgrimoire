@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { PasswordStrength, passwordStrong } from '@/components/auth/PasswordStrength'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -42,7 +41,7 @@ function ResetPasswordForm() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API_URL}/auth/reset-password`, {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),

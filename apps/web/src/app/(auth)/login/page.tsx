@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 
 function LoginForm() {
   const router = useRouter()
@@ -27,7 +26,7 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -46,7 +45,7 @@ function LoginForm() {
       }
 
       // Login API now returns user object directly (cookie is set by API)
-      const me = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+      const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .catch(() => null)
 

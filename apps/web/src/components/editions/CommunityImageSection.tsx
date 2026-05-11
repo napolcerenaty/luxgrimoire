@@ -4,8 +4,7 @@ import { useState, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+import { API_BASE } from '@/lib/authFetch'
 const MAX_IMAGES = 5
 const MAX_BYTES = 5 * 1024 * 1024
 

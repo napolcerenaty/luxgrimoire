@@ -1,7 +1,8 @@
 'use client'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
-const OAUTH_BASE = API_URL.replace(/\/api$/, '')
+import { API_BASE } from '@/lib/authFetch'
+
+const OAUTH_BASE = API_BASE.replace(/\/api$/, '')
 
 export function OAuthButtons() {
   return (

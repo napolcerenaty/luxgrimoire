@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { API_BASE } from '@/lib/authFetch'
 
 interface AuthUser {
   id: string
@@ -27,14 +28,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+    fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
           const data: AuthUser = await r.json()
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })
