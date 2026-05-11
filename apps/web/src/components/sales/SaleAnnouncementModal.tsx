@@ -201,7 +201,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   return (
                     <Link
                       key={editionId}
-                      href={book?.slug ? `/books/${book.slug}` : `/editions/${(edition as any).slug ?? editionId}`}
+                      href={`/editions/${(edition as any).slug ?? editionId}`}
                       onClick={onClose}
                       className="group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-500/40 transition-colors"
                       style={{ background: 'var(--bg-raised)' }}
