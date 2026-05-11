@@ -93,7 +93,6 @@ export class SubscriptionsService {
         price: dto.price,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
-        type: undefined, // kept in DB for phase-2 migration
         intervalMonths: dto.intervalMonths ?? 1,
         bookishMerch: dto.bookishMerch ?? false,
         isCombo: dto.isCombo ?? false,

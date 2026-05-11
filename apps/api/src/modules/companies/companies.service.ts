@@ -6,6 +6,13 @@ import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 
+function formatInterval(n: number): string {
+  if (n === 1) return 'Monthly';
+  if (n === 2) return 'Bimonthly';
+  if (n === 3) return 'Quarterly';
+  return `Every ${n} months`;
+}
+
 @Injectable()
 export class CompaniesService {
   private readonly logger = new Logger(CompaniesService.name);
@@ -188,7 +195,7 @@ export class CompaniesService {
       const subscriptions = await this.prisma.subscription.findMany({
         where: { companyId },
         select: {
-          id: true, slug: true, name: true, type: true, isDiscontinued: true,
+          id: true, slug: true, name: true, intervalMonths: true, isDiscontinued: true,
           company: { select: { name: true } },
         },
         take: 50,
@@ -199,7 +206,7 @@ export class CompaniesService {
           slug: sub.slug,
           name: sub.name,
           companyName: sub.company?.name ?? '',
-          type: sub.type ?? '',
+          type: formatInterval(sub.intervalMonths ?? 1),
           isDiscontinued: sub.isDiscontinued,
         });
       }
