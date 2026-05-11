@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
@@ -178,7 +179,7 @@ export class UserEditionImagesService {
   async deleteMyImageById(imageId: string, userId: string) {
     const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
     if (!img) throw new NotFoundException('Image not found');
-    if (img.userId !== userId) throw new ForbiddenException('You can only delete your own images');
+    assertOwnership(img.userId, userId);
     await this.upload.deleteImage(img.cloudinaryId);
     await this.prisma.userEditionImage.delete({ where: { id: imageId } });
   }
@@ -187,7 +188,7 @@ export class UserEditionImagesService {
   async userDeleteImage(imageId: string, userId: string) {
     const img = await this.prisma.userEditionImage.findUnique({ where: { id: imageId } });
     if (!img) throw new NotFoundException('Image not found');
-    if (img.userId !== userId) throw new ForbiddenException('You can only delete your own images');
+    assertOwnership(img.userId, userId);
     await this.upload.deleteImage(img.cloudinaryId);
     await this.prisma.userEditionImage.delete({ where: { id: imageId } });
   }

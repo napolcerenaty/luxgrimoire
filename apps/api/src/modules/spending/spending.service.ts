@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddTransactionDto, UpdateTransactionDto } from './spending.dto';
 import { FeesService } from '../fees/fees.service';
@@ -42,7 +43,7 @@ export class SpendingService {
   async updateTransaction(userId: string, transactionId: string, dto: UpdateTransactionDto) {
     const existing = await this.prisma.purchaseTransaction.findUnique({ where: { id: transactionId } });
     if (!existing) throw new NotFoundException('Transaction not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     return this.prisma.purchaseTransaction.update({
       where: { id: transactionId },
       data: {
@@ -57,7 +58,7 @@ export class SpendingService {
   async deleteTransaction(userId: string, transactionId: string) {
     const existing = await this.prisma.purchaseTransaction.findUnique({ where: { id: transactionId } });
     if (!existing) throw new NotFoundException('Transaction not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.purchaseTransaction.delete({ where: { id: transactionId } });
   }
 

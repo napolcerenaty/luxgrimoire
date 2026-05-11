@@ -8,6 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CurrencyService } from "../currency/currency.service";
 import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 
 type Decimal = { toNumber: () => number };
 type NumOrDec = number | Decimal;
@@ -101,7 +102,7 @@ export class SalesService {
       include: { entries: { include: this.entryInclude } },
     });
     if (!g) throw new NotFoundException("Sale group not found");
-    if (g.userId !== userId) throw new ForbiddenException();
+    assertOwnership(g.userId, userId);
     return this.withProfit(g as unknown as SaleGroupWithEntries);
   }
 
@@ -213,7 +214,7 @@ export class SalesService {
       include: { entries: true },
     });
     if (!existing) throw new NotFoundException("Sale group not found");
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     const hasCustomAmounts = dto.customAmounts && Object.keys(dto.customAmounts).length > 0;
 
@@ -297,7 +298,7 @@ export class SalesService {
   async deleteSaleGroup(userId: string, groupId: string) {
     const existing = await this.prisma.userSaleGroup.findUnique({ where: { id: groupId } });
     if (!existing) throw new NotFoundException("Sale group not found");
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     const saleEntries = await this.prisma.userSaleEntry.findMany({
       where: { saleGroupId: groupId },

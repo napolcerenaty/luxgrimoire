@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto } from './purchase-groups.dto';
 
@@ -44,7 +45,7 @@ export class PurchaseGroupsService {
       },
     });
     if (!g) throw new NotFoundException('Purchase group not found');
-    if (g.userId !== userId) throw new ForbiddenException();
+    assertOwnership(g.userId, userId);
     return this.computeGroupCosts(g);
   }
 
@@ -116,7 +117,7 @@ export class PurchaseGroupsService {
   async updateGroup(userId: string, groupId: string, dto: UpdatePurchaseGroupDto) {
     const existing = await this.prisma.userPurchaseGroup.findUnique({ where: { id: groupId } });
     if (!existing) throw new NotFoundException('Purchase group not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     return this.prisma.userPurchaseGroup.update({
       where: { id: groupId },
@@ -200,7 +201,7 @@ export class PurchaseGroupsService {
       select: { userId: true, purchaseGroupId: true },
     });
     if (!entry) throw new NotFoundException('Entry not found');
-    if (entry.userId !== userId) throw new ForbiddenException();
+    assertOwnership(entry.userId, userId);
 
     return this.prisma.$transaction(async (tx) => {
       const group = await tx.userPurchaseGroup.create({
@@ -227,7 +228,7 @@ export class PurchaseGroupsService {
   async deleteGroup(userId: string, groupId: string) {
     const existing = await this.prisma.userPurchaseGroup.findUnique({ where: { id: groupId } });
     if (!existing) throw new NotFoundException('Purchase group not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     // Unlink book entries (don't delete them, just clear the group reference)
     await this.prisma.userBookEntry.updateMany({

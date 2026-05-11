@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateFeeTemplateDto,
@@ -38,7 +39,7 @@ export class FeesService {
   async updateTemplate(userId: string, templateId: string, dto: UpdateFeeTemplateDto) {
     const existing = await this.prisma.userFeeTemplate.findUnique({ where: { id: templateId } });
     if (!existing) throw new NotFoundException('Fee template not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     return this.prisma.userFeeTemplate.update({
       where: { id: templateId },
@@ -55,7 +56,7 @@ export class FeesService {
   async deleteTemplate(userId: string, templateId: string) {
     const existing = await this.prisma.userFeeTemplate.findUnique({ where: { id: templateId } });
     if (!existing) throw new NotFoundException('Fee template not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.userFeeTemplate.delete({ where: { id: templateId } });
   }
 
@@ -97,7 +98,7 @@ export class FeesService {
   async updatePurchaseFee(userId: string, feeId: string, dto: UpdatePurchaseFeeDto) {
     const existing = await this.prisma.userPurchaseFee.findUnique({ where: { id: feeId } });
     if (!existing) throw new NotFoundException('Purchase fee not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     return this.prisma.userPurchaseFee.update({
       where: { id: feeId },
@@ -116,7 +117,7 @@ export class FeesService {
   async deletePurchaseFee(userId: string, feeId: string) {
     const existing = await this.prisma.userPurchaseFee.findUnique({ where: { id: feeId } });
     if (!existing) throw new NotFoundException('Purchase fee not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseFee.delete({ where: { id: feeId } });
   }
 
@@ -170,7 +171,7 @@ export class FeesService {
   async updateDiscount(userId: string, discountId: string, dto: UpdatePurchaseDiscountDto) {
     const existing = await this.prisma.userPurchaseDiscount.findUnique({ where: { id: discountId } });
     if (!existing) throw new NotFoundException('Discount not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
 
     return this.prisma.userPurchaseDiscount.update({
       where: { id: discountId },
@@ -187,7 +188,7 @@ export class FeesService {
   async deleteDiscount(userId: string, discountId: string) {
     const existing = await this.prisma.userPurchaseDiscount.findUnique({ where: { id: discountId } });
     if (!existing) throw new NotFoundException('Discount not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseDiscount.delete({ where: { id: discountId } });
   }
 
@@ -232,7 +233,7 @@ export class FeesService {
   async deleteRefund(userId: string, refundId: string) {
     const existing = await this.prisma.userPurchaseRefund.findUnique({ where: { id: refundId } });
     if (!existing) throw new NotFoundException('Refund not found');
-    if (existing.userId !== userId) throw new ForbiddenException();
+    assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseRefund.delete({ where: { id: refundId } });
   }
 }
