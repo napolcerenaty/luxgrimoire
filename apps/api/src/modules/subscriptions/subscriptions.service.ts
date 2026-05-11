@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { $Enums } from '@prisma/client';
+import { bookAuthorsInclude } from '../../common/prisma-includes';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -1141,7 +1142,7 @@ export class SubscriptionsService {
             edition: {
               include: {
                 book: {
-                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                  include: { ...bookAuthorsInclude },
                 },
               },
             },
@@ -1200,7 +1201,7 @@ export class SubscriptionsService {
             edition: {
               include: {
                 book: {
-                  include: { authors: { include: { author: { select: { id: true, name: true } } } } },
+                  include: { ...bookAuthorsInclude },
                 },
               },
             },
