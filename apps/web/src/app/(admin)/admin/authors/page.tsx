@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import type { ApiAuthor, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
@@ -11,9 +12,6 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 import ImageUpload from '@/components/admin/ImageUpload'
 
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 interface AuthorFormData {
   name: string

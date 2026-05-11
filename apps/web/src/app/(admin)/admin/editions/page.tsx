@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
@@ -14,10 +15,8 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 const CreateBookEditionForm = dynamic(() => import('@/components/admin/CreateBookEditionForm'), { ssr: false })
 const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
-
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
+
+
 
 interface BookSearchResult {
   id: string

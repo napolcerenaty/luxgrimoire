@@ -4,15 +4,13 @@ import { useState, useRef } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 
-const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 // ── Manual Brand Color Editor ────────────────────────────────────────────────
 function ManualColorEditor({
