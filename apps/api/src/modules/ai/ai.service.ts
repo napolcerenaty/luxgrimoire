@@ -104,8 +104,10 @@ FEATURES RULES:
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
 - BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions (e.g. "Book size: 5 ⅜" x 8 ¼"", "234 x 153 mm", etc.). Add the full size string as a feature exactly as written, prefixed with "book size:" if a label is present.
   Example: "Book size: 5 ⅜" x 8 ¼"" → features: ["book size: 5 ⅜\" x 8 ¼\""]
-  Example: "B format paperback" → features: ["B format", "paperback"]
-  Example: "Royal hardcover" → features: ["Royal", "hardcover"]
+  Example: "B format paperback" → features: ["B format paperback"] (keep size + binding together as one compound feature)
+  Example: "Royal hardback" → features: ["Royal hardback"] (NOT split into ["Royal", "hardback"])
+  Example: "Demy hardcover" → features: ["Demy hardcover"]
+  Example: "Royal" alone (no binding mentioned) → features: ["Royal"]
 - COVER DESCRIPTIONS: Add cover descriptions to features even when no artist is credited. This includes phrases like "Original trade cover (from the publisher)", "exclusive cover featuring a colourway variation of the trade cover", "special edition cover", "variant cover", etc.
   Example: "Original trade cover (from the publisher)" → features: ["Original trade cover (from the publisher)"]
   Example: "exclusive cover featuring a colourway variation of the trade cover" → features: ["exclusive cover featuring a colourway variation of the trade cover"]
