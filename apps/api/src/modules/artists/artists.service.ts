@@ -1,9 +1,17 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+
+const ARTIST_SLUG_TTL = 24 * 60 * 60 * 1000;
+const ARTIST_CONTRIBUTIONS_TTL = 60 * 60 * 1000;
+
+const artistProfileKey = (slug: string) => `artists:slug:${slug}`;
+const artistContributionsKey = (slug: string) => `artists:slug:${slug}:contributions`;
 
 @Injectable()
 export class ArtistsService {
@@ -12,6 +20,7 @@ export class ArtistsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async create(dto: CreateArtistDto) {
@@ -70,6 +79,14 @@ export class ArtistsService {
   }
 
   async findBySlug(slug: string) {
+    const cached = await this.cache.get(artistProfileKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchArtistProfile>>;
+    const artist = await this._fetchArtistProfile(slug);
+    await this.cache.set(artistProfileKey(slug), artist, ARTIST_SLUG_TTL);
+    return artist;
+  }
+
+  private async _fetchArtistProfile(slug: string) {
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
       select: {
@@ -84,6 +101,25 @@ export class ArtistsService {
         twitter: true,
         facebook: true,
         tiktok: true,
+      },
+    });
+    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
+    return artist;
+  }
+
+  async findContributions(slug: string) {
+    const cached = await this.cache.get(artistContributionsKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchArtistContributions>>;
+    await this.findBySlug(slug); // ensure artist exists
+    const contributions = await this._fetchArtistContributions(slug);
+    await this.cache.set(artistContributionsKey(slug), contributions, ARTIST_CONTRIBUTIONS_TTL);
+    return contributions;
+  }
+
+  private async _fetchArtistContributions(slug: string) {
+    const artist = await this.prisma.artist.findUnique({
+      where: { slug },
+      select: {
         contributions: {
           select: {
             role: true,
@@ -106,21 +142,18 @@ export class ArtistsService {
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return {
-      ...artist,
-      contributions: artist.contributions.map((c) => {
-        const { communityImages, ...editionRest } = c.edition as typeof c.edition & { communityImages: Array<{ url: string }> };
-        return {
-          ...c,
-          edition: {
-            ...editionRest,
-            communityPhotoCover: (c.edition.additionalImages as string[]).length === 0
-              ? (communityImages?.[0]?.url ?? null)
-              : null,
-          },
-        };
-      }),
-    };
+    return artist.contributions.map((c) => {
+      const { communityImages, ...editionRest } = c.edition as typeof c.edition & { communityImages: Array<{ url: string }> };
+      return {
+        ...c,
+        edition: {
+          ...editionRest,
+          communityPhotoCover: (c.edition.additionalImages as string[]).length === 0
+            ? (communityImages?.[0]?.url ?? null)
+            : null,
+        },
+      };
+    });
   }
 
   async findCardMonths(slug: string) {
@@ -152,12 +185,20 @@ export class ArtistsService {
     await this.findBySlug(slug);
     const artist = await this.prisma.artist.update({ where: { slug }, data: dto });
     await this.indexArtist(artist);
+    await Promise.all([
+      this.cache.del(artistProfileKey(slug)),
+      this.cache.del(artistContributionsKey(slug)),
+    ]);
     return artist;
   }
 
   async delete(slug: string) {
     const artist = await this.findBySlug(slug);
     await this.typesense.deleteDocument('artists', artist.id);
+    await Promise.all([
+      this.cache.del(artistProfileKey(slug)),
+      this.cache.del(artistContributionsKey(slug)),
+    ]);
     return this.prisma.artist.delete({ where: { slug } });
   }
 

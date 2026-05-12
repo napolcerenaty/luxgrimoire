@@ -32,6 +32,12 @@ export class ArtistsController {
   }
 
   @Public()
+  @Get(':slug/contributions')
+  findContributions(@Param('slug') slug: string) {
+    return this.artistsService.findContributions(slug);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const result = await this.artistsService.findBySlug(slug);
