@@ -1,15 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { X, ExternalLink, ShoppingBag } from 'lucide-react'
+import { X, ExternalLink } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
-import { ConfirmPurchaseModal } from '@/components/sales/ConfirmPurchaseModal'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
 import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
 
@@ -20,8 +19,7 @@ interface Props {
 
 export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
-  const [showPurchase, setShowPurchase] = useState(false)
-  const { isInterested, tier, regionId } = useSaleInterest(sale?.id ?? null)
+  const { isInterested, regionId } = useSaleInterest(sale?.id ?? null)
   const saleOpen = sale ? isOpenForPurchase(sale, regionId) : false
   const salePast = sale ? isSalePast(sale, regionId) : false
 
@@ -145,14 +143,15 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   <>
                     <SaleInterestButton sale={sale} />
                     {isInterested && saleOpen && (
-                      <button
-                        type="button"
-                        onClick={() => setShowPurchase(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-600 text-xs font-medium transition-colors"
-                      >
-                        <ShoppingBag size={13} />
-                        Confirm Purchase
-                      </button>
+                      <AddToCollectionButton
+                        saleAnnouncementId={sale.id}
+                        editionIds={allEditionIds}
+                        basePrice={sale.basePrice ?? undefined}
+                        currency={sale.currency ?? 'USD'}
+                        compact
+                        defaultOwnershipStatus="PREORDER"
+                        triggerLabel="Confirm Purchase"
+                      />
                     )}
                   </>
                 )}
@@ -230,14 +229,6 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
         </div>
       </div>
     </div>
-
-    {showPurchase && (
-      <ConfirmPurchaseModal
-        sale={sale}
-        preselectedTier={tier ?? 'GS'}
-        onClose={() => setShowPurchase(false)}
-      />
-    )}
   </>
   )
 }
