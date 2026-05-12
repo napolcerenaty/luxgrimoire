@@ -342,7 +342,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <>
                     <dt className="text-stone-500">Collection</dt>
                     <dd>
-                      <Link href={`/collections/${edition.collection.slug}`} className="text-amber-400 hover:underline">
+                      <Link
+                          href={`/companies/${edition.bookBoxCompany?.slug}/collections/${edition.collection.slug}`}
+                          className="text-amber-400 hover:underline"
+                        >
                         {edition.collection.name}
                       </Link>
                     </dd>
