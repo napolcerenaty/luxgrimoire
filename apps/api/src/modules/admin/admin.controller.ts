@@ -75,9 +75,14 @@ export class AdminController {
   }
 
   // Community image moderation
+  @Get('community-images/editions')
+  getCommunityImageEditions(@Query('status') status?: string) {
+    return this.userImagesService.adminListEditions(status);
+  }
+
   @Get('community-images')
-  getCommunityImages(@Query('status') status?: string) {
-    return this.userImagesService.adminListImages(status);
+  getCommunityImages(@Query('status') status?: string, @Query('editionId') editionId?: string) {
+    return this.userImagesService.adminListImages(status, editionId);
   }
 
   @Patch('community-images/:id/status')

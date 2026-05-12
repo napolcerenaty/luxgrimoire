@@ -104,9 +104,34 @@ export class UserEditionImagesService {
     return created;
   }
 
-  // Admin: list images by status
-  async adminListImages(status?: string) {
+  // Admin: list edition summaries (count per edition) for a given status
+  async adminListEditions(status?: string) {
     const where = status ? { status: status as any } : {};
+    const rows = await this.prisma.userEditionImage.groupBy({
+      by: ['editionId'],
+      where,
+      _count: { id: true },
+    });
+    if (!rows.length) return [];
+    const editionIds = rows.map((r) => r.editionId);
+    const editions = await this.prisma.bookEdition.findMany({
+      where: { id: { in: editionIds } },
+      select: { id: true, slug: true, editionName: true },
+    });
+    const edMap = new Map(editions.map((e) => [e.id, e]));
+    return rows.map((r) => ({
+      editionId: r.editionId,
+      slug: edMap.get(r.editionId)?.slug ?? r.editionId,
+      name: edMap.get(r.editionId)?.editionName ?? r.editionId,
+      count: r._count.id,
+    }));
+  }
+
+  // Admin: list images by status, optionally filtered by editionId
+  async adminListImages(status?: string, editionId?: string) {
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status as any;
+    if (editionId) where.editionId = editionId;
     return this.prisma.userEditionImage.findMany({
       where,
       orderBy: { createdAt: 'asc' },
