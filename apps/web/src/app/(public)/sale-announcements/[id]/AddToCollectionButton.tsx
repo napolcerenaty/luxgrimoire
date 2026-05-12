@@ -310,7 +310,9 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                 </div>
 
                 <p className="text-xs text-stone-500">
-                  Adds {editionIds.length} edition{editionIds.length !== 1 ? 's' : ''} to your collection as a bundle.
+                  {editionIds.length === 1
+                    ? 'Adds this edition to your collection.'
+                    : `Adds ${editionIds.length} editions to your collection.`}
                 </p>
 
                 {error && <p className="text-xs text-red-400">{error}</p>}
