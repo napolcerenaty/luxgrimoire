@@ -146,6 +146,13 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   photoCredit?: string | null;
 }
 
+export class LinkEditionHistoryDto {
+  @IsString()
+  relatedEditionSlug!: string;
+}
+
+export class UnlinkEditionHistoryDto {}
+
 export class AddArtistDto {
   @IsString()
   artistId!: string;

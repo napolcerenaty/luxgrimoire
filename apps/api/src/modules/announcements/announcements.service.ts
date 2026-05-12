@@ -89,7 +89,7 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: { generalSaleDate: 'asc' },
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           title: true,

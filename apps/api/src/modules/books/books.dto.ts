@@ -6,6 +6,7 @@ import {
   Min,
   Max,
   IsArray,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -46,21 +47,24 @@ export class UpdateBookDto {
   title?: string;
 
   @IsOptional()
+  @ValidateIf((o) => o.description !== null)
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
   @IsString()
   language?: string;
 
   @IsOptional()
+  @ValidateIf((o) => o.seriesName !== null)
   @IsString()
-  seriesName?: string;
+  seriesName?: string | null;
 
   @IsOptional()
+  @ValidateIf((o) => o.volumeNumber !== null)
   @IsNumber()
   @Type(() => Number)
-  volumeNumber?: number;
+  volumeNumber?: number | null;
 
   @IsOptional()
   @IsArray()

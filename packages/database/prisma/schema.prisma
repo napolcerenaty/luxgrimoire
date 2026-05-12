@@ -236,6 +236,9 @@ model BookEdition {
   subscriptionMonthId      String?
   submittedByUserId        String?
   verifiedAt               DateTime?
+  previousEditionId        String?                   @unique
+  previousEdition          BookEdition?              @relation("EditionHistory", fields: [previousEditionId], references: [id], onDelete: SetNull)
+  nextEdition              BookEdition?              @relation("EditionHistory")
   artists                  ArtistContribution[]
   bookBoxCompany           BookBoxCompany?           @relation(fields: [bookBoxCompanyId], references: [id])
   book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)

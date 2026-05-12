@@ -62,6 +62,20 @@ export interface ApiBook {
   genres: string[];
   authors: ApiAuthor[];
   editions?: ApiBookEdition[];
+  appearsInOmnibus?: Array<{
+    id: string;
+    volumeNumber: number | null;
+    customTitle: string | null;
+    edition: {
+      id: string;
+      slug: string;
+      editionName: string | null;
+      isOmnibus: boolean;
+      additionalImages: string[];
+      book: { id: string; slug: string; title: string };
+      bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;
+    };
+  }>;
 }
 
 export interface ApiAuthor {
@@ -121,6 +135,24 @@ export interface ApiBookEdition {
   book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & {
     authors?: ApiAuthor[];
   };
+  previousEdition?: {
+    id: string;
+    slug: string;
+    editionName: string | null;
+    additionalImages: string[];
+    generalSaleDate?: string | null;
+    bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
+    collection?: { id: string; name: string; slug: string } | null;
+  } | null;
+  nextEdition?: {
+    id: string;
+    slug: string;
+    editionName: string | null;
+    additionalImages: string[];
+    generalSaleDate?: string | null;
+    bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
+    collection?: { id: string; name: string; slug: string } | null;
+  } | null;
 }
 
 export interface ApiBookBoxCollection {

@@ -10,7 +10,131 @@ import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_PRIMARY = 'px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors'
 const BTN_GHOST = 'px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors'
+const BTN_DANGER = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 text-red-300 hover:bg-red-800/50 transition-colors'
 const LBL = 'block text-xs text-stone-400 mb-1'
+
+// ─── Edition History Section ──────────────────────────────────────────────────
+function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition; onLinked: () => void }) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [linking, setLinking] = useState(false)
+  const [rerouted, setRerouted] = useState<null | { chain: Array<{ slug: string; editionName: string | null }> }>(null)
+
+  const bookId = edition.book?.id
+  const { data: searchResults } = useQuery({
+    queryKey: ['edition-search-for-link', bookId, searchQuery],
+    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; editionName: string | null; bookBoxCompany?: { name: string } | null; generalSaleDate?: string | null }> }>(
+      `/editions?bookId=${bookId}&search=${encodeURIComponent(searchQuery)}&pageSize=10`
+    ),
+    enabled: !!bookId && searchQuery.length > 0,
+  })
+  const candidates = (searchResults?.data ?? []).filter(e => e.slug !== edition.slug)
+
+  const handleLink = async (relatedEditionSlug: string) => {
+    setLinking(true)
+    try {
+      const res = await authFetch<{ wasRerouted: boolean; chain: Array<{ slug: string; editionName: string | null }> }>(
+        `/editions/${edition.slug}/link-history`,
+        { method: 'POST', body: JSON.stringify({ relatedEditionSlug }) }
+      )
+      if (res.wasRerouted) {
+        setRerouted(res)
+      }
+      onLinked()
+    } catch (e) {
+      alert(`Link failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setLinking(false)
+      setSearchQuery('')
+    }
+  }
+
+  const handleUnlink = async () => {
+    if (!confirm('Remove this edition from history chain?')) return
+    setLinking(true)
+    try {
+      await authFetch(`/editions/${edition.slug}/link-history`, { method: 'DELETE' })
+      onLinked()
+    } catch (e) {
+      alert(`Unlink failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  const prev = edition.previousEdition
+  const next = edition.nextEdition
+
+  return (
+    <div className="space-y-3">
+      <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition History</span>
+
+      {/* Current chain display */}
+      {(prev || next) && (
+        <div className="flex flex-col gap-1.5 p-2 bg-stone-800/50 rounded-lg text-xs text-stone-400">
+          {prev && (
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500">← Previous:</span>
+              <span className="text-stone-300">{prev.editionName ?? prev.bookBoxCompany?.name ?? prev.slug}</span>
+              <span className="text-stone-600 text-[10px]">{prev.generalSaleDate?.slice(0, 10)}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 font-medium">Current edition</span>
+            {prev && (
+              <button type="button" onClick={handleUnlink} disabled={linking} className={BTN_DANGER}>
+                Unlink from previous
+              </button>
+            )}
+          </div>
+          {next && (
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500">→ Next:</span>
+              <span className="text-stone-300">{next.editionName ?? next.bookBoxCompany?.name ?? next.slug}</span>
+              <span className="text-stone-600 text-[10px]">{next.generalSaleDate?.slice(0, 10)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Re-routing notice */}
+      {rerouted && (
+        <div className="p-2 bg-amber-900/30 border border-amber-700/40 rounded-lg text-xs text-amber-300">
+          ↻ Chain re-linked: {rerouted.chain.map(e => e.editionName ?? e.slug).join(' → ')}
+        </div>
+      )}
+
+      {/* Link search */}
+      {!prev && (
+        <div className="space-y-1.5">
+          <label className={LBL}>Link to a previous edition (same book)</label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search editions by company or name…"
+            className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+          />
+          {candidates.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {candidates.map(c => (
+                <button
+                  key={c.slug}
+                  type="button"
+                  disabled={linking}
+                  onClick={() => handleLink(c.slug)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-sm text-stone-200 text-left transition-colors"
+                >
+                  <span>{c.editionName ?? c.bookBoxCompany?.name ?? c.slug}</span>
+                  {c.generalSaleDate && <span className="text-stone-500 text-xs">{c.generalSaleDate.slice(0, 10)}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export interface EditBookEditionFormProps {
@@ -211,6 +335,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         companies={companies}
         collections={collections}
       />
+
+      <hr className="border-stone-700/50" />
+      <EditionHistorySection edition={edition} onLinked={() => qc.invalidateQueries({ queryKey: ['admin', 'editions'] })} />
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={handleSubmit}
