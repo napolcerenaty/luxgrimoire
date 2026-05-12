@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -98,6 +98,15 @@ export class AuthController {
   @Post('consent')
   saveConsent(@CurrentUser() user: { id: string }) {
     return this.authService.saveConsent(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Patch('onboarding')
+  setOnboarding(
+    @CurrentUser() user: { id: string },
+    @Body() body: { completed: boolean },
+  ) {
+    return this.authService.setOnboarding(user.id, body.completed);
   }
 
   // ——— Google OAuth ———

@@ -286,10 +286,19 @@ export class AuthService {
         shippingCountry: true,
         createdAt: true,
         termsAcceptedAt: true,
+        onboardingCompletedAt: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
     return { ...user, needsConsent: !user.termsAcceptedAt };
+  }
+
+  async setOnboarding(userId: string, completed: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { onboardingCompletedAt: completed ? new Date() : null },
+      select: { id: true, onboardingCompletedAt: true },
+    });
   }
 
   async saveConsent(userId: string) {

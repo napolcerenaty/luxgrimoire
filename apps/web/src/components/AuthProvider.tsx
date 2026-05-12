@@ -17,6 +17,7 @@ interface AuthUser {
   defaultTaxRate?: number | null
   shippingCountry?: string | null
   bio?: string | null
+  onboardingCompletedAt?: string | null
 }
 
 interface AuthContextType {
@@ -24,6 +25,7 @@ interface AuthContextType {
   loading: boolean
   login: (user: AuthUser) => void
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -64,8 +66,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
+  const refreshUser = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
+      if (r.ok) {
+        const data: AuthUser = await r.json()
+        setUser(data)
+      }
+    } catch {}
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

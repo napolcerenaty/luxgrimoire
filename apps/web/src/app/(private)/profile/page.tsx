@@ -6,7 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 
@@ -214,6 +214,14 @@ export default function ProfilePage() {
     },
   })
 
+  const restartTutorialMutation = useMutation({
+    mutationFn: () => authFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: false }) }),
+    onSuccess: async () => {
+      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
+      if (r.ok) login(await r.json())
+    },
+  })
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -346,6 +354,26 @@ export default function ProfilePage() {
               {updateUsernameMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Updating...</> : usernameSuccess ? <><Check size={14} /> Updated!</> : 'Update Username'}
             </button>
           </form>
+
+          {/* Restart Tutorial */}
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <PlayCircle size={16} className="text-amber-400 shrink-0" />
+              <h2 className="font-serif font-semibold text-stone-100">Tutorial</h2>
+            </div>
+            <p className="text-sm text-stone-400">
+              Want to see the getting started wizard again? Restart it any time.
+            </p>
+            <button
+              onClick={() => restartTutorialMutation.mutate()}
+              disabled={restartTutorialMutation.isPending}
+              className="flex items-center gap-2 border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+            >
+              {restartTutorialMutation.isPending
+                ? <><Loader2 size={14} className="animate-spin" /> Restarting…</>
+                : <><PlayCircle size={14} /> Restart Tutorial</>}
+            </button>
+          </div>
 
           {/* Delete Account */}
           <div className="bg-stone-900 border border-red-900/40 rounded-2xl p-6 space-y-4">

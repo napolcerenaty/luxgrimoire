@@ -29,6 +29,7 @@ model User {
   termsVersion             String?
   privacyAcceptedAt        DateTime?
   privacyVersion           String?
+  onboardingCompletedAt    DateTime?
   accounts                 Account[]
   auditLogs                AuditLog[]
   submittedEditions        BookEdition[]               @relation("SubmittedEditions")
