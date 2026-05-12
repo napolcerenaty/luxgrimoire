@@ -76,9 +76,9 @@ export default function AdminBooksPage() {
         method: 'PATCH',
         body: JSON.stringify({
           title: form.title,
-          description: form.description || undefined,
-          seriesName: form.seriesName || undefined,
-          volumeNumber: form.volumeNumber ? Number(form.volumeNumber) : undefined,
+          description: form.description || null,
+          seriesName: form.seriesName || null,
+          volumeNumber: form.volumeNumber ? Number(form.volumeNumber) : null,
           genres: form.genres,
         }),
       })
