@@ -128,7 +128,7 @@ export function OnboardingWizard() {
       await authFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: true }) })
       await refreshUser()
     } catch {}
-    if (goToSubs) router.push('/my-subscriptions')
+    if (goToSubs) router.push('/subscriptions')
   }
 
   const handleNext = async () => {
@@ -297,13 +297,14 @@ export function OnboardingWizard() {
         <h2 className="font-serif text-xl font-semibold text-stone-100">Community Photos</h2>
       </div>
       <p className="text-stone-400 text-sm leading-relaxed">
-        On every edition page you can upload your own photos of the book — shelf shots, unboxings, detail photos. Here&apos;s how it works:
+        When an edition doesn&apos;t have an official cover photo yet, a community photo takes its place. Here&apos;s how it works:
       </p>
       <div className="space-y-3">
         {[
-          'Navigate to any edition page and scroll to the Community Photos section.',
-          'Upload your photo and optionally add your Instagram handle.',
-          'Your photo is reviewed and, once approved, it will appear on the edition page for everyone to see.',
+          'Open any edition page that has no official cover image — you\'ll see an upload placeholder instead.',
+          'Upload your own photo (shelf shot, unboxing, detail) — up to 5 photos per submission.',
+          'Optionally add your Instagram handle to get credited as the photographer.',
+          'Your photo is reviewed and, once approved, it becomes the cover and appears across the app.',
           'Manage all your submitted photos in Profile → My Photos.',
         ].map((text, i) => (
           <div key={i} className="flex items-start gap-3">
