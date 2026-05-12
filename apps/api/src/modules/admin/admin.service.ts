@@ -12,6 +12,9 @@ import { bookAuthorsInclude } from '../../common/prisma-includes';
 const MAINTENANCE_KEY = 'system:maintenance';
 const MAINTENANCE_TTL = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
 
+const DASHBOARD_COUNTS_KEY = 'admin:dashboard:counts';
+const DASHBOARD_COUNTS_TTL = 30_000; // 30 seconds
+
 export interface MaintenanceState { enabled: boolean; message: string }
 
 @Injectable()
@@ -99,12 +102,19 @@ export class AdminService {
         skip,
         take: pageSize,
         orderBy,
-        include: {
+        select: {
+          id: true,
+          slug: true,
+          publisher: true,
+          verifiedAt: true,
+          createdAt: true,
           book: {
             select: {
               id: true,
               slug: true,
               title: true,
+              seriesName: true,
+              volumeNumber: true,
               ...bookAuthorsInclude,
             },
           },
@@ -249,6 +259,14 @@ export class AdminService {
   }
 
   async getDashboardCounts() {
+    const cached = await this.cache.get<ReturnType<typeof this._computeDashboardCounts>>(DASHBOARD_COUNTS_KEY);
+    if (cached) return cached;
+    const counts = await this._computeDashboardCounts();
+    await this.cache.set(DASHBOARD_COUNTS_KEY, counts, DASHBOARD_COUNTS_TTL);
+    return counts;
+  }
+
+  private async _computeDashboardCounts() {
     const [
       communityImagesPending,
       dataRequestsPending,

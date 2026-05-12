@@ -91,7 +91,6 @@ export class BooksService {
           title: true,
           status: true,
           genres: true,
-          description: true,
           language: true,
           volumeNumber: true,
           seriesName: true,
