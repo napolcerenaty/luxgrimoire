@@ -335,7 +335,7 @@ export function OnboardingWizard() {
           <li className="flex items-start gap-2"><span className="text-amber-400 mt-0.5">→</span><span>Books are <strong>automatically linked</strong> to the correct months</span></li>
         </ul>
       </div>
-      <p className="text-xs text-stone-500">You can always adjust individual months, mark skips, or change costs after the fact.</p>
+      <p className="text-xs text-stone-500">You can always adjust individual months or change costs after the fact.</p>
     </div>,
   ]
 
