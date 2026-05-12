@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { apiFetch } from '@/lib/api'
 
 interface MonthBook {
   slug: string
@@ -30,6 +32,14 @@ interface MonthCardProps {
   isSpoiler?: boolean
   cardArtist?: CardArtist | null
   accentColors?: string[] | null
+  editionSlug?: string | null
+}
+
+interface CommunityImage {
+  id: string
+  url: string
+  cloudinaryId: string
+  status: string
 }
 
 export default function MonthCard({
@@ -42,13 +52,28 @@ export default function MonthCard({
   isSpoiler,
   cardArtist,
   accentColors,
+  editionSlug,
 }: MonthCardProps) {
   const [hovered, setHovered] = useState(false)
   const router = useRouter()
 
-  const hoverImage = mainBook?.edition?.coverImage ?? null
+  // Lazy-load community images only when hovered
+  const { data: communityImages } = useQuery<CommunityImage[]>({
+    queryKey: ['community-images-hover', editionSlug],
+    queryFn: () => apiFetch<CommunityImage[]>(`/editions/${editionSlug}/community-images`),
+    enabled: hovered && !!editionSlug,
+    staleTime: 1000 * 60 * 10,
+  })
+
+  const approvedCommunityImage = communityImages?.find((img) => img.status === 'APPROVED') ?? null
+
+  const bookCoverImage = mainBook?.edition?.coverImage ?? null
+  // Community photo takes priority over book cover on hover
+  const hoverImageUrl = approvedCommunityImage
+    ? (cloudinaryUrl(approvedCommunityImage.cloudinaryId, 'w_400,c_fill,q_auto,f_auto') ?? approvedCommunityImage.url)
+    : cloudinaryUrl(bookCoverImage, 'w_400,c_fill,q_auto,f_auto')
+
   const thumbUrl = cloudinaryUrl(coverImage, 'w_400,c_fill,q_auto,f_auto')
-  const hoverThumbUrl = cloudinaryUrl(hoverImage, 'w_400,c_fill,q_auto,f_auto')
   const bookSlug = mainBook?.slug
 
   const inner = (
@@ -65,7 +90,7 @@ export default function MonthCard({
           <img
             src={thumbUrl}
             alt={`${monthName} ${year}`}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverThumbUrl ? 'opacity-0' : 'opacity-100'}`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
           />
         ) : (
           <div className="w-full h-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
@@ -89,12 +114,12 @@ export default function MonthCard({
           </div>
         )}
 
-        {/* Hover: edition/book image */}
-        {hoverThumbUrl && (
+        {/* Hover: community photo (preferred) or edition/book image */}
+        {hoverImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={hoverThumbUrl}
-            alt={mainBook?.title ?? ''}
+            src={hoverImageUrl}
+            alt={approvedCommunityImage ? 'Community photo' : (mainBook?.title ?? '')}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}
           />
         )}

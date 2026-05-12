@@ -46,6 +46,11 @@ function getMainBook(m: PastMonth) {
   }
 }
 
+function getEditionSlug(m: PastMonth): string | null {
+  const mb = m.books?.find((b) => b.isMainBook) ?? m.books?.[0] ?? null
+  return mb?.edition?.slug ?? null
+}
+
 interface Props {
   subscriptionSlug: string
   accentColors?: string[] | null
@@ -119,6 +124,7 @@ function PreviousBoxesList({
                 isSpoiler={m.isSpoiler}
                 cardArtist={m.cardArtist ?? null}
                 accentColors={accentColors}
+                editionSlug={getEditionSlug(m)}
               />
             ))}
           </div>
