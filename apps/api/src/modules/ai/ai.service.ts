@@ -140,6 +140,10 @@ FEATURES RULES:
     artists: [{ name: "@artist1", role: "special edition endpapers (painted)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 - EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
+- PRINT RUN / LIMITED COPIES: If the text mentions the number of copies, print run size, or limited edition quantity (e.g. "limited to 1500 copies", "strictly limited to 1500 signed and numbered copies", "print run of 500", "only 750 copies"), add it as a feature in the format: "limited to [N] copies". Extract the number and format consistently.
+  Example: "strictly limited to 1500 signed and numbered copies" → features: ["limited to 1500 copies", "signed", "numbered"]
+  Example: "limited edition of 500 copies" → features: ["limited to 500 copies"]
+  Example: "print run: 2000" → features: ["limited to 2000 copies"]
 - BINDING DETAILS: Physical binding features such as "Smyth sewn binding", "head and tail bands", "rounded and backed", "French links", etc. are physical characteristics and should always be added as features.
 
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
