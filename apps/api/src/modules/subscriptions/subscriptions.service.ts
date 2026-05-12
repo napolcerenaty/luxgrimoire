@@ -182,7 +182,17 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug },
       include: {
-        company: true,
+        company: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            logoUrl: true,
+            country: true,
+            hasOfficialImagePermission: true,
+            brandColors: true,
+          },
+        },
         skipPolicy: true,
         prepayOptions: { orderBy: { months: 'asc' } },
         parent: { select: { slug: true, name: true } },
