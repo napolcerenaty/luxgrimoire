@@ -16,14 +16,14 @@ export function SaleInterestSection({ sale }: Props) {
   const saleOpen = isOpenForPurchase(sale, regionId)
   const salePast = isSalePast(sale, regionId)
 
-  const allEditionIds = (sale.editions ?? []).map(e => e.editionId)
+  const allEditions = sale.editions ?? []
 
   if (salePast) {
     return (
       <div className="mt-4">
         <AddToCollectionButton
           saleAnnouncementId={sale.id}
-          editionIds={allEditionIds}
+          editions={allEditions}
           basePrice={sale.basePrice ?? undefined}
           currency={sale.currency ?? 'USD'}
         />
@@ -37,7 +37,7 @@ export function SaleInterestSection({ sale }: Props) {
       {isInterested && saleOpen && (
         <AddToCollectionButton
           saleAnnouncementId={sale.id}
-          editionIds={allEditionIds}
+          editions={allEditions}
           basePrice={sale.basePrice ?? undefined}
           currency={sale.currency ?? 'USD'}
           compact

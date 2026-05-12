@@ -41,7 +41,6 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   if (!sale) return null
 
   const editions = sale.editions ?? []
-  const allEditionIds = editions.map(e => e.editionId)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
   const coverImg = (sale.imageUrl ?? firstEditionCover)
     ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_600,h_450,c_fill,q_auto,f_auto')
@@ -134,7 +133,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                 {salePast ? (
                   <AddToCollectionButton
                     saleAnnouncementId={sale.id}
-                    editionIds={allEditionIds}
+                    editions={editions}
                     basePrice={sale.basePrice ?? undefined}
                     currency={sale.currency ?? 'USD'}
                     compact
@@ -145,7 +144,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     {isInterested && saleOpen && (
                       <AddToCollectionButton
                         saleAnnouncementId={sale.id}
-                        editionIds={allEditionIds}
+                        editions={editions}
                         basePrice={sale.basePrice ?? undefined}
                         currency={sale.currency ?? 'USD'}
                         compact

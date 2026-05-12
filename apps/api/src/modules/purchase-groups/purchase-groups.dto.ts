@@ -44,6 +44,10 @@ export class CreatePurchaseGroupDto {
   @IsArray()
   @IsString({ each: true })
   editionIds: string[] = [];
+
+  /** Optional map of editionId → signatureType for variant selection */
+  @IsOptional()
+  editionSignatureTypes?: Record<string, string>;
 }
 
 export class ConfirmSalePurchaseDto {

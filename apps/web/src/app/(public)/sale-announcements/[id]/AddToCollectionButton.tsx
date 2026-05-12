@@ -17,13 +17,31 @@ const OWNERSHIP_OPTIONS = [
   { value: 'SHIPPING', label: 'Shipping / In transit' },
 ] as const
 
+const SIGNATURE_LABELS: Record<string, string> = {
+  unsigned: 'Unsigned',
+  signed: 'Signed',
+  digitally_signed: 'Digitally Signed',
+  signed_bookplate: 'Signed Bookplate',
+}
+
 interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
 interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null; isActive: boolean }
 
+export interface SaleEditionData {
+  editionId: string
+  edition: { book?: { title?: string | null } | null } | null
+  variants: Array<{
+    id: string
+    signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
+    price: number | null
+    currency: string | null
+  }>
+}
+
 interface Props {
   saleAnnouncementId: string
-  editionIds: string[]
+  editions: SaleEditionData[]
   basePrice?: number
   currency: string
   compact?: boolean
@@ -31,7 +49,7 @@ interface Props {
   triggerLabel?: string
 }
 
-export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
+export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -42,6 +60,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
   const [totalAmount, setTotalAmount] = useState(basePrice != null ? String(basePrice) : '')
   const [shippingAmount, setShippingAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState(currency || 'EUR')
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [isSecondHand, setIsSecondHand] = useState(false)
@@ -67,8 +86,17 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
     setDiscountEntries([])
     setIsSecondHand(false)
     setSourcePlatform('')
+    const initVariants: Record<string, string> = {}
+    for (const ed of editions) {
+      if (ed.variants.length >= 1) {
+        initVariants[ed.editionId] = ed.variants[0].signatureType
+      }
+    }
+    setSelectedVariants(initVariants)
     setOpen(true)
   }
+
+  const editionsNeedingSelection = editions.filter(e => e.variants.length > 1)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,6 +107,13 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
       const parsedPrice = parseDecimalInput(totalAmount)
       const parsedShipping = parseDecimalInput(shippingAmount)
 
+      const editionIds = editions.map(ed => ed.editionId)
+      const editionSignatureTypes: Record<string, string> = {}
+      for (const ed of editions) {
+        const chosen = selectedVariants[ed.editionId]
+        if (chosen) editionSignatureTypes[ed.editionId] = chosen
+      }
+
       const result = await createPurchaseGroup({
         saleAnnouncementId,
         totalAmount: parsedPrice,
@@ -87,6 +122,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
         purchasedAt: feeDate,
         ownershipStatus,
         editionIds,
+        editionSignatureTypes: Object.keys(editionSignatureTypes).length > 0 ? editionSignatureTypes : undefined,
         isSecondHand,
         sourcePlatform: isSecondHand && sourcePlatform ? sourcePlatform : undefined,
       })
@@ -166,10 +202,10 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
 
             {success ? (
               <div className="text-center py-6">
-                <div className="text-4xl mb-3">✓</div>
+                <div className="text-4xl mb-3">&#10003;</div>
                 <p className="text-green-400 font-semibold">Added to your collection!</p>
                 <p className="text-stone-500 text-sm mt-1">
-                  {editionIds.length} edition{editionIds.length !== 1 ? 's' : ''} added
+                  {editions.length} edition{editions.length !== 1 ? 's' : ''} added
                 </p>
               </div>
             ) : (
@@ -185,6 +221,39 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   <label className={LABEL}>Purchase date</label>
                   <input type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} className={INPUT} />
                 </div>
+
+                {editionsNeedingSelection.length > 0 && (
+                  <div className="space-y-3">
+                    <span className="text-xs font-medium text-stone-400">Edition variants</span>
+                    {editionsNeedingSelection.map(ed => (
+                      <div key={ed.editionId} className="rounded-xl border border-stone-700 p-3 space-y-2">
+                        <p className="text-xs text-stone-400 font-medium">
+                          {ed.edition?.book?.title ?? 'Edition'}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {ed.variants.map(v => (
+                            <label key={v.id} className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`variant-${ed.editionId}`}
+                                value={v.signatureType}
+                                checked={selectedVariants[ed.editionId] === v.signatureType}
+                                onChange={() => setSelectedVariants(prev => ({ ...prev, [ed.editionId]: v.signatureType }))}
+                                className="accent-amber-500"
+                              />
+                              <span className="text-sm text-stone-300">
+                                {SIGNATURE_LABELS[v.signatureType] ?? v.signatureType}
+                                {v.price != null && (
+                                  <span className="text-stone-500 ml-1">({v.price} {v.currency ?? selectedCurrency})</span>
+                                )}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
                   <div>
@@ -203,7 +272,6 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   </div>
                 </div>
 
-                {/* Fees */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
@@ -227,7 +295,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                             } : f))
                           }}
                           className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400">
-                          <option value="">— Template —</option>
+                          <option value="">Template</option>
                           {feeTemplates.map(t => (
                             <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ''}</option>
                           ))}
@@ -250,7 +318,6 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   </div>
                 </div>
 
-                {/* Discounts */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-stone-400">Discounts (optional)</span>
@@ -266,7 +333,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                       <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
                         <input type="text" value={disc.name}
                           onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
-                          placeholder="e.g. Promo code, loyalty…"
+                          placeholder="e.g. Promo code, loyalty"
                           className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
                         <input type="text" value={disc.amount}
                           onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
@@ -286,7 +353,6 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   </div>
                 </div>
 
-                {/* Second hand */}
                 <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input
@@ -295,7 +361,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                       onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
                       className="w-4 h-4 rounded border-stone-600 bg-stone-800 accent-orange-500"
                     />
-                    <span className="text-sm text-stone-300">🔄 Second hand</span>
+                    <span className="text-sm text-stone-300">&#x1F504; Second hand</span>
                   </label>
                   {isSecondHand && (
                     <select
@@ -303,16 +369,16 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                       onChange={e => setSourcePlatform(e.target.value)}
                       className={INPUT}
                     >
-                      <option value="">— Select platform —</option>
+                      <option value="">Select platform</option>
                       {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </select>
                   )}
                 </div>
 
                 <p className="text-xs text-stone-500">
-                  {editionIds.length === 1
+                  {editions.length === 1
                     ? 'Adds this edition to your collection.'
-                    : `Adds ${editionIds.length} editions to your collection.`}
+                    : `Adds ${editions.length} editions to your collection.`}
                 </p>
 
                 {error && <p className="text-xs text-red-400">{error}</p>}
@@ -325,7 +391,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
                   <button type="submit" disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
                     <MoveRight size={14} />
-                    {submitting ? 'Adding…' : 'Add to Collection'}
+                    {submitting ? 'Adding...' : 'Add to Collection'}
                   </button>
                 </div>
               </form>

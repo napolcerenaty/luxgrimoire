@@ -92,17 +92,19 @@ export class PurchaseGroupsService {
 
       // Create book entries for each edition
       const bookEntries = await Promise.all(
-        editions.map((edition) =>
-          tx.userBookEntry.create({
+        editions.map((edition) => {
+          const signatureType = dto.editionSignatureTypes?.[edition.id];
+          return tx.userBookEntry.create({
             data: {
               userId,
               bookId: edition.bookId,
               editionId: edition.id,
               purchaseGroupId: group.id,
               ownershipStatus: (dto.ownershipStatus as any) ?? 'OWNED',
+              ...(signatureType ? { signatureType: signatureType as any } : {}),
             },
-          })
-        )
+          });
+        })
       );
 
       // Record initial ownership history for each entry
