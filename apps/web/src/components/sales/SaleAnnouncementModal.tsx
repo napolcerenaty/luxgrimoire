@@ -10,7 +10,7 @@ import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSel
 import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast, resolveSalePrice } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -41,6 +41,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   if (!sale) return null
 
   const editions = sale.editions ?? []
+  const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
   const coverImg = (sale.imageUrl ?? firstEditionCover)
     ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_600,h_450,c_fill,q_auto,f_auto')
@@ -134,8 +135,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   <AddToCollectionButton
                     saleAnnouncementId={sale.id}
                     editions={editions}
-                    basePrice={sale.basePrice ?? undefined}
-                    currency={sale.currency ?? 'USD'}
+                    basePrice={resolvedPrice ?? undefined}
+                    currency={resolvedCurrency}
                     compact
                   />
                 ) : (
@@ -145,8 +146,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                       <AddToCollectionButton
                         saleAnnouncementId={sale.id}
                         editions={editions}
-                        basePrice={sale.basePrice ?? undefined}
-                        currency={sale.currency ?? 'USD'}
+                        basePrice={resolvedPrice ?? undefined}
+                        currency={resolvedCurrency}
                         compact
                         defaultOwnershipStatus="PREORDER"
                         triggerLabel="Confirm Purchase"

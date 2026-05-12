@@ -31,7 +31,30 @@ export function resolveSaleDates(
   }
 }
 
-/** Format a date string compactly for tier picker: "15 May · 14:00" */
+/**
+ * Resolve price for a sale announcement.
+ * Uses the specified region (or the default region if none given), falling back to top-level price.
+ */
+export function resolveSalePrice(
+  sale: ApiSaleAnnouncement,
+  regionId?: string | null,
+): { basePrice: number | null; currency: string } {
+  const regions = (sale.regions ?? []) as any[]
+
+  let region: any = null
+  if (regionId) {
+    region = regions.find((r: any) => r.id === regionId) ?? null
+  }
+  if (!region && regions.length > 0) {
+    region = regions.find((r: any) => r.isDefault) ?? regions[0]
+  }
+
+  const basePrice = region?.basePrice ?? sale.basePrice ?? null
+  const currency = region?.currency ?? sale.currency ?? 'USD'
+  return { basePrice, currency }
+}
+
+
 export function formatTierDate(isoDate: string | null | undefined): string | null {
   if (!isoDate) return null
   try {

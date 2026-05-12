@@ -3,7 +3,7 @@
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { AddToCollectionButton } from './AddToCollectionButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast, resolveSalePrice } from '@/lib/saleDates'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -17,6 +17,7 @@ export function SaleInterestSection({ sale }: Props) {
   const salePast = isSalePast(sale, regionId)
 
   const allEditions = sale.editions ?? []
+  const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
 
   if (salePast) {
     return (
@@ -24,8 +25,8 @@ export function SaleInterestSection({ sale }: Props) {
         <AddToCollectionButton
           saleAnnouncementId={sale.id}
           editions={allEditions}
-          basePrice={sale.basePrice ?? undefined}
-          currency={sale.currency ?? 'USD'}
+          basePrice={resolvedPrice ?? undefined}
+          currency={resolvedCurrency}
         />
       </div>
     )
@@ -38,8 +39,8 @@ export function SaleInterestSection({ sale }: Props) {
         <AddToCollectionButton
           saleAnnouncementId={sale.id}
           editions={allEditions}
-          basePrice={sale.basePrice ?? undefined}
-          currency={sale.currency ?? 'USD'}
+          basePrice={resolvedPrice ?? undefined}
+          currency={resolvedCurrency}
           compact
           defaultOwnershipStatus="PREORDER"
           triggerLabel="Confirm Purchase"
