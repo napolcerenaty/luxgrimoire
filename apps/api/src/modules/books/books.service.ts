@@ -265,6 +265,7 @@ export class BooksService {
             : null,
         };
       }),
+      appearsInOmnibus: book.editionComponents,
     };
   }
 
