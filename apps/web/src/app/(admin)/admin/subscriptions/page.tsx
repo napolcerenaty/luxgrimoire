@@ -792,6 +792,13 @@ export default function AdminSubscriptionsPage() {
     placeholderData: keepPreviousData,
   })
 
+  const { data: contentStreamsData } = useQuery({
+    queryKey: ['admin', 'subscriptions', 'content-streams'],
+    queryFn: () =>
+      authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?isContentStream=true&includeHidden=true&pageSize=100`),
+    enabled: user !== null,
+  })
+
   const { data: companiesData } = useQuery({
     queryKey: ['admin', 'companies'],
     queryFn: () =>
@@ -801,6 +808,7 @@ export default function AdminSubscriptionsPage() {
   })
 
   const subs = subsData?.data ?? []
+  const contentStreams = contentStreamsData?.data ?? []
   const companies = Array.isArray(companiesData)
     ? companiesData
     : (companiesData as PaginatedResponse<ApiBookBoxCompany> | undefined)?.data ?? []
@@ -874,7 +882,7 @@ export default function AdminSubscriptionsPage() {
     onError: (err: Error) => alert(`Błąd usuwania: ${err.message}`),
   })
 
-  const commonFormProps = { companies, allSubscriptions: subs, user }
+  const commonFormProps = { companies, allSubscriptions: contentStreams, user }
 
   const columns = [
     { key: 'name', label: 'Name', render: (row: ApiSubscription) => row.name },
@@ -910,10 +918,10 @@ export default function AdminSubscriptionsPage() {
             <span className="text-emerald-400 text-xs font-medium">Active</span>
           )}
           {row.parentSubscriptionId && (() => {
-            const parent = subs.find((s) => s.id === row.parentSubscriptionId)
+            const parent = contentStreams.find((s) => s.id === row.parentSubscriptionId)
             return (
               <span className="text-sky-400 text-[10px]">
-                Copy of {parent?.name ?? row.parentSubscriptionId}
+                Variant of {parent?.name ?? row.parentSubscriptionId}
               </span>
             )
           })()}

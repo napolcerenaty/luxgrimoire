@@ -466,6 +466,11 @@ export class SubscriptionQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   includeHidden?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  isContentStream?: boolean;
 }
 export class LinkedFeeTemplateDto {
   @IsString()

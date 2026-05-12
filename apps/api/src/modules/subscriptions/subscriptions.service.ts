@@ -133,6 +133,9 @@ export class SubscriptionsService {
     if (query.shipsInternationally !== undefined) {
       where.shipsInternationally = query.shipsInternationally;
     }
+    if (query.isContentStream !== undefined) {
+      where.isContentStream = query.isContentStream;
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.subscription.findMany({
