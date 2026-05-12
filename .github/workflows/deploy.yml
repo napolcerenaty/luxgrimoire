@@ -27,14 +27,16 @@ jobs:
           DEPLOY_UUID="${{ steps.deploy_api.outputs.deploy_uuid }}"
           echo "Waiting for API deployment $DEPLOY_UUID..."
           for i in $(seq 1 60); do
-            STATUS=$(curl -s \
+            RESPONSE=$(curl -s \
               "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" \
-              -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" | jq -r '.status')
+              -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}")
+            echo "[$i/60] Full response: $RESPONSE"
+            STATUS=$(echo $RESPONSE | jq -r '.status')
             echo "[$i/60] API status: $STATUS"
             if [ "$STATUS" = "finished" ]; then
               echo "✅ API deployed successfully"
               exit 0
-            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled-by-user" ]; then
               echo "❌ API deployment failed: $STATUS"
               exit 1
             fi
