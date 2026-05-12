@@ -56,6 +56,61 @@ export class CurrencyService {
     return rate;
   }
 
+  /**
+   * Pre-warm the in-memory rate cache for a batch of conversions.
+   * Reduces N+1 DB queries to one per unique currency pair.
+   * Key optimisation for stats endpoints that process many entries.
+   */
+  async warmCacheBatch(
+    entries: Array<{ from: string; date: Date }>,
+    toCurrency: string,
+  ): Promise<void> {
+    const to = toCurrency.toUpperCase()
+    const today = new Date()
+
+    // Collect unique (from, dateStr) pairs not already in-memory cache
+    const needed = new Map<string, Set<string>>() // from → Set<dateStr>
+
+    for (const { from, date } of entries) {
+      const f = from.toUpperCase()
+      if (f === to) continue
+      const effectiveDate = date > today ? today : date
+      const dateStr = effectiveDate.toISOString().slice(0, 10)
+      const cached = this.rateCache.get(`${f}:${to}:${dateStr}`)
+      if (cached && Date.now() < cached.expiresAt) continue
+      if (!needed.has(f)) needed.set(f, new Set())
+      needed.get(f)!.add(dateStr)
+    }
+
+    if (needed.size === 0) return
+
+    // One DB query per unique source currency, covering the full date range needed
+    await Promise.all(
+      [...needed.entries()].map(async ([from, dates]) => {
+        const dateStrs = [...dates].sort()
+        const minDate = new Date(dateStrs[0] + 'T00:00:00.000Z')
+        minDate.setDate(minDate.getDate() - 7) // 7-day lookback for weekend/holiday gaps
+        const maxDate = new Date(dateStrs[dateStrs.length - 1] + 'T00:00:00.000Z')
+
+        const rates = await this.prisma.exchangeRateHistory.findMany({
+          where: { fromCurrency: from, toCurrency: to, date: { gte: minDate, lte: maxDate } },
+          orderBy: { date: 'asc' },
+          select: { date: true, rate: true },
+        })
+
+        for (const dateStr of dateStrs) {
+          const cacheKey = `${from}:${to}:${dateStr}`
+          if (this.rateCache.get(cacheKey)) continue
+          const target = new Date(dateStr + 'T00:00:00.000Z').getTime()
+          const best = [...rates].reverse().find(r => r.date.getTime() <= target)
+          if (best && (target - best.date.getTime()) / 86_400_000 <= 7) {
+            this.setCache(cacheKey, Number(best.rate), dateStr)
+          }
+        }
+      }),
+    )
+  }
+
   /** Convert amount between currencies on a given date. */
   async convert(amount: number, fromCurrency: string, toCurrency: string, date: Date): Promise<number> {
     const rate = await this.getRateForDate(fromCurrency, toCurrency, date);
