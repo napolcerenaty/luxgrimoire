@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 import type { ApiBookBoxCollection, ApiBookEdition } from '@luxgrimoire/shared-types'
 
 interface CollectionWithEditions extends ApiBookBoxCollection {
@@ -80,8 +81,9 @@ export default async function CollectionPage({ params }: Props) {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-4xl font-serif text-amber-700/50">{book?.title?.charAt(0) ?? '?'}</span>
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(collection.company?.brandColors)} />
+                      <span className="relative z-10 text-4xl font-serif text-amber-700/50">{book?.title?.charAt(0) ?? '?'}</span>
                     </div>
                   )}
                 </div>

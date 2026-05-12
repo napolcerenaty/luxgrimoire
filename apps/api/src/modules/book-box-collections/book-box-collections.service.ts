@@ -15,7 +15,7 @@ const COLLECTION_SELECT = {
   companyId: true,
   createdAt: true,
   updatedAt: true,
-  company: { select: { id: true, slug: true, name: true, logoUrl: true } },
+  company: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
   _count: { select: { editions: true } },
 };
 

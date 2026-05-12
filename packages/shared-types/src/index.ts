@@ -129,7 +129,7 @@ export interface ApiBookBoxCollection {
   name: string;
   isActive: boolean;
   companyId: string;
-  company?: { id: string; slug: string; name: string; logoUrl: string | null };
+  company?: { id: string; slug: string; name: string; logoUrl: string | null; brandColors?: string[] | null };
   _count?: { editions: number };
   createdAt?: string;
   updatedAt?: string;
