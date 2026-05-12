@@ -248,6 +248,36 @@ export class AdminService {
     }
   }
 
+  async getDashboardCounts() {
+    const [
+      communityImagesPending,
+      dataRequestsPending,
+      dataRequestsAdded,
+      saleRequestsPending,
+      bugReportsOpen,
+      featureRequestsPending,
+      pendingEditions,
+    ] = await this.prisma.$transaction([
+      this.prisma.userEditionImage.count({ where: { status: 'PENDING' } }),
+      this.prisma.dataRequest.count({ where: { status: 'pending' } }),
+      this.prisma.dataRequest.count({ where: { status: 'added' } }),
+      this.prisma.saleAnnouncementRequest.count({ where: { status: 'pending' } }),
+      this.prisma.bugReport.count({ where: { status: 'open' } }),
+      this.prisma.featureRequest.count({ where: { status: 'pending' } }),
+      this.prisma.bookEdition.count({ where: { verifiedAt: null } }),
+    ]);
+
+    return {
+      communityImagesPending,
+      dataRequestsPending,
+      dataRequestsAdded,
+      saleRequestsPending,
+      bugReportsOpen,
+      featureRequestsPending,
+      pendingEditions,
+    };
+  }
+
   /** Backfill nextRenewalDate for all active subscription entries that don't have it set. */
   async backfillNextRenewalDates(): Promise<{ processed: number; skipped: number }> {
     const entries = await this.prisma.userSubscriptionEntry.findMany({

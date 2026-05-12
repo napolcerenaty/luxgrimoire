@@ -18,7 +18,6 @@ const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 // Raw API shape (authors are nested under .author)
 type RawBook = Omit<ApiBook, 'authors'> & {
   authors: { author: { id: string; name: string; slug: string } }[]
-  status: string
 }
 
 function rawBookToForm(book: RawBook): BookFormState {
@@ -43,7 +42,6 @@ export default function AdminBooksPage() {
 
   const [search, setSearch] = useState('')
   const [seriesFilter, setSeriesFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved'>('all')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -54,17 +52,17 @@ export default function AdminBooksPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [seriesFilter, statusFilter])
+  }, [seriesFilter])
 
   const buildParams = () => {
-    const p = new URLSearchParams({ page: String(page), pageSize: '20', status: statusFilter })
+    const p = new URLSearchParams({ page: String(page), pageSize: '20' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (seriesFilter) p.set('seriesName', seriesFilter)
     return p.toString()
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'books', page, debouncedSearch, seriesFilter, statusFilter],
+    queryKey: ['admin', 'books', page, debouncedSearch, seriesFilter],
     queryFn: () => authFetch<PaginatedResponse<RawBook>>(`/books?${buildParams()}`),
     placeholderData: keepPreviousData,
   })
@@ -123,12 +121,6 @@ export default function AdminBooksPage() {
     onError: (e: Error) => alert(`Error deleting book: ${e.message}`),
   })
 
-  const approveMutation = useMutation({
-    mutationFn: (slug: string) => authFetch(`/books/${slug}`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'books'] }),
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
   const columns = [
     {
       key: 'title', label: 'Title',
@@ -146,30 +138,6 @@ export default function AdminBooksPage() {
     {
       key: 'authors', label: 'Authors',
       render: (row: RawBook) => row.authors.map(ba => ba.author.name).join(', ') || '—',
-    },
-    {
-      key: 'status', label: 'Status',
-      render: (row: RawBook) => (
-        <div className="flex items-center gap-2">
-          {row.status === 'pending' ? (
-            <>
-              <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">Pending</span>
-              <button
-                type="button"
-                disabled={approveMutation.isPending}
-                onClick={() => approveMutation.mutate(row.slug)}
-                className={`${BTN_SM} bg-emerald-700 text-emerald-100 hover:bg-emerald-600 disabled:opacity-50`}
-              >
-                Approve
-              </button>
-            </>
-          ) : row.status === 'rejected' ? (
-            <span className="text-xs bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">Rejected</span>
-          ) : (
-            <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">Approved</span>
-          )}
-        </div>
-      ),
     },
     {
       key: 'genres', label: 'Genres',
@@ -218,23 +186,6 @@ export default function AdminBooksPage() {
             Clear
           </button>
         )}
-      </div>
-
-      {/* Status tabs */}
-      <div className="flex gap-1 mb-5 border-b border-stone-700 pb-0">
-        {(['all', 'pending', 'approved'] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors capitalize ${
-              statusFilter === s
-                ? 'bg-stone-800 text-amber-400 border border-stone-700 border-b-stone-800 -mb-px'
-                : 'text-stone-500 hover:text-stone-300'
-            }`}
-          >
-            {s === 'all' ? 'All' : s === 'pending' ? '⏳ Pending' : '✅ Approved'}
-          </button>
-        ))}
       </div>
 
       {isLoading ? (

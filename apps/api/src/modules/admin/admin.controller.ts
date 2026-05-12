@@ -23,6 +23,11 @@ export class AdminController {
     return this.adminService.getMaintenance();
   }
 
+  @Get('dashboard-counts')
+  getDashboardCounts() {
+    return this.adminService.getDashboardCounts();
+  }
+
   @Roles('ADMIN')
   @Put('maintenance')
   setMaintenance(@Body() dto: SetMaintenanceDto) {

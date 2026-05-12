@@ -9,11 +9,12 @@ import { useAuth } from '@/components/AuthProvider'
 import dynamic from 'next/dynamic'
 import type { ApiBookEdition, PaginatedResponse, ApiBook, ApiAuthor } from '@luxgrimoire/shared-types'
 import FormModal from '@/components/admin/FormModal'
-import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { BookForm, type BookFormState } from '@/components/admin/BookForm'
+import Link from 'next/link'
 
 const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
+// ─── Types ─────────────────────────────────────────────────────────────────
 
 interface RecentEdition extends ApiBookEdition {
   createdAt: string
@@ -32,15 +33,18 @@ interface RecentEdition extends ApiBookEdition {
   _count?: { userEntries: number }
 }
 
-interface PendingBook {
-  id: string
-  slug: string
-  title: string
-  createdAt: string
-  authors?: { author: { id: string; name: string; slug: string } }[]
+interface DashboardCounts {
+  communityImagesPending: number
+  dataRequestsPending: number
+  dataRequestsAdded: number
+  saleRequestsPending: number
+  bugReportsOpen: number
+  featureRequestsPending: number
+  pendingEditions: number
 }
 
-// ─── EditEditionLoader ─────────────────────────────────────────────────────────
+// ─── Edit Edition helpers ──────────────────────────────────────────────────
+
 function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: () => void; onCancel: () => void }) {
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({
@@ -58,91 +62,65 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
   )
 }
 
-// ─── EditBookForm ──────────────────────────────────────────────────────────────
-type FullBook = Omit<ApiBook, 'authors'> & { authors: { author: { id: string; name: string; slug: string } }[] }
-
-function EditBookForm({ book, onSuccess, onCancel }: { book: FullBook; onSuccess: () => void; onCancel: () => void }) {
-  const qc = useQueryClient()
-  const normAuthors: PersonEntry[] = book.authors.map(a => ({ id: a.author.id, name: a.author.name }))
-  const originalAuthorIds = new Set(normAuthors.map(a => a.id).filter(Boolean) as string[])
-
-  const editMutation = useMutation({
-    mutationFn: async (form: BookFormState) => {
-      await authFetch(`/books/${book.slug}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          title: form.title,
-          description: form.description || undefined,
-          seriesName: form.seriesName || undefined,
-          volumeNumber: form.volumeNumber ? Number(form.volumeNumber) : undefined,
-          genres: form.genres,
-        }),
-      })
-      const newIds = new Set(form.authors.filter(a => a.id).map(a => a.id!))
-      for (const id of originalAuthorIds) {
-        if (!newIds.has(id)) await authFetch(`/books/${book.slug}/authors/${id}`, { method: 'DELETE' })
-      }
-      for (const auth of form.authors) {
-        let id = auth.id
-        if (!id) {
-          const created = await authFetch<{ id: string }>('/authors', { method: 'POST', body: JSON.stringify({ name: auth.name }) })
-          id = created.id
-        }
-        if (!originalAuthorIds.has(id)) await authFetch(`/books/${book.slug}/authors/${id}`, { method: 'POST' })
-      }
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'pending-books'] }); onSuccess() },
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  const initial: BookFormState = {
-    title: book.title,
-    description: book.description ?? '',
-    seriesName: book.seriesName ?? '',
-    volumeNumber: book.volumeNumber != null ? String(book.volumeNumber) : '',
-    genres: book.genres ?? [],
-    authors: normAuthors,
-  }
-
-  return (
-    <BookForm
-      initial={initial}
-      onSubmit={form => editMutation.mutate(form)}
-      submitting={editMutation.isPending}
-      submitLabel="Save Changes"
-      onCancel={onCancel}
-    />
-  )
-}
-
-function EditBookLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: () => void; onCancel: () => void }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['book-full', slug],
-    queryFn: () => authFetch<FullBook>(`/books/${slug}`),
-    staleTime: 0, gcTime: 0,
-  })
-  if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
-  return <EditBookForm book={data} onSuccess={onSuccess} onCancel={onCancel} />
-}
-
 function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-stone-800 ${className}`} />
 }
 
-const TAB_CLASS = (active: boolean) =>
-  `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-    active
-      ? 'bg-stone-800 text-stone-100'
-      : 'text-stone-400 hover:text-stone-200'
-  }`
+// ─── Dashboard count card ──────────────────────────────────────────────────
+
+function CountCard({
+  href,
+  icon,
+  label,
+  count,
+  countLabel,
+  accent,
+}: {
+  href: string
+  icon: string
+  label: string
+  count: number
+  countLabel: string
+  accent: 'amber' | 'red' | 'blue' | 'purple' | 'green'
+}) {
+  const accentClasses = {
+    amber: { border: 'border-amber-700/50 hover:border-amber-600', badge: 'bg-amber-600 text-amber-100', ring: 'bg-amber-500/10' },
+    red: { border: 'border-red-700/50 hover:border-red-600', badge: 'bg-red-700 text-red-100', ring: 'bg-red-500/10' },
+    blue: { border: 'border-blue-700/50 hover:border-blue-600', badge: 'bg-blue-700 text-blue-100', ring: 'bg-blue-500/10' },
+    purple: { border: 'border-purple-700/50 hover:border-purple-600', badge: 'bg-purple-700 text-purple-100', ring: 'bg-purple-500/10' },
+    green: { border: 'border-green-700/50 hover:border-green-600', badge: 'bg-green-700 text-green-100', ring: 'bg-green-500/10' },
+  }[accent]
+
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-3 rounded-xl border ${accentClasses.border} bg-stone-900 px-4 py-3 transition-colors group`}
+    >
+      <span className={`text-2xl flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg ${accentClasses.ring}`}>{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-stone-400 leading-tight">{label}</p>
+        <p className="text-stone-200 font-semibold text-sm mt-0.5">{countLabel}</p>
+      </div>
+      {count > 0 && (
+        <span className={`flex-shrink-0 text-[11px] font-bold rounded-full px-2 py-0.5 min-w-[22px] text-center ${accentClasses.badge}`}>
+          {count}
+        </span>
+      )}
+      {count === 0 && (
+        <span className="flex-shrink-0 text-[11px] text-stone-600">✓</span>
+      )}
+    </Link>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
   const router = useRouter()
   const { user } = useAuth()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'editions' | 'books'>('editions')
+  const isAdmin = user?.role === 'ADMIN'
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
-  const [editBookSlug, setEditBookSlug] = useState<string | null>(null)
 
   useEffect(() => {
     if (user?.role === 'COMPANY_MANAGER') {
@@ -150,7 +128,7 @@ export default function AdminDashboard() {
     }
   }, [user, router])
 
-  // ─── Maintenance mode ─────────────────────────────────────────────────────
+  // ─── Maintenance mode ────────────────────────────────────────────────────
   const { data: maintenance } = useQuery<{ enabled: boolean; message: string }>({
     queryKey: ['admin', 'maintenance'],
     queryFn: () => authFetch('/admin/maintenance'),
@@ -164,24 +142,26 @@ export default function AdminDashboard() {
     onError: (err: unknown) => alert(`Failed to toggle maintenance: ${err instanceof Error ? err.message : String(err)}`),
   })
 
+  // ─── Dashboard counts ────────────────────────────────────────────────────
+  const { data: counts } = useQuery<DashboardCounts>({
+    queryKey: ['admin', 'dashboard-counts'],
+    queryFn: () => authFetch('/admin/dashboard-counts'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+
+  // ─── Pending editions ────────────────────────────────────────────────────
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
     queryKey: ['admin', 'pending-editions'],
     queryFn: () => authFetch<PaginatedResponse<RecentEdition>>('/editions?needsVerification=true&pageSize=50'),
   })
 
-  const { data: booksData, isLoading: booksLoading } = useQuery({
-    queryKey: ['admin', 'pending-books'],
-    queryFn: () => authFetch<PaginatedResponse<PendingBook>>('/books?status=pending&pageSize=50'),
-  })
-
   const pendingEditions = pendingData?.data ?? []
-  const pendingEditionsCount = pendingData?.total ?? 0
-  const pendingBooks = booksData?.data ?? []
-  const pendingBooksCount = booksData?.total ?? 0
 
   async function verifyEdition(slug: string) {
     await authFetch(`/editions/${slug}/verify`, { method: 'POST' })
     void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
+    void qc.invalidateQueries({ queryKey: ['admin', 'dashboard-counts'] })
   }
 
   async function rejectEdition(slug: string, collectionCount?: number) {
@@ -192,32 +172,29 @@ export default function AdminDashboard() {
     try {
       await authFetch(`/editions/${slug}`, { method: 'DELETE' })
       void qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] })
+      void qc.invalidateQueries({ queryKey: ['admin', 'dashboard-counts'] })
     } catch (e: unknown) {
       alert(`Error: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
-  async function approveBook(slug: string) {
-    await authFetch(`/books/${slug}`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) })
-    void qc.invalidateQueries({ queryKey: ['admin', 'pending-books'] })
-  }
-
-  async function rejectBook(slug: string) {
-    await authFetch(`/books/${slug}`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) })
-    void qc.invalidateQueries({ queryKey: ['admin', 'pending-books'] })
-  }
+  const totalAttention = counts
+    ? counts.communityImagesPending + counts.dataRequestsPending + counts.saleRequestsPending + counts.bugReportsOpen + counts.featureRequestsPending + counts.pendingEditions
+    : null
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-stone-100 mb-1">Dashboard</h1>
-          <p className="text-stone-400 text-sm">Monitor content changes and recent activity</p>
+          <p className="text-stone-400 text-sm">
+            {totalAttention === null ? 'Loading…' : totalAttention === 0 ? '✓ Everything is up to date' : `${totalAttention} item${totalAttention !== 1 ? 's' : ''} need attention`}
+          </p>
         </div>
       </div>
 
-      {/* Maintenance mode banner */}
-      {user?.role === 'ADMIN' && (
+      {/* Maintenance mode banner — ADMIN only */}
+      {isAdmin && (
         <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 mb-6 transition-colors ${
           maintenance?.enabled
             ? 'bg-red-950/40 border-red-700/50'
@@ -247,168 +224,137 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-stone-800 pb-2">
-        <button className={TAB_CLASS(tab === 'editions')} onClick={() => setTab('editions')}>
-          Editions
-          {pendingEditionsCount > 0 && (
-            <span className="ml-1.5 bg-amber-700 text-amber-100 text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] inline-block text-center">
-              {pendingEditionsCount}
-            </span>
-          )}
-        </button>
-        <button className={TAB_CLASS(tab === 'books')} onClick={() => setTab('books')}>
-          Books
-          {pendingBooksCount > 0 && (
-            <span className="ml-1.5 bg-amber-700 text-amber-100 text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] inline-block text-center">
-              {pendingBooksCount}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Needs attention — count cards */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-500 mb-3">Needs attention</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <CountCard
+            href="/admin/community-images"
+            icon="📷"
+            label="Community Images"
+            count={counts?.communityImagesPending ?? 0}
+            countLabel={counts ? `${counts.communityImagesPending} pending review` : '…'}
+            accent="amber"
+          />
+          <CountCard
+            href="/admin/data-requests"
+            icon="📦"
+            label="Data Requests"
+            count={counts?.dataRequestsPending ?? 0}
+            countLabel={counts ? `${counts.dataRequestsPending} pending · ${counts.dataRequestsAdded} added` : '…'}
+            accent="blue"
+          />
+          <CountCard
+            href="/admin/sale-announcement-requests"
+            icon="🏷"
+            label="Sale Announcement Requests"
+            count={counts?.saleRequestsPending ?? 0}
+            countLabel={counts ? `${counts.saleRequestsPending} pending` : '…'}
+            accent="purple"
+          />
+          <CountCard
+            href="/admin/bug-reports"
+            icon="🐛"
+            label="Bug Reports"
+            count={counts?.bugReportsOpen ?? 0}
+            countLabel={counts ? `${counts.bugReportsOpen} open` : '…'}
+            accent="red"
+          />
+          <CountCard
+            href="/admin/feature-requests"
+            icon="✨"
+            label="Feature Requests"
+            count={counts?.featureRequestsPending ?? 0}
+            countLabel={counts ? `${counts.featureRequestsPending} pending` : '…'}
+            accent="green"
+          />
+          <CountCard
+            href="/admin/editions"
+            icon="📚"
+            label="Editions"
+            count={counts?.pendingEditions ?? 0}
+            countLabel={counts ? `${counts.pendingEditions} pending verification` : '…'}
+            accent="amber"
+          />
+        </div>
+      </section>
 
-      {/* Editions tab */}
-      {tab === 'editions' && (
-        <section>
-          <p className="text-sm text-stone-400 mb-4">
-            Editions submitted by users that have not yet been verified by an admin or moderator.
-          </p>
-          {pendingLoading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-          ) : pendingEditions.length === 0 ? (
-            <div className="text-center py-16 text-stone-500">
-              <p className="text-4xl mb-3">✓</p>
-              <p className="font-serif">Nothing pending — all caught up!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingEditions.map((edition) => (
-                <div key={edition.id} className="rounded-xl border border-amber-800/40 bg-stone-900 p-4 flex items-start gap-4">
-                  {edition.additionalImages?.[0] && cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto') && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto')!}
-                      alt=""
-                      className="w-12 h-[72px] object-cover rounded border border-stone-700 flex-shrink-0"
-                    />
+      {/* Pending editions — actionable list */}
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-500 mb-3">Pending editions</h2>
+        <p className="text-sm text-stone-400 mb-4">
+          Editions submitted by users that have not yet been verified.
+        </p>
+        {pendingLoading ? (
+          <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+        ) : pendingEditions.length === 0 ? (
+          <div className="text-center py-10 text-stone-500">
+            <p className="text-3xl mb-3">✓</p>
+            <p className="font-serif">Nothing pending — all caught up!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingEditions.map((edition) => (
+              <div key={edition.id} className="rounded-xl border border-amber-800/40 bg-stone-900 p-4 flex items-start gap-4">
+                {edition.additionalImages?.[0] && cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto') && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={cloudinaryUrl(edition.additionalImages[0], 'w_60,h_90,c_fill,q_auto')!}
+                    alt=""
+                    className="w-12 h-[72px] object-cover rounded border border-stone-700 flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-stone-100 text-sm">
+                    {edition.book?.title ?? '—'}
+                    {edition.editionName && <span className="text-stone-400 ml-1">· {edition.editionName}</span>}
+                  </p>
+                  <p className="text-xs text-stone-500 mt-0.5">{edition.publisher ?? ''}</p>
+                  {edition.book?.authors && edition.book.authors.length > 0 && (
+                    <p className="text-xs text-amber-600/80 mt-0.5">
+                      by {edition.book.authors.map(a => a.name).join(', ')}
+                    </p>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-stone-100 text-sm">
-                      {edition.book?.title ?? '—'}
-                      {edition.editionName && <span className="text-stone-400 ml-1">· {edition.editionName}</span>}
+                  <p className="text-[11px] text-stone-600 mt-1 font-mono">{edition.slug}</p>
+                  {(edition._count?.userEntries ?? 0) > 0 && (
+                    <p className="text-[11px] text-amber-500/70 mt-1">
+                      ⚠ In {edition._count!.userEntries} user collection(s)
                     </p>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      {edition.publisher ?? ''}
-                    </p>
-                    {edition.book?.authors && edition.book.authors.length > 0 && (
-                      <p className="text-xs text-amber-600/80 mt-0.5">
-                        by {edition.book.authors.map(a => a.name).join(', ')}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-stone-600 mt-1 font-mono">{edition.slug}</p>
-                    {(edition._count?.userEntries ?? 0) > 0 && (
-                      <p className="text-[11px] text-amber-500/70 mt-1">
-                        ⚠ In {edition._count!.userEntries} user collection(s)
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2 items-center flex-shrink-0">
-                    <a
-                      href={edition.book?.slug ? `/editions/${edition.slug}` : '#'}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-stone-400 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
-                    >
-                      View
-                    </a>
-                    <button
-                      onClick={() => setEditEditionSlug(edition.slug)}
-                      className="text-xs text-stone-300 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
-                    >
-                      ✎ Edit
-                    </button>
-                    <button
-                      onClick={() => rejectEdition(edition.slug, edition._count?.userEntries)}
-                      className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-700/60 px-2 py-1 rounded transition-colors"
-                    >
-                      ✕ Reject
-                    </button>
-                    <button
-                      onClick={() => verifyEdition(edition.slug)}
-                      className="text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 px-3 py-1 rounded transition-colors font-medium"
-                    >
-                      ✓ Verify
-                    </button>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Books tab */}
-      {tab === 'books' && (
-        <section>
-          <p className="text-sm text-stone-400 mb-4">
-            Books suggested by users that have not yet been approved.
-          </p>
-          {booksLoading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-          ) : pendingBooks.length === 0 ? (
-            <div className="text-center py-16 text-stone-500">
-              <p className="text-4xl mb-3">✓</p>
-              <p className="font-serif">Nothing pending — all caught up!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingBooks.map((book) => (
-                <div key={book.id} className="rounded-xl border border-amber-800/40 bg-stone-900 p-4 flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-stone-100 text-sm">
-                      {book.title}
-                    </p>
-                    {book.authors && book.authors.length > 0 && (
-                      <p className="text-xs text-amber-600/80 mt-0.5">
-                        by {book.authors.map(a => a.author.name).join(', ')}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-stone-600 mt-1 font-mono">{book.slug}</p>
-                  </div>
-                  <div className="flex gap-2 items-center flex-shrink-0">
-                    <a
-                      href={`/books/${book.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-stone-400 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
-                    >
-                      View
-                    </a>
-                    <button
-                      onClick={() => setEditBookSlug(book.slug)}
-                      className="text-xs text-stone-300 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
-                    >
-                      ✎ Edit
-                    </button>
-                    <button
-                      onClick={() => rejectBook(book.slug)}
-                      className="text-xs bg-red-900 hover:bg-red-800 text-red-100 px-3 py-1 rounded transition-colors font-medium"
-                    >
-                      ✕ Reject
-                    </button>
-                    <button
-                      onClick={() => approveBook(book.slug)}
-                      className="text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 px-3 py-1 rounded transition-colors font-medium"
-                    >
-                      ✓ Approve
-                    </button>
-                  </div>
+                <div className="flex gap-2 items-center flex-shrink-0">
+                  <a
+                    href={edition.book?.slug ? `/editions/${edition.slug}` : '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-stone-400 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
+                  >
+                    View
+                  </a>
+                  <button
+                    onClick={() => setEditEditionSlug(edition.slug)}
+                    className="text-xs text-stone-300 hover:text-amber-400 border border-stone-700 px-2 py-1 rounded transition-colors"
+                  >
+                    ✎ Edit
+                  </button>
+                  <button
+                    onClick={() => rejectEdition(edition.slug, edition._count?.userEntries)}
+                    className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-700/60 px-2 py-1 rounded transition-colors"
+                  >
+                    ✕ Reject
+                  </button>
+                  <button
+                    onClick={() => verifyEdition(edition.slug)}
+                    className="text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-100 px-3 py-1 rounded transition-colors font-medium"
+                  >
+                    ✓ Verify
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Edit Edition modal */}
       <FormModal open={editEditionSlug !== null} title="Edit Edition" onClose={() => setEditEditionSlug(null)}>
@@ -417,17 +363,6 @@ export default function AdminDashboard() {
             slug={editEditionSlug}
             onSuccess={() => { qc.invalidateQueries({ queryKey: ['admin', 'pending-editions'] }); setEditEditionSlug(null) }}
             onCancel={() => setEditEditionSlug(null)}
-          />
-        )}
-      </FormModal>
-
-      {/* Edit Book modal */}
-      <FormModal open={editBookSlug !== null} title="Edit Book" onClose={() => setEditBookSlug(null)}>
-        {editBookSlug && (
-          <EditBookLoader
-            slug={editBookSlug}
-            onSuccess={() => { qc.invalidateQueries({ queryKey: ['admin', 'pending-books'] }); setEditBookSlug(null) }}
-            onCancel={() => setEditBookSlug(null)}
           />
         )}
       </FormModal>
