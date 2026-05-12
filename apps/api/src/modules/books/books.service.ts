@@ -231,6 +231,24 @@ export class BooksService {
             },
           },
         },
+        editionComponents: {
+          select: {
+            id: true,
+            volumeNumber: true,
+            customTitle: true,
+            edition: {
+              select: {
+                id: true,
+                slug: true,
+                editionName: true,
+                additionalImages: true,
+                isOmnibus: true,
+                book: { select: { id: true, slug: true, title: true } },
+                bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);

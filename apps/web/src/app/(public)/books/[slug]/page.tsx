@@ -103,6 +103,41 @@ export default async function BookPage({ params }: Props) {
         )}
       </div>
 
+      {/* Omnibus appearances */}
+      {book.appearsInOmnibus && book.appearsInOmnibus.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Part of Omnibus</h2>
+          <div className="flex flex-col gap-3">
+            {book.appearsInOmnibus.map(({ id, volumeNumber, customTitle, edition }) => (
+              <Link
+                key={id}
+                href={`/editions/${edition.slug}`}
+                className="flex items-center gap-4 p-4 rounded-xl border border-stone-700 hover:border-amber-600/60 bg-stone-900/60 hover:bg-stone-800/60 transition-all group"
+              >
+                {edition.additionalImages?.[0] && (
+                  <img
+                    src={edition.additionalImages[0]}
+                    alt={edition.editionName ?? edition.book.title}
+                    className="w-12 h-16 object-cover rounded-md flex-shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-stone-100 font-medium group-hover:text-amber-400 transition-colors truncate">
+                    {customTitle ?? edition.editionName ?? edition.book.title}
+                  </p>
+                  {volumeNumber != null && (
+                    <p className="text-xs text-stone-500 mt-0.5">Vol. {volumeNumber}</p>
+                  )}
+                  {edition.bookBoxCompany && (
+                    <p className="text-xs text-stone-500 mt-0.5">{edition.bookBoxCompany.name}</p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Editions */}
       <section>
         <div className="flex items-center justify-between mb-5">

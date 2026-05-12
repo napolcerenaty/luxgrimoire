@@ -62,6 +62,20 @@ export interface ApiBook {
   genres: string[];
   authors: ApiAuthor[];
   editions?: ApiBookEdition[];
+  appearsInOmnibus?: Array<{
+    id: string;
+    volumeNumber: number | null;
+    customTitle: string | null;
+    edition: {
+      id: string;
+      slug: string;
+      editionName: string | null;
+      isOmnibus: boolean;
+      additionalImages: string[];
+      book: { id: string; slug: string; title: string };
+      bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;
+    };
+  }>;
 }
 
 export interface ApiAuthor {
