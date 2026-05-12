@@ -200,6 +200,7 @@ REGION RULES:
 - Look for different price/currency combinations or different regions mentioned (UK/INT, US/Canada, EU, AUS, etc.)
 - The FIRST region/price mentioned = isDefault: true
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
+- If only ONE region is mentioned (e.g. the whole announcement has one price/currency/date set), do NOT create a regions array — the data will be applied to the sale announcement defaults directly
 - Each region should have: name, price, currency, and dates where available
 - For dates: convert all times to UTC using the timezone mentioned
   - "10am BST" = BST is UTC+1 → 09:00 UTC
@@ -212,6 +213,7 @@ REGION RULES:
 - Extract timezone from the text and set saleTimezone (e.g. "BST", "ET", "UTC")
 - For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
 - If only one price/date is given for the entire announcement (no regional split), do NOT create regions array
+- If exactly one region exists (even if named), do NOT create regions array — it becomes the sale announcement default
 
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")

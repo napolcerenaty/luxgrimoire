@@ -1580,7 +1580,7 @@ export default function AdminSaleAnnouncementsPage() {
     }
     setCreateInitial(newInitial)
     setCreateFormKey(k => k + 1)
-    pendingRegionsRef.current = result.regions ?? []
+    pendingRegionsRef.current = (result.regions?.length ?? 0) > 1 ? (result.regions ?? []) : []
     setEditItem(null)
     createModal.open()
   }
