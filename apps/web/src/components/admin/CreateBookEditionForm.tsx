@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -102,6 +102,10 @@ export default function CreateBookEditionForm({
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
   const [duplicateEdition, setDuplicateEdition] = useState<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null } | null>(null)
   const [bypassDuplicate, setBypassDuplicate] = useState(false)
+  const [createdEditionSlug, setCreatedEditionSlug] = useState<string | null>(null)
+  const [showLinkStep, setShowLinkStep] = useState(false)
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [linkDone, setLinkDone] = useState(false)
 
   // ── Companies ────────────────────────────────────────────────────────────
   const { data: companiesData } = useQuery({
@@ -225,12 +229,13 @@ export default function CreateBookEditionForm({
   }
 
   // ── Step 2 submit ────────────────────────────────────────────────────────
-  const handleStep2 = async () => {
+  const handleStep2 = async (forceBypass?: boolean) => {
     setBusy(true)
     setDuplicateEdition(null)
+    const shouldBypass = forceBypass ?? bypassDuplicate
     try {
       // Duplicate edition check
-      if (companyId && !bypassDuplicate) {
+      if (companyId && !shouldBypass) {
         const edRes = await authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null }> }>(
           `/editions?bookId=${createdBookId}&companyId=${companyId}&pageSize=10`
         )
@@ -302,12 +307,59 @@ export default function CreateBookEditionForm({
       }
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       setSaved(true)
-      setTimeout(() => onSuccess(ed.id), 800)
+      // If this was a re-edition (bypassed duplicate check), show the link step
+      if (shouldBypass && duplicateEdition) {
+        setCreatedEditionSlug(ed.slug)
+        setShowLinkStep(true)
+      } else {
+        setTimeout(() => onSuccess(ed.id), 800)
+      }
     } catch (e: unknown) {
       alert(`Error creating edition: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setBusy(false)
     }
+  }
+
+  // ── LINK HISTORY STEP ────────────────────────────────────────────────────
+  if (showLinkStep && createdEditionSlug && duplicateEdition) {
+    const handleLink = async () => {
+      setLinkBusy(true)
+      try {
+        await authFetch(`/editions/${createdEditionSlug}/link-history`, {
+          method: 'POST',
+          body: JSON.stringify({ relatedEditionSlug: duplicateEdition.slug }),
+        })
+        setLinkDone(true)
+        qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
+        setTimeout(() => onSuccess(''), 600)
+      } catch (e) {
+        alert(`Link failed: ${e instanceof Error ? e.message : String(e)}`)
+        setLinkBusy(false)
+      }
+    }
+    return (
+      <div className="space-y-4 p-4 bg-stone-800/60 rounded-xl border border-amber-700/30">
+        <p className="text-sm text-stone-300 font-semibold">✓ New edition created!</p>
+        <p className="text-sm text-stone-400">
+          Link it to the previous edition from the same company?
+        </p>
+        <div className="p-3 rounded-lg bg-stone-700/50 text-sm text-stone-200">
+          {duplicateEdition.bookBoxCompany?.name ?? duplicateEdition.slug}
+          {duplicateEdition.collection ? ` — ${duplicateEdition.collection.name}` : ''}
+        </div>
+        <div className="flex gap-2">
+          <button type="button" disabled={linkBusy || linkDone} onClick={handleLink}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors">
+            {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : 'Link as re-edition'}
+          </button>
+          <button type="button" onClick={() => onSuccess('')}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors">
+            Skip
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // ── STEP 1 RENDER ─────────────────────────────────────────────────────────
@@ -488,7 +540,7 @@ export default function CreateBookEditionForm({
             </a>
             <button
               type="button"
-              onClick={() => { setBypassDuplicate(true); handleStep2() }}
+              onClick={() => { setBypassDuplicate(true); handleStep2(true) }}
               className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 rounded-lg transition-colors"
             >
               Create anyway (re-edition)

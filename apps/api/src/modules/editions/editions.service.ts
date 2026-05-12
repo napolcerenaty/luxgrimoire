@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
@@ -232,6 +232,22 @@ export class EditionsService {
           },
           orderBy: { order: 'asc' },
         },
+        previousEdition: {
+          select: {
+            id: true, slug: true, editionName: true, additionalImages: true,
+            generalSaleDate: true, createdAt: true,
+            bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+            collection: { select: { id: true, name: true, slug: true } },
+          },
+        },
+        nextEdition: {
+          select: {
+            id: true, slug: true, editionName: true, additionalImages: true,
+            generalSaleDate: true, createdAt: true,
+            bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+            collection: { select: { id: true, name: true, slug: true } },
+          },
+        },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
@@ -404,6 +420,87 @@ export class EditionsService {
       }),
     ]);
     return deleted;
+  }
+
+  /** Link two editions as previous→next. Auto-determines direction by date.
+   * Returns the resulting chain and whether an intermediate re-linking happened. */
+  async linkEditionHistory(slugA: string, slugB: string): Promise<{
+    older: { id: string; slug: string; editionName: string | null };
+    newer: { id: string; slug: string; editionName: string | null };
+    wasRerouted: boolean;
+    chain: Array<{ slug: string; editionName: string | null; date: Date | null }>;
+  }> {
+    const [a, b] = await Promise.all([
+      this.prisma.bookEdition.findUnique({
+        where: { slug: slugA },
+        select: { id: true, slug: true, editionName: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, editionName: true, generalSaleDate: true, createdAt: true } } },
+      }),
+      this.prisma.bookEdition.findUnique({
+        where: { slug: slugB },
+        select: { id: true, slug: true, editionName: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, editionName: true, generalSaleDate: true, createdAt: true } } },
+      }),
+    ]);
+    if (!a) throw new NotFoundException(`Edition '${slugA}' not found`);
+    if (!b) throw new NotFoundException(`Edition '${slugB}' not found`);
+    if (a.bookId !== b.bookId) throw new BadRequestException('Editions must belong to the same book');
+
+    const dateA = a.generalSaleDate ? new Date(a.generalSaleDate) : a.createdAt;
+    const dateB = b.generalSaleDate ? new Date(b.generalSaleDate) : b.createdAt;
+
+    // Determine older/newer
+    const [older, newer] = dateA <= dateB ? [a, b] : [b, a];
+
+    let wasRerouted = false;
+
+    // Detect chain re-linking: older already has a nextEdition (C) that is newer than `newer`
+    const existingNext = older.nextEdition;
+    if (existingNext) {
+      const dateExisting = existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null;
+      const dateNewer = newer.generalSaleDate ? new Date(newer.generalSaleDate) : null;
+      if (dateExisting && dateNewer && dateNewer < dateExisting) {
+        // Insert newer between older and existingNext: older→newer→existingNext
+        await this.prisma.$transaction([
+          // newer points to older
+          this.prisma.bookEdition.update({ where: { id: newer.id }, data: { previousEditionId: older.id } }),
+          // existingNext points to newer
+          this.prisma.bookEdition.update({ where: { id: existingNext.id }, data: { previousEditionId: newer.id } }),
+        ]);
+        wasRerouted = true;
+        return {
+          older: { id: older.id, slug: older.slug, editionName: older.editionName },
+          newer: { id: newer.id, slug: newer.slug, editionName: newer.editionName },
+          wasRerouted,
+          chain: [
+            { slug: older.slug, editionName: older.editionName, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
+            { slug: newer.slug, editionName: newer.editionName, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+            { slug: existingNext.slug, editionName: existingNext.editionName, date: existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null },
+          ],
+        };
+      }
+    }
+
+    // Simple link: newer.previousEditionId = older.id
+    await this.prisma.bookEdition.update({
+      where: { id: newer.id },
+      data: { previousEditionId: older.id },
+    });
+
+    return {
+      older: { id: older.id, slug: older.slug, editionName: older.editionName },
+      newer: { id: newer.id, slug: newer.slug, editionName: newer.editionName },
+      wasRerouted: false,
+      chain: [
+        { slug: older.slug, editionName: older.editionName, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
+        { slug: newer.slug, editionName: newer.editionName, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+      ],
+    };
+  }
+
+  /** Remove the previousEdition link from an edition (unlink from history) */
+  async unlinkEditionHistory(slug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    return this.prisma.bookEdition.update({ where: { id: edition.id }, data: { previousEditionId: null } });
   }
 
   private async indexEdition(editionId: string): Promise<void> {

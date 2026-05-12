@@ -18,6 +18,7 @@ import {
   EditionQueryDto,
   CreateComponentDto,
   UpdateComponentDto,
+  LinkEditionHistoryDto,
 } from './editions.dto';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
 import { UserEditionImagesService } from './user-edition-images.service';
@@ -196,5 +197,20 @@ export class EditionsController {
   @Delete(':slug/components/:componentId')
   removeComponent(@Param('slug') slug: string, @Param('componentId') componentId: string) {
     return this.editionsService.removeComponent(slug, componentId);
+  }
+
+  // Edition history
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/link-history')
+  linkHistory(@Param('slug') slug: string, @Body() dto: LinkEditionHistoryDto) {
+    return this.editionsService.linkEditionHistory(slug, dto.relatedEditionSlug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/link-history')
+  unlinkHistory(@Param('slug') slug: string) {
+    return this.editionsService.unlinkEditionHistory(slug);
   }
 }
