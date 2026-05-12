@@ -101,6 +101,7 @@ export default function CreateBookEditionForm({
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
   const [duplicateEdition, setDuplicateEdition] = useState<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null } | null>(null)
+  const [bypassDuplicate, setBypassDuplicate] = useState(false)
 
   // ── Companies ────────────────────────────────────────────────────────────
   const { data: companiesData } = useQuery({
@@ -229,7 +230,7 @@ export default function CreateBookEditionForm({
     setDuplicateEdition(null)
     try {
       // Duplicate edition check
-      if (companyId) {
+      if (companyId && !bypassDuplicate) {
         const edRes = await authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null }> }>(
           `/editions?bookId=${createdBookId}&companyId=${companyId}&pageSize=10`
         )
@@ -473,7 +474,7 @@ export default function CreateBookEditionForm({
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
       </div>
 
-      {duplicateEdition && (
+      {duplicateEdition && !bypassDuplicate && (
         <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-4 space-y-2">
           <p className="text-sm text-amber-300 font-semibold">⚠ A similar edition already exists</p>
           <p className="text-sm text-stone-300">
@@ -485,6 +486,13 @@ export default function CreateBookEditionForm({
               className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
               View existing ↗
             </a>
+            <button
+              type="button"
+              onClick={() => { setBypassDuplicate(true); handleStep2() }}
+              className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 rounded-lg transition-colors"
+            >
+              Create anyway (re-edition)
+            </button>
           </div>
         </div>
       )}
