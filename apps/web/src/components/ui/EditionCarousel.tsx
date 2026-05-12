@@ -59,7 +59,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
                 style={brandGradientStyle(card.brandColors)}
               />
             )}
-            <span className="relative text-xs font-serif text-amber-700/60 text-center leading-snug line-clamp-4 px-3">{card.title}</span>
+            <span className="relative text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{card.title}</span>
           </div>
         )}
 

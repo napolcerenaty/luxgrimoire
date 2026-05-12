@@ -60,7 +60,7 @@ export function EditionCard({
           <div className="relative w-full h-full flex items-center justify-center text-stone-600 p-3">
             {/* Brand gradient overlay */}
             <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(companyBrandColors)} />
-            <span className="relative z-10 text-xs font-serif text-amber-700/60 text-center leading-snug line-clamp-4">{title ?? altText}</span>
+            <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{title ?? altText}</span>
           </div>
         )}
 

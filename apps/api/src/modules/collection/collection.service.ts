@@ -93,7 +93,7 @@ export class CollectionService {
               slug: true,
               publisher: true,
               additionalImages: true,
-              bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+              bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
               communityImages: {
                 where: { status: 'APPROVED' },
                 orderBy: { sortOrder: 'asc' },

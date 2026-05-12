@@ -10,7 +10,7 @@ import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSel
 import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase, isSalePast } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast, resolveSalePrice } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -41,7 +41,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   if (!sale) return null
 
   const editions = sale.editions ?? []
-  const allEditionIds = editions.map(e => e.editionId)
+  const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
   const coverImg = (sale.imageUrl ?? firstEditionCover)
     ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_600,h_450,c_fill,q_auto,f_auto')
@@ -89,8 +89,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               {coverImg ? (
                 <Image src={coverImg} alt={sale.title} fill className="object-cover" unoptimized />
               ) : (
-                <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-2xl font-serif">
-                  {sale.title.charAt(0)}
+                <div className="w-full h-full bg-stone-800 flex items-center justify-center p-3">
+                  <span className="text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{sale.title}</span>
                 </div>
               )}
             </div>
@@ -134,9 +134,9 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                 {salePast ? (
                   <AddToCollectionButton
                     saleAnnouncementId={sale.id}
-                    editionIds={allEditionIds}
-                    basePrice={sale.basePrice ?? undefined}
-                    currency={sale.currency ?? 'USD'}
+                    editions={editions}
+                    basePrice={resolvedPrice ?? undefined}
+                    currency={resolvedCurrency}
                     compact
                   />
                 ) : (
@@ -145,9 +145,9 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     {isInterested && saleOpen && (
                       <AddToCollectionButton
                         saleAnnouncementId={sale.id}
-                        editionIds={allEditionIds}
-                        basePrice={sale.basePrice ?? undefined}
-                        currency={sale.currency ?? 'USD'}
+                        editions={editions}
+                        basePrice={resolvedPrice ?? undefined}
+                        currency={resolvedCurrency}
                         compact
                         defaultOwnershipStatus="PREORDER"
                         triggerLabel="Confirm Purchase"

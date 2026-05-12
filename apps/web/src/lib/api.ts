@@ -392,6 +392,7 @@ export interface CreatePurchaseGroupData {
   isSecondHand?: boolean;
   sourcePlatform?: string;
   editionIds: string[];
+  editionSignatureTypes?: Record<string, string>;
 }
 
 export interface UpdatePurchaseGroupData {
