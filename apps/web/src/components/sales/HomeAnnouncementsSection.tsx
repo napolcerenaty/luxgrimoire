@@ -78,7 +78,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
         ) : (
           <div className="relative w-full h-full flex items-center justify-center">
             <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(brandColors)} />
-            <span className="relative z-10 text-4xl font-serif text-amber-700/50">{sale.title.charAt(0)}</span>
+            <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{sale.title}</span>
           </div>
         )}
 
