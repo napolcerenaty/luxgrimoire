@@ -97,6 +97,9 @@ export class UserEditionImagesService {
             consentedAt,
             status: 'PENDING',
           },
+          include: {
+            user: { select: { username: true } },
+          },
         }),
       ),
     );

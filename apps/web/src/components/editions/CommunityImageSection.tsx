@@ -200,7 +200,7 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                 ) : (
                   <span className="text-[10px] text-stone-500">community photo</span>
                 )}
-                {images.some(img => user?.username === img.user.username) && (
+                {images.some(img => user?.username && img.user?.username === user.username) && (
                   <span className="text-[10px] text-stone-600 ml-auto shrink-0">
                     manage in{' '}
                     <a href="/profile" className="text-amber-600 hover:text-amber-400 underline underline-offset-2">profile</a>
