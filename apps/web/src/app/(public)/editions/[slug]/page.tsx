@@ -75,6 +75,8 @@ interface EditionDetail {
     order: number
     book: { id: string; slug: string; title: string } | null
   }>
+  previousEdition?: { id: string; slug: string; editionName: string | null; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  nextEdition?: { id: string; slug: string; editionName: string | null; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
@@ -544,6 +546,40 @@ export default async function EditionPage({ params, searchParams }: Props) {
         )}
 
       </div>
+
+      {/* ── Edition History ──────────────────────────────────────────────── */}
+      {(edition.previousEdition || edition.nextEdition) && (
+        <div className="mt-6 space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Edition History</h3>
+          {edition.previousEdition && (
+            <Link href={`/editions/${edition.previousEdition.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+              <span className="text-stone-500">←</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs text-stone-500 uppercase tracking-wide">Older edition</span>
+                <span className="text-stone-300 truncate">
+                  {edition.previousEdition.editionName ?? edition.previousEdition.bookBoxCompany?.name ?? edition.previousEdition.slug}
+                  {edition.previousEdition.collection ? ` — ${edition.previousEdition.collection.name}` : ''}
+                </span>
+              </div>
+            </Link>
+          )}
+          {edition.nextEdition && (
+            <Link href={`/editions/${edition.nextEdition.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs text-stone-500 uppercase tracking-wide">Newer edition available</span>
+                <span className="text-stone-300 truncate">
+                  {edition.nextEdition.editionName ?? edition.nextEdition.bookBoxCompany?.name ?? edition.nextEdition.slug}
+                  {edition.nextEdition.collection ? ` — ${edition.nextEdition.collection.name}` : ''}
+                </span>
+              </div>
+              <span className="text-stone-500">→</span>
+            </Link>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }
