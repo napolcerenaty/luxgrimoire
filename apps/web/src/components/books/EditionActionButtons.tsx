@@ -7,7 +7,7 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { createPurchaseGroup } from '@/lib/api'
-import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, Megaphone, Plus, X } from 'lucide-react'
+import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, LogIn, Megaphone, Plus, X } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
@@ -248,7 +248,21 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   }
 
   if (status === 'loading') return null
-  if (!user) return null
+
+  if (!user) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-700/60 bg-stone-800/40">
+        <LogIn size={16} className="text-amber-400 shrink-0" />
+        <p className="text-sm text-stone-400 flex-1">Sign in to add this edition to your collection or wishlist.</p>
+        <Link
+          href="/login"
+          className="shrink-0 text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline transition-colors"
+        >
+          Sign in
+        </Link>
+      </div>
+    )
+  }
 
   const isInCollection = status === 'collection'
 
