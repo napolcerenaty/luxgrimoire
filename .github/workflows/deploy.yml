@@ -1,0 +1,75 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Sequential Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy API
+        id: deploy_api
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_API_UUID }}&force=false" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+          echo "Response: $RESPONSE"
+          DEPLOY_UUID=$(echo $RESPONSE | jq -r '.deployments[0].deployment_uuid')
+          echo "deploy_uuid=$DEPLOY_UUID" >> $GITHUB_OUTPUT
+
+      - name: Wait for API deployment
+        run: |
+          DEPLOY_UUID="${{ steps.deploy_api.outputs.deploy_uuid }}"
+          echo "Waiting for API deployment $DEPLOY_UUID..."
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s \
+              "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" \
+              -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" | jq -r '.status')
+            echo "[$i/60] API status: $STATUS"
+            if [ "$STATUS" = "finished" ]; then
+              echo "✅ API deployed successfully"
+              exit 0
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then
+              echo "❌ API deployment failed: $STATUS"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "❌ API deployment timed out"
+          exit 1
+
+      - name: Deploy Web
+        id: deploy_web
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_WEB_UUID }}&force=false" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+          echo "Response: $RESPONSE"
+          DEPLOY_UUID=$(echo $RESPONSE | jq -r '.deployments[0].deployment_uuid')
+          echo "deploy_uuid=$DEPLOY_UUID" >> $GITHUB_OUTPUT
+
+      - name: Wait for Web deployment
+        run: |
+          DEPLOY_UUID="${{ steps.deploy_web.outputs.deploy_uuid }}"
+          echo "Waiting for Web deployment $DEPLOY_UUID..."
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s \
+              "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" \
+              -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" | jq -r '.status')
+            echo "[$i/60] Web status: $STATUS"
+            if [ "$STATUS" = "finished" ]; then
+              echo "✅ Web deployed successfully"
+              exit 0
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then
+              echo "❌ Web deployment failed: $STATUS"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "❌ Web deployment timed out"
+          exit 1
