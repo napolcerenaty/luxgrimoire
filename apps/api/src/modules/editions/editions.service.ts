@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
@@ -13,6 +15,8 @@ import {
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 
+const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
+
 @Injectable()
 export class EditionsService {
   private readonly logger = new Logger(EditionsService.name);
@@ -21,6 +25,7 @@ export class EditionsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
@@ -33,11 +38,15 @@ export class EditionsService {
     const book = await this.prisma.book.findUnique({ where: { id: dto.bookId } });
     if (!book) throw new NotFoundException(`Book '${dto.bookId}' not found`);
 
+    let companySlug: string | undefined;
+    const slugPart = dto.bookBoxCompanyId
+      ? await this.prisma.bookBoxCompany.findUnique({ where: { id: dto.bookBoxCompanyId }, select: { name: true, slug: true } })
+      : null;
+    if (slugPart) companySlug = slugPart.slug;
+
     const slug = generateSlugFromParts(
       book.title,
-      dto.bookBoxCompanyId
-        ? (await this.prisma.bookBoxCompany.findUnique({ where: { id: dto.bookBoxCompanyId }, select: { name: true } }))?.name
-        : (dto.bookBoxCompanyCustomName ?? dto.publisher),
+      slugPart?.name ?? dto.bookBoxCompanyCustomName ?? dto.publisher,
     );
 
     const edition = await this.prisma.bookEdition.create({
@@ -65,6 +74,7 @@ export class EditionsService {
       },
     });
     await this.indexEdition(edition.id);
+    if (companySlug) await this.cache.del(companyEditionsKey(companySlug));
     return edition;
   }
 
@@ -322,6 +332,7 @@ export class EditionsService {
     await this.deleteCloudinaryImages(edition.additionalImages as string[]);
     await this.typesense.deleteDocument('editions', edition.id);
     const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
+    if (edition.bookBoxCompany?.slug) await this.cache.del(companyEditionsKey(edition.bookBoxCompany.slug));
     return { ...deleted, collectionsAffected: collectionCount };
   }
 
