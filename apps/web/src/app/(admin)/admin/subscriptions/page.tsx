@@ -910,7 +910,9 @@ export default function AdminSubscriptionsPage() {
       label: 'Status',
       render: (row: ApiSubscription) => (
         <div className="flex flex-col gap-0.5">
-          {row.isHidden ? (
+          {row.isContentStream ? (
+            <span className="text-purple-400 text-xs font-medium">Content Stream</span>
+          ) : row.isHidden ? (
             <span className="text-stone-500 text-xs font-medium">Hidden</span>
           ) : row.isDiscontinued ? (
             <span className="text-red-400 text-xs font-medium">Discontinued</span>
