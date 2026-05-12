@@ -376,7 +376,6 @@ model Subscription {
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
   @@index([companyId])
-  @@index([isDiscontinued])
   @@index([intervalMonths])
   @@map("subscriptions")
 }

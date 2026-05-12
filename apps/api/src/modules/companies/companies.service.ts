@@ -1,10 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+
+const COMPANY_SLUG_TTL = 5 * 60 * 1000; // 5 minutes
+const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -21,6 +26,7 @@ export class CompaniesService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
@@ -88,6 +94,14 @@ export class CompaniesService {
   }
 
   async findBySlug(slug: string) {
+    const cached = await this.cache.get(companySlugKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyBySlug>>;
+    const result = await this._fetchCompanyBySlug(slug);
+    await this.cache.set(companySlugKey(slug), result, COMPANY_SLUG_TTL);
+    return result;
+  }
+
+  private async _fetchCompanyBySlug(slug: string) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       include: {
@@ -158,6 +172,7 @@ export class CompaniesService {
     if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
       await this.deleteCloudinaryImages([existing.logoUrl]);
     }
+    await this.cache.del(companySlugKey(slug));
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
     return company;
@@ -166,6 +181,7 @@ export class CompaniesService {
   async delete(slug: string) {
     const company = await this.findBySlug(slug);
     await this.deleteCloudinaryImages([company.logoUrl]);
+    await this.cache.del(companySlugKey(slug));
     await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }
@@ -174,6 +190,7 @@ export class CompaniesService {
     await this.findBySlug(slug);
     const normalized = colors.map((c) => (c.startsWith('#') ? c : `#${c}`));
     await this.prisma.bookBoxCompany.update({ where: { slug }, data: { brandColors: normalized } });
+    await this.cache.del(companySlugKey(slug));
     return normalized;
   }
 

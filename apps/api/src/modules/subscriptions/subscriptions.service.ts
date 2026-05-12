@@ -5,7 +5,10 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
@@ -64,7 +67,11 @@ export class SubscriptionsService {
     private readonly renewalCron: RenewalCronService,
     private readonly uploadService: UploadService,
     private readonly crowdStatsService: CrowdStatsService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
+
+  private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
+  private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
 
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
@@ -161,6 +168,14 @@ export class SubscriptionsService {
   }
 
   async findBySlug(slug: string) {
+    const cached = await this.cache.get(this.subSlugKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchSubscriptionBySlug>>;
+    const result = await this._fetchSubscriptionBySlug(slug);
+    await this.cache.set(this.subSlugKey(slug), result, this.SUB_SLUG_TTL);
+    return result;
+  }
+
+  private async _fetchSubscriptionBySlug(slug: string) {
     const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
