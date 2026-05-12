@@ -37,8 +37,14 @@ export default function AdminBooksPage() {
   const { user } = useAuth()
   const isManager = user?.role === 'COMPANY_MANAGER'
   const createModal = useModalState()
-  const [editBook, setEditBook] = useState<RawBook | null>(null)
+  const [editBookSlug, setEditBookSlug] = useState<string | null>(null)
   const [deleteBook, setDeleteBook] = useState<RawBook | null>(null)
+
+  const { data: editBookData, isLoading: editBookLoading } = useQuery({
+    queryKey: ['admin', 'books', 'detail', editBookSlug],
+    queryFn: () => authFetch<RawBook>(`/books/${editBookSlug}`),
+    enabled: editBookSlug !== null,
+  })
 
   const [search, setSearch] = useState('')
   const [seriesFilter, setSeriesFilter] = useState('')
@@ -107,7 +113,7 @@ export default function AdminBooksPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'books'] })
-      setEditBook(null)
+      setEditBookSlug(null)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
@@ -195,7 +201,7 @@ export default function AdminBooksPage() {
       ) : (
         <>
           <DataTable columns={columns} data={books}
-            onEdit={row => setEditBook(row)}
+            onEdit={row => setEditBookSlug(row.slug)}
             onDelete={isManager ? undefined : row => setDeleteBook(row)} />
           {(data?.totalPages ?? 1) > 1 && (
             <div className="flex items-center gap-2 mt-4">
@@ -217,11 +223,14 @@ export default function AdminBooksPage() {
         />
       </FormModal>
 
-      <FormModal open={editBook !== null} title="Edit Book" onClose={() => setEditBook(null)}>
-        {editBook && (
-          <BookForm initial={rawBookToForm(editBook)} submitLabel="Save Changes"
+      <FormModal open={editBookSlug !== null} title="Edit Book" onClose={() => setEditBookSlug(null)}>
+        {editBookLoading && (
+          <div className="text-stone-400 py-8 text-center">Loading…</div>
+        )}
+        {editBookData && (
+          <BookForm initial={rawBookToForm(editBookData)} submitLabel="Save Changes"
             submitting={editMutation.isPending}
-            onSubmit={form => editMutation.mutate({ book: editBook, form })} />
+            onSubmit={form => editMutation.mutate({ book: editBookData, form })} />
         )}
       </FormModal>
 
