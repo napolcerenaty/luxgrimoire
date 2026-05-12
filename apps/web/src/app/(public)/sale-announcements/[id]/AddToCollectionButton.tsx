@@ -27,15 +27,17 @@ interface Props {
   basePrice?: number
   currency: string
   compact?: boolean
+  defaultOwnershipStatus?: string
+  triggerLabel?: string
 }
 
-export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePrice, currency, compact }: Props) {
+export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [ownershipStatus, setOwnershipStatus] = useState<string>('OWNED')
+  const [ownershipStatus, setOwnershipStatus] = useState<string>(defaultOwnershipStatus)
   const [purchasedAt, setPurchasedAt] = useState(() => new Date().toISOString().slice(0, 10))
   const [totalAmount, setTotalAmount] = useState(basePrice != null ? String(basePrice) : '')
   const [shippingAmount, setShippingAmount] = useState('')
@@ -60,7 +62,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
     setTotalAmount(basePrice != null ? String(basePrice) : '')
     setShippingAmount('')
     setSelectedCurrency(currency || 'EUR')
-    setOwnershipStatus('OWNED')
+    setOwnershipStatus(defaultOwnershipStatus)
     setFeeEntries([])
     setDiscountEntries([])
     setIsSecondHand(false)
@@ -145,7 +147,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editionIds, basePric
         }
       >
         <BookPlus size={compact ? 13 : 16} />
-        {compact ? 'Add to Collection' : 'Add to My Collection'}
+        {triggerLabel ?? (compact ? 'Add to Collection' : 'Add to My Collection')}
       </button>
 
       {open && (
