@@ -73,7 +73,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         method: 'PATCH',
         body: JSON.stringify({
           bookBoxCompanyId: companyId || undefined,
-          collectionId: collectionId || undefined,
+          collectionId: collectionId || null,
           publisher: publisher.trim() || undefined,
           photoCredit: photoCredit.trim() || null,
           basePrice: price || undefined,

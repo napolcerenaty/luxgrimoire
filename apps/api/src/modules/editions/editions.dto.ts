@@ -134,8 +134,7 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   subscriptionMonthId?: string;
 
   @IsOptional()
-  @IsString()
-  collectionId?: string;
+  collectionId?: string | null;
 
   @IsOptional()
   @IsArray()
