@@ -89,7 +89,6 @@ interface HistoryEntry {
 
 interface Props {
   editionId: string
-  editionName?: string | null
   initialEntryId?: string | null
 }
 

@@ -203,7 +203,6 @@ export class SubscriptionsService {
                           select: {
                             id: true,
                             slug: true,
-                            editionName: true,
                             publisher: true,
                             additionalImages: true,
                           },
@@ -240,7 +239,6 @@ export class SubscriptionsService {
                   select: {
                     id: true,
                     slug: true,
-                    editionName: true,
                     publisher: true,
                     additionalImages: true,
                   },
@@ -382,7 +380,6 @@ export class SubscriptionsService {
                   id: true,
                   slug: true,
                   additionalImages: true,
-                  editionName: true,
                   bookBoxCompanyCustomName: true,
                   bookBoxCompany: { select: { id: true, name: true } },
                 },

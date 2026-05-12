@@ -119,13 +119,13 @@ export class UserEditionImagesService {
     const editionIds = rows.map((r) => r.editionId);
     const editions = await this.prisma.bookEdition.findMany({
       where: { id: { in: editionIds } },
-      select: { id: true, slug: true, editionName: true },
+      select: { id: true, slug: true, bookBoxCompany: { select: { name: true } } },
     });
     const edMap = new Map(editions.map((e) => [e.id, e]));
     return rows.map((r) => ({
       editionId: r.editionId,
       slug: edMap.get(r.editionId)?.slug ?? r.editionId,
-      name: edMap.get(r.editionId)?.editionName ?? r.editionId,
+      name: edMap.get(r.editionId)?.bookBoxCompany?.name ?? edMap.get(r.editionId)?.slug ?? r.editionId,
       count: r._count.id,
     }));
   }
@@ -140,7 +140,7 @@ export class UserEditionImagesService {
       orderBy: { createdAt: 'asc' },
       include: {
         user: { select: { id: true, username: true, email: true } },
-        edition: { select: { id: true, slug: true, editionName: true } },
+        edition: { select: { id: true, slug: true } },
       },
     });
   }
@@ -197,7 +197,7 @@ export class UserEditionImagesService {
         status: true,
         createdAt: true,
         edition: {
-          select: { slug: true, editionName: true, bookBoxCompany: { select: { name: true } } },
+          select: { slug: true, bookBoxCompany: { select: { name: true } } },
         },
       },
     });

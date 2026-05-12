@@ -30,7 +30,6 @@ const editionsIncludeAdmin = {
     variants: true,
     edition: {
       select: {
-        editionName: true,
         additionalImages: true,
         book: {
           select: { id: true, title: true, slug: true },

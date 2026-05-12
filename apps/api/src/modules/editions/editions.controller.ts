@@ -62,8 +62,8 @@ export class EditionsController {
     if ((edition as any)?.id) {
       const book = (edition as any).book;
       const name = book?.title
-        ? `${book.title}${(edition as any).editionName ? ' · ' + (edition as any).editionName : ''}`
-        : (edition as any).editionName ?? slug;
+        ? book.title
+        : (edition as any).bookBoxCompany?.name ?? slug;
       this.analyticsService.track({
         eventType: 'edition_view',
         entityType: 'edition',

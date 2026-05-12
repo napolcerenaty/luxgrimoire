@@ -130,7 +130,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               const authors = book?.authors ?? []
               const coverUrl = edition.additionalImages?.[0]
               const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
-              const displayTitle = book?.title ?? (edition as any).editionName ?? 'Edition'
+              const displayTitle = book?.title ?? (edition as any).bookBoxCompany?.name ?? 'Edition'
 
               return (
                 <Link

@@ -240,7 +240,6 @@ export class BooksService {
               select: {
                 id: true,
                 slug: true,
-                editionName: true,
                 additionalImages: true,
                 isOmnibus: true,
                 book: { select: { id: true, slug: true, title: true } },

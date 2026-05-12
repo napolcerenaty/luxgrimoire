@@ -24,7 +24,7 @@ function roleColor(role: string) {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EditionSnippet {
-  id: string; slug: string; additionalImages: string[]; editionName: string | null
+  id: string; slug: string; additionalImages: string[]
   bookBoxCompany: { name: string; brandColors?: string[] | null } | null; communityPhotoCover?: string | null
 }
 
@@ -59,7 +59,7 @@ function EditionGrid({ editions }: { editions: GroupedEdition[] }) {
             <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
               {cover ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={cover} alt={edition.editionName ?? company?.name ?? 'Edition cover'}
+                <img src={cover} alt={company?.name ?? 'Edition cover'}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center text-stone-600">

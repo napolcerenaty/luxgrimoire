@@ -69,7 +69,6 @@ export interface ApiBook {
     edition: {
       id: string;
       slug: string;
-      editionName: string | null;
       isOmnibus: boolean;
       additionalImages: string[];
       book: { id: string; slug: string; title: string };
@@ -114,7 +113,6 @@ export interface ApiBookEdition {
   additionalImages: string[];
   isSpecial: boolean;
   notes: string | null;
-  editionName: string | null;
   bookBoxCompanyCustomName: string | null;
   bookBoxCompanyId?: string | null;
   bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
@@ -138,7 +136,6 @@ export interface ApiBookEdition {
   previousEdition?: {
     id: string;
     slug: string;
-    editionName: string | null;
     additionalImages: string[];
     generalSaleDate?: string | null;
     bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
@@ -147,7 +144,6 @@ export interface ApiBookEdition {
   nextEdition?: {
     id: string;
     slug: string;
-    editionName: string | null;
     additionalImages: string[];
     generalSaleDate?: string | null;
     bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
@@ -172,7 +168,6 @@ export interface ApiCompanyEdition {
   slug: string;
   additionalImages: string[];
   communityPhotoCover?: string | null;
-  editionName: string | null;
   collectionId: string | null;
   subscriptionId: string | null;
   collection: { id: string; name: string; slug: string } | null;

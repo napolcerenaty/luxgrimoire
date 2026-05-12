@@ -21,7 +21,6 @@ interface CommunityPhoto {
   createdAt: string
   edition: {
     slug: string
-    editionName: string | null
     bookBoxCompany: { name: string } | null
   }
 }
@@ -599,7 +598,7 @@ function MyCommunityPhotos() {
           {photos.map(photo => {
             const isSelected = selected.has(photo.id)
             const thumb = cloudinaryUrl(photo.cloudinaryId, 'w_120,h_180,c_fill,q_auto,f_auto')
-            const editionLabel = photo.edition.editionName ?? photo.edition.bookBoxCompany?.name ?? 'Edition'
+            const editionLabel = photo.edition.bookBoxCompany?.name ?? 'Edition'
             return (
               <div
                 key={photo.id}

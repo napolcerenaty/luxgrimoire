@@ -17,12 +17,12 @@ const LBL = 'block text-xs text-stone-400 mb-1'
 function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition; onLinked: () => void }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [linking, setLinking] = useState(false)
-  const [rerouted, setRerouted] = useState<null | { chain: Array<{ slug: string; editionName: string | null }> }>(null)
+  const [rerouted, setRerouted] = useState<null | { chain: Array<{ slug: string }> }>(null)
 
   const bookId = edition.book?.id
   const { data: searchResults } = useQuery({
     queryKey: ['edition-search-for-link', bookId, searchQuery],
-    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; editionName: string | null; bookBoxCompany?: { name: string } | null; generalSaleDate?: string | null }> }>(
+    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany?: { name: string } | null; generalSaleDate?: string | null }> }>(
       `/editions?bookId=${bookId}&search=${encodeURIComponent(searchQuery)}&pageSize=10`
     ),
     enabled: !!bookId && searchQuery.length > 0,
@@ -32,7 +32,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
   const handleLink = async (relatedEditionSlug: string) => {
     setLinking(true)
     try {
-      const res = await authFetch<{ wasRerouted: boolean; chain: Array<{ slug: string; editionName: string | null }> }>(
+      const res = await authFetch<{ wasRerouted: boolean; chain: Array<{ slug: string }> }>(
         `/editions/${edition.slug}/link-history`,
         { method: 'POST', body: JSON.stringify({ relatedEditionSlug }) }
       )
@@ -74,7 +74,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
           {prev && (
             <div className="flex items-center gap-2">
               <span className="text-stone-500">← Previous:</span>
-              <span className="text-stone-300">{prev.editionName ?? prev.bookBoxCompany?.name ?? prev.slug}</span>
+              <span className="text-stone-300">{prev.bookBoxCompany?.name ?? prev.slug}</span>
               <span className="text-stone-600 text-[10px]">{prev.generalSaleDate?.slice(0, 10)}</span>
             </div>
           )}
@@ -89,7 +89,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
           {next && (
             <div className="flex items-center gap-2">
               <span className="text-stone-500">→ Next:</span>
-              <span className="text-stone-300">{next.editionName ?? next.bookBoxCompany?.name ?? next.slug}</span>
+              <span className="text-stone-300">{next.bookBoxCompany?.name ?? next.slug}</span>
               <span className="text-stone-600 text-[10px]">{next.generalSaleDate?.slice(0, 10)}</span>
             </div>
           )}
@@ -99,7 +99,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
       {/* Re-routing notice */}
       {rerouted && (
         <div className="p-2 bg-amber-900/30 border border-amber-700/40 rounded-lg text-xs text-amber-300">
-          ↻ Chain re-linked: {rerouted.chain.map(e => e.editionName ?? e.slug).join(' → ')}
+          ↻ Chain re-linked: {rerouted.chain.map(e => e.slug).join(' → ')}
         </div>
       )}
 
@@ -124,7 +124,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
                   onClick={() => handleLink(c.slug)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-sm text-stone-200 text-left transition-colors"
                 >
-                  <span>{c.editionName ?? c.bookBoxCompany?.name ?? c.slug}</span>
+                  <span>{c.bookBoxCompany?.name ?? c.slug}</span>
                   {c.generalSaleDate && <span className="text-stone-500 text-xs">{c.generalSaleDate.slice(0, 10)}</span>}
                 </button>
               ))}

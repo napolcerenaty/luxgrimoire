@@ -117,13 +117,13 @@ export default async function BookPage({ params }: Props) {
                 {edition.additionalImages?.[0] && (
                   <img
                     src={edition.additionalImages[0]}
-                    alt={edition.editionName ?? edition.book.title}
+                    alt={edition.bookBoxCompany?.name ?? edition.book.title}
                     className="w-12 h-16 object-cover rounded-md flex-shrink-0"
                   />
                 )}
                 <div className="min-w-0">
                   <p className="text-stone-100 font-medium group-hover:text-amber-400 transition-colors truncate">
-                    {customTitle ?? edition.editionName ?? edition.book.title}
+                    {customTitle ?? edition.book.title}
                   </p>
                   {volumeNumber != null && (
                     <p className="text-xs text-stone-500 mt-0.5">Vol. {volumeNumber}</p>

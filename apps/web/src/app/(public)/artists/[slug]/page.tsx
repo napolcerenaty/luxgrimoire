@@ -10,7 +10,7 @@ import type { GroupedEdition } from './ArtistTabs'
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface EditionSnippet {
-  id: string; slug: string; additionalImages: string[]; editionName: string | null
+  id: string; slug: string; additionalImages: string[]
   bookBoxCompany: { name: string } | null; communityPhotoCover?: string | null
 }
 

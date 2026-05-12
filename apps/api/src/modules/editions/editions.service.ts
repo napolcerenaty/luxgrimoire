@@ -35,14 +35,15 @@ export class EditionsService {
 
     const slug = generateSlugFromParts(
       book.title,
-      dto.editionName ?? dto.publisher,
+      dto.bookBoxCompanyId
+        ? (await this.prisma.bookBoxCompany.findUnique({ where: { id: dto.bookBoxCompanyId }, select: { name: true } }))?.name
+        : (dto.bookBoxCompanyCustomName ?? dto.publisher),
     );
 
     const edition = await this.prisma.bookEdition.create({
       data: {
         slug,
         bookId: dto.bookId,
-        editionName: dto.editionName,
         publisher: dto.publisher,
         language: dto.language,
         additionalImages:dto.additionalImages ?? [],
@@ -86,7 +87,6 @@ export class EditionsService {
         { book: { title: { contains: s, mode: 'insensitive' } } },
         { book: { authors: { some: { author: { name: { contains: s, mode: 'insensitive' } } } } } },
         { publisher: { contains: s, mode: 'insensitive' } },
-        { editionName: { contains: s, mode: 'insensitive' } },
         { bookBoxCompany: { name: { contains: s, mode: 'insensitive' } } },
       ];
     }
@@ -100,7 +100,6 @@ export class EditionsService {
           id: true,
           slug: true,
           publisher: true,
-          editionName: true,
           bookBoxCompanyCustomName: true,
           additionalImages: true,
           isSpecial: true,
@@ -171,7 +170,7 @@ export class EditionsService {
       where: { slug },
       select: {
         id: true, slug: true,
-        editionName: true, bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
+        bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
         publisher: true, isSpecial: true,
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
@@ -234,7 +233,7 @@ export class EditionsService {
         },
         previousEdition: {
           select: {
-            id: true, slug: true, editionName: true, additionalImages: true,
+            id: true, slug: true, additionalImages: true,
             generalSaleDate: true, createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
@@ -242,7 +241,7 @@ export class EditionsService {
         },
         nextEdition: {
           select: {
-            id: true, slug: true, editionName: true, additionalImages: true,
+            id: true, slug: true, additionalImages: true,
             generalSaleDate: true, createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
@@ -273,7 +272,6 @@ export class EditionsService {
 
     // Build a plain update object — never pass a class instance directly to Prisma
     const data: Record<string, unknown> = {};
-    if (dto.editionName !== undefined) data.editionName = dto.editionName;
     if (dto.publisher !== undefined) data.publisher = dto.publisher;
     if (dto.language !== undefined) data.language = dto.language;
     if (dto.additionalImages !== undefined) data.additionalImages = dto.additionalImages;
@@ -425,19 +423,19 @@ export class EditionsService {
   /** Link two editions as previous→next. Auto-determines direction by date.
    * Returns the resulting chain and whether an intermediate re-linking happened. */
   async linkEditionHistory(slugA: string, slugB: string): Promise<{
-    older: { id: string; slug: string; editionName: string | null };
-    newer: { id: string; slug: string; editionName: string | null };
+    older: { id: string; slug: string };
+    newer: { id: string; slug: string };
     wasRerouted: boolean;
-    chain: Array<{ slug: string; editionName: string | null; date: Date | null }>;
+    chain: Array<{ slug: string; date: Date | null }>;
   }> {
     const [a, b] = await Promise.all([
       this.prisma.bookEdition.findUnique({
         where: { slug: slugA },
-        select: { id: true, slug: true, editionName: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, editionName: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
       }),
       this.prisma.bookEdition.findUnique({
         where: { slug: slugB },
-        select: { id: true, slug: true, editionName: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, editionName: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
       }),
     ]);
     if (!a) throw new NotFoundException(`Edition '${slugA}' not found`);
@@ -467,13 +465,13 @@ export class EditionsService {
         ]);
         wasRerouted = true;
         return {
-          older: { id: older.id, slug: older.slug, editionName: older.editionName },
-          newer: { id: newer.id, slug: newer.slug, editionName: newer.editionName },
+          older: { id: older.id, slug: older.slug },
+          newer: { id: newer.id, slug: newer.slug },
           wasRerouted,
           chain: [
-            { slug: older.slug, editionName: older.editionName, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-            { slug: newer.slug, editionName: newer.editionName, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
-            { slug: existingNext.slug, editionName: existingNext.editionName, date: existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null },
+            { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
+            { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+            { slug: existingNext.slug, date: existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null },
           ],
         };
       }
@@ -486,12 +484,12 @@ export class EditionsService {
     });
 
     return {
-      older: { id: older.id, slug: older.slug, editionName: older.editionName },
-      newer: { id: newer.id, slug: newer.slug, editionName: newer.editionName },
+      older: { id: older.id, slug: older.slug },
+      newer: { id: newer.id, slug: newer.slug },
       wasRerouted: false,
       chain: [
-        { slug: older.slug, editionName: older.editionName, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-        { slug: newer.slug, editionName: newer.editionName, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+        { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
+        { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
       ],
     };
   }

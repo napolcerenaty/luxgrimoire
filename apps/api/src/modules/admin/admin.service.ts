@@ -85,8 +85,8 @@ export class AdminService {
     if (query.search) {
       where.OR = [
         { slug: { contains: query.search, mode: 'insensitive' } },
-        { editionName: { contains: query.search, mode: 'insensitive' } },
         { publisher: { contains: query.search, mode: 'insensitive' } },
+        { bookBoxCompany: { name: { contains: query.search, mode: 'insensitive' } } },
         { book: { title: { contains: query.search, mode: 'insensitive' } } },
       ];
     }
