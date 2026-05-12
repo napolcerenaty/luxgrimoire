@@ -282,8 +282,8 @@ export function OnboardingWizard() {
           <p className="text-xs text-stone-400">Know about an upcoming sale or promotion? Submit it so the community can see it.</p>
         </div>
         <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-3 space-y-1">
-          <p className="text-sm font-medium text-stone-200">📋 Request Your Data</p>
-          <p className="text-xs text-stone-400">Want an export of everything we hold about you? Use this link to request it.</p>
+          <p className="text-sm font-medium text-stone-200">📋 Request Data</p>
+          <p className="text-xs text-stone-400">Missing a book, edition, or other data in the system? Submit a data request and we&apos;ll add it.</p>
         </div>
       </div>
     </div>,
