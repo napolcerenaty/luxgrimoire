@@ -15,7 +15,8 @@ import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 
 const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
-// Raw API shape (authors are nested under .author)
+// List endpoint returns nested authors: { author: { id, name, slug } }[]
+// Same shape as the lean /for-edit endpoint — both use nested authors.
 type RawBook = Omit<ApiBook, 'authors'> & {
   authors: { author: { id: string; name: string; slug: string } }[]
 }
@@ -42,7 +43,7 @@ export default function AdminBooksPage() {
 
   const { data: editBookData, isLoading: editBookLoading } = useQuery({
     queryKey: ['admin', 'books', 'detail', editBookSlug],
-    queryFn: () => authFetch<RawBook>(`/books/${editBookSlug}`),
+    queryFn: () => authFetch<RawBook>(`/books/${editBookSlug}/for-edit`),
     enabled: editBookSlug !== null,
   })
 

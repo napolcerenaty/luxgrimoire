@@ -15,10 +15,12 @@ export default function OAuthCallbackPage() {
       .then(me => {
         if (!me) { router.replace('/login?error=oauth_failed'); return }
         auth.login(me)
+        const returnTo = sessionStorage.getItem('oauth_return_to')
+        sessionStorage.removeItem('oauth_return_to')
         if (me.needsConsent) {
           router.replace('/consent')
         } else {
-          router.replace('/calendar')
+          router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/calendar')
         }
       })
       .catch(() => router.replace('/login?error=oauth_failed'))

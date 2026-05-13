@@ -83,9 +83,9 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </div>
       </div>
 
-      {/* Tabs — scrollable on mobile */}
-      <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-800 mb-6">
-        <div className="flex gap-0 min-w-max">
+      {/* Tabs — wrap when many collections */}
+      <div className="border-b border-stone-800 mb-6">
+        <div className="flex flex-wrap gap-0">
           {groups.map((group, idx) => (
             <button
               key={group.label}

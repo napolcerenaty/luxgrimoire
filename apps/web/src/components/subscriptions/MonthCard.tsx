@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { apiFetch } from '@/lib/api'
+import type { CommunityImage } from '@/types/community'
 
 interface MonthBook {
   slug: string
@@ -33,13 +34,6 @@ interface MonthCardProps {
   cardArtist?: CardArtist | null
   accentColors?: string[] | null
   editionSlug?: string | null
-}
-
-interface CommunityImage {
-  id: string
-  url: string
-  cloudinaryId: string
-  status: string
 }
 
 export default function MonthCard({

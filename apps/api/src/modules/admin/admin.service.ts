@@ -269,7 +269,6 @@ export class AdminService {
       saleRequestsPending,
       bugReportsOpen,
       featureRequestsPending,
-      pendingEditions,
     ] = await this.prisma.$transaction([
       this.prisma.userEditionImage.count({ where: { status: 'PENDING' } }),
       this.prisma.dataRequest.count({ where: { status: 'pending' } }),
@@ -277,7 +276,6 @@ export class AdminService {
       this.prisma.saleAnnouncementRequest.count({ where: { status: 'pending' } }),
       this.prisma.bugReport.count({ where: { status: 'open' } }),
       this.prisma.featureRequest.count({ where: { status: 'pending' } }),
-      this.prisma.bookEdition.count({ where: { verifiedAt: null } }),
     ]);
 
     return {
@@ -287,7 +285,6 @@ export class AdminService {
       saleRequestsPending,
       bugReportsOpen,
       featureRequestsPending,
-      pendingEditions,
     };
   }
 

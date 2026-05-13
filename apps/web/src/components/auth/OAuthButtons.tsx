@@ -4,7 +4,13 @@ import { API_BASE } from '@/lib/authFetch'
 
 const OAUTH_BASE = API_BASE.replace(/\/api$/, '')
 
-export function OAuthButtons() {
+interface Props { returnTo?: string }
+
+export function OAuthButtons({ returnTo }: Props) {
+  const handleOAuth = () => {
+    if (returnTo) sessionStorage.setItem('oauth_return_to', returnTo)
+  }
+
   return (
     <div className="space-y-2">
       <div className="relative flex items-center py-1">
@@ -16,6 +22,7 @@ export function OAuthButtons() {
       <div>
         <a
           href={`${OAUTH_BASE}/api/auth/google`}
+          onClick={handleOAuth}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-700 bg-stone-900 hover:bg-stone-800 px-3 py-2.5 text-xs font-medium text-stone-300 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24">

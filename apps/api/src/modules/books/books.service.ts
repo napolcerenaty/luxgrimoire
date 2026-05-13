@@ -192,8 +192,31 @@ export class BooksService {
     return result;
   }
 
-  async findBySlug(slug: string) {
+  /** Lightweight fetch for admin edit form — only fields needed by the form, authors not flattened. */
+  async findBySlugForAdmin(slug: string) {
     const book = await this.prisma.book.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        seriesName: true,
+        volumeNumber: true,
+        genres: true,
+        status: true,
+        authors: {
+          select: {
+            author: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    return book;
+  }
+
+  async findBySlug(slug: string) {    const book = await this.prisma.book.findUnique({
       where: { slug },
       select: {
         id: true,

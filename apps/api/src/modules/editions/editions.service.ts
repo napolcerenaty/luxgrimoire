@@ -174,13 +174,50 @@ export class EditionsService {
     return rows.map(r => r.publisher).filter(Boolean) as string[];
   }
 
+  /** Lean fetch for admin edit form — only fields needed by the form, without monthBooks/saleEditions/book authors. */
+  async findBySlugForAdmin(slug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { slug },
+      select: {
+        id: true, slug: true, bookId: true,
+        bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
+        publisher: true, isSpecial: true, isOmnibus: true,
+        additionalImages: true, language: true,
+        basePrice: true, currency: true, features: true,
+        firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
+        verifiedAt: true, submittedByUserId: true, photoCredit: true,
+        book: { select: { id: true, title: true } },
+        artists: {
+          select: {
+            id: true, role: true,
+            artist: { select: { id: true, name: true } },
+          },
+        },
+        previousEdition: {
+          select: {
+            slug: true, generalSaleDate: true,
+            bookBoxCompany: { select: { name: true } },
+          },
+        },
+        nextEdition: {
+          select: {
+            slug: true, generalSaleDate: true,
+            bookBoxCompany: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    return edition;
+  }
+
   async findBySlug(slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
       select: {
         id: true, slug: true,
         bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
-        publisher: true, isSpecial: true,
+        publisher: true, isSpecial: true, isOmnibus: true,
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,

@@ -25,7 +25,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   const [showDateForm, setShowDateForm] = useState(false)
 
   useEffect(() => {
-    if (!user) { setStatus(null); return }
+    if (!user) { setStatus('no-auth'); return }
     // Hide for active subscribers
     getMySubscriptionEntry(subscriptionSlug)
       .then((entry) => {
