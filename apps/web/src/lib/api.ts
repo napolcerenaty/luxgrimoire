@@ -550,9 +550,9 @@ export async function deleteSaleGroup(id: string): Promise<void> {
 export interface SaleAnnouncementFormData {
   title: string;
   companyId?: string;
-  generalSaleDate?: string;
-  firstAccessDate?: string;
-  earlyAccessDate?: string;
+  generalSaleDate?: string | null;
+  firstAccessDate?: string | null;
+  earlyAccessDate?: string | null;
   saleTimezone?: string;
   basePrice?: number;
   currency?: string;

@@ -541,9 +541,9 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   return {
     title: f.title,
     companyId: f.companyId || undefined,
-    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : undefined,
-    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : undefined,
-    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : undefined,
+    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : null,
+    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : null,
+    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : null,
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
