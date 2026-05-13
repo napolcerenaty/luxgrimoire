@@ -169,7 +169,7 @@ RULES:
 - seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
 - volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
 - description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
-- genres: take at most 5 genres from the Genres section. Omit if not present.
+- genres: take at most 5 genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
 - authors: list all authors found.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
