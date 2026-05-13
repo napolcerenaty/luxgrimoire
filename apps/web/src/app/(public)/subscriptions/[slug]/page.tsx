@@ -16,6 +16,7 @@ import { SubscriptionSeriesSection } from './SubscriptionSeriesSection'
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ from?: string }>
 }
 
 const MONTH_NAMES = [
@@ -53,8 +54,9 @@ function getMainBook(monthData: ApiSubscriptionMonth) {
   }
 }
 
-export default async function SubscriptionPage({ params }: Props) {
+export default async function SubscriptionPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const { from } = await searchParams
 
   let sub: ApiSubscription
   try {
@@ -99,7 +101,11 @@ export default async function SubscriptionPage({ params }: Props) {
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Back to previous page */}
-      {sub.company && (
+      {from === 'subscriptions' ? (
+        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+          <span>← Subscriptions</span>
+        </BackButton>
+      ) : sub.company && (
         <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
           {cloudinaryUrl(sub.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto') && (
             // eslint-disable-next-line @next/next/no-img-element
