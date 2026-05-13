@@ -97,8 +97,8 @@ function pillStyle(
     return {
       background: `${c}${bgAlpha}`,
       // dark mode: lighten brand color so text is readable on dark bg
-      color: `color-mix(in srgb, ${c} 55%, #f0ece6)`,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}88`,
+      color: `color-mix(in srgb, ${c} 80%, #f0ece6)`,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}aa`,
     }
   }
 
