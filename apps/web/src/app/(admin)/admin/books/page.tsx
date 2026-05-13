@@ -16,23 +16,19 @@ import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
 // List endpoint returns nested authors: { author: { id, name, slug } }[]
+// Same shape as the lean /for-edit endpoint — both use nested authors.
 type RawBook = Omit<ApiBook, 'authors'> & {
   authors: { author: { id: string; name: string; slug: string } }[]
 }
 
-// Detail endpoint (findBySlug) returns flattened authors: { id, name, slug }[]
-type RawBookDetail = Omit<ApiBook, 'authors'> & {
-  authors: { id: string; name: string; slug: string }[]
-}
-
-function rawBookDetailToForm(book: RawBookDetail): BookFormState {
+function rawBookToForm(book: RawBook): BookFormState {
   return {
     title: book.title,
     description: book.description ?? '',
     seriesName: book.seriesName ?? '',
     volumeNumber: book.volumeNumber != null ? String(book.volumeNumber) : '',
     genres: book.genres ?? [],
-    authors: book.authors.map(a => ({ id: a.id, name: a.name })),
+    authors: book.authors.map(ba => ({ id: ba.author.id, name: ba.author.name })),
   }
 }
 
@@ -47,7 +43,7 @@ export default function AdminBooksPage() {
 
   const { data: editBookData, isLoading: editBookLoading } = useQuery({
     queryKey: ['admin', 'books', 'detail', editBookSlug],
-    queryFn: () => authFetch<RawBookDetail>(`/books/${editBookSlug}`),
+    queryFn: () => authFetch<RawBook>(`/books/${editBookSlug}/for-edit`),
     enabled: editBookSlug !== null,
   })
 
@@ -82,7 +78,7 @@ export default function AdminBooksPage() {
   // Create handled by CreateBookEditionForm
   // Edit: PATCH scalar fields + diff authors
   const editMutation = useMutation({
-    mutationFn: async ({ book, form }: { book: RawBookDetail; form: BookFormState }) => {
+    mutationFn: async ({ book, form }: { book: RawBook; form: BookFormState }) => {
       await authFetch(`/books/${book.slug}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -94,12 +90,12 @@ export default function AdminBooksPage() {
         }),
       })
       // Diff authors
-      const originalIds = new Set(book.authors.map(a => a.id))
+      const originalIds = new Set(book.authors.map(ba => ba.author.id))
       const newIds = new Set(form.authors.filter(a => a.id).map(a => a.id!))
       // Remove authors no longer in list
-      for (const a of book.authors) {
-        if (!newIds.has(a.id)) {
-          await authFetch(`/books/${book.slug}/authors/${a.id}`, { method: 'DELETE' })
+      for (const ba of book.authors) {
+        if (!newIds.has(ba.author.id)) {
+          await authFetch(`/books/${book.slug}/authors/${ba.author.id}`, { method: 'DELETE' })
         }
       }
       // Add new authors
@@ -233,7 +229,7 @@ export default function AdminBooksPage() {
           <div className="text-stone-400 py-8 text-center">Loading…</div>
         )}
         {editBookData && (
-          <BookForm initial={rawBookDetailToForm(editBookData)} submitLabel="Save Changes"
+          <BookForm initial={rawBookToForm(editBookData)} submitLabel="Save Changes"
             submitting={editMutation.isPending}
             onSubmit={form => editMutation.mutate({ book: editBookData, form })} />
         )}

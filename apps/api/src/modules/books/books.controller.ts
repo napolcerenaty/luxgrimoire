@@ -43,6 +43,13 @@ export class BooksController {
     return this.booksService.findAll(query);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/for-edit')
+  findBySlugForEdit(@Param('slug') slug: string) {
+    return this.booksService.findBySlugForAdmin(slug);
+  }
+
   @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
