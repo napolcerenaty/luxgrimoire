@@ -14,6 +14,10 @@ packages/database/node_modules/.bin/prisma migrate resolve \
   --rolled-back 20260515000000_add_onboarding_completed_at \
   --schema packages/database/prisma/schema.prisma 2>/dev/null || true
 
+packages/database/node_modules/.bin/prisma migrate resolve \
+  --rolled-back 20260512210000_add_search_trgm_indexes \
+  --schema packages/database/prisma/schema.prisma 2>/dev/null || true
+
 echo "▶ Running Prisma migrations..."
 packages/database/node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
