@@ -67,7 +67,7 @@ export class BooksService {
       where.status = 'approved';
     }
     if (query.language) where.language = query.language;
-    if (query.seriesName) where.seriesName = query.seriesName;
+    if (query.seriesName) where.seriesName = { contains: query.seriesName, mode: 'insensitive' };
     if (query.authorId) {
       where.authors = { some: { authorId: query.authorId } };
     }
@@ -77,6 +77,7 @@ export class BooksService {
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
+        { authors: { some: { author: { name: { contains: query.search, mode: 'insensitive' } } } } },
       ];
     }
 
