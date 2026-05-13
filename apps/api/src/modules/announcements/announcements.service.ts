@@ -83,7 +83,7 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        orderBy: query.upcoming ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
         select: {
           id: true,
           title: true,
