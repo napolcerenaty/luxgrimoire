@@ -709,20 +709,35 @@ interface Step3Props {
 function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, entry, eligibleMonths, onDone, onBack }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
 
+  type BatchMode = 'all-monthly' | 'custom'
+  const [batchMode, setBatchMode] = useState<BatchMode>('all-monthly')
+
   // Batch state: list of batches
   const [batches, setBatches] = useState<Array<{
     billedAt: string
     baseAmount: string
     shippingAmount: string
     monthIds: string[]
-  }>>([{
-    billedAt: '',
-    baseAmount: '',
-    shippingAmount: '',
-    monthIds: [...selectedMonthIds],
-  }])
+  }>>(() =>
+    // all-monthly default: one batch per month
+    selectedMonthIds.map(mid => ({ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [mid] }))
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function switchMode(mode: BatchMode) {
+    setBatchMode(mode)
+    if (mode === 'all-monthly') {
+      // One batch per selected month, keep any already-entered dates/amounts for matching months
+      setBatches(selectedMonthIds.map(mid => {
+        const existing = batches.find(b => b.monthIds.length === 1 && b.monthIds[0] === mid)
+        return existing ?? { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [mid] }
+      }))
+    } else {
+      // Custom: single batch with all months pre-selected
+      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds] }])
+    }
+  }
 
   function addBatch() {
     setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [] }])
@@ -800,83 +815,122 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
         Group months you paid for together into billing batches. Each batch represents one payment.
       </p>
 
-      {batches.map((batch, idx) => (
-        <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
-            {batches.length > 1 && (
-              <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+      {/* Mode toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => switchMode('all-monthly')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            batchMode === 'all-monthly'
+              ? 'bg-amber-700/40 border-amber-600 text-amber-300'
+              : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+          }`}
+        >
+          All monthly
+          <span className="block text-[10px] font-normal opacity-70">1 payment per month</span>
+        </button>
+        <button
+          onClick={() => switchMode('custom')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            batchMode === 'custom'
+              ? 'bg-amber-700/40 border-amber-600 text-amber-300'
+              : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+          }`}
+        >
+          Custom
+          <span className="block text-[10px] font-normal opacity-70">group months freely</span>
+        </button>
+      </div>
+
+      {batches.map((batch, idx) => {
+        const batchMonth = batchMode === 'all-monthly' ? monthMap.get(batch.monthIds[0]) : null
+        return (
+          <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              {batchMode === 'all-monthly' && batchMonth ? (
+                <span className="text-xs text-amber-400 font-medium">
+                  {MONTH_NAMES[batchMonth.month - 1]} {batchMonth.year}
+                </span>
+              ) : (
+                <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
+              )}
+              {batchMode === 'custom' && batches.length > 1 && (
+                <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-stone-500 block mb-1">Payment date</label>
+                <input
+                  type="date"
+                  value={batch.billedAt}
+                  onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
+                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={batch.baseAmount}
+                  onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={batch.shippingAmount}
+                  onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+              </div>
+            </div>
+            {batchMode === 'custom' && (
+              <div>
+                <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
+                <div className="flex flex-wrap gap-1">
+                  {selectedMonthIds.map(mid => {
+                    const m = monthMap.get(mid)
+                    if (!m) return null
+                    const inThis = batch.monthIds.includes(mid)
+                    const inOther = !inThis && assignedMonthIds.has(mid)
+                    return (
+                      <button
+                        key={mid}
+                        onClick={() => toggleMonth(idx, mid)}
+                        disabled={inOther}
+                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                          inThis
+                            ? 'bg-amber-700 border-amber-600 text-stone-100'
+                            : inOther
+                            ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
+                            : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
+                        }`}
+                      >
+                        {MONTH_NAMES[m.month - 1]} {m.year}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Payment date</label>
-              <input
-                type="date"
-                value={batch.billedAt}
-                onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                value={batch.baseAmount}
-                onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                value={batch.shippingAmount}
-                onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
-            <div className="flex flex-wrap gap-1">
-              {selectedMonthIds.map(mid => {
-                const m = monthMap.get(mid)
-                if (!m) return null
-                const inThis = batch.monthIds.includes(mid)
-                const inOther = !inThis && assignedMonthIds.has(mid)
-                return (
-                  <button
-                    key={mid}
-                    onClick={() => toggleMonth(idx, mid)}
-                    disabled={inOther}
-                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-                      inThis
-                        ? 'bg-amber-700 border-amber-600 text-stone-100'
-                        : inOther
-                        ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
-                        : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
-                    }`}
-                  >
-                    {MONTH_NAMES[m.month - 1]} {m.year}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
-      <button
-        onClick={addBatch}
-        className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
-      >
-        + Add another batch
-      </button>
+      {batchMode === 'custom' && (
+        <button
+          onClick={addBatch}
+          className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+        >
+          + Add another batch
+        </button>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
