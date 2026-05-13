@@ -8,6 +8,7 @@ import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { parsePagination } from '../../common/pagination';
 
 const DEFAULT_TTL_KEY = 'notification.default_ttl_days';
 const DEFAULT_TTL_DAYS = 30;
@@ -23,7 +24,9 @@ export class NotificationsService {
   // ─── User-facing ────────────────────────────────────────────────────────────
 
   async getNotifications(userId: string, page = 1, pageSize = 20, unreadOnly?: boolean) {
-    const skip = (page - 1) * pageSize;
+    const { skip, take, page: p } = parsePagination({ page, pageSize });
+    pageSize = take;
+    page = p;
     const where: any = {
       userId,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],

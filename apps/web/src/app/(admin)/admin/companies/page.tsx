@@ -5,6 +5,7 @@ import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
+import { CURRENCIES } from '@/lib/currencies'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
@@ -96,13 +97,6 @@ function ManualColorEditor({
   )
 }
 
-// Common ISO 4217 currencies
-const CURRENCIES = [
-  'AED','AUD','BGN','BRL','CAD','CHF','CNY','CZK','DKK','EGP',
-  'EUR','GBP','HKD','HRK','HUF','IDR','ILS','INR','JPY','KRW',
-  'MAD','MXN','MYR','NOK','NZD','PHP','PLN','RON','RUB','SAR',
-  'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
-]
 
 
 const COUNTRIES = [

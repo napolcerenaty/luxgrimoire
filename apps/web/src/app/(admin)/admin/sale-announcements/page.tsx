@@ -24,16 +24,10 @@ import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { Sparkles } from 'lucide-react'
+import { CURRENCIES } from '@/lib/currencies'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
-
-const CURRENCIES = [
-  'AED','AUD','BGN','BRL','CAD','CHF','CNY','CZK','DKK','EGP',
-  'EUR','GBP','HKD','HRK','HUF','IDR','ILS','INR','JPY','KRW',
-  'MAD','MXN','MYR','NOK','NZD','PHP','PLN','RON','RUB','SAR',
-  'SEK','SGD','THB','TND','TRY','TWD','UAH','USD','VND','ZAR',
-]
 
 // UTC offsets in minutes for each timezone abbreviation
 const TZ_OFFSETS: Record<string, number> = {
@@ -1478,7 +1472,7 @@ export default function AdminSaleAnnouncementsPage() {
   const [companyFilter, setCompanyFilter] = useState('')
 
   // AI parse state
-  const [showAiModal, setShowAiModal] = useState(false)
+  const { isOpen: showAiModal, setIsOpen: setShowAiModal } = useModalState()
   const [createInitial, setCreateInitial] = useState<FormState>(EMPTY_FORM)
   const [createFormKey, setCreateFormKey] = useState(0)
   const pendingRegionsRef = useRef<AiSaleRegion[]>([])

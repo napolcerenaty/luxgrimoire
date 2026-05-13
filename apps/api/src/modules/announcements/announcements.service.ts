@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
+import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 // Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
@@ -53,19 +55,12 @@ export class AnnouncementsService {
     private readonly uploadService: UploadService,
   ) {}
 
-  private isCloudinaryId(s: string | null | undefined): s is string {
-    return !!s && !s.startsWith('http');
-  }
-
   private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
-    const valid = ids.filter(this.isCloudinaryId);
-    await Promise.allSettled(valid.map(id => this.uploadService.deleteImage(id)));
+    await deleteCloudinaryImages(ids, this.uploadService);
   }
 
   async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 200);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -116,7 +111,7 @@ export class AnnouncementsService {
       this.prisma.saleAnnouncement.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findById(id: string) {
@@ -129,9 +124,7 @@ export class AnnouncementsService {
   }
 
   async adminFindAll(query: { page?: number; pageSize?: number; search?: string; companyId?: string }) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 10, 50);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 10 });
 
     const where: Prisma.SaleAnnouncementWhereInput = {};
     if (query.companyId) where.companyId = query.companyId;
@@ -153,7 +146,7 @@ export class AnnouncementsService {
       this.prisma.saleAnnouncement.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async adminAddEdition(id: string, editionId: string) {

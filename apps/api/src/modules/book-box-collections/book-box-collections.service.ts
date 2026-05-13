@@ -6,6 +6,7 @@ import {
   BookBoxCollectionQueryDto,
 } from './book-box-collections.dto';
 import { generateSlug } from '../../common/utils/slug.util';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 const COLLECTION_SELECT = {
   id: true,
@@ -24,9 +25,7 @@ export class BookBoxCollectionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: BookBoxCollectionQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 50, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 50 });
 
     const where: Record<string, unknown> = {};
     if (query.companyId) where.companyId = query.companyId;
@@ -43,7 +42,7 @@ export class BookBoxCollectionsService {
       this.prisma.bookBoxCollection.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {

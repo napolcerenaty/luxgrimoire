@@ -6,11 +6,9 @@ import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { PublisherPicker } from './pickers/PublisherPicker'
 import MultiImageUpload from './MultiImageUpload'
+import { BTN_PRIMARY, INP, LBL } from '@/lib/adminFormStyles'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
-const LBL = 'block text-xs text-stone-400 mb-1'
-const BTN_PRIMARY = 'px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors'
 const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -1,17 +1,9 @@
 'use client'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { CURRENCIES, SALE_PLATFORMS } from '@/lib/currencies'
 
-export const SALE_PLATFORMS = [
-  { value: 'ebay', label: 'eBay' },
-  { value: 'facebook', label: 'Facebook Marketplace' },
-  { value: 'vinted', label: 'Vinted' },
-  { value: 'depop', label: 'Depop' },
-  { value: 'discord', label: 'Discord' },
-  { value: 'other', label: 'Other' },
-]
-
-export const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
+export { CURRENCIES, SALE_PLATFORMS }
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'

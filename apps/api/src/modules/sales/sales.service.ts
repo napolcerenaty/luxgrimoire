@@ -10,6 +10,7 @@ import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
+import { parsePagination } from '../../common/pagination';
 
 type Decimal = { toNumber: () => number };
 type NumOrDec = number | Decimal;
@@ -76,7 +77,9 @@ export class SalesService {
   }
 
   async getSaleGroups(userId: string, page = 1, pageSize = 20) {
-    const skip = (page - 1) * pageSize;
+    const { skip, take, page: p } = parsePagination({ page, pageSize });
+    pageSize = take;
+    page = p;
     const where = { userId };
     const [groups, total] = await Promise.all([
       this.prisma.userSaleGroup.findMany({
@@ -94,8 +97,7 @@ export class SalesService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-    };
-  }
+    };  }
 
   async getSaleGroup(userId: string, groupId: string) {
     const g = await this.prisma.userSaleGroup.findUnique({

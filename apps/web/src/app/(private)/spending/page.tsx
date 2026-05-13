@@ -5,8 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { TrendingUp, BookOpen, DollarSign, Truck, Receipt, Tag, BarChart2, Award, Calendar, ShoppingBag, TrendingDown } from 'lucide-react'
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CHF', 'CAD', 'AUD']
+import { CURRENCIES } from '@/lib/currencies'
 
 interface ComprehensiveStats {
   currency: string

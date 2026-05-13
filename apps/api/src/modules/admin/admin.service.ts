@@ -8,6 +8,7 @@ import { Role } from '@prisma/client';
 import { UploadService } from '../upload/upload.service';
 import { refreshNextRenewalDate } from '../../common/utils/renewal-date.util';
 import { bookAuthorsInclude } from '../../common/prisma-includes';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 const MAINTENANCE_KEY = 'system:maintenance';
 const MAINTENANCE_TTL = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
@@ -41,9 +42,7 @@ export class AdminService {
   }
 
   async getAuditLogs(query: AuditLogQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 30, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 30 });
     const sortBy = query.sortBy ?? 'createdAt';
     const order = (query.order ?? 'desc') as 'asc' | 'desc';
 
@@ -73,13 +72,11 @@ export class AdminService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async getRecentEditions(query: RecentEditionsQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 30, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 30 });
     const sortBy = query.sortBy ?? 'updatedAt';
     const order = (query.order ?? 'desc') as 'asc' | 'desc';
 
@@ -149,7 +146,7 @@ export class AdminService {
       lastAudit: auditByEditionId.get(edition.id) ?? null,
     }));
 
-    return { data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data: enriched, ...buildPageMeta(total, page, pageSize) };
   }
 
   async assignRole(userId: string, dto: AssignRoleDto, actor: { id: string; username: string }) {
@@ -179,9 +176,7 @@ export class AdminService {
   }
 
   async getUsers(query: UserQueryDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
     const where = query.search
       ? {
           OR: [
@@ -208,7 +203,7 @@ export class AdminService {
       }),
       this.prisma.user.count({ where }),
     ]);
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return { data, ...buildPageMeta(total, page, pageSize) };
   }
 
   async deleteUser(userId: string, actor: { id: string; username: string }) {

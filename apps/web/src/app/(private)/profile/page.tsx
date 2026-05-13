@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
+import { CURRENCIES_LABELED } from '@/lib/currencies'
 
 
 
@@ -427,22 +428,7 @@ export default function ProfilePage() {
           <div>
             <label className={LABEL}>Preferred Currency</label>
             <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
-              {[
-                ['EUR', 'EUR - Euro'],
-                ['USD', 'USD - US Dollar'],
-                ['GBP', 'GBP - British Pound'],
-                ['PLN', 'PLN - Polish Zloty'],
-                ['CHF', 'CHF - Swiss Franc'],
-                ['CZK', 'CZK - Czech Koruna'],
-                ['SEK', 'SEK - Swedish Krona'],
-                ['NOK', 'NOK - Norwegian Krone'],
-                ['DKK', 'DKK - Danish Krone'],
-                ['HUF', 'HUF - Hungarian Forint'],
-                ['RON', 'RON - Romanian Leu'],
-                ['CAD', 'CAD - Canadian Dollar'],
-                ['AUD', 'AUD - Australian Dollar'],
-                ['JPY', 'JPY - Japanese Yen'],
-              ].map(([code, label]) => (
+              {CURRENCIES_LABELED.map(([code, label]) => (
                 <option key={code} value={code}>{label}</option>
               ))}
             </select>
