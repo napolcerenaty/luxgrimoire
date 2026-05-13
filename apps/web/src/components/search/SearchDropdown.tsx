@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone } from 'lucide-react'
+import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone, X } from 'lucide-react'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
@@ -103,13 +103,23 @@ export function SearchDropdown() {
           placeholder="Search books, editions…"
           className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
         />
-        <button
-          type="button"
-          onClick={goSearch}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
-        >
-          <Search size={13} className={loading ? 'animate-pulse' : ''} />
-        </button>
+        {query ? (
+          <button
+            type="button"
+            onClick={() => { setQuery(''); setResults(null); inputRef.current?.focus() }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={goSearch}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
+          >
+            <Search size={13} className={loading ? 'animate-pulse' : ''} />
+          </button>
+        )}
       </div>
 
       {open && (
