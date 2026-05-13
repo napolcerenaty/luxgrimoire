@@ -95,6 +95,7 @@ interface Step1Props {
     basePrice: string
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
+    resolvedFees: { name: string; amount: string; currency: string }[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
     alreadyCancelled?: boolean
@@ -186,6 +187,14 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
         customAmount: f.customAmount !== '' ? parseDecimalInput(f.customAmount) : undefined,
         customCurrency: f.customCurrency,
       })),
+      resolvedFees: linkedFees.map(f => {
+        const t = templates.find(t => t.id === f.templateId)
+        return {
+          name: t?.name ?? f.templateId,
+          amount: f.customAmount !== '' ? String(parseDecimalInput(f.customAmount)) : (t?.defaultAmount != null ? String(t.defaultAmount) : ''),
+          currency: f.customCurrency || t?.defaultCurrency || (costCurrency || currency),
+        }
+      }),
       ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
       selectedPrepayOptionId,
       ...(alreadyCancelled && {
@@ -700,47 +709,41 @@ interface Step3Props {
   bookPrices: Record<string, string>
   prepayOptions: { id: string; months: number; price: number | string; label: string | null }[]
   subscriptionSlug: string
+  entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']
   eligibleMonths: SubscriptionMonth[]
   onDone: () => void
   onBack: () => void
 }
 
-function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, entry, eligibleMonths, onDone, onBack }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, onDone, onBack }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
 
   type BatchMode = 'all-monthly' | 'custom'
   const [batchMode, setBatchMode] = useState<BatchMode>('all-monthly')
 
-  // Batch state: list of batches
-  const [batches, setBatches] = useState<Array<{
-    billedAt: string
-    baseAmount: string
-    shippingAmount: string
-    monthIds: string[]
-  }>>(() =>
-    // all-monthly default: one batch per month
-    selectedMonthIds.map(mid => ({ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [mid] }))
+  type BatchFeeRow = { name: string; amount: string; currency: string }
+  type Batch = { billedAt: string; baseAmount: string; shippingAmount: string; monthIds: string[]; fees: BatchFeeRow[] }
+
+  function makeDefaultFees(): BatchFeeRow[] {
+    return entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency }))
+  }
+
+  const [batches, setBatches] = useState<Batch[]>(() =>
+    [{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees() }]
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function switchMode(mode: BatchMode) {
     setBatchMode(mode)
-    if (mode === 'all-monthly') {
-      // One batch per selected month, keep any already-entered dates/amounts for matching months
-      setBatches(selectedMonthIds.map(mid => {
-        const existing = batches.find(b => b.monthIds.length === 1 && b.monthIds[0] === mid)
-        return existing ?? { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [mid] }
-      }))
-    } else {
-      // Custom: single batch with all months pre-selected
-      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds] }])
+    if (mode === 'custom' && batches.length === 0) {
+      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees() }])
     }
   }
 
   function addBatch() {
-    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [] }])
+    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [], fees: makeDefaultFees() }])
   }
 
   function removeBatch(idx: number) {
@@ -759,19 +762,60 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
     }))
   }
 
-  async function submit() {
+  function updateFee(batchIdx: number, feeIdx: number, field: keyof BatchFeeRow, value: string) {
+    setBatches(prev => prev.map((b, i) => {
+      if (i !== batchIdx) return b
+      const fees = b.fees.map((f, j) => j === feeIdx ? { ...f, [field]: value } : f)
+      return { ...b, fees }
+    }))
+  }
+
+  function addFee(batchIdx: number) {
+    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, fees: [...b.fees, { name: '', amount: '', currency }] }))
+  }
+
+  function removeFee(batchIdx: number, feeIdx: number) {
+    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, fees: b.fees.filter((_, j) => j !== feeIdx) }))
+  }
+
+  async function submitSkip() {
     setSubmitting(true)
     setError(null)
     try {
-      const skippedMonthIds = eligibleMonths
-        .filter(m => !selectedMonthIds.includes(m.id))
-        .map(m => m.id)
-      const bookPricesPayload = Object.entries(bookPrices)
-        .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
-        .map(([key, v]) => {
-          const [monthId, editionId] = key.split(':')
-          return { monthId, editionId, price: parseDecimalInput(v) }
-        })
+      const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
+      const bookPricesPayload = buildBookPricesPayload()
+      await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedMonthIds,
+          skippedMonthIds,
+          ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
+        }),
+      })
+      onDone()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function buildBookPricesPayload() {
+    return Object.entries(bookPrices)
+      .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
+      .map(([key, v]) => {
+        const [monthId, editionId] = key.split(':')
+        return { monthId, editionId, price: parseDecimalInput(v) }
+      })
+  }
+
+  async function submitCustom() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
+      const bookPricesPayload = buildBookPricesPayload()
 
       const billingBatches = batches
         .filter(b => b.monthIds.length > 0 && b.billedAt)
@@ -782,6 +826,11 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
           currency,
           shippingAmount: b.shippingAmount ? parseDecimalInput(b.shippingAmount) : undefined,
           monthIds: b.monthIds,
+          ...(b.fees.filter(f => f.name && f.amount).length > 0 && {
+            fees: b.fees
+              .filter(f => f.name && f.amount)
+              .map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency || currency })),
+          }),
         }))
 
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
@@ -841,87 +890,125 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
         </button>
       </div>
 
-      {batches.map((batch, idx) => {
-        const batchMonth = batchMode === 'all-monthly' ? monthMap.get(batch.monthIds[0]) : null
-        return (
-          <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              {batchMode === 'all-monthly' && batchMonth ? (
-                <span className="text-xs text-amber-400 font-medium">
-                  {MONTH_NAMES[batchMonth.month - 1]} {batchMonth.year}
-                </span>
-              ) : (
-                <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
-              )}
-              {batchMode === 'custom' && batches.length > 1 && (
-                <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-stone-500 block mb-1">Payment date</label>
-                <input
-                  type="date"
-                  value={batch.billedAt}
-                  onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
-                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={batch.baseAmount}
-                  onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={batch.shippingAmount}
-                  onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                />
-              </div>
-            </div>
-            {batchMode === 'custom' && (
-              <div>
-                <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
-                <div className="flex flex-wrap gap-1">
-                  {selectedMonthIds.map(mid => {
-                    const m = monthMap.get(mid)
-                    if (!m) return null
-                    const inThis = batch.monthIds.includes(mid)
-                    const inOther = !inThis && assignedMonthIds.has(mid)
-                    return (
-                      <button
-                        key={mid}
-                        onClick={() => toggleMonth(idx, mid)}
-                        disabled={inOther}
-                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-                          inThis
-                            ? 'bg-amber-700 border-amber-600 text-stone-100'
-                            : inOther
-                            ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
-                            : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
-                        }`}
-                      >
-                        {MONTH_NAMES[m.month - 1]} {m.year}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+      {/* All-monthly: simple info, no batch cards */}
+      {batchMode === 'all-monthly' && (
+        <div className="rounded-lg border border-stone-700 bg-stone-800/50 p-4 text-xs text-stone-400 space-y-1">
+          <p className="text-stone-300 font-medium">Each month will be recorded as a separate monthly payment.</p>
+          <p>Prices will be taken from your subscription entry settings. You can add custom fees and exact payment dates later by editing each billing period.</p>
+        </div>
+      )}
+
+      {/* Custom batches */}
+      {batchMode === 'custom' && batches.map((batch, idx) => (
+        <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
+            {batches.length > 1 && (
+              <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
             )}
           </div>
-        )
-      })}
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Payment date</label>
+              <input
+                type="date"
+                value={batch.billedAt}
+                onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
+              <input
+                type="number"
+                step="0.01"
+                value={batch.baseAmount}
+                onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
+              <input
+                type="number"
+                step="0.01"
+                value={batch.shippingAmount}
+                onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Months */}
+          <div>
+            <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
+            <div className="flex flex-wrap gap-1">
+              {selectedMonthIds.map(mid => {
+                const m = monthMap.get(mid)
+                if (!m) return null
+                const inThis = batch.monthIds.includes(mid)
+                const inOther = !inThis && assignedMonthIds.has(mid)
+                return (
+                  <button
+                    key={mid}
+                    onClick={() => toggleMonth(idx, mid)}
+                    disabled={inOther}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      inThis
+                        ? 'bg-amber-700 border-amber-600 text-stone-100'
+                        : inOther
+                        ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
+                        : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
+                    }`}
+                  >
+                    {MONTH_NAMES[m.month - 1]} {m.year}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Fees */}
+          <div>
+            <p className="text-xs text-stone-500 mb-1">Additional fees / taxes:</p>
+            <div className="space-y-1">
+              {batch.fees.map((fee, feeIdx) => (
+                <div key={feeIdx} className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value={fee.name}
+                    onChange={e => updateFee(idx, feeIdx, 'name', e.target.value)}
+                    placeholder="Name"
+                    className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={fee.amount}
+                    onChange={e => updateFee(idx, feeIdx, 'amount', e.target.value)}
+                    placeholder="0.00"
+                    className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <input
+                    type="text"
+                    value={fee.currency}
+                    onChange={e => updateFee(idx, feeIdx, 'currency', e.target.value.toUpperCase())}
+                    maxLength={3}
+                    className="w-12 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs uppercase"
+                  />
+                  <button onClick={() => removeFee(idx, feeIdx)} className="text-xs text-red-400 hover:text-red-300 px-1">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => addFee(idx)} className="mt-1 text-xs text-amber-500 hover:text-amber-400 transition-colors">
+              + Add fee
+            </button>
+          </div>
+        </div>
+      ))}
 
       {batchMode === 'custom' && (
         <button
@@ -934,50 +1021,37 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
+      <p className="text-xs text-stone-500">
+        If you skip this step, all selected months will be recorded as individual monthly payments using the subscription price.
+      </p>
+
       <div className="flex gap-3 pt-2">
-        <button
-          onClick={() => submit()}
-          disabled={submitting}
-          className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
-        >
-          {submitting ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          onClick={async () => {
-            // Submit without billing batches
-            setSubmitting(true)
-            setError(null)
-            try {
-              const skippedMonthIds = eligibleMonths
-                .filter(m => !selectedMonthIds.includes(m.id))
-                .map(m => m.id)
-              const bookPricesPayload = Object.entries(bookPrices)
-                .filter(([, v]) => v !== '' && parseDecimalInput(v) !== 0)
-                .map(([key, v]) => {
-                  const [monthId, editionId] = key.split(':')
-                  return { monthId, editionId, price: parseDecimalInput(v) }
-                })
-              await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  selectedMonthIds,
-                  skippedMonthIds,
-                  ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
-                }),
-              })
-              onDone()
-            } catch (e: unknown) {
-              setError(e instanceof Error ? e.message : 'Failed')
-            } finally {
-              setSubmitting(false)
-            }
-          }}
-          disabled={submitting}
-          className="py-2 px-4 rounded-lg border border-stone-600 text-stone-400 text-sm hover:text-stone-300 transition-colors disabled:opacity-50"
-        >
-          Skip batches
-        </button>
+        {batchMode === 'all-monthly' ? (
+          <button
+            onClick={submitSkip}
+            disabled={submitting}
+            className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'Saving…' : 'Save as all monthly'}
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={submitCustom}
+              disabled={submitting}
+              className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Saving…' : 'Save batches'}
+            </button>
+            <button
+              onClick={submitSkip}
+              disabled={submitting}
+              className="py-2 px-4 rounded-lg border border-stone-600 text-stone-400 text-sm hover:text-stone-300 transition-colors disabled:opacity-50"
+            >
+              Skip batches
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -998,6 +1072,7 @@ export default function JoinSubscriptionModal({
   const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
   const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string> } | null>(null)
+  const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
@@ -1007,6 +1082,7 @@ export default function JoinSubscriptionModal({
     basePrice: string
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
+    resolvedFees: { name: string; amount: string; currency: string }[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
     alreadyCancelled?: boolean
@@ -1054,6 +1130,7 @@ export default function JoinSubscriptionModal({
       }
 
       setJoinResult(result)
+      setStep1Fees(data.resolvedFees ?? [])
 
       if (result.eligibleMonths.length > 0) {
         setStep(2)
@@ -1124,6 +1201,7 @@ export default function JoinSubscriptionModal({
             bookPrices={step2Data.bookPrices}
             prepayOptions={prepayOptions!}
             subscriptionSlug={subscriptionSlug}
+            entryFees={step1Fees}
             entry={joinResult.entry}
             eligibleMonths={joinResult.eligibleMonths}
             onDone={() => { setStep('done'); onJoined() }}
