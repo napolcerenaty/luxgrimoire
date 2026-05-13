@@ -175,8 +175,17 @@ export class SubscriptionsService {
     return result;
   }
 
-  private async _fetchSubscriptionBySlug(slug: string) {
-    const now = new Date();
+  /** Lean fetch for admin UI — only id, name, companyId needed for breadcrumbs and access checks. */
+  async findBySlugForAdmin(slug: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { slug },
+      select: { id: true, name: true, companyId: true },
+    });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    return sub;
+  }
+
+  private async _fetchSubscriptionBySlug(slug: string) {    const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
     const subscription = await this.prisma.subscription.findUnique({
@@ -389,6 +398,7 @@ export class SubscriptionsService {
           year: true,
           month: true,
           theme: true,
+          seriesId: true,
           coverImage: true,
           isSpoiler: true,
           signatureType: true,

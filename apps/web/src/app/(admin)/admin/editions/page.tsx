@@ -105,8 +105,8 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
 function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: () => void; onCancel: () => void }) {
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
-    queryKey: ['edition-detail', slug],
-    queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}`),
+    queryKey: ['edition-detail-edit', slug],
+    queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}/for-edit`),
     staleTime: 0,
     gcTime: 0,
   })

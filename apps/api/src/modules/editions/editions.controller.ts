@@ -55,6 +55,13 @@ export class EditionsController {
     return this.editionsService.findPublishers(search);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/for-edit')
+  findBySlugForEdit(@Param('slug') slug: string) {
+    return this.editionsService.findBySlugForAdmin(slug);
+  }
+
   @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {

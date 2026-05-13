@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import ImageUpload from '@/components/admin/ImageUpload'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import type { ApiSubscriptionSeries, ApiSubscription } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
@@ -346,8 +346,8 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
   const [creating, setCreating] = useState(false)
 
   const { data: subData } = useQuery({
-    queryKey: ['admin', 'subscriptions', slug],
-    queryFn: () => authFetch<ApiSubscription>(`/subscriptions/${slug}`),
+    queryKey: ['admin', 'subscriptions', slug, 'for-edit'],
+    queryFn: () => authFetch<{ id: string; name: string; companyId: string }>(`/subscriptions/${slug}/for-edit`),
   })
 
   const { data: seriesData, isLoading } = useQuery({
@@ -358,8 +358,8 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
 
   const { data: monthsData } = useQuery({
     queryKey: ['admin', 'subscriptions', slug, 'months'],
-    queryFn: () => authFetch<{ months: SubMonth[] }>(`/subscriptions/${slug}`),
-    select: (d) => d.months ?? [],
+    queryFn: () => authFetch<{ data: SubMonth[]; total: number }>(`/subscriptions/${slug}/months?all=true&pageSize=9999`),
+    select: (d) => d.data ?? [],
   })
   const allMonths: SubMonth[] = monthsData ?? []
 
