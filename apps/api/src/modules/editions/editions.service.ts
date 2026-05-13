@@ -180,7 +180,7 @@ export class EditionsService {
       select: {
         id: true, slug: true,
         bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
-        publisher: true, isSpecial: true,
+        publisher: true, isSpecial: true, isOmnibus: true,
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,

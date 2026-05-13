@@ -161,7 +161,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
   const [features, setFeatures] = useState<string[]>(edition.features ?? [])
-  const [isOmnibus, setIsOmnibus] = useState((edition as any).isOmnibus ?? false)
+  const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
   const [artists, setArtists] = useState<ArtistEntry[]>(
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )

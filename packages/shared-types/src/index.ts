@@ -112,6 +112,7 @@ export interface ApiBookEdition {
   publisher: string | null;
   additionalImages: string[];
   isSpecial: boolean;
+  isOmnibus?: boolean;
   notes: string | null;
   bookBoxCompanyCustomName: string | null;
   bookBoxCompanyId?: string | null;
