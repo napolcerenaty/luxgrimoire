@@ -10,6 +10,7 @@ import { createPurchaseGroup } from '@/lib/api'
 import { Bookmark, BookmarkCheck, BookPlus, CheckCircle, Loader2, LogIn, Megaphone, Plus, X } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
+import { useRecordSaleGroup, type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
@@ -23,9 +24,6 @@ const OWNERSHIP_OPTIONS = [
 ] as const
 type OwnershipOption = typeof OWNERSHIP_OPTIONS[number]['value']
 
-interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
-interface DiscountEntry { key: number; name: string; amount: string; currency: string }
-interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null; isActive: boolean }
 interface EntryStatus { status: 'none' | 'wishlist' | 'collection'; entryId?: string }
 
 interface Props {
@@ -40,6 +38,7 @@ interface Props {
 
 export function EditionActionButtons({ editionId, bookTitle, basePrice, currency, bundles, generalSaleDate, saleAnnouncementId }: Props) {
   const { user } = useAuth()
+  const { postFeesAndDiscounts } = useRecordSaleGroup()
   const isFutureSale = !!generalSaleDate && new Date(generalSaleDate) > new Date()
   const [status, setStatus] = useState<EntryStatus['status'] | 'loading'>('loading')
   const [entryId, setEntryId] = useState<string | null>(null)
@@ -202,40 +201,8 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         }
       }
 
-      // Additional custom fees
-      for (const fee of feeEntries) {
-        const parsedAmount = parseDecimalInput(fee.amount)
-        if (parsedAmount <= 0) continue
-        const template = feeTemplates.find(t => t.id === fee.templateId)
-        await authFetch('/fees', {
-          method: 'POST',
-          body: JSON.stringify({
-            feeTemplateId: template?.id,
-            name: template?.name ?? 'Fee',
-            amount: parsedAmount,
-            currency: fee.currency,
-            date: feeDate,
-            category: template?.category ?? undefined,
-            ...(purchaseGroupId ? { purchaseGroupId } : {}),
-          }),
-        })
-      }
-
-      // Discounts
-      for (const disc of discountEntries) {
-        const parsedAmount = parseDecimalInput(disc.amount)
-        if (parsedAmount <= 0 || !disc.name.trim()) continue
-        await authFetch('/fees/discounts', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: disc.name.trim(),
-            amount: parsedAmount,
-            currency: disc.currency,
-            date: feeDate,
-            ...(purchaseGroupId ? { purchaseGroupId } : {}),
-          }),
-        })
-      }
+      // Additional custom fees and discounts
+      await postFeesAndDiscounts(purchaseGroupId, feeEntries, discountEntries, feeTemplates, feeDate)
 
       setAddedOnce(true)
       closeModal()

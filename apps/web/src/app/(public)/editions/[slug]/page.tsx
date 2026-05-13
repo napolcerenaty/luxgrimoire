@@ -12,6 +12,7 @@ import { BackButton } from '@/components/ui/BackButton'
 import { CommunityImageSection } from '@/components/editions/CommunityImageSection'
 import { EditionCommunityStats } from '@/components/editions/EditionCommunityStats'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
+import type { CommunityImage } from '@/types/community'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -85,16 +86,6 @@ interface EditionDetail {
 }
 
 interface Props { params: Promise<{ slug: string }>; searchParams: Promise<{ entry?: string }> }
-
-interface CommunityImage {
-  id: string
-  cloudinaryId: string
-  url: string
-  sortOrder: number
-  instagramHandle: string | null
-  status: 'PENDING' | 'APPROVED'
-  user: { username: string }
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

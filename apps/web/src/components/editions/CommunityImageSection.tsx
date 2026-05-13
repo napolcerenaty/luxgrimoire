@@ -3,20 +3,11 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
-import { cloudinaryUrl } from '@/lib/cloudinary'
+import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 import { API_BASE } from '@/lib/authFetch'
+import type { CommunityImage } from '@/types/community'
 const MAX_IMAGES = 5
 const MAX_BYTES = 5 * 1024 * 1024
-
-interface CommunityImage {
-  id: string
-  cloudinaryId: string
-  url: string
-  sortOrder: number
-  instagramHandle: string | null
-  status: 'PENDING' | 'APPROVED'
-  user: { username: string }
-}
 
 interface PendingImage {
   cloudinaryId: string
@@ -31,24 +22,9 @@ interface Props {
 }
 
 async function uploadToCloudinary(file: File): Promise<{ cloudinaryId: string; url: string }> {
-  const dataUri = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-  const res = await fetch(`${API_BASE}/upload/image`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: dataUri, folder: 'luxgrimoire/community' }),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Upload failed: ${text}`)
-  }
-  const data = await res.json() as { publicId: string; url: string }
-  return { cloudinaryId: data.publicId, url: data.url }
+  const cloudinaryId = await uploadImage(file, 'luxgrimoire/community')
+  const url = cloudinaryUrl(cloudinaryId, 'w_400,c_fill,q_auto,f_auto') ?? cloudinaryId
+  return { cloudinaryId, url }
 }
 
 export function CommunityImageSection({ editionSlug, initialImages }: Props) {

@@ -7,6 +7,7 @@ import { createPurchaseGroup } from '@/lib/api'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { BookPlus, Plus, X, MoveRight } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
+import { useRecordSaleGroup, type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
@@ -23,10 +24,6 @@ const SIGNATURE_LABELS: Record<string, string> = {
   digitally_signed: 'Digitally Signed',
   signed_bookplate: 'Signed Bookplate',
 }
-
-interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
-interface DiscountEntry { key: number; name: string; amount: string; currency: string }
-interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null; isActive: boolean }
 
 export interface SaleEditionData {
   editionId: string
@@ -50,6 +47,7 @@ interface Props {
 }
 
 export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
+  const { postFeesAndDiscounts } = useRecordSaleGroup()
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -130,38 +128,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
       const purchaseGroupId = (result as any).group?.id ?? (result as any).id
 
       if (purchaseGroupId) {
-        for (const fee of feeEntries) {
-          const amount = parseDecimalInput(fee.amount)
-          if (amount <= 0) continue
-          const template = feeTemplates.find(t => t.id === fee.templateId)
-          await authFetch('/fees', {
-            method: 'POST',
-            body: JSON.stringify({
-              feeTemplateId: template?.id,
-              name: template?.name ?? 'Fee',
-              amount,
-              currency: fee.currency,
-              date: feeDate,
-              category: template?.category ?? undefined,
-              purchaseGroupId,
-            }),
-          })
-        }
-
-        for (const disc of discountEntries) {
-          const amount = parseDecimalInput(disc.amount)
-          if (amount <= 0 || !disc.name.trim()) continue
-          await authFetch('/fees/discounts', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: disc.name.trim(),
-              amount,
-              currency: disc.currency,
-              date: feeDate,
-              purchaseGroupId,
-            }),
-          })
-        }
+        await postFeesAndDiscounts(purchaseGroupId, feeEntries, discountEntries, feeTemplates, feeDate)
       }
 
       setSuccess(true)

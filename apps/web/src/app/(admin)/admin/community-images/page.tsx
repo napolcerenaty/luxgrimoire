@@ -4,14 +4,9 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import type { CommunityImage as BaseCommunityImage } from '@/types/community'
 
-interface CommunityImage {
-  id: string
-  url: string
-  cloudinaryId: string
-  sortOrder: number
-  instagramHandle: string | null
-  status: string
+interface CommunityImage extends BaseCommunityImage {
   consentGiven: boolean
   consentedAt: string
   createdAt: string

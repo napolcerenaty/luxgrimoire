@@ -1,14 +1,13 @@
 'use client';
 
 import { Package } from 'lucide-react';
+import { API_BASE } from '@/lib/authFetch';
 
 interface TrackPackageButtonProps {
   trackingNumber: string;
   entryId?: string;
   className?: string;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export function TrackPackageButton({ trackingNumber, entryId, className }: TrackPackageButtonProps) {
   const params = new URLSearchParams({ number: trackingNumber });
