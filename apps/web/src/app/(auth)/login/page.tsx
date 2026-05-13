@@ -151,7 +151,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <OAuthButtons />
+      <OAuthButtons returnTo={returnTo ?? undefined} />
 
       <p className="text-center text-sm text-stone-400 mt-6">
         Don&apos;t have an account?{' '}

@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { Bell, BellOff, Loader2, MapPin } from 'lucide-react'
 import { useSaleInterest, type SaleTier } from '@/hooks/useSaleInterest'
+import { useAuth } from '@/components/AuthProvider'
 import { formatTierDate } from '@/lib/saleDates'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
@@ -36,6 +38,8 @@ interface Props {
 }
 
 export function SaleInterestButton({ sale, compact = false }: Props) {
+  const { user } = useAuth()
+  const router = useRouter()
   const { isInterested, tier, regionId: savedRegionId, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
@@ -88,6 +92,11 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!user) {
+      const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+      router.push(`/login?returnTo=${returnTo}`)
+      return
+    }
     if (onlyGS && !hasRegions) {
       if (isInterested) removeInterest()
       else setInterest('GS', effectiveRegion?.id ?? null)
