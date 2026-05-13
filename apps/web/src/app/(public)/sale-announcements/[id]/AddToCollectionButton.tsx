@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { createPurchaseGroup } from '@/lib/api'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-import { BookPlus, Plus, X, MoveRight } from 'lucide-react'
+import { BookPlus, LogIn, Plus, X, MoveRight } from 'lucide-react'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useRecordSaleGroup, type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
+import { useAuth } from '@/components/AuthProvider'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
+  const { user } = useAuth()
   const { postFeesAndDiscounts } = useRecordSaleGroup()
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -138,6 +141,23 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!user) {
+    return (
+      <div className={compact
+        ? "flex items-center gap-1.5 text-xs bg-stone-800/60 border border-stone-700 px-3 py-1.5 rounded-lg"
+        : "inline-flex items-center gap-2 bg-stone-800/60 border border-stone-700 px-4 py-2 rounded-lg text-sm"
+      }>
+        <LogIn size={compact ? 13 : 16} className="text-amber-400 shrink-0" />
+        <span className="text-stone-400">
+          <Link href="/login" className="text-amber-400 hover:text-amber-300 font-medium transition-colors">
+            Sign in
+          </Link>
+          {' '}to add to collection
+        </span>
+      </div>
+    )
   }
 
   return (
