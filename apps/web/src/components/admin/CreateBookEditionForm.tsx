@@ -10,12 +10,7 @@ import { GenreTagsPicker } from './pickers/GenreTagsPicker'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, type AiBookResult } from './BookForm'
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
-const LBL = 'block text-xs text-stone-400 mb-1'
-const BTN_PRIMARY = 'px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors'
-const BTN_GHOST = 'px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors'
+import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const ISO_TO_LANGUAGE: Record<string, string> = {

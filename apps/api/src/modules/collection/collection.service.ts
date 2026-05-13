@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
+import { parsePagination } from '../../common/pagination';
 
 
 @Injectable()
@@ -15,7 +16,9 @@ export class CollectionService {
   ) {}
 
   async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false) {
-    const skip = (page - 1) * pageSize;
+    const { skip, take, page: p } = parsePagination({ page, pageSize });
+    pageSize = take;
+    page = p;
     const where: { userId: string; isWishlist?: boolean } = { userId };
     if (isWishlist !== undefined) where.isWishlist = isWishlist;
 

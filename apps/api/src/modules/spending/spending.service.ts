@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AddTransactionDto, UpdateTransactionDto } from './spending.dto';
 import { FeesService } from '../fees/fees.service';
 import { CurrencyService } from '../currency/currency.service';
+import { parsePagination } from '../../common/pagination';
 
 @Injectable()
 export class SpendingService {
@@ -14,7 +15,9 @@ export class SpendingService {
   ) {}
 
   async getTransactions(userId: string, page = 1, pageSize = 20, currency?: string) {
-    const skip = (page - 1) * pageSize;
+    const { skip, take, page: p } = parsePagination({ page, pageSize });
+    pageSize = take;
+    page = p;
     const where = { userId, ...(currency ? { currency } : {}) };
     const [data, total] = await Promise.all([
       this.prisma.purchaseTransaction.findMany({

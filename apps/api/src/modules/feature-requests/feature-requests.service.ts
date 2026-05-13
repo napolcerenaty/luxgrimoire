@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 @Injectable()
 export class FeatureRequestsService {
@@ -31,9 +32,7 @@ export class FeatureRequestsService {
   }
 
   async findPublic(query: { page?: number; pageSize?: number; userId?: string }) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 20, 50);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const [items, total] = await Promise.all([
       this.prisma.featureRequest.findMany({
@@ -58,10 +57,7 @@ export class FeatureRequestsService {
         votes: undefined,
         _count: undefined,
       })),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      ...buildPageMeta(total, page, pageSize),
     };
   }
 
@@ -75,9 +71,7 @@ export class FeatureRequestsService {
   }
 
   async adminFindAll(query: { page?: number; pageSize?: number; status?: string }) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 30, 100);
-    const skip = (page - 1) * pageSize;
+    const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 30 });
     const where = query.status ? { status: query.status } : {};
 
     const [items, total] = await Promise.all([
@@ -99,10 +93,7 @@ export class FeatureRequestsService {
 
     return {
       data: items.map(r => ({ ...r, voteCount: r._count.votes, _count: undefined })),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      ...buildPageMeta(total, page, pageSize),
     };
   }
 

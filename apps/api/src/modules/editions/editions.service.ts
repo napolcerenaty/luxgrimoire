@@ -14,6 +14,7 @@ import {
 } from './editions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 
 const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
 
@@ -29,9 +30,7 @@ export class EditionsService {
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
-    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
-    if (!valid.length) return;
-    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
+    return deleteCloudinaryImages(ids, this.uploadService);
   }
 
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {

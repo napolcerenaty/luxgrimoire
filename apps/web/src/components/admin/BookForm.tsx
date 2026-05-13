@@ -5,9 +5,7 @@ import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/Perso
 import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
 import { authFetch } from '@/lib/authFetch'
-
-const LBL = 'block text-xs text-stone-400 mb-1'
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-amber-400'
+import { INP, LBL } from '@/lib/adminFormStyles'
 
 export interface BookFormState {
   title: string

@@ -16,6 +16,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
+import { useModalState } from '@/hooks/useModalState'
 
 const fmtStatus = (s: string) => s.replace(/_/g, ' ')
 
@@ -494,7 +495,7 @@ export default function CollectionPage() {
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
-  const [addModalOpen, setAddModalOpen] = useState(false)
+  const { isOpen: addModalOpen, setIsOpen: setAddModalOpen } = useModalState()
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
   // Local tag state per editionId (updated optimistically after saves)

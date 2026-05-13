@@ -6,15 +6,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, ChevronRight, ChevronLeft, BookOpen, Camera, ExternalLink, CreditCard, Sparkles, Check, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
+import { CURRENCIES_LABELED as CURRENCIES } from '@/lib/currencies'
 
 // ── Preferences data ──────────────────────────────────────────────────────────
-const CURRENCIES: [string, string][] = [
-  ['EUR', 'EUR - Euro'], ['USD', 'USD - US Dollar'], ['GBP', 'GBP - British Pound'],
-  ['PLN', 'PLN - Polish Zloty'], ['CHF', 'CHF - Swiss Franc'], ['CZK', 'CZK - Czech Koruna'],
-  ['SEK', 'SEK - Swedish Krona'], ['NOK', 'NOK - Norwegian Krone'], ['DKK', 'DKK - Danish Krone'],
-  ['HUF', 'HUF - Hungarian Forint'], ['RON', 'RON - Romanian Leu'], ['CAD', 'CAD - Canadian Dollar'],
-  ['AUD', 'AUD - Australian Dollar'], ['JPY', 'JPY - Japanese Yen'],
-]
 
 const COUNTRIES: [string, string][] = [
   ['AL', 'Albania'], ['AD', 'Andorra'], ['AT', 'Austria'], ['BE', 'Belgium'],

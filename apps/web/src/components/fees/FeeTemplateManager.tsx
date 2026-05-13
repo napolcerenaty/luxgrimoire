@@ -12,6 +12,7 @@ import type { ApiFeeTemplate, FeeCategory } from '@luxgrimoire/shared-types'
 import { Loader2, Plus, Pencil, Trash2, Check, X, ArchiveRestore, Archive } from 'lucide-react'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { CURRENCIES } from '@/lib/currencies'
 
 const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'VAT', label: 'VAT' },
@@ -20,8 +21,6 @@ const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'FORWARDING', label: 'Forwarding' },
   { value: 'OTHER', label: 'Other' },
 ]
-
-const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF']
 
 const CATEGORY_COLORS: Record<FeeCategory, string> = {
   VAT: 'bg-blue-900/60 text-blue-300',

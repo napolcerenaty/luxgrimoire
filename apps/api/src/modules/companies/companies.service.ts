@@ -7,6 +7,7 @@ import { UploadService } from '../upload/upload.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
@@ -32,9 +33,7 @@ export class CompaniesService {
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
-    const valid = ids.filter((id): id is string => !!id && !id.startsWith('http'));
-    if (!valid.length) return;
-    return Promise.allSettled(valid.map((id) => this.uploadService.deleteImage(id)));
+    return deleteCloudinaryImages(ids, this.uploadService);
   }
 
   async create(dto: CreateCompanyDto) {
