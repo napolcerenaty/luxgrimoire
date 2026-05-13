@@ -18,10 +18,6 @@ export class CreateEditionDto extends BasePriceCurrencyDto {
 
   @IsOptional()
   @IsString()
-  editionName?: string;
-
-  @IsOptional()
-  @IsString()
   publisher?: string;
 
   @IsOptional()
@@ -80,10 +76,6 @@ export class CreateEditionDto extends BasePriceCurrencyDto {
 }
 
 export class UpdateEditionDto extends BasePriceCurrencyDto {
-  @IsOptional()
-  @IsString()
-  editionName?: string;
-
   @IsOptional()
   @IsString()
   publisher?: string;

@@ -266,7 +266,6 @@ function cloudThumb(id: string, w = 80, h = 100) {
 interface LinkedEdition {
   editionId: string
   bookTitle: string
-  editionName?: string | null
   coverImage?: string | null
   publisher?: string | null
   companyName?: string | null
@@ -281,7 +280,6 @@ interface BookInfo {
 
 interface EditionInfo {
   id: string
-  editionName?: string | null
   additionalImages?: string[]
   publisher?: string | null
   bookBoxCompany?: { name: string } | null
@@ -330,7 +328,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     onAdd({
       editionId: ed.id,
       bookTitle: selectedBook.title,
-      editionName: ed.editionName,
       coverImage: ed.additionalImages?.[0],
       publisher: ed.publisher,
       companyName: ed.bookBoxCompany?.name,
@@ -377,7 +374,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               onAdd({
                 editionId,
                 bookTitle: selectedBook.title,
-                editionName: null,
                 coverImage: null,
               })
             }
@@ -405,7 +401,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 }
                 <div className="flex-1 min-w-0">
                   <div className="text-stone-100 text-xs font-medium truncate">{e.bookTitle}</div>
-                  <div className="text-stone-500 text-xs truncate">{[e.companyName, e.editionName].filter(Boolean).join(' · ') || e.publisher || '—'}</div>
+                  <div className="text-stone-500 text-xs truncate">{e.companyName || e.publisher || '—'}</div>
                 </div>
                 <button type="button" onClick={() => onRemove(e.editionId)}
                   className="text-red-400 hover:text-red-300 text-xs shrink-0">Remove</button>
@@ -436,7 +432,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                   : <div className="w-8 h-10 bg-stone-600 rounded" />
                 }
                 <div>
-                  <div className="text-stone-100 text-xs">{[ed.bookBoxCompany?.name, ed.editionName].filter(Boolean).join(' · ') || '—'}</div>
+                  <div className="text-stone-100 text-xs">{ed.bookBoxCompany?.name || '—'}</div>
                   <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
               </button>
@@ -526,7 +522,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
   const linkedEditions: LinkedEdition[] = (a.editions ?? []).map(e => ({
     editionId: e.editionId,
     bookTitle: e.edition?.book?.title ?? '',
-    editionName: e.edition?.editionName ?? null,
     coverImage: (e.edition as any)?.additionalImages?.[0] ?? null,
   }))
   return {
@@ -1127,9 +1122,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   }
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-stone-200 truncate">{e.edition?.book?.title ?? 'Unknown'}</div>
-                    {e.edition?.editionName && (
-                      <div className="text-xs text-stone-400 truncate">{e.edition.editionName}</div>
-                    )}
                   </div>
                   <button
                     type="button"
@@ -1202,7 +1194,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 linked={editions.map(e => ({
                   editionId: e.editionId,
                   bookTitle: e.edition?.book?.title ?? '',
-                  editionName: e.edition?.editionName ?? null,
                   coverImage: (e.edition as any)?.additionalImages?.[0] ?? null,
                   companyName: (e.edition as any)?.bookBoxCompany?.name ?? null,
                 }))}

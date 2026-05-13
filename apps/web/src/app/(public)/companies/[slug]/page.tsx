@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
-import type { ApiBookBoxCompany, ApiCompanyEdition } from '@luxgrimoire/shared-types'
-import { CompanyBooksSection, type EditionGroup } from './CompanyBooksSection'
+import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
+import { CompanyEditionsSection } from './CompanyEditionsSection'
 
 // Minimal inline SVG icons for social platforms
 function InstagramIcon({ className }: { className?: string }) {
@@ -60,6 +61,19 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+function EditionsSkeleton() {
+  return (
+    <section className="mt-12">
+      <div className="h-7 w-24 bg-stone-800 rounded animate-pulse mb-6" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="aspect-[2/3] bg-stone-800 rounded-lg animate-pulse" />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -94,54 +108,6 @@ export default async function CompanyPage({ params }: Props) {
   const hasBanner = company.sponsoredSlots?.some(
     (s) => s.isActive && s.type === 'COMPANY_PAGE_BANNER',
   ) ?? false
-
-  // Group editions by subscription → collection → standalone
-  const editions = company.editions ?? []
-  const editionGroups: EditionGroup[] = []
-  const bySubscription = new Map<string, EditionGroup>()
-  const byCollection = new Map<string, EditionGroup>()
-  const standalone: ApiCompanyEdition[] = []
-
-  for (const edition of editions) {
-    if (edition.subscriptionId) {
-      const sub = subscriptions.find((s) => s.id === edition.subscriptionId)
-      const key = edition.subscriptionId
-      if (!bySubscription.has(key)) {
-        bySubscription.set(key, {
-          label: sub?.name ?? 'Subscription',
-          href: sub ? `/subscriptions/${sub.slug}` : null,
-          editions: [],
-        })
-      }
-      bySubscription.get(key)!.editions.push(edition)
-    } else if (edition.collection) {
-      const key = edition.collection.id
-      if (!byCollection.has(key)) {
-        byCollection.set(key, {
-          label: edition.collection.name,
-          href: `/companies/${company.slug}/collections/${edition.collection.slug}`,
-          editions: [],
-        })
-      }
-      byCollection.get(key)!.editions.push(edition)
-    } else {
-      standalone.push(edition)
-    }
-  }
-
-  bySubscription.forEach((g) => editionGroups.push(g))
-  byCollection.forEach((g) => editionGroups.push(g))
-  if (standalone.length > 0) {
-    editionGroups.push({ label: 'Exclusive Editions', href: null, editions: standalone })
-  }
-
-  // Re-order: Exclusive Editions first, then named collections, then subscription groups
-  const orderedGroups: EditionGroup[] = [
-    ...editionGroups.filter((g) => g.label === 'Exclusive Editions'),
-    ...editionGroups.filter((g) => g.href?.includes('/collections/')),
-    ...editionGroups.filter((g) => g.href?.includes('/subscriptions/')),
-    ...editionGroups.filter((g) => !g.href && g.label !== 'Exclusive Editions'),
-  ]
 
   const socials = [
     company.website
@@ -312,10 +278,16 @@ export default async function CompanyPage({ params }: Props) {
         </section>
       )}
 
-      {/* Books with tabs, search, load-more */}
-      <CompanyBooksSection groups={orderedGroups} brandColors={company.brandColors} />
+      {/* Books with tabs, search, load-more — streams in via Suspense */}
+      <Suspense fallback={<EditionsSkeleton />}>
+        <CompanyEditionsSection
+          companySlug={slug}
+          subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name }))}
+          brandColors={company.brandColors}
+        />
+      </Suspense>
 
-      {subscriptions.length === 0 && editions.length === 0 && (
+      {subscriptions.length === 0 && (
         <p className="text-stone-500 text-sm">No content found for this company.</p>
       )}
     </div>

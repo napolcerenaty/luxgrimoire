@@ -1,27 +1,13 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiArtist } from '@luxgrimoire/shared-types'
-import { ArtistTabs } from './ArtistTabs'
-import type { GroupedEdition } from './ArtistTabs'
+import { ArtistContributionsSection } from './ArtistContributionsSection'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface EditionSnippet {
-  id: string; slug: string; additionalImages: string[]; editionName: string | null
-  bookBoxCompany: { name: string } | null; communityPhotoCover?: string | null
-}
-
-interface Contribution {
-  role: string
-  edition: EditionSnippet
-}
-
-interface ApiArtistDetail extends ApiArtist {
-  contributions: Contribution[]
-}
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -44,7 +30,7 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
-    const artist = await apiFetch<ApiArtistDetail>(`/artists/${slug}`)
+    const artist = await apiFetch<ApiArtist>(`/artists/${slug}`)
     const displayName = artist.name.replace(/^@/, '')
     return {
       title: `${displayName} · Artist`,
@@ -65,15 +51,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArtistPage({ params }: Props) {
   const { slug } = await params
 
-  let artist: ApiArtistDetail
+  let artist: ApiArtist
   try {
-    artist = await apiFetch<ApiArtistDetail>(`/artists/${slug}`)
+    artist = await apiFetch<ApiArtist>(`/artists/${slug}`)
   } catch {
     notFound()
   }
 
   const photoUrl = cloudinaryUrl(artist.photoUrl, 'w_600,h_600,c_fill,q_auto,f_auto')
-  const contributions = artist.contributions ?? []
 
   // Build social links list
   const socials: { href: string; label: string; icon: React.ReactNode }[] = []
@@ -109,18 +94,6 @@ export default async function ArtistPage({ params }: Props) {
     label: artist.facebook,
     icon: <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
   })
-
-  // Group contributions by edition — one card per edition, list all roles
-  const editionMap = new Map<string, GroupedEdition>()
-  for (const c of contributions) {
-    const existing = editionMap.get(c.edition.id)
-    if (existing) {
-      existing.roles.push(c.role)
-    } else {
-      editionMap.set(c.edition.id, { edition: c.edition, roles: [c.role] })
-    }
-  }
-  const groupedEditions = Array.from(editionMap.values())
 
   const jsonLd = {
     '@context': 'https://schema.org', '@type': 'Person',
@@ -184,7 +157,15 @@ export default async function ArtistPage({ params }: Props) {
         <div className="flex items-center gap-3 mb-6">
           <h2 className="text-2xl font-serif font-semibold text-stone-100">Artwork &amp; Contributions</h2>
         </div>
-        <ArtistTabs artistSlug={artist.slug} groupedEditions={groupedEditions} />
+        <Suspense fallback={
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
+            ))}
+          </div>
+        }>
+          <ArtistContributionsSection artistSlug={artist.slug} />
+        </Suspense>
       </div>
     </div>
   )

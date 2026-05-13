@@ -1,10 +1,17 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+
+const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
+const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
+const companySlugKey = (slug: string) => `companies:slug:${slug}`;
+const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -21,6 +28,7 @@ export class CompaniesService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
@@ -88,12 +96,20 @@ export class CompaniesService {
   }
 
   async findBySlug(slug: string) {
+    const cached = await this.cache.get(companySlugKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyBySlug>>;
+    const result = await this._fetchCompanyBySlug(slug);
+    await this.cache.set(companySlugKey(slug), result, COMPANY_SLUG_TTL);
+    return result;
+  }
+
+  private async _fetchCompanyBySlug(slug: string) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       include: {
         subscriptions: {
           where: { isHidden: false, isContentStream: false },
-          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true },
+          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true },
         },
         collections: {
           select: { id: true, slug: true, name: true },
@@ -102,54 +118,70 @@ export class CompaniesService {
           where: { isActive: true },
           select: { isActive: true, type: true },
         },
-        editions: {
-          select: {
-            id: true,
-            slug: true,
-            editionName: true,
-            additionalImages: true,
-            collectionId: true,
-            subscriptionId: true,
-            collection: { select: { id: true, name: true, slug: true } },
-            communityImages: {
-              where: { status: 'APPROVED' },
-              orderBy: { sortOrder: 'asc' },
-              take: 1,
-              select: { url: true },
-            },
-            book: {
-              select: {
-                id: true,
-                slug: true,
-                title: true,
-                seriesName: true,
-                volumeNumber: true,
-                authors: {
-                  select: {
-                    author: { select: { id: true, name: true, slug: true } },
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 100,
-        },
       },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
-    return {
-      ...company,
-      editions: company.editions.map((e) => {
-        const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
-        return {
-          ...rest,
-          communityPhotoCover: (e.additionalImages as string[]).length === 0
-            ? (communityImages?.[0]?.url ?? null)
-            : null,
-        };
-      }),
-    };
+    return company;
+  }
+
+  async getEditions(slug: string) {
+    const cached = await this.cache.get(companyEditionsKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
+    const result = await this._fetchCompanyEditions(slug);
+    await this.cache.set(companyEditionsKey(slug), result, COMPANY_EDITIONS_TTL);
+    return result;
+  }
+
+  private async _fetchCompanyEditions(slug: string) {
+    const company = await this.prisma.bookBoxCompany.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!company) throw new NotFoundException(`Company '${slug}' not found`);
+
+    const editions = await this.prisma.bookEdition.findMany({
+      where: { bookBoxCompanyId: company.id },
+      select: {
+        id: true,
+        slug: true,
+        additionalImages: true,
+        collectionId: true,
+        subscriptionId: true,
+        collection: { select: { id: true, name: true, slug: true } },
+        communityImages: {
+          where: { status: 'APPROVED' },
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+          select: { url: true },
+        },
+        book: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            seriesName: true,
+            volumeNumber: true,
+            authors: {
+              select: {
+                author: { select: { id: true, name: true, slug: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return editions.map((e) => {
+      const { communityImages, ...rest } = e;
+      return {
+        ...rest,
+        communityPhotoCover: (e.additionalImages as string[]).length === 0
+          ? (communityImages?.[0]?.url ?? null)
+          : null,
+      };
+    });
   }
 
   async update(slug: string, dto: UpdateCompanyDto) {
@@ -159,6 +191,8 @@ export class CompaniesService {
     if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
       await this.deleteCloudinaryImages([existing.logoUrl]);
     }
+    await this.cache.del(companySlugKey(slug));
+    await this.cache.del(companyEditionsKey(slug));
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
     return company;
@@ -167,6 +201,8 @@ export class CompaniesService {
   async delete(slug: string) {
     const company = await this.findBySlug(slug);
     await this.deleteCloudinaryImages([company.logoUrl]);
+    await this.cache.del(companySlugKey(slug));
+    await this.cache.del(companyEditionsKey(slug));
     await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }
@@ -175,6 +211,8 @@ export class CompaniesService {
     await this.findBySlug(slug);
     const normalized = colors.map((c) => (c.startsWith('#') ? c : `#${c}`));
     await this.prisma.bookBoxCompany.update({ where: { slug }, data: { brandColors: normalized } });
+    await this.cache.del(companySlugKey(slug));
+    await this.cache.del(companyEditionsKey(slug));
     return normalized;
   }
 

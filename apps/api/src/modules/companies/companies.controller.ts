@@ -35,6 +35,12 @@ export class CompaniesController {
   }
 
   @Public()
+  @Get(':slug/editions')
+  getEditions(@Param('slug') slug: string) {
+    return this.companiesService.getEditions(slug);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const result = await this.companiesService.findBySlug(slug);

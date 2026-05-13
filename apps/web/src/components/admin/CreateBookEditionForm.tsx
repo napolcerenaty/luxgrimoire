@@ -103,6 +103,7 @@ export default function CreateBookEditionForm({
   const [duplicateEdition, setDuplicateEdition] = useState<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null } | null>(null)
   const [bypassDuplicate, setBypassDuplicate] = useState(false)
   const [createdEditionSlug, setCreatedEditionSlug] = useState<string | null>(null)
+  const [createdEditionId, setCreatedEditionId] = useState<string | null>(null)
   const [showLinkStep, setShowLinkStep] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
   const [linkDone, setLinkDone] = useState(false)
@@ -231,8 +232,10 @@ export default function CreateBookEditionForm({
   // ── Step 2 submit ────────────────────────────────────────────────────────
   const handleStep2 = async (forceBypass?: boolean) => {
     setBusy(true)
-    setDuplicateEdition(null)
     const shouldBypass = forceBypass ?? bypassDuplicate
+    // Only clear the duplicate warning when we're re-checking (not bypassing).
+    // When bypassing, we preserve duplicateEdition so the link step can reference it.
+    if (!shouldBypass) setDuplicateEdition(null)
     try {
       // Duplicate edition check
       if (companyId && !shouldBypass) {
@@ -310,6 +313,7 @@ export default function CreateBookEditionForm({
       // If this was a re-edition (bypassed duplicate check), show the link step
       if (shouldBypass && duplicateEdition) {
         setCreatedEditionSlug(ed.slug)
+        setCreatedEditionId(ed.id)
         setShowLinkStep(true)
       } else {
         setTimeout(() => onSuccess(ed.id), 800)
@@ -332,7 +336,7 @@ export default function CreateBookEditionForm({
         })
         setLinkDone(true)
         qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
-        setTimeout(() => onSuccess(''), 600)
+        setTimeout(() => onSuccess(createdEditionId ?? undefined), 600)
       } catch (e) {
         alert(`Link failed: ${e instanceof Error ? e.message : String(e)}`)
         setLinkBusy(false)
@@ -353,7 +357,7 @@ export default function CreateBookEditionForm({
             className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors">
             {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : 'Link as re-edition'}
           </button>
-          <button type="button" onClick={() => onSuccess('')}
+          <button type="button" onClick={() => onSuccess(createdEditionId ?? undefined)}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors">
             Skip
           </button>

@@ -184,6 +184,26 @@ export class SpendingService {
       }),
     ]);
 
+    // Pre-warm currency cache: collect all unique (currency, date) pairs before the processing loops.
+    // Without this, each convert() call that misses in-memory cache goes to DB individually (N+1).
+    // With this, we do one DB query per unique source currency for the full date range.
+    const warmEntries: Array<{ from: string; date: Date }> = []
+    for (const e of entries) {
+      if (!e.purchaseGroup) continue
+      const d = new Date(e.purchaseGroup.purchasedAt)
+      warmEntries.push({ from: e.purchaseGroup.currency, date: d })
+      for (const fee of e.purchaseGroup.fees) warmEntries.push({ from: fee.currency, date: new Date(fee.date) })
+      for (const disc of e.purchaseGroup.discounts) warmEntries.push({ from: disc.currency, date: new Date(disc.date) })
+      for (const ref of e.purchaseGroup.refunds) warmEntries.push({ from: ref.currency, date: new Date(ref.date) })
+      if (e.salePrice) warmEntries.push({ from: e.saleCurrency ?? e.purchaseGroup.currency, date: e.saleDate ? new Date(e.saleDate) : d })
+    }
+    for (const g of saleGroups) {
+      const soldDate = new Date(g.soldAt)
+      warmEntries.push({ from: g.currency, date: soldDate })
+      for (const se of g.entries) warmEntries.push({ from: g.currency, date: soldDate })
+    }
+    await this.currencyService.warmCacheBatch(warmEntries, tgt)
+
     // Helper: convert amount on date to target currency (best-effort, returns original on failure)
     const convert = async (amount: number, fromCurrency: string, date: Date): Promise<number> => {
       if (!fromCurrency || amount === 0) return 0;

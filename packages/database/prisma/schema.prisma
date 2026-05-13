@@ -227,7 +227,6 @@ model BookEdition {
   collectionId             String?
   currency                 String?
   earlyAccessDate          String?
-  editionName              String?
   features                 String[]
   firstAccessDate          String?
   generalSaleDate          String?
@@ -377,7 +376,6 @@ model Subscription {
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
   @@index([companyId])
-  @@index([isDiscontinued])
   @@index([intervalMonths])
   @@map("subscriptions")
 }

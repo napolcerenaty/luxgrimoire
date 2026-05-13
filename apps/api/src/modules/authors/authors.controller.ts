@@ -32,6 +32,12 @@ export class AuthorsController {
   }
 
   @Public()
+  @Get(':slug/books')
+  findBooks(@Param('slug') slug: string) {
+    return this.authorsService.findBooks(slug);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const result = await this.authorsService.findBySlug(slug);

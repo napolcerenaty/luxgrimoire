@@ -1,36 +1,12 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { resolveEditionCoverRaw } from '@/lib/editionCover'
-import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiAuthor } from '@luxgrimoire/shared-types'
+import { AuthorBooksSection } from './AuthorBooksSection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface EditionSnippet {
-  id: string
-  slug: string
-  additionalImages: string[]
-  communityPhotoCover?: string | null
-  verifiedAt: string | null
-  generalSaleDate?: string | null
-  bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null
-}
-
-interface BookSnippet {
-  id: string
-  slug: string
-  title: string
-  seriesName: string | null
-  volumeNumber: number | null
-  editions: EditionSnippet[]
-}
-
-interface ApiAuthorDetail extends ApiAuthor {
-  books: BookSnippet[]
-}
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -41,7 +17,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
-    const author = await apiFetch<ApiAuthorDetail>(`/authors/${slug}`)
+    const author = await apiFetch<ApiAuthor>(`/authors/${slug}`)
     return {
       title: author.name,
       description: author.bio ?? `Books by ${author.name} on LuxGrimoire`,
@@ -71,69 +47,19 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
   )
 }
 
-function BookRow({ book }: { book: BookSnippet }) {
-  const label = book.volumeNumber != null
-    ? `#${book.volumeNumber} ${book.title}`
-    : book.title
-
-  return (
-    <div className="py-4 border-b border-stone-800 last:border-0">
-      <Link
-        href={`/books/${book.slug}`}
-        className="inline-block font-serif font-semibold text-stone-100 hover:text-amber-400 transition-colors mb-3 text-base leading-snug"
-      >
-        {label}
-      </Link>
-      {book.editions.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {book.editions.map(edition => (
-            <EditionCard
-              key={edition.id}
-              href={`/editions/${edition.slug}`}
-              coverImage={resolveEditionCoverRaw(edition)}
-              companyName={edition.bookBoxCompany?.name}
-              companyBrandColors={edition.bookBoxCompany?.brandColors}
-              unverified={!edition.verifiedAt}
-              generalSaleDate={edition.generalSaleDate}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AuthorPage({ params }: Props) {
   const { slug } = await params
 
-  let author: ApiAuthorDetail
+  let author: ApiAuthor
   try {
-    author = await apiFetch<ApiAuthorDetail>(`/authors/${slug}`)
+    author = await apiFetch<ApiAuthor>(`/authors/${slug}`)
   } catch {
     notFound()
   }
 
   const photoUrl = cloudinaryUrl(author.photoUrl, 'w_400,h_400,c_fill,q_auto,f_auto')
-  const books = author.books ?? []
-
-  // Group: standalones vs series
-  const standalones = books
-    .filter(b => !b.seriesName)
-    .sort((a, b) => a.title.localeCompare(b.title))
-
-  const seriesMap = new Map<string, BookSnippet[]>()
-  for (const book of books) {
-    if (!book.seriesName) continue
-    const existing = seriesMap.get(book.seriesName)
-    if (existing) existing.push(book)
-    else seriesMap.set(book.seriesName, [book])
-  }
-  // Sort books within each series by volumeNumber
-  for (const [, seriesBooks] of seriesMap) {
-    seriesBooks.sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
-  }
 
   const socials: { href: string; label: string; icon: React.ReactNode }[] = []
   if (author.instagram) socials.push({
@@ -204,40 +130,22 @@ export default async function AuthorPage({ params }: Props) {
       </div>
 
       {/* Books */}
-      {books.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            Books by {author.name}
-            <span className="ml-2 text-base font-sans font-normal text-stone-500">({books.length})</span>
-          </h2>
-
-          {/* Standalones */}
-          {standalones.length > 0 && (
-            <div className="mb-10">
-              {seriesMap.size > 0 && (
-                <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
-                  Standalones
-                </h3>
-              )}
-              {standalones.map(book => <BookRow key={book.id} book={book} />)}
-            </div>
-          )}
-
-          {/* Series */}
-          {Array.from(seriesMap.entries()).map(([seriesName, seriesBooks]) => (
-            <div key={seriesName} className="mb-10">
-              <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
-                {seriesName}
-              </h3>
-              {seriesBooks.map(book => <BookRow key={book.id} book={book} />)}
+      <Suspense fallback={
+        <div className="space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="py-4 border-b border-stone-800">
+              <div className="h-5 w-48 bg-stone-800 rounded animate-pulse mb-3" />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="aspect-[2/3] rounded bg-stone-800 animate-pulse" />
+                ))}
+              </div>
             </div>
           ))}
-        </section>
-      )}
-
-      {books.length === 0 && (
-        <p className="text-stone-600 text-sm">No books listed yet.</p>
-      )}
+        </div>
+      }>
+        <AuthorBooksSection authorSlug={author.slug} authorName={author.name} />
+      </Suspense>
     </div>
   )
 }

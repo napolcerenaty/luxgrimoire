@@ -91,7 +91,6 @@ export class BooksService {
           title: true,
           status: true,
           genres: true,
-          description: true,
           language: true,
           volumeNumber: true,
           seriesName: true,
@@ -240,7 +239,6 @@ export class BooksService {
               select: {
                 id: true,
                 slug: true,
-                editionName: true,
                 additionalImages: true,
                 isOmnibus: true,
                 book: { select: { id: true, slug: true, title: true } },
@@ -265,6 +263,7 @@ export class BooksService {
             : null,
         };
       }),
+      appearsInOmnibus: book.editionComponents,
     };
   }
 

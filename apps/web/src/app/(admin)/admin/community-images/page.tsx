@@ -16,7 +16,7 @@ interface CommunityImage {
   consentedAt: string
   createdAt: string
   user: { id: string; username: string; email: string }
-  edition: { id: string; slug: string; editionName: string | null }
+  edition: { id: string; slug: string }
 }
 
 interface EditionSummary {

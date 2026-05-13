@@ -307,7 +307,7 @@ export default function AdminDashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-stone-100 text-sm">
                     {edition.book?.title ?? '—'}
-                    {edition.editionName && <span className="text-stone-400 ml-1">· {edition.editionName}</span>}
+                    
                   </p>
                   <p className="text-xs text-stone-500 mt-0.5">{edition.publisher ?? ''}</p>
                   {edition.book?.authors && edition.book.authors.length > 0 && (

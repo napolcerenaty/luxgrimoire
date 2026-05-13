@@ -1,4 +1,4 @@
-﻿import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
+import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
@@ -43,7 +43,6 @@ interface EditionDetail {
   id: string
   slug: string
   bookId: string
-  editionName: string | null
   bookBoxCompanyCustomName: string | null
   bookBoxCompanyId?: string | null
   publisher: string | null
@@ -75,6 +74,8 @@ interface EditionDetail {
     order: number
     book: { id: string; slug: string; title: string } | null
   }>
+  previousEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  nextEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
@@ -112,7 +113,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const edition = await getEdition(slug)
     const book = edition.book
-    const title = [edition.editionName ?? edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
+    const title = [edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
     const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? null, 'w_800,c_fill,q_auto,f_auto')
     return {
       title: title || 'Edition',
@@ -153,7 +154,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
   const features = Array.isArray(edition.features) ? edition.features : []
   const artists = edition.artists ?? []
   // Only show editionLabel if it's a custom name distinct from the company name
-  const editionLabel = edition.editionName ?? edition.bookBoxCompanyCustomName ?? null
+  const editionLabel = edition.bookBoxCompanyCustomName ?? null
   const monthBooks = edition.monthBooks ?? []
   const saleEditions = edition.saleEditions ?? []
   const bundles = saleEditions.filter(se => se.announcement.isBundle)
@@ -315,7 +316,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
               <div className="mb-6">
                 <CollectionEntryPanel
                   editionId={edition.id}
-                  editionName={edition.editionName ?? edition.bookBoxCompany?.name ?? null}
                   initialEntryId={initialEntryId ?? null}
                 />
               </div>
@@ -544,6 +544,40 @@ export default async function EditionPage({ params, searchParams }: Props) {
         )}
 
       </div>
+
+      {/* ── Edition History ──────────────────────────────────────────────── */}
+      {(edition.previousEdition || edition.nextEdition) && (
+        <div className="mt-6 space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Edition History</h3>
+          {edition.previousEdition && (
+            <Link href={`/editions/${edition.previousEdition.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+              <span className="text-stone-500">←</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs text-stone-500 uppercase tracking-wide">Older edition</span>
+                <span className="text-stone-300 truncate">
+                  {edition.previousEdition.bookBoxCompany?.name ?? edition.previousEdition.slug}
+                  {edition.previousEdition.collection ? ` — ${edition.previousEdition.collection.name}` : ''}
+                </span>
+              </div>
+            </Link>
+          )}
+          {edition.nextEdition && (
+            <Link href={`/editions/${edition.nextEdition.slug}`}
+              className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs text-stone-500 uppercase tracking-wide">Newer edition available</span>
+                <span className="text-stone-300 truncate">
+                  {edition.nextEdition.bookBoxCompany?.name ?? edition.nextEdition.slug}
+                  {edition.nextEdition.collection ? ` — ${edition.nextEdition.collection.name}` : ''}
+                </span>
+              </div>
+              <span className="text-stone-500">→</span>
+            </Link>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

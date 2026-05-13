@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCollection, ApiBookEdition } from '@luxgrimoire/shared-types'
 
 interface CollectionWithEditions extends ApiBookBoxCollection {
@@ -40,17 +41,40 @@ export default async function CollectionPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
+      {/* Header */}
       <div className="mb-10">
+        {/* Company breadcrumb with logo */}
         {collection.company && (
           <Link
             href={`/companies/${collection.company.slug}`}
-            className="text-xs text-amber-500 hover:text-amber-400 uppercase tracking-widest font-medium transition-colors"
+            className="inline-flex items-center gap-2 text-xs text-amber-500 hover:text-amber-400 uppercase tracking-widest font-medium transition-colors mb-4"
           >
-            {collection.company.name}
+            {collection.company.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cloudinaryUrl(collection.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto')!}
+                alt={collection.company.name}
+                className="w-5 h-5 rounded object-cover"
+              />
+            )}
+            ← {collection.company.name}
           </Link>
         )}
-        <h1 className="text-4xl font-serif font-bold text-stone-100 mt-2 mb-3">{collection.name}</h1>
-        <p className="text-stone-500 text-sm mt-3">{editions.length} edition{editions.length !== 1 ? 's' : ''}</p>
+
+        {/* Accent bar using brand colors */}
+        <div
+          className="h-0.5 w-16 rounded-full mb-4 opacity-70"
+          style={brandGradientStyle(collection.company?.brandColors)}
+        />
+
+        <div className="flex items-center gap-3 flex-wrap mb-2">
+          <Badge variant={collection.isActive ? 'success' : 'outline'}>
+            {collection.isActive ? 'Active' : 'Inactive'}
+          </Badge>
+          <span className="text-stone-500 text-xs">{editions.length} edition{editions.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        <h1 className="text-4xl font-serif font-bold text-stone-100 mt-1">{collection.name}</h1>
       </div>
 
       {/* Editions grid */}
@@ -62,7 +86,8 @@ export default async function CollectionPage({ params }: Props) {
             const imgUrl = cloudinaryUrl(edition.additionalImages?.[0] ?? null, 'w_320,h_480,c_fill,q_auto,f_auto')
             const book = edition.book
             const authors = book?.authors?.map((a) => (a as { name: string }).name).join(', ') ?? null
-            const href = book?.slug ? `/books/${book.slug}` : '#'
+            const customName = edition.bookBoxCompanyCustomName
+            const href = `/editions/${edition.slug}`
 
             return (
               <Link
@@ -95,6 +120,9 @@ export default async function CollectionPage({ params }: Props) {
                       {book?.title ?? 'Unknown'}
                     </p>
                   </div>
+                  {customName && (
+                    <p className="text-[10px] text-amber-500/70 font-medium line-clamp-1 leading-tight mb-0.5">{customName}</p>
+                  )}
                   <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
                     {book?.seriesName
                       ? `${book.seriesName}${book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}`

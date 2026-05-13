@@ -41,7 +41,6 @@ function editionCompany(ed: EditionInfo): string | null {
 
 type EditionInfo = {
   id: string; slug: string; additionalImages: string[]
-  editionName: string | null
   bookBoxCompanyCustomName: string | null
   bookBoxCompany: { id: string; name: string } | null
 }
@@ -175,8 +174,8 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
             >
               <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">{ed.editionName ?? editionCompany(ed) ?? ''}</div>
-                <div className="text-stone-500 text-xs">{ed.editionName ? (editionCompany(ed) ?? '') : ''}</div>
+                <div className="text-stone-100 text-xs">{editionCompany(ed) ?? ''}</div>
+                <div className="text-stone-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
               </div>
             </button>
           ))}
@@ -397,7 +396,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
-                          {[mb.edition.editionName, editionCompany(mb.edition)].filter(Boolean).join(' · ') || null}
+                          {editionCompany(mb.edition) || null}
                         </div>
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }

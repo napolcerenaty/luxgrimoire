@@ -1,9 +1,17 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+
+const AUTHOR_SLUG_TTL = 24 * 60 * 60 * 1000;
+const AUTHOR_BOOKS_TTL = 60 * 60 * 1000;
+
+const authorProfileKey = (slug: string) => `authors:slug:${slug}`;
+const authorBooksKey = (slug: string) => `authors:slug:${slug}:books`;
 
 @Injectable()
 export class AuthorsService {
@@ -12,6 +20,7 @@ export class AuthorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async create(dto: CreateAuthorDto) {
@@ -70,6 +79,14 @@ export class AuthorsService {
   }
 
   async findBySlug(slug: string) {
+    const cached = await this.cache.get(authorProfileKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchAuthorProfile>>;
+    const author = await this._fetchAuthorProfile(slug);
+    await this.cache.set(authorProfileKey(slug), author, AUTHOR_SLUG_TTL);
+    return author;
+  }
+
+  private async _fetchAuthorProfile(slug: string) {
     const author = await this.prisma.author.findUnique({
       where: { slug },
       select: {
@@ -84,6 +101,25 @@ export class AuthorsService {
         twitter: true,
         facebook: true,
         tiktok: true,
+      },
+    });
+    if (!author) throw new NotFoundException(`Author '${slug}' not found`);
+    return author;
+  }
+
+  async findBooks(slug: string) {
+    const cached = await this.cache.get(authorBooksKey(slug));
+    if (cached) return cached as Awaited<ReturnType<typeof this._fetchAuthorBooks>>;
+    await this.findBySlug(slug); // ensure author exists
+    const books = await this._fetchAuthorBooks(slug);
+    await this.cache.set(authorBooksKey(slug), books, AUTHOR_BOOKS_TTL);
+    return books;
+  }
+
+  private async _fetchAuthorBooks(slug: string) {
+    const author = await this.prisma.author.findUnique({
+      where: { slug },
+      select: {
         books: {
           select: {
             book: {
@@ -100,7 +136,7 @@ export class AuthorsService {
                     additionalImages: true,
                     verifiedAt: true,
                     generalSaleDate: true,
-                    bookBoxCompany: { select: { name: true, brandColors: true } },
+                    bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
                     communityImages: {
                       where: { status: 'APPROVED' },
                       orderBy: { sortOrder: 'asc' },
@@ -116,21 +152,18 @@ export class AuthorsService {
       },
     });
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
-    return {
-      ...author,
-      books: author.books.map((ba) => ({
-        ...ba.book,
-        editions: ba.book.editions.map((e) => {
-          const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
-          return {
-            ...rest,
-            communityPhotoCover: (e.additionalImages as string[]).length === 0
-              ? (communityImages?.[0]?.url ?? null)
-              : null,
-          };
-        }),
-      })),
-    };
+    return author.books.map((ba) => ({
+      ...ba.book,
+      editions: ba.book.editions.map((e) => {
+        const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+        return {
+          ...rest,
+          communityPhotoCover: (e.additionalImages as string[]).length === 0
+            ? (communityImages?.[0]?.url ?? null)
+            : null,
+        };
+      }),
+    }));
   }
 
   async update(slug: string, dto: UpdateAuthorDto) {
@@ -138,12 +171,20 @@ export class AuthorsService {
     const author = await this.prisma.author.update({ where: { slug }, data: dto });
     await this.indexAuthor(author);
     await this.reindexAuthorBooks(author.id);
+    await Promise.all([
+      this.cache.del(authorProfileKey(slug)),
+      this.cache.del(authorBooksKey(slug)),
+    ]);
     return author;
   }
 
   async delete(slug: string) {
     const author = await this.findBySlug(slug);
     await this.typesense.deleteDocument('authors', author.id);
+    await Promise.all([
+      this.cache.del(authorProfileKey(slug)),
+      this.cache.del(authorBooksKey(slug)),
+    ]);
     return this.prisma.author.delete({ where: { slug } });
   }
 
