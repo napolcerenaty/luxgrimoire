@@ -285,16 +285,37 @@ export class AnnouncementsService {
     ]);
 
     if (editionIds !== undefined) {
-      await this.prisma.saleAnnouncementEdition.deleteMany({ where: { saleId: id } });
+      // Only remove editions no longer in the list (preserves variants on kept editions)
+      await this.prisma.saleAnnouncementEdition.deleteMany({
+        where: { saleId: id, editionId: { notIn: editionIds } },
+      });
+      // Add new editions (skip those already present)
       if (editionIds.length > 0) {
-        await this.prisma.saleAnnouncementEdition.createMany({
-          data: editionIds.map((editionId, i) => ({
-            saleId: id,
-            editionId,
-            sortOrder: i,
-          })),
-          skipDuplicates: true,
+        const existing = await this.prisma.saleAnnouncementEdition.findMany({
+          where: { saleId: id },
+          select: { editionId: true },
         });
+        const existingIds = new Set(existing.map(e => e.editionId));
+        const toAdd = editionIds.filter(eid => !existingIds.has(eid));
+        if (toAdd.length > 0) {
+          await this.prisma.saleAnnouncementEdition.createMany({
+            data: toAdd.map((editionId, i) => ({
+              saleId: id,
+              editionId,
+              sortOrder: existingIds.size + i,
+            })),
+            skipDuplicates: true,
+          });
+        }
+        // Update sort order for all editions to match new ordering
+        await Promise.all(
+          editionIds.map((editionId, i) =>
+            this.prisma.saleAnnouncementEdition.updateMany({
+              where: { saleId: id, editionId },
+              data: { sortOrder: i },
+            }),
+          ),
+        );
       }
     }
 

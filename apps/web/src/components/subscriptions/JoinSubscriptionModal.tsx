@@ -261,11 +261,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
           onChange={e => setFirstOrderDate(e.target.value)}
           className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
         />
-        {subscriptionRenewalDay != null ? (
-          <p className="text-xs text-stone-500 mt-1">
-            Renewal day: <span className="text-stone-300">{subscriptionRenewalDay}</span> (set by subscription)
-          </p>
-        ) : (
+        {subscriptionRenewalDay == null && (
           <p className="text-xs text-stone-500 mt-1">
             Renewal day will be set to{' '}
             <span className="text-stone-300">{new Date(firstOrderDate + 'T00:00:00').getDate()}</span>
