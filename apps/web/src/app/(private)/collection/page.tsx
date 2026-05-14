@@ -1010,7 +1010,7 @@ export default function CollectionPage() {
                                   ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
                                   : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                               }`}>
-                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITAL'}
+                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITALLY SIGNED'}
                               </span>
                             )}
                           </div>

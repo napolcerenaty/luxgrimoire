@@ -1263,7 +1263,7 @@ function AnnouncementCard({
                 const signedBadge = types.has('signed')
                   ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
                   : types.has('digitally_signed')
-                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digital</span>
+                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digitally Signed</span>
                     : null
                 return (announcement.isBundle || signedBadge) ? (
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
