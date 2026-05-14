@@ -641,6 +641,7 @@ model UserBookEntry {
   signatureType              SignatureType?
   trackingNumber             String?
   saleAnnouncementEditionId  String?                @db.VarChar(36)
+  isOriginalPrint            Boolean                @default(true)
   book                       Book                   @relation(fields: [bookId], references: [id])
   edition                    BookEdition?           @relation(fields: [editionId], references: [id])
   purchaseGroup              UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])

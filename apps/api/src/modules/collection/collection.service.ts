@@ -90,6 +90,15 @@ export class CollectionService {
           signatureType: true,
           trackingNumber: true,
           createdAt: true,
+          isOriginalPrint: true,
+          saleAnnouncementEditionId: true,
+          saleAnnouncementEdition: {
+            select: {
+              id: true,
+              isReprint: true,
+              announcement: { select: { id: true, title: true, generalSaleDate: true } },
+            },
+          },
           edition: {
             select: {
               id: true,
@@ -197,6 +206,7 @@ export class CollectionService {
   async addToCollection(userId: string, dto: AddToCollectionDto) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { id: dto.bookEditionId } });
     if (!edition) throw new NotFoundException('Book edition not found');
+    const isReprint = dto.saleAnnouncementEditionId ? true : undefined;
     const entry = await this.prisma.userBookEntry.create({
       data: {
         userId,
@@ -206,6 +216,8 @@ export class CollectionService {
         isWishlist: dto.isWishlist ?? false,
         ownershipStatus: dto.ownershipStatus ?? 'OWNED',
         readingStatus: dto.readingStatus ?? 'UNREAD',
+        // If added via a reprint SA, mark as not original; otherwise default true (original)
+        isOriginalPrint: isReprint ? false : true,
         ...(dto.saleAnnouncementEditionId && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId }),
       },
     });
@@ -260,6 +272,7 @@ export class CollectionService {
           signatureType: true,
           subscriptionEntryId: true,
           saleAnnouncementEditionId: true,
+          isOriginalPrint: true,
           saleAnnouncementEdition: {
             select: {
               id: true,
@@ -354,6 +367,12 @@ export class CollectionService {
         ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
         ...(dto.signatureType !== undefined && { signatureType: (dto.signatureType ?? null) as SignatureType | null }),
         ...('saleAnnouncementEditionId' in dto && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
+        // When saleAnnouncementEditionId is explicitly set/cleared, derive isOriginalPrint automatically
+        // unless isOriginalPrint is explicitly provided in the DTO
+        ...('saleAnnouncementEditionId' in dto && dto.isOriginalPrint === undefined && {
+          isOriginalPrint: !dto.saleAnnouncementEditionId,
+        }),
+        ...(dto.isOriginalPrint !== undefined && { isOriginalPrint: dto.isOriginalPrint }),
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {

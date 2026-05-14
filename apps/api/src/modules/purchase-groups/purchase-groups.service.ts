@@ -102,6 +102,7 @@ export class PurchaseGroupsService {
               editionId: edition.id,
               purchaseGroupId: group.id,
               ownershipStatus: (dto.ownershipStatus as any) ?? 'OWNED',
+              isOriginalPrint: !saeId,
               ...(signatureType && signatureType !== 'unsigned' ? { signatureType: signatureType as any } : {}),
               ...(saeId ? { saleAnnouncementEditionId: saeId } : {}),
             },

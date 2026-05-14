@@ -323,6 +323,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 <CollectionEntryPanel
                   editionId={edition.id}
                   initialEntryId={initialEntryId ?? null}
+                  editionGeneralSaleDate={edition.generalSaleDate ?? null}
                   saleEditions={saleEditions.map(se => ({
                     id: se.id,
                     isReprint: se.isReprint ?? false,
