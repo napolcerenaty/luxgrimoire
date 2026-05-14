@@ -207,6 +207,7 @@ interface SubFormProps {
   submitLabel: string
   companies: ApiBookBoxCompany[]
   allSubscriptions: ApiSubscription[]
+  allSubs: ApiSubscription[]
   user: { role: string; managedCompanyId?: string | null } | null
 }
 
@@ -217,6 +218,7 @@ function SubscriptionForm({
   submitLabel,
   companies,
   allSubscriptions,
+  allSubs,
   user,
 }: SubFormProps) {
   const isManager = user?.role === 'COMPANY_MANAGER'
@@ -244,7 +246,10 @@ function SubscriptionForm({
   }
   const removeComponent = (id: string) =>
     setField('componentIds', form.componentIds.filter((c) => c !== id))
-  const availableComponents = allSubscriptions.filter((s) => !form.componentIds.includes(s.id))
+  const availableComponents = (form.companyId
+    ? allSubs.filter((s) => s.companyId === form.companyId)
+    : allSubs
+  ).filter((s) => !form.componentIds.includes(s.id) && !s.isContentStream)
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="space-y-6">
@@ -454,7 +459,7 @@ function SubscriptionForm({
             {form.componentIds.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {form.componentIds.map((id) => {
-                  const sub = allSubscriptions.find((s) => s.id === id)
+                  const sub = allSubs.find((s) => s.id === id)
                   return (
                     <span key={id} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-1 rounded-full">
                       {sub ? sub.name : id}
@@ -800,6 +805,13 @@ export default function AdminSubscriptionsPage() {
     enabled: user !== null,
   })
 
+  const { data: allSubsData } = useQuery({
+    queryKey: ['admin', 'subscriptions', 'all-for-combo'],
+    queryFn: () =>
+      authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?includeHidden=true&pageSize=500`),
+    enabled: user !== null,
+  })
+
   const { data: companiesData } = useQuery({
     queryKey: ['admin', 'companies'],
     queryFn: () =>
@@ -810,6 +822,7 @@ export default function AdminSubscriptionsPage() {
 
   const subs = subsData?.data ?? []
   const contentStreams = contentStreamsData?.data ?? []
+  const allSubs = allSubsData?.data ?? []
   const companies = Array.isArray(companiesData)
     ? companiesData
     : (companiesData as PaginatedResponse<ApiBookBoxCompany> | undefined)?.data ?? []
@@ -883,7 +896,7 @@ export default function AdminSubscriptionsPage() {
     onError: (err: Error) => alert(`Error deleting subscription: ${err.message}`),
   })
 
-  const commonFormProps = { companies, allSubscriptions: contentStreams, user }
+  const commonFormProps = { companies, allSubscriptions: contentStreams, allSubs, user }
 
   const columns = [
     { key: 'name', label: 'Name', render: (row: ApiSubscription) => row.name },
