@@ -305,8 +305,6 @@ model BookBoxCompany {
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
-  importSources     ImportSource[]
-
   @@index([country])
   @@map("book_box_companies")
 }
@@ -370,8 +368,6 @@ model Subscription {
   parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
   variants             Subscription[]               @relation("SubVariants")
   userEntries          UserSubscriptionEntry[]
-  importSources        ImportSource[]
-  pendingImports       PendingMonthImport[]
   statsSnapshot        SubscriptionStatsSnapshot?
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
@@ -565,6 +561,7 @@ model SaleAnnouncementEdition {
   editionId    String
   saleId       String
   sortOrder    Int                              @default(0)
+  isReprint    Boolean                          @default(false)
   edition      BookEdition                      @relation(fields: [editionId], references: [id])
   announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
   variants     SaleAnnouncementEditionVariant[]
@@ -1241,58 +1238,6 @@ model SaleAnnouncementRequest {
 
   @@index([status])
   @@map("sale_announcement_requests")
-}
-
-model ImportSource {
-  id                  String    @id @default(uuid())
-  name                String
-  url                 String
-  sourceType          String    @default("BLOG") @db.VarChar(20)
-  targetType          String    @default("MONTH_THEME") @db.VarChar(30)
-  companyId           String?
-  subscriptionId      String?
-  checkFrequency      String    @default("WEEKLY") @db.VarChar(10)
-  checkHour           Int       @default(8)
-  checkDayOfWeek      Int?
-  checkDayOfMonth     Int?
-  monthThemeKeywords  String?
-  saleKeywords        String?
-  enabled             Boolean   @default(true)
-  lastCheckedAt       DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  company             BookBoxCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  subscription        Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  pendingImports      PendingMonthImport[]
-
-  @@index([enabled, checkFrequency])
-  @@index([subscriptionId])
-  @@map("import_sources")
-}
-
-model PendingMonthImport {
-  id             String    @id @default(uuid())
-  subscriptionId String?
-  importSourceId String?
-  year           Int
-  month          Int
-  theme          String?
-  coverImageUrl  String?
-  bookTitle      String?
-  bookAuthor     String?
-  sourceUrl      String
-  allImages      String[]
-  signatureType  String?   @db.VarChar(20)
-  status         String    @default("PENDING") @db.VarChar(10)
-  adminNote      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  importSource   ImportSource? @relation(fields: [importSourceId], references: [id], onDelete: SetNull)
-
-  @@index([status])
-  @@index([subscriptionId, year, month])
-  @@map("pending_month_imports")
 }
 
 enum UserImageStatus {

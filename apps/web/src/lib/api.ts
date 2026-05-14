@@ -632,6 +632,28 @@ export async function adminAddAnnouncementEdition(id: string, editionId: string)
   return res.json();
 }
 
+export async function adminSetAnnouncementEditionReprint(id: string, editionId: string, isReprint: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/reprint`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isReprint }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminSetAllAnnouncementEditionsReprint(id: string, isReprint: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/reprint-all`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isReprint }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function adminRemoveAnnouncementEdition(id: string, editionId: string): Promise<void> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}`, {
     credentials: 'include',

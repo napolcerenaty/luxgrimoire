@@ -31,7 +31,15 @@ interface EditionMonthBook {
 }
 
 interface EditionSaleEdition {
-  announcement: { id: string; title: string; isBundle: boolean }
+  isReprint?: boolean
+  announcement: {
+    id: string
+    title: string
+    isBundle: boolean
+    generalSaleDate?: string | null
+    earlyAccessDate?: string | null
+    firstAccessDate?: string | null
+  }
 }
 
 interface EditionArtist {
@@ -151,7 +159,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
   const bundles = saleEditions.filter(se => se.announcement.isBundle)
   const mainSaleAnnouncementId = saleEditions.find(se => !se.announcement.isBundle)?.announcement.id ?? null
 
-  // Build all carousel images: cover first, then remaining additional
+  const reprints = saleEditions.filter(se => se.isReprint)
+  const hasAnyReprint = reprints.length > 0
+
+
   const allImages: string[] = []
   const additionalSources = Array.isArray(edition.additionalImages) ? edition.additionalImages : []
   const coverSrc = additionalSources[0] ?? null
@@ -287,6 +298,9 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 )}
                 {edition.isSpecial && (
                   <Badge variant="default">Special Edition</Badge>
+                )}
+                {hasAnyReprint && (
+                  <Badge variant="default">🔁 Has Reprint</Badge>
                 )}
               </div>
 
@@ -565,6 +579,39 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <span className="text-stone-500">→</span>
                 </Link>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Reprint History ──────────────────────────────────────────────── */}
+        {reprints.length > 0 && (
+          <section>
+            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Reprint History</h2>
+            <div className="space-y-2">
+              {saleEditions.map((se, i) => {
+                const sa = se.announcement
+                const isFirst = i === 0
+                const dateStr = sa.generalSaleDate
+                  ? new Date(sa.generalSaleDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : null
+                return (
+                  <Link
+                    key={sa.id}
+                    href={`/sale-announcements/${sa.id}`}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm"
+                  >
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-stone-300 truncate">{sa.title}</span>
+                      {dateStr && <span className="text-xs text-stone-500 mt-0.5">{dateStr}</span>}
+                    </div>
+                    {se.isReprint ? (
+                      <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">🔁 Reprint</span>
+                    ) : (
+                      <span className="text-xs bg-stone-700 text-stone-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
+                    )}
+                  </Link>
+                )
+              })}
             </div>
           </section>
         )}

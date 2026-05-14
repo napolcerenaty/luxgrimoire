@@ -18,12 +18,14 @@ export class AnnouncementsController {
     @Query('pageSize') pageSize?: string,
     @Query('upcoming') upcoming?: string,
     @Query('search') search?: string,
+    @Query('sort') sort?: string,
   ) {
     return this.announcementsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
       upcoming: upcoming === 'true',
       search,
+      sort: sort === 'date' ? 'date' : 'recent',
     });
   }
 
@@ -71,6 +73,27 @@ export class AnnouncementsController {
   @Post('admin/:id/editions')
   adminAddEdition(@Param('id') id: string, @Body('editionId') editionId: string) {
     return this.announcementsService.adminAddEdition(id, editionId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/:editionId/reprint')
+  adminSetReprint(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body('isReprint') isReprint: boolean,
+  ) {
+    return this.announcementsService.adminSetReprint(id, editionId, isReprint);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/reprint-all')
+  adminSetAllReprint(
+    @Param('id') id: string,
+    @Body('isReprint') isReprint: boolean,
+  ) {
+    return this.announcementsService.adminSetAllReprint(id, isReprint);
   }
 
   @ApiBearerAuth()

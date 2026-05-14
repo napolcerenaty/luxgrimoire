@@ -59,7 +59,7 @@ export class AnnouncementsService {
     await deleteCloudinaryImages(ids, this.uploadService);
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent' }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const today = new Date();
@@ -71,11 +71,7 @@ export class AnnouncementsService {
     }
     if (query.search) {
       const term = query.search.trim();
-      where.OR = [
-        { title: { contains: term, mode: 'insensitive' } },
-        { company: { name: { contains: term, mode: 'insensitive' } } },
-        { editions: { some: { edition: { book: { title: { contains: term, mode: 'insensitive' } } } } } },
-      ];
+      where.title = { contains: term, mode: 'insensitive' };
     }
 
     const [data, total] = await Promise.all([
@@ -83,7 +79,7 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: query.upcoming ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
+        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
         select: {
           id: true,
           title: true,
@@ -183,6 +179,28 @@ export class AnnouncementsService {
       where: { saleAnnouncementEditionId_signatureType: { saleAnnouncementEditionId: link.id, signatureType } },
       create: { saleAnnouncementEditionId: link.id, signatureType, price: price ?? null, currency: currency ?? null },
       update: { price: price ?? null, currency: currency ?? null },
+    });
+    return this.findById(id);
+  }
+
+  async adminSetReprint(id: string, editionId: string, isReprint: boolean) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEdition.update({
+      where: { id: link.id },
+      data: { isReprint },
+    });
+    return this.findById(id);
+  }
+
+  async adminSetAllReprint(id: string, isReprint: boolean) {
+    const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Sale announcement not found');
+    await this.prisma.saleAnnouncementEdition.updateMany({
+      where: { saleId: id },
+      data: { isReprint },
     });
     return this.findById(id);
   }

@@ -537,639 +537,184 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
     </div>
   )
 }
-
-// ─── Scraped preview + save ───────────────────────────────────────────────────
-type ScrapedData = {
-  year: number | null; month: number | null; theme: string | null
-  bookTitle: string | null; bookAuthor: string | null
-  imageUrl: string | null; allImages: string[]; sourceUrl: string
+
+// ─── CSV Import Panel ─────────────────────────────────────────────────────────
+type CsvRow = {
+  year: string; month: string; theme: string; signatureType: string
+  _valid: boolean; _error?: string
 }
 
-function ScrapedPreviewForm({
-  data, subscriptionId, slug, onSaved, onCancel,
-}: { data: ScrapedData; subscriptionId: string; slug: string; onSaved: () => void; onCancel: () => void }) {
-  const [year, setYear] = useState(String(data.year ?? ''))
-  const [month, setMonth] = useState(String(data.month ?? ''))
-  const [theme, setTheme] = useState(data.theme ?? '')
-  const [coverImageUrl, setCoverImageUrl] = useState(data.imageUrl ?? '')
-  const [bookTitle, setBookTitle] = useState(data.bookTitle ?? '')
-  const [bookAuthor, setBookAuthor] = useState(data.bookAuthor ?? '')
-  const [uploadingImg, setUploadingImg] = useState<string | null>(null)
-  // track which images failed to load (hotlink protection etc.)
-  const [brokenImgs, setBrokenImgs] = useState<Set<string>>(new Set())
-
-  const uploadImageUrl = async (imgUrl: string) => {
-    setUploadingImg(imgUrl)
-    try {
-      const result = await authFetch<{ publicId: string; url: string }>('/admin/import/upload-image-url', {
-        method: 'POST',
-        body: JSON.stringify({ imageUrl: imgUrl }),
-      })
-      setCoverImageUrl(result.publicId)
-    } catch (e: unknown) {
-      alert(`Upload failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
-    } finally {
-      setUploadingImg(null)
-    }
-  }
-
-  const savePendingMutation = useMutation({
-    mutationFn: () => authFetch('/admin/import/pending/from-scrape', {
-      method: 'POST',
-      body: JSON.stringify({
-        subscriptionId, year: parseInt(year), month: parseInt(month),
-        theme: theme || undefined, coverImageUrl: coverImageUrl || undefined,
-        bookTitle: bookTitle || undefined, bookAuthor: bookAuthor || undefined,
-        sourceUrl: data.sourceUrl, allImages: data.allImages,
-      }),
-    }),
-    onSuccess: () => { alert('Saved as pending — review in Pending Imports below'); onSaved() },
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  const saveDirectMutation = useMutation({
-    mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
-      method: 'POST',
-      body: JSON.stringify({ year: parseInt(year), month: parseInt(month), theme: theme || undefined, coverImage: coverImageUrl || undefined }),
-    }),
-    onSuccess: () => { alert('Month created directly'); onSaved() },
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  // Images that are available to show (not broken, or all if none loaded yet)
-  const visibleImages = data.allImages.filter(img => !brokenImgs.has(img))
-
-  return (
-    <div className="bg-stone-800 rounded-xl p-4 space-y-3 border border-amber-500/30">
-      <div className="text-amber-400 text-xs font-semibold uppercase tracking-wide">Scraped preview — verify before saving</div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LABEL}>Year</label>
-          <input type="number" value={year} onChange={e => setYear(e.target.value)} className={INPUT} min={2000} max={2100} />
-        </div>
-        <div>
-          <label className={LABEL}>Month</label>
-          <select value={month} onChange={e => setMonth(e.target.value)} className={INPUT}>
-            <option value="">—</option>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i+1} value={i+1}>{i+1} — {MONTH_NAMES[i]}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className={LABEL}>Theme</label>
-        <input value={theme} onChange={e => setTheme(e.target.value)} className={INPUT} />
-      </div>
-      <div>
-        <label className={LABEL}>Cover image (Cloudinary public ID or URL)</label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} className={INPUT} placeholder="click a thumbnail below to upload & select" />
-            {coverImageUrl && (
-              <button type="button" onClick={() => setCoverImageUrl('')}
-                title="Clear image"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200 leading-none text-sm">
-                ✕
-              </button>
-            )}
-          </div>
-          {coverImageUrl.startsWith('http') && (
-            <button type="button" onClick={() => uploadImageUrl(coverImageUrl)}
-              disabled={!!uploadingImg}
-              title="Upload this URL to Cloudinary"
-              className="px-3 py-2 bg-stone-600 hover:bg-stone-500 text-stone-200 rounded-lg text-xs whitespace-nowrap disabled:opacity-50">
-              {uploadingImg ? '⏳' : '☁ Upload'}
-            </button>
-          )}
-        </div>
-      </div>
-      {data.allImages.length > 0 && (
-        <div>
-          <label className={LABEL}>
-            Found images — click to upload &amp; use as cover
-            {brokenImgs.size > 0 && <span className="text-stone-500 ml-1">({brokenImgs.size} blocked by hotlink protection — use URL above)</span>}
-          </label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {data.allImages.slice(0, 12).map((img, i) => {
-              const isBroken = brokenImgs.has(img)
-              const isSelected = coverImageUrl === img || (uploadingImg === img)
-              if (isBroken) {
-                // Show as a compact URL chip instead of a broken image box
-                return (
-                  <button key={i} type="button" onClick={() => uploadImageUrl(img)}
-                    disabled={!!uploadingImg}
-                    title={img}
-                    className="h-8 px-2 rounded border border-stone-600 hover:border-amber-400 bg-stone-700 hover:bg-stone-600 text-stone-400 hover:text-amber-300 text-[10px] max-w-[140px] truncate disabled:opacity-50">
-                    {uploadingImg === img ? '⏳ uploading…' : '☁ ' + img.split('/').pop()?.slice(0, 20)}
-                  </button>
-                )
-              }
-              return (
-                <button key={i} type="button" onClick={() => uploadImageUrl(img)}
-                  disabled={!!uploadingImg}
-                  title="Click to upload to Cloudinary and use as cover"
-                  className={`w-16 h-16 rounded border-2 overflow-hidden relative flex-shrink-0 ${isSelected ? 'border-amber-400' : 'border-stone-700 hover:border-stone-500'} disabled:opacity-50`}>
-                  {uploadingImg === img && (
-                    <div className="absolute inset-0 bg-stone-900/70 flex items-center justify-center text-amber-400 text-xs">⏳</div>
-                  )}
-                  <img
-                    src={img}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={() => setBrokenImgs(prev => new Set([...prev, img]))}
-                  />
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LABEL}>Book title</label>
-          <input value={bookTitle} onChange={e => setBookTitle(e.target.value)} className={INPUT} />
-        </div>
-        <div>
-          <label className={LABEL}>Book author</label>
-          <input value={bookAuthor} onChange={e => setBookAuthor(e.target.value)} className={INPUT} />
-        </div>
-      </div>
-      <div className="flex gap-2 pt-1">
-        <button type="button" disabled={saveDirectMutation.isPending || !year || !month}
-          onClick={() => saveDirectMutation.mutate()}
-          className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
-          {saveDirectMutation.isPending ? 'Saving…' : '✓ Save as month'}
-        </button>
-        <button type="button" disabled={savePendingMutation.isPending || !year || !month}
-          onClick={() => savePendingMutation.mutate()}
-          className="bg-stone-600 text-stone-200 px-3 py-1.5 rounded-lg hover:bg-stone-500 disabled:opacity-50 text-xs">
-          {savePendingMutation.isPending ? 'Saving…' : '⏳ Save as pending'}
-        </button>
-        <button type="button" onClick={onCancel}
-          className="text-stone-500 hover:text-stone-300 text-xs px-2">Cancel</button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Import from URL panel ────────────────────────────────────────────────────
-function ImportUrlPanel({ subscriptionId, slug, onMonthCreated, onMonthSaved }: { subscriptionId: string; slug: string; onMonthCreated: () => void; onMonthSaved: () => void }) {
-  const [tab, setTab] = useState<'single' | 'parent'>('single')
-  const [url, setUrl] = useState('')
-  const [scraped, setScraped] = useState<ScrapedData | null>(null)
-  const [parentLinks, setParentLinks] = useState<string[]>([])
-  const [linkFilter, setLinkFilter] = useState('')
-  const [scrapingLink, setScrapingLink] = useState<string | null>(null)
-  const [parentLinkScraped, setParentLinkScraped] = useState<ScrapedData | null>(null)
-
-  const scrapeMutation = useMutation({
-    mutationFn: () => authFetch<ScrapedData>('/admin/import/scrape', {
-      method: 'POST',
-      body: JSON.stringify({ url, subscriptionId }),
-    }),
-    onSuccess: (data) => setScraped(data),
-    onError: (e: Error) => alert(`Scrape failed: ${e.message}`),
-  })
-
-  const scrapeParentMutation = useMutation({
-    mutationFn: () => authFetch<{ links: string[] }>('/admin/import/scrape-parent', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    }),
-    onSuccess: (data) => { setParentLinks(data.links); setLinkFilter('') },
-    onError: (e: Error) => alert(`Scrape failed: ${e.message}`),
-  })
-
-  const scrapeLink = async (link: string) => {
-    setScrapingLink(link)
-    setParentLinkScraped(null)
-    try {
-      const data = await authFetch<ScrapedData>('/admin/import/scrape', {
-        method: 'POST',
-        body: JSON.stringify({ url: link, subscriptionId }),
-      })
-      setParentLinkScraped(data)
-    } catch (e: unknown) {
-      alert(`Scrape failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
-    } finally {
-      setScrapingLink(null)
-    }
-  }
-
-  const filteredLinks = linkFilter
-    ? parentLinks.filter(l => l.toLowerCase().includes(linkFilter.toLowerCase()))
-    : parentLinks
-
-  return (
-    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-4">
-      <div className="text-stone-100 font-semibold text-sm">🕐 Import historical month data</div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-stone-800 p-1 rounded-lg w-fit">
-        {(['single', 'parent'] as const).map(t => (
-          <button key={t} onClick={() => { setTab(t); setScraped(null); setParentLinks([]) }}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === t ? 'bg-stone-600 text-stone-100' : 'text-stone-400 hover:text-stone-300'}`}>
-            {t === 'single' ? 'Single post URL' : 'Archive / listing URL'}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <label className={LABEL}>{tab === 'single' ? 'Blog post URL' : 'Archive / category page URL'}</label>
-        <div className="flex gap-2">
-          <input value={url} onChange={e => setUrl(e.target.value)}
-            placeholder={tab === 'single' ? 'https://blog.example.com/august-2024-reveal' : 'https://blog.example.com/reveals'}
-            className={INPUT} />
-          <button
-            type="button"
-            disabled={(tab === 'single' ? scrapeMutation.isPending : scrapeParentMutation.isPending) || !url}
-            onClick={() => tab === 'single' ? scrapeMutation.mutate() : scrapeParentMutation.mutate()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm whitespace-nowrap"
-          >
-            {(scrapeMutation.isPending || scrapeParentMutation.isPending) ? 'Scraping…' : 'Scrape'}
-          </button>
-        </div>
-      </div>
-
-      {/* Single post result */}
-      {tab === 'single' && scraped && (
-        <>
-          {!scraped.year && !scraped.month && (
-            <div className="text-amber-600/80 text-xs px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-              ⚠ AI could not detect month/year — please fill them in manually below.
-            </div>
-          )}
-          <ScrapedPreviewForm data={scraped} subscriptionId={subscriptionId} slug={slug}
-            onSaved={() => { setScraped(null); setUrl(''); onMonthCreated() }}
-            onCancel={() => setScraped(null)} />
-        </>
-      )}
-
-      {/* Parent/archive result */}
-      {tab === 'parent' && parentLinks.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">
-              {filteredLinks.length === parentLinks.length
-                ? `Found ${parentLinks.length} links`
-                : `${filteredLinks.length} of ${parentLinks.length} links`}
-            </div>
-            <input
-              value={linkFilter}
-              onChange={e => setLinkFilter(e.target.value)}
-              placeholder="Filter by keyword…"
-              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-100 text-xs focus:outline-none focus:border-amber-400"
-            />
-            {linkFilter && (
-              <button onClick={() => setLinkFilter('')} className="text-stone-500 hover:text-stone-300 text-xs">✕</button>
-            )}
-          </div>
-          <div className="max-h-64 overflow-y-auto space-y-1.5">
-            {filteredLinks.map(link => {
-              // Show just the path slug for readability, full URL in title
-              let display = link
-              try { display = new URL(link).pathname.replace(/\/$/, '') } catch {}
-              return (
-                <div key={link} className="flex items-center gap-2 bg-stone-800 rounded-lg px-3 py-2">
-                  <span className="text-stone-300 text-xs flex-1 min-w-0" title={link}>
-                    <span className="truncate block">{display}</span>
-                    <span className="text-stone-600 truncate block text-[10px]">{link}</span>
-                  </span>
-                  <button type="button" disabled={!!scrapingLink}
-                    onClick={() => scrapeLink(link)}
-                    className="text-amber-400 hover:text-amber-300 text-xs px-2 py-1 rounded hover:bg-amber-500/10 disabled:opacity-50 whitespace-nowrap">
-                    {scrapingLink === link ? '⏳' : 'Scrape'}
-                  </button>
-                </div>
-              )
-            })}
-            {filteredLinks.length === 0 && (
-              <div className="text-stone-500 text-xs p-3 text-center">No links match filter</div>
-            )}
-          </div>
-          {parentLinkScraped && (
-            <ScrapedPreviewForm data={parentLinkScraped} subscriptionId={subscriptionId} slug={slug}
-              onSaved={() => { setParentLinkScraped(null); onMonthSaved() }}
-              onCancel={() => setParentLinkScraped(null)} />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Pending imports panel ────────────────────────────────────────────────────
-type PendingImport = {
-  id: string; year: number; month: number; theme: string | null
-  bookTitle: string | null; bookAuthor: string | null
-  coverImageUrl: string | null; sourceUrl: string; status: string
-  createdAt: string
-}
-
-function PendingImportsPanel({ subscriptionId, slug, onApproved }: { subscriptionId: string; slug: string; onApproved: () => void }) {
+function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: string; slug: string; onImported: () => void }) {
   const [open, setOpen] = useState(false)
-  const queryClient = useQueryClient()
-  const qKey = ['admin', 'import', 'pending', subscriptionId]
+  const [rows, setRows] = useState<CsvRow[]>([])
+  const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null)
 
-  const { data: pending = [], isLoading } = useQuery<PendingImport[]>({
-    queryKey: qKey,
-    queryFn: () => authFetch(`/admin/import/pending?subscriptionId=${subscriptionId}&status=PENDING`),
-    enabled: open,
-  })
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const lines = text.split(/\r?\n/).filter(l => l.trim())
+      if (lines.length === 0) { setRows([]); return }
 
-  const approveMutation = useMutation({
-    mutationFn: (id: string) => authFetch(`/admin/import/pending/${id}/approve`, { method: 'PATCH', body: '{}' }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); onApproved() },
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
+      // Detect header row
+      const firstLine = lines[0].toLowerCase()
+      const hasHeader = firstLine.includes('year') || firstLine.includes('month')
+      const dataLines = hasHeader ? lines.slice(1) : lines
 
-  const rejectMutation = useMutation({
-    mutationFn: (id: string) => authFetch(`/admin/import/pending/${id}/reject`, { method: 'PATCH', body: '{}' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
+      const parsed: CsvRow[] = dataLines.map(line => {
+        const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''))
+        // Expected columns: year, month, theme, signatureType (positional)
+        const [year = '', month = '', theme = '', signatureType = ''] = cols
+
+        const yearN = parseInt(year)
+        const monthN = parseInt(month)
+        const validYear = yearN >= 2000 && yearN <= 2100
+        const validMonth = monthN >= 1 && monthN <= 12
+        const validSig = !signatureType || ['signed', 'digitally_signed', 'signed_bookplate', 'unsigned'].includes(signatureType)
+
+        const errors: string[] = []
+        if (!validYear) errors.push(`invalid year: ${year}`)
+        if (!validMonth) errors.push(`invalid month: ${month}`)
+        if (!validSig) errors.push(`invalid signatureType: ${signatureType}`)
+
+        return { year, month, theme, signatureType, _valid: errors.length === 0, _error: errors.join('; ') }
+      })
+
+      setRows(parsed)
+      setProgress(null)
+    }
+    reader.readAsText(file)
+    // reset file input so same file can be re-selected
+    e.target.value = ''
+  }
+
+  const importAll = async () => {
+    const validRows = rows.filter(r => r._valid)
+    if (validRows.length === 0) return
+    setImporting(true)
+    setProgress({ done: 0, total: validRows.length, errors: [] })
+    const errors: string[] = []
+    for (let i = 0; i < validRows.length; i++) {
+      const r = validRows[i]
+      try {
+        await authFetch(`/subscriptions/${slug}/months`, {
+          method: 'POST',
+          body: JSON.stringify({
+            year: parseInt(r.year),
+            month: parseInt(r.month),
+            theme: r.theme || undefined,
+            signatureType: r.signatureType || undefined,
+          }),
+        })
+      } catch (e: unknown) {
+        errors.push(`${r.year}/${r.month}: ${e instanceof Error ? e.message : 'Error'}`)
+      }
+      setProgress({ done: i + 1, total: validRows.length, errors: [...errors] })
+    }
+    setImporting(false)
+    onImported()
+    if (errors.length === 0) {
+      setRows([])
+    }
+  }
+
+  const validRows = rows.filter(r => r._valid)
 
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
         <div className="flex items-center gap-2">
-          <span className="text-amber-400 text-sm">⏳</span>
-          <span className="text-stone-200 font-semibold text-sm">Pending Imports</span>
-          <span className="text-stone-500 text-xs">auto-scraped data awaiting review</span>
-        </div>
-        <span className="text-stone-400 text-xs">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open && (
-        <div className="border-t border-stone-800 p-4 space-y-3">
-          {isLoading ? (
-            <div className="text-stone-500 text-sm py-4 text-center">Loading…</div>
-          ) : pending.length === 0 ? (
-            <div className="text-stone-500 text-sm py-4 text-center">No pending imports</div>
-          ) : (
-            pending.map(item => (
-              <div key={item.id} className="bg-stone-800 rounded-xl p-3 space-y-2">
-                <div className="flex items-start gap-3">
-                  {item.coverImageUrl && (
-                    <img src={item.coverImageUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-stone-100 text-sm font-medium">
-                      {MONTH_NAMES[(item.month ?? 1) - 1]} {item.year}
-                      {item.theme && <span className="text-stone-400 ml-2 font-normal">— {item.theme}</span>}
-                    </div>
-                    {item.bookTitle && (
-                      <div className="text-stone-400 text-xs">{item.bookTitle}{item.bookAuthor ? ` by ${item.bookAuthor}` : ''}</div>
-                    )}
-                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-stone-600 hover:text-stone-400 text-xs truncate block max-w-xs">{item.sourceUrl}</a>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button disabled={approveMutation.isPending}
-                      onClick={() => approveMutation.mutate(item.id)}
-                      className="bg-green-500/20 text-green-400 hover:bg-green-500/30 px-3 py-1 rounded text-xs disabled:opacity-50">
-                      ✓ Approve
-                    </button>
-                    <button disabled={rejectMutation.isPending}
-                      onClick={() => rejectMutation.mutate(item.id)}
-                      className="bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-1 rounded text-xs disabled:opacity-50">
-                      ✕ Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Import sources panel ─────────────────────────────────────────────────────
-type ImportSource = {
-  id: string; name: string; url: string; sourceType: string; targetType: string
-  checkFrequency: string; checkHour: number; checkDayOfWeek: number | null; checkDayOfMonth: number | null
-  enabled: boolean; lastCheckedAt: string | null; monthThemeKeywords: string | null; saleKeywords: string | null
-  subscriptionId: string | null; companyId: string | null
-}
-
-const FREQ_LABELS: Record<string, string> = { DAILY: 'Daily', WEEKLY: 'Weekly', MONTHLY: 'Monthly' }
-const SOURCE_TYPE_LABELS: Record<string, string> = { BLOG: 'Blog post', BLOG_LISTING: 'Blog listing', RSS: 'RSS feed' }
-
-function ImportSourcesPanel({ subscriptionId }: { subscriptionId: string }) {
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<ImportSource | null>(null)
-  const queryClient = useQueryClient()
-  const qKey = ['admin', 'import', 'sources', subscriptionId]
-
-  const { data: sources = [], isLoading } = useQuery<ImportSource[]>({
-    queryKey: qKey,
-    queryFn: () => authFetch(`/admin/import/sources?subscriptionId=${subscriptionId}`),
-    enabled: open,
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => authFetch(`/admin/import/sources/${id}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  const checkNowMutation = useMutation({
-    mutationFn: (id: string) => authFetch(`/admin/import/sources/${id}/check`, { method: 'POST', body: '{}' }),
-    onSuccess: () => alert('Check triggered — new pending imports (if any) will appear shortly'),
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
-      <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
-        <div className="flex items-center gap-2">
-          <span className="text-blue-400 text-sm">⚙️</span>
-          <span className="text-stone-200 font-semibold text-sm">Import Sources</span>
-          <span className="text-stone-500 text-xs">automatic scraping schedules</span>
+          <span className="text-amber-400 text-sm">📥</span>
+          <span className="text-stone-200 font-semibold text-sm">Import Months from CSV</span>
+          <span className="text-stone-500 text-xs">bulk historical import</span>
         </div>
         <span className="text-stone-400 text-xs">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
         <div className="border-t border-stone-800 p-4 space-y-4">
-          {/* Source list */}
-          {isLoading ? (
-            <div className="text-stone-500 text-sm py-2 text-center">Loading…</div>
-          ) : sources.length === 0 && !creating ? (
-            <div className="text-stone-500 text-sm py-2 text-center">No import sources configured</div>
-          ) : (
-            sources.map(src => (
-              editing?.id === src.id
-                ? <ImportSourceForm key={src.id} subscriptionId={subscriptionId} initial={src}
-                    onSaved={() => { setEditing(null); queryClient.invalidateQueries({ queryKey: qKey }) }}
-                    onCancel={() => setEditing(null)} />
-                : (
-                  <div key={src.id} className="bg-stone-800 rounded-xl p-3 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${src.enabled ? 'bg-green-400' : 'bg-stone-600'}`} />
-                          <span className="text-stone-100 text-sm font-medium">{src.name}</span>
-                          <span className="text-stone-500 text-xs">{SOURCE_TYPE_LABELS[src.sourceType] ?? src.sourceType}</span>
-                          <span className="text-stone-500 text-xs">·</span>
-                          <span className="text-stone-500 text-xs">{FREQ_LABELS[src.checkFrequency] ?? src.checkFrequency}</span>
-                        </div>
-                        <a href={src.url} target="_blank" rel="noopener noreferrer"
-                          className="text-stone-500 hover:text-stone-300 text-xs truncate block">{src.url}</a>
-                        {src.lastCheckedAt && (
-                          <div className="text-stone-600 text-xs">Last checked: {new Date(src.lastCheckedAt).toLocaleString()}</div>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button disabled={checkNowMutation.isPending}
-                          onClick={() => checkNowMutation.mutate(src.id)}
-                          title="Check now"
-                          className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 rounded hover:bg-blue-500/10 disabled:opacity-50">
-                          ▶ Run
-                        </button>
-                        <button onClick={() => setEditing(src)}
-                          className="text-stone-400 hover:text-stone-200 text-xs px-2 py-1 rounded hover:bg-stone-700">Edit</button>
-                        <button disabled={deleteMutation.isPending}
-                          onClick={() => { if (confirm('Delete this import source?')) deleteMutation.mutate(src.id) }}
-                          className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/10 disabled:opacity-50">Delete</button>
-                      </div>
-                    </div>
+          <div className="text-stone-400 text-xs bg-stone-800/50 rounded-lg p-3 space-y-1">
+            <div className="font-semibold text-stone-300">CSV format (comma-separated, header optional):</div>
+            <code className="text-amber-400/80 block">year,month,theme,signatureType</code>
+            <div>Example: <code className="text-stone-300">2024,8,Dark Fairytales,signed</code></div>
+            <div>Valid signature types: <code className="text-stone-300">signed</code>, <code className="text-stone-300">digitally_signed</code>, <code className="text-stone-300">signed_bookplate</code>, <code className="text-stone-300">unsigned</code> (or leave empty)</div>
+          </div>
+
+          <div>
+            <label className={LABEL}>Choose CSV file</label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFile}
+              className="block w-full text-sm text-stone-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-400/20 file:text-amber-400 hover:file:bg-amber-400/30 cursor-pointer"
+            />
+          </div>
+
+          {rows.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-stone-400">
+                  {validRows.length} valid row{validRows.length !== 1 ? 's' : ''} ready to import
+                  {rows.length !== validRows.length && (
+                    <span className="text-red-400 ml-2">· {rows.length - validRows.length} with errors</span>
+                  )}
+                </div>
+                <button type="button" onClick={() => { setRows([]); setProgress(null) }}
+                  className="text-stone-500 hover:text-stone-300 text-xs">Clear</button>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-stone-700 divide-y divide-stone-700/50">
+                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 bg-stone-800 text-xs font-semibold text-stone-400 uppercase tracking-wide sticky top-0">
+                  <span>Year</span><span>Month</span><span>Theme</span><span>Signature</span>
+                </div>
+                {rows.map((r, i) => (
+                  <div key={i} className={`grid grid-cols-4 gap-2 px-3 py-1.5 text-xs ${r._valid ? 'text-stone-300' : 'text-red-400 bg-red-900/10'}`}>
+                    <span>{r.year}</span>
+                    <span>{r.month} {r._valid ? `— ${MONTH_NAMES[parseInt(r.month) - 1] ?? ''}` : ''}</span>
+                    <span className="truncate">{r.theme || '—'}</span>
+                    <span>{r.signatureType || '—'}{r._error && <span className="block text-red-400/80 text-[10px]">{r._error}</span>}</span>
                   </div>
-                )
-            ))
-          )}
-          {creating && (
-            <ImportSourceForm subscriptionId={subscriptionId}
-              onSaved={() => { setCreating(false); queryClient.invalidateQueries({ queryKey: qKey }) }}
-              onCancel={() => setCreating(false)} />
-          )}
-          {!creating && !editing && (
-            <button onClick={() => setCreating(true)}
-              className="text-amber-400 hover:text-amber-300 text-xs px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors">
-              + Add import source
-            </button>
+                ))}
+              </div>
+
+              {progress && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-stone-700 rounded-full h-1.5">
+                      <div
+                        className="bg-amber-400 h-1.5 rounded-full transition-all"
+                        style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-stone-400 whitespace-nowrap">{progress.done} / {progress.total}</span>
+                  </div>
+                  {progress.errors.length > 0 && (
+                    <div className="text-xs text-red-400 space-y-0.5">
+                      {progress.errors.map((e, i) => <div key={i}>✕ {e}</div>)}
+                    </div>
+                  )}
+                  {progress.done === progress.total && progress.errors.length === 0 && (
+                    <div className="text-xs text-green-400">✓ All {progress.total} months imported successfully</div>
+                  )}
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={importing || validRows.length === 0}
+                onClick={importAll}
+                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm"
+              >
+                {importing ? `Importing… (${progress?.done ?? 0}/${progress?.total ?? 0})` : `Import ${validRows.length} month${validRows.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── Import source form (create / edit) ──────────────────────────────────────
-function ImportSourceForm({
-  subscriptionId, initial, onSaved, onCancel,
-}: { subscriptionId: string; initial?: ImportSource; onSaved: () => void; onCancel: () => void }) {
-  const [name, setName] = useState(initial?.name ?? '')
-  const [url, setUrl] = useState(initial?.url ?? '')
-  const [sourceType, setSourceType] = useState(initial?.sourceType ?? 'BLOG')
-  const [freq, setFreq] = useState(initial?.checkFrequency ?? 'WEEKLY')
-  const [hour, setHour] = useState(String(initial?.checkHour ?? 8))
-  const [dayOfWeek, setDayOfWeek] = useState(String(initial?.checkDayOfWeek ?? 1))
-  const [dayOfMonth, setDayOfMonth] = useState(String(initial?.checkDayOfMonth ?? 1))
-  const [keywords, setKeywords] = useState(initial?.monthThemeKeywords ?? '')
-  const [enabled, setEnabled] = useState(initial?.enabled ?? true)
-
-  const mutation = useMutation({
-    mutationFn: () => {
-      const body = {
-        name, url, sourceType, subscriptionId,
-        checkFrequency: freq,
-        checkHour: parseInt(hour),
-        checkDayOfWeek: freq === 'WEEKLY' ? parseInt(dayOfWeek) : undefined,
-        checkDayOfMonth: freq === 'MONTHLY' ? parseInt(dayOfMonth) : undefined,
-        monthThemeKeywords: keywords || undefined,
-        enabled,
-        targetType: 'MONTH_THEME',
-      }
-      return initial
-        ? authFetch(`/admin/import/sources/${initial.id}`, { method: 'PUT', body: JSON.stringify(body) })
-        : authFetch('/admin/import/sources', { method: 'POST', body: JSON.stringify(body) })
-    },
-    onSuccess: onSaved,
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
-  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-  return (
-    <div className="bg-stone-800/60 rounded-xl p-4 space-y-3 border border-stone-700">
-      <div className="text-stone-100 text-xs font-semibold uppercase tracking-wide">
-        {initial ? 'Edit source' : 'New import source'}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <label className={LABEL}>Name</label>
-          <input value={name} onChange={e => setName(e.target.value)} className={INPUT} placeholder="e.g. Illumicrate Blog" />
-        </div>
-        <div className="col-span-2">
-          <label className={LABEL}>URL</label>
-          <input value={url} onChange={e => setUrl(e.target.value)} className={INPUT} placeholder="https://..." />
-        </div>
-        <div>
-          <label className={LABEL}>Source type</label>
-          <select value={sourceType} onChange={e => setSourceType(e.target.value)} className={INPUT}>
-            <option value="BLOG">Blog post (single URL)</option>
-            <option value="BLOG_LISTING">Blog listing (archive)</option>
-            <option value="RSS">RSS feed</option>
-          </select>
-        </div>
-        <div>
-          <label className={LABEL}>Check frequency</label>
-          <select value={freq} onChange={e => setFreq(e.target.value)} className={INPUT}>
-            <option value="DAILY">Daily</option>
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-          </select>
-        </div>
-        <div>
-          <label className={LABEL}>Check hour (UTC)</label>
-          <select value={hour} onChange={e => setHour(e.target.value)} className={INPUT}>
-            {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00 UTC</option>)}
-          </select>
-        </div>
-        {freq === 'WEEKLY' && (
-          <div>
-            <label className={LABEL}>Day of week</label>
-            <select value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)} className={INPUT}>
-              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
-            </select>
-          </div>
-        )}
-        {freq === 'MONTHLY' && (
-          <div>
-            <label className={LABEL}>Day of month</label>
-            <select value={dayOfMonth} onChange={e => setDayOfMonth(e.target.value)} className={INPUT}>
-              {Array.from({ length: 28 }, (_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-            </select>
-          </div>
-        )}
-        <div className="col-span-2">
-          <label className={LABEL}>Month theme keywords (comma-separated, optional)</label>
-          <input value={keywords} onChange={e => setKeywords(e.target.value)} className={INPUT}
-            placeholder="reveal, theme, book of the month…" />
-        </div>
-        <div className="col-span-2 flex items-center gap-2">
-          <input type="checkbox" id="src-enabled" checked={enabled} onChange={e => setEnabled(e.target.checked)}
-            className="accent-amber-400" />
-          <label htmlFor="src-enabled" className="text-stone-300 text-xs">Enabled</label>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button type="button" disabled={mutation.isPending || !name || !url}
-          onClick={() => mutation.mutate()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
-          {mutation.isPending ? 'Saving…' : initial ? 'Save changes' : 'Create source'}
-        </button>
-        <button type="button" onClick={onCancel}
-          className="bg-stone-700 text-stone-300 px-4 py-2 rounded-lg hover:bg-stone-600 text-sm">Cancel</button>
-      </div>
     </div>
   )
 }
@@ -1314,7 +859,6 @@ type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const queryClient = useQueryClient()
-  const [importUrlOpen, setImportUrlOpen] = useState(false)
   const [addMonthOpen, setAddMonthOpen] = useState(false)
   const [loadedPages, setLoadedPages] = useState<Month[]>([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -1415,33 +959,15 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
         {/* Top action row — only buttons, no expanding content */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => { setAddMonthOpen(!addMonthOpen); if (importUrlOpen) setImportUrlOpen(false) }}
+            onClick={() => setAddMonthOpen(!addMonthOpen)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'}`}
           >
             + Add Month
-          </button>
-          <button
-            onClick={() => { setImportUrlOpen(!importUrlOpen); if (addMonthOpen) setAddMonthOpen(false) }}
-            title="Import historical subscription data"
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${importUrlOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
-          >
-            <span>🕐</span>
-            <span className="text-xs">Import history</span>
           </button>
         </div>
 
         {/* Add month form panel */}
         <AddMonthForm slug={slug} onSuccess={invalidateMonths} open={addMonthOpen} onClose={() => setAddMonthOpen(false)} />
-
-        {/* Import URL panel */}
-        {importUrlOpen && subscription?.id && (
-          <ImportUrlPanel
-            subscriptionId={subscription.id}
-            slug={slug}
-            onMonthCreated={() => { invalidateMonths(); setImportUrlOpen(false) }}
-            onMonthSaved={invalidateMonths}
-          />
-        )}
 
         {/* Month list */}
         {isLoading ? (
@@ -1477,11 +1003,10 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           </div>
         )}
 
-        {/* Pending imports + import sources panels (visible when subscription is loaded) */}
+        {/* CSV import + price changes panels (visible when subscription is loaded) */}
         {subscription?.id && (
           <>
-            <PendingImportsPanel subscriptionId={subscription.id} slug={slug} onApproved={invalidateMonths} />
-            <ImportSourcesPanel subscriptionId={subscription.id} />
+            <CsvImportPanel subscriptionId={subscription.id} slug={slug} onImported={invalidateMonths} />
             <PriceChangesPanel slug={slug} subscriptionCurrency={subscription?.currency} />
           </>
         )}

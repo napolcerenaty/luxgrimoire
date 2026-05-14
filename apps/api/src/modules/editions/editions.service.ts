@@ -262,8 +262,15 @@ export class EditionsService {
           },
         },
         saleEditions: {
+          orderBy: { announcement: { generalSaleDate: 'asc' as const } },
           select: {
-            announcement: { select: { id: true, title: true, isBundle: true } },
+            isReprint: true,
+            announcement: {
+              select: {
+                id: true, title: true, isBundle: true,
+                generalSaleDate: true, earlyAccessDate: true, firstAccessDate: true,
+              },
+            },
           },
         },
         components: {

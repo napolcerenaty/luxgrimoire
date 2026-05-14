@@ -43,7 +43,6 @@ import { FeatureRequestsModule } from './modules/feature-requests/feature-reques
 import { DataRequestsModule } from './modules/data-requests/data-requests.module';
 import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
 import { SalesModule } from './modules/sales/sales.module';
-import { ImportSourcesModule } from './modules/import-sources/import-sources.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { TypesenseModule } from './modules/typesense/typesense.module';
@@ -140,7 +139,6 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
     DataRequestsModule,
     SaleAnnouncementRequestsModule,
     SalesModule,
-    ImportSourcesModule,
     TrackingModule,
     BackupModule,
     CrowdStatsModule,
