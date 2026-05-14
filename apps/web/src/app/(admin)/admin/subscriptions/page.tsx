@@ -841,7 +841,7 @@ export default function AdminSubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
       createModal.close()
     },
-    onError: (err: Error) => alert(`Błąd tworzenia subskrypcji: ${err.message}`),
+    onError: (err: Error) => alert(`Error creating subscription: ${err.message}`),
   })
 
   const editMutation = useMutation({
@@ -870,7 +870,7 @@ export default function AdminSubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
       setEditSub(null)
     },
-    onError: (err: Error) => alert(`Błąd edycji subskrypcji: ${err.message}`),
+    onError: (err: Error) => alert(`Error editing subscription: ${err.message}`),
   })
 
   const deleteMutation = useMutation({
@@ -879,7 +879,7 @@ export default function AdminSubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
       setDeleteSub(null)
     },
-    onError: (err: Error) => alert(`Błąd usuwania: ${err.message}`),
+    onError: (err: Error) => alert(`Error deleting subscription: ${err.message}`),
   })
 
   const commonFormProps = { companies, allSubscriptions: contentStreams, user }
