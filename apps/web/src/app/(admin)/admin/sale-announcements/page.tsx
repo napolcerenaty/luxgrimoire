@@ -21,7 +21,6 @@ import {
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
-import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -281,22 +280,15 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId }: {
+function EditionPicker({ linked, onAdd, onRemove }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
-  defaultFirstAccessDate?: string | null
-  defaultEarlyAccessDate?: string | null
-  defaultGeneralSaleDate?: string | null
-  defaultPrice?: number | null
-  defaultCurrency?: string | null
-  defaultCompanyId?: string | null
 }){
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null)
-  const [mode, setMode] = useState<'search' | 'createBook' | 'createEdition'>('search')
 
   const { data: bookResults, isFetching: searching } = useQuery({
     queryKey: ['book-search', debounced],
@@ -331,56 +323,9 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     setSearch('')
     setDebounced('')
     setSelectedBook(null)
-    setMode('search')
   }
 
   const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
-
-  if (mode === 'createBook') {
-    return (
-      <div className="border border-stone-700 rounded-lg p-3 mt-2">
-        <CreateBookEditionForm
-          key="create-book"
-          bookOnly
-          onBookCreated={(bookId, bookTitle) => {
-            setSelectedBook({ id: bookId, title: bookTitle })
-            setMode('createEdition')
-          }}
-          onSuccess={() => { setMode('search') }}
-          onCancel={() => setMode('search')}
-        />
-      </div>
-    )
-  }
-
-  if (mode === 'createEdition' && selectedBook) {
-    return (
-      <div className="border border-stone-700 rounded-lg p-3 mt-2">
-        <CreateBookEditionForm
-          key={`create-edition-${selectedBook.id}`}
-          existingBookId={selectedBook.id}
-          defaultFirstAccessDate={defaultFirstAccessDate}
-          defaultEarlyAccessDate={defaultEarlyAccessDate}
-          defaultGeneralSaleDate={defaultGeneralSaleDate}
-          defaultPrice={defaultPrice}
-          defaultCurrency={defaultCurrency}
-          defaultCompanyId={defaultCompanyId}
-          onSuccess={(editionId) => {
-            if (editionId) {
-              onAdd({
-                editionId,
-                bookTitle: selectedBook.title,
-                coverImage: null,
-              })
-            }
-            setMode('search')
-            setSelectedBook(null)
-          }}
-          onCancel={() => setMode('search')}
-        />
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-2">
@@ -434,8 +379,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setMode('createEdition')}
-            className="text-amber-400 hover:text-amber-300 text-xs">+ Create new edition for this book</button>
         </div>
       ) : (
         <div className="space-y-1 border border-stone-700 rounded-lg p-3">
@@ -465,8 +408,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               }
             </div>
           )}
-          <button type="button" onClick={() => setMode('createBook')}
-            className="text-amber-400 hover:text-amber-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       )}
     </div>
@@ -761,12 +702,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
               linked={form.linkedEditions}
               onAdd={e => setForm(f => ({ ...f, linkedEditions: [...f.linkedEditions, e] }))}
               onRemove={id => setForm(f => ({ ...f, linkedEditions: f.linkedEditions.filter(e => e.editionId !== id) }))}
-              defaultFirstAccessDate={form.firstAccessDate ? form.firstAccessDate.slice(0, 10) : null}
-              defaultEarlyAccessDate={form.earlyAccessDate ? form.earlyAccessDate.slice(0, 10) : null}
-              defaultGeneralSaleDate={form.generalSaleDate ? form.generalSaleDate.slice(0, 10) : null}
-              defaultPrice={form.basePrice ? Number(form.basePrice) : null}
-              defaultCurrency={form.currency || null}
-              defaultCompanyId={form.companyId || null}
             />
           </div>
         )}
@@ -1044,14 +979,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
 
   const editions = announcement.editions ?? []
 
-  // Use default region dates if available, otherwise fall back to announcement dates
-  const defaultRegion = announcement.regions?.find(r => r.isDefault) ?? announcement.regions?.[0]
-  const dateSource = defaultRegion ?? announcement
-  const saleTz = (defaultRegion?.saleTimezone ?? (announcement as { saleTimezone?: string }).saleTimezone ?? 'UTC')
-  const defaultFirstAccessDate = dateSource.firstAccessDate ? utcIsoToTzLocal(dateSource.firstAccessDate, saleTz).slice(0, 10) : null
-  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? utcIsoToTzLocal(dateSource.earlyAccessDate, saleTz).slice(0, 10) : null
-  const defaultGeneralSaleDate = dateSource.generalSaleDate ? utcIsoToTzLocal(dateSource.generalSaleDate, saleTz).slice(0, 10) : null
-
   const addMutation = useMutation({
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
     onSuccess: () => {
@@ -1238,12 +1165,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 }))}
                 onAdd={linked => addMutation.mutate(linked.editionId)}
                 onRemove={editionId => removeMutation.mutate(editionId)}
-                defaultFirstAccessDate={defaultFirstAccessDate}
-                defaultEarlyAccessDate={defaultEarlyAccessDate}
-                defaultGeneralSaleDate={defaultGeneralSaleDate}
-                defaultPrice={announcement.basePrice ?? null}
-                defaultCurrency={announcement.currency ?? null}
-                defaultCompanyId={announcement.companyId ?? null}
               />
               <button
                 type="button"
