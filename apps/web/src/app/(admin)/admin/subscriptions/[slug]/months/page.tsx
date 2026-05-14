@@ -1422,7 +1422,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           </button>
           <button
             onClick={() => { setImportUrlOpen(!importUrlOpen); if (addMonthOpen) setAddMonthOpen(false) }}
-            title="do pobierania danych historycznych"
+            title="Import historical subscription data"
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${importUrlOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
           >
             <span>🕐</span>
