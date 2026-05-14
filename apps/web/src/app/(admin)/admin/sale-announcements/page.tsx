@@ -13,6 +13,8 @@ import {
   adminRemoveAnnouncementEdition,
   adminSetAnnouncementVariant,
   adminRemoveAnnouncementVariant,
+  adminSetAnnouncementEditionReprint,
+  adminSetAllAnnouncementEditionsReprint,
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
   type SaleAnnouncementFormData,
@@ -1085,6 +1087,19 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const setReprintMutation = useMutation({
+    mutationFn: ({ editionId, isReprint }: { editionId: string; isReprint: boolean }) =>
+      adminSetAnnouncementEditionReprint(announcement.id, editionId, isReprint),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const setAllReprintMutation = useMutation({
+    mutationFn: (isReprint: boolean) => adminSetAllAnnouncementEditionsReprint(announcement.id, isReprint),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   return (
     <div className="border-t border-stone-700 mt-3">
       <button
@@ -1105,6 +1120,26 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
           {editions.length === 0 && (
             <p className="text-stone-500 text-xs py-2">No linked books yet.</p>
           )}
+          {editions.length > 1 && (
+            <div className="flex gap-2 pb-1 border-b border-stone-700/50">
+              <button
+                type="button"
+                onClick={() => setAllReprintMutation.mutate(true)}
+                disabled={setAllReprintMutation.isPending}
+                className="text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+              >
+                🔁 Mark all as reprint
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllReprintMutation.mutate(false)}
+                disabled={setAllReprintMutation.isPending}
+                className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-400 hover:bg-stone-600 transition-colors disabled:opacity-50"
+              >
+                Clear all reprint
+              </button>
+            </div>
+          )}
           {editions.map(e => {
             const thumb = (e.edition as any)?.additionalImages?.[0] ? cloudThumb((e.edition as any).additionalImages[0], 48, 60) : null
             const activeVariants = new Set((e.variants ?? []).map(v => v.signatureType))
@@ -1117,6 +1152,15 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   }
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-stone-200 truncate">{e.edition?.book?.title ?? 'Unknown'}</div>
+                    <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!(e as any).isReprint}
+                        className="accent-amber-400"
+                        onChange={ev => setReprintMutation.mutate({ editionId: e.editionId, isReprint: ev.target.checked })}
+                      />
+                      <span className="text-xs text-stone-400">🔁 Reprint</span>
+                    </label>
                   </div>
                   <button
                     type="button"

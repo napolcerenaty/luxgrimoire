@@ -77,6 +77,27 @@ export class AnnouncementsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/:editionId/reprint')
+  adminSetReprint(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body('isReprint') isReprint: boolean,
+  ) {
+    return this.announcementsService.adminSetReprint(id, editionId, isReprint);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/reprint-all')
+  adminSetAllReprint(
+    @Param('id') id: string,
+    @Body('isReprint') isReprint: boolean,
+  ) {
+    return this.announcementsService.adminSetAllReprint(id, isReprint);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
   @Delete('admin/:id/editions/:editionId')
   adminRemoveEdition(@Param('id') id: string, @Param('editionId') editionId: string) {
     return this.announcementsService.adminRemoveEdition(id, editionId);

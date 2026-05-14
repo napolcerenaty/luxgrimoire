@@ -183,6 +183,28 @@ export class AnnouncementsService {
     return this.findById(id);
   }
 
+  async adminSetReprint(id: string, editionId: string, isReprint: boolean) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEdition.update({
+      where: { id: link.id },
+      data: { isReprint },
+    });
+    return this.findById(id);
+  }
+
+  async adminSetAllReprint(id: string, isReprint: boolean) {
+    const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Sale announcement not found');
+    await this.prisma.saleAnnouncementEdition.updateMany({
+      where: { saleId: id },
+      data: { isReprint },
+    });
+    return this.findById(id);
+  }
+
   async adminRemoveVariant(
     id: string,
     editionId: string,

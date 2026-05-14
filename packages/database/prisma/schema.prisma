@@ -565,6 +565,7 @@ model SaleAnnouncementEdition {
   editionId    String
   saleId       String
   sortOrder    Int                              @default(0)
+  isReprint    Boolean                          @default(false)
   edition      BookEdition                      @relation(fields: [editionId], references: [id])
   announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
   variants     SaleAnnouncementEditionVariant[]
