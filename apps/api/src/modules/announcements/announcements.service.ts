@@ -59,7 +59,7 @@ export class AnnouncementsService {
     await deleteCloudinaryImages(ids, this.uploadService);
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent' }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const today = new Date();
@@ -71,11 +71,7 @@ export class AnnouncementsService {
     }
     if (query.search) {
       const term = query.search.trim();
-      where.OR = [
-        { title: { contains: term, mode: 'insensitive' } },
-        { company: { name: { contains: term, mode: 'insensitive' } } },
-        { editions: { some: { edition: { book: { title: { contains: term, mode: 'insensitive' } } } } } },
-      ];
+      where.title = { contains: term, mode: 'insensitive' };
     }
 
     const [data, total] = await Promise.all([
@@ -83,7 +79,7 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: query.upcoming ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
+        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
         select: {
           id: true,
           title: true,

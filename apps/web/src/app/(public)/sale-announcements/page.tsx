@@ -175,6 +175,7 @@ export default function SaleAnnouncementsPage() {
       const params = new URLSearchParams({
         pageSize: String(PAGE_SIZE),
         upcoming: 'true',
+        sort: 'date',
         page: String(pageParam),
       })
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
@@ -210,7 +211,7 @@ export default function SaleAnnouncementsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title, company or book…"
+            placeholder="Search by sale title…"
             className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
           />
         </div>
