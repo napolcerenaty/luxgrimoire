@@ -186,6 +186,7 @@ function formToUpdatePayload(form: SubFormData) {
     renewalDay: form.renewalDay ? parseInt(form.renewalDay, 10) : undefined,
     startingMonth: form.startingMonth ? parseInt(form.startingMonth, 10) : undefined,
     isCombo: form.isCombo,
+    parentSubscriptionId: form.parentSubscriptionId || undefined,
     componentIds: form.componentIds,
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
