@@ -112,6 +112,7 @@ export class SubscriptionsService {
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
+        isBundleSubscription: dto.isBundleSubscription ?? false,
       },
     });
 

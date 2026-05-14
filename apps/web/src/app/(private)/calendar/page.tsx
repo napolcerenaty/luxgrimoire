@@ -84,21 +84,20 @@ function pillStyle(
     : brandColors?.[0]
 
   if (c) {
-    // Use brand color with theme-aware opacity
-    const bgAlpha = lightMode ? '28' : '22'
     if (lightMode) {
       return {
-        background: `${c}${bgAlpha}`,
+        background: `${c}28`,
         // light mode: darken brand color so it's readable on light bg (fixes white/near-white brands)
         color: `color-mix(in srgb, ${c} 55%, #111111)`,
         border: `1px ${isDashed ? 'dashed' : 'solid'} color-mix(in srgb, ${c} 60%, #333333)`,
       }
     }
     return {
-      background: `${c}${bgAlpha}`,
-      // dark mode: lighten brand color so text is readable on dark bg
-      color: `color-mix(in srgb, ${c} 80%, #f0ece6)`,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}aa`,
+      // dark mode: higher bg opacity so pill stands out on dark cell
+      background: `${c}50`,
+      // force bright text — blend toward white so dark brand colors remain readable
+      color: `color-mix(in srgb, ${c} 50%, #f0ece6)`,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}cc`,
     }
   }
 
@@ -111,10 +110,10 @@ function pillStyle(
       border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},60%,35%,0.55)`,
     }
   }
-                  return {
-    background: `hsla(${h},55%,45%,0.22)`,
-    color: `hsl(${h},80%,78%)`,
-    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,55%,0.55)`,
+  return {
+    background: `hsla(${h},55%,45%,0.40)`,
+    color: `hsl(${h},80%,85%)`,
+    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,65%,0.70)`,
   }
 }
 

@@ -74,12 +74,55 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
   })
 
   const now = new Date()
+  const nowYear = now.getFullYear()
+  const nowMonth = now.getMonth() + 1
+
   const currentMonth = months.find(
-    (m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1,
+    (m) => m.year === nowYear && m.month === nowMonth,
   )
   const upcomingMonth = months.find(
-    (m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1),
+    (m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth),
   )
+
+  // Bundle subscription: compute current and upcoming bundle windows
+  const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
+  const intervalMonths = sub.intervalMonths ?? 1
+  const startingMonth = sub.startingMonth ?? 1
+
+  function getBundleStartMonth(year: number, month: number): [number, number] {
+    // Bundle cycles start at startingMonth, repeat every intervalMonths months
+    // Find the most recent bundle start <= current month
+    const monthsFromStart = (year * 12 + month) - (year * 12 + startingMonth)
+    const cycleOffset = ((monthsFromStart % intervalMonths) + intervalMonths) % intervalMonths
+    let bm = month - cycleOffset
+    let by = year
+    while (bm <= 0) { bm += 12; by-- }
+    while (bm > 12) { bm -= 12; by++ }
+    return [by, bm]
+  }
+
+  const [currentBundleStartYear, currentBundleStartMonth] = isBundleSubscription
+    ? getBundleStartMonth(nowYear, nowMonth)
+    : [nowYear, nowMonth]
+
+  function getBundleMonths(startYear: number, startMonth: number): ApiSubscriptionMonth[] {
+    const result: ApiSubscriptionMonth[] = []
+    let [y, m] = [startYear, startMonth]
+    for (let i = 0; i < intervalMonths; i++) {
+      const found = months.find((mo) => mo.year === y && mo.month === m)
+      if (found) result.push(found)
+      m++; if (m > 12) { m = 1; y++ }
+    }
+    return result
+  }
+
+  // Next bundle start = current bundle start + intervalMonths months
+  let nextBundleStartMonth = currentBundleStartMonth + intervalMonths
+  let nextBundleStartYear = currentBundleStartYear
+  while (nextBundleStartMonth > 12) { nextBundleStartMonth -= 12; nextBundleStartYear++ }
+
+  const currentBundleMonths = isBundleSubscription ? getBundleMonths(currentBundleStartYear, currentBundleStartMonth) : []
+  const upcomingBundleMonths = isBundleSubscription ? getBundleMonths(nextBundleStartYear, nextBundleStartMonth) : []
 
   const brandColors = (sub.company as unknown as { brandColors?: string[] })?.brandColors ?? null
 
@@ -207,6 +250,48 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                   </div>
                 </div>
               ) : null
+            )}
+          </section>
+        )
+      ) : isBundleSubscription ? (
+        /* Bundle: show current bundle (all interval months) + upcoming bundle if available */
+        (currentBundleMonths.length > 0 || upcomingBundleMonths.length > 0) && (
+          <section className="mb-12 space-y-8">
+            {currentBundleMonths.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">
+                  Current Bundle — {MONTH_NAMES[currentBundleStartMonth - 1]} {currentBundleStartYear}
+                </h3>
+                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(currentBundleMonths.length, 3)}`}>
+                  {currentBundleMonths.map((m) => (
+                    <FeaturedMonthCard
+                      key={`${m.year}-${m.month}`}
+                      label={`${MONTH_NAMES[m.month - 1]} ${m.year}`}
+                      labelVariant="current"
+                      monthData={m}
+                      accentColors={brandColors}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {upcomingBundleMonths.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">
+                  Upcoming Bundle — {MONTH_NAMES[nextBundleStartMonth - 1]} {nextBundleStartYear}
+                </h3>
+                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(upcomingBundleMonths.length, 3)}`}>
+                  {upcomingBundleMonths.map((m) => (
+                    <FeaturedMonthCard
+                      key={`${m.year}-${m.month}`}
+                      label={`${MONTH_NAMES[m.month - 1]} ${m.year}`}
+                      labelVariant="upcoming"
+                      monthData={m}
+                      accentColors={brandColors}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         )

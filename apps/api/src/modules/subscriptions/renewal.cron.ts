@@ -40,7 +40,7 @@ export class RenewalCronService {
         shippingCost: true,
         isDefaultPricing: true,
         nextRenewalDate: true,
-        subscription: { select: { renewalMonthOffset: true } },
+        subscription: { select: { renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true } },
       },
     });
 
@@ -64,7 +64,7 @@ export class RenewalCronService {
     shippingCost: { toString(): string } | null;
     isDefaultPricing?: boolean | null;
     nextRenewalDate: Date | null;
-    subscription: { renewalMonthOffset: number } | null;
+    subscription: { renewalMonthOffset: number; isBundleSubscription: boolean; intervalMonths: number } | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
     const offset = entry.subscription?.renewalMonthOffset ?? 0;
@@ -89,7 +89,11 @@ export class RenewalCronService {
         data: { userId: entry.userId, entryId: entry.id, renewalDate, source: 'cron' },
       });
 
-      await this.addBooksForSubscriptionMonth(entry, year, month, renewalDate);
+      if (entry.subscription?.isBundleSubscription) {
+        await this.addBooksForBundleMonths(entry, year, month, entry.subscription.intervalMonths, renewalDate);
+      } else {
+        await this.addBooksForSubscriptionMonth(entry, year, month, renewalDate);
+      }
     }
 
     // Always advance nextRenewalDate (safe if already advanced)
@@ -165,6 +169,7 @@ export class RenewalCronService {
     renewalDate: Date,
     books: Array<{ bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null }>,
     defaultSignatureType: $Enums.SignatureType | null,
+    titleOverride?: string,
   ) {
     const currency = entry.costCurrency ?? 'USD';
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
@@ -232,7 +237,7 @@ export class RenewalCronService {
       purchasedAt = renewalDate;
     }
 
-    const groupTitle = `Subscription – ${year}/${String(month).padStart(2, '0')}`;
+    const groupTitle = titleOverride ?? `Subscription – ${year}/${String(month).padStart(2, '0')}`;
 
     // Idempotency: reuse existing purchase group for this entry + month if already created
     let group = await this.prisma.userPurchaseGroup.findFirst({
@@ -327,6 +332,66 @@ export class RenewalCronService {
     }
   }
 
+  /**
+   * For bundle subscriptions (isBundleSubscription=true): collects books from ALL months
+   * in the renewal window [bundleStartMonth, bundleStartMonth+intervalMonths-1] and
+   * creates ONE purchase group for the entire bundle (one payment, one shipment).
+   * Skip is checked on the first month only (skip = whole bundle).
+   * Books from months not yet linked are simply omitted; retroactivelyAddBookForSubscribers
+   * will add them later when the admin links them.
+   */
+  private async addBooksForBundleMonths(
+    entry: {
+      id: string;
+      userId: string;
+      subscriptionId: string;
+      costCurrency: string | null;
+      basePrice?: { toString(): string } | null;
+      shippingCost?: { toString(): string } | null;
+      isDefaultPricing?: boolean | null;
+    },
+    bundleStartYear: number,
+    bundleStartMonth: number,
+    intervalMonths: number,
+    renewalDate: Date,
+  ) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { id: entry.subscriptionId },
+      select: { parentSubscriptionId: true },
+    });
+    const effectiveSubscriptionId = sub?.parentSubscriptionId ?? entry.subscriptionId;
+
+    // Skip is checked on the first month of the bundle (skip = whole bundle)
+    const firstMonthRecord = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId: effectiveSubscriptionId, year: bundleStartYear, month: bundleStartMonth } },
+      select: { id: true },
+    });
+    if (firstMonthRecord) {
+      const skip = await this.prisma.userSkipRecord.findUnique({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: firstMonthRecord.id } },
+      });
+      if (skip && !skip.undoneAt) return;
+    }
+
+    // Collect books from all months in the bundle window
+    const allBooks: Array<{ bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null }> = [];
+    let curYear = bundleStartYear;
+    let curMonth = bundleStartMonth;
+    for (let i = 0; i < intervalMonths; i++) {
+      const monthRecord = await this.prisma.subscriptionMonth.findUnique({
+        where: { subscriptionId_year_month: { subscriptionId: effectiveSubscriptionId, year: curYear, month: curMonth } },
+        include: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+      });
+      if (monthRecord) allBooks.push(...monthRecord.books);
+      [curYear, curMonth] = curMonth === 12 ? [curYear + 1, 1] : [curYear, curMonth + 1];
+    }
+
+    if (allBooks.length === 0) return;
+
+    const bundleTitle = `Subscription Bundle – ${bundleStartYear}/${String(bundleStartMonth).padStart(2, '0')}`;
+    await this.createPurchaseGroupAndBooks(entry, bundleStartYear, bundleStartMonth, renewalDate, allBooks, null, bundleTitle);
+  }
+
   private async addBooksForComboMonth(
     entry: {
       id: string;
@@ -378,21 +443,21 @@ export class RenewalCronService {
     // - subscribers of child subs (when subscriptionId is a content stream)
     const childSubs = await this.prisma.subscription.findMany({
       where: { parentSubscriptionId: subscriptionId },
-      select: { id: true, renewalMonthOffset: true },
+      select: { id: true, renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true },
     });
 
-    // Build list of { subId, renewalMonthOffset } pairs to process
-    const subsToProcess: Array<{ id: string; renewalMonthOffset: number }> = [];
+    // Build list of { subId, renewalMonthOffset, isBundleSubscription, intervalMonths } pairs to process
+    const subsToProcess: Array<{ id: string; renewalMonthOffset: number; isBundleSubscription: boolean; intervalMonths: number }> = [];
 
     const directSub = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      select: { renewalMonthOffset: true },
+      select: { renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true },
     });
     if (directSub) {
-      subsToProcess.push({ id: subscriptionId, renewalMonthOffset: directSub.renewalMonthOffset });
+      subsToProcess.push({ id: subscriptionId, renewalMonthOffset: directSub.renewalMonthOffset, isBundleSubscription: directSub.isBundleSubscription, intervalMonths: directSub.intervalMonths });
     }
     for (const child of childSubs) {
-      subsToProcess.push({ id: child.id, renewalMonthOffset: child.renewalMonthOffset });
+      subsToProcess.push({ id: child.id, renewalMonthOffset: child.renewalMonthOffset, isBundleSubscription: child.isBundleSubscription, intervalMonths: child.intervalMonths });
     }
 
     for (const sub of subsToProcess) {
@@ -403,12 +468,15 @@ export class RenewalCronService {
       if (entries.length === 0) continue;
 
       const offset = sub.renewalMonthOffset;
+      const interval = sub.isBundleSubscription ? sub.intervalMonths : 1;
       const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(monthRecord.year, monthRecord.month, offset);
-      const monthStart = new Date(Date.UTC(renewalYear, renewalMonth - 1, 1));
+      // For bundle subs: expand window back by (interval-1) months so a single quarterly renewal
+      // covers all months in its window. For monthly (interval=1): window is unchanged.
+      const monthStart = new Date(Date.UTC(renewalYear, renewalMonth - interval, 1));
       const monthEnd = new Date(Date.UTC(renewalYear, renewalMonth, 1));
 
       for (const entry of entries) {
-        // Was there a renewal in this month?
+        // Was there a renewal in this window?
         const renewalRecord = await this.prisma.userSubscriptionRenewal.findFirst({
           where: {
             entryId: entry.id,
@@ -419,39 +487,88 @@ export class RenewalCronService {
 
         if (!renewalRecord) continue;
 
-        // Did the user skip this month?
-        const skip = await this.prisma.userSkipRecord.findUnique({
-          where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: monthRecord.id } },
-        });
-        if (skip && !skip.undoneAt) continue;
+        // For bundle subs: skip is checked on the first month of the bundle, not the current month
+        if (sub.isBundleSubscription) {
+          // Compute bundle start month from the actual renewal date + offset
+          const rDate = renewalRecord.renewalDate;
+          let bStartMonth = rDate.getUTCMonth() + 1 + offset;
+          let bStartYear = rDate.getUTCFullYear();
+          while (bStartMonth > 12) { bStartMonth -= 12; bStartYear++; }
+          const effectiveSubId = directSub?.isBundleSubscription
+            ? (await this.prisma.subscription.findUnique({ where: { id: sub.id }, select: { parentSubscriptionId: true } }))?.parentSubscriptionId ?? sub.id
+            : sub.id;
+          const bundleFirstMonthRecord = await this.prisma.subscriptionMonth.findUnique({
+            where: { subscriptionId_year_month: { subscriptionId: effectiveSubId, year: bStartYear, month: bStartMonth } },
+            select: { id: true },
+          });
+          if (bundleFirstMonthRecord) {
+            const skip = await this.prisma.userSkipRecord.findUnique({
+              where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: bundleFirstMonthRecord.id } },
+            });
+            if (skip && !skip.undoneAt) continue;
+          }
 
-        // Link to the existing purchase group for this month (created by the renewal cron)
-        const existingGroup = await this.prisma.userPurchaseGroup.findFirst({
-          where: {
-            userId: entry.userId,
-            subscriptionEntryId: entry.id,
-            title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
-          },
-          select: { id: true },
-        });
+          // Find the bundle's purchase group (keyed by bundle start month)
+          const bundleTitle = `Subscription Bundle – ${bStartYear}/${String(bStartMonth).padStart(2, '0')}`;
+          const existingGroup = await this.prisma.userPurchaseGroup.findFirst({
+            where: { userId: entry.userId, subscriptionEntryId: entry.id, title: bundleTitle },
+            select: { id: true },
+          });
 
-        const existingBookEntry = await this.prisma.userBookEntry.findFirst({
-          where: { userId: entry.userId, editionId: book.editionId!, subscriptionEntryId: entry.id },
-          select: { id: true },
-        });
-        if (!existingBookEntry) {
-          await this.prisma.userBookEntry.create({
-            data: {
+          const existingBookEntry = await this.prisma.userBookEntry.findFirst({
+            where: { userId: entry.userId, editionId: book.editionId!, subscriptionEntryId: entry.id },
+            select: { id: true },
+          });
+          if (!existingBookEntry) {
+            await this.prisma.userBookEntry.create({
+              data: {
+                userId: entry.userId,
+                bookId: book.bookId,
+                editionId: book.editionId!,
+                ownershipStatus: 'PREORDER',
+                readingStatus: 'UNREAD',
+                subscriptionEntryId: entry.id,
+                purchaseGroupId: existingGroup?.id ?? null,
+                signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+              },
+            }).catch(() => {});
+          }
+        } else {
+          // Non-bundle: original logic
+          // Did the user skip this month?
+          const skip = await this.prisma.userSkipRecord.findUnique({
+            where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: monthRecord.id } },
+          });
+          if (skip && !skip.undoneAt) continue;
+
+          // Link to the existing purchase group for this month (created by the renewal cron)
+          const existingGroup = await this.prisma.userPurchaseGroup.findFirst({
+            where: {
               userId: entry.userId,
-              bookId: book.bookId,
-              editionId: book.editionId!,
-              ownershipStatus: 'PREORDER',
-              readingStatus: 'UNREAD',
               subscriptionEntryId: entry.id,
-              purchaseGroupId: existingGroup?.id ?? null,
-              signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+              title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
             },
-          }).catch(() => {});
+            select: { id: true },
+          });
+
+          const existingBookEntry = await this.prisma.userBookEntry.findFirst({
+            where: { userId: entry.userId, editionId: book.editionId!, subscriptionEntryId: entry.id },
+            select: { id: true },
+          });
+          if (!existingBookEntry) {
+            await this.prisma.userBookEntry.create({
+              data: {
+                userId: entry.userId,
+                bookId: book.bookId,
+                editionId: book.editionId!,
+                ownershipStatus: 'PREORDER',
+                readingStatus: 'UNREAD',
+                subscriptionEntryId: entry.id,
+                purchaseGroupId: existingGroup?.id ?? null,
+                signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+              },
+            }).catch(() => {});
+          }
         }
       }
     }

@@ -120,6 +120,10 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isBundleSubscription?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   paymentOnStartup?: boolean;
 
   @IsOptional()
@@ -231,6 +235,10 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsBoolean()
   isContentStream?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isBundleSubscription?: boolean;
 
   @IsOptional()
   @IsBoolean()

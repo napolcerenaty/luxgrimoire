@@ -248,6 +248,7 @@ export interface ApiSubscription {
   isDiscontinued: boolean;
   isHidden: boolean;
   isContentStream: boolean;
+  isBundleSubscription: boolean;
   currency: string;
   price: string | null;
   language: string | null;
