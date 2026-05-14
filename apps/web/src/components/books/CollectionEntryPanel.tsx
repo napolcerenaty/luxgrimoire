@@ -1448,7 +1448,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 value={entry.saleAnnouncementEditionId ?? ''}
                 onChange={e => savePrint(e.target.value || null)}
                 disabled={savingPrint}
-                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50"
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50 max-w-[260px] truncate"
               >
                 <option value="">Unknown / not set</option>
                 {saleEditions.map(se => (

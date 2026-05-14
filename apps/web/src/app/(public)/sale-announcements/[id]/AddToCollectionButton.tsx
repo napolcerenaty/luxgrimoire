@@ -28,6 +28,7 @@ const SIGNATURE_LABELS: Record<string, string> = {
 }
 
 export interface SaleEditionData {
+  id: string       // SaleAnnouncementEdition.id (for saleAnnouncementEditionId)
   editionId: string
   edition: { book?: { title?: string | null } | null } | null
   variants: Array<{
@@ -110,9 +111,11 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
 
       const editionIds = editions.map(ed => ed.editionId)
       const editionSignatureTypes: Record<string, string> = {}
+      const editionSaleAnnouncementEditionIds: Record<string, string> = {}
       for (const ed of editions) {
         const chosen = selectedVariants[ed.editionId]
         if (chosen) editionSignatureTypes[ed.editionId] = chosen
+        editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
       }
 
       const result = await createPurchaseGroup({
@@ -124,6 +127,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         ownershipStatus,
         editionIds,
         editionSignatureTypes: Object.keys(editionSignatureTypes).length > 0 ? editionSignatureTypes : undefined,
+        editionSaleAnnouncementEditionIds,
         isSecondHand,
         sourcePlatform: isSecondHand && sourcePlatform ? sourcePlatform : undefined,
       })

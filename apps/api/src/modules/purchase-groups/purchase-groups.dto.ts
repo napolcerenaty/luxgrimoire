@@ -48,6 +48,10 @@ export class CreatePurchaseGroupDto {
   /** Optional map of editionId → signatureType for variant selection */
   @IsOptional()
   editionSignatureTypes?: Record<string, string>;
+
+  /** Optional map of editionId → saleAnnouncementEditionId for print tracking */
+  @IsOptional()
+  editionSaleAnnouncementEditionIds?: Record<string, string>;
 }
 
 export class ConfirmSalePurchaseDto {

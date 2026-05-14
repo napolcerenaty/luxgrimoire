@@ -1002,7 +1002,7 @@ export default function CollectionPage() {
                                 {entry.condition.replace('_', ' ')}
                               </Badge>
                             )}
-                            {entry.signatureType && (
+                            {entry.signatureType && entry.signatureType !== 'unsigned' && (
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                                 entry.signatureType === 'signed'
                                   ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
