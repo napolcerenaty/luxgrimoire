@@ -306,7 +306,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
               }
               return entries.map(([type, count]) => {
-                const label = type === 'signed' ? '✍️ Signed' : type === 'digitally_signed' ? '🖨️ Digital' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
+                const label = type === 'signed' ? '✍️ Signed' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                 return (
                   <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
                     {label}{month.books.length > 1 ? ` ×${count}` : ''}
@@ -406,7 +406,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                         const effective = mb.signatureType ?? month.signatureType
                         if (!effective) return null
                         const isOverride = !!mb.signatureType
-                        const label = effective === 'signed' ? '✍️ Signed' : effective === 'digitally_signed' ? '🖨️ Digital' : effective === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
+                        const label = effective === 'signed' ? '✍️ Signed' : effective === 'digitally_signed' ? '🖨️ Digitally Signed' : effective === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                         return (
                           <span className={`text-xs px-1.5 py-0.5 rounded ${isOverride ? 'bg-purple-500/20 text-purple-300' : 'bg-stone-700 text-stone-400'}`}
                             title={isOverride ? 'Book override' : 'From month default'}>
@@ -425,7 +425,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     <option value="">—</option>
                     <option value="unsigned">Unsigned</option>
                     <option value="signed">✍️ Signed</option>
-                    <option value="digitally_signed">🖨️ Digital</option>
+                    <option value="digitally_signed">🖨️ Digitally Signed</option>
                     <option value="signed_bookplate">🏷️ Bookplate</option>
                   </select>
                   <button onClick={() => removeBookMutation.mutate(mb.bookId)}
@@ -1422,7 +1422,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           </button>
           <button
             onClick={() => { setImportUrlOpen(!importUrlOpen); if (addMonthOpen) setAddMonthOpen(false) }}
-            title="do pobierania danych historycznych"
+            title="Import historical subscription data"
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${importUrlOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
           >
             <span>🕐</span>

@@ -1010,7 +1010,7 @@ export default function CollectionPage() {
                                   ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
                                   : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                               }`}>
-                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITAL'}
+                                {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITALLY SIGNED'}
                               </span>
                             )}
                           </div>
@@ -1190,7 +1190,7 @@ export default function CollectionPage() {
                     ))}
                   </select>
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={historyEditDate}
                     onChange={e => setHistoryEditDate(e.target.value)}
                     className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
@@ -1213,7 +1213,7 @@ export default function CollectionPage() {
                   <span className="text-xs font-medium text-stone-300 w-28 shrink-0">{item.status}</span>
                   <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   <button
-                    onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,16)) }}
+                    onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,10)) }}
                     className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-stone-300 transition-opacity"
                     title="Edit"
                   ><Pencil size={11} /></button>
@@ -1245,7 +1245,7 @@ export default function CollectionPage() {
               </select>
               <input
                 id="new-hist-date"
-                type="datetime-local"
+                type="date"
                 className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
               />
               <button

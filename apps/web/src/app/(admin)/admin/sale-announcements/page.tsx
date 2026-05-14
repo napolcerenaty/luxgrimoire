@@ -541,9 +541,9 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   return {
     title: f.title,
     companyId: f.companyId || undefined,
-    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : undefined,
-    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : undefined,
-    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : undefined,
+    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : null,
+    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : null,
+    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : null,
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
@@ -1045,9 +1045,10 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   // Use default region dates if available, otherwise fall back to announcement dates
   const defaultRegion = announcement.regions?.find(r => r.isDefault) ?? announcement.regions?.[0]
   const dateSource = defaultRegion ?? announcement
-  const defaultFirstAccessDate = dateSource.firstAccessDate ? dateSource.firstAccessDate.slice(0, 10) : null
-  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? dateSource.earlyAccessDate.slice(0, 10) : null
-  const defaultGeneralSaleDate = dateSource.generalSaleDate ? dateSource.generalSaleDate.slice(0, 10) : null
+  const saleTz = (defaultRegion?.saleTimezone ?? (announcement as { saleTimezone?: string }).saleTimezone ?? 'UTC')
+  const defaultFirstAccessDate = dateSource.firstAccessDate ? utcIsoToTzLocal(dateSource.firstAccessDate, saleTz).slice(0, 10) : null
+  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? utcIsoToTzLocal(dateSource.earlyAccessDate, saleTz).slice(0, 10) : null
+  const defaultGeneralSaleDate = dateSource.generalSaleDate ? utcIsoToTzLocal(dateSource.generalSaleDate, saleTz).slice(0, 10) : null
 
   const addMutation = useMutation({
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
@@ -1262,7 +1263,7 @@ function AnnouncementCard({
                 const signedBadge = types.has('signed')
                   ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
                   : types.has('digitally_signed')
-                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digital</span>
+                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digitally Signed</span>
                     : null
                 return (announcement.isBundle || signedBadge) ? (
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">

@@ -4,7 +4,6 @@ import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
-import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCollection, ApiBookEdition } from '@luxgrimoire/shared-types'
 
 interface CollectionWithEditions extends ApiBookBoxCollection {
@@ -68,9 +67,6 @@ export default async function CollectionPage({ params }: Props) {
         />
 
         <div className="flex items-center gap-3 flex-wrap mb-2">
-          <Badge variant={collection.isActive ? 'success' : 'outline'}>
-            {collection.isActive ? 'Active' : 'Inactive'}
-          </Badge>
           <span className="text-stone-500 text-xs">{editions.length} edition{editions.length !== 1 ? 's' : ''}</span>
         </div>
 

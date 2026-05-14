@@ -115,7 +115,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
             return (
               <Link
                 key={sub.id}
-                href={`/subscriptions/${sub.slug}`}
+                href={`/subscriptions/${sub.slug}?from=subscriptions`}
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
               >
                 <div className="aspect-[2/1] relative overflow-hidden bg-stone-950 flex items-center justify-center">
@@ -161,7 +161,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
             return (
               <Link
                 key={sub.id}
-                href={`/subscriptions/${sub.slug}`}
+                href={`/subscriptions/${sub.slug}?from=subscriptions`}
                 className="group flex items-center gap-4 py-3 hover:bg-stone-900/50 px-2 -mx-2 rounded-lg transition-colors"
               >
                 {/* Thumbnail */}

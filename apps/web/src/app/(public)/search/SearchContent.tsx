@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Loader2, Megaphone } from 'lucide-react'
+import { Search, Loader2, Megaphone, X } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { API_BASE } from '@/lib/authFetch'
@@ -102,7 +102,19 @@ export function SearchContent() {
           autoFocus
         />
         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500">
-          {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+          {loading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : query ? (
+            <button
+              type="button"
+              onClick={() => handleQueryChange('')}
+              className="text-stone-400 hover:text-amber-400 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          ) : (
+            <Search size={18} />
+          )}
         </div>
       </div>
 

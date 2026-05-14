@@ -67,15 +67,15 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
 
   @IsOptional()
   @IsString()
-  generalSaleDate?: string;
+  generalSaleDate?: string | null;
 
   @IsOptional()
   @IsString()
-  firstAccessDate?: string;
+  firstAccessDate?: string | null;
 
   @IsOptional()
   @IsString()
-  earlyAccessDate?: string;
+  earlyAccessDate?: string | null;
 
   @IsOptional()
   @IsString()

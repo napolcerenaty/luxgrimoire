@@ -1282,6 +1282,7 @@ model PendingMonthImport {
   bookAuthor     String?
   sourceUrl      String
   allImages      String[]
+  signatureType  String?   @db.VarChar(20)
   status         String    @default("PENDING") @db.VarChar(10)
   adminNote      String?
   createdAt      DateTime  @default(now())

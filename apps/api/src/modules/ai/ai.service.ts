@@ -79,6 +79,9 @@ SIGNATURE RULES (read before artist rules):
   - Do NOT add the signer as an artist entry — being a signer is NOT an artistic contribution
   - Example: "signed by @authorname" → features: ["signed"], no artist entry for @authorname
   - Example: "digitally signed by @illustrator" → features: ["digitally signed"], no artist entry for @illustrator
+- "Foiled Author Signature" means a foil-stamped facsimile of the author's signature — it is NOT a hand-signed copy. In that case:
+  - Add "Foiled Author Signature" (exact phrase, capitalised) to the features array — do NOT add "signed" or "digitally signed"
+  - Example: "Foiled Author Signature" → features: ["Foiled Author Signature"]
 
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
@@ -166,7 +169,7 @@ RULES:
 - seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
 - volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
 - description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
-- genres: take at most 5 genres from the Genres section. Omit if not present.
+- genres: take at most 5 genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
 - authors: list all authors found.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.

@@ -86,12 +86,19 @@ function pillStyle(
   if (c) {
     // Use brand color with theme-aware opacity
     const bgAlpha = lightMode ? '28' : '22'
-    const borderAlpha = lightMode ? 'cc' : '88'
+    if (lightMode) {
+      return {
+        background: `${c}${bgAlpha}`,
+        // light mode: darken brand color so it's readable on light bg (fixes white/near-white brands)
+        color: `color-mix(in srgb, ${c} 55%, #111111)`,
+        border: `1px ${isDashed ? 'dashed' : 'solid'} color-mix(in srgb, ${c} 60%, #333333)`,
+      }
+    }
     return {
       background: `${c}${bgAlpha}`,
       // dark mode: lighten brand color so text is readable on dark bg
-      color: lightMode ? c : `color-mix(in srgb, ${c} 55%, #f0ece6)`,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}${borderAlpha}`,
+      color: `color-mix(in srgb, ${c} 80%, #f0ece6)`,
+      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}aa`,
     }
   }
 
