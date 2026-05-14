@@ -42,6 +42,7 @@ interface SubFormData {
   isDiscontinued: boolean
   isHidden: boolean
   isContentStream: boolean
+  isBundleSubscription: boolean
   paymentOnStartup: boolean
   renewalMonthOffset: string
   startDate: string
@@ -79,6 +80,7 @@ const EMPTY_FORM: SubFormData = {
   isDiscontinued: false,
   isHidden: false,
   isContentStream: false,
+  isBundleSubscription: false,
   paymentOnStartup: false,
   renewalMonthOffset: '0',
   startDate: '',
@@ -117,6 +119,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     isDiscontinued: sub.isDiscontinued,
     isHidden: sub.isHidden ?? false,
     isContentStream: sub.isContentStream ?? false,
+    isBundleSubscription: sub.isBundleSubscription ?? false,
     paymentOnStartup: (sub as any).paymentOnStartup ?? false,
     renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
@@ -163,6 +166,7 @@ function formToCreatePayload(form: SubFormData) {
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
     isContentStream: form.isContentStream,
+    isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -191,6 +195,7 @@ function formToUpdatePayload(form: SubFormData) {
     isDiscontinued: form.isDiscontinued,
     isHidden: form.isHidden,
     isContentStream: form.isContentStream,
+    isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -395,6 +400,15 @@ function SubscriptionForm({
                 {label}
               </label>
             ))}
+            {parseInt(form.intervalMonths, 10) > 2 && (
+              <label className="flex items-center gap-2 text-amber-300 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.isBundleSubscription}
+                  onChange={(e) => setField('isBundleSubscription', e.target.checked)}
+                  className="accent-amber-400 w-4 h-4" />
+                Bundle — ships multiple months as one package
+                <span className="text-xs text-stone-400">(delivers one book per month for all {form.intervalMonths} months in the renewal window)</span>
+              </label>
+            )}
           </div>
         </div>
       </div>
@@ -937,7 +951,9 @@ export default function AdminSubscriptionsPage() {
             const parent = contentStreams.find((s) => s.id === row.parentSubscriptionId)
             return (
               <span className="text-sky-400 text-[10px]">
-                Variant of {parent?.name ?? row.parentSubscriptionId}
+                {row.isBundleSubscription
+                  ? `Bundle (${row.intervalMonths}mo) of ${parent?.name ?? row.parentSubscriptionId}`
+                  : `Variant of ${parent?.name ?? row.parentSubscriptionId}`}
               </span>
             )
           })()}
