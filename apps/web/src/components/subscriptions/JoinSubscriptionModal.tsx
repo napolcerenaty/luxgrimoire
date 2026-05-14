@@ -271,6 +271,7 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
             <span className="text-stone-300">{new Date(firstOrderDate + 'T00:00:00').getDate()}</span>
           </p>
         )}
+        <p className="text-xs text-stone-500 mt-1">This is the date you joined the subscription, not necessarily your first payment — e.g. for Fairyloot use the "Subscription activated" date.</p>
       </div>
 
       {/* Currency */}
