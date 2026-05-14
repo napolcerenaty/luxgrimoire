@@ -14,9 +14,7 @@ export interface ScrapedMonthData {
   year: number | null;
   month: number | null;
   theme: string | null;
-  bookTitle: string | null;
-  bookAuthor: string | null;
-  imageUrl: string | null;
+  signatureType: string | null;
   allImages: string[];
   sourceUrl: string;
 }
@@ -29,19 +27,18 @@ Return ONLY valid JSON matching this schema (use null for fields you cannot find
   "year": 2025,
   "month": 3,
   "theme": "A Wrinkle in Time",
-  "bookTitle": "Title of the main book",
-  "bookAuthor": "Author Name",
-  "imageUrl": "https://... (the main/hero image if you can see a URL in the text)"
+  "signatureType": "signed"
 }
 
 RULES:
 - year: 4-digit integer, e.g. 2025
 - month: integer 1-12 (1 = January, 12 = December)
 - theme: the box theme name (e.g. "Shades of Magic", "The Priory of the Orange Tree") — usually the book title or a thematic name
-- bookTitle: the main featured book title
-- bookAuthor: the main book's author full name
-- imageUrl: the first or most prominent image URL found in the content, or null if none visible
-- If the post covers multiple books, pick the main/headliner book`;
+- signatureType: one of "unsigned", "signed", "digitally_signed", "signed_bookplate", or null if not mentioned
+  - "signed" = hand-signed by the author
+  - "digitally_signed" = digitally printed / foiled facsimile signature (e.g. "Foiled Author Signature")
+  - "signed_bookplate" = signed bookplate included
+  - "unsigned" = explicitly stated as unsigned, or omit field (use null)`;
 
 const SSRF_BLOCKED_RE = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.0\.0\.0|::1)/i;
 
@@ -242,7 +239,6 @@ export class ImportSourcesService {
     return {
       ...extracted,
       allImages,
-      imageUrl: extracted.imageUrl ?? allImages[0] ?? null,
       sourceUrl: url,
     };
   }
@@ -275,9 +271,7 @@ export class ImportSourcesService {
     year: number;
     month: number;
     theme?: string;
-    coverImageUrl?: string;
-    bookTitle?: string;
-    bookAuthor?: string;
+    signatureType?: string;
     sourceUrl: string;
     allImages?: string[];
   }) {
@@ -300,7 +294,7 @@ export class ImportSourcesService {
           year: pending.year,
           month: pending.month,
           theme: pending.theme ?? undefined,
-          coverImage: pending.coverImageUrl ?? undefined,
+          ...(pending.signatureType ? { signatureType: pending.signatureType as any } : {}),
         },
       });
     }
@@ -413,9 +407,7 @@ export class ImportSourcesService {
           year: data.year,
           month: data.month,
           theme: data.theme ?? undefined,
-          coverImageUrl: data.imageUrl ?? undefined,
-          bookTitle: data.bookTitle ?? undefined,
-          bookAuthor: data.bookAuthor ?? undefined,
+          signatureType: data.signatureType ?? undefined,
           sourceUrl: url,
           allImages: data.allImages,
         });
@@ -442,8 +434,7 @@ export class ImportSourcesService {
 
   private async aiExtractMonth(text: string, sourceUrl: string): Promise<Omit<ScrapedMonthData, 'allImages' | 'sourceUrl'>> {
     if (!this.openai) {
-      // No AI configured — return empty result
-      return { year: null, month: null, theme: null, bookTitle: null, bookAuthor: null, imageUrl: null };
+      return { year: null, month: null, theme: null, signatureType: null };
     }
 
     try {
@@ -454,24 +445,22 @@ export class ImportSourcesService {
           { role: 'user', content: `Extract subscription box reveal data from this content:\n\nURL: ${sourceUrl}\n\n${text}` },
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 400,
+        max_tokens: 200,
       });
 
       const content = response.choices[0]?.message?.content;
-      if (!content) return { year: null, month: null, theme: null, bookTitle: null, bookAuthor: null, imageUrl: null };
+      if (!content) return { year: null, month: null, theme: null, signatureType: null };
 
       const parsed = JSON.parse(content);
       return {
         year: typeof parsed.year === 'number' ? parsed.year : null,
         month: typeof parsed.month === 'number' ? parsed.month : null,
         theme: parsed.theme ?? null,
-        bookTitle: parsed.bookTitle ?? null,
-        bookAuthor: parsed.bookAuthor ?? null,
-        imageUrl: parsed.imageUrl ?? null,
+        signatureType: parsed.signatureType ?? null,
       };
     } catch (err) {
       this.logger.warn(`AI month extraction failed: ${err}`);
-      return { year: null, month: null, theme: null, bookTitle: null, bookAuthor: null, imageUrl: null };
+      return { year: null, month: null, theme: null, signatureType: null };
     }
   }
 }
