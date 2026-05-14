@@ -1428,8 +1428,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           </div>
 
-          {/* Print picker — shown when there are known sale editions */}
-          {saleEditions.length > 0 && (
+          {/* Print picker — shown only when there's more than one print to choose from */}
+          {saleEditions.length > 1 && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Print:</span>
               {entry.saleAnnouncementEdition && (
