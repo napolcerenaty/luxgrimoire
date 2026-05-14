@@ -2153,4 +2153,39 @@ export class SubscriptionsService {
     }
     return this.prisma.subscriptionPrepayOption.delete({ where: { id } });
   }
+
+  async migrateMonths(slug: string, targetSubscriptionId: string) {
+    const source = await this.prisma.subscription.findUnique({ where: { slug } });
+    if (!source) throw new NotFoundException(`Subscription '${slug}' not found`);
+
+    const target = await this.prisma.subscription.findUnique({ where: { id: targetSubscriptionId } });
+    if (!target) throw new NotFoundException(`Target subscription '${targetSubscriptionId}' not found`);
+    if (!target.isContentStream) throw new BadRequestException('Target subscription must be a content stream');
+    if (target.companyId !== source.companyId) throw new BadRequestException('Source and target must belong to the same company');
+    if (target.id === source.id) throw new BadRequestException('Source and target cannot be the same subscription');
+
+    // Check for conflicting months (same year+month already exist in target)
+    const sourceMonths = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: source.id },
+      select: { year: true, month: true },
+    });
+    const targetMonths = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: target.id },
+      select: { year: true, month: true },
+    });
+    const targetKeys = new Set(targetMonths.map(m => `${m.year}-${m.month}`));
+    const conflicts = sourceMonths.filter(m => targetKeys.has(`${m.year}-${m.month}`));
+    if (conflicts.length > 0) {
+      throw new ConflictException(
+        `Cannot migrate: target already has ${conflicts.length} conflicting month(s): ${conflicts.map(m => `${m.year}-${m.month}`).join(', ')}`
+      );
+    }
+
+    const { count } = await this.prisma.subscriptionMonth.updateMany({
+      where: { subscriptionId: source.id },
+      data: { subscriptionId: target.id },
+    });
+
+    return { migratedCount: count, sourceId: source.id, targetId: target.id };
+  }
 }

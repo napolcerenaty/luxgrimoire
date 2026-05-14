@@ -29,6 +29,7 @@ import {
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
+  MigrateMonthsDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -436,5 +437,18 @@ export class SubscriptionsController {
   ) {
     await this.subscriptionsService.deletePrepayOption(slug, id);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_PREPAY_OPTION', entityType: 'subscription', entityId: slug });
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/migrate-months')
+  async migrateMonths(
+    @Param('slug') slug: string,
+    @Body() dto: MigrateMonthsDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.migrateMonths(slug, dto.targetSubscriptionId);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'MIGRATE_MONTHS', entityType: 'subscription', entityId: slug, metadata: { migratedCount: result.migratedCount, targetId: dto.targetSubscriptionId } });
+    return result;
   }
 }

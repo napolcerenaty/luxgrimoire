@@ -866,6 +866,98 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
   )
 }
 
+// ─── Migrate Months Panel ─────────────────────────────────────────────────────
+function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; companyId?: string | null; monthCount: number }) {
+  const [open, setOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+
+  const { data: contentStreams } = useQuery<{ data: Array<{ id: string; name: string; slug: string }> }>({
+    queryKey: ['content-streams', companyId],
+    queryFn: () => authFetch(`/subscriptions?companyId=${companyId}&isContentStream=true&pageSize=100`),
+    enabled: open && !!companyId,
+  })
+
+  const streams = contentStreams?.data ?? []
+
+  const migrateMutation = useMutation({
+    mutationFn: () => authFetch<{ migratedCount: number }>(`/subscriptions/${slug}/migrate-months`, {
+      method: 'POST',
+      body: JSON.stringify({ targetSubscriptionId: selectedId }),
+    }),
+    onSuccess: (res: { migratedCount: number }) => {
+      alert(`✓ Successfully migrated ${res.migratedCount} month${res.migratedCount !== 1 ? 's' : ''} to the content stream.`)
+      setOpen(false)
+      setSelectedId('')
+      setConfirmed(false)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+      >
+        ↗ Migrate months to content stream
+      </button>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-blue-700/40 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-stone-100 font-semibold text-sm">Migrate months to content stream</div>
+          <div className="text-stone-400 text-xs mt-0.5">
+            Moves all {monthCount} month{monthCount !== 1 ? 's' : ''} from this subscription to a content stream. This cannot be undone.
+          </div>
+        </div>
+        <button type="button" onClick={() => { setOpen(false); setSelectedId(''); setConfirmed(false) }}
+          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
+      </div>
+
+      <div>
+        <label className={LABEL}>Target content stream *</label>
+        {streams.length === 0 && !companyId && (
+          <p className="text-stone-500 text-xs">Loading…</p>
+        )}
+        {streams.length === 0 && companyId && (
+          <p className="text-stone-500 text-xs">No content streams found for this company. Create one first.</p>
+        )}
+        {streams.length > 0 && (
+          <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setConfirmed(false) }} className={INPUT}>
+            <option value="">— Select content stream —</option>
+            {streams.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {selectedId && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-amber-400" />
+          <span className="text-xs text-stone-300">
+            I understand this will move all {monthCount} month{monthCount !== 1 ? 's' : ''} to the selected content stream and this action cannot be undone.
+          </span>
+        </label>
+      )}
+
+      <button
+        type="button"
+        disabled={!selectedId || !confirmed || migrateMutation.isPending}
+        onClick={() => migrateMutation.mutate()}
+        className="bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-400 disabled:opacity-40 text-sm transition-colors"
+      >
+        {migrateMutation.isPending ? 'Migrating…' : `Migrate ${monthCount} month${monthCount !== 1 ? 's' : ''}`}
+      </button>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
@@ -979,6 +1071,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           >
             + Add Month
           </button>
+          {!subscription?.isContentStream && months.length > 0 && (
+            <MigrateMonthsPanel
+              slug={slug}
+              companyId={subscription?.companyId}
+              monthCount={months.length}
+            />
+          )}
         </div>
 
         {/* Add month form panel */}
