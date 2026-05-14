@@ -79,6 +79,16 @@ interface CollectionEntry {
   subscriptionEntryId: string | null
   tags: string[]
   purchaseGroup: PurchaseGroup | null
+  saleAnnouncementEditionId: string | null
+  saleAnnouncementEdition: {
+    id: string
+    isReprint: boolean
+    announcement: {
+      id: string
+      title: string
+      generalSaleDate: string | null
+    }
+  } | null
 }
 
 interface HistoryEntry {
@@ -87,9 +97,20 @@ interface HistoryEntry {
   changedAt: string
 }
 
+interface SaleEditionOption {
+  id: string
+  isReprint: boolean
+  announcement: {
+    id: string
+    title: string
+    generalSaleDate: string | null
+  }
+}
+
 interface Props {
   editionId: string
   initialEntryId?: string | null
+  saleEditions?: SaleEditionOption[]
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -218,7 +239,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
+export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [] }: Props) {
   const { user, loading: authLoading } = useAuth()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
@@ -228,6 +249,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
   // Currency conversion
   const [rates, setRates] = useState<Record<string, number>>({})
   const userCurrency = user?.preferredCurrency
+
+  // Print picker
+  const [savingPrint, setSavingPrint] = useState(false)
 
   // Status dropdowns (inline, no save form)
   const [activeDropdown, setActiveDropdown] = useState<'ownership' | 'reading' | 'signature' | null>(null)
@@ -443,6 +467,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
       await patchEntry({ [field]: value === '' ? null : value })
     } finally {
       setSavingStatus(false)
+    }
+  }
+
+  async function savePrint(saleAnnouncementEditionId: string | null) {
+    setSavingPrint(true)
+    try {
+      await patchEntry({ saleAnnouncementEditionId: saleAnnouncementEditionId || null })
+    } finally {
+      setSavingPrint(false)
     }
   }
 
@@ -1394,6 +1427,39 @@ export function CollectionEntryPanel({ editionId, initialEntryId }: Props) {
               )}
             </div>
           </div>
+
+          {/* Print picker — shown when there are known sale editions */}
+          {saleEditions.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Print:</span>
+              {entry.saleAnnouncementEdition && (
+                <span className="text-xs px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
+                  {entry.saleAnnouncementEdition.isReprint ? '🔁 Reprint' : '📗 Original'}
+                  {' — '}
+                  {entry.saleAnnouncementEdition.announcement.title}
+                  {entry.saleAnnouncementEdition.announcement.generalSaleDate && (
+                    <span className="ml-1 opacity-60">
+                      ({new Date(entry.saleAnnouncementEdition.announcement.generalSaleDate).getFullYear()})
+                    </span>
+                  )}
+                </span>
+              )}
+              <select
+                value={entry.saleAnnouncementEditionId ?? ''}
+                onChange={e => savePrint(e.target.value || null)}
+                disabled={savingPrint}
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50"
+              >
+                <option value="">Unknown / not set</option>
+                {saleEditions.map(se => (
+                  <option key={se.id} value={se.id}>
+                    {se.isReprint ? '🔁 Reprint' : '📗 Original'} — {se.announcement.title}
+                    {se.announcement.generalSaleDate ? ` (${new Date(se.announcement.generalSaleDate).getFullYear()})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Tracking card — compact */}

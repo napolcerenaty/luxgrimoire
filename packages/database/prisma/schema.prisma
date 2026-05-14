@@ -564,7 +564,8 @@ model SaleAnnouncementEdition {
   isReprint    Boolean                          @default(false)
   edition      BookEdition                      @relation(fields: [editionId], references: [id])
   announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  variants     SaleAnnouncementEditionVariant[]
+  variants        SaleAnnouncementEditionVariant[]
+  userBookEntries UserBookEntry[]
 
   @@unique([saleId, editionId])
   @@index([editionId])
@@ -636,16 +637,18 @@ model UserBookEntry {
   saleVenue             String?
   purchaseGroupId       String?
   subscriptionEntryId   String?
-  signatureType         SignatureType?
-  trackingNumber        String?
-  book                  Book                   @relation(fields: [bookId], references: [id])
-  edition               BookEdition?           @relation(fields: [editionId], references: [id])
-  purchaseGroup         UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
-  subscriptionEntry     UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  saleEntries           UserSaleEntry[]
-  ownershipHistory      OwnershipStatusHistory[]
-  entryTags             UserBookEntryTag[]
+  signatureType              SignatureType?
+  trackingNumber             String?
+  saleAnnouncementEditionId  String?                @db.VarChar(36)
+  book                       Book                   @relation(fields: [bookId], references: [id])
+  edition                    BookEdition?           @relation(fields: [editionId], references: [id])
+  purchaseGroup              UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
+  subscriptionEntry          UserSubscriptionEntry? @relation(fields: [subscriptionEntryId], references: [id], onDelete: SetNull)
+  user                       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saleAnnouncementEdition    SaleAnnouncementEdition? @relation(fields: [saleAnnouncementEditionId], references: [id], onDelete: SetNull)
+  saleEntries                UserSaleEntry[]
+  ownershipHistory           OwnershipStatusHistory[]
+  entryTags                  UserBookEntryTag[]
 
   @@index([userId])
   @@index([userId, bookId, editionId])
@@ -656,6 +659,7 @@ model UserBookEntry {
   @@index([editionId])
   @@index([bookId])
   @@index([userId, createdAt])
+  @@index([saleAnnouncementEditionId])
   @@map("user_book_entries")
 }
 

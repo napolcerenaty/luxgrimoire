@@ -21,6 +21,7 @@ import {
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -280,15 +281,22 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
+  defaultFirstAccessDate?: string | null
+  defaultEarlyAccessDate?: string | null
+  defaultGeneralSaleDate?: string | null
+  defaultPrice?: number | null
+  defaultCurrency?: string | null
+  defaultCompanyId?: string | null
 }){
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null)
+  const [mode, setMode] = useState<'search' | 'createBook' | 'createEdition'>('search')
 
   const { data: bookResults, isFetching: searching } = useQuery({
     queryKey: ['book-search', debounced],
@@ -326,6 +334,52 @@ function EditionPicker({ linked, onAdd, onRemove }: {
   }
 
   const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+
+  if (mode === 'createBook') {
+    return (
+      <div className="border border-stone-700 rounded-lg p-3 mt-2">
+        <CreateBookEditionForm
+          key="create-book"
+          bookOnly
+          onBookCreated={(bookId, bookTitle) => {
+            setSelectedBook({ id: bookId, title: bookTitle })
+            setMode('createEdition')
+          }}
+          onSuccess={() => { setMode('search') }}
+          onCancel={() => setMode('search')}
+        />
+      </div>
+    )
+  }
+
+  if (mode === 'createEdition' && selectedBook) {
+    return (
+      <div className="border border-stone-700 rounded-lg p-3 mt-2">
+        <CreateBookEditionForm
+          key={`create-edition-${selectedBook.id}`}
+          existingBookId={selectedBook.id}
+          defaultFirstAccessDate={defaultFirstAccessDate}
+          defaultEarlyAccessDate={defaultEarlyAccessDate}
+          defaultGeneralSaleDate={defaultGeneralSaleDate}
+          defaultPrice={defaultPrice}
+          defaultCurrency={defaultCurrency}
+          defaultCompanyId={defaultCompanyId}
+          onSuccess={(editionId) => {
+            if (editionId) {
+              onAdd({
+                editionId,
+                bookTitle: selectedBook.title,
+                coverImage: null,
+              })
+            }
+            setMode('search')
+            setSelectedBook(null)
+          }}
+          onCancel={() => setMode('search')}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
@@ -379,6 +433,10 @@ function EditionPicker({ linked, onAdd, onRemove }: {
               </button>
             ))}
           </div>
+          <button type="button" onClick={() => setMode('createEdition')}
+            className="text-amber-400 hover:text-amber-300 text-xs">+ Create new edition for this book</button>
+          <button type="button" onClick={() => setMode('createBook')}
+            className="text-amber-400 hover:text-amber-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       ) : (
         <div className="space-y-1 border border-stone-700 rounded-lg p-3">
@@ -408,6 +466,8 @@ function EditionPicker({ linked, onAdd, onRemove }: {
               }
             </div>
           )}
+          <button type="button" onClick={() => setMode('createBook')}
+            className="text-amber-400 hover:text-amber-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       )}
     </div>
@@ -429,7 +489,6 @@ interface FormState {
   expectedShipping: string
   photoCredit: string
   sourceUrl: string
-  linkedEditions: LinkedEdition[]
 }
 
 const EMPTY_FORM: FormState = {
@@ -446,7 +505,6 @@ const EMPTY_FORM: FormState = {
   expectedShipping: '',
   photoCredit: '',
   sourceUrl: '',
-  linkedEditions: [],
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
@@ -456,11 +514,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     ...(a.imageUrl ? [a.imageUrl] : []),
     ...extraImages,
   ]
-  const linkedEditions: LinkedEdition[] = (a.editions ?? []).map(e => ({
-    editionId: e.editionId,
-    bookTitle: e.edition?.book?.title ?? '',
-    coverImage: (e.edition as any)?.additionalImages?.[0] ?? null,
-  }))
   return {
     title: a.title,
     companyId: a.companyId ?? '',
@@ -475,7 +528,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     expectedShipping: (a as any).expectedShipping ?? '',
     photoCredit: a.photoCredit ?? '',
     sourceUrl: (a as any).sourceUrl ?? '',
-    linkedEditions,
   }
 }
 
@@ -496,7 +548,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     expectedShipping: f.expectedShipping || undefined,
     photoCredit: f.photoCredit,
     sourceUrl: f.sourceUrl || undefined,
-    editionIds: f.linkedEditions.length > 0 ? f.linkedEditions.map(e => e.editionId) : undefined,
   }
 }
 
@@ -559,7 +610,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   submitLabel: string
 }) {
   const [form, setForm] = useState<FormState>(initial)
-  const [editionsOpen, setEditionsOpen] = useState(initial.linkedEditions.length > 0)
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
   const setCheck = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -677,34 +727,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           folder="luxgrimoire/announcements"
           onChange={id => setForm(f => ({ ...f, allImages: id ? [id] : [] }))}
         />
-      </div>
-
-      {/* Linked Books — collapsible */}
-      <div className="border border-stone-700 rounded-xl overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setEditionsOpen(o => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-stone-800/60 hover:bg-stone-800 transition-colors text-left"
-        >
-          <span className="flex items-center gap-2 text-sm text-stone-300 font-medium">
-            Linked Books and Signature Types
-            {form.linkedEditions.length > 0 && (
-              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
-                {form.linkedEditions.length}
-              </span>
-            )}
-          </span>
-          <span className="text-stone-500 text-xs">{editionsOpen ? '▲' : '▼'}</span>
-        </button>
-        {editionsOpen && (
-          <div className="p-4 border-t border-stone-700">
-            <EditionPicker
-              linked={form.linkedEditions}
-              onAdd={e => setForm(f => ({ ...f, linkedEditions: [...f.linkedEditions, e] }))}
-              onRemove={id => setForm(f => ({ ...f, linkedEditions: f.linkedEditions.filter(e => e.editionId !== id) }))}
-            />
-          </div>
-        )}
       </div>
 
       {/* Flags */}
@@ -979,6 +1001,14 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
 
   const editions = announcement.editions ?? []
 
+  // Compute default dates for CreateBookEditionForm
+  const defaultRegion = announcement.regions?.find((r: { isDefault?: boolean }) => r.isDefault) ?? announcement.regions?.[0]
+  const dateSource = defaultRegion ?? announcement
+  const saleTz = (defaultRegion?.saleTimezone ?? (announcement as { saleTimezone?: string }).saleTimezone ?? 'UTC')
+  const defaultFirstAccessDate = dateSource.firstAccessDate ? utcIsoToTzLocal(dateSource.firstAccessDate, saleTz).slice(0, 10) : null
+  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? utcIsoToTzLocal(dateSource.earlyAccessDate, saleTz).slice(0, 10) : null
+  const defaultGeneralSaleDate = dateSource.generalSaleDate ? utcIsoToTzLocal(dateSource.generalSaleDate, saleTz).slice(0, 10) : null
+
   const addMutation = useMutation({
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
     onSuccess: () => {
@@ -1165,6 +1195,12 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 }))}
                 onAdd={linked => addMutation.mutate(linked.editionId)}
                 onRemove={editionId => removeMutation.mutate(editionId)}
+                defaultFirstAccessDate={defaultFirstAccessDate}
+                defaultEarlyAccessDate={defaultEarlyAccessDate}
+                defaultGeneralSaleDate={defaultGeneralSaleDate}
+                defaultPrice={announcement.basePrice ?? null}
+                defaultCurrency={announcement.currency ?? null}
+                defaultCompanyId={announcement.companyId ?? null}
               />
               <button
                 type="button"

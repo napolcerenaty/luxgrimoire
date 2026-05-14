@@ -206,6 +206,7 @@ export class CollectionService {
         isWishlist: dto.isWishlist ?? false,
         ownershipStatus: dto.ownershipStatus ?? 'OWNED',
         readingStatus: dto.readingStatus ?? 'UNREAD',
+        ...(dto.saleAnnouncementEditionId && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId }),
       },
     });
     recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus);
@@ -258,6 +259,16 @@ export class CollectionService {
           saleNotes: true,
           signatureType: true,
           subscriptionEntryId: true,
+          saleAnnouncementEditionId: true,
+          saleAnnouncementEdition: {
+            select: {
+              id: true,
+              isReprint: true,
+              announcement: {
+                select: { id: true, title: true, generalSaleDate: true },
+              },
+            },
+          },
           entryTags: {
             where: { userId },
             select: { tag: true },
@@ -342,6 +353,7 @@ export class CollectionService {
         ...(dto.saleVenue !== undefined && { saleVenue: dto.saleVenue }),
         ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
         ...(dto.signatureType !== undefined && { signatureType: (dto.signatureType ?? null) as SignatureType | null }),
+        ...('saleAnnouncementEditionId' in dto && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
       },
     });
     if (effectiveOwnershipStatus !== undefined && effectiveOwnershipStatus !== existing.ownershipStatus) {

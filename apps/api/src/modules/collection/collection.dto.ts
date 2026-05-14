@@ -22,6 +22,7 @@ export class AddToCollectionDto {
   @IsOptional() @IsBoolean() isWishlist?: boolean;
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
+  @IsOptional() @IsString() saleAnnouncementEditionId?: string;
   /** Analytics only — not stored in DB */
   @IsOptional() @IsString() _entityName?: string;
 }
@@ -39,6 +40,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() saleVenue?: string;
   @IsOptional() @IsString() saleNotes?: string;
   @IsOptional() @IsIn(['unsigned', 'signed', 'digitally_signed', 'signed_bookplate', null]) signatureType?: string | null;
+  @IsOptional() @IsString() saleAnnouncementEditionId?: string | null;
 }
 
 export class AddToWishlistDto {

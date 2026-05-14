@@ -694,3 +694,8 @@ export class UpdateBillingModeDto {
   @IsString()
   scheduledPrepayOptionId!: string | null;
 }
+
+export class MigrateMonthsDto {
+  @IsString()
+  targetSubscriptionId!: string;
+}

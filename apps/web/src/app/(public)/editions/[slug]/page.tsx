@@ -31,6 +31,7 @@ interface EditionMonthBook {
 }
 
 interface EditionSaleEdition {
+  id: string
   isReprint?: boolean
   announcement: {
     id: string
@@ -322,6 +323,15 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 <CollectionEntryPanel
                   editionId={edition.id}
                   initialEntryId={initialEntryId ?? null}
+                  saleEditions={saleEditions.map(se => ({
+                    id: se.id,
+                    isReprint: se.isReprint ?? false,
+                    announcement: {
+                      id: se.announcement.id,
+                      title: se.announcement.title,
+                      generalSaleDate: se.announcement.generalSaleDate ?? null,
+                    },
+                  }))}
                 />
               </div>
 

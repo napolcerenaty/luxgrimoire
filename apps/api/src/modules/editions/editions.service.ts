@@ -264,6 +264,7 @@ export class EditionsService {
         saleEditions: {
           orderBy: { announcement: { generalSaleDate: 'asc' as const } },
           select: {
+            id: true,
             isReprint: true,
             announcement: {
               select: {
