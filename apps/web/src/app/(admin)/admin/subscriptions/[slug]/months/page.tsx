@@ -543,6 +543,7 @@ type ScrapedData = {
   year: number | null; month: number | null; theme: string | null
   bookTitle: string | null; bookAuthor: string | null
   imageUrl: string | null; allImages: string[]; sourceUrl: string
+  signatureType: string | null
 }
 
 function ScrapedPreviewForm({
@@ -551,6 +552,7 @@ function ScrapedPreviewForm({
   const [year, setYear] = useState(String(data.year ?? ''))
   const [month, setMonth] = useState(String(data.month ?? ''))
   const [theme, setTheme] = useState(data.theme ?? '')
+  const [signatureType, setSignatureType] = useState(data.signatureType ?? '')
   const [coverImageUrl, setCoverImageUrl] = useState(data.imageUrl ?? '')
   const [bookTitle, setBookTitle] = useState(data.bookTitle ?? '')
   const [bookAuthor, setBookAuthor] = useState(data.bookAuthor ?? '')
@@ -580,6 +582,7 @@ function ScrapedPreviewForm({
         subscriptionId, year: parseInt(year), month: parseInt(month),
         theme: theme || undefined, coverImageUrl: coverImageUrl || undefined,
         bookTitle: bookTitle || undefined, bookAuthor: bookAuthor || undefined,
+        signatureType: signatureType || undefined,
         sourceUrl: data.sourceUrl, allImages: data.allImages,
       }),
     }),
@@ -590,7 +593,7 @@ function ScrapedPreviewForm({
   const saveDirectMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
       method: 'POST',
-      body: JSON.stringify({ year: parseInt(year), month: parseInt(month), theme: theme || undefined, coverImage: coverImageUrl || undefined }),
+      body: JSON.stringify({ year: parseInt(year), month: parseInt(month), theme: theme || undefined, coverImage: coverImageUrl || undefined, signatureType: signatureType || undefined }),
     }),
     onSuccess: () => { alert('Month created directly'); onSaved() },
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -620,6 +623,15 @@ function ScrapedPreviewForm({
       <div>
         <label className={LABEL}>Theme</label>
         <input value={theme} onChange={e => setTheme(e.target.value)} className={INPUT} />
+      </div>
+      <div>
+        <label className={LABEL}>Signature Type</label>
+        <select value={signatureType} onChange={e => setSignatureType(e.target.value)} className={INPUT}>
+          <option value="">None / Unsigned</option>
+          <option value="signed">✍️ Signed</option>
+          <option value="digitally_signed">🖨️ Digitally Signed</option>
+          <option value="signed_bookplate">🏷️ Signed Bookplate</option>
+        </select>
       </div>
       <div>
         <label className={LABEL}>Cover image (Cloudinary public ID or URL)</label>
