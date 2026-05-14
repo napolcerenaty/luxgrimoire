@@ -549,10 +549,13 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
   const [rows, setRows] = useState<CsvRow[]>([])
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setFileName(file.name)
     const reader = new FileReader()
     reader.onload = (ev) => {
       const text = ev.target?.result as string
@@ -618,6 +621,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
     onImported()
     if (errors.length === 0) {
       setRows([])
+      setFileName(null)
     }
   }
 
@@ -645,12 +649,23 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
           </div>
 
           <div>
-            <label className={LABEL}>Choose CSV file</label>
+            <label className={LABEL}>CSV file</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400/20 text-amber-400 hover:bg-amber-400/30 transition-colors"
+              >
+                Choose file
+              </button>
+              <span className="text-stone-400 text-xs">{fileName ?? 'No file selected'}</span>
+            </div>
             <input
+              ref={fileInputRef}
               type="file"
               accept=".csv,text/csv"
               onChange={handleFile}
-              className="block w-full text-sm text-stone-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-400/20 file:text-amber-400 hover:file:bg-amber-400/30 cursor-pointer"
+              className="hidden"
             />
           </div>
 
@@ -663,7 +678,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
                     <span className="text-red-400 ml-2">· {rows.length - validRows.length} with errors</span>
                   )}
                 </div>
-                <button type="button" onClick={() => { setRows([]); setProgress(null) }}
+                <button type="button" onClick={() => { setRows([]); setProgress(null); setFileName(null) }}
                   className="text-stone-500 hover:text-stone-300 text-xs">Clear</button>
               </div>
 
