@@ -300,9 +300,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 {edition.isSpecial && (
                   <Badge variant="default">Special Edition</Badge>
                 )}
-                {hasAnyReprint && (
-                  <Badge variant="default">🔁 Has Reprint</Badge>
-                )}
               </div>
 
               {/* Collection / wishlist actions */}
