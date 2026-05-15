@@ -19,7 +19,7 @@ const ISO_TO_LANGUAGE: Record<string, string> = {
   RO: 'Romanian', UK: 'Ukrainian', JA: 'Japanese', KO: 'Korean', ZH: 'Chinese',
 }
 function resolveLanguage(lang: string | null | undefined): string {
-  if (!lang) return ''
+  if (!lang) return 'English'
   return ISO_TO_LANGUAGE[lang.toUpperCase()] ?? lang
 }
 
