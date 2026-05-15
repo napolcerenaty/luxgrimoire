@@ -286,9 +286,62 @@ export class SubscriptionsService {
       },
     });
     if (!subscription) throw new NotFoundException(`Subscription '${slug}' not found`);
-    const { comboComponents, ...rest } = subscription;
+
+    // If this is a variant subscription, its months live on the parent (content stream).
+    // Replace the empty months array with months from the parent, filtered to this variant's date range.
+    let months = subscription.months;
+    if (subscription.parentSubscriptionId) {
+      const andConditions: Record<string, unknown>[] = [
+        {
+          OR: [
+            { year: { gt: nowYear } },
+            { year: nowYear, month: { gte: nowMonth } },
+          ],
+        },
+      ];
+      if (subscription.startDate) {
+        const sy = subscription.startDate.getFullYear();
+        const sm = subscription.startDate.getMonth() + 1;
+        andConditions.push({ OR: [{ year: { gt: sy } }, { year: sy, month: { gte: sm } }] });
+      }
+      if (subscription.endDate) {
+        const ey = subscription.endDate.getFullYear();
+        const em = subscription.endDate.getMonth() + 1;
+        andConditions.push({ OR: [{ year: { lt: ey } }, { year: ey, month: { lte: em } }] });
+      }
+      months = await this.prisma.subscriptionMonth.findMany({
+        where: { subscriptionId: subscription.parentSubscriptionId, AND: andConditions },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        include: {
+          cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+          books: {
+            include: {
+              book: {
+                select: {
+                  id: true,
+                  title: true,
+                  slug: true,
+                  authors: { select: { author: { select: { name: true, slug: true } } } },
+                },
+              },
+              edition: {
+                select: {
+                  id: true,
+                  slug: true,
+                  publisher: true,
+                  additionalImages: true,
+                },
+              },
+            },
+          },
+        },
+      }) as typeof months;
+    }
+
+    const { comboComponents, months: _months, ...rest } = subscription;
     return {
       ...rest,
+      months,
       componentIds: comboComponents.map((c) => c.componentId),
       components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
     };
@@ -341,7 +394,7 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
@@ -380,6 +433,14 @@ export class SubscriptionsService {
           OR: [{ year: { lt: endYear } }, { year: endYear, month: { lte: endMonth } }],
         });
       }
+    }
+
+    if (fromYear != null) {
+      const fy = fromYear;
+      const fm = fromMonth ?? 1;
+      andConditions.push({
+        OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }],
+      });
     }
 
     const where =
@@ -2020,6 +2081,26 @@ export class SubscriptionsService {
 
     this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h TTL (fallback path)
     return data;
+  }
+
+  async importMonthsFromVariant(parentSlug: string, variantSlug: string) {
+    const parent = await this.findBySlug(parentSlug);
+    const variant = await this.findBySlug(variantSlug);
+
+    if (variant.parentSubscriptionId !== parent.id) {
+      throw new Error(`${variantSlug} is not a variant of ${parentSlug}`);
+    }
+
+    const { count } = await this.prisma.subscriptionMonth.updateMany({
+      where: { subscriptionId: variant.id },
+      data: { subscriptionId: parent.id },
+    });
+
+    // Bust cache for both
+    await this.cache.del(this.subSlugKey(parentSlug));
+    await this.cache.del(this.subSlugKey(variantSlug));
+
+    return { migratedCount: count };
   }
 
   async listPriceChanges(slug: string) {

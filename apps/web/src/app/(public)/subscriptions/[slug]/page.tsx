@@ -330,6 +330,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           slug: (component as unknown as { slug: string }).slug,
           name: (component as unknown as { name: string }).name,
         }))}
+        comboStartDate={sub.isCombo ? sub.startDate ?? null : null}
       />
 
       {/* Series history — streams in via Suspense */}

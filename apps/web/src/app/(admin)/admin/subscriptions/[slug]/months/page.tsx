@@ -869,6 +869,93 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
   )
 }
 
+// ─── Import Months From Variant Panel ────────────────────────────────────────
+function ImportMonthsFromVariantPanel({ parentSlug, parentId }: { parentSlug: string; parentId: string }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [selectedSlug, setSelectedSlug] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+
+  const { data: variantsData } = useQuery<{ data: Array<{ id: string; name: string; slug: string }> }>({
+    queryKey: ['variants-of', parentId],
+    queryFn: () => authFetch(`/subscriptions?parentSubscriptionId=${parentId}&pageSize=100&includeHidden=true`),
+    enabled: open,
+  })
+
+  const variants = variantsData?.data ?? []
+
+  const importMutation = useMutation({
+    mutationFn: () => authFetch<{ migratedCount: number }>(`/subscriptions/${parentSlug}/import-months-from/${selectedSlug}`, { method: 'POST' }),
+    onSuccess: (res: { migratedCount: number }) => {
+      alert(`✓ Imported ${res.migratedCount} month${res.migratedCount !== 1 ? 's' : ''} from variant.`)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', parentSlug, 'months'] })
+      setOpen(false)
+      setSelectedSlug('')
+      setConfirmed(false)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-colors"
+      >
+        ↙ Import months from variant
+      </button>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-purple-700/40 rounded-2xl p-4 space-y-3 w-full">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-stone-100 font-semibold text-sm">Import months from variant</div>
+          <div className="text-stone-400 text-xs mt-0.5">
+            Moves all months from a variant subscription to this content stream. This cannot be undone.
+          </div>
+        </div>
+        <button type="button" onClick={() => { setOpen(false); setSelectedSlug(''); setConfirmed(false) }}
+          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
+      </div>
+
+      <div>
+        <label className={LABEL}>Source variant *</label>
+        {variants.length === 0 ? (
+          <p className="text-stone-500 text-xs">No variants found for this content stream.</p>
+        ) : (
+          <select value={selectedSlug} onChange={e => { setSelectedSlug(e.target.value); setConfirmed(false) }} className={INPUT}>
+            <option value="">— Select variant —</option>
+            {variants.map(v => (
+              <option key={v.id} value={v.slug}>{v.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {selectedSlug && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-amber-400" />
+          <span className="text-xs text-stone-300">
+            I understand this will move all months from the selected variant to this content stream and cannot be undone.
+          </span>
+        </label>
+      )}
+
+      <button
+        type="button"
+        disabled={!selectedSlug || !confirmed || importMutation.isPending}
+        onClick={() => importMutation.mutate()}
+        className="bg-purple-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-purple-400 disabled:opacity-40 text-sm transition-colors"
+      >
+        {importMutation.isPending ? 'Importing…' : 'Import months'}
+      </button>
+    </div>
+  )
+}
+
 // ─── Migrate Months Panel ─────────────────────────────────────────────────────
 function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; companyId?: string | null; monthCount: number }) {
   const [open, setOpen] = useState(false)
@@ -962,7 +1049,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -970,6 +1057,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   const { slug } = use(params)
   const queryClient = useQueryClient()
   const [addMonthOpen, setAddMonthOpen] = useState(false)
+  const [filterEmpty, setFilterEmpty] = useState(false)
   const [loadedPages, setLoadedPages] = useState<Month[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -1004,6 +1092,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   }, [firstPage])
 
   const months = loadedPages.length > 0 ? loadedPages : (firstPage?.data ?? [])
+  const displayedMonths = filterEmpty ? months.filter(m => m.books.length === 0) : months
 
   const loadMore = async () => {
     if (loadingMore || currentPage >= totalPages) return
@@ -1059,9 +1148,11 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             <span className="text-amber-400 text-sm">
               This is a variant subscription. Months are managed on the parent subscription.
             </span>
-            <Link href={`/admin/subscriptions/${subscription.parentSubscription?.slug}/months`} className="text-amber-400 underline text-sm ml-2">
-              Go to parent months →
-            </Link>
+            {subscription.parent?.slug && (
+              <Link href={`/admin/subscriptions/${subscription.parent.slug}/months`} className="text-amber-400 underline text-sm ml-2">
+                Go to parent months →
+              </Link>
+            )}
           </div>
         )}
 
@@ -1073,28 +1164,39 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           </div>
         )}
 
-        {/* Top action row — only buttons, no expanding content */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => setAddMonthOpen(!addMonthOpen)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'}`}
-          >
-            + Add Month
-          </button>
-          {!subscription?.isContentStream && (
-            (() => {
-              const migrateCount = subscription?.parentSubscriptionId
-                ? (ownMonthsData?.total ?? 0)
-                : months.length
-              return migrateCount > 0 ? (
-                <MigrateMonthsPanel
-                  slug={slug}
-                  companyId={subscription?.companyId}
-                  monthCount={migrateCount}
-                />
-              ) : null
-            })()
-          )}
+        {/* Top action row */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => setAddMonthOpen(!addMonthOpen)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'}`}
+            >
+              + Add Month
+            </button>
+            <button
+              onClick={() => setFilterEmpty(f => !f)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${filterEmpty ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
+            >
+              📭 {filterEmpty ? `Without books (${displayedMonths.length})` : 'Show without books'}
+            </button>
+            {!subscription?.isContentStream && (
+              (() => {
+                const migrateCount = subscription?.parentSubscriptionId
+                  ? (ownMonthsData?.total ?? 0)
+                  : months.length
+                return migrateCount > 0 ? (
+                  <MigrateMonthsPanel
+                    slug={slug}
+                    companyId={subscription?.companyId}
+                    monthCount={migrateCount}
+                  />
+                ) : null
+              })()
+            )}
+            {subscription?.isContentStream && subscription.id && (
+              <ImportMonthsFromVariantPanel parentSlug={slug} parentId={subscription.id} />
+            )}
+          </div>
         </div>
 
         {/* Add month form panel */}
@@ -1107,9 +1209,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
             No months yet — add the first one above.
           </div>
+        ) : displayedMonths.length === 0 ? (
+          <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
+            All months have at least one book linked. 🎉
+          </div>
         ) : (
           <div className="space-y-3">
-            {months.map(m => (
+            {displayedMonths.map(m => (
               <MonthCard key={m.id} month={m} slug={slug}
                 subscriptionId={subscription?.id}
                 defaultCurrency={subscription?.currency}

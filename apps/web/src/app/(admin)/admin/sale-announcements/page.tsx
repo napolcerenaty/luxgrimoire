@@ -1153,7 +1153,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
-      setAddMode(false)
+      if (!announcement.isBundle) setAddMode(false)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
@@ -1400,18 +1400,30 @@ function AnnouncementCard({
               <h3 className="text-stone-100 font-medium truncate">{announcement.title}</h3>
               {/* Signature + bundle badges */}
               {(() => {
-                const types = new Set(
-                  (announcement.editions ?? []).flatMap(e => (e.variants ?? []).map(v => v.signatureType))
-                )
-                const signedBadge = types.has('signed')
-                  ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">✍️ Signed</span>
-                  : types.has('digitally_signed')
-                    ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">🖨️ Digitally Signed</span>
-                    : null
-                return (announcement.isBundle || signedBadge) ? (
+                const counts: Record<string, number> = {}
+                for (const e of (announcement.editions ?? [])) {
+                  for (const v of (e.variants ?? [])) {
+                    if (v.signatureType) counts[v.signatureType] = (counts[v.signatureType] ?? 0) + 1
+                  }
+                }
+                const sigLabels: Record<string, string> = {
+                  signed: '✍️ Signed',
+                  autopen: '✒️ Autopen',
+                  digitally_signed: '🖨️ Digitally Signed',
+                  signed_bookplate: '🏷️ Bookplate',
+                  unsigned: 'Unsigned',
+                }
+                const entries = Object.entries(counts)
+                const totalVariants = entries.reduce((s, [, c]) => s + c, 0)
+                const badges = entries.map(([type, count]) => (
+                  <span key={type} className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
+                    {sigLabels[type] ?? type}{totalVariants > 1 ? ` ×${count}` : ''}
+                  </span>
+                ))
+                return (announcement.isBundle || badges.length > 0) ? (
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {announcement.isBundle && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>}
-                    {signedBadge}
+                    {badges}
                   </div>
                 ) : null
               })()}

@@ -107,7 +107,7 @@ export class SubscriptionsController {
   @Public()
   @Get(':slug/months')
   getMonths(@Param('slug') slug: string, @Query() query: MonthQueryDto) {
-    return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12, query.all ?? false, query.ownOnly ?? false);
+    return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12, query.all ?? false, query.ownOnly ?? false, query.fromYear, query.fromMonth);
   }
 
   @ApiBearerAuth()
@@ -362,6 +362,19 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/import-months-from/:variantSlug')
+  async importMonthsFromVariant(
+    @Param('slug') slug: string,
+    @Param('variantSlug') variantSlug: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.importMonthsFromVariant(slug, variantSlug);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'IMPORT_MONTHS_FROM_VARIANT', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
   @Get(':slug/price-changes')
   listPriceChanges(@Param('slug') slug: string) {
     return this.subscriptionsService.listPriceChanges(slug);

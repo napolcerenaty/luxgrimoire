@@ -257,7 +257,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [savingPrint, setSavingPrint] = useState(false)
 
   // Status dropdowns (inline, no save form)
-  const [activeDropdown, setActiveDropdown] = useState<'ownership' | 'reading' | 'signature' | null>(null)
+  const [activeDropdown, setActiveDropdown] = useState<'ownership' | 'reading' | 'signature' | 'print' | null>(null)
   const [savingStatus, setSavingStatus] = useState(false)
 
   // Edit state — purchase group
@@ -473,11 +473,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     }
   }
 
-  async function savePrint(saleAnnouncementEditionId: string | null) {
+  async function savePrint(saleAnnouncementEditionId: string | null, isOriginalPrint?: boolean) {
     setSavingPrint(true)
     try {
-      // Backend auto-derives isOriginalPrint from saleAnnouncementEditionId presence
-      await patchEntry({ saleAnnouncementEditionId: saleAnnouncementEditionId || null })
+      await patchEntry({ saleAnnouncementEditionId: saleAnnouncementEditionId || null, ...(isOriginalPrint !== undefined ? { isOriginalPrint } : {}) })
     } finally {
       setSavingPrint(false)
     }
@@ -1432,56 +1431,71 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           </div>
 
-          {/* Print picker — shown only when reprints exist for this edition */}
-          {saleEditions.some(se => se.isReprint) && (
-            <div className="flex items-center gap-2 flex-wrap mt-1">
-              <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Print:</span>
-              {entry.isOriginalPrint && !entry.saleAnnouncementEditionId ? (
-                <span className="text-xs px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
-                  📗 Original print
-                </span>
-              ) : entry.saleAnnouncementEdition ? (
-                <span className="text-xs px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
-                  🔁 Reprint — {entry.saleAnnouncementEdition.announcement.title}
-                  {(() => {
+          {/* Print pill — shown only when reprints exist for this edition */}
+          {saleEditions.some(se => se.isReprint) && (() => {
+            const currentPrintLabel = entry.isOriginalPrint && !entry.saleAnnouncementEditionId
+              ? '📗 Original print'
+              : entry.saleAnnouncementEdition
+                ? (() => {
                     const saDate = entry.saleAnnouncementEdition.announcement.generalSaleDate
                     const edDate = editionGeneralSaleDate
-                    if (!saDate) return null
-                    const sa = new Date(saDate)
+                    const sa = saDate ? new Date(saDate) : null
                     const ed = edDate ? new Date(edDate) : null
-                    const sameMonthYear = ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
-                    if (sameMonthYear) return null
-                    return <span className="ml-1 opacity-60">({sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})</span>
-                  })()}
-                </span>
-              ) : null}
-              <select
-                value={entry.saleAnnouncementEditionId ?? (entry.isOriginalPrint ? '__original__' : '')}
-                onChange={e => {
-                  const v = e.target.value
-                  savePrint(v === '__original__' ? null : (v || null))
-                }}
-                disabled={savingPrint}
-                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50 max-w-[260px] truncate"
-              >
-                <option value="">Unknown / not set</option>
-                <option value="__original__">📗 Original print</option>
-                {saleEditions.filter(se => se.isReprint).map(se => {
-                  const saDate = se.announcement.generalSaleDate
-                  const edDate = editionGeneralSaleDate
-                  const sa = saDate ? new Date(saDate) : null
-                  const ed = edDate ? new Date(edDate) : null
-                  const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
-                  const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
-                  return (
-                    <option key={se.id} value={se.id}>
-                      🔁 Reprint — {se.announcement.title}{dateSuffix}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-          )}
+                    const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
+                    const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
+                    return `🔁 Reprint — ${entry.saleAnnouncementEdition.announcement.title}${dateSuffix}`
+                  })()
+                : '❓ Unknown print'
+            return (
+              <div className="relative mt-1">
+                <button
+                  onClick={() => setActiveDropdown(prev => prev === 'print' ? null : 'print')}
+                  disabled={savingPrint}
+                  className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50 max-w-[280px] truncate"
+                >
+                  <span className="truncate">{currentPrintLabel}</span>
+                  <ChevronDown size={10} className="shrink-0" />
+                </button>
+                {activeDropdown === 'print' && (
+                  <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[200px] max-w-[320px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
+                    <button
+                      onClick={() => { savePrint(null, false); setActiveDropdown(null) }}
+                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors truncate ${!entry.saleAnnouncementEditionId && !entry.isOriginalPrint ? 'font-semibold' : ''}`}
+                      style={{ color: !entry.saleAnnouncementEditionId && !entry.isOriginalPrint ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                    >
+                      ❓ Unknown print
+                    </button>
+                    <button
+                      onClick={() => { savePrint(null, true); setActiveDropdown(null) }}
+                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors truncate ${entry.isOriginalPrint && !entry.saleAnnouncementEditionId ? 'font-semibold' : ''}`}
+                      style={{ color: entry.isOriginalPrint && !entry.saleAnnouncementEditionId ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                    >
+                      📗 Original print
+                    </button>
+                    {saleEditions.filter(se => se.isReprint).map(se => {
+                      const saDate = se.announcement.generalSaleDate
+                      const edDate = editionGeneralSaleDate
+                      const sa = saDate ? new Date(saDate) : null
+                      const ed = edDate ? new Date(edDate) : null
+                      const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
+                      const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
+                      const isActive = entry.saleAnnouncementEditionId === se.id
+                      return (
+                        <button
+                          key={se.id}
+                          onClick={() => { savePrint(se.id); setActiveDropdown(null) }}
+                          className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors truncate ${isActive ? 'font-semibold' : ''}`}
+                          style={{ color: isActive ? 'var(--text-bright)' : 'var(--text-dim)' }}
+                        >
+                          🔁 Reprint — {se.announcement.title}{dateSuffix}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Tracking card — compact */}

@@ -110,6 +110,18 @@ export default function SubscriptionInfoPanel({
   const { isOpen: showCancelModal, open: openCancelModal, close: closeCancelModal } = useModalState()
   const { isOpen: showRemoveModal, open: openRemoveModal, close: closeRemoveModal } = useModalState()
   const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
+  const [futurePriceChanges, setFuturePriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
+
+  useEffect(() => {
+    authFetch<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>(`/subscriptions/${subscriptionSlug}/price-changes`)
+      .then(data => {
+        if (!Array.isArray(data)) return
+        const now = new Date()
+        const cur = now.getFullYear() * 100 + (now.getMonth() + 1)
+        setFuturePriceChanges(data.filter(pc => pc.effectiveYear * 100 + pc.effectiveMonth > cur))
+      })
+      .catch(() => {})
+  }, [subscriptionSlug])
 
   const userCurrency = user?.preferredCurrency
   const showConversion = !!userCurrency && userCurrency !== currency
@@ -380,6 +392,14 @@ export default function SubscriptionInfoPanel({
             </p>
           )}
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+          {futurePriceChanges.map(pc => (
+            <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-amber-500/80 mt-1">
+              From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
+              {convertedRate && userCurrency && pc.currency === currency && (
+                <> ≈ {(parseFloat(pc.newBasePrice) * convertedRate).toFixed(2)} {userCurrency}/mo</>
+              )}
+            </p>
+          ))}
         </>
       ) : (
         <>
@@ -388,6 +408,11 @@ export default function SubscriptionInfoPanel({
             {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
           </p>
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+          {futurePriceChanges.map(pc => (
+            <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-amber-500/80 mt-1">
+              From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
+            </p>
+          ))}
         </>
       )}
       {user && !isSubscriber && countryFeeHints.length > 0 && (
