@@ -82,6 +82,12 @@ SIGNATURE RULES (read before artist rules):
 - "Foiled Author Signature" means a foil-stamped facsimile of the author's signature — it is NOT a hand-signed copy. In that case:
   - Add "Foiled Author Signature" (exact phrase, capitalised) to the features array — do NOT add "signed" or "digitally signed"
   - Example: "Foiled Author Signature" → features: ["Foiled Author Signature"]
+- If the text contains phrases like "signed by the author on a page designed by @artist", "hand-signed by the author on a page designed by @artist", or similar (author signs on a page whose DESIGN is credited to @artist):
+  - Add "signed" to the features array (it IS a hand-signed copy)
+  - Add the @artist as an artist entry with role: "author signature page"
+  - Do NOT add the author as an artist entry
+  - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
+  - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
 
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
