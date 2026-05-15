@@ -168,6 +168,17 @@ describe('RenewalCronService', () => {
   describe('retroactivelyAddBookForSubscribers', () => {
     const monthRecord = { id: 'month-1', year: 2025, month: 3, signatureType: null };
 
+    beforeEach(() => {
+      // retroactivelyAddBookForSubscribers always fetches childSubs and directSub first;
+      // default to no children and a basic direct sub so tests don't need to repeat this.
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+        renewalMonthOffset: 0,
+        isBundleSubscription: false,
+        intervalMonths: 1,
+      });
+    });
+
     it('returns early when book.editionId is null', async () => {
       await service.retroactivelyAddBookForSubscribers(
         'sub-1',
