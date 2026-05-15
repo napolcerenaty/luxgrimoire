@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandTextClasses } from '@/lib/brandGradient'
 import { Badge } from '@/components/ui/Badge'
 import { BackButton } from '@/components/ui/BackButton'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
@@ -408,14 +409,21 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
               : { background: 'linear-gradient(135deg, #0c0a09 0%, #1c1917 60%, #0c0a09 100%)' }
           }
         >
-          <span className="text-stone-400 font-serif text-base tracking-widest uppercase">
-            {monthName} {monthData.year}
-          </span>
-          {monthData.theme && (
-            <span className="text-stone-500 text-xs italic px-6 text-center line-clamp-2">
-              {monthData.theme}
-            </span>
-          )}
+          {(() => {
+            const tc = brandTextClasses(accentColors)
+            return (
+              <>
+                <span className={`font-serif text-base tracking-widest uppercase ${tc.primary}`}>
+                  {monthName} {monthData.year}
+                </span>
+                {monthData.theme && (
+                  <span className={`text-xs italic px-6 text-center line-clamp-2 ${tc.secondary}`}>
+                    {monthData.theme}
+                  </span>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
