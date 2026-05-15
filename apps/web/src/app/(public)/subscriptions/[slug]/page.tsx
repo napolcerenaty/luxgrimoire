@@ -80,9 +80,10 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
   const currentMonth = months.find(
     (m) => m.year === nowYear && m.month === nowMonth,
   )
-  const upcomingMonth = months.find(
-    (m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth),
-  )
+  // upcoming = earliest future month (sort ascending to find the next one, not the last)
+  const upcomingMonth = [...months]
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
+    .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
@@ -137,7 +138,9 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     const compMonths = ((component as unknown as { months?: ApiSubscriptionMonth[] }).months ?? [])
       .sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
     const cur = compMonths.find((m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1)
-    const upc = compMonths.find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
+    const upc = [...compMonths]
+      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
+      .find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
     return { component: component as unknown as { id: string; slug: string; name: string }, currentMonth: cur, upcomingMonth: upc }
   }).filter(Boolean) as { component: { id: string; slug: string; name: string }; currentMonth?: ApiSubscriptionMonth; upcomingMonth?: ApiSubscriptionMonth }[]
 
