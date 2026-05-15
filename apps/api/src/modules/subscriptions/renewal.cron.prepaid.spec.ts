@@ -27,7 +27,6 @@ const BASE_ENTRY = {
   costCurrency: 'USD' as string | null,
   basePrice: { toString: () => '30' },
   shippingCost: { toString: () => '5' },
-  isDefaultPricing: true,
 };
 
 /** One book in the month */

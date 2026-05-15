@@ -695,7 +695,6 @@ model UserSubscriptionEntry {
   prepaidMonths      Int                                @default(1)
   costCurrency       String?
   basePrice          Decimal?                           @db.Decimal(10, 2)
-  isDefaultPricing   Boolean                            @default(true)
   cancellationReason String?
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?

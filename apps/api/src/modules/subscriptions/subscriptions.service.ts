@@ -675,7 +675,6 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
-        isDefaultPricing: true,
         skipRecords: {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
@@ -758,7 +757,6 @@ export class SubscriptionsService {
           renewalYear,
           renewalMonth,
           fallbackBase,
-          (entry as any).isDefaultPricing !== false,
         );
         if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
           nextBase = resolved.price;
@@ -917,7 +915,7 @@ export class SubscriptionsService {
     await this.prisma.userSubscriptionEntry.update({
       where: { id: entry.id },
       data: {
-        ...(dto.basePrice !== undefined && { basePrice: dto.basePrice, isDefaultPricing: false }),
+        ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
@@ -1411,8 +1409,6 @@ export class SubscriptionsService {
         where: { subscriptionId: sub.id },
         orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
       });
-      const isDefaultPricing = (entry as any).isDefaultPricing !== false;
-
       const feesToCreate: {
         userId: string; feeTemplateId?: string | null; name: string; amount: number;
         currency: string; date: Date; category: any; purchaseGroupId: string;
@@ -1451,7 +1447,7 @@ export class SubscriptionsService {
               return [y, m] as [number, number];
             })();
         const renewalDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
-        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, isDefaultPricing);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase);
         const basePrice = resolved.price ?? fallbackBase;
 
         const group = await this.prisma.userPurchaseGroup.create({
@@ -1534,7 +1530,6 @@ export class SubscriptionsService {
       where: { subscriptionId: sub.id },
       orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
     });
-    const isDefaultPricing = (entry as any).isDefaultPricing !== false;
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
 
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
@@ -1581,7 +1576,7 @@ export class SubscriptionsService {
       const batchIdx = batchInfo?.batchIndex;
 
       // Determine amounts
-      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, isDefaultPricing);
+      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);

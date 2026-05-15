@@ -7,17 +7,15 @@ type PriceChange = {
 
 /**
  * Resolves the effective base price for a given month/year from subscription-level price changes.
- * Returns the most recent applicable price change, or null if none applies.
- * Only applies to entries where isDefaultPricing=true.
+ * Returns the most recent applicable price change, or the fallback price if none applies.
  */
 export function resolveEffectiveBasePrice(
   priceChanges: PriceChange[],
   year: number,
   month: number,
   fallbackPrice: number | null,
-  isDefaultPricing: boolean,
 ): { price: number | null; currency: string | null; fromPriceChange: boolean } {
-  if (!isDefaultPricing || priceChanges.length === 0) {
+  if (priceChanges.length === 0) {
     return { price: fallbackPrice, currency: null, fromPriceChange: false };
   }
   const applicable = priceChanges
