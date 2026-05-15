@@ -1438,12 +1438,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               : entry.saleAnnouncementEdition
                 ? (() => {
                     const saDate = entry.saleAnnouncementEdition.announcement.generalSaleDate
-                    const edDate = editionGeneralSaleDate
                     const sa = saDate ? new Date(saDate) : null
-                    const ed = edDate ? new Date(edDate) : null
-                    const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
-                    const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
-                    return `🔁 Reprint — ${entry.saleAnnouncementEdition.announcement.title}${dateSuffix}`
+                    const dateStr = sa ? sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : null
+                    return dateStr ? `🔁 Reprint · ${dateStr}` : `🔁 Reprint — ${entry.saleAnnouncementEdition.announcement.title}`
                   })()
                 : '❓ Unknown print'
             return (
@@ -1474,11 +1471,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     </button>
                     {saleEditions.filter(se => se.isReprint).map(se => {
                       const saDate = se.announcement.generalSaleDate
-                      const edDate = editionGeneralSaleDate
                       const sa = saDate ? new Date(saDate) : null
-                      const ed = edDate ? new Date(edDate) : null
-                      const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
-                      const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
+                      const dateStr = sa ? sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : null
                       const isActive = entry.saleAnnouncementEditionId === se.id
                       return (
                         <button
@@ -1487,7 +1481,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors truncate ${isActive ? 'font-semibold' : ''}`}
                           style={{ color: isActive ? 'var(--text-bright)' : 'var(--text-dim)' }}
                         >
-                          🔁 Reprint — {se.announcement.title}{dateSuffix}
+                          🔁 {dateStr ? `${dateStr} — ${se.announcement.title}` : `Reprint — ${se.announcement.title}`}
                         </button>
                       )
                     })}

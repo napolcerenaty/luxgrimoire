@@ -76,6 +76,45 @@ export class SubscriptionsService {
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
+  /** Upsert the sentinel price change record (year=1900, month=1) that represents
+   *  the subscription's initial/base price. This is always the fallback in
+   *  resolveEffectiveBasePrice for any month before the first explicit change. */
+  private async upsertSentinelPrice(subscriptionId: string, price: string, currency: string): Promise<void> {
+    await this.prisma.subscriptionPriceChange.upsert({
+      where: {
+        subscriptionId_effectiveYear_effectiveMonth: {
+          subscriptionId,
+          effectiveYear: 1900,
+          effectiveMonth: 1,
+        },
+      },
+      create: {
+        subscriptionId,
+        effectiveYear: 1900,
+        effectiveMonth: 1,
+        newBasePrice: parseFloat(price),
+        currency: currency || 'EUR',
+        notes: null,
+      },
+      update: {
+        newBasePrice: parseFloat(price),
+        currency: currency || 'EUR',
+      },
+    });
+  }
+
+  /** Compute the current effective price from a subscription's price change records.
+   *  Returns the sentinel price (year=1900) as "base price", or null if no records exist. */
+  private computeCurrentPrice(
+    priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string } }[],
+  ): string | null {
+    if (!priceChanges.length) return null;
+    // Sentinel (1900/1) is the base price; any later record overrides it for that period.
+    // For display purposes, return the sentinel price as the "subscription base price".
+    const sentinel = priceChanges.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    return sentinel ? parseFloat(sentinel.newBasePrice.toString()).toFixed(2) : null;
+  }
+
   async create(dto: CreateSubscriptionDto) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { id: dto.companyId },
@@ -83,6 +122,7 @@ export class SubscriptionsService {
     if (!company) throw new NotFoundException(`Company '${dto.companyId}' not found`);
 
     const slug = generateSlugFromParts(company.name, dto.name);
+    const currency = dto.currency ?? 'EUR';
     const subscription = await this.prisma.subscription.create({
       data: {
         slug,
@@ -96,8 +136,7 @@ export class SubscriptionsService {
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         isDiscontinued: dto.isDiscontinued ?? false,
-        currency: dto.currency ?? 'EUR',
-        price: dto.price,
+        currency,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
         intervalMonths: dto.intervalMonths ?? 1,
@@ -115,6 +154,12 @@ export class SubscriptionsService {
         isBundleSubscription: dto.isBundleSubscription ?? false,
       },
     });
+
+    // Auto-create sentinel price change record so resolveEffectiveBasePrice
+    // always has a match, even for months before any explicit price change.
+    if (dto.price) {
+      await this.upsertSentinelPrice(subscription.id, dto.price, currency);
+    }
 
     // Set combo components
     if (dto.componentIds?.length) {
@@ -155,14 +200,16 @@ export class SubscriptionsService {
           company: { select: { id: true, slug: true, name: true, logoUrl: true } },
           skipPolicy: true,
           comboComponents: { select: { componentId: true } },
+          priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.subscription.count({ where }),
     ]);
 
-    const mapped = data.map(({ comboComponents, ...rest }) => ({
+    const mapped = data.map(({ comboComponents, priceChanges, ...rest }) => ({
       ...rest,
+      price: this.computeCurrentPrice(priceChanges),
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
 
@@ -207,6 +254,7 @@ export class SubscriptionsService {
         skipPolicy: true,
         prepayOptions: { orderBy: { months: 'asc' } },
         parent: { select: { slug: true, name: true } },
+        priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
         comboComponents: {
           include: {
             component: {
@@ -338,9 +386,10 @@ export class SubscriptionsService {
       }) as typeof months;
     }
 
-    const { comboComponents, months: _months, ...rest } = subscription;
+    const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
     return {
       ...rest,
+      price: this.computeCurrentPrice(priceChanges),
       months,
       componentIds: comboComponents.map((c) => c.componentId),
       components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
@@ -349,11 +398,18 @@ export class SubscriptionsService {
 
   async update(slug: string, dto: UpdateSubscriptionDto) {
     const existing = await this.findBySlug(slug);
-    const { componentIds, ...rest } = dto;
+    const { componentIds, price, ...rest } = dto;
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
     const updated = await this.prisma.subscription.update({ where: { slug }, data });
+
+    // If price changed, update the sentinel price change record
+    if (price !== undefined && price !== null) {
+      const currency = (dto.currency ?? existing.currency ?? 'EUR') as string;
+      await this.upsertSentinelPrice(updated.id, price, currency);
+      await this.cache.del(this.subSlugKey(slug));
+    }
 
     // Delete old images from Cloudinary if replaced or cleared
     if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
@@ -757,7 +813,7 @@ export class SubscriptionsService {
             coverImage: true,
             logoUrl: true,
             currency: true,
-            price: true,
+            priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
@@ -770,7 +826,8 @@ export class SubscriptionsService {
     });
 
     return Promise.all(entries.map(async (entry) => {
-      const sub = entry.subscription as any;
+      const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
+      const sub = { ...subRest, price: this.computeCurrentPrice(subPriceChanges ?? []) };
 
       // Use stored nextRenewalDate from DB; fall back to computing if not yet populated
       let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
@@ -809,12 +866,9 @@ export class SubscriptionsService {
       if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
-        const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-          where: { subscriptionId: sub.id },
-          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-        });
+        // Reuse the priceChanges already loaded with the subscription (no extra DB query)
         const resolved = resolveEffectiveBasePrice(
-          subPriceChanges,
+          subPriceChanges ?? [],
           renewalYear,
           renewalMonth,
           fallbackBase,
@@ -2106,7 +2160,10 @@ export class SubscriptionsService {
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: sub.id },
+      where: {
+        subscriptionId: sub.id,
+        NOT: { effectiveYear: 1900 }, // sentinel record is internal; not shown in the list
+      },
       orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
     });
   }
@@ -2144,6 +2201,9 @@ export class SubscriptionsService {
     const change = await this.prisma.subscriptionPriceChange.findUnique({ where: { id } });
     if (!change) throw new NotFoundException('Price change not found');
     if (change.subscriptionId !== sub.id) throw new ForbiddenException();
+    if (change.effectiveYear === 1900 && change.effectiveMonth === 1) {
+      throw new BadRequestException('Cannot delete the initial price record. Update the subscription price instead.');
+    }
     await this.prisma.subscriptionPriceChange.delete({ where: { id } });
     await this.cache.del(this.subSlugKey(slug));
   }

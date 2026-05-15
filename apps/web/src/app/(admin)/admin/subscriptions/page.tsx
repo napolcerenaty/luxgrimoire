@@ -294,6 +294,7 @@ function SubscriptionForm({
             <div>
               <label className={LABEL_CLASS}>Price</label>
               <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
+              <p className="text-xs text-stone-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>

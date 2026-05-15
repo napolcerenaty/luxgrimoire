@@ -1053,6 +1053,21 @@ interface SubscriptionInfo { id: string; name: string; currency?: string | null;
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
+/** Mirrors the backend resolveEffectiveBasePrice — returns the most recent price change
+ *  effective at or before (year, month), or fallback if none applies. */
+function resolveEffectivePrice(
+  priceChanges: PriceChange[],
+  year: number,
+  month: number,
+  fallback: number | null,
+): number | null {
+  const applicable = priceChanges
+    .filter(pc => pc.effectiveYear < year || (pc.effectiveYear === year && pc.effectiveMonth <= month))
+    .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
+  if (applicable.length === 0) return fallback
+  return parseFloat(applicable[0].newBasePrice)
+}
+
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const queryClient = useQueryClient()
@@ -1073,6 +1088,12 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   const { data: firstPage, isLoading } = useQuery<MonthsPage>({
     queryKey: ['admin', 'subscriptions', slug, 'months', 1],
     queryFn: () => authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=1&pageSize=${PAGE_SIZE}`),
+  })
+
+  const { data: priceChanges = [] } = useQuery<PriceChange[]>({
+    queryKey: ['admin', 'subscriptions', slug, 'price-changes'],
+    queryFn: () => authFetch<PriceChange[]>(`/subscriptions/${slug}/price-changes`),
+    enabled: !!subscription,
   })
 
   // Fetch own months count when subscription has a parent (for migration panel)
@@ -1220,7 +1241,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 subscriptionId={subscription?.id}
                 defaultCurrency={subscription?.currency}
                 defaultCompanyId={subscription?.companyId}
-                defaultPrice={subscription?.price}
+                defaultPrice={resolveEffectivePrice(priceChanges, m.year, m.month, subscription?.price ?? null)}
                 renewalDay={subscription?.renewalDay}
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}
