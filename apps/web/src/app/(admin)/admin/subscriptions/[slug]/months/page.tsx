@@ -984,6 +984,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     queryFn: () => authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&page=1&pageSize=${PAGE_SIZE}`),
   })
 
+  // Fetch own months count when subscription has a parent (for migration panel)
+  const { data: ownMonthsData } = useQuery<MonthsPage>({
+    queryKey: ['admin', 'subscriptions', slug, 'months', 'own'],
+    queryFn: () => authFetch<MonthsPage>(`/subscriptions/${slug}/months?all=true&ownOnly=true&page=1&pageSize=1`),
+    enabled: !!subscription?.parentSubscriptionId,
+  })
+
   // Populate loadedPages from firstPage on initial load only (not after manual reloads)
   useEffect(() => {
     if (firstPage && loadedPages.length === 0) {
@@ -1071,12 +1078,19 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           >
             + Add Month
           </button>
-          {!subscription?.isContentStream && months.length > 0 && (
-            <MigrateMonthsPanel
-              slug={slug}
-              companyId={subscription?.companyId}
-              monthCount={months.length}
-            />
+          {!subscription?.isContentStream && (
+            (() => {
+              const migrateCount = subscription?.parentSubscriptionId
+                ? (ownMonthsData?.total ?? 0)
+                : months.length
+              return migrateCount > 0 ? (
+                <MigrateMonthsPanel
+                  slug={slug}
+                  companyId={subscription?.companyId}
+                  monthCount={migrateCount}
+                />
+              ) : null
+            })()
           )}
         </div>
 

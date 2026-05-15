@@ -341,14 +341,14 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12, all = false) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
 
-    const effectiveId = sub.parentSubscriptionId ?? sub.id;
+    const effectiveId = (!ownOnly && sub.parentSubscriptionId) ? sub.parentSubscriptionId : sub.id;
 
     const now = new Date();
     const nowYear = now.getFullYear();

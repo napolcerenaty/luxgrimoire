@@ -432,6 +432,11 @@ export class MonthQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   all?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  ownOnly?: boolean;
 }
 
 export class SubscriptionQueryDto {
