@@ -407,7 +407,6 @@ function SubscriptionForm({
                   onChange={(e) => setField('isBundleSubscription', e.target.checked)}
                   className="accent-amber-400 w-4 h-4" />
                 Bundle — ships multiple months as one package
-                <span className="text-xs text-stone-400">(delivers one book per month for all {form.intervalMonths} months in the renewal window)</span>
               </label>
             )}
           </div>
