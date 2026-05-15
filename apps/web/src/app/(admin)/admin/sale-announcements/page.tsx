@@ -22,6 +22,8 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
+import type { ArtistEntry, AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -281,7 +283,7 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId, isBundle, bundleBasePrice }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
@@ -291,12 +293,57 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   defaultPrice?: number | null
   defaultCurrency?: string | null
   defaultCompanyId?: string | null
+  isBundle?: boolean
+  bundleBasePrice?: number | null
 }){
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null)
   const [mode, setMode] = useState<'search' | 'createBook' | 'createEdition'>('search')
+
+  // ── Bundle Defaults ────────────────────────────────────────────────────────
+  const [bdBookCount, setBdBookCount] = useState('')
+  const [bdLanguage, setBdLanguage] = useState('English')
+  const [bdPublisher, setBdPublisher] = useState('')
+  const [bdCompanyId, setBdCompanyId] = useState(defaultCompanyId ?? '')
+  const [bdCollectionId, setBdCollectionId] = useState('')
+  const [bdArtistsText, setBdArtistsText] = useState('')
+  const [bdArtists, setBdArtists] = useState<ArtistEntry[]>([])
+  const [bdFeatures, setBdFeatures] = useState<string[]>([])
+  const [bdParsing, setBdParsing] = useState(false)
+
+  const perBookPrice = isBundle && bundleBasePrice != null && bdBookCount && Number(bdBookCount) > 0
+    ? Math.round(bundleBasePrice / Number(bdBookCount) * 100) / 100
+    : null
+
+  const { data: companiesResp } = useQuery({
+    queryKey: ['bundle-companies'],
+    queryFn: () => authFetch<{ data: ApiBookBoxCompany[] } | ApiBookBoxCompany[]>('/companies?pageSize=100'),
+    enabled: !!isBundle,
+  })
+  const bdAllCompanies: ApiBookBoxCompany[] = Array.isArray(companiesResp)
+    ? companiesResp
+    : (companiesResp as { data: ApiBookBoxCompany[] })?.data ?? []
+
+  const { data: collectionsResp } = useQuery({
+    queryKey: ['bundle-collections', bdCompanyId],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(`/book-box-collections?companyId=${bdCompanyId}&pageSize=100`),
+    enabled: !!isBundle && !!bdCompanyId,
+  })
+  const bdCollections: { id: string; name: string }[] = collectionsResp?.data ?? []
+
+  const parseBdArtists = async () => {
+    if (!bdArtistsText.trim()) return
+    setBdParsing(true)
+    try {
+      const result = await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
+      if (result?.edition?.artists) setBdArtists(result.edition.artists.map(a => ({ name: a.name, role: a.role ?? '' })))
+      if (result?.edition?.features) setBdFeatures(result.edition.features)
+    } catch { /* ignore */ }
+    setBdParsing(false)
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   const { data: bookResults, isFetching: searching } = useQuery({
     queryKey: ['book-search', debounced],
@@ -361,9 +408,14 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultFirstAccessDate={defaultFirstAccessDate}
           defaultEarlyAccessDate={defaultEarlyAccessDate}
           defaultGeneralSaleDate={defaultGeneralSaleDate}
-          defaultPrice={defaultPrice}
+          defaultPrice={isBundle && perBookPrice != null ? perBookPrice : defaultPrice}
           defaultCurrency={defaultCurrency}
-          defaultCompanyId={defaultCompanyId}
+          defaultCompanyId={bdCompanyId || defaultCompanyId}
+          defaultLanguage={isBundle ? bdLanguage : undefined}
+          defaultPublisher={isBundle ? bdPublisher : undefined}
+          defaultCollectionId={isBundle ? bdCollectionId : undefined}
+          defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
+          defaultFeatures={isBundle && bdFeatures.length > 0 ? bdFeatures : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -383,6 +435,93 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
 
   return (
     <div className="space-y-2">
+      {/* Bundle Defaults panel */}
+      {isBundle && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg p-3 mb-3 space-y-3">
+          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Bundle Defaults</div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Number of Books</label>
+              <input
+                type="number" min="1" className={inputCls}
+                value={bdBookCount}
+                onChange={e => setBdBookCount(e.target.value)}
+                placeholder="e.g. 6"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Price per Book <span className="text-stone-600">(calculated)</span></label>
+              <input
+                type="text" readOnly className={`${inputCls} opacity-60 cursor-default`}
+                value={perBookPrice != null ? String(perBookPrice) : '—'}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Language</label>
+            <input className={inputCls} value={bdLanguage} onChange={e => setBdLanguage(e.target.value)} placeholder="English" />
+          </div>
+
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Publisher</label>
+            <PublisherPicker value={bdPublisher} onChange={setBdPublisher} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Company</label>
+              <select
+                className={inputCls}
+                value={bdCompanyId}
+                onChange={e => { setBdCompanyId(e.target.value); setBdCollectionId('') }}
+              >
+                <option value="">— No company —</option>
+                {bdAllCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Collection</label>
+              <select
+                className={inputCls}
+                value={bdCollectionId}
+                onChange={e => setBdCollectionId(e.target.value)}
+                disabled={!bdCompanyId}
+              >
+                <option value="">— No collection —</option>
+                {bdCollections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Artists &amp; Features <span className="text-stone-600">(paste text, then parse)</span></label>
+            <textarea
+              className={`${inputCls} h-20 resize-none`}
+              value={bdArtistsText}
+              onChange={e => setBdArtistsText(e.target.value)}
+              placeholder="Paste artists/features text here…"
+            />
+            <button
+              type="button"
+              onClick={parseBdArtists}
+              disabled={bdParsing || !bdArtistsText.trim()}
+              className="mt-1 flex items-center gap-1.5 text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2.5 py-1 rounded-lg hover:bg-violet-500/30 disabled:opacity-50 transition-colors"
+            >
+              <Sparkles size={12} />
+              {bdParsing ? 'Parsing…' : 'Parse with AI'}
+            </button>
+            {(bdArtists.length > 0 || bdFeatures.length > 0) && (
+              <div className="mt-2 text-xs text-stone-400 space-y-0.5">
+                {bdArtists.length > 0 && <div>Artists: {bdArtists.map(a => `${a.name}${a.role ? ` (${a.role})` : ''}`).join(', ')}</div>}
+                {bdFeatures.length > 0 && <div>Features: {bdFeatures.join(', ')}</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Linked editions list */}
       {linked.length > 0 && (
         <div className="flex flex-col gap-1 mb-2">
@@ -1202,6 +1341,8 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 defaultPrice={announcement.basePrice ?? null}
                 defaultCurrency={announcement.currency ?? null}
                 defaultCompanyId={announcement.companyId ?? null}
+                isBundle={announcement.isBundle ?? false}
+                bundleBasePrice={announcement.basePrice ?? null}
               />
               <button
                 type="button"
