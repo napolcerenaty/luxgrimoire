@@ -94,6 +94,7 @@ export class PurchaseGroupsService {
       const bookEntries = await Promise.all(
         editions.map((edition) => {
           const signatureType = dto.editionSignatureTypes?.[edition.id];
+          const saeId = dto.editionSaleAnnouncementEditionIds?.[edition.id];
           return tx.userBookEntry.create({
             data: {
               userId,
@@ -101,7 +102,9 @@ export class PurchaseGroupsService {
               editionId: edition.id,
               purchaseGroupId: group.id,
               ownershipStatus: (dto.ownershipStatus as any) ?? 'OWNED',
-              ...(signatureType ? { signatureType: signatureType as any } : {}),
+              isOriginalPrint: !saeId,
+              ...(signatureType && signatureType !== 'unsigned' ? { signatureType: signatureType as any } : {}),
+              ...(saeId ? { saleAnnouncementEditionId: saeId } : {}),
             },
           });
         })

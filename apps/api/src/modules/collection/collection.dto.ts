@@ -41,6 +41,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() saleNotes?: string;
   @IsOptional() @IsIn(['unsigned', 'signed', 'digitally_signed', 'signed_bookplate', null]) signatureType?: string | null;
   @IsOptional() @IsString() saleAnnouncementEditionId?: string | null;
+  @IsOptional() @IsBoolean() isOriginalPrint?: boolean;
 }
 
 export class AddToWishlistDto {

@@ -29,6 +29,13 @@ interface CollectionEntry {
   readingStatus: string
   signatureType: string | null
   trackingNumber: string | null
+  isOriginalPrint: boolean
+  saleAnnouncementEditionId: string | null
+  saleAnnouncementEdition: {
+    id: string
+    isReprint: boolean
+    announcement: { id: string; title: string; generalSaleDate: string | null }
+  } | null
   tags: string[]
   purchaseGroup: {
     id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null
@@ -1002,7 +1009,7 @@ export default function CollectionPage() {
                                 {entry.condition.replace('_', ' ')}
                               </Badge>
                             )}
-                            {entry.signatureType && (
+                            {entry.signatureType && entry.signatureType !== 'unsigned' && (
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                                 entry.signatureType === 'signed'
                                   ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
@@ -1011,6 +1018,11 @@ export default function CollectionPage() {
                                   : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                               }`}>
                                 {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITALLY SIGNED'}
+                              </span>
+                            )}
+                            {entry.saleAnnouncementEdition?.isReprint && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border text-amber-400 bg-amber-500/10 border-amber-500/30">
+                                🔁 REPRINT
                               </span>
                             )}
                           </div>

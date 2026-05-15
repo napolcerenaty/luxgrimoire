@@ -80,6 +80,7 @@ interface CollectionEntry {
   tags: string[]
   purchaseGroup: PurchaseGroup | null
   saleAnnouncementEditionId: string | null
+  isOriginalPrint: boolean
   saleAnnouncementEdition: {
     id: string
     isReprint: boolean
@@ -111,6 +112,7 @@ interface Props {
   editionId: string
   initialEntryId?: string | null
   saleEditions?: SaleEditionOption[]
+  editionGeneralSaleDate?: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -239,7 +241,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [] }: Props) {
+export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
   const { user, loading: authLoading } = useAuth()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
@@ -473,6 +475,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   async function savePrint(saleAnnouncementEditionId: string | null) {
     setSavingPrint(true)
     try {
+      // Backend auto-derives isOriginalPrint from saleAnnouncementEditionId presence
       await patchEntry({ saleAnnouncementEditionId: saleAnnouncementEditionId || null })
     } finally {
       setSavingPrint(false)
@@ -1428,35 +1431,53 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           </div>
 
-          {/* Print picker — shown when there are known sale editions */}
-          {saleEditions.length > 0 && (
+          {/* Print picker — shown only when reprints exist for this edition */}
+          {saleEditions.some(se => se.isReprint) && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Print:</span>
-              {entry.saleAnnouncementEdition && (
+              {entry.isOriginalPrint && !entry.saleAnnouncementEditionId ? (
                 <span className="text-xs px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
-                  {entry.saleAnnouncementEdition.isReprint ? '🔁 Reprint' : '📗 Original'}
-                  {' — '}
-                  {entry.saleAnnouncementEdition.announcement.title}
-                  {entry.saleAnnouncementEdition.announcement.generalSaleDate && (
-                    <span className="ml-1 opacity-60">
-                      ({new Date(entry.saleAnnouncementEdition.announcement.generalSaleDate).getFullYear()})
-                    </span>
-                  )}
+                  📗 Original print
                 </span>
-              )}
+              ) : entry.saleAnnouncementEdition ? (
+                <span className="text-xs px-2 py-0.5 rounded-full border" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
+                  🔁 Reprint — {entry.saleAnnouncementEdition.announcement.title}
+                  {(() => {
+                    const saDate = entry.saleAnnouncementEdition.announcement.generalSaleDate
+                    const edDate = editionGeneralSaleDate
+                    if (!saDate) return null
+                    const sa = new Date(saDate)
+                    const ed = edDate ? new Date(edDate) : null
+                    const sameMonthYear = ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
+                    if (sameMonthYear) return null
+                    return <span className="ml-1 opacity-60">({sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})</span>
+                  })()}
+                </span>
+              ) : null}
               <select
-                value={entry.saleAnnouncementEditionId ?? ''}
-                onChange={e => savePrint(e.target.value || null)}
+                value={entry.saleAnnouncementEditionId ?? (entry.isOriginalPrint ? '__original__' : '')}
+                onChange={e => {
+                  const v = e.target.value
+                  savePrint(v === '__original__' ? null : (v || null))
+                }}
                 disabled={savingPrint}
-                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50"
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 disabled:opacity-50 max-w-[260px] truncate"
               >
                 <option value="">Unknown / not set</option>
-                {saleEditions.map(se => (
-                  <option key={se.id} value={se.id}>
-                    {se.isReprint ? '🔁 Reprint' : '📗 Original'} — {se.announcement.title}
-                    {se.announcement.generalSaleDate ? ` (${new Date(se.announcement.generalSaleDate).getFullYear()})` : ''}
-                  </option>
-                ))}
+                <option value="__original__">📗 Original print</option>
+                {saleEditions.filter(se => se.isReprint).map(se => {
+                  const saDate = se.announcement.generalSaleDate
+                  const edDate = editionGeneralSaleDate
+                  const sa = saDate ? new Date(saDate) : null
+                  const ed = edDate ? new Date(edDate) : null
+                  const sameMonthYear = sa && ed && sa.getFullYear() === ed.getFullYear() && sa.getMonth() === ed.getMonth()
+                  const dateSuffix = sa && !sameMonthYear ? ` (${sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })})` : ''
+                  return (
+                    <option key={se.id} value={se.id}>
+                      🔁 Reprint — {se.announcement.title}{dateSuffix}
+                    </option>
+                  )
+                })}
               </select>
             </div>
           )}

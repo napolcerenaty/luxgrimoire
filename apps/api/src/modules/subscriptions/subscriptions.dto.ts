@@ -458,6 +458,10 @@ export class SubscriptionQueryDto {
 
   @IsOptional()
   @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
   genre?: string;
 
   @IsOptional()

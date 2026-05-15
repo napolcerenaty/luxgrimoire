@@ -393,6 +393,7 @@ export interface CreatePurchaseGroupData {
   sourcePlatform?: string;
   editionIds: string[];
   editionSignatureTypes?: Record<string, string>;
+  editionSaleAnnouncementEditionIds?: Record<string, string>;
 }
 
 export interface UpdatePurchaseGroupData {

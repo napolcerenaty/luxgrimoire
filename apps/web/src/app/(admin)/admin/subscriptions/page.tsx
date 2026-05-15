@@ -797,16 +797,21 @@ export default function AdminSubscriptionsPage() {
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [filterCompanyId, setFilterCompanyId] = useState('')
   const PAGE_SIZE = 15
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
 
   const { data: subsData, isLoading: subsLoading } = useQuery({
-    queryKey: ['admin', 'subscriptions', page, isManager ? managerCompanyId : null],
+    queryKey: ['admin', 'subscriptions', page, isManager ? managerCompanyId : null, search, filterCompanyId],
     queryFn: () => {
-      const companyFilter = isManager && managerCompanyId ? `&companyId=${managerCompanyId}` : ''
-      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}`)
+      const companyFilter = isManager && managerCompanyId
+        ? `&companyId=${managerCompanyId}`
+        : filterCompanyId ? `&companyId=${filterCompanyId}` : ''
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
+      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}${searchParam}`)
     },
     enabled: user !== null,
     placeholderData: keepPreviousData,
@@ -1052,6 +1057,36 @@ export default function AdminSubscriptionsPage() {
         <div className="text-stone-400 py-8 text-center">Loading…</div>
       ) : (
         <>
+          {/* Search & filter bar */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              type="search"
+              placeholder="Search by name…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
+            />
+            {!isManager && companies.length > 0 && (
+              <select
+                value={filterCompanyId}
+                onChange={(e) => { setFilterCompanyId(e.target.value); setPage(1) }}
+                className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+              >
+                <option value="">All companies</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {(search || filterCompanyId) && (
+              <button
+                onClick={() => { setSearch(''); setFilterCompanyId(''); setPage(1) }}
+                className="text-xs text-stone-400 hover:text-stone-200"
+              >
+                ✕ Clear
+              </button>
+            )}
+          </div>
           <DataTable
             columns={columns}
             data={subs}

@@ -134,6 +134,7 @@ export class SubscriptionsService {
     const where: Record<string, unknown> = query.includeHidden ? {} : { isHidden: false, isContentStream: false };
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
+    if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
     if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
