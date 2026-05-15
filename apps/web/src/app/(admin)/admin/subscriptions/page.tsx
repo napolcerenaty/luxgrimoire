@@ -975,7 +975,7 @@ export default function AdminSubscriptionsPage() {
       label: 'Manage',
       render: (row: ApiSubscription) => (
         <>
-          {row.contentType !== 'SERIES' && !row.isCombo && (
+          {row.contentType !== 'SERIES' && !row.isCombo && !row.parentSubscriptionId && (
             <Link
               href={`/admin/subscriptions/${row.slug}/months`}
               className="text-amber-400 text-xs hover:underline"
