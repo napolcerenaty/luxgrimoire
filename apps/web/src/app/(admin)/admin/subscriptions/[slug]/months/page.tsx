@@ -962,7 +962,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parentSubscription?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1061,9 +1061,11 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
             <span className="text-amber-400 text-sm">
               This is a variant subscription. Months are managed on the parent subscription.
             </span>
-            <Link href={`/admin/subscriptions/${subscription.parentSubscription?.slug}/months`} className="text-amber-400 underline text-sm ml-2">
-              Go to parent months →
-            </Link>
+            {subscription.parent?.slug && (
+              <Link href={`/admin/subscriptions/${subscription.parent.slug}/months`} className="text-amber-400 underline text-sm ml-2">
+                Go to parent months →
+              </Link>
+            )}
           </div>
         )}
 
