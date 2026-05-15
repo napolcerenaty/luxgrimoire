@@ -1153,7 +1153,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
-      setAddMode(false)
+      if (!announcement.isBundle) setAddMode(false)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
