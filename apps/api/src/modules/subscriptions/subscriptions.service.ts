@@ -2083,6 +2083,26 @@ export class SubscriptionsService {
     return data;
   }
 
+  async importMonthsFromVariant(parentSlug: string, variantSlug: string) {
+    const parent = await this.findBySlug(parentSlug);
+    const variant = await this.findBySlug(variantSlug);
+
+    if (variant.parentSubscriptionId !== parent.id) {
+      throw new Error(`${variantSlug} is not a variant of ${parentSlug}`);
+    }
+
+    const { count } = await this.prisma.subscriptionMonth.updateMany({
+      where: { subscriptionId: variant.id },
+      data: { subscriptionId: parent.id },
+    });
+
+    // Bust cache for both
+    await this.cache.del(this.subSlugKey(parentSlug));
+    await this.cache.del(this.subSlugKey(variantSlug));
+
+    return { migratedCount: count };
+  }
+
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
