@@ -57,6 +57,7 @@ interface Props {
   totalMonths?: number
   isCombo?: boolean
   comboComponents?: { slug: string; name: string }[]
+  comboStartDate?: string | null
 }
 
 const PAGE_SIZE = 12
@@ -65,16 +66,22 @@ function PreviousBoxesList({
   subscriptionSlug,
   accentColors,
   totalMonths,
-}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number }) {
+  fromYear,
+  fromMonth,
+}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number; fromYear?: number; fromMonth?: number }) {
   const [page, setPage] = useState(1)
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
   const [totalPages, setTotalPages] = useState(1)
 
+  const fromParams = fromYear != null
+    ? `&fromYear=${fromYear}${fromMonth != null ? `&fromMonth=${fromMonth}` : ''}`
+    : ''
+
   const { data, isLoading, isFetching } = useQuery<PaginatedMonths>({
-    queryKey: ['subscription-past-months', subscriptionSlug, page],
+    queryKey: ['subscription-past-months', subscriptionSlug, page, fromYear, fromMonth],
     queryFn: () =>
       apiFetch<PaginatedMonths>(
-        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}`,
+        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}${fromParams}`,
       ),
     staleTime: 1000 * 60 * 5,
   })
@@ -146,9 +153,12 @@ function PreviousBoxesList({
   )
 }
 
-export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents }: Props) {
+export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents, comboStartDate }: Props) {
   const [visible, setVisible] = useState(false)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
+
+  const comboFromYear = comboStartDate ? new Date(comboStartDate).getUTCFullYear() : undefined
+  const comboFromMonth = comboStartDate ? new Date(comboStartDate).getUTCMonth() + 1 : undefined
 
   // For combo: show selector first; for regular: show "View previous boxes" button
   if (!visible) {
@@ -189,7 +199,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
           ))}
         </div>
         {selectedSlug && (
-          <PreviousBoxesList key={selectedSlug} subscriptionSlug={selectedSlug} accentColors={accentColors} />
+          <PreviousBoxesList key={selectedSlug} subscriptionSlug={selectedSlug} accentColors={accentColors} fromYear={comboFromYear} fromMonth={comboFromMonth} />
         )}
       </section>
     )

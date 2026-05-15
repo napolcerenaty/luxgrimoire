@@ -341,7 +341,7 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
@@ -380,6 +380,14 @@ export class SubscriptionsService {
           OR: [{ year: { lt: endYear } }, { year: endYear, month: { lte: endMonth } }],
         });
       }
+    }
+
+    if (fromYear != null) {
+      const fy = fromYear;
+      const fm = fromMonth ?? 1;
+      andConditions.push({
+        OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }],
+      });
     }
 
     const where =
