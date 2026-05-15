@@ -992,7 +992,7 @@ export default function AdminSubscriptionsPage() {
             </Link>
           )}
           <Link
-            href={`/admin/subscriptions/${row.slug}/months#price-changes`}
+            href={`/admin/subscriptions/${row.slug}/prices`}
             className="text-emerald-400 text-xs hover:underline ml-3"
           >
             💰 Prices →
