@@ -233,23 +233,38 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
 
       {/* Featured months (current + upcoming) */}
       {sub.isCombo ? (
-        /* Combo: show current + upcoming per component sub */
+        /* Combo: all current months in one row, all upcoming in another */
         comboFeatured.length > 0 && (
           <section className="mb-12 space-y-8">
-            {comboFeatured.map(({ component, currentMonth: cur, upcomingMonth: upc }) =>
-              (cur || upc) ? (
-                <div key={component.id}>
-                  <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">{component.name}</h3>
-                  <div className={`grid gap-6 ${cur && upc ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
-                    {cur && (
-                      <FeaturedMonthCard label="Current Month" labelVariant="current" monthData={cur} accentColors={brandColors} />
-                    )}
-                    {upc && (
-                      <FeaturedMonthCard label="Upcoming Theme" labelVariant="upcoming" monthData={upc} accentColors={brandColors} />
-                    )}
-                  </div>
+            {comboFeatured.some((f) => f.currentMonth) && (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">Current Month</h3>
+                <div className={`grid gap-4 grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)}`}>
+                  {comboFeatured
+                    .filter((f) => f.currentMonth)
+                    .map(({ component, currentMonth: cur }) => (
+                      <div key={component.id} className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
+                        <FeaturedMonthCard compact label="Current Month" labelVariant="current" monthData={cur!} accentColors={brandColors} />
+                      </div>
+                    ))}
                 </div>
-              ) : null
+              </div>
+            )}
+            {comboFeatured.some((f) => f.upcomingMonth) && (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">Upcoming Theme</h3>
+                <div className={`grid gap-4 grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)}`}>
+                  {comboFeatured
+                    .filter((f) => f.upcomingMonth)
+                    .map(({ component, upcomingMonth: upc }) => (
+                      <div key={component.id} className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
+                        <FeaturedMonthCard compact label="Upcoming Theme" labelVariant="upcoming" monthData={upc!} accentColors={brandColors} />
+                      </div>
+                    ))}
+                </div>
+              </div>
             )}
           </section>
         )
@@ -348,9 +363,10 @@ interface FeaturedMonthCardProps {
   labelVariant: 'current' | 'upcoming'
   monthData: ApiSubscriptionMonth
   accentColors?: string[] | null
+  compact?: boolean
 }
 
-function FeaturedMonthCard({ label, labelVariant, monthData, accentColors }: FeaturedMonthCardProps) {
+function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compact }: FeaturedMonthCardProps) {
   const monthName = MONTH_NAMES[monthData.month - 1]
   // No c_fill — let contain work properly
   const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
@@ -361,7 +377,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors }: Fea
   )
 
   const imageArea = (
-    <div className="group relative overflow-hidden aspect-[16/9] bg-stone-950 cursor-pointer">
+    <div className={`group relative overflow-hidden bg-stone-950 cursor-pointer ${compact ? 'aspect-[4/3]' : 'aspect-[16/9]'}`}>
       {coverUrl ? (
         <>
           {/* Blurred background fill — eliminates hard letterboxing */}
@@ -455,18 +471,18 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors }: Fea
         imageArea
       )}
 
-      <div className="p-5">
-        <p className="text-stone-100 font-serif font-bold text-lg mb-1">
+      <div className={compact ? 'p-3' : 'p-5'}>
+        <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
           {monthName} {monthData.year}
         </p>
 
         {monthData.theme ? (
-          <p className="text-stone-200 text-sm font-serif italic mb-3">{monthData.theme}</p>
+          <p className={`text-stone-200 font-serif italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>{monthData.theme}</p>
         ) : (
-          <p className="text-stone-500 text-sm italic mb-3">Theme not announced yet</p>
+          <p className={`text-stone-500 italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>Theme not announced yet</p>
         )}
 
-        {monthData.cardArtist && (
+        {!compact && monthData.cardArtist && (
           <Link
             href={`/artists/${monthData.cardArtist.slug}`}
             className="inline-block text-xs text-stone-500 hover:text-amber-400 transition-colors mb-3"
