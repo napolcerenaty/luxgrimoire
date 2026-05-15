@@ -1020,6 +1020,11 @@ export default function CollectionPage() {
                                 {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : '🖨️ DIGITALLY SIGNED'}
                               </span>
                             )}
+                            {entry.saleAnnouncementEdition?.isReprint && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border text-amber-400 bg-amber-500/10 border-amber-500/30">
+                                🔁 REPRINT
+                              </span>
+                            )}
                           </div>
 
                           {/* Cost display */}
