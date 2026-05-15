@@ -328,20 +328,75 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           <>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
           </>
-        ) : (
-          <>
-            We know of the following price changes:{' '}
-            {priceChanges.map((pc, i) => (
-              <span key={i}>
-                {i > 0 && ', '}
-                <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
-                {' '}from{' '}
-                <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
-              </span>
-            ))}
-            {'. '}Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-          </>
-        )}
+        ) : (() => {
+          const sorted = [...priceChanges].sort(
+            (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
+          )
+          // Parse start month from firstOrderDate
+          const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
+          const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
+          // Months between two (year,month) pairs — inclusive start, exclusive end
+          const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
+          // Effective price at start (most recent change before/at start, or subscriptionPrice fallback)
+          const effectivePriceAtStart = startY && startM ? (() => {
+            const applicable = sorted
+              .filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
+            return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : (subscriptionPrice ?? basePrice)
+          })() : (subscriptionPrice ?? basePrice)
+          // Build periods from start date through all future changes
+          type Period = { label: string; months: number | null; price: string; cur: string }
+          const periods: Period[] = []
+          if (startY && startM) {
+            const futureChanges = sorted.filter(
+              pc => pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
+            )
+            // Initial period: from start to first future change (or open-ended if none)
+            const first = futureChanges[0]
+            if (first) {
+              const n = monthsBetween(startY, startM, first.effectiveYear, first.effectiveMonth)
+              periods.push({ label: `${MONTH_NAMES[startM - 1]} ${startY} – ${MONTH_NAMES[first.effectiveMonth - 2 < 0 ? 11 : first.effectiveMonth - 2]} ${first.effectiveMonth === 1 ? first.effectiveYear - 1 : first.effectiveYear}`, months: n, price: String(effectivePriceAtStart), cur: costCurrency })
+            }
+            // Each future price change period
+            for (let i = 0; i < futureChanges.length; i++) {
+              const pc = futureChanges[i]
+              const next = futureChanges[i + 1]
+              if (next) {
+                const n = monthsBetween(pc.effectiveYear, pc.effectiveMonth, next.effectiveYear, next.effectiveMonth)
+                periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear} – ${MONTH_NAMES[next.effectiveMonth - 2 < 0 ? 11 : next.effectiveMonth - 2]} ${next.effectiveMonth === 1 ? next.effectiveYear - 1 : next.effectiveYear}`, months: n, price: pc.newBasePrice, cur: pc.currency })
+              } else {
+                periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear}+`, months: null, price: pc.newBasePrice, cur: pc.currency })
+              }
+            }
+          }
+          return (
+            <>
+              We know of the following price changes:{' '}
+              {sorted.map((pc, i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                  {' '}from{' '}
+                  <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                </span>
+              ))}
+              {periods.length > 0 && (
+                <>
+                  {' '}Based on your start date, the backfill breaks down as:
+                  <span className="block mt-1.5 space-y-0.5">
+                    {periods.map((p, i) => (
+                      <span key={i} className="block">
+                        <span className="text-stone-400">{p.label}:</span>{' '}
+                        <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
+                        {p.months !== null && <span className="text-stone-500"> ({p.months} month{p.months !== 1 ? 's' : ''})</span>}
+                      </span>
+                    ))}
+                  </span>
+                </>
+              )}
+              {'. '}Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+            </>
+          )
+        })()}
       </p>
 
       {/* Fee templates */}

@@ -66,10 +66,23 @@ function strHue(str?: string | null) {
   return h % 360
 }
 
+/** Relative luminance (0=black, 1=white) of a #rrggbb hex color. */
+function hexLuminance(hex: string): number {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return 0.5
+  const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+  const r = lin(parseInt(hex.slice(1, 3), 16) / 255)
+  const g = lin(parseInt(hex.slice(3, 5), 16) / 255)
+  const b = lin(parseInt(hex.slice(5, 7), 16) / 255)
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
 /** Returns inline style for a calendar pill.
  *  variant='sale'    → filled background (brand primary color)
  *  variant='renewal' → outline only (transparent bg, border in brand primary color)
- *  lightMode: invert lightness so pills are visible on light background
+ *  lightMode: adapt for light calendar background
+ *
+ *  Text color is chosen via luminance so both light-brand (lavender) and dark-brand (near-black)
+ *  pills stay readable in both themes.
  */
 function pillStyle(
   brandColors: string[] | null | undefined,
@@ -82,22 +95,38 @@ function pillStyle(
   const c = brandColors?.[0]
 
   if (c) {
+    // lum > 0.25 → "light" brand (pastels, light teal) → needs dark text to contrast
+    const isLightBrand = hexLuminance(c) > 0.25
+
     if (lightMode) {
-      const textColor = `color-mix(in srgb, ${c} 60%, #111111)`
-      const borderColor = `color-mix(in srgb, ${c} 70%, #333333)`
+      // Dilute the brand color heavily so even very dark brands produce a light enough background.
+      // Always use near-black text — any 55%-diluted color will have sufficient contrast.
+      const bg = `color-mix(in srgb, ${c} 55%, #dce8f4)`
+      const borderColor = `color-mix(in srgb, ${c} 65%, #444444)`
+      const outlineText = `color-mix(in srgb, ${c} 80%, #1a1a2e)`
       return isFilled
-        ? { background: `color-mix(in srgb, ${c} 85%, #ffffff)`, color: textColor, border: `1px solid ${borderColor}` }
-        : { background: 'transparent', color: textColor, border: `1px solid ${borderColor}` }
+        ? { background: bg, color: '#1a1a2e', border: `1px solid ${borderColor}` }
+        : { background: 'transparent', color: outlineText, border: `1px solid ${borderColor}` }
     }
+
+    // Dark mode: light brands get a more transparent bg so the dark calendar bg bleeds through,
+    // darkening the effective pill colour enough for dark text to contrast.
+    const bgOpacity = isLightBrand ? '99' : 'cc' // 60% vs 80%
+    const textColor = isLightBrand
+      ? `color-mix(in srgb, ${c} 15%, #111111)` // dark text on light-brand pill
+      : `color-mix(in srgb, ${c} 25%, #f0ece6)` // light text on dark-brand pill
+    const outlineText = isLightBrand
+      ? `color-mix(in srgb, ${c} 50%, #c0b8d4)`
+      : `color-mix(in srgb, ${c} 60%, #f0ece6)`
     return isFilled
-      ? { background: `${c}cc`, color: `color-mix(in srgb, ${c} 30%, #f0ece6)`, border: `1px solid ${c}` }
-      : { background: 'transparent', color: `color-mix(in srgb, ${c} 60%, #f0ece6)`, border: `1px solid ${c}aa` }
+      ? { background: `${c}${bgOpacity}`, color: textColor, border: `1px solid ${c}` }
+      : { background: 'transparent', color: outlineText, border: `1px solid ${c}aa` }
   }
 
   // Fallback: hue-based
   if (lightMode) {
     return isFilled
-      ? { background: `hsla(${hue},60%,40%,0.75)`, color: `hsl(${hue},80%,15%)`, border: `1px solid hsla(${hue},60%,35%,0.9)` }
+      ? { background: `hsla(${hue},60%,60%,0.55)`, color: `hsl(${hue},80%,15%)`, border: `1px solid hsla(${hue},60%,35%,0.9)` }
       : { background: 'transparent', color: `hsl(${hue},80%,28%)`, border: `1px solid hsla(${hue},60%,35%,0.55)` }
   }
   return isFilled

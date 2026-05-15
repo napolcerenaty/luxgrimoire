@@ -350,7 +350,6 @@ model Subscription {
   startingMonth        Int?
   intervalMonths       Int                          @default(1)
   language             String?
-  price                String?
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
   isContentStream      Boolean                      @default(false)

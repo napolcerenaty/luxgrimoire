@@ -294,6 +294,7 @@ function SubscriptionForm({
             <div>
               <label className={LABEL_CLASS}>Price</label>
               <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
+              <p className="text-xs text-stone-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>
@@ -992,7 +993,7 @@ export default function AdminSubscriptionsPage() {
             </Link>
           )}
           <Link
-            href={`/admin/subscriptions/${row.slug}/months#price-changes`}
+            href={`/admin/subscriptions/${row.slug}/prices`}
             className="text-emerald-400 text-xs hover:underline ml-3"
           >
             💰 Prices →
