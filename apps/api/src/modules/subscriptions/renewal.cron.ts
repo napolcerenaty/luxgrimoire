@@ -38,7 +38,6 @@ export class RenewalCronService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
-        isDefaultPricing: true,
         nextRenewalDate: true,
         subscription: { select: { renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true } },
       },
@@ -62,7 +61,6 @@ export class RenewalCronService {
     costCurrency: string | null;
     basePrice: { toString(): string } | null;
     shippingCost: { toString(): string } | null;
-    isDefaultPricing?: boolean | null;
     nextRenewalDate: Date | null;
     subscription: { renewalMonthOffset: number; isBundleSubscription: boolean; intervalMonths: number } | null;
   }) {
@@ -115,8 +113,7 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
-      isDefaultPricing?: boolean | null;
-    },
+      },
     year: number,
     month: number,
     renewalDate: Date,
@@ -162,8 +159,7 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
-      isDefaultPricing?: boolean | null;
-    },
+      },
     year: number,
     month: number,
     renewalDate: Date,
@@ -230,7 +226,6 @@ export class RenewalCronService {
         year,
         month,
         fallbackBase,
-        (entry as any).isDefaultPricing !== false,
       );
       basePrice = resolved.price ?? fallbackBase;
       shippingAmount = shippingCost;
@@ -348,8 +343,7 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
-      isDefaultPricing?: boolean | null;
-    },
+      },
     bundleStartYear: number,
     bundleStartMonth: number,
     intervalMonths: number,
@@ -400,8 +394,7 @@ export class RenewalCronService {
       costCurrency: string | null;
       basePrice?: { toString(): string } | null;
       shippingCost?: { toString(): string } | null;
-      isDefaultPricing?: boolean | null;
-    },
+      },
     year: number,
     month: number,
     renewalDate: Date,

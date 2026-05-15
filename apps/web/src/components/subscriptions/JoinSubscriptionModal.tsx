@@ -306,6 +306,10 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
         </div>
       </div>
 
+      <p className="text-xs text-stone-500 leading-relaxed">
+        As we have no historical data of price changes prior to April 2026, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+      </p>
+
       {/* Fee templates */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">

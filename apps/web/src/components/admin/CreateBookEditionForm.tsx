@@ -19,7 +19,7 @@ const ISO_TO_LANGUAGE: Record<string, string> = {
   RO: 'Romanian', UK: 'Ukrainian', JA: 'Japanese', KO: 'Korean', ZH: 'Chinese',
 }
 function resolveLanguage(lang: string | null | undefined): string {
-  if (!lang) return ''
+  if (!lang) return 'English'
   return ISO_TO_LANGUAGE[lang.toUpperCase()] ?? lang
 }
 
@@ -38,6 +38,11 @@ export interface CreateBookEditionFormProps {
   defaultFirstAccessDate?: string | null
   defaultEarlyAccessDate?: string | null
   defaultGeneralSaleDate?: string | null
+  /** Bundle prefill defaults */
+  defaultPublisher?: string
+  defaultCollectionId?: string
+  defaultArtists?: ArtistEntry[]
+  defaultFeatures?: string[]
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
@@ -53,6 +58,7 @@ export default function CreateBookEditionForm({
   defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
+  defaultPublisher, defaultCollectionId, defaultArtists, defaultFeatures,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -77,7 +83,7 @@ export default function CreateBookEditionForm({
   const [companyId, setCompanyId] = useState(defaultCompanyId ?? '')
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
-  const [publisher, setPublisher] = useState('')
+  const [publisher, setPublisher] = useState(defaultPublisher ?? '')
   const [photoCredit, setPhotoCredit] = useState('')
   const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
@@ -89,8 +95,8 @@ export default function CreateBookEditionForm({
     return `${monthYear}-${mm}-${dd}`
   })
   const [allImages, setAllImages] = useState<string[]>([])
-  const [artists, setArtists] = useState<ArtistEntry[]>([])
-  const [features, setFeatures] = useState<string[]>([])
+  const [artists, setArtists] = useState<ArtistEntry[]>(defaultArtists ?? [])
+  const [features, setFeatures] = useState<string[]>(defaultFeatures ?? [])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
 
   // Duplicate detection
@@ -111,7 +117,7 @@ export default function CreateBookEditionForm({
   const companies = companiesData?.data ?? []
 
   // ── Collections (for selected company) ──────────────────────────────────
-  const [collectionId, setCollectionId] = useState('')
+  const [collectionId, setCollectionId] = useState(defaultCollectionId ?? '')
   const { data: collectionsData } = useQuery({
     queryKey: ['edition-form-collections', companyId],
     queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(`/book-box-collections?companyId=${companyId}&pageSize=100`),

@@ -39,7 +39,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsString() saleDate?: string;
   @IsOptional() @IsString() saleVenue?: string;
   @IsOptional() @IsString() saleNotes?: string;
-  @IsOptional() @IsIn(['unsigned', 'signed', 'digitally_signed', 'signed_bookplate', null]) signatureType?: string | null;
+  @IsOptional() @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', null]) signatureType?: string | null;
   @IsOptional() @IsString() saleAnnouncementEditionId?: string | null;
   @IsOptional() @IsBoolean() isOriginalPrint?: boolean;
 }

@@ -598,7 +598,7 @@ export interface ApiSaleAnnouncement {
     currency: string;
     variants: Array<{
       id: string;
-      signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate';
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
       price: number | null;
       currency: string | null;
     }>;

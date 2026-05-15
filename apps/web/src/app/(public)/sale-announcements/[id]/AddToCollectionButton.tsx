@@ -23,6 +23,7 @@ const OWNERSHIP_OPTIONS = [
 const SIGNATURE_LABELS: Record<string, string> = {
   unsigned: 'Unsigned',
   signed: 'Signed',
+  autopen: 'Autopen',
   digitally_signed: 'Digitally Signed',
   signed_bookplate: 'Signed Bookplate',
 }
@@ -33,7 +34,7 @@ export interface SaleEditionData {
   edition: { book?: { title?: string | null } | null } | null
   variants: Array<{
     id: string
-    signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
+    signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
     price: number | null
     currency: string | null
   }>
