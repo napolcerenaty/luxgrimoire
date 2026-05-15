@@ -139,10 +139,11 @@ const READING_COLORS: Record<string, string> = {
 const SIGNATURE_LABELS: Record<string, string> = {
   unsigned: 'Unsigned',
   signed: 'Signed',
+  autopen: 'Autopen',
   digitally_signed: 'Digitally signed',
   signed_bookplate: 'Bookplate',
 }
-const SIGNATURE_TYPES = ['unsigned', 'signed', 'digitally_signed', 'signed_bookplate'] as const
+const SIGNATURE_TYPES = ['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

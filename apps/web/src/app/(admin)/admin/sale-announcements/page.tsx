@@ -990,6 +990,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
 const SIGNATURE_TYPES = [
   { value: 'unsigned', label: 'Unsigned' },
   { value: 'signed', label: 'Signed' },
+  { value: 'autopen', label: 'Autopen' },
   { value: 'digitally_signed', label: 'Digitally Signed' },
   { value: 'signed_bookplate', label: 'Signed Bookplate' },
 ] as const
@@ -1027,7 +1028,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   const setVariantMutation = useMutation({
     mutationFn: ({ editionId, signatureType, price, currency }: {
       editionId: string
-      signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
       price?: number | null
       currency?: string | null
     }) => adminSetAnnouncementVariant(announcement.id, editionId, signatureType, price, currency),
@@ -1038,7 +1039,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   const removeVariantMutation = useMutation({
     mutationFn: ({ editionId, signatureType }: {
       editionId: string
-      signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate'
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
     }) => adminRemoveAnnouncementVariant(announcement.id, editionId, signatureType),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
     onError: (e: Error) => alert(`Error: ${e.message}`),

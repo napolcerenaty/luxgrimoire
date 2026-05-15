@@ -1161,6 +1161,7 @@ enum Role {
 enum SignatureType {
   unsigned
   signed
+  autopen
   digitally_signed
   signed_bookplate
 }

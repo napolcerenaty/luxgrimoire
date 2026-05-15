@@ -302,11 +302,11 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               const entries = Object.entries(counts)
               if (entries.length === 0 && month.signatureType) {
                 // No books yet but month has a default — show it
-                const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : month.signatureType === 'signed_bookplate' ? '🏷️ Signed Bookplate' : 'Unsigned'
+                const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'autopen' ? '✒️ Autopen' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : month.signatureType === 'signed_bookplate' ? '🏷️ Signed Bookplate' : 'Unsigned'
                 return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
               }
               return entries.map(([type, count]) => {
-                const label = type === 'signed' ? '✍️ Signed' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
+                const label = type === 'signed' ? '✍️ Signed' : type === 'autopen' ? '✒️ Autopen' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                 return (
                   <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
                     {label}{month.books.length > 1 ? ` ×${count}` : ''}
@@ -358,6 +358,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             <select value={editSignatureType} onChange={e => setEditSignatureType(e.target.value)} className={INPUT}>
               <option value="">None / Unsigned</option>
               <option value="signed">✍️ Signed</option>
+              <option value="autopen">✒️ Autopen</option>
               <option value="digitally_signed">🖨️ Digitally Signed</option>
               <option value="signed_bookplate">🏷️ Signed Bookplate</option>
             </select>
@@ -406,7 +407,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                         const effective = mb.signatureType ?? month.signatureType
                         if (!effective) return null
                         const isOverride = !!mb.signatureType
-                        const label = effective === 'signed' ? '✍️ Signed' : effective === 'digitally_signed' ? '🖨️ Digitally Signed' : effective === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
+                        const label = effective === 'signed' ? '✍️ Signed' : effective === 'autopen' ? '✒️ Autopen' : effective === 'digitally_signed' ? '🖨️ Digitally Signed' : effective === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                         return (
                           <span className={`text-xs px-1.5 py-0.5 rounded ${isOverride ? 'bg-purple-500/20 text-purple-300' : 'bg-stone-700 text-stone-400'}`}
                             title={isOverride ? 'Book override' : 'From month default'}>
@@ -425,6 +426,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     <option value="">—</option>
                     <option value="unsigned">Unsigned</option>
                     <option value="signed">✍️ Signed</option>
+                    <option value="autopen">✒️ Autopen</option>
                     <option value="digitally_signed">🖨️ Digitally Signed</option>
                     <option value="signed_bookplate">🏷️ Bookplate</option>
                   </select>
@@ -507,6 +509,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
         <select value={signatureType} onChange={e => setSignatureType(e.target.value)} className={INPUT}>
           <option value="">None / Unsigned</option>
           <option value="signed">✍️ Signed</option>
+          <option value="autopen">✒️ Autopen</option>
           <option value="digitally_signed">🖨️ Digitally Signed</option>
           <option value="signed_bookplate">🏷️ Signed Bookplate</option>
         </select>
@@ -576,7 +579,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
         const monthN = parseInt(month)
         const validYear = yearN >= 2000 && yearN <= 2100
         const validMonth = monthN >= 1 && monthN <= 12
-        const validSig = !signatureType || ['signed', 'digitally_signed', 'signed_bookplate', 'unsigned'].includes(signatureType)
+        const validSig = !signatureType || ['signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'unsigned'].includes(signatureType)
 
         const errors: string[] = []
         if (!validYear) errors.push(`invalid year: ${year}`)
@@ -645,7 +648,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
             <div className="font-semibold text-stone-300">CSV format (comma-separated, header optional):</div>
             <code className="text-amber-400/80 block">year,month,theme,signatureType</code>
             <div>Example: <code className="text-stone-300">2024,8,Dark Fairytales,signed</code></div>
-            <div>Valid signature types: <code className="text-stone-300">signed</code>, <code className="text-stone-300">digitally_signed</code>, <code className="text-stone-300">signed_bookplate</code>, <code className="text-stone-300">unsigned</code> (or leave empty)</div>
+            <div>Valid signature types: <code className="text-stone-300">signed</code>, <code className="text-stone-300">autopen</code>, <code className="text-stone-300">digitally_signed</code>, <code className="text-stone-300">signed_bookplate</code>, <code className="text-stone-300">unsigned</code> (or leave empty)</div>
           </div>
 
           <div>

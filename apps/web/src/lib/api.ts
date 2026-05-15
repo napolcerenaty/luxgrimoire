@@ -665,7 +665,7 @@ export async function adminRemoveAnnouncementEdition(id: string, editionId: stri
 
 export async function adminSetAnnouncementVariant(
   id: string, editionId: string,
-  signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
+  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
   price?: number | null, currency?: string | null,
 ): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants`, {
@@ -680,7 +680,7 @@ export async function adminSetAnnouncementVariant(
 
 export async function adminRemoveAnnouncementVariant(
   id: string, editionId: string,
-  signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
+  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
 ): Promise<void> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants/${signatureType}`, {
     credentials: 'include',
