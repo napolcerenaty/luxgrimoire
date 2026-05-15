@@ -189,7 +189,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
           ))}
         </div>
         {selectedSlug && (
-          <PreviousBoxesList subscriptionSlug={selectedSlug} accentColors={accentColors} />
+          <PreviousBoxesList key={selectedSlug} subscriptionSlug={selectedSlug} accentColors={accentColors} />
         )}
       </section>
     )
