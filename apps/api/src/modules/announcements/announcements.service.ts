@@ -167,7 +167,7 @@ export class AnnouncementsService {
   async adminSetVariant(
     id: string,
     editionId: string,
-    signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
+    signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
     price?: number | null,
     currency?: string | null,
   ) {
@@ -208,7 +208,7 @@ export class AnnouncementsService {
   async adminRemoveVariant(
     id: string,
     editionId: string,
-    signatureType: 'unsigned' | 'signed' | 'digitally_signed' | 'signed_bookplate',
+    signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
   ) {
     const link = await this.prisma.saleAnnouncementEdition.findUnique({
       where: { saleId_editionId: { saleId: id, editionId } },
