@@ -19,7 +19,10 @@ import type { CommunityImage } from '@/types/community'
 interface EditionMonthBook {
   month: {
     id: string; year: number; month: number; theme: string | null
-    subscription: { id: string; slug: string; name: string }
+    subscription: {
+      id: string; slug: string; name: string; isContentStream: boolean
+      variants: Array<{ id: string; slug: string; name: string }>
+    }
     series: { id: string; slug: string; name: string } | null
     books: Array<{
       sortOrder: number
@@ -399,16 +402,26 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   const siblings = mb.month.books.filter(
                     (b) => !(b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug))
                   )
+                  const sub = mb.month.subscription
+                  // If sub is a content stream, show its child subscriptions instead
+                  const displaySubs = sub.isContentStream && sub.variants.length > 0
+                    ? sub.variants
+                    : [sub]
                   return (
                     <Fragment key={mb.month.id}>
                       <dt className="text-stone-500">Subscription</dt>
                       <dd>
-                        <Link
-                          href={`/subscriptions/${mb.month.subscription.slug}`}
-                          className="text-amber-400 hover:underline"
-                        >
-                          {mb.month.subscription.name}
-                        </Link>
+                        {displaySubs.map((s, i) => (
+                          <span key={s.id}>
+                            {i > 0 && <span className="text-stone-600 mx-1">/</span>}
+                            <Link
+                              href={`/subscriptions/${s.slug}`}
+                              className="text-amber-400 hover:underline"
+                            >
+                              {s.name}
+                            </Link>
+                          </span>
+                        ))}
                         {mb.month.series && (
                           <span className="text-stone-400 ml-1">· {mb.month.series.name}</span>
                         )}

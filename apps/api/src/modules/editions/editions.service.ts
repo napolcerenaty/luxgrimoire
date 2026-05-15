@@ -246,7 +246,12 @@ export class EditionsService {
             month: {
               select: {
                 id: true, year: true, month: true, theme: true,
-                subscription: { select: { id: true, slug: true, name: true } },
+                subscription: {
+                  select: {
+                    id: true, slug: true, name: true, isContentStream: true,
+                    variants: { select: { id: true, slug: true, name: true } },
+                  },
+                },
                 series: { select: { id: true, slug: true, name: true } },
                 books: {
                   select: {
