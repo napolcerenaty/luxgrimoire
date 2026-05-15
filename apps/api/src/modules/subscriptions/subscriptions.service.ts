@@ -2037,7 +2037,7 @@ export class SubscriptionsService {
 
   async createPriceChange(slug: string, dto: CreatePriceChangeDto) {
     const sub = await this.findBySlug(slug);
-    return this.prisma.subscriptionPriceChange.upsert({
+    const result = await this.prisma.subscriptionPriceChange.upsert({
       where: {
         subscriptionId_effectiveYear_effectiveMonth: {
           subscriptionId: sub.id,
@@ -2059,6 +2059,8 @@ export class SubscriptionsService {
         notes: dto.notes ?? null,
       },
     });
+    await this.cache.del(this.subSlugKey(slug));
+    return result;
   }
 
   async deletePriceChange(slug: string, id: string) {
@@ -2067,6 +2069,7 @@ export class SubscriptionsService {
     if (!change) throw new NotFoundException('Price change not found');
     if (change.subscriptionId !== sub.id) throw new ForbiddenException();
     await this.prisma.subscriptionPriceChange.delete({ where: { id } });
+    await this.cache.del(this.subSlugKey(slug));
   }
 
   private async indexSubscription(subscriptionId: string): Promise<void> {
