@@ -83,8 +83,16 @@ interface LinkedFee {
   customCurrency: string  // fee's own currency (editable)
 }
 
+interface PriceChange {
+  effectiveYear: number
+  effectiveMonth: number
+  newBasePrice: string
+  currency: string
+}
+
 interface Step1Props {
   currency: string
+  subscriptionSlug: string
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
   userDefaultTaxRate?: number | null
@@ -104,7 +112,7 @@ interface Step1Props {
   }) => void
 }
 
-function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -128,6 +136,15 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       if (opt) setBasePrice(parseFloat(String(opt.price)).toFixed(2))
     }
   }
+
+  // Price changes
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([])
+
+  useEffect(() => {
+    authFetch<PriceChange[]>(`/subscriptions/${subscriptionSlug}/price-changes`)
+      .then(data => setPriceChanges(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [subscriptionSlug])
 
   // Fee templates
   const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
@@ -307,7 +324,24 @@ function Step1({ currency, subscriptionRenewalDay, subscriptionPrice, userDefaul
       </div>
 
       <p className="text-xs text-stone-500 leading-relaxed">
-        As we have no historical data of price changes prior to April 2026, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+        {priceChanges.length === 0 ? (
+          <>
+            As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+          </>
+        ) : (
+          <>
+            We know of the following price changes:{' '}
+            {priceChanges.map((pc, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                {' '}from{' '}
+                <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+              </span>
+            ))}
+            {'. '}Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+          </>
+        )}
       </p>
 
       {/* Fee templates */}
@@ -1171,6 +1205,7 @@ export default function JoinSubscriptionModal({
           <>
             <Step1
               currency={subscriptionCurrency}
+              subscriptionSlug={subscriptionSlug}
               subscriptionRenewalDay={subscriptionRenewalDay}
               subscriptionPrice={subscriptionPrice}
               userDefaultTaxRate={userDefaultTaxRate}
