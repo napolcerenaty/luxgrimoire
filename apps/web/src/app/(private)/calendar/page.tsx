@@ -67,8 +67,8 @@ function strHue(str?: string | null) {
 }
 
 /** Returns inline style for a calendar pill.
- *  variant='renewal' → solid border (warm hue offset +0)
- *  variant='sale'    → dashed border (cool hue offset -30), brand uses brandColors[1] if available
+ *  variant='sale'    → filled background (brand primary color)
+ *  variant='renewal' → outline only (transparent bg, border in brand primary color)
  *  lightMode: invert lightness so pills are visible on light background
  */
 function pillStyle(
@@ -77,44 +77,32 @@ function pillStyle(
   variant: 'renewal' | 'sale',
   lightMode = false,
 ) {
-  const isDashed = variant === 'sale'
-  // Pick brand color: sales prefer second brand color if available
-  const c = variant === 'sale'
-    ? (brandColors?.[1] ?? brandColors?.[0])
-    : brandColors?.[0]
+  const isFilled = variant === 'sale'
+  // Always use primary brand color (brandColors[0])
+  const c = brandColors?.[0]
 
   if (c) {
     if (lightMode) {
-      return {
-        background: `${c}28`,
-        // light mode: darken brand color so it's readable on light bg (fixes white/near-white brands)
-        color: `color-mix(in srgb, ${c} 55%, #111111)`,
-        border: `1px ${isDashed ? 'dashed' : 'solid'} color-mix(in srgb, ${c} 60%, #333333)`,
-      }
+      const textColor = `color-mix(in srgb, ${c} 60%, #111111)`
+      const borderColor = `color-mix(in srgb, ${c} 70%, #333333)`
+      return isFilled
+        ? { background: `color-mix(in srgb, ${c} 85%, #ffffff)`, color: textColor, border: `1px solid ${borderColor}` }
+        : { background: 'transparent', color: textColor, border: `1px solid ${borderColor}` }
     }
-    return {
-      // dark mode: higher bg opacity so pill stands out on dark cell
-      background: `${c}50`,
-      // force bright text — blend toward white so dark brand colors remain readable
-      color: `color-mix(in srgb, ${c} 50%, #f0ece6)`,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} ${c}cc`,
-    }
+    return isFilled
+      ? { background: `${c}cc`, color: `color-mix(in srgb, ${c} 30%, #f0ece6)`, border: `1px solid ${c}` }
+      : { background: 'transparent', color: `color-mix(in srgb, ${c} 60%, #f0ece6)`, border: `1px solid ${c}aa` }
   }
 
-  // Fallback: hue-based — shift hue slightly for sales
-  const h = isDashed ? (hue + 210) % 360 : hue
+  // Fallback: hue-based
   if (lightMode) {
-    return {
-      background: `hsla(${h},60%,40%,0.12)`,
-      color: `hsl(${h},80%,28%)`,
-      border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},60%,35%,0.55)`,
-    }
+    return isFilled
+      ? { background: `hsla(${hue},60%,40%,0.75)`, color: `hsl(${hue},80%,15%)`, border: `1px solid hsla(${hue},60%,35%,0.9)` }
+      : { background: 'transparent', color: `hsl(${hue},80%,28%)`, border: `1px solid hsla(${hue},60%,35%,0.55)` }
   }
-  return {
-    background: `hsla(${h},55%,45%,0.40)`,
-    color: `hsl(${h},80%,85%)`,
-    border: `1px ${isDashed ? 'dashed' : 'solid'} hsla(${h},55%,65%,0.70)`,
-  }
+  return isFilled
+    ? { background: `hsla(${hue},55%,50%,0.80)`, color: `hsl(${hue},80%,95%)`, border: `1px solid hsla(${hue},55%,65%,0.90)` }
+    : { background: 'transparent', color: `hsl(${hue},80%,75%)`, border: `1px solid hsla(${hue},55%,65%,0.55)` }
 }
 
 // Returns the renewal day for a given (year, month0) if this is a renewal month, else null
@@ -486,17 +474,19 @@ export default function CalendarPage() {
                   )
                 })}
 
-                {/* Mobile: colored dots */}
+                {/* Mobile: colored dots — sales filled, renewals ring */}
                 {totalEvents > 0 && cell.current && (
                   <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
                     {[
-                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)` })),
-                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue + 210},60%,55%)` })),
+                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)`, outline: true })),
+                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
                         className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: dot.color }}
+                        style={dot.outline
+                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}` }
+                          : { backgroundColor: dot.color }}
                       />
                     ))}
                     {totalEvents > 3 && (
