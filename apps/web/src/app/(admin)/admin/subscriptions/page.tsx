@@ -370,7 +370,7 @@ function SubscriptionForm({
               <input type="number" min={0} max={11} className={INPUT_CLASS}
                 value={form.renewalMonthOffset} onChange={setStr('renewalMonthOffset')} placeholder="0" />
             </div>
-            {parseInt(form.intervalMonths, 10) > 1 && (
+            {(parseInt(form.intervalMonths, 10) > 1 || form.intervalMonths === 'custom') && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
                 <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
@@ -400,7 +400,7 @@ function SubscriptionForm({
                 {label}
               </label>
             ))}
-            {parseInt(form.intervalMonths, 10) > 2 && (
+            {(parseInt(form.intervalMonths, 10) > 2 || form.intervalMonths === 'custom') && (
               <label className="flex items-center gap-2 text-amber-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form.isBundleSubscription}
                   onChange={(e) => setField('isBundleSubscription', e.target.checked)}
