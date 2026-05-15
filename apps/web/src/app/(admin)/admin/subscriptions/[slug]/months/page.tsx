@@ -970,6 +970,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   const { slug } = use(params)
   const queryClient = useQueryClient()
   const [addMonthOpen, setAddMonthOpen] = useState(false)
+  const [filterEmpty, setFilterEmpty] = useState(false)
   const [loadedPages, setLoadedPages] = useState<Month[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -1004,6 +1005,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
   }, [firstPage])
 
   const months = loadedPages.length > 0 ? loadedPages : (firstPage?.data ?? [])
+  const displayedMonths = filterEmpty ? months.filter(m => m.books.length === 0) : months
 
   const loadMore = async () => {
     if (loadingMore || currentPage >= totalPages) return
@@ -1081,6 +1083,12 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           >
             + Add Month
           </button>
+          <button
+            onClick={() => setFilterEmpty(f => !f)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${filterEmpty ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
+          >
+            📭 {filterEmpty ? `Without books (${displayedMonths.length})` : 'Show without books'}
+          </button>
           {!subscription?.isContentStream && (
             (() => {
               const migrateCount = subscription?.parentSubscriptionId
@@ -1107,9 +1115,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
             No months yet — add the first one above.
           </div>
+        ) : displayedMonths.length === 0 ? (
+          <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
+            All months have at least one book linked. 🎉
+          </div>
         ) : (
           <div className="space-y-3">
-            {months.map(m => (
+            {displayedMonths.map(m => (
               <MonthCard key={m.id} month={m} slug={slug}
                 subscriptionId={subscription?.id}
                 defaultCurrency={subscription?.currency}
