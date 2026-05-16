@@ -323,7 +323,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         </div>
       </div>
 
-      <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
+      {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {priceChanges.length === 0 ? (
           <p>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
@@ -401,7 +401,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             </>
           )
         })()}
-      </div>
+      </div>}
 
       {/* Fee templates */}
       <div>
