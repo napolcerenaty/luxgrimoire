@@ -120,6 +120,18 @@ interface Props {
 const OWNERSHIP_STATUSES = ['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const
 const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const
 
+const OWNERSHIP_LABEL: Record<string, string> = {
+  OWNED: 'Own',
+  PREORDER: 'Preorder',
+  SHIPPING: 'Shipping',
+  BORROWED: 'Borrowed',
+  LENDED: 'Lended',
+  TO_SELL: 'To Sell',
+  SOLD: 'Sold',
+  GIFTED_AWAY: 'Gifted Away',
+}
+const fmtOwnership = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
+
 const OWNERSHIP_COLORS: Record<string, string> = {
   OWNED: 'badge-owned',
   PREORDER: 'badge-preorder',
@@ -1352,7 +1364,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 disabled={savingStatus}
                 className={`${OWNERSHIP_COLORS[entry.ownershipStatus] ?? 'badge-owned'} px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50`}
               >
-                {entry.ownershipStatus}
+                {fmtOwnership(entry.ownershipStatus)}
                 <ChevronDown size={10} />
               </button>
               {activeDropdown === 'ownership' && (
@@ -1364,7 +1376,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.ownershipStatus ? 'font-semibold' : ''}`}
                       style={{ color: s === entry.ownershipStatus ? 'var(--text-bright)' : 'var(--text-dim)' }}
                     >
-                      {s}
+                      {fmtOwnership(s)}
                     </button>
                   ))}
                 </div>
@@ -1600,7 +1612,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             onChange={e => setHistoryEditStatus(e.target.value)}
                             className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
                           >
-                            {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                            {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{fmtOwnership(s)}</option>)}
                           </select>
                           <input
                             type="date"
@@ -1619,7 +1631,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         <div key={h.id} className="group flex items-center gap-2 text-xs">
                           <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
                           <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
-                            {h.status}
+                            {fmtOwnership(h.status)}
                           </span>
                           <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
                           <span className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

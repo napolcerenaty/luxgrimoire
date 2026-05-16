@@ -18,7 +18,17 @@ import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-type
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
-const fmtStatus = (s: string) => s.replace(/_/g, ' ')
+const OWNERSHIP_LABEL: Record<string, string> = {
+  OWNED: 'Own',
+  PREORDER: 'Preorder',
+  SHIPPING: 'Shipping',
+  BORROWED: 'Borrowed',
+  LENDED: 'Lended',
+  TO_SELL: 'To Sell',
+  SOLD: 'Sold',
+  GIFTED_AWAY: 'Gifted Away',
+}
+const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
 
 interface CollectionEntry {
   id: string
@@ -926,12 +936,13 @@ export default function CollectionPage() {
               className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
             >
               <option value="ALL">Status: Any</option>
-              <option value="OWNED">Owned</option>
-              <option value="PREORDER">Pre-order</option>
-              <option value="TO_SELL">To Sell</option>
+              <option value="PREORDER">Preorder</option>
               <option value="SHIPPING">Shipping</option>
+              <option value="OWNED">Own</option>
               <option value="BORROWED">Borrowed</option>
-              <option value="LENDED">Lent Out</option>
+              <option value="LENDED">Lended</option>
+              <option value="TO_SELL">To Sell</option>
+              <option value="SOLD">Sold</option>
               <option value="GIFTED_AWAY">Gifted Away</option>
             </select>
 
