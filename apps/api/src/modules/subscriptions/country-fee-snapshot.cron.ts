@@ -54,62 +54,67 @@ export class CountryFeeSnapshotCronService {
     country: string,
   ): Promise<CountryFeeHint[]> {
     const countryUpper = country.toUpperCase();
+    const cutoff = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
 
-    const entries = await this.prisma.userSubscriptionEntry.findMany({
+    // Query actual purchase groups from the last 35 days instead of current entry settings.
+    // This ensures stats reflect what subscribers actually paid, not current (potentially outdated) entry settings.
+    const groups = await this.prisma.userPurchaseGroup.findMany({
       where: {
-        subscriptionId,
-        active: true,
-        OR: [
-          { shippingCountry: countryUpper },
-          { shippingCountry: null, user: { shippingCountry: countryUpper } },
-        ],
+        fromSubscription: true,
+        purchasedAt: { gte: cutoff },
+        subscriptionEntry: {
+          subscriptionId,
+          OR: [
+            { shippingCountry: countryUpper },
+            { shippingCountry: null, user: { shippingCountry: countryUpper } },
+          ],
+        },
       },
       select: {
-        shippingCost: true,
-        costCurrency: true,
-        feeTemplates: {
-          select: {
-            customAmount: true,
-            customCurrency: true,
-            feeTemplate: {
-              select: { category: true, defaultAmount: true, defaultCurrency: true },
-            },
-          },
+        id: true,
+        shippingAmount: true,
+        currency: true,
+        subscriptionEntryId: true,
+        fees: {
+          select: { category: true, amount: true, currency: true },
         },
       },
     });
 
-    if (!entries.length) return [];
+    if (!groups.length) return [];
 
+    // Total unique subscribers who had a renewal in this period
+    const totalEntries = new Set(groups.map(g => g.subscriptionEntryId)).size;
+
+    // Aggregate shipping from actual purchase groups
     const shippingAmounts: number[] = [];
     let shippingCurrency: string | null = null;
     let shippingMixed = false;
 
-    for (const entry of entries) {
-      if (entry.shippingCost != null) {
-        const cur = entry.costCurrency ?? null;
-        shippingAmounts.push(Number(entry.shippingCost));
+    for (const g of groups) {
+      const amt = g.shippingAmount != null ? Number(g.shippingAmount) : null;
+      if (amt != null && amt > 0) {
+        shippingAmounts.push(amt);
+        const cur = g.currency ?? null;
         if (shippingCurrency === null) shippingCurrency = cur;
         else if (shippingCurrency !== cur) shippingMixed = true;
       }
     }
     if (shippingMixed) shippingCurrency = null;
 
-    const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
-    for (const entry of entries) {
-      for (const link of entry.feeTemplates) {
-        const cat = link.feeTemplate.category as string;
-        const amt = link.customAmount ?? link.feeTemplate.defaultAmount;
-        const cur = link.customCurrency ?? link.feeTemplate.defaultCurrency;
-        if (!byCategory.has(cat)) byCategory.set(cat, { count: 0, amounts: [], currency: cur });
+    // Aggregate fees by category from actual purchase fees
+    const byCategory = new Map<string, { entryIds: Set<string>; amounts: number[]; currency: string | null }>();
+    for (const g of groups) {
+      for (const fee of g.fees) {
+        const cat = fee.category as string;
+        if (!byCategory.has(cat)) byCategory.set(cat, { entryIds: new Set(), amounts: [], currency: fee.currency });
         const agg = byCategory.get(cat)!;
-        agg.count++;
-        if (amt != null) agg.amounts.push(Number(amt));
-        if (agg.currency !== cur) agg.currency = null;
+        agg.entryIds.add(g.subscriptionEntryId ?? '');
+        if (fee.amount != null) agg.amounts.push(Number(fee.amount));
+        if (agg.currency !== fee.currency) agg.currency = null;
       }
     }
 
-    const totalEntries = entries.length;
     const avgShipping =
       shippingAmounts.length > 0
         ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
@@ -117,7 +122,7 @@ export class CountryFeeSnapshotCronService {
 
     const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
       category,
-      count: agg.count,
+      count: agg.entryIds.size,
       totalSubscribers: totalEntries,
       avgAmount:
         agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
