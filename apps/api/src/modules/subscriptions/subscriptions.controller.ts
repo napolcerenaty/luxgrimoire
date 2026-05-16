@@ -133,7 +133,7 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Delete(':slug/months/:year/:month')
   deleteMonth(
     @Param('slug') slug: string,
