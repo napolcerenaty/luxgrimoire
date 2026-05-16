@@ -404,6 +404,7 @@ model SubscriptionSkipPolicy {
   unskipDeadlineDayOfMonth Int?
   unskipNotes              String?
   unskipHow                String?
+  eligibleBillingTypes     String   @default("ALL")
   subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("subscription_skip_policies")

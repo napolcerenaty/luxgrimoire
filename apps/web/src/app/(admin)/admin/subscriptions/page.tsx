@@ -64,6 +64,8 @@ interface SubFormData {
   unskipDeadlineDayOfMonth: string
   unskipNotes: string
   unskipHow: string
+  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
+  eligibleBillingTypes: string
 }
 
 const EMPTY_FORM: SubFormData = {
@@ -107,6 +109,7 @@ const EMPTY_FORM: SubFormData = {
   unskipDeadlineDayOfMonth: '',
   unskipNotes: '',
   unskipHow: '',
+  eligibleBillingTypes: 'ALL',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
@@ -152,6 +155,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     unskipDeadlineDayOfMonth: p?.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
     unskipNotes: p?.unskipNotes ?? '',
     unskipHow: p?.unskipHow ?? '',
+    eligibleBillingTypes: p?.eligibleBillingTypes ?? 'ALL',
   }
 }
 
@@ -526,6 +530,16 @@ function SubscriptionForm({
               <option value="FROM_SUB_START">X skips from subscription start</option>
             </select>
           </div>
+          {form.skipPolicyType !== 'NONE' && (
+            <div>
+              <label className={LABEL_CLASS}>Who can skip?</label>
+              <select className={SELECT_CLASS} value={form.eligibleBillingTypes} onChange={setStr('eligibleBillingTypes')}>
+                <option value="ALL">All subscribers</option>
+                <option value="MONTHLY_ONLY">Monthly subscribers only</option>
+                <option value="PREPAID_ONLY">Prepaid subscribers only</option>
+              </select>
+            </div>
+          )}
           {form.skipPolicyType !== 'NONE' && (
             <div className="space-y-2">
               <div>
@@ -945,6 +959,7 @@ export default function AdminSubscriptionsPage() {
             unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
             unskipNotes: form.unskipNotes || undefined,
             unskipHow: form.unskipHow || undefined,
+            eligibleBillingTypes: form.eligibleBillingTypes || 'ALL',
           }),
         })
       }
@@ -981,6 +996,7 @@ export default function AdminSubscriptionsPage() {
           unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
           unskipNotes: form.unskipNotes || undefined,
           unskipHow: form.unskipHow || undefined,
+          eligibleBillingTypes: form.eligibleBillingTypes || 'ALL',
         }),
       })
       return sub

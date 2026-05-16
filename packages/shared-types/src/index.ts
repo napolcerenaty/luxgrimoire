@@ -223,6 +223,8 @@ export interface ApiSubscriptionSkipPolicy {
   unskipDeadlineDayOfMonth: number | null;
   unskipNotes: string | null;
   unskipHow: string | null;
+  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
+  eligibleBillingTypes: string;
 }
 
 export interface ApiSkipStatus {

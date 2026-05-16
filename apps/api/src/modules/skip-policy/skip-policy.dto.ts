@@ -86,6 +86,14 @@ export class UpsertSkipPolicyDto {
   @IsOptional()
   @IsString()
   unskipHow?: string;
+
+  /**
+   * Which billing types can use skips:
+   * "ALL" (default) | "MONTHLY_ONLY" | "PREPAID_ONLY"
+   */
+  @IsOptional()
+  @IsString()
+  eligibleBillingTypes?: string;
 }
 
 export class RecordSkipDto {

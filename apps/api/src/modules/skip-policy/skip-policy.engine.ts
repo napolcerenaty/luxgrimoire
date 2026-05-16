@@ -138,12 +138,12 @@ export class SkipPolicyEngine {
     const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
 
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
-    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline);
+    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
-    const { policy, state } = await this.loadContext(userId, subscriptionSlug);
-    return this.evaluateCanSkip(policy, state);
+    const { policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+    return this.evaluateCanSkip(policy, state, entry.prepaidMonths);
   }
 
   /** Public entry point for recomputing skip state after bulk operations (e.g. backfill) */
@@ -162,7 +162,7 @@ export class SkipPolicyEngine {
     month: number,
   ): Promise<SkipStatus> {
     const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
-    if (!this.evaluateCanSkip(policy, state)) {
+    if (!this.evaluateCanSkip(policy, state, entry.prepaidMonths)) {
       throw new ForbiddenException('Skip not allowed under current policy');
     }
 
@@ -315,7 +315,7 @@ export class SkipPolicyEngine {
   async recordSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
     const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
 
-    if (!this.evaluateCanSkip(policy, state)) {
+    if (!this.evaluateCanSkip(policy, state, entry.prepaidMonths)) {
       throw new ForbiddenException('Skip not allowed under current policy');
     }
 
@@ -489,10 +489,20 @@ export class SkipPolicyEngine {
   }
 
   private evaluateCanSkip(
-    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null } | null,
+    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null; eligibleBillingTypes?: string | null } | null,
     state: { skipsInWindow: number; consecutiveSkips: number } | null,
+    prepaidMonths?: number,
   ): boolean {
     if (!policy || policy.type === 'NONE') return false;
+
+    // Check billing type eligibility
+    const billingType = policy.eligibleBillingTypes ?? 'ALL';
+    if (billingType !== 'ALL' && prepaidMonths !== undefined) {
+      const isPrepaid = prepaidMonths > 1;
+      if (billingType === 'MONTHLY_ONLY' && isPrepaid) return false;
+      if (billingType === 'PREPAID_ONLY' && !isPrepaid) return false;
+    }
+
     if (policy.type === 'UNLIMITED') return true;
 
     const skipsInWindow = state?.skipsInWindow ?? 0;
@@ -549,6 +559,7 @@ export class SkipPolicyEngine {
       allowUnskip?: boolean;
       unskipHow?: string | null;
       unskipNotes?: string | null;
+      eligibleBillingTypes?: string | null;
     } | null,
     state: {
       totalSkips: number;
@@ -562,6 +573,7 @@ export class SkipPolicyEngine {
     forceCanSkip?: boolean,
     firstDeliverableMonth: { year: number; month: number } | null = null,
     unskipDeadline: Date | null = null,
+    prepaidMonths?: number,
   ): SkipStatus {
     const policyType = policy?.type ?? 'NONE';
     const totalSkips = state?.totalSkips ?? 0;
@@ -573,8 +585,19 @@ export class SkipPolicyEngine {
     // canSkip = false if no valid target month exists (nothing to skip), or forced false, or policy disallows
     const canSkip = forceCanSkip !== undefined
       ? forceCanSkip
-      : (deadlineMonth !== null && this.evaluateCanSkip(policy, state));
+      : (deadlineMonth !== null && this.evaluateCanSkip(policy, state, prepaidMonths));
     const warnings = this.computeWarnings(policyType, skipsInWindow, maxSkips, consecutiveSkips, maxConsecutive);
+
+    // Billing type eligibility warning
+    if (policyType !== 'NONE' && prepaidMonths !== undefined) {
+      const billingType = policy?.eligibleBillingTypes ?? 'ALL';
+      const isPrepaid = prepaidMonths > 1;
+      if (billingType === 'MONTHLY_ONLY' && isPrepaid) {
+        warnings.unshift('Skips are not available for prepaid subscriptions.');
+      } else if (billingType === 'PREPAID_ONLY' && !isPrepaid) {
+        warnings.unshift('Skips are only available for prepaid subscriptions.');
+      }
+    }
 
     if (isPastDeadline && policyType !== 'NONE') {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];

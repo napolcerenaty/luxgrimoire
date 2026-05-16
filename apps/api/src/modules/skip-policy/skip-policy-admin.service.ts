@@ -52,6 +52,7 @@ export class SkipPolicyAdminService {
         unskipDeadlineDayOfMonth: dto.unskipDeadlineDayOfMonth ?? null,
         unskipNotes: dto.unskipNotes ?? null,
         unskipHow: dto.unskipHow ?? null,
+        eligibleBillingTypes: dto.eligibleBillingTypes ?? 'ALL',
       },
       update: {
         type: dto.type,
@@ -69,6 +70,7 @@ export class SkipPolicyAdminService {
         unskipDeadlineDayOfMonth: dto.unskipDeadlineDayOfMonth ?? null,
         unskipNotes: dto.unskipNotes ?? null,
         unskipHow: dto.unskipHow ?? null,
+        eligibleBillingTypes: dto.eligibleBillingTypes ?? 'ALL',
       },
     });
   }
