@@ -54,6 +54,46 @@ export class UpsertSkipPolicyDto {
   @IsOptional()
   @IsString()
   skipHow?: string;
+
+  /** Whether unskipping (reversing a skip) is allowed */
+  @IsOptional()
+  @IsBoolean()
+  allowUnskip?: boolean;
+
+  /** "DAYS_BEFORE" (default) | "DAY_OF_MONTH" */
+  @IsOptional()
+  @IsString()
+  unskipDeadlineType?: string;
+
+  /** Days before renewal day the unskip window closes */
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  unskipDeadlineDaysBefore?: number;
+
+  /** Specific day of month (1–28) when unskipDeadlineType = "DAY_OF_MONTH" */
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  unskipDeadlineDayOfMonth?: number;
+
+  /** Notes about the unskip policy */
+  @IsOptional()
+  @IsString()
+  unskipNotes?: string;
+
+  /** How to submit an unskip request */
+  @IsOptional()
+  @IsString()
+  unskipHow?: string;
+
+  /**
+   * Which billing types can use skips:
+   * "ALL" (default) | "MONTHLY_ONLY" | "PREPAID_ONLY"
+   */
+  @IsOptional()
+  @IsString()
+  eligibleBillingTypes?: string;
 }
 
 export class RecordSkipDto {

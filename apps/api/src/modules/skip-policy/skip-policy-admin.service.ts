@@ -46,6 +46,13 @@ export class SkipPolicyAdminService {
         skipDeadlineDayOfMonth: dto.skipDeadlineDayOfMonth ?? null,
         notes: dto.notes ?? null,
         skipHow: dto.skipHow ?? null,
+        allowUnskip: dto.allowUnskip ?? false,
+        unskipDeadlineType: dto.unskipDeadlineType ?? 'DAYS_BEFORE',
+        unskipDeadlineDaysBefore: dto.unskipDeadlineDaysBefore ?? 0,
+        unskipDeadlineDayOfMonth: dto.unskipDeadlineDayOfMonth ?? null,
+        unskipNotes: dto.unskipNotes ?? null,
+        unskipHow: dto.unskipHow ?? null,
+        eligibleBillingTypes: dto.eligibleBillingTypes ?? 'ALL',
       },
       update: {
         type: dto.type,
@@ -57,6 +64,13 @@ export class SkipPolicyAdminService {
         skipDeadlineDayOfMonth: dto.skipDeadlineDayOfMonth ?? null,
         notes: dto.notes ?? null,
         skipHow: dto.skipHow ?? null,
+        allowUnskip: dto.allowUnskip ?? false,
+        unskipDeadlineType: dto.unskipDeadlineType ?? 'DAYS_BEFORE',
+        unskipDeadlineDaysBefore: dto.unskipDeadlineDaysBefore ?? 0,
+        unskipDeadlineDayOfMonth: dto.unskipDeadlineDayOfMonth ?? null,
+        unskipNotes: dto.unskipNotes ?? null,
+        unskipHow: dto.unskipHow ?? null,
+        eligibleBillingTypes: dto.eligibleBillingTypes ?? 'ALL',
       },
     });
   }

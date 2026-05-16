@@ -213,7 +213,18 @@ export interface ApiSubscriptionSkipPolicy {
   maxConsecutive: number | null;
   windowMonths: number | null;
   skipDeadlineDaysBefore: number;
+  skipDeadlineType: string;
+  skipDeadlineDayOfMonth: number | null;
   notes: string | null;
+  skipHow: string | null;
+  allowUnskip: boolean;
+  unskipDeadlineType: string;
+  unskipDeadlineDaysBefore: number;
+  unskipDeadlineDayOfMonth: number | null;
+  unskipNotes: string | null;
+  unskipHow: string | null;
+  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
+  eligibleBillingTypes: string;
 }
 
 export interface ApiSkipStatus {
@@ -231,6 +242,11 @@ export interface ApiSkipStatus {
   isPastDeadline: boolean;
   skippedMonths: { year: number; month: number }[];
   firstDeliverableMonth: { year: number; month: number } | null;
+  allowUnskip: boolean;
+  unskipHow: string | null;
+  unskipNotes: string | null;
+  nextUnskipDeadline: string | null;
+  isUnskipPastDeadline: boolean;
 }
 
 export interface ApiSubscription {

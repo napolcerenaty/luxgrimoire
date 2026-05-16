@@ -95,9 +95,22 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   </div>
                 )}
               </div>
-              {sale.photoCredit && (
-                <p className="text-[10px] text-stone-500 mt-1 text-center italic leading-tight">📷 {sale.photoCredit}</p>
-              )}
+              {sale.photoCredit && (() => {
+                const handle = sale.photoCredit.replace(/^@/, '')
+                return (
+                  <p className="text-[10px] text-stone-500 mt-1 text-center italic leading-tight">
+                    📷 photo by{' '}
+                    <a
+                      href={`https://instagram.com/${handle}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:text-amber-400 transition-colors"
+                    >
+                      @{handle}
+                    </a>
+                  </p>
+                )
+              })()}
             </div>
 
             {/* Title + badges + link */}
