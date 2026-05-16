@@ -169,7 +169,7 @@ export default function CompanyImagePurgePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['companies-purge-list'],
-    queryFn: () => authFetch<PaginatedResponse<ApiBookBoxCompany>>('/companies?limit=100'),
+    queryFn: () => authFetch<PaginatedResponse<ApiBookBoxCompany> | ApiBookBoxCompany[]>('/companies?page=1&pageSize=100'),
   })
 
   if (user?.role !== 'ADMIN') {
@@ -180,10 +180,10 @@ export default function CompanyImagePurgePage() {
     )
   }
 
-  const companies = data?.data ?? []
+  const companies = data ? (Array.isArray(data) ? data : data.data) : []
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-stone-100">Image Purge</h1>
