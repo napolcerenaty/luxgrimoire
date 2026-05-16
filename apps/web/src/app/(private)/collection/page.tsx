@@ -11,7 +11,7 @@ import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
@@ -492,12 +492,34 @@ const CONDITION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | '
 
 type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR' | 'AUTHOR' | 'COMPANY'
 type SortOrder = 'DATE_DESC' | 'DATE_ASC'
+type ViewMode = 'grid' | 'list'
+
+const COLLECTION_PREFS_KEY = 'collection_prefs'
+function loadPrefs(): { filter: FilterMode; sortOrder: SortOrder; viewMode: ViewMode } {
+  if (typeof window === 'undefined') return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+  try {
+    const raw = localStorage.getItem(COLLECTION_PREFS_KEY)
+    if (!raw) return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+    const parsed = JSON.parse(raw)
+    return {
+      filter: parsed.filter ?? 'ALL',
+      sortOrder: parsed.sortOrder ?? 'DATE_DESC',
+      viewMode: parsed.viewMode ?? 'grid',
+    }
+  } catch {
+    return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+  }
+}
+function savePrefs(prefs: { filter: FilterMode; sortOrder: SortOrder; viewMode: ViewMode }) {
+  try { localStorage.setItem(COLLECTION_PREFS_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
+}
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [filter, setFilter] = useState<FilterMode>('ALL')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('DATE_DESC')
+  const [filter, setFilter] = useState<FilterMode>(() => loadPrefs().filter)
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
@@ -528,6 +550,11 @@ export default function CollectionPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  // Persist view preferences to localStorage
+  useEffect(() => {
+    savePrefs({ filter, sortOrder, viewMode })
+  }, [filter, sortOrder, viewMode])
 
   const { isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
@@ -858,6 +885,26 @@ export default function CollectionPage() {
               <option value="DATE_ASC">Sort: Oldest first</option>
             </select>
 
+            {/* View mode toggle */}
+            <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+                aria-label="List view"
+              >
+                <List size={15} />
+              </button>
+            </div>
+
             {/* Signature */}
             <select
               value={sigFilter}
@@ -991,6 +1038,7 @@ export default function CollectionPage() {
                         <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>
                       </h2>
                     )}
+                {viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {group.map((entry) => (
                     <EditionCard
@@ -1253,6 +1301,105 @@ export default function CollectionPage() {
                     />
                   ))}
                 </div>
+                ) : (
+                /* ── List view ── */
+                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
+                  {group.map((entry) => {
+                    const cover = cloudinaryUrl(resolveEditionCoverRaw(entry.edition), 'w_80,h_120,c_fill,q_auto,f_auto')
+                    const book = entry.edition.book
+                    const authors = (book.authors as any[]).map(a => (a.author ?? a).name).join(', ')
+                    const pg = entry.purchaseGroup
+                    const dateLabel = pg?.purchasedAt
+                      ? new Date(pg.purchasedAt).toLocaleDateString()
+                      : entry.acquiredAt
+                      ? new Date(entry.acquiredAt).toLocaleDateString()
+                      : null
+                    return (
+                      <a
+                        key={entry.id}
+                        href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                        className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden bg-stone-950">
+                          {cover
+                            ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                          }
+                        </div>
+
+                        {/* Main info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-stone-100 truncate">{book.title}</p>
+                          {authors && <p className="text-xs text-stone-400 truncate">{authors}</p>}
+                          {(book.seriesName || entry.edition.bookBoxCompany?.name) && (
+                            <p className="text-[10px] text-stone-500 truncate">
+                              {book.seriesName && <span>{book.seriesName}{book.volumeNumber ? ` #${book.volumeNumber}` : ''}</span>}
+                              {book.seriesName && entry.edition.bookBoxCompany?.name && <span className="mx-1">·</span>}
+                              {entry.edition.bookBoxCompany?.name && <span>{entry.edition.bookBoxCompany.name}</span>}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badges */}
+                        <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                          <span
+                            data-dropdown
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
+                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none relative ${
+                              entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                              entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                              entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                              (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                              'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                            }`}
+                          >
+                            {fmtStatus(entry.ownershipStatus)}
+                            {openDropdown === `${entry.id}-ownership` && (
+                              <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                  >{fmtStatus(val)}</button>
+                                ))}
+                              </div>
+                            )}
+                          </span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' : entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' : 'text-stone-500 bg-stone-500/10 border-stone-500/30'}`}>
+                            {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : 'UNREAD'}
+                          </span>
+                          {entry.signatureType && entry.signatureType !== 'unsigned' && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30'}`}>
+                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : '🖨️'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Date & cost */}
+                        <div className="hidden md:flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[80px]">
+                          {dateLabel && <p className="text-[10px] text-stone-500">{dateLabel}</p>}
+                          {pg && (() => {
+                            const total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
+                            const bookCount = pg._count?.bookEntries ?? 1
+                            const perBook = bookCount > 1 ? total / bookCount : total
+                            return <p className="text-[10px] text-stone-400">{perBook.toFixed(2)} {pg.currency}</p>
+                          })()}
+                        </div>
+
+                        {/* Delete */}
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
+                          disabled={removeMutation.isPending}
+                          className="p-1.5 text-stone-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          aria-label="Remove"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </a>
+                    )
+                  })}
+                </div>
+                )}
               </div>
             )
           })}
