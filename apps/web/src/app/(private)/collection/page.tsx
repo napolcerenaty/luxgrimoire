@@ -507,7 +507,11 @@ export default function CollectionPage() {
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
   // Local tag state per editionId (updated optimistically after saves)
   const [tagOverrides, setTagOverrides] = useState<Record<string, string[]>>({})
-
+  // Paginated collection accumulation
+  const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
+  const [collectionTotal, setCollectionTotal] = useState(0)
+  const [collectionPage, setCollectionPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
   // Close dropdowns on outside click (but not when clicking inside a dropdown)
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -519,11 +523,32 @@ export default function CollectionPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+  const { isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
-    queryFn: () =>
-      authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false').then((r) => r.data),
+    queryFn: async () => {
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false&pageSize=100')
+      setAllEntries(r.data)
+      setCollectionTotal(r.total)
+      setCollectionPage(1)
+      return r.data
+    },
   })
+  const entries = allEntries
+
+  const loadMoreCollection = async () => {
+    setLoadingMore(true)
+    try {
+      const nextPage = collectionPage + 1
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>(
+        `/collection?isWishlist=false&pageSize=100&page=${nextPage}`
+      )
+      setAllEntries((prev) => [...prev, ...r.data])
+      setCollectionTotal(r.total)
+      setCollectionPage(nextPage)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['collection-tags'],
@@ -580,14 +605,19 @@ export default function CollectionPage() {
     onMutate: async (id: string) => {
       await queryClient.cancelQueries({ queryKey: ['collection'] })
       const previous = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
+      const previousAll = allEntries
       queryClient.setQueryData<CollectionEntry[]>(['collection', false], (old) =>
         old ? old.filter((e) => e.id !== id) : []
       )
-      return { previous }
+      setAllEntries((prev) => prev.filter((e) => e.id !== id))
+      return { previous, previousAll }
     },
     onError: (_err, _id, context) => {
       if (context?.previous) {
         queryClient.setQueryData(['collection', false], context.previous)
+      }
+      if (context?.previousAll) {
+        setAllEntries(context.previousAll)
       }
     },
     onSettled: () => {
@@ -860,7 +890,7 @@ export default function CollectionPage() {
             )}
 
             <span className="text-xs text-stone-600 ml-auto">
-              {filtered.length}/{entries.length}
+              {filtered.length}/{collectionTotal || entries.length}
             </span>
           </div>
 
@@ -1164,6 +1194,18 @@ export default function CollectionPage() {
               </div>
             )
           })}
+        </div>
+      )}
+      {/* Load more */}
+      {entries.length < collectionTotal && (
+        <div className="text-center mt-8">
+          <button
+            onClick={() => void loadMoreCollection()}
+            disabled={loadingMore}
+            className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {loadingMore ? 'Loading…' : `Show more (${entries.length} / ${collectionTotal})`}
+          </button>
         </div>
       )}
       </>
