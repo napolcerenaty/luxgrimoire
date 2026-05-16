@@ -148,6 +148,7 @@ export class SubscriptionsService {
         startingMonth: dto.startingMonth,
         shippingCountries: dto.shippingCountries ?? [],
         paymentOnStartup: dto.paymentOnStartup ?? false,
+        signupIncludesCurrentMonth: dto.signupIncludesCurrentMonth ?? false,
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
@@ -1150,12 +1151,13 @@ export class SubscriptionsService {
       }
     }
 
-    // Compute eligible past months: from startDate+1 to cancellationDate month (or current month)
+    // Compute eligible past months: from startDate+1 (or startDate if signupIncludesCurrentMonth) to cancellationDate month (or current month)
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
     const eligibleMonths = isCombo
       ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj)
-      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
+      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
@@ -1176,7 +1178,7 @@ export class SubscriptionsService {
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false) {
     if (!startDateObj) return [];
 
     const now = new Date();
@@ -1185,10 +1187,12 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // First eligible month = startDate + 1 month
-    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = nextMonthDate.getFullYear();
-    const startMonth = nextMonthDate.getMonth() + 1;
+    // First eligible month: if signupIncludesCurrentMonth=true → same month as startDate, otherwise next month
+    const firstEligibleDate = signupIncludesCurrentMonth
+      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
+      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
+    const startYear = firstEligibleDate.getFullYear();
+    const startMonth = firstEligibleDate.getMonth() + 1;
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {

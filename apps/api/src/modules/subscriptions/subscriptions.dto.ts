@@ -127,6 +127,10 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   paymentOnStartup?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  signupIncludesCurrentMonth?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(11)
@@ -243,6 +247,10 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsBoolean()
   paymentOnStartup?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  signupIncludesCurrentMonth?: boolean;
 
   @IsOptional()
   @IsInt()
