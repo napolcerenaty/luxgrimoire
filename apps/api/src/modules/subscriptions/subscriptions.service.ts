@@ -1528,10 +1528,15 @@ export class SubscriptionsService {
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
 
       const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
-      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-        where: { subscriptionId: sub.id },
-        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-      });
+      const comboSubCurrency = (sub as any).currency as string ?? 'EUR';
+      const comboEntryCostCurrency = entry.costCurrency ?? comboSubCurrency;
+      const comboPriceHistoryApplies = comboEntryCostCurrency === comboSubCurrency;
+      const subPriceChanges = comboPriceHistoryApplies
+        ? await this.prisma.subscriptionPriceChange.findMany({
+            where: { subscriptionId: sub.id },
+            orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+          })
+        : [];
       const feesToCreate: {
         userId: string; feeTemplateId?: string | null; name: string; amount: number;
         currency: string; date: Date; category: any; purchaseGroupId: string;
@@ -1679,10 +1684,17 @@ export class SubscriptionsService {
     const monthMap = new Map(monthRecords.map(m => [m.id, m]));
 
     // Load subscription price changes for historical pricing
-    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: sub.id },
-      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-    });
+    // Only apply price changes when the user's cost currency matches the subscription's currency.
+    // If the user has set a custom currency, use their entered basePrice for all months.
+    const subCurrency = (sub as any).currency as string ?? 'EUR';
+    const entryCostCurrency = entry.costCurrency ?? subCurrency;
+    const priceHistoryApplies = entryCostCurrency === subCurrency;
+    const subPriceChanges = priceHistoryApplies
+      ? await this.prisma.subscriptionPriceChange.findMany({
+          where: { subscriptionId: sub.id },
+          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+        })
+      : [];
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
 
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate

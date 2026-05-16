@@ -329,7 +329,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       </div>
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
-        {priceChanges.length === 0 ? (
+        {costCurrency !== currency ? (
+          <p>
+            You&apos;re tracking this subscription in <span className="text-stone-300">{costCurrency}</span>, which differs from the subscription&apos;s base currency (<span className="text-stone-300">{currency}</span>). Price change history is recorded in {currency} and won&apos;t apply here — past boxes will be added with your entered price of <span className="text-stone-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
+          </p>
+        ) : priceChanges.length === 0 ? (
           <p>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
           </p>
@@ -407,8 +411,6 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           )
         })()}
       </div>}
-
-      {/* Fee templates */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
           Taxes &amp; fees

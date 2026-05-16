@@ -124,7 +124,6 @@ export default function SubscriptionInfoPanel({
   }, [subscriptionSlug])
 
   const userCurrency = user?.preferredCurrency
-  const showConversion = !!userCurrency && userCurrency !== currency
 
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
@@ -153,13 +152,6 @@ export default function SubscriptionInfoPanel({
       .catch(() => setSeriesList([]))
   }, [subscriptionSlug, user])
 
-  useEffect(() => {
-    if (!showConversion || !price) return
-    authFetch<{ rate: number }>(`/currency/rate?from=${currency}&to=${userCurrency}`)
-      .then((data) => setConvertedRate(data.rate))
-      .catch(() => setConvertedRate(null))
-  }, [showConversion, currency, userCurrency, price])
-
   // Fetch conversion rates for fee template currencies that differ from entryCurrency
   useEffect(() => {
     if (!myEntry?.feeTemplates?.length) return
@@ -186,6 +178,15 @@ export default function SubscriptionInfoPanel({
 
   const isSubscriber = myEntry !== null && myEntry !== undefined && myEntry.active
   const entryCurrency = myEntry?.costCurrency ?? currency
+  // Only show conversion when user's preferred currency differs from their entry's cost currency
+  const showConversion = !!userCurrency && userCurrency !== entryCurrency
+
+  useEffect(() => {
+    if (!showConversion || !price) return
+    authFetch<{ rate: number }>(`/currency/rate?from=${entryCurrency}&to=${userCurrency}`)
+      .then((data) => setConvertedRate(data.rate))
+      .catch(() => setConvertedRate(null))
+  }, [showConversion, entryCurrency, userCurrency, price])
 
   useEffect(() => {
     if (!user || !user?.shippingCountry) return
