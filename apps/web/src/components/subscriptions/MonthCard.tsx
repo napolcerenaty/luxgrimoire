@@ -72,7 +72,7 @@ export default function MonthCard({
 
   const inner = (
     <div
-      className="relative rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors select-none"
+      className="relative rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors select-none flex flex-col h-full"
       style={{ cursor: bookSlug ? 'pointer' : 'default' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -149,7 +149,7 @@ export default function MonthCard({
       </div>
 
       {/* Theme below image */}
-      <div className="p-3 pt-2 min-h-[3rem] flex flex-col justify-start">
+      <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
         {theme ? (
           <p className="text-stone-300 text-xs font-serif italic line-clamp-2">{theme}</p>
         ) : (
@@ -181,7 +181,7 @@ export default function MonthCard({
       <div
         role="link"
         tabIndex={0}
-        className="block cursor-pointer"
+        className="block cursor-pointer h-full"
         onClick={() => router.push(bookHref)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(bookHref) }}
       >
