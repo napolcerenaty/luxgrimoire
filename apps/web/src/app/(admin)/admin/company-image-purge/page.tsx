@@ -166,6 +166,7 @@ function PurgeModal({
 export default function CompanyImagePurgePage() {
   const { user } = useAuth()
   const [purgeTarget, setPurgeTarget] = useState<ApiBookBoxCompany | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['companies-purge-list'],
@@ -180,7 +181,10 @@ export default function CompanyImagePurgePage() {
     )
   }
 
-  const companies = data ? (Array.isArray(data) ? data : data.data) : []
+  const allCompanies = data ? (Array.isArray(data) ? data : data.data) : []
+  const companies = search.trim()
+    ? allCompanies.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : allCompanies
 
   return (
     <div className="space-y-6">
@@ -212,10 +216,20 @@ export default function CompanyImagePurgePage() {
           Companies
         </h2>
 
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by company name…"
+          className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+        />
+
         {isLoading ? (
           <div className="text-stone-400 text-sm py-6 text-center">Loading…</div>
         ) : companies.length === 0 ? (
-          <div className="text-stone-500 text-sm py-6 text-center">No companies found.</div>
+          <div className="text-stone-500 text-sm py-6 text-center">
+            {search.trim() ? 'No companies match your search.' : 'No companies found.'}
+          </div>
         ) : (
           <div className="rounded-2xl border border-stone-800 divide-y divide-stone-800 overflow-hidden">
             {companies.map((company) => (
