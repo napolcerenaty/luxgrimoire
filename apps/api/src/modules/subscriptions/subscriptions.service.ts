@@ -198,7 +198,7 @@ export class SubscriptionsService {
         skip,
         take: pageSize,
         include: {
-          company: { select: { id: true, slug: true, name: true, logoUrl: true } },
+          company: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
           skipPolicy: true,
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
