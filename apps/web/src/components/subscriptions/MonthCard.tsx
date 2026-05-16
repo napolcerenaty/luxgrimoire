@@ -150,20 +150,22 @@ export default function MonthCard({
 
       {/* Theme below image */}
       <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
-        <div className="flex items-baseline gap-x-2 min-w-0">
+        <div>
           {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic uppercase truncate min-w-0 flex-1">{theme}</p>
+            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug">
+              {theme}
+              {cardArtist && (
+                <Link
+                  href={`/artists/${cardArtist.slug}`}
+                  className="not-italic normal-case text-[10px] text-stone-500 hover:text-amber-400 transition-colors ml-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
+                </Link>
+              )}
+            </p>
           ) : (
-            <p className="text-stone-600 text-xs italic flex-1">No theme yet</p>
-          )}
-          {cardArtist && (
-            <Link
-              href={`/artists/${cardArtist.slug}`}
-              className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
-            </Link>
+            <p className="text-stone-600 text-xs italic">No theme yet</p>
           )}
         </div>
         {isSpoiler && (
