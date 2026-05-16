@@ -823,7 +823,7 @@ export class SubscriptionsService {
             renewalDay: true,
             intervalMonths: true,
             startingMonth: true,
-            company: { select: { name: true, slug: true } },
+            company: { select: { name: true, slug: true, brandColors: true } },
           },
         },
       },
