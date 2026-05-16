@@ -1533,6 +1533,21 @@ export class SubscriptionsService {
         date: Date; purchaseGroupId: string; billingPeriodId?: string;
       }[] = [];
 
+      // paymentOnStartup: find the earliest selected combo month so we can
+      // assign entry.startDate as its purchase date (same logic as regular path).
+      const comboPaymentOnStartup = (sub as any).paymentOnStartup as boolean;
+      let earliestComboId: string | null = null;
+      if (comboPaymentOnStartup && entry.startDate) {
+        let earliestYear = Infinity; let earliestMonth = Infinity;
+        for (const comboId of validComboIds) {
+          const parts = comboId.split('_');
+          const y = parseInt(parts[1]); const m = parseInt(parts[2]);
+          if (y < earliestYear || (y === earliestYear && m < earliestMonth)) {
+            earliestYear = y; earliestMonth = m; earliestComboId = comboId;
+          }
+        }
+      }
+
       for (const comboId of validComboIds) {
         // Parse year/month from synthetic ID: COMBO_YEAR_MONTH
         const parts = comboId.split('_');
@@ -1557,15 +1572,19 @@ export class SubscriptionsService {
         if (monthBooks.length === 0) continue;
 
         const comboOffset: number = (sub as any).renewalMonthOffset ?? 0;
-        const [renewalYear, renewalMonth] = comboOffset === 0
-          ? [year, month]
+        const renewalDate = (earliestComboId === comboId && entry.startDate)
+          ? new Date(entry.startDate)
           : (() => {
-              let m = month - comboOffset; let y = year;
-              while (m <= 0) { m += 12; y--; }
-              while (m > 12) { m -= 12; y++; }
-              return [y, m] as [number, number];
+              const [ry, rm] = comboOffset === 0
+                ? [year, month]
+                : (() => {
+                    let m = month - comboOffset; let y = year;
+                    while (m <= 0) { m += 12; y--; }
+                    while (m > 12) { m -= 12; y++; }
+                    return [y, m] as [number, number];
+                  })();
+              return new Date(Date.UTC(ry, rm - 1, renewalDay));
             })();
-        const renewalDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
         const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase);
         const basePrice = resolved.price ?? fallbackBase;
 
