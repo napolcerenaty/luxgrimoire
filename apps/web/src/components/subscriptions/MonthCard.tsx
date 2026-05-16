@@ -165,7 +165,7 @@ export default function MonthCard({
           )}
           {/* Theme — single line, truncated */}
           {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug truncate">{theme}</p>
+            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug">{theme}</p>
           ) : (
             <p className="text-stone-600 text-xs italic leading-snug">No theme yet</p>
           )}
