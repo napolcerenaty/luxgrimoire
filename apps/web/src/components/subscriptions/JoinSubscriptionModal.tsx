@@ -290,13 +290,18 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {/* Currency */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Cost currency</label>
-        <input
-          type="text"
+        <select
           value={costCurrency}
-          onChange={e => setCostCurrency(e.target.value.toUpperCase())}
-          maxLength={3}
-          className="w-24 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm uppercase"
-        />
+          onChange={e => setCostCurrency(e.target.value)}
+          className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+        >
+          {['EUR','GBP','USD','CAD','AUD','CHF','PLN','SEK','NOK','DKK','CZK','HUF','RON','BGN','HRK','RUB','JPY','KRW','CNY','BRL','MXN','INR','ZAR','NZD','SGD','HKD','TRY'].map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+          {!['EUR','GBP','USD','CAD','AUD','CHF','PLN','SEK','NOK','DKK','CZK','HUF','RON','BGN','HRK','RUB','JPY','KRW','CNY','BRL','MXN','INR','ZAR','NZD','SGD','HKD','TRY'].includes(costCurrency) && costCurrency && (
+            <option value={costCurrency}>{costCurrency}</option>
+          )}
+        </select>
       </div>
 
       {/* Base price + shipping side by side */}
