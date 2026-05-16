@@ -158,7 +158,7 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Delete(':slug/months/:year/:month/books/:bookId')
   removeBookFromMonth(
     @Param('slug') slug: string,
@@ -170,7 +170,7 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug/months/:year/:month/books/:bookId')
   updateMonthBook(
     @Param('slug') slug: string,
