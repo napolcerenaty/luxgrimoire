@@ -1528,6 +1528,10 @@ export class SubscriptionsService {
         userId: string; feeTemplateId?: string | null; name: string; amount: number;
         currency: string; date: Date; category: any; purchaseGroupId: string;
       }[] = [];
+      const discountsToCreate: {
+        userId: string; name: string; amount: number; currency: string;
+        date: Date; purchaseGroupId: string; billingPeriodId?: string;
+      }[] = [];
 
       for (const comboId of validComboIds) {
         // Parse year/month from synthetic ID: COMBO_YEAR_MONTH
@@ -1620,6 +1624,13 @@ export class SubscriptionsService {
         });
       }
 
+      if (discountsToCreate.length > 0) {
+        await this.prisma.userPurchaseDiscount.createMany({
+          data: discountsToCreate,
+          skipDuplicates: true,
+        });
+      }
+
       // Backfill past renewal history for calendar display
       backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
       return { booksAdded, skipsRecorded };
@@ -1664,6 +1675,10 @@ export class SubscriptionsService {
     const feesToCreate: {
       userId: string; feeTemplateId?: string | null; name: string; amount: number;
       currency: string; date: Date; category: any; purchaseGroupId: string;
+    }[] = [];
+    const discountsToCreate: {
+      userId: string; name: string; amount: number; currency: string;
+      date: Date; purchaseGroupId: string; billingPeriodId?: string;
     }[] = [];
 
     for (const monthId of dto.selectedMonthIds) {
@@ -1761,6 +1776,21 @@ export class SubscriptionsService {
             });
           }
         }
+
+        // Add batch-level discounts to this purchase group (divided by N if same currency)
+        if (batch.discounts?.length) {
+          for (const d of batch.discounts) {
+            discountsToCreate.push({
+              userId,
+              name: d.name,
+              amount: d.currency === batch.currency ? d.amount / batch.monthsCovered : d.amount,
+              currency: d.currency,
+              date: purchasedAtDate,
+              purchaseGroupId: group.id,
+              billingPeriodId: periodId,
+            });
+          }
+        }
       }
 
       for (const mb of monthBooks) {
@@ -1810,6 +1840,14 @@ export class SubscriptionsService {
     if (feesToCreate.length > 0) {
       await this.prisma.userPurchaseFee.createMany({
         data: feesToCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    // Single batch insert for all discounts
+    if (discountsToCreate.length > 0) {
+      await this.prisma.userPurchaseDiscount.createMany({
+        data: discountsToCreate,
         skipDuplicates: true,
       });
     }

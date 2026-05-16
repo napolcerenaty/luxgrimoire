@@ -590,6 +590,18 @@ export class BackfillBillingBatchFeeDto {
   currency!: string;
 }
 
+export class BackfillBillingBatchDiscountDto {
+  @IsString()
+  name!: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  amount!: number;
+
+  @IsString()
+  currency!: string;
+}
+
 export class BackfillBillingBatchDto {
   /** ISO date string — the actual payment date */
   @IsString()
@@ -622,6 +634,13 @@ export class BackfillBillingBatchDto {
   @ValidateNested({ each: true })
   @Type(() => BackfillBillingBatchFeeDto)
   fees?: BackfillBillingBatchFeeDto[];
+
+  /** Discounts applied to this billing batch */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BackfillBillingBatchDiscountDto)
+  discounts?: BackfillBillingBatchDiscountDto[];
 }
 
 export class BackfillSubscriptionDto {
