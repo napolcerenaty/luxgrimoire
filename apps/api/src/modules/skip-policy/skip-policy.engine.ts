@@ -21,6 +21,16 @@ export interface SkipStatus {
   skippedMonths: { year: number; month: number }[];
   /** The user's first deliverable month — cannot be skipped */
   firstDeliverableMonth: { year: number; month: number } | null;
+  /** Whether the subscription policy allows unskipping */
+  allowUnskip: boolean;
+  /** How to submit an unskip request */
+  unskipHow: string | null;
+  /** Notes about the unskip policy */
+  unskipNotes: string | null;
+  /** ISO date string of unskip deadline for the earliest currently-skipped month, or null */
+  nextUnskipDeadline: string | null;
+  /** Whether the unskip deadline for the earliest skipped month has passed */
+  isUnskipPastDeadline: boolean;
 }
 
 @Injectable()
@@ -120,8 +130,15 @@ export class SkipPolicyEngine {
 
     const deadline = this.computeDeadline(policy, entry, targetMonth, offset);
     const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
+
+    // Compute unskip deadline for the earliest currently-skipped month
+    const earliestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+      : null;
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
-    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable);
+    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
@@ -247,8 +264,11 @@ export class SkipPolicyEngine {
     year: number,
     month: number,
   ): Promise<SkipStatus> {
-    // TODO: Implement reversal policy (time window, per-subscription config)
     const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+
+    if (!policy?.allowUnskip) {
+      throw new ForbiddenException('Unskip is not allowed for this subscription');
+    }
 
     const subMonth = await this.prisma.subscriptionMonth.findUnique({
       where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
@@ -275,7 +295,8 @@ export class SkipPolicyEngine {
       await this.adjustPrepaidBillingPeriod(entry.id, -1, entry.effectiveRenewalDay ?? 1);
     }
 
-    const deadline = this.computeDeadline(policy, entry, { year, month }, (subscription as any).renewalMonthOffset ?? 0);
+    const offset: number = (subscription as any).renewalMonthOffset ?? 0;
+    const deadline = this.computeDeadline(policy, entry, { year, month }, offset);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
       include: { month: { select: { year: true, month: true } } },
@@ -283,7 +304,12 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
-    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month });
+    // Unskip deadline: earliest remaining skipped month
+    const earliestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+      : null;
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
   }
 
   async recordSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
@@ -520,6 +546,9 @@ export class SkipPolicyEngine {
       maxConsecutive: number | null;
       notes: string | null;
       skipHow: string | null;
+      allowUnskip?: boolean;
+      unskipHow?: string | null;
+      unskipNotes?: string | null;
     } | null,
     state: {
       totalSkips: number;
@@ -532,6 +561,7 @@ export class SkipPolicyEngine {
     /** Override canSkip to false (e.g. subscription not yet started) */
     forceCanSkip?: boolean,
     firstDeliverableMonth: { year: number; month: number } | null = null,
+    unskipDeadline: Date | null = null,
   ): SkipStatus {
     const policyType = policy?.type ?? 'NONE';
     const totalSkips = state?.totalSkips ?? 0;
@@ -569,6 +599,11 @@ export class SkipPolicyEngine {
       isPastDeadline,
       skippedMonths,
       firstDeliverableMonth,
+      allowUnskip: policy?.allowUnskip ?? false,
+      unskipHow: policy?.unskipHow ?? null,
+      unskipNotes: policy?.unskipNotes ?? null,
+      nextUnskipDeadline: unskipDeadline ? unskipDeadline.toISOString() : null,
+      isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
     };
   }
 
@@ -598,6 +633,36 @@ export class SkipPolicyEngine {
     const renewal = new Date(renewalYear, renewalMonth - 1, renewalDay, 23, 59, 59, 999);
 
     // Subtract daysBefore
+    if (daysBefore > 0) {
+      renewal.setDate(renewal.getDate() - daysBefore);
+    }
+
+    return renewal;
+  }
+
+  /**
+   * Computes the unskip deadline for a given skipped month.
+   * Uses unskipDeadlineDaysBefore from policy (same logic as computeDeadline).
+   */
+  private computeUnskipDeadline(
+    policy: { unskipDeadlineDaysBefore?: number } | null,
+    entry: { effectiveRenewalDay: number | null },
+    targetMonth: { year: number; month: number } | null,
+    renewalMonthOffset = 0,
+  ): Date | null {
+    if (!policy || !targetMonth) return null;
+
+    const renewalDay = entry.effectiveRenewalDay;
+    if (!renewalDay) return null;
+
+    const daysBefore = policy.unskipDeadlineDaysBefore ?? 0;
+
+    const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(
+      targetMonth.year, targetMonth.month, renewalMonthOffset,
+    );
+
+    const renewal = new Date(renewalYear, renewalMonth - 1, renewalDay, 23, 59, 59, 999);
+
     if (daysBefore > 0) {
       renewal.setDate(renewal.getDate() - daysBefore);
     }

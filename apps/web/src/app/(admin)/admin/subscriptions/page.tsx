@@ -57,6 +57,13 @@ interface SubFormData {
   skipDeadlineDayOfMonth: string
   skipNotes: string
   skipHow: string
+  // Unskip policy
+  allowUnskip: boolean
+  unskipDeadlineType: string
+  unskipDeadlineDaysBefore: string
+  unskipDeadlineDayOfMonth: string
+  unskipNotes: string
+  unskipHow: string
 }
 
 const EMPTY_FORM: SubFormData = {
@@ -94,6 +101,12 @@ const EMPTY_FORM: SubFormData = {
   skipDeadlineDayOfMonth: '',
   skipNotes: '',
   skipHow: '',
+  allowUnskip: false,
+  unskipDeadlineType: 'DAYS_BEFORE',
+  unskipDeadlineDaysBefore: '0',
+  unskipDeadlineDayOfMonth: '',
+  unskipNotes: '',
+  unskipHow: '',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
@@ -132,7 +145,13 @@ function subToForm(sub: ApiSubscription): SubFormData {
     skipDeadlineType: (p as any)?.skipDeadlineType ?? 'DAYS_BEFORE',
     skipDeadlineDayOfMonth: (p as any)?.skipDeadlineDayOfMonth != null ? String((p as any).skipDeadlineDayOfMonth) : '',
     skipNotes: p?.notes ?? '',
-    skipHow: (p as any)?.skipHow ?? '',
+    skipHow: p?.skipHow ?? '',
+    allowUnskip: p?.allowUnskip ?? false,
+    unskipDeadlineType: p?.unskipDeadlineType ?? 'DAYS_BEFORE',
+    unskipDeadlineDaysBefore: p?.unskipDeadlineDaysBefore != null ? String(p.unskipDeadlineDaysBefore) : '0',
+    unskipDeadlineDayOfMonth: p?.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
+    unskipNotes: p?.unskipNotes ?? '',
+    unskipHow: p?.unskipHow ?? '',
   }
 }
 
@@ -573,6 +592,61 @@ function SubscriptionForm({
               placeholder="e.g. Email support@example.com before the deadline." />
           </div>
         </div>
+
+        {/* Unskip Policy */}
+        <div className="border border-stone-600 rounded-lg p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold text-stone-300">Unskip Policy</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.allowUnskip}
+                onChange={e => setForm(f => ({ ...f, allowUnskip: e.target.checked }))} />
+              <span className="text-sm text-stone-300">Allow unskipping</span>
+            </label>
+          </div>
+
+          {form.allowUnskip && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Unskip deadline type</label>
+                    <select className={SELECT_CLASS} value={form.unskipDeadlineType} onChange={setStr('unskipDeadlineType')}>
+                      <option value="DAYS_BEFORE">Days before renewal</option>
+                      <option value="DAY_OF_MONTH">Specific day of month</option>
+                    </select>
+                  </div>
+                  {form.unskipDeadlineType === 'DAYS_BEFORE' ? (
+                    <div>
+                      <label className={LABEL_CLASS}>Days before renewal</label>
+                      <input type="number" min={0} max={60} className={INPUT_CLASS}
+                        value={form.unskipDeadlineDaysBefore} onChange={setStr('unskipDeadlineDaysBefore')} placeholder="0" />
+                      <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className={LABEL_CLASS}>Day of month (1–28)</label>
+                      <input type="number" min={1} max={28} className={INPUT_CLASS}
+                        value={form.unskipDeadlineDayOfMonth} onChange={setStr('unskipDeadlineDayOfMonth')} placeholder="e.g. 15" />
+                      <p className="text-xs text-stone-500 mt-1">Unskip must be submitted by this date each month</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL_CLASS}>Unskip notes (shown to users)</label>
+                  <textarea rows={2} className={INPUT_CLASS} value={form.unskipNotes} onChange={setStr('unskipNotes')}
+                    placeholder="e.g. You can reverse a skip before the renewal day." />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>How to submit an unskip request</label>
+                  <textarea rows={2} className={INPUT_CLASS} value={form.unskipHow} onChange={setStr('unskipHow')}
+                    placeholder="e.g. Email support@example.com with subject 'Unskip Month Year'." />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <button type="submit" disabled={submitting}
@@ -865,6 +939,12 @@ export default function AdminSubscriptionsPage() {
             skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
             notes: form.skipNotes || undefined,
             skipHow: form.skipHow || undefined,
+            allowUnskip: form.allowUnskip,
+            unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
+            unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
+            unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
+            unskipNotes: form.unskipNotes || undefined,
+            unskipHow: form.unskipHow || undefined,
           }),
         })
       }
@@ -895,6 +975,12 @@ export default function AdminSubscriptionsPage() {
           skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
           notes: form.skipNotes || undefined,
           skipHow: form.skipHow || undefined,
+          allowUnskip: form.allowUnskip,
+          unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
+          unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
+          unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
+          unskipNotes: form.unskipNotes || undefined,
+          unskipHow: form.unskipHow || undefined,
         }),
       })
       return sub
