@@ -508,7 +508,11 @@ export default function CollectionPage() {
   // Local tag state per editionId (updated optimistically after saves)
   const [tagOverrides, setTagOverrides] = useState<Record<string, string[]>>({})
   // Paginated collection accumulation
-  const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
+  // Initialize from React Query cache so back-navigation doesn't flash an empty list
+  const [allEntries, setAllEntries] = useState<CollectionEntry[]>(() => {
+    const cached = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
+    return cached ?? []
+  })
   const [collectionTotal, setCollectionTotal] = useState(0)
   const [collectionPage, setCollectionPage] = useState(1)
   const [loadingMore, setLoadingMore] = useState(false)
