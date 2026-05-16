@@ -44,6 +44,7 @@ interface SubFormData {
   isContentStream: boolean
   isBundleSubscription: boolean
   paymentOnStartup: boolean
+  signupIncludesCurrentMonth: boolean
   renewalMonthOffset: string
   startDate: string
   endDate: string
@@ -91,6 +92,7 @@ const EMPTY_FORM: SubFormData = {
   isContentStream: false,
   isBundleSubscription: false,
   paymentOnStartup: false,
+  signupIncludesCurrentMonth: false,
   renewalMonthOffset: '0',
   startDate: '',
   endDate: '',
@@ -137,6 +139,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     isContentStream: sub.isContentStream ?? false,
     isBundleSubscription: sub.isBundleSubscription ?? false,
     paymentOnStartup: (sub as any).paymentOnStartup ?? false,
+    signupIncludesCurrentMonth: (sub as any).signupIncludesCurrentMonth ?? false,
     renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
@@ -191,6 +194,7 @@ function formToCreatePayload(form: SubFormData) {
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
+    signupIncludesCurrentMonth: form.signupIncludesCurrentMonth,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
@@ -220,6 +224,7 @@ function formToUpdatePayload(form: SubFormData) {
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
+    signupIncludesCurrentMonth: form.signupIncludesCurrentMonth,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
@@ -413,6 +418,7 @@ function SubscriptionForm({
             {([
               { field: 'bookishMerch', label: 'Bookish Merch included' },
               { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
+              { field: 'signupIncludesCurrentMonth', label: 'Signup includes current month (default: next month)' },
               { field: 'isDiscontinued', label: 'Discontinued' },
               { field: 'isHidden', label: 'Hidden (draft / historical data)' },
               { field: 'isContentStream', label: 'Content stream (hidden parent, holds all months)' },

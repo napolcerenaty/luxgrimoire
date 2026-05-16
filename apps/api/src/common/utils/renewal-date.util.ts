@@ -150,6 +150,7 @@ export async function refreshNextRenewalDate(
           startingMonth: true,
           paymentOnStartup: true,
           renewalMonthOffset: true,
+          signupIncludesCurrentMonth: true,
         },
       },
     },
@@ -181,7 +182,9 @@ export async function refreshNextRenewalDate(
     const joinDay = joinDate.getUTCDate();
     const joinYear = joinDate.getUTCFullYear();
     const joinMonth = joinDate.getUTCMonth() + 1;
-    const renewalPassedThisMonth = renewalDay < joinDay;
+    // If signupIncludesCurrentMonth: the signup month itself is always the first paid month,
+    // regardless of whether the renewalDay has already passed.
+    const renewalPassedThisMonth = !sub.signupIncludesCurrentMonth && renewalDay < joinDay;
     let firstEligibleYear = joinYear;
     let firstEligibleMonth = joinMonth;
     if (renewalPassedThisMonth) {

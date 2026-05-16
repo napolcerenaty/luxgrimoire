@@ -56,7 +56,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
           {sale.photoCredit && (() => {
             const handle = sale.photoCredit.replace(/^@/, '')
             return (
-              <p className="text-xs text-stone-500 mt-2 text-center italic">
+              <p className="text-xs text-stone-500 mt-2 text-center">
                 📷 photo by{' '}
                 <a
                   href={`https://instagram.com/${handle}`}

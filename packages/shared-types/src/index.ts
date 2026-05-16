@@ -279,6 +279,7 @@ export interface ApiSubscription {
   startingMonth: number | null;
   renewalMonthOffset: number;
   paymentOnStartup: boolean;
+  signupIncludesCurrentMonth: boolean;
   skipPolicy?: ApiSubscriptionSkipPolicy | null;
   company?: ApiBookBoxCompany;
   months?: ApiSubscriptionMonth[];

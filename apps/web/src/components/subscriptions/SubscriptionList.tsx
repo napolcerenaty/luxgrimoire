@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { LayoutGrid, List } from 'lucide-react'
+import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
 import type { ApiSubscription } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -108,6 +109,8 @@ export default function SubscriptionList({ subscriptions }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((sub) => {
             const cover = cloudinaryUrl(sub.coverImage, 'w_600,q_auto,f_auto')
+            const brandColors = sub.company?.brandColors
+            const tc = brandTextClasses(brandColors)
             const subGenres: string[] = [
               ...(Array.isArray(sub.genres) ? sub.genres : []),
               ...(sub.genre ? [sub.genre] : []),
@@ -127,8 +130,11 @@ export default function SubscriptionList({ subscriptions }: Props) {
                       <img src={cover} alt={sub.name} className="relative z-10 max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300" />
                     </>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center px-4">
-                      <span className="font-serif text-stone-400 text-lg text-center leading-snug">{sub.name}</span>
+                    <div
+                      className="w-full h-full flex items-center justify-center px-4"
+                      style={brandGradientStyle(brandColors)}
+                    >
+                      <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{sub.name}</span>
                     </div>
                   )}
                 </div>
@@ -154,6 +160,8 @@ export default function SubscriptionList({ subscriptions }: Props) {
         <div className="flex flex-col divide-y divide-stone-800">
           {filtered.map((sub) => {
             const thumb = cloudinaryUrl(sub.coverImage, 'w_80,h_80,c_fill,q_auto,f_auto')
+            const brandColors = sub.company?.brandColors
+            const tc = brandTextClasses(brandColors)
             const subGenres: string[] = [
               ...(Array.isArray(sub.genres) ? sub.genres : []),
               ...(sub.genre ? [sub.genre] : []),
@@ -170,7 +178,12 @@ export default function SubscriptionList({ subscriptions }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt={sub.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="font-serif text-stone-500 text-lg">{sub.name.charAt(0)}</span>
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={brandGradientStyle(brandColors)}
+                    >
+                      <span className={`font-serif text-lg font-bold ${tc.primary}`}>{sub.name.charAt(0)}</span>
+                    </div>
                   )}
                 </div>
                 {/* Info */}

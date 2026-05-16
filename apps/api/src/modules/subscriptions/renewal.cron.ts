@@ -216,18 +216,30 @@ export class RenewalCronService {
       purchasedAt = activePeriod.billedAt ?? renewalDate;
       billingPeriodId = activePeriod.id;
     } else {
-      // Apply subscription-level price changes if this is a default-pricing entry
-      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-        where: { subscriptionId: entry.subscriptionId },
-        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+      // Apply subscription-level price changes only if the user's cost currency
+      // matches the subscription's base currency. If different, the price history
+      // is in a foreign currency and doesn't apply — use the user's entered basePrice.
+      const subRecord = await this.prisma.subscription.findUnique({
+        where: { id: entry.subscriptionId },
+        select: { currency: true },
       });
-      const resolved = resolveEffectiveBasePrice(
-        subPriceChanges,
-        year,
-        month,
-        fallbackBase,
-      );
-      basePrice = resolved.price ?? fallbackBase;
+      const subCurrency = subRecord?.currency ?? null;
+      const priceHistoryApplies = !subCurrency || !entry.costCurrency || entry.costCurrency === subCurrency;
+      if (priceHistoryApplies) {
+        const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+          where: { subscriptionId: entry.subscriptionId },
+          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+        });
+        const resolved = resolveEffectiveBasePrice(
+          subPriceChanges,
+          year,
+          month,
+          fallbackBase,
+        );
+        basePrice = resolved.price ?? fallbackBase;
+      } else {
+        basePrice = fallbackBase;
+      }
       shippingAmount = shippingCost;
       purchasedAt = renewalDate;
     }

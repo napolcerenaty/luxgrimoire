@@ -354,8 +354,9 @@ model Subscription {
   isHidden             Boolean                      @default(false)
   isContentStream      Boolean                      @default(false)
   isBundleSubscription Boolean                      @default(false)
-  paymentOnStartup     Boolean                      @default(false)
-  renewalMonthOffset   Int                          @default(0)
+  paymentOnStartup              Boolean                      @default(false)
+  renewalMonthOffset            Int                          @default(0)
+  signupIncludesCurrentMonth    Boolean                      @default(false)
   priceChanges             SubscriptionPriceChange[]
   comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
   comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")

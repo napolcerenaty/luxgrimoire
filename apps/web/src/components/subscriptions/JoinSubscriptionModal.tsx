@@ -290,13 +290,18 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {/* Currency */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Cost currency</label>
-        <input
-          type="text"
+        <select
           value={costCurrency}
-          onChange={e => setCostCurrency(e.target.value.toUpperCase())}
-          maxLength={3}
-          className="w-24 bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm uppercase"
-        />
+          onChange={e => setCostCurrency(e.target.value)}
+          className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+        >
+          {['EUR','GBP','USD','CAD','AUD','CHF','PLN','SEK','NOK','DKK','CZK','HUF','RON','BGN','HRK','RUB','JPY','KRW','CNY','BRL','MXN','INR','ZAR','NZD','SGD','HKD','TRY'].map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+          {!['EUR','GBP','USD','CAD','AUD','CHF','PLN','SEK','NOK','DKK','CZK','HUF','RON','BGN','HRK','RUB','JPY','KRW','CNY','BRL','MXN','INR','ZAR','NZD','SGD','HKD','TRY'].includes(costCurrency) && costCurrency && (
+            <option value={costCurrency}>{costCurrency}</option>
+          )}
+        </select>
       </div>
 
       {/* Base price + shipping side by side */}
@@ -324,7 +329,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       </div>
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
-        {priceChanges.length === 0 ? (
+        {costCurrency !== currency ? (
+          <p>
+            You&apos;re tracking this subscription in <span className="text-stone-300">{costCurrency}</span>, which differs from the subscription&apos;s base currency (<span className="text-stone-300">{currency}</span>). Price change history is recorded in {currency} and won&apos;t apply here — past boxes will be added with your entered price of <span className="text-stone-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
+          </p>
+        ) : priceChanges.length === 0 ? (
           <p>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
           </p>
@@ -402,8 +411,6 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           )
         })()}
       </div>}
-
-      {/* Fee templates */}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
           Taxes &amp; fees

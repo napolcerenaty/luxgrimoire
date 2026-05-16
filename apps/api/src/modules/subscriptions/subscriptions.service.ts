@@ -148,6 +148,7 @@ export class SubscriptionsService {
         startingMonth: dto.startingMonth,
         shippingCountries: dto.shippingCountries ?? [],
         paymentOnStartup: dto.paymentOnStartup ?? false,
+        signupIncludesCurrentMonth: dto.signupIncludesCurrentMonth ?? false,
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
@@ -723,6 +724,7 @@ export class SubscriptionsService {
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
 
     // For paymentOnStartup: find the ACTUAL first subscription month that was paid at signup.
@@ -732,7 +734,9 @@ export class SubscriptionsService {
       const joinYear = joinDate.getUTCFullYear();
       const joinMonth = joinDate.getUTCMonth() + 1;
       const joinDay = joinDate.getUTCDate();
-      const renewalPassedThisMonth = renewalDay < joinDay;
+      // If signupIncludesCurrentMonth: signup month is always the first paid month,
+      // regardless of whether renewalDay has already passed.
+      const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
       let firstEligibleYear = joinYear;
       let firstEligibleMonth = joinMonth;
       if (renewalPassedThisMonth) {
@@ -1150,18 +1154,19 @@ export class SubscriptionsService {
       }
     }
 
-    // Compute eligible past months: from startDate+1 to cancellationDate month (or current month)
+    // Compute eligible past months: from startDate+1 (or startDate if signupIncludesCurrentMonth) to cancellationDate month (or current month)
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
     const eligibleMonths = isCombo
       ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj)
-      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
+      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
@@ -1176,7 +1181,7 @@ export class SubscriptionsService {
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false) {
     if (!startDateObj) return [];
 
     const now = new Date();
@@ -1185,10 +1190,12 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // First eligible month = startDate + 1 month
-    const nextMonthDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = nextMonthDate.getFullYear();
-    const startMonth = nextMonthDate.getMonth() + 1;
+    // First eligible month: if signupIncludesCurrentMonth=true → same month as startDate, otherwise next month
+    const firstEligibleDate = signupIncludesCurrentMonth
+      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
+      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
+    const startYear = firstEligibleDate.getFullYear();
+    const startMonth = firstEligibleDate.getMonth() + 1;
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -1327,15 +1334,16 @@ export class SubscriptionsService {
     subscriptionId: string,
     startDateObj: Date,
     entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
+    signupIncludesCurrentMonth = false,
   ) {
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
     const joinDay = startDateObj.getDate();
     const renewalDay = entry.renewalDay ?? 1;
 
-    // If this month's renewal day has already passed on the join date,
-    // the user missed it — start from the next month.
-    const renewalPassedThisMonth = renewalDay < joinDay;
+    // If signupIncludesCurrentMonth: signup month is always the first paid month.
+    // Otherwise: if renewalDay has already passed this month, start from next month.
+    const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
     let firstEligibleYear = startYear;
     let firstEligibleMonth = startMonth;
     if (renewalPassedThisMonth) {
@@ -1520,10 +1528,15 @@ export class SubscriptionsService {
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
 
       const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
-      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-        where: { subscriptionId: sub.id },
-        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-      });
+      const comboSubCurrency = (sub as any).currency as string ?? 'EUR';
+      const comboEntryCostCurrency = entry.costCurrency ?? comboSubCurrency;
+      const comboPriceHistoryApplies = comboEntryCostCurrency === comboSubCurrency;
+      const subPriceChanges = comboPriceHistoryApplies
+        ? await this.prisma.subscriptionPriceChange.findMany({
+            where: { subscriptionId: sub.id },
+            orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+          })
+        : [];
       const feesToCreate: {
         userId: string; feeTemplateId?: string | null; name: string; amount: number;
         currency: string; date: Date; category: any; purchaseGroupId: string;
@@ -1671,10 +1684,17 @@ export class SubscriptionsService {
     const monthMap = new Map(monthRecords.map(m => [m.id, m]));
 
     // Load subscription price changes for historical pricing
-    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: sub.id },
-      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-    });
+    // Only apply price changes when the user's cost currency matches the subscription's currency.
+    // If the user has set a custom currency, use their entered basePrice for all months.
+    const subCurrency = (sub as any).currency as string ?? 'EUR';
+    const entryCostCurrency = entry.costCurrency ?? subCurrency;
+    const priceHistoryApplies = entryCostCurrency === subCurrency;
+    const subPriceChanges = priceHistoryApplies
+      ? await this.prisma.subscriptionPriceChange.findMany({
+          where: { subscriptionId: sub.id },
+          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+        })
+      : [];
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
 
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
