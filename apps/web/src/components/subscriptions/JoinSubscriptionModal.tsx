@@ -323,11 +323,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         </div>
       </div>
 
-      <p className="text-xs text-stone-500 leading-relaxed">
+      <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {priceChanges.length === 0 ? (
-          <>
+          <p>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-          </>
+          </p>
         ) : (() => {
           const sorted = [...priceChanges].sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
@@ -370,34 +370,38 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           }
           return (
             <>
-              We know of the following price changes:{' '}
-              {sorted.map((pc, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
-                  {' '}from{' '}
-                  <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
-                </span>
-              ))}
+              <p>
+                We know of the following price changes:{' '}
+                {sorted.map((pc, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                    {' '}from{' '}
+                    <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                  </span>
+                ))}
+              </p>
               {periods.length > 0 && (
-                <>
-                  {' '}Based on your start date, the backfill breaks down as:
-                  <span className="block mt-1.5 space-y-0.5">
+                <div>
+                  <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
+                  <div className="space-y-0.5 pl-2 border-l border-stone-700">
                     {periods.map((p, i) => (
-                      <span key={i} className="block">
+                      <p key={i}>
                         <span className="text-stone-400">{p.label}:</span>{' '}
                         <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
                         {p.months !== null && <span className="text-stone-500"> ({p.months} month{p.months !== 1 ? 's' : ''})</span>}
-                      </span>
+                      </p>
                     ))}
-                  </span>
-                </>
+                  </div>
+                </div>
               )}
-              {'. '}Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+              <p>
+                Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+              </p>
             </>
           )
         })()}
-      </p>
+      </div>
 
       {/* Fee templates */}
       <div>
