@@ -724,6 +724,7 @@ export class SubscriptionsService {
     const startingMonth = (sub as any).startingMonth as number | null;
     const userStartDate = entry.startDate ?? null;
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
     const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
 
     // For paymentOnStartup: find the ACTUAL first subscription month that was paid at signup.
@@ -733,7 +734,9 @@ export class SubscriptionsService {
       const joinYear = joinDate.getUTCFullYear();
       const joinMonth = joinDate.getUTCMonth() + 1;
       const joinDay = joinDate.getUTCDate();
-      const renewalPassedThisMonth = renewalDay < joinDay;
+      // If signupIncludesCurrentMonth: signup month is always the first paid month,
+      // regardless of whether renewalDay has already passed.
+      const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
       let firstEligibleYear = joinYear;
       let firstEligibleMonth = joinMonth;
       if (renewalPassedThisMonth) {
@@ -1163,7 +1166,7 @@ export class SubscriptionsService {
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
@@ -1331,15 +1334,16 @@ export class SubscriptionsService {
     subscriptionId: string,
     startDateObj: Date,
     entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
+    signupIncludesCurrentMonth = false,
   ) {
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
     const joinDay = startDateObj.getDate();
     const renewalDay = entry.renewalDay ?? 1;
 
-    // If this month's renewal day has already passed on the join date,
-    // the user missed it — start from the next month.
-    const renewalPassedThisMonth = renewalDay < joinDay;
+    // If signupIncludesCurrentMonth: signup month is always the first paid month.
+    // Otherwise: if renewalDay has already passed this month, start from next month.
+    const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
     let firstEligibleYear = startYear;
     let firstEligibleMonth = startMonth;
     if (renewalPassedThisMonth) {
