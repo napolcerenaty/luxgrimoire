@@ -99,4 +99,24 @@ export class CompaniesController {
     void this.auditService.log({ userId: user.id, username: user.username, action: 'SET_BRAND_COLORS', entityType: 'company', entityId: slug, entityTitle: slug });
     return { brandColors: colors };
   }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @Post(':slug/purge-official-images')
+  async purgeOfficialImages(
+    @Param('slug') slug: string,
+    @CurrentUser() user: { id: string; username: string },
+  ) {
+    const result = await this.companiesService.purgeOfficialImages(slug);
+    void this.auditService.log({
+      userId: user.id,
+      username: user.username,
+      action: 'PURGE_COMPANY_IMAGES',
+      entityType: 'company',
+      entityId: slug,
+      entityTitle: slug,
+    });
+    return result;
+  }
 }

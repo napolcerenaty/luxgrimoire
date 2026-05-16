@@ -92,7 +92,15 @@ SIGNATURE RULES (read before artist rules):
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
 - Keep the @ prefix in the name exactly as written (e.g. "@artistname")
-- The "role" field MUST include the FULL description of what this person created. This means capturing the complete phrase from the start of the bullet/sentence up to and including the work noun right before "by @handle" — NOT just the last word. KEEP all parenthetical text in parentheses — e.g. "(no dust jacket)", "(collector's edition)" — they are part of the description and must not be removed or paraphrased.
+- The "role" field MUST capture the FULL description of what this person created — the physical item or creative work — starting from the beginning of the bullet/sentence. KEEP all parenthetical text in parentheses (e.g. "(no dust jacket)") — do not remove or paraphrase them.
+- ATTRIBUTION VERB RULE: The word immediately before "by @handle" is often an attribution verb (designed, illustrated, painted, drawn, created, made, etc.). Do NOT include this trailing attribution verb in the role — strip it. The role should end with the SUBJECT (the thing created), not the verb used to credit it.
+  Example: "Digitally printed edges designed by @artist" → role: "Digitally printed edges" (NOT "Digitally printed edges designed")
+  Example: "sprayed edges illustrated by @artist" → role: "sprayed edges"
+  Exception: when the verb is part of the name of the thing (e.g. "hand-lettered chapter headers" — "lettered" is part of the noun phrase, not the attribution verb). Use judgment: if removing the last word leaves an incomplete or nonsensical description, keep it.
+- When the structure is "[item] [verb] by @handle", the role = [item] only. When the structure is "[verb phrase] by @handle" (verb phrase IS the work description), keep the verb phrase as-is.
+  Example: "cover art by @someartist" → role: "cover art" (no trailing verb to strip)
+  Example: "cover illustrated by @artist" → role: "cover" (strip "illustrated")
+  Example: "hand-lettered chapter headers and map by @mapmaker" → role: "hand-lettered chapter headers and map" (no trailing verb)
   Example 1: "An exclusive redesigned naked hardcover (no dust jacket) with illustrations by @nophie.blue"
     → name: "@nophie.blue", role: "An exclusive redesigned naked hardcover (no dust jacket) with illustrations"
   Example 2: "An exclusive redesigned naked hardcover (no dust jacket) with illustration by @celestarly and typography and foiling by @francesandferndesigns"

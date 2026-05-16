@@ -85,13 +85,18 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           {/* Header: image + title */}
           <div className="flex gap-4 mb-5">
             {/* Cover */}
-            <div className="relative shrink-0 w-20 sm:w-28 rounded-xl overflow-hidden border border-stone-700" style={{ aspectRatio: '2/3' }}>
-              {coverImg ? (
-                <Image src={coverImg} alt={sale.title} fill className="object-cover" unoptimized />
-              ) : (
-                <div className="w-full h-full bg-stone-800 flex items-center justify-center p-3">
-                  <span className="text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{sale.title}</span>
-                </div>
+            <div className="shrink-0 w-20 sm:w-28">
+              <div className="relative rounded-xl overflow-hidden border border-stone-700" style={{ aspectRatio: '2/3' }}>
+                {coverImg ? (
+                  <Image src={coverImg} alt={sale.title} fill className="object-cover" unoptimized />
+                ) : (
+                  <div className="w-full h-full bg-stone-800 flex items-center justify-center p-3">
+                    <span className="text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{sale.title}</span>
+                  </div>
+                )}
+              </div>
+              {sale.photoCredit && (
+                <p className="text-[10px] text-stone-500 mt-1 text-center italic leading-tight">📷 {sale.photoCredit}</p>
               )}
             </div>
 

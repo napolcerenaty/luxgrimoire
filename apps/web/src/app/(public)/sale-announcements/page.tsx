@@ -57,7 +57,9 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
         ) : (
           <div className="relative w-full h-full flex items-center justify-center text-stone-600">
             <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(a.company?.brandColors)} />
-            <Megaphone size={32} className="relative z-10 text-amber-700/40" />
+            <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-stone-300">
+              {a.title}
+            </p>
           </div>
         )}
 
@@ -127,7 +129,9 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
         ) : (
           <>
             <div className="absolute inset-0 opacity-20" style={brandGradientStyle(a.company?.brandColors)} />
-            <Megaphone size={18} className="relative z-10 text-amber-700/50" />
+            <p className="relative z-10 font-serif text-center text-[10px] leading-tight px-1 line-clamp-3 text-stone-300">
+              {a.title}
+            </p>
           </>
         )}
       </div>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandTextClasses } from '@/lib/brandGradient'
 import { Badge } from '@/components/ui/Badge'
 import { BackButton } from '@/components/ui/BackButton'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
@@ -80,9 +81,10 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
   const currentMonth = months.find(
     (m) => m.year === nowYear && m.month === nowMonth,
   )
-  const upcomingMonth = months.find(
-    (m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth),
-  )
+  // upcoming = earliest future month (sort ascending to find the next one, not the last)
+  const upcomingMonth = [...months]
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
+    .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
@@ -137,7 +139,9 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     const compMonths = ((component as unknown as { months?: ApiSubscriptionMonth[] }).months ?? [])
       .sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
     const cur = compMonths.find((m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1)
-    const upc = compMonths.find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
+    const upc = [...compMonths]
+      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
+      .find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
     return { component: component as unknown as { id: string; slug: string; name: string }, currentMonth: cur, upcomingMonth: upc }
   }).filter(Boolean) as { component: { id: string; slug: string; name: string }; currentMonth?: ApiSubscriptionMonth; upcomingMonth?: ApiSubscriptionMonth }[]
 
@@ -405,14 +409,21 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
               : { background: 'linear-gradient(135deg, #0c0a09 0%, #1c1917 60%, #0c0a09 100%)' }
           }
         >
-          <span className="text-stone-400 font-serif text-base tracking-widest uppercase">
-            {monthName} {monthData.year}
-          </span>
-          {monthData.theme && (
-            <span className="text-stone-500 text-xs italic px-6 text-center line-clamp-2">
-              {monthData.theme}
-            </span>
-          )}
+          {(() => {
+            const tc = brandTextClasses(accentColors)
+            return (
+              <>
+                <span className={`font-serif text-base tracking-widest uppercase ${tc.primary}`}>
+                  {monthName} {monthData.year}
+                </span>
+                {monthData.theme && (
+                  <span className={`text-xs italic px-6 text-center line-clamp-2 ${tc.secondary}`}>
+                    {monthData.theme}
+                  </span>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 

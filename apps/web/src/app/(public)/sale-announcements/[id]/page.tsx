@@ -53,6 +53,9 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               No image
             </div>
           )}
+          {sale.photoCredit && (
+            <p className="text-xs text-stone-500 mt-2 text-center italic">📷 {sale.photoCredit}</p>
+          )}
         </div>
 
         {/* Info */}
