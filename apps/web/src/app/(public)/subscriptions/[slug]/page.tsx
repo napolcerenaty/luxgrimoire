@@ -243,7 +243,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             {comboFeatured.some((f) => f.currentMonth) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">Current Month</h3>
-                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.currentMonth).length === 1 ? 'grid-cols-1 max-w-sm' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)}`}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.currentMonth).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)} ${comboFeatured.filter((f) => f.currentMonth).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
                   {comboFeatured
                     .filter((f) => f.currentMonth)
                     .map(({ component, currentMonth: cur }) => (
@@ -258,7 +258,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             {comboFeatured.some((f) => f.upcomingMonth) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">Upcoming Theme</h3>
-                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth).length === 1 ? 'grid-cols-1 max-w-sm' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)}`}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)} ${comboFeatured.filter((f) => f.upcomingMonth).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
                   {comboFeatured
                     .filter((f) => f.upcomingMonth)
                     .map(({ component, upcomingMonth: upc }) => (
@@ -281,10 +281,11 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">
                   Current Bundle — {MONTH_NAMES[currentBundleStartMonth - 1]} {currentBundleStartYear}
                 </h3>
-                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(currentBundleMonths.length, 3)}`}>
+                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(currentBundleMonths.length, 3)} ${currentBundleMonths.length === 1 ? 'max-w-xs' : currentBundleMonths.length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}>
                   {currentBundleMonths.map((m) => (
                     <FeaturedMonthCard
                       key={`${m.year}-${m.month}`}
+                      compact
                       label={`${MONTH_NAMES[m.month - 1]} ${m.year}`}
                       labelVariant="current"
                       monthData={m}
@@ -299,10 +300,11 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">
                   Upcoming Bundle — {MONTH_NAMES[nextBundleStartMonth - 1]} {nextBundleStartYear}
                 </h3>
-                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(upcomingBundleMonths.length, 3)}`}>
+                <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(upcomingBundleMonths.length, 3)} ${upcomingBundleMonths.length === 1 ? 'max-w-xs' : upcomingBundleMonths.length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}>
                   {upcomingBundleMonths.map((m) => (
                     <FeaturedMonthCard
                       key={`${m.year}-${m.month}`}
+                      compact
                       label={`${MONTH_NAMES[m.month - 1]} ${m.year}`}
                       labelVariant="upcoming"
                       monthData={m}
@@ -318,9 +320,10 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         /* Regular: single current + upcoming */
         (currentMonth || upcomingMonth) && (
           <section className="mb-12">
-            <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-sm'}`}>
+            <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
               {currentMonth && (
                 <FeaturedMonthCard
+                  compact
                   label="Current Month"
                   labelVariant="current"
                   monthData={currentMonth}
@@ -329,6 +332,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               )}
               {upcomingMonth && (
                 <FeaturedMonthCard
+                  compact
                   label="Upcoming Theme"
                   labelVariant="upcoming"
                   monthData={upcomingMonth}
