@@ -490,12 +490,14 @@ const CONDITION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | '
   POOR: 'destructive',
 }
 
-type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR'
+type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR' | 'AUTHOR' | 'COMPANY'
+type SortOrder = 'DATE_DESC' | 'DATE_ASC'
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('ALL')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('DATE_DESC')
   const [bookFilter, setBookFilter] = useState('')
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
@@ -712,19 +714,25 @@ export default function CollectionPage() {
   })
 
   const grouped: CollectionEntry[][] = (() => {
+    // Apply sort first
+    const sortDate = (e: CollectionEntry) => e.purchaseGroup?.purchasedAt ?? e.acquiredAt ?? ''
+    const sorted = [...filtered].sort((a, b) => {
+      const da = sortDate(a), db = sortDate(b)
+      return sortOrder === 'DATE_DESC' ? db.localeCompare(da) : da.localeCompare(db)
+    })
+
     if (filter === 'BOOK') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.edition.book.id
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
-      // Sort: books with multiple editions first
       return Array.from(map.values()).sort((a, b) => b.length - a.length)
     }
     if (filter === 'SERIES') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.edition.book.seriesName ?? 'Standalone'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
@@ -733,7 +741,7 @@ export default function CollectionPage() {
     }
     if (filter === 'YEAR') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.acquiredAt ? new Date(e.acquiredAt).getFullYear().toString() : 'Unknown'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
@@ -742,7 +750,30 @@ export default function CollectionPage() {
         .sort((a, b) => b[0].localeCompare(a[0]))
         .map(([, v]) => v)
     }
-    return [filtered]
+    if (filter === 'AUTHOR') {
+      const map = new Map<string, CollectionEntry[]>()
+      for (const e of sorted) {
+        const authors = e.edition.book.authors
+        const key = authors.length > 0 ? authors.map(a => a.name).join(', ') : 'Unknown Author'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      }
+      return Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => v)
+    }
+    if (filter === 'COMPANY') {
+      const map = new Map<string, CollectionEntry[]>()
+      for (const e of sorted) {
+        const key = e.edition.bookBoxCompany?.name ?? 'Unknown Company'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      }
+      return Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => v)
+    }
+    return [sorted]
   })()
 
   if (entriesLoading) {
@@ -813,6 +844,18 @@ export default function CollectionPage() {
               <option value="BOOK">Group: By Book</option>
               <option value="SERIES">Group: By Series</option>
               <option value="YEAR">Group: By Year</option>
+              <option value="AUTHOR">Group: By Author</option>
+              <option value="COMPANY">Group: By Company</option>
+            </select>
+
+            {/* Sort order */}
+            <select
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value as SortOrder)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="DATE_DESC">Sort: Newest first</option>
+              <option value="DATE_ASC">Sort: Oldest first</option>
             </select>
 
             {/* Signature */}
@@ -916,7 +959,11 @@ export default function CollectionPage() {
                       ? (group[0]?.acquiredAt
                           ? new Date(group[0].acquiredAt).getFullYear().toString()
                           : 'Unknown')
-                      : null
+                    : filter === 'AUTHOR'
+                      ? (group[0]?.edition.book.authors.map(a => a.name).join(', ') ?? 'Unknown Author')
+                    : filter === 'COMPANY'
+                      ? (group[0]?.edition.bookBoxCompany?.name ?? 'Unknown Company')
+                    : null
 
                 return (
                   <div key={gi}>
@@ -927,10 +974,21 @@ export default function CollectionPage() {
                             {groupLabel}
                           </a>
                         )}
-                        {filter !== 'BOOK' && groupLabel}
+                        {filter === 'AUTHOR' && group[0] && (
+                          <a href={`/authors/${group[0].edition.book.authors[0]?.slug}`} className="hover:text-amber-400 transition-colors">
+                            {groupLabel}
+                          </a>
+                        )}
+                        {filter === 'COMPANY' && group[0]?.edition.bookBoxCompany && (
+                          <a href={`/book-boxes/${group[0].edition.bookBoxCompany.slug}`} className="hover:text-amber-400 transition-colors">
+                            {groupLabel}
+                          </a>
+                        )}
+                        {(filter === 'SERIES' || filter === 'YEAR' || (filter === 'COMPANY' && !group[0]?.edition.bookBoxCompany)) && groupLabel}
                         {filter === 'BOOK' && group.length > 1 && (
                           <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5">{group.length} editions</span>
                         )}
+                        <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>
                       </h2>
                     )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
