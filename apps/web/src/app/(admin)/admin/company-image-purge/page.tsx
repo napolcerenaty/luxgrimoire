@@ -237,15 +237,6 @@ export default function CompanyImagePurgePage() {
                 key={company.slug}
                 className="flex items-center gap-4 px-5 py-4 bg-stone-900 hover:bg-stone-800/60 transition-colors"
               >
-                {company.logoUrl ? (
-                  <img
-                    src={company.logoUrl}
-                    alt={company.name}
-                    className="w-10 h-10 rounded-lg object-contain bg-stone-800 shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-stone-800 shrink-0" />
-                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-stone-100 font-medium text-sm truncate">{company.name}</p>
                   <p className="text-stone-500 text-xs">{company.slug}</p>
