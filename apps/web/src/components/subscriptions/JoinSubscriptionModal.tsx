@@ -323,11 +323,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         </div>
       </div>
 
-      <p className="text-xs text-stone-500 leading-relaxed">
+      {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {priceChanges.length === 0 ? (
-          <>
+          <p>
             As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-          </>
+          </p>
         ) : (() => {
           const sorted = [...priceChanges].sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
@@ -370,34 +370,38 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           }
           return (
             <>
-              We know of the following price changes:{' '}
-              {sorted.map((pc, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
-                  {' '}from{' '}
-                  <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
-                </span>
-              ))}
+              <p>
+                We know of the following price changes:{' '}
+                {sorted.map((pc, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                    {' '}from{' '}
+                    <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                  </span>
+                ))}
+              </p>
               {periods.length > 0 && (
-                <>
-                  {' '}Based on your start date, the backfill breaks down as:
-                  <span className="block mt-1.5 space-y-0.5">
+                <div>
+                  <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
+                  <div className="space-y-0.5 pl-2 border-l border-stone-700">
                     {periods.map((p, i) => (
-                      <span key={i} className="block">
+                      <p key={i}>
                         <span className="text-stone-400">{p.label}:</span>{' '}
                         <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
                         {p.months !== null && <span className="text-stone-500"> ({p.months} month{p.months !== 1 ? 's' : ''})</span>}
-                      </span>
+                      </p>
                     ))}
-                  </span>
-                </>
+                  </div>
+                </div>
               )}
-              {'. '}Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+              <p>
+                Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+              </p>
             </>
           )
         })()}
-      </p>
+      </div>}
 
       {/* Fee templates */}
       <div>
@@ -813,14 +817,15 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
   const [batchMode, setBatchMode] = useState<BatchMode>('all-monthly')
 
   type BatchFeeRow = { name: string; amount: string; currency: string }
-  type Batch = { billedAt: string; baseAmount: string; shippingAmount: string; monthIds: string[]; fees: BatchFeeRow[] }
+  type BatchDiscountRow = { name: string; amount: string; currency: string }
+  type Batch = { billedAt: string; baseAmount: string; shippingAmount: string; monthIds: string[]; fees: BatchFeeRow[]; discounts: BatchDiscountRow[] }
 
   function makeDefaultFees(): BatchFeeRow[] {
     return entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency }))
   }
 
   const [batches, setBatches] = useState<Batch[]>(() =>
-    [{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees() }]
+    [{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees(), discounts: [] }]
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -828,12 +833,12 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
   function switchMode(mode: BatchMode) {
     setBatchMode(mode)
     if (mode === 'custom' && batches.length === 0) {
-      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees() }])
+      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees(), discounts: [] }])
     }
   }
 
   function addBatch() {
-    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [], fees: makeDefaultFees() }])
+    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [], fees: makeDefaultFees(), discounts: [] }])
   }
 
   function removeBatch(idx: number) {
@@ -866,6 +871,22 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
 
   function removeFee(batchIdx: number, feeIdx: number) {
     setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, fees: b.fees.filter((_, j) => j !== feeIdx) }))
+  }
+
+  function updateDiscount(batchIdx: number, discIdx: number, field: keyof BatchDiscountRow, value: string) {
+    setBatches(prev => prev.map((b, i) => {
+      if (i !== batchIdx) return b
+      const discounts = b.discounts.map((d, j) => j === discIdx ? { ...d, [field]: value } : d)
+      return { ...b, discounts }
+    }))
+  }
+
+  function addDiscount(batchIdx: number) {
+    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, discounts: [...b.discounts, { name: '', amount: '', currency }] }))
+  }
+
+  function removeDiscount(batchIdx: number, discIdx: number) {
+    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, discounts: b.discounts.filter((_, j) => j !== discIdx) }))
   }
 
   async function submitSkip() {
@@ -920,6 +941,11 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
             fees: b.fees
               .filter(f => f.name && f.amount)
               .map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency || currency })),
+          }),
+          ...(b.discounts.filter(d => d.name && d.amount).length > 0 && {
+            discounts: b.discounts
+              .filter(d => d.name && d.amount)
+              .map(d => ({ name: d.name, amount: parseDecimalInput(d.amount), currency: d.currency || currency })),
           }),
         }))
 
@@ -1034,7 +1060,14 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
 
           {/* Months */}
           <div>
-            <p className="text-xs text-stone-500 mb-1">Months in this batch:</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-stone-500">Months in this batch:</p>
+              <div className="flex items-center gap-2.5 text-[10px] text-stone-500">
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-700 border border-amber-600" />in this</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-stone-800 border border-stone-500 border-dashed" />available</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-stone-800 border border-stone-700 opacity-40" />other batch</span>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-1">
               {selectedMonthIds.map(mid => {
                 const m = monthMap.get(mid)
@@ -1050,8 +1083,8 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
                       inThis
                         ? 'bg-amber-700 border-amber-600 text-stone-100'
                         : inOther
-                        ? 'bg-stone-800 border-stone-700 text-stone-600 cursor-not-allowed'
-                        : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-amber-600'
+                        ? 'bg-stone-800 border-stone-700 text-stone-600 opacity-40 cursor-not-allowed'
+                        : 'bg-stone-800 border-dashed border-stone-500 text-stone-300 hover:border-amber-500 hover:text-amber-300'
                     }`}
                   >
                     {MONTH_NAMES[m.month - 1]} {m.year}
@@ -1095,6 +1128,43 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
             </div>
             <button onClick={() => addFee(idx)} className="mt-1 text-xs text-amber-500 hover:text-amber-400 transition-colors">
               + Add fee
+            </button>
+          </div>
+
+          {/* Discounts */}
+          <div>
+            <p className="text-xs text-stone-500 mb-1">Discounts / promo codes:</p>
+            <div className="space-y-1">
+              {batch.discounts.map((disc, discIdx) => (
+                <div key={discIdx} className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value={disc.name}
+                    onChange={e => updateDiscount(idx, discIdx, 'name', e.target.value)}
+                    placeholder="Name"
+                    className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={disc.amount}
+                    onChange={e => updateDiscount(idx, discIdx, 'amount', e.target.value)}
+                    placeholder="0.00"
+                    className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <input
+                    type="text"
+                    value={disc.currency}
+                    onChange={e => updateDiscount(idx, discIdx, 'currency', e.target.value.toUpperCase())}
+                    maxLength={3}
+                    className="w-12 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs uppercase"
+                  />
+                  <button onClick={() => removeDiscount(idx, discIdx)} className="text-xs text-red-400 hover:text-red-300 px-1">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => addDiscount(idx)} className="mt-1 text-xs text-emerald-500 hover:text-emerald-400 transition-colors">
+              + Add discount
             </button>
           </div>
         </div>

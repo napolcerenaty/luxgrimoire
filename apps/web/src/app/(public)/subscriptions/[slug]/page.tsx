@@ -243,7 +243,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             {comboFeatured.some((f) => f.currentMonth) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">Current Month</h3>
-                <div className={`grid gap-4 grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.currentMonth).length === 1 ? 'grid-cols-1 max-w-sm' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)}`}`}>
                   {comboFeatured
                     .filter((f) => f.currentMonth)
                     .map(({ component, currentMonth: cur }) => (
@@ -258,7 +258,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             {comboFeatured.some((f) => f.upcomingMonth) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">Upcoming Theme</h3>
-                <div className={`grid gap-4 grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth).length === 1 ? 'grid-cols-1 max-w-sm' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)}`}`}>
                   {comboFeatured
                     .filter((f) => f.upcomingMonth)
                     .map(({ component, upcomingMonth: upc }) => (
@@ -381,7 +381,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
   )
 
   const imageArea = (
-    <div className={`group relative overflow-hidden bg-stone-950 cursor-pointer ${compact ? 'aspect-[4/3]' : 'aspect-[16/9]'}`}>
+    <div className={`group relative overflow-hidden bg-stone-950 cursor-pointer ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
       {coverUrl ? (
         <>
           {/* Blurred background fill — eliminates hard letterboxing */}

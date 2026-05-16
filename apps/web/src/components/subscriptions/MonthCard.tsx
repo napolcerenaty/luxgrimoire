@@ -101,7 +101,7 @@ export default function MonthCard({
               {monthName} {year}
             </span>
             {theme && (
-              <span className="relative z-10 text-stone-500 text-xs italic text-center line-clamp-3">
+              <span className="relative z-10 text-stone-500 text-xs italic uppercase text-center line-clamp-3">
                 {theme}
               </span>
             )}
@@ -150,20 +150,22 @@ export default function MonthCard({
 
       {/* Theme below image */}
       <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
-        {theme ? (
-          <p className="text-stone-300 text-xs font-serif italic line-clamp-2">{theme}</p>
-        ) : (
-          <p className="text-stone-600 text-xs italic">No theme yet</p>
-        )}
-        {cardArtist && (
-          <Link
-            href={`/artists/${cardArtist.slug}`}
-            className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors mt-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
-          </Link>
-        )}
+        <div className="flex items-baseline flex-wrap gap-x-2">
+          {theme ? (
+            <p className="text-stone-300 text-xs font-serif italic uppercase line-clamp-2">{theme}</p>
+          ) : (
+            <p className="text-stone-600 text-xs italic">No theme yet</p>
+          )}
+          {cardArtist && (
+            <Link
+              href={`/artists/${cardArtist.slug}`}
+              className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
+            </Link>
+          )}
+        </div>
         {isSpoiler && (
           <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-950/60 text-amber-400 mt-1.5">
             Spoiler

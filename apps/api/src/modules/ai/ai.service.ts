@@ -212,6 +212,9 @@ TITLE RULES:
 - Extract the edition title from the announcement. Usually quoted or explicitly named.
 - Keep "Exclusive Edition" if it's part of the product name.
 - Example: "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition"
+- AUTHOR IN TITLE: If the announcement title or product name includes an author credit in the format "by [Author Name]" (e.g. "The Name of the Wind by Patrick Rothfuss Exclusive Edition"), ALWAYS include the "by [Author Name]" part in the title. Never strip it.
+  - Example: "The Way of Kings by Brandon Sanderson Exclusive Edition" → title: "The Way of Kings by Brandon Sanderson Exclusive Edition"
+  - Example: "A Court of Thorns and Roses by Sarah J. Maas" → title: "A Court of Thorns and Roses by Sarah J. Maas"
 
 REGION RULES:
 - Look for different price/currency combinations or different regions mentioned (UK/INT, US/Canada, EU, AUS, etc.)

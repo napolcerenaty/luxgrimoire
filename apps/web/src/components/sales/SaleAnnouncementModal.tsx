@@ -98,7 +98,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               {sale.photoCredit && (() => {
                 const handle = sale.photoCredit.replace(/^@/, '')
                 return (
-                  <p className="text-[10px] text-stone-500 mt-1 text-center italic leading-tight">
+                  <p className="text-[10px] text-stone-500 mt-1 text-center leading-tight">
                     📷 photo by{' '}
                     <a
                       href={`https://instagram.com/${handle}`}
