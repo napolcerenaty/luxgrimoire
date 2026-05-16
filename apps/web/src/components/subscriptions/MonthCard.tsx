@@ -150,11 +150,11 @@ export default function MonthCard({
 
       {/* Theme below image */}
       <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
-        <div className="flex items-baseline flex-wrap gap-x-2">
+        <div className="flex items-baseline gap-x-2 min-w-0">
           {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic uppercase line-clamp-2">{theme}</p>
+            <p className="text-stone-300 text-xs font-serif italic uppercase truncate min-w-0 flex-1">{theme}</p>
           ) : (
-            <p className="text-stone-600 text-xs italic">No theme yet</p>
+            <p className="text-stone-600 text-xs italic flex-1">No theme yet</p>
           )}
           {cardArtist && (
             <Link
