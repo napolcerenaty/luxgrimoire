@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
@@ -213,6 +214,125 @@ export class CompaniesService {
     await this.cache.del(companySlugKey(slug));
     await this.cache.del(companyEditionsKey(slug));
     return normalized;
+  }
+
+  async purgeOfficialImages(slug: string): Promise<{
+    deletedEditionImages: number;
+    deletedMonthImages: number;
+    deletedAnnouncementImages: number;
+    errors: string[];
+  }> {
+    const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    const BATCH = 50;
+    const errors: string[] = [];
+    let deletedEditionImages = 0;
+    let deletedMonthImages = 0;
+    let deletedAnnouncementImages = 0;
+
+    // ── Step 1: Edition additionalImages ─────────────────────────────────
+    let skip = 0;
+    while (true) {
+      const editions = await this.prisma.bookEdition.findMany({
+        where: {
+          bookBoxCompanyId: company.id,
+          OR: [{ additionalImages: { isEmpty: false } }, { photoCredit: { not: null } }],
+        },
+        select: { id: true, additionalImages: true },
+        take: BATCH,
+        skip,
+      });
+      if (!editions.length) break;
+      for (const edition of editions) {
+        try {
+          await Promise.allSettled(
+            edition.additionalImages.map((img) => this.uploadService.deleteImage(img)),
+          );
+          await this.prisma.bookEdition.update({
+            where: { id: edition.id },
+            data: { additionalImages: [], photoCredit: null },
+          });
+          deletedEditionImages += edition.additionalImages.length;
+        } catch (e) {
+          errors.push(`Edition ${edition.id}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      skip += BATCH;
+    }
+
+    // ── Step 2: SubscriptionMonth coverImages ─────────────────────────────
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: { companyId: company.id },
+      select: { id: true },
+    });
+    const subIds = subscriptions.map((s) => s.id);
+    if (subIds.length) {
+      skip = 0;
+      while (true) {
+        const months = await this.prisma.subscriptionMonth.findMany({
+          where: { subscriptionId: { in: subIds }, coverImage: { not: null } },
+          select: { id: true, coverImage: true },
+          take: BATCH,
+          skip,
+        });
+        if (!months.length) break;
+        for (const month of months) {
+          try {
+            if (month.coverImage) await this.uploadService.deleteImage(month.coverImage);
+            await this.prisma.subscriptionMonth.update({
+              where: { id: month.id },
+              data: { coverImage: null },
+            });
+            deletedMonthImages++;
+          } catch (e) {
+            errors.push(`Month ${month.id}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+        skip += BATCH;
+      }
+    }
+
+    // ── Step 3: SaleAnnouncement imageUrl ────────────────────────────────
+    skip = 0;
+    while (true) {
+      const announcements = await this.prisma.saleAnnouncement.findMany({
+        where: {
+          companyId: company.id,
+          OR: [{ imageUrl: { not: null } }, { photoCredit: { not: null } }, { extraImagesJson: { not: Prisma.AnyNull } }],
+        },
+        select: { id: true, imageUrl: true, extraImagesJson: true },
+        take: BATCH,
+        skip,
+      });
+      if (!announcements.length) break;
+      for (const ann of announcements) {
+        try {
+          if (ann.imageUrl) await this.uploadService.deleteImage(ann.imageUrl);
+          if (ann.extraImagesJson) {
+            const extras = ann.extraImagesJson as { url?: string }[];
+            for (const extra of Array.isArray(extras) ? extras : []) {
+              if (extra?.url) await this.uploadService.deleteImage(extra.url);
+            }
+          }
+          await this.prisma.saleAnnouncement.update({
+            where: { id: ann.id },
+            data: { imageUrl: null, photoCredit: null, extraImagesJson: Prisma.JsonNull },
+          });
+          deletedAnnouncementImages++;
+        } catch (e) {
+          errors.push(`Announcement ${ann.id}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      skip += BATCH;
+    }
+
+    this.logger.log(
+      `Purged official images for ${slug}: ` +
+      `${deletedEditionImages} edition imgs, ${deletedMonthImages} month imgs, ` +
+      `${deletedAnnouncementImages} announcement imgs, ${errors.length} errors`,
+    );
+    return { deletedEditionImages, deletedMonthImages, deletedAnnouncementImages, errors };
   }
 
   private async indexCompany(company: { id: string; slug: string; name: string; country?: string | null }): Promise<void> {

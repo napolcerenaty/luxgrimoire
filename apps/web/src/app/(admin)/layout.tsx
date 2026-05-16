@@ -101,6 +101,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
       { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
+      { href: '/admin/company-image-purge', label: 'Image Purge', icon: Image },
     ],
   },
 ]
