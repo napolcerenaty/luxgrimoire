@@ -1083,7 +1083,7 @@ export default function CollectionPage() {
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
+                                  {(['PREORDER', 'SHIPPING', 'OWNED', 'TO_SELL', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
@@ -1357,7 +1357,7 @@ export default function CollectionPage() {
                             {fmtStatus(entry.ownershipStatus)}
                             {openDropdown === `${entry.id}-ownership` && (
                               <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
+                                {(['PREORDER', 'SHIPPING', 'OWNED', 'TO_SELL', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{fmtStatus(val)}</button>

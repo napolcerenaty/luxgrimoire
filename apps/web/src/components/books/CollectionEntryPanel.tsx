@@ -117,7 +117,7 @@ interface Props {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OWNERSHIP_STATUSES = ['OWNED', 'PREORDER', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD'] as const
+const OWNERSHIP_STATUSES = ['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'SOLD'] as const
 const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const
 
 const OWNERSHIP_COLORS: Record<string, string> = {
@@ -220,7 +220,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
         onChange={e => setStatus(e.target.value)}
         className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
       >
-        {(['OWNED', 'PREORDER', 'SHIPPING', 'BORROWED', 'LENDED', 'SOLD'] as const).map(s => (
+        {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'SOLD'] as const).map(s => (
           <option key={s} value={s}>{s}</option>
         ))}
       </select>
