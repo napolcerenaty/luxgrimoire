@@ -225,7 +225,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
         ))}
       </select>
       <input
-        type="datetime-local"
+        type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
         className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
@@ -1603,7 +1603,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                           <input
-                            type="datetime-local"
+                            type="date"
                             value={historyEditDate}
                             onChange={e => setHistoryEditDate(e.target.value)}
                             className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
@@ -1624,7 +1624,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
                           <span className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 16)) }}
+                              onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
                               className="text-stone-500 hover:text-amber-400 transition-colors"
                             ><Pencil size={10} /></button>
                             <button
