@@ -151,19 +151,23 @@ export default function MonthCard({
       {/* Theme below image */}
       <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
         <div className="flex flex-col gap-y-0.5">
-          {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug">{theme}</p>
-          ) : (
-            <p className="text-stone-600 text-xs italic">No theme yet</p>
-          )}
-          {cardArtist && (
+          {/* Artist line — always rendered to keep cards aligned across a row */}
+          {cardArtist ? (
             <Link
               href={`/artists/${cardArtist.slug}`}
-              className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors"
+              className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors leading-none"
               onClick={(e) => e.stopPropagation()}
             >
               card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
             </Link>
+          ) : (
+            <span className="text-[10px] leading-none invisible select-none">_</span>
+          )}
+          {/* Theme — single line, truncated */}
+          {theme ? (
+            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug truncate">{theme}</p>
+          ) : (
+            <p className="text-stone-600 text-xs italic leading-snug">No theme yet</p>
           )}
         </div>
         {isSpoiler && (
