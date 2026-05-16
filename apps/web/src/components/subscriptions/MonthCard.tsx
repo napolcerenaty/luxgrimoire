@@ -101,7 +101,7 @@ export default function MonthCard({
               {monthName} {year}
             </span>
             {theme && (
-              <span className="relative z-10 text-stone-500 text-xs italic text-center line-clamp-3">
+              <span className="relative z-10 text-stone-500 text-xs italic uppercase text-center line-clamp-3">
                 {theme}
               </span>
             )}
@@ -152,7 +152,7 @@ export default function MonthCard({
       <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
         <div className="flex items-baseline flex-wrap gap-x-2">
           {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic line-clamp-2">{theme}</p>
+            <p className="text-stone-300 text-xs font-serif italic uppercase line-clamp-2">{theme}</p>
           ) : (
             <p className="text-stone-600 text-xs italic">No theme yet</p>
           )}
