@@ -39,7 +39,7 @@ interface CollectionEntry {
   ownershipStatus: string
   readingStatus: string
   signatureType: string | null
-  trackingNumber: string | null
+  trackingNumbers: Array<{ id: string; trackingNumber: string; label: string | null; addedAt: string }>
   isOriginalPrint: boolean
   saleAnnouncementEditionId: string | null
   saleAnnouncementEdition: {
@@ -617,9 +617,10 @@ export default function CollectionPage() {
 
   const [addSaleOpen, setAddSaleOpen] = useState(false)
   // Track shipment modal
-  const [trackEntry, setTrackEntry] = useState<{ id: string; trackingNumber: string | null } | null>(null)
+  const [trackEntry, setTrackEntry] = useState<{ id: string; trackingNumbers: Array<{ id: string; trackingNumber: string; label: string | null }> } | null>(null)
   const [trackingInput, setTrackingInput] = useState('')
-  const [trackingEditMode, setTrackingEditMode] = useState(false)
+  const [trackingLabelInput, setTrackingLabelInput] = useState('')
+  const [showAddTracking, setShowAddTracking] = useState(false)
   // Ownership history modal
   const [historyEntryId, setHistoryEntryId] = useState<string | null>(null)
   const [historyItems, setHistoryItems] = useState<{ id: string; status: string; changedAt: string }[]>([])
@@ -1286,24 +1287,25 @@ export default function CollectionPage() {
 
                           {/* Quick action buttons */}
                           <div className="flex gap-1 mt-2 pt-1.5 border-t border-stone-800/60">
-                            {/* Track shipment — always show if SHIPPING or has tracking number */}
-                            {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumber) && (
+                            {/* Track shipment — show if SHIPPING/PREORDER or has tracking numbers */}
+                            {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                               <button
                                 onClick={(e) => {
                                   e.preventDefault(); e.stopPropagation()
-                                  setTrackEntry({ id: entry.id, trackingNumber: entry.trackingNumber })
-                                  setTrackingInput(entry.trackingNumber ?? '')
-                                  setTrackingEditMode(!entry.trackingNumber) // edit mode only when no existing number
+                                  setTrackEntry({ id: entry.id, trackingNumbers: entry.trackingNumbers })
+                                  setTrackingInput('')
+                                  setTrackingLabelInput('')
+                                  setShowAddTracking(entry.trackingNumbers.length === 0)
                                 }}
                                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
-                                  entry.trackingNumber
+                                  entry.trackingNumbers.length > 0
                                     ? 'text-blue-400 border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20'
                                     : 'text-stone-400 border-stone-700 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/10'
                                 }`}
-                                title={entry.trackingNumber ? `Tracking: ${entry.trackingNumber}` : 'Add tracking number'}
+                                title={entry.trackingNumbers.length > 0 ? `${entry.trackingNumbers.length} tracking number(s)` : 'Add tracking number'}
                               >
                                 <Truck size={10} />
-                                {entry.trackingNumber ? 'Tracked' : 'Track'}
+                                {entry.trackingNumbers.length > 0 ? 'Tracked' : 'Track'}
                               </button>
                             )}
 
@@ -1473,11 +1475,11 @@ export default function CollectionPage() {
 
                         {/* Actions (hover) */}
                         <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
-                          {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumber) && (
+                          {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                             <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTrackEntry({ id: entry.id, trackingNumber: entry.trackingNumber }); setTrackingInput(entry.trackingNumber ?? ''); setTrackingEditMode(!entry.trackingNumber) }}
-                              className={`p-1.5 rounded-lg transition-colors ${entry.trackingNumber ? 'text-blue-400 hover:bg-blue-500/10' : 'text-stone-500 hover:text-blue-400 hover:bg-blue-500/10'}`}
-                              title={entry.trackingNumber ? `Tracking: ${entry.trackingNumber}` : 'Add tracking number'}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTrackEntry({ id: entry.id, trackingNumbers: entry.trackingNumbers }); setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(entry.trackingNumbers.length === 0) }}
+                              className={`p-1.5 rounded-lg transition-colors ${entry.trackingNumbers.length > 0 ? 'text-blue-400 hover:bg-blue-500/10' : 'text-stone-500 hover:text-blue-400 hover:bg-blue-500/10'}`}
+                              title={entry.trackingNumbers.length > 0 ? `${entry.trackingNumbers.length} tracking number(s)` : 'Add tracking number'}
                             >
                               <Truck size={12} />
                             </button>
@@ -1641,74 +1643,61 @@ export default function CollectionPage() {
       {/* ─── Track Shipment Modal ─── */}
       <Modal
         open={!!trackEntry}
-        onClose={() => { setTrackEntry(null); setTrackingInput(''); setTrackingEditMode(false) }}
+        onClose={() => { setTrackEntry(null); setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(false) }}
         title="Track Shipment"
       >
         <div className="flex flex-col gap-4">
-          {trackEntry?.trackingNumber && !trackingEditMode ? (
-            /* View mode — show tracking as link + edit button */
-            <>
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                <Truck size={15} className="text-blue-400 shrink-0" />
-                <a
-                  href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => authFetch(`/collection/${trackEntry.id}/tracking-click`, { method: 'POST' }).catch(() => {})}
-                  className="flex-1 text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2 break-all transition-colors"
-                >
-                  {trackEntry.trackingNumber}
-                </a>
-                <button
-                  onClick={() => { setTrackingInput(trackEntry.trackingNumber ?? ''); setTrackingEditMode(true) }}
-                  className="p-1.5 text-stone-500 hover:text-amber-400 transition-colors shrink-0"
-                  title="Edit tracking number"
-                >
-                  <Pencil size={13} />
-                </button>
-              </div>
-              <a
-                href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackEntry.trackingNumber)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => authFetch(`/collection/${trackEntry.id}/tracking-click`, { method: 'POST' }).catch(() => {})}
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
-              >
-                <Truck size={14} /> Open tracking page ↗
-              </a>
-              <button
-                onClick={async () => {
-                  if (!trackEntry) return
-                  await authFetch(`/collection/${trackEntry.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trackingNumber: null }),
-                  })
-                  await queryClient.invalidateQueries({ queryKey: ['collection'] })
-                  setTrackEntry(null)
-                  setTrackingInput('')
-                  setTrackingEditMode(false)
-                }}
-                className="text-xs text-stone-600 hover:text-red-400 transition-colors text-center"
-              >
-                Remove tracking number
-              </button>
-            </>
-          ) : (
-            /* Edit / add mode */
-            <>
-              <p className="text-sm text-stone-400">
-                {trackEntry?.trackingNumber
-                  ? 'Edit the tracking number below.'
-                  : 'Edit the tracking number below.'}
-              </p>
+          {/* Existing tracking numbers list */}
+          {trackEntry && trackEntry.trackingNumbers.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {trackEntry.trackingNumbers.map((tn) => (
+                <div key={tn.id} className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <Truck size={14} className="text-blue-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    {tn.label && <p className="text-[10px] text-stone-400 mb-0.5">{tn.label}</p>}
+                    <a
+                      href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2 break-all transition-colors"
+                    >
+                      {tn.trackingNumber}
+                    </a>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!trackEntry) return
+                      await authFetch(`/collection/${trackEntry.id}/tracking/${tn.id}`, { method: 'DELETE' })
+                      await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                      setTrackEntry(prev => prev ? { ...prev, trackingNumbers: prev.trackingNumbers.filter(t => t.id !== tn.id) } : null)
+                    }}
+                    className="p-1.5 text-stone-600 hover:text-red-400 transition-colors shrink-0"
+                    title="Remove tracking number"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add tracking form */}
+          {showAddTracking ? (
+            <div className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder="e.g. JD014600006278907695"
+                placeholder="Tracking number (e.g. JD014600006278907695)"
                 value={trackingInput}
                 onChange={(e) => setTrackingInput(e.target.value)}
                 className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
                 autoFocus
+              />
+              <input
+                type="text"
+                placeholder="Label (optional, e.g. Volume 1)"
+                value={trackingLabelInput}
+                onChange={(e) => setTrackingLabelInput(e.target.value)}
+                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
               />
               {trackingInput.trim() && (
                 <a
@@ -1723,31 +1712,38 @@ export default function CollectionPage() {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    if (!trackEntry) return
-                    await authFetch(`/collection/${trackEntry.id}`, {
-                      method: 'PATCH',
+                    if (!trackEntry || !trackingInput.trim()) return
+                    const result = await authFetch<{ id: string; trackingNumber: string; label: string | null }>(`/collection/${trackEntry.id}/tracking`, {
+                      method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ trackingNumber: trackingInput.trim() || null }),
+                      body: JSON.stringify({ trackingNumber: trackingInput.trim(), label: trackingLabelInput.trim() || undefined }),
                     })
                     await queryClient.invalidateQueries({ queryKey: ['collection'] })
-                    setTrackEntry(null)
+                    setTrackEntry(prev => prev ? { ...prev, trackingNumbers: [...prev.trackingNumbers, result] } : null)
                     setTrackingInput('')
-                    setTrackingEditMode(false)
+                    setTrackingLabelInput('')
+                    setShowAddTracking(false)
                   }}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                  disabled={!trackingInput.trim()}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
                 >
-                  Save
+                  Add
                 </button>
-                {trackingEditMode && (
-                  <button
-                    onClick={() => { setTrackingInput(''); setTrackingEditMode(false) }}
-                    className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                )}
+                <button
+                  onClick={() => { setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(false) }}
+                  className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
-            </>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddTracking(true)}
+              className="flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors"
+            >
+              <Plus size={14} /> Add tracking number
+            </button>
           )}
         </div>
       </Modal>

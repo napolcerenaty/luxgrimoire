@@ -652,7 +652,6 @@ model UserBookEntry {
   purchaseGroupId       String?
   subscriptionEntryId   String?
   signatureType              SignatureType?
-  trackingNumber             String?
   orderNumber                String?
   saleAnnouncementEditionId  String?                @db.VarChar(36)
   isOriginalPrint            Boolean                @default(true)
@@ -665,6 +664,7 @@ model UserBookEntry {
   saleEntries                UserSaleEntry[]
   ownershipHistory           OwnershipStatusHistory[]
   entryTags                  UserBookEntryTag[]
+  trackingNumbers            UserBookEntryTracking[]
 
   @@index([userId])
   @@index([userId, bookId, editionId])
@@ -688,6 +688,18 @@ model OwnershipStatusHistory {
 
   @@index([userBookEntryId, changedAt])
   @@map("ownership_status_history")
+}
+
+model UserBookEntryTracking {
+  id              String        @id @default(uuid())
+  userBookEntryId String
+  trackingNumber  String        @db.VarChar(100)
+  label           String?       @db.VarChar(100)
+  addedAt         DateTime      @default(now())
+  entry           UserBookEntry @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+
+  @@index([userBookEntryId])
+  @@map("user_book_entry_tracking")
 }
 
 model UserSubscriptionEntry {

@@ -34,7 +34,6 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
   @IsOptional() @IsDateString() acquiredAt?: string;
-  @IsOptional() @IsString() trackingNumber?: string;
   @IsOptional() @IsString() orderNumber?: string;
   @IsOptional() @IsString() salePrice?: string;
   @IsOptional() @IsString() saleCurrency?: string;
@@ -60,4 +59,9 @@ export class SetEditionTagsDto {
   @IsArray()
   @IsString({ each: true })
   tags!: string[];
+}
+
+export class AddTrackingDto {
+  @IsString() trackingNumber!: string;
+  @IsOptional() @IsString() label?: string;
 }

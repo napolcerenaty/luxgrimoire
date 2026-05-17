@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddTrackingDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -115,14 +115,6 @@ export class CollectionController {
         value: dto.ownershipStatus,
       });
     }
-    if (dto.trackingNumber && dto.trackingNumber.trim()) {
-      this.analyticsService.track({
-        eventType: 'tracking_add',
-        userId: user.id,
-        entityType: 'edition',
-        entityId: result.editionId ?? undefined,
-      });
-    }
     return result;
   }
 
@@ -138,6 +130,26 @@ export class CollectionController {
       // value intentionally omitted — tracking numbers are personal data (GDPR)
     });
     return { ok: true };
+  }
+
+  @Post(':id/tracking')
+  async addTracking(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() dto: AddTrackingDto,
+  ) {
+    const result = await this.collectionService.addTracking(user.id, id, dto.trackingNumber, dto.label);
+    this.analyticsService.track({ eventType: 'tracking_add', userId: user.id });
+    return result;
+  }
+
+  @Delete(':id/tracking/:trackingId')
+  async removeTracking(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Param('trackingId') trackingId: string,
+  ) {
+    return this.collectionService.removeTracking(user.id, id, trackingId);
   }
 
   @Delete(':id')
