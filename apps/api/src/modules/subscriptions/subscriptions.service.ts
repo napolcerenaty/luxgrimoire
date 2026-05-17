@@ -109,10 +109,13 @@ export class SubscriptionsService {
     priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string } }[],
   ): string | null {
     if (!priceChanges.length) return null;
-    // Sentinel (1900/1) is the base price; any later record overrides it for that period.
-    // For display purposes, return the sentinel price as the "subscription base price".
-    const sentinel = priceChanges.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
-    return sentinel ? parseFloat(sentinel.newBasePrice.toString()).toFixed(2) : null;
+    // Return the most recent explicit price change (excluding sentinel 1900-01).
+    // Fall back to sentinel if no explicit change exists.
+    const explicit = priceChanges
+      .filter(pc => pc.effectiveYear !== 1900)
+      .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth);
+    const best = explicit[0] ?? priceChanges.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    return best ? parseFloat(best.newBasePrice.toString()).toFixed(2) : null;
   }
 
   async create(dto: CreateSubscriptionDto) {
