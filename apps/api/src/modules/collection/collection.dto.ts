@@ -23,6 +23,7 @@ export class AddToCollectionDto {
   @IsOptional() @IsIn(OWNERSHIP_STATUSES) ownershipStatus?: OwnershipStatus;
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
   @IsOptional() @IsString() saleAnnouncementEditionId?: string;
+  @IsOptional() @IsDateString() acquiredAt?: string;
   /** Analytics only — not stored in DB */
   @IsOptional() @IsString() _entityName?: string;
 }

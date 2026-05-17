@@ -1836,15 +1836,14 @@ function AddToCollectionSearch({
       // Create the collection entry
       const res = await authFetch<{ id: string }>('/collection', {
         method: 'POST',
-        body: JSON.stringify({ bookEditionId: selected.id, ownershipStatus, _entityName: selected.book.title }),
+        body: JSON.stringify({
+          bookEditionId: selected.id,
+          ownershipStatus,
+          acquiredAt: purchasedAt ? new Date(purchasedAt).toISOString() : undefined,
+          _entityName: selected.book.title,
+        }),
       })
       const entryId = res.id
-      if (purchasedAt) {
-        await authFetch(`/collection/${entryId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ acquiredAt: new Date(purchasedAt).toISOString() }),
-        })
-      }
 
       // Create purchase group if there are any financials
       const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)

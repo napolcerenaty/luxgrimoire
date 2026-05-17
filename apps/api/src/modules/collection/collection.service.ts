@@ -207,6 +207,7 @@ export class CollectionService {
     const edition = await this.prisma.bookEdition.findUnique({ where: { id: dto.bookEditionId } });
     if (!edition) throw new NotFoundException('Book edition not found');
     const isReprint = dto.saleAnnouncementEditionId ? true : undefined;
+    const acquiredAt = dto.acquiredAt ? new Date(dto.acquiredAt) : undefined;
     const entry = await this.prisma.userBookEntry.create({
       data: {
         userId,
@@ -219,9 +220,10 @@ export class CollectionService {
         // If added via a reprint SA, mark as not original; otherwise default true (original)
         isOriginalPrint: isReprint ? false : true,
         ...(dto.saleAnnouncementEditionId && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId }),
+        ...(acquiredAt && { acquiredAt }),
       },
     });
-    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
     if (entry.editionId && !entry.isWishlist) {
       this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
     }
