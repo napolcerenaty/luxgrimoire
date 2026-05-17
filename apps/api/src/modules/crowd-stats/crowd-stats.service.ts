@@ -104,45 +104,10 @@ export class CrowdStatsService {
     });
   }
 
-  async incrementCollectionCount(editionId: string): Promise<void> {
-    await this.prisma.$executeRaw`
-      INSERT INTO edition_stats_snapshots ("editionId", "collectionCount", "updatedAt")
-      VALUES (${editionId}, 1, NOW())
-      ON CONFLICT ("editionId") DO UPDATE
-      SET "collectionCount" = edition_stats_snapshots."collectionCount" + 1,
-          "updatedAt" = NOW()
-    `;
-  }
-
-  async decrementCollectionCount(editionId: string): Promise<void> {
-    await this.prisma.$executeRaw`
-      INSERT INTO edition_stats_snapshots ("editionId", "collectionCount", "updatedAt")
-      VALUES (${editionId}, 0, NOW())
-      ON CONFLICT ("editionId") DO UPDATE
-      SET "collectionCount" = GREATEST(edition_stats_snapshots."collectionCount" - 1, 0),
-          "updatedAt" = NOW()
-    `;
-  }
-
-  async incrementSubscriberCount(subscriptionId: string): Promise<void> {
-    await this.prisma.$executeRaw`
-      INSERT INTO subscription_stats_snapshots ("subscriptionId", "subscriberCount", "updatedAt")
-      VALUES (${subscriptionId}, 1, NOW())
-      ON CONFLICT ("subscriptionId") DO UPDATE
-      SET "subscriberCount" = subscription_stats_snapshots."subscriberCount" + 1,
-          "updatedAt" = NOW()
-    `;
-  }
-
-  async decrementSubscriberCount(subscriptionId: string): Promise<void> {
-    await this.prisma.$executeRaw`
-      INSERT INTO subscription_stats_snapshots ("subscriptionId", "subscriberCount", "updatedAt")
-      VALUES (${subscriptionId}, 0, NOW())
-      ON CONFLICT ("subscriptionId") DO UPDATE
-      SET "subscriberCount" = GREATEST(subscription_stats_snapshots."subscriberCount" - 1, 0),
-          "updatedAt" = NOW()
-    `;
-  }
+  async incrementCollectionCount(_editionId: string): Promise<void> { /* no-op: replaced by live query */ }
+  async decrementCollectionCount(_editionId: string): Promise<void> { /* no-op: replaced by live query */ }
+  async incrementSubscriberCount(_subscriptionId: string): Promise<void> { /* no-op: replaced by live query */ }
+  async decrementSubscriberCount(_subscriptionId: string): Promise<void> { /* no-op: replaced by live query */ }
 
   async syncSaleStats(
     editionId: string,

@@ -70,11 +70,21 @@ export class CrowdStatsController {
     return result;
   }
 
+  @Public()
   @Get('subscriptions/:slug/stats/subscribers')
   async getSubscriptionSubscriberCount(@Param('slug') slug: string) {
+    const cacheKey = `subscription:subscriber-count:${slug}`;
+    const cached = await this.cache.get<{ count: number }>(cacheKey);
+    if (cached) return cached;
+
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) throw new NotFoundException('Subscription not found');
-    const snapshot = await this.crowdStatsService.getSnapshotForSubscription(subscription.id);
-    return { count: snapshot?.subscriberCount ?? 0 };
+
+    const count = await this.prisma.userSubscriptionEntry.count({
+      where: { subscriptionId: subscription.id, active: true },
+    });
+    const result = { count };
+    await this.cache.set(cacheKey, result, COLLECTION_COUNT_TTL);
+    return result;
   }
 }

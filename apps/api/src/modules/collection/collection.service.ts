@@ -225,9 +225,6 @@ export class CollectionService {
       },
     });
     recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
-    if (entry.editionId && !entry.isWishlist) {
-      this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
-    }
     return entry;
   }
 
@@ -394,16 +391,6 @@ export class CollectionService {
         effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
       );
     }
-    // Track wishlist ↔ collection transitions
-    if (dto.isWishlist !== undefined && dto.isWishlist !== existing.isWishlist && existing.editionId) {
-      if (!dto.isWishlist) {
-        // promoted from wishlist → collection
-        this.crowdStatsService.incrementCollectionCount(existing.editionId).catch(() => {});
-      } else {
-        // moved from collection → wishlist
-        this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
-      }
-    }
     // Sync sale crowd stats when sale info is updated
     const editionId = existing.editionId;
     if (editionId && (dto.salePrice !== undefined || dto.saleCurrency !== undefined || dto.saleDate !== undefined)) {
@@ -517,9 +504,6 @@ export class CollectionService {
     if (!existing) throw new NotFoundException('Entry not found');
     assertOwnership(existing.userId, userId);
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
-    if (existing.editionId && !existing.isWishlist) {
-      this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
-    }
     // Clean up the purchase group if it's now empty
     if (existing.purchaseGroupId) {
       const remaining = await this.prisma.userBookEntry.count({
