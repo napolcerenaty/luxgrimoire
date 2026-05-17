@@ -18,9 +18,9 @@ export const metadata: Metadata = {
 
 async function getHomeData() {
   const [featuredSlots, announcementsRes, editionsRes] = await Promise.all([
-    apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
-    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch(() => null),
-    apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
+    apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch((e) => { console.error('[SSR] /sponsored error:', e?.message); return [] as ApiSponsoredSlot[] }),
+    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch((e) => { console.error('[SSR] /announcements error:', e?.message); return null }),
+    apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch((e) => { console.error('[SSR] /editions error:', e?.message); return null }),
   ])
   return {
     featuredSlots: Array.isArray(featuredSlots) ? featuredSlots : [],
