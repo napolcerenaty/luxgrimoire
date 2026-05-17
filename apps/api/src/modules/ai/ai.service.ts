@@ -7,6 +7,7 @@ export interface AiSaleRegion {
   isDefault: boolean;
   countryCodes?: string;
   price?: number;
+  subscriberBasePrice?: number;
   currency?: string;
   saleTimezone?: string;
   firstAccessDate?: string;
@@ -16,6 +17,8 @@ export interface AiSaleRegion {
 
 export interface AiSaleAnnouncementResult {
   title?: string;
+  companyName?: string;
+  subscriberBasePrice?: number;
   expectedShipping?: string;
   regions?: AiSaleRegion[];
 }
@@ -192,6 +195,8 @@ Given a sale announcement post (usually from a book subscription box company), e
 Return ONLY valid JSON matching this schema (omit fields you cannot find):
 {
   "title": "announcement title, e.g. 'All Hail Chaos Exclusive Edition'",
+  "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
+  "subscriberBasePrice": 22.00,
   "expectedShipping": "e.g. November/December 2025",
   "regions": [
     {
@@ -199,6 +204,7 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
       "isDefault": true,
       "countryCodes": "comma-separated ISO country codes, e.g. GB,US,CA",
       "price": 24.00,
+      "subscriberBasePrice": 22.00,
       "currency": "GBP",
       "saleTimezone": "BST",
       "firstAccessDate": "2025-07-15T09:00:00.000Z",
@@ -207,6 +213,18 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     }
   ]
 }
+
+COMPANY NAME RULES:
+- Extract the name of the book subscription company or box that is announcing this sale
+- Look for it in: explicit mentions ("The Locked Library announces…", "We are Illumicrate"), hashtags (#thelockedlibrary → "The Locked Library", #illumicrate → "Illumicrate"), the "we" context ("The Locked Librarians are thrilled…" → "The Locked Library")
+- If a source URL is provided (e.g. "illumicrate.com/…"), extract the company name from the domain: illumicrate.com → "Illumicrate", thelockedlibrary.com → "The Locked Library", owlcrate.com → "Owlcrate"
+- Use proper capitalisation (e.g. "The Locked Library", "Illumicrate", "Owlcrate", "FairyLoot")
+
+SUBSCRIBER PRICE RULES:
+- If the announcement mentions a special lower price for active/current subscribers (phrases like "Subscriber price: £22", "for active subscribers the price will drop to £75", "subscriber-only price: £X", "subscribers pay £X"), extract it as subscriberBasePrice
+- subscriberBasePrice is a numeric price (same currency as the general basePrice/currency)
+- Do NOT confuse with the general sale price — subscriberBasePrice is LOWER and only for existing subscribers
+- If there are regions and the subscriber price differs per region, set subscriberBasePrice on the relevant region object instead of (or in addition to) the top-level field
 
 TITLE RULES:
 - Extract the edition title from the announcement. Usually quoted or explicitly named.
@@ -421,17 +439,22 @@ export class AiService {
       throw new BadRequestException('Could not extract text content from URL');
     }
 
-    return this.parseSaleAnnouncement(text);
+    return this.parseSaleAnnouncement(text, rawUrl);
   }
 
-  async parseSaleAnnouncement(text: string): Promise<AiSaleAnnouncementResult> {
+  async parseSaleAnnouncement(text: string, sourceUrl?: string): Promise<AiSaleAnnouncementResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
     }
 
+    let userContent = `Extract sale announcement information from this text:\n\n${text}`;
+    if (sourceUrl) {
+      userContent = `Source URL: ${sourceUrl}\n\n` + userContent;
+    }
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
-      { role: 'user', content: `Extract sale announcement information from this text:\n\n${text}` },
+      { role: 'user', content: userContent },
     ];
 
     const response = await this.client.chat.completions.create({

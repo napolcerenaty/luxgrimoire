@@ -54,6 +54,10 @@ export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsArray()
   @IsString({ each: true })
   editionIds?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  subscriberBasePrice?: number;
 }
 
 export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
@@ -109,4 +113,8 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsArray()
   @IsString({ each: true })
   editionIds?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  subscriberBasePrice?: number | null;
 }

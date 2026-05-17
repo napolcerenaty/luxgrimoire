@@ -85,8 +85,8 @@ export class AnnouncementsService {
           title: true,
           imageUrl: true,
           basePrice: true,
+          subscriberBasePrice: true,
           currency: true,
-          isBundle: true,
           availableForPurchase: true,
           generalSaleDate: true,
           firstAccessDate: true,
@@ -232,6 +232,7 @@ export class AnnouncementsService {
         saleTimezone: data.saleTimezone ?? null,
         basePrice: data.basePrice ?? null,
         currency: data.currency ?? null,
+        subscriberBasePrice: data.subscriberBasePrice ?? null,
         imageUrl: data.imageUrl ?? null,
         extraImagesJson: extraImages && extraImages.length > 0 ? extraImages : Prisma.DbNull,
         isBundle: data.isBundle ?? false,
@@ -279,6 +280,7 @@ export class AnnouncementsService {
         ...(data.saleTimezone !== undefined && { saleTimezone: data.saleTimezone }),
         ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
         ...(data.currency !== undefined && { currency: data.currency }),
+        ...(data.subscriberBasePrice !== undefined && { subscriberBasePrice: data.subscriberBasePrice }),
         ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
         ...(extraImages !== undefined && {
           extraImagesJson: extraImages.length > 0 ? extraImages : Prisma.DbNull,
@@ -362,6 +364,7 @@ export class AnnouncementsService {
     saleTimezone?: string | null;
     basePrice?: number | null;
     currency?: string | null;
+    subscriberBasePrice?: number | null;
   }) {
     const { id, ...fields } = data;
     const payload = {
@@ -376,6 +379,7 @@ export class AnnouncementsService {
       saleTimezone: fields.saleTimezone ?? null,
       basePrice: fields.basePrice ?? null,
       currency: fields.currency ?? null,
+      subscriberBasePrice: fields.subscriberBasePrice ?? null,
     };
     if (id) {
       return this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload });

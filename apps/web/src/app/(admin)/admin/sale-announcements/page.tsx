@@ -623,6 +623,7 @@ interface FormState {
   saleTimezone: string
   basePrice: string
   currency: string
+  subscriberBasePrice: string
   allImages: string[]
   isBundle: boolean
   expectedShipping: string
@@ -639,6 +640,7 @@ const EMPTY_FORM: FormState = {
   saleTimezone: 'UTC',
   basePrice: '',
   currency: 'USD',
+  subscriberBasePrice: '',
   allImages: [],
   isBundle: false,
   expectedShipping: '',
@@ -662,6 +664,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     saleTimezone: a.saleTimezone ?? 'UTC',
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? 'USD',
+    subscriberBasePrice: a.subscriberBasePrice != null ? String(a.subscriberBasePrice) : '',
     allImages,
     isBundle: a.isBundle,
     expectedShipping: (a as any).expectedShipping ?? '',
@@ -681,6 +684,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
+    subscriberBasePrice: f.subscriberBasePrice ? parseDecimalInput(f.subscriberBasePrice) : null,
     imageUrl: f.allImages[0] ?? null,
     extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
     isBundle: f.isBundle,
@@ -824,6 +828,20 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
       </div>
 
+      {/* Subscriber Price */}
+      <div>
+        <label className={LBL}>Subscriber Price <span className="text-stone-500 font-normal">(optional — same currency)</span></label>
+        <input
+          type="text"
+          step="0.01"
+          min="0"
+          className={INP}
+          value={form.subscriberBasePrice}
+          onChange={set('subscriberBasePrice')}
+          placeholder="e.g. 22.00"
+        />
+      </div>
+
       {/* Expected Shipping */}
       <div>
         <label className={LBL}>Expected Shipping</label>
@@ -897,12 +915,13 @@ interface RegionFormData {
   saleTimezone: string
   basePrice: string
   currency: string
+  subscriberBasePrice: string
 }
 
 const EMPTY_REGION: RegionFormData = {
   name: '', countryCodes: '', isDefault: false,
   generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
-  saleTimezone: 'UTC', basePrice: '', currency: '',
+  saleTimezone: 'UTC', basePrice: '', currency: '', subscriberBasePrice: '',
 }
 
 function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
@@ -915,6 +934,7 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
     saleTimezone: tz,
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? '',
+    subscriberBasePrice: a.subscriberBasePrice != null ? String(a.subscriberBasePrice) : '',
     isDefault: true,
   }
 }
@@ -935,6 +955,7 @@ function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): Region
     saleTimezone: tz,
     basePrice: r.basePrice != null ? String(r.basePrice) : '',
     currency: r.currency ?? '',
+    subscriberBasePrice: r.subscriberBasePrice != null ? String(r.subscriberBasePrice) : '',
   }
 }
 
@@ -963,6 +984,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         saleTimezone: form.saleTimezone || null,
         basePrice: form.basePrice ? parseDecimalInput(form.basePrice) : null,
         currency: form.currency || null,
+        subscriberBasePrice: form.subscriberBasePrice ? parseDecimalInput(form.subscriberBasePrice) : null,
       })
     },
     onSuccess: () => {
@@ -1040,6 +1062,10 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
             <input className={INP} list="region-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
             <datalist id="region-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
           </div>
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency)</span></label>
+          <input type="text" step="0.01" className={INP} value={f.subscriberBasePrice} onChange={s('subscriberBasePrice')} placeholder="Lower subscriber price" />
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => onSave(f)} disabled={!f.name || upsertMutation.isPending}
@@ -1466,6 +1492,8 @@ interface AiSaleRegion {
 
 interface AiSaleResult {
   title?: string
+  companyName?: string
+  subscriberBasePrice?: number
   expectedShipping?: string
   regions?: AiSaleRegion[]
 }
@@ -1706,9 +1734,23 @@ export default function AdminSaleAnnouncementsPage() {
     setShowAiModal(false)
     const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
     const tz = defaultRegion?.saleTimezone ?? 'UTC'
+
+    // Try to match companyName to known companies
+    let resolvedCompanyId = ''
+    if (result.companyName) {
+      const name = result.companyName.toLowerCase()
+      const match = allCompanies.find(c =>
+        c.name.toLowerCase() === name ||
+        c.name.toLowerCase().includes(name) ||
+        name.includes(c.name.toLowerCase())
+      )
+      if (match) resolvedCompanyId = match.id
+    }
+
     const newInitial: FormState = {
       ...EMPTY_FORM,
       title: result.title ?? '',
+      companyId: resolvedCompanyId,
       expectedShipping: result.expectedShipping ?? '',
       photoCredit: '',
       saleTimezone: tz,
@@ -1717,6 +1759,9 @@ export default function AdminSaleAnnouncementsPage() {
       generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
       basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
       currency: defaultRegion?.currency ?? 'USD',
+      subscriberBasePrice: (defaultRegion as any)?.subscriberBasePrice != null
+        ? String((defaultRegion as any).subscriberBasePrice)
+        : result.subscriberBasePrice != null ? String(result.subscriberBasePrice) : '',
       sourceUrl: sourceUrl ?? '',
     }
     setCreateInitial(newInitial)

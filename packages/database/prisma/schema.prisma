@@ -542,6 +542,7 @@ model SaleAnnouncement {
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   basePrice            Decimal?                  @db.Decimal(10, 2)
+  subscriberBasePrice  Decimal?                  @db.Decimal(10, 2)
   currency             String?
   extraImagesJson      Json?
   imageUrl             String?
@@ -606,6 +607,7 @@ model SaleAnnouncementRegion {
   endsAt          DateTime?
   saleTimezone    String?
   basePrice       Decimal?         @db.Decimal(10, 2)
+  subscriberBasePrice Decimal?     @db.Decimal(10, 2)
   currency        String?          @db.VarChar(3)
   createdAt       DateTime         @default(now())
   announcement    SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -615,11 +617,13 @@ model SaleAnnouncementRegion {
 }
 
 model UserSaleInterest {
-  userId         String
-  announcementId String
-  tier           String           @default("GS") @db.VarChar(2)
-  regionId       String?
-  createdAt      DateTime         @default(now())
+  userId                String
+  announcementId        String
+  tier                  String           @default("GS") @db.VarChar(2)
+  regionId              String?
+  selectedPrice         Decimal?         @db.Decimal(10, 2)
+  selectedPriceCurrency String?          @db.VarChar(3)
+  createdAt             DateTime         @default(now())
   announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 

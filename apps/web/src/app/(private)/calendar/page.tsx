@@ -32,6 +32,8 @@ interface SaleInterest {
   announcementId: string
   tier: 'FA' | 'EA' | 'GS'
   regionId: string | null
+  selectedPrice: string | null
+  selectedPriceCurrency: string | null
   announcement: {
     id: string
     title: string
@@ -299,10 +301,12 @@ export default function CalendarPage() {
       if (!dateStr) continue
       const d = new Date(dateStr)
       if (d.getFullYear() !== year || d.getMonth() !== month0) continue
-      const { basePrice, currency } = i.announcement
-      if (basePrice == null || !currency) continue
-      const key = currency.toUpperCase()
-      const price = parseFloat(String(basePrice))
+      // Use selectedPrice (subscriber/custom price user chose) if available, otherwise fall back to announcement basePrice
+      const rawPrice = i.selectedPrice ?? i.announcement.basePrice
+      const rawCurrency = i.selectedPriceCurrency ?? i.announcement.currency
+      if (rawPrice == null || !rawCurrency) continue
+      const key = rawCurrency.toUpperCase()
+      const price = parseFloat(String(rawPrice))
       if (isNaN(price)) continue
       if (!byCurrency[key]) byCurrency[key] = { total: 0, names: [] }
       byCurrency[key].total += price
