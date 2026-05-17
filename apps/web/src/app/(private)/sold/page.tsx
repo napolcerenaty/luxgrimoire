@@ -427,9 +427,10 @@ export default function SoldPage() {
   const [rates, setRates] = useState<Record<string, number>>({})
 
   const { data: allEntries = [], isLoading } = useQuery({
-    queryKey: ['collection', false],
+    queryKey: ['collection', 'sold'],
     queryFn: () =>
-      authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false').then(r => r.data),
+      authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false&ownershipStatus=SOLD&pageSize=500').then(r => r.data),
+    staleTime: 0,
   })
 
   const { data: saleGroups = [] } = useQuery({

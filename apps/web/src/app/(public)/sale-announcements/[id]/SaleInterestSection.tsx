@@ -27,6 +27,7 @@ export function SaleInterestSection({ sale }: Props) {
           editions={allEditions}
           basePrice={resolvedPrice ?? undefined}
           currency={resolvedCurrency}
+          defaultOwnershipStatus="PREORDER"
         />
       </div>
     )

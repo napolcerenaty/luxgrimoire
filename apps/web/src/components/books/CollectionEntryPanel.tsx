@@ -6,9 +6,11 @@ import {
   Clock, Tag, Package, Wallet, Plus, Trash2,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { createSaleGroup } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
-import { CURRENCIES } from '@/components/sale/SaleFormFields'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
+import { useQueryClient } from '@tanstack/react-query'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ interface CollectionEntry {
   saleNotes: string | null
   signatureType: string | null
   subscriptionEntryId: string | null
+  saleGroupId: string | null
   tags: string[]
   purchaseGroup: PurchaseGroup | null
   saleAnnouncementEditionId: string | null
@@ -256,6 +259,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
 
 export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
   const { user, loading: authLoading } = useAuth()
+  const queryClient = useQueryClient()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
   const [entry, setEntry] = useState<CollectionEntry | null>(null)
@@ -292,6 +296,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [newFeeDate, setNewFeeDate] = useState('')
   const [savingFee, setSavingFee] = useState(false)
+  const [editingFeeId, setEditingFeeId] = useState<string | null>(null)
+  const [editFeeName, setEditFeeName] = useState('')
+  const [editFeeAmount, setEditFeeAmount] = useState('')
+  const [editFeeCurrency, setEditFeeCurrency] = useState('')
+  const [editFeeDate, setEditFeeDate] = useState('')
 
   // Refund state
   const [addingRefund, setAddingRefund] = useState(false)
@@ -310,6 +319,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editSaleCurrency, setEditSaleCurrency] = useState('')
   const [editSaleDate, setEditSaleDate] = useState('')
   const [editSaleVenue, setEditSaleVenue] = useState('')
+  const [editSaleVenueCustom, setEditSaleVenueCustom] = useState('')
   const [editSaleNotes, setEditSaleNotes] = useState('')
   const [savingSale, setSavingSale] = useState(false)
 
@@ -460,6 +470,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     const fresh = freshAll?.find(e => e.id === entry!.id) ?? freshAll?.[0]
     setAllEntries(freshAll ?? [])
     setEntry({ ...(fresh ?? updated), tags: fresh?.tags ?? entry!.tags })
+    queryClient.invalidateQueries({ queryKey: ['collection'] })
   }
 
   async function refetchEntry() {
@@ -480,6 +491,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setSavingStatus(true)
     try {
       await patchEntry({ [field]: value === '' ? null : value })
+      if (field === 'ownershipStatus' && history !== null) {
+        await refreshHistory()
+      }
     } finally {
       setSavingStatus(false)
     }
@@ -625,6 +639,34 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     await refetchEntry()
   }
 
+  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null }) {
+    setEditingFeeId(fee.id)
+    setEditFeeName(fee.name)
+    setEditFeeAmount(parseFloat(fee.amount).toFixed(2))
+    setEditFeeCurrency(fee.currency)
+    setEditFeeDate(fee.date ? fee.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
+  }
+
+  async function saveEditFee() {
+    if (!editingFeeId || !editFeeName.trim() || !editFeeAmount || !editFeeDate) return
+    setSavingFee(true)
+    try {
+      await authFetch(`/fees/${editingFeeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editFeeName,
+          amount: parseFloat(editFeeAmount),
+          currency: editFeeCurrency,
+          date: new Date(editFeeDate).toISOString(),
+        }),
+      })
+      await refetchEntry()
+      setEditingFeeId(null)
+    } finally {
+      setSavingFee(false)
+    }
+  }
+
   async function deleteDiscount(discountId: string) {
     await authFetch(`/fees/discounts/${discountId}`, { method: 'DELETE' })
     await refetchEntry()
@@ -662,21 +704,55 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setEditSalePrice(entry!.salePrice ?? '')
     setEditSaleCurrency(entry!.saleCurrency ?? '')
     setEditSaleDate(entry!.saleDate ?? '')
-    setEditSaleVenue(entry!.saleVenue ?? '')
+    const raw = entry!.saleVenue ?? ''
+    const matched = SALE_PLATFORMS.find(
+      p => p.value === raw.toLowerCase() || p.label.toLowerCase() === raw.toLowerCase()
+    )
+    if (matched) {
+      setEditSaleVenue(matched.value)
+      setEditSaleVenueCustom('')
+    } else if (raw) {
+      setEditSaleVenue('other')
+      setEditSaleVenueCustom(raw)
+    } else {
+      setEditSaleVenue('')
+      setEditSaleVenueCustom('')
+    }
     setEditSaleNotes(entry!.saleNotes ?? '')
     setEditingSale(true)
   }
 
   async function saveSale() {
+    const venueToSave = editSaleVenue === 'other'
+      ? (editSaleVenueCustom || null)
+      : editSaleVenue
+        ? (SALE_PLATFORMS.find(p => p.value === editSaleVenue)?.label ?? editSaleVenue)
+        : null
     setSavingSale(true)
     try {
+      const entryId = entry!.id
+      const alreadyHasSaleGroup = !!entry!.saleGroupId
       await patchEntry({
         salePrice: editSalePrice || null,
         saleCurrency: editSaleCurrency || null,
         saleDate: editSaleDate || null,
-        saleVenue: editSaleVenue || null,
+        saleVenue: venueToSave,
         saleNotes: editSaleNotes || null,
       })
+      // Auto-create a Recorded Sale if price + date are set and no SaleGroup exists yet
+      if (!alreadyHasSaleGroup && editSalePrice && editSaleDate) {
+        await createSaleGroup({
+          totalAmount: parseFloat(editSalePrice),
+          currency: editSaleCurrency || 'USD',
+          platform: venueToSave || '',
+          soldAt: editSaleDate,
+          notes: editSaleNotes || undefined,
+          priceDistribution: 'EQUAL',
+          entryIds: [entryId],
+        })
+        queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+        queryClient.invalidateQueries({ queryKey: ['collection'] })
+      }
       setEditingSale(false)
     } finally {
       setSavingSale(false)
@@ -740,7 +816,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   // ── History section ───────────────────────────────────────────────────────
 
   async function toggleHistory() {
-    if (!showHistory && !history) {
+    if (!showHistory) {
       setLoadingHistory(true)
       try {
         const data = await authFetch<HistoryEntry[]>(`/collection/entry/${entry!.id}/history`)
@@ -990,14 +1066,38 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Fees</label>
                   <div className="flex flex-col gap-1.5">
                     {(pg.fees ?? []).map(fee => (
-                      <div key={fee.id} className="flex items-center gap-1.5 text-xs">
-                        <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
-                        <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
-                        <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
-                        <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
+                      editingFeeId === fee.id ? (
+                        <div key={fee.id} className="flex flex-col gap-1.5 pt-0.5">
+                          <div className="flex gap-1.5">
+                            <input value={editFeeName} onChange={e => setEditFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                            <input type="number" step="0.01" min="0" value={editFeeAmount} onChange={e => setEditFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} style={{ MozAppearance: 'textfield' } as React.CSSProperties} />
+                            <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
+                              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <input type="date" value={editFeeDate} onChange={e => setEditFeeDate(e.target.value)} className={INP} />
+                          <div className="flex gap-1.5">
+                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                              <Check size={11} /> Save
+                            </button>
+                            <button onClick={() => setEditingFeeId(null)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                              <X size={11} /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={fee.id} className="flex items-center gap-1.5 text-xs">
+                          <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
+                          <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
+                          <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
+                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-amber-400 transition-colors shrink-0">
+                            <Pencil size={11} />
+                          </button>
+                          <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )
                     ))}
                     {addingFee ? (
                       <div className="flex flex-col gap-1.5 pt-0.5">
@@ -1275,7 +1375,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Venue / platform</label>
-                  <input value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} placeholder="e.g. eBay" className={INP} />
+                  <select value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} className={INP}>
+                    <option value="">— Select platform —</option>
+                    {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                  {editSaleVenue === 'other' && (
+                    <input value={editSaleVenueCustom} onChange={e => setEditSaleVenueCustom(e.target.value)} placeholder="Platform name…" className={`${INP} mt-1.5`} />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>

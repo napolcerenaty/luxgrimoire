@@ -15,12 +15,13 @@ export class CollectionService {
     private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
-    const where: { userId: string; isWishlist?: boolean } = { userId };
+    const where: { userId: string; isWishlist?: boolean; ownershipStatus?: string } = { userId };
     if (isWishlist !== undefined) where.isWishlist = isWishlist;
+    if (ownershipStatus !== undefined) where.ownershipStatus = ownershipStatus;
 
     if (slim) {
       const [data, total] = await Promise.all([
@@ -207,6 +208,7 @@ export class CollectionService {
     const edition = await this.prisma.bookEdition.findUnique({ where: { id: dto.bookEditionId } });
     if (!edition) throw new NotFoundException('Book edition not found');
     const isReprint = dto.saleAnnouncementEditionId ? true : undefined;
+    const acquiredAt = dto.acquiredAt ? new Date(dto.acquiredAt) : undefined;
     const entry = await this.prisma.userBookEntry.create({
       data: {
         userId,
@@ -219,9 +221,10 @@ export class CollectionService {
         // If added via a reprint SA, mark as not original; otherwise default true (original)
         isOriginalPrint: isReprint ? false : true,
         ...(dto.saleAnnouncementEditionId && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId }),
+        ...(acquiredAt && { acquiredAt }),
       },
     });
-    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus);
+    recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
     if (entry.editionId && !entry.isWishlist) {
       this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
     }
@@ -314,12 +317,18 @@ export class CollectionService {
               _count: { select: { bookEntries: true } },
             },
           },
+          saleEntries: {
+            select: { saleGroupId: true },
+            take: 1,
+          },
         },
       });
     return entries.map((entry) => ({
       ...entry,
       tags: (entry.entryTags ?? []).map((t) => t.tag),
       entryTags: undefined,
+      saleGroupId: (entry.saleEntries as Array<{ saleGroupId: string }> | undefined)?.[0]?.saleGroupId ?? null,
+      saleEntries: undefined,
     }));
   }
 

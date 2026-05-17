@@ -443,9 +443,6 @@ export default function CalendarPage() {
 
                 {/* Desktop pills */}
                 {renewals.map(r => {
-                  const thumb = r.logoUrl
-                    ? cloudinaryUrl(r.logoUrl, 'w_24,h_24,c_pad,q_auto,f_auto')
-                    : null
                   const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
                   return (
                     <span key={r.id} className="hidden sm:block">
@@ -458,15 +455,11 @@ export default function CalendarPage() {
                         onClick={e => e.stopPropagation()}
                       >
                         <span className="flex items-center gap-1 truncate">
-                          {thumb ? (
-                            <img src={thumb} alt="" className="w-3.5 h-3.5 rounded-sm object-contain shrink-0" />
-                          ) : (
-                            <span className="shrink-0 text-[10px]">🔄</span>
-                          )}
+                          <Bell size={9} className="shrink-0" />
                           <span className="truncate">{r.label}</span>
                         </span>
                         {r.companyName && (
-                          <span className="truncate opacity-60 pl-4">{r.companyName}</span>
+                          <span className="truncate opacity-60 pl-3">{r.companyName}</span>
                         )}
                       </Link>
                     </span>

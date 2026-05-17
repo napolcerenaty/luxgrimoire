@@ -112,7 +112,7 @@ export class PurchaseGroupsService {
 
       // Record initial ownership history for each entry
       const ownershipStatus = (dto.ownershipStatus as string | undefined) ?? 'OWNED';
-      await recordOwnershipHistory(tx, bookEntries, ownershipStatus);
+      await recordOwnershipHistory(tx, bookEntries, ownershipStatus, new Date(dto.purchasedAt));
 
       return { group, bookEntries };
     });

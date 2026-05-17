@@ -57,6 +57,7 @@ interface Props {
   subscriptionCurrency: string
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
+  subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onJoined: () => void
@@ -95,6 +96,7 @@ interface Step1Props {
   subscriptionSlug: string
   subscriptionRenewalDay?: number | null
   subscriptionPrice?: string | null
+  subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onNext: (data: {
@@ -112,7 +114,7 @@ interface Step1Props {
   }) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -346,12 +348,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
           // Months between two (year,month) pairs — inclusive start, exclusive end
           const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
-          // Effective price at start (most recent change before/at start, or subscriptionPrice fallback)
+          // Effective price at start (most recent change before/at start, or original base price fallback)
+          const originalFallback = subscriptionOriginalBasePrice ?? subscriptionPrice ?? basePrice
           const effectivePriceAtStart = startY && startM ? (() => {
             const applicable = sorted
               .filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
-            return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : (subscriptionPrice ?? basePrice)
-          })() : (subscriptionPrice ?? basePrice)
+            return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
+          })() : originalFallback
           // Build periods from start date through all future changes
           type Period = { label: string; months: number | null; price: string; cur: string }
           const periods: Period[] = []
@@ -763,12 +766,21 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
         )}
         <div className="min-w-0 flex-1">
           <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
-          <p className="text-sm text-stone-100 leading-snug truncate">
-            {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
-          </p>
-          {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
-          {!isMultiBook && allBooks.length > 1 && (
-            <p className="text-xs text-stone-500 mt-0.5">+{allBooks.length - 1} more</p>
+          {allBooks.length <= 1 ? (
+            <>
+              <p className="text-sm text-stone-100 leading-snug truncate">
+                {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
+              </p>
+              {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
+            </>
+          ) : (
+            <ul className="space-y-0.5">
+              {allBooks.map(b => (
+                <li key={b.editionId ?? b.bookId} className="text-sm text-stone-100 leading-snug truncate">
+                  {b.edition?.book?.title ?? b.edition?.title ?? '—'}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </label>
@@ -1231,6 +1243,7 @@ export default function JoinSubscriptionModal({
   subscriptionCurrency,
   subscriptionRenewalDay,
   subscriptionPrice,
+  subscriptionOriginalBasePrice,
   userDefaultTaxRate,
   prepayOptions,
   onJoined,
@@ -1340,6 +1353,7 @@ export default function JoinSubscriptionModal({
               subscriptionSlug={subscriptionSlug}
               subscriptionRenewalDay={subscriptionRenewalDay}
               subscriptionPrice={subscriptionPrice}
+              subscriptionOriginalBasePrice={subscriptionOriginalBasePrice}
               userDefaultTaxRate={userDefaultTaxRate}
               prepayOptions={prepayOptions}
               onNext={handleStep1}

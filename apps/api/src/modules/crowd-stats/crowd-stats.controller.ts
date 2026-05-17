@@ -2,6 +2,7 @@ import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common
 import { CrowdStatsService } from './crowd-stats.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
+import { Public } from '../../common/decorators/auth.decorators';
 
 @Controller()
 export class CrowdStatsController {
@@ -11,6 +12,7 @@ export class CrowdStatsController {
     private readonly currencyService: CurrencyService,
   ) {}
 
+  @Public()
   @Get('editions/:slug/stats/sale-price')
   async getEditionSalePriceStats(
     @Param('slug') slug: string,
@@ -45,6 +47,7 @@ export class CrowdStatsController {
     return { avg, median, min, max, count: raw.count, currency: toCurrency };
   }
 
+  @Public()
   @Get('editions/:slug/stats/collection')
   async getEditionCollectionCount(@Param('slug') slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });

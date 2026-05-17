@@ -225,6 +225,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           subscriptionSlug={sub.slug}
           name={sub.name}
           price={sub.price}
+          originalBasePrice={sub.originalBasePrice}
           currency={sub.currency}
           intervalMonths={sub.intervalMonths}
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}

@@ -1049,7 +1049,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: number | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1241,7 +1241,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 subscriptionId={subscription?.id}
                 defaultCurrency={subscription?.currency}
                 defaultCompanyId={subscription?.companyId}
-                defaultPrice={resolveEffectivePrice(priceChanges, m.year, m.month, subscription?.price ?? null)}
+                defaultPrice={resolveEffectivePrice(priceChanges, m.year, m.month, subscription?.originalBasePrice != null ? parseFloat(subscription.originalBasePrice) : subscription?.price != null ? parseFloat(subscription.price) : null)}
                 renewalDay={subscription?.renewalDay}
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}

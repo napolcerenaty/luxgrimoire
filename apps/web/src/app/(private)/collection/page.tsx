@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
@@ -19,14 +20,14 @@ import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
 const OWNERSHIP_LABEL: Record<string, string> = {
-  OWNED: 'Own',
-  PREORDER: 'Preorder',
-  SHIPPING: 'Shipping',
-  BORROWED: 'Borrowed',
-  LENDED: 'Lended',
-  TO_SELL: 'To Sell',
-  SOLD: 'Sold',
-  GIFTED_AWAY: 'Gifted Away',
+  OWNED: 'OWN',
+  PREORDER: 'PREORDER',
+  SHIPPING: 'SHIPPING',
+  BORROWED: 'BORROWED',
+  LENDED: 'LENDED',
+  TO_SELL: 'TO SELL',
+  SOLD: 'SOLD',
+  GIFTED_AWAY: 'GIFTED AWAY',
 }
 const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
 
@@ -746,7 +747,7 @@ export default function CollectionPage() {
     }
     if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
-    if (filter === 'YEAR') return !!e.acquiredAt
+    if (filter === 'YEAR') return !!(e.purchaseGroup?.purchasedAt ?? e.acquiredAt)
     return true
   })
 
@@ -779,7 +780,8 @@ export default function CollectionPage() {
     if (filter === 'YEAR') {
       const map = new Map<string, CollectionEntry[]>()
       for (const e of sorted) {
-        const key = e.acquiredAt ? new Date(e.acquiredAt).getFullYear().toString() : 'Unknown'
+        const dateStr = e.purchaseGroup?.purchasedAt ?? e.acquiredAt
+        const key = dateStr ? new Date(dateStr).getFullYear().toString() : 'Unknown'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
@@ -790,8 +792,8 @@ export default function CollectionPage() {
     if (filter === 'AUTHOR') {
       const map = new Map<string, CollectionEntry[]>()
       for (const e of sorted) {
-        const authors = e.edition.book.authors
-        const key = authors.length > 0 ? authors.map(a => a.name).join(', ') : 'Unknown Author'
+        const authors = e.edition.book.authors as any[]
+        const key = authors.length > 0 ? authors.map(a => (a.author ?? a).name).join(', ') : 'Unknown Author'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
@@ -829,6 +831,25 @@ export default function CollectionPage() {
           <p className="text-stone-400 text-sm mt-1">Your physical book library</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* View mode toggle */}
+          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="Grid view"
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="List view"
+            >
+              <List size={15} />
+            </button>
+          </div>
           <button
             onClick={() => setAddModalOpen(true)}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
@@ -894,26 +915,6 @@ export default function CollectionPage() {
               <option value="DATE_DESC">Sort: Newest first</option>
               <option value="DATE_ASC">Sort: Oldest first</option>
             </select>
-
-            {/* View mode toggle */}
-            <div className="flex rounded-lg border border-stone-700 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-                aria-label="Grid view"
-              >
-                <LayoutGrid size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-                aria-label="List view"
-              >
-                <List size={15} />
-              </button>
-            </div>
 
             {/* Signature */}
             <select
@@ -1014,11 +1015,12 @@ export default function CollectionPage() {
                     : filter === 'SERIES'
                     ? (group[0]?.edition.book.seriesName ?? 'Standalone')
                     : filter === 'YEAR'
-                      ? (group[0]?.acquiredAt
-                          ? new Date(group[0].acquiredAt).getFullYear().toString()
-                          : 'Unknown')
+                      ? (() => {
+                          const d = group[0]?.purchaseGroup?.purchasedAt ?? group[0]?.acquiredAt
+                          return d ? new Date(d).getFullYear().toString() : 'Unknown'
+                        })()
                     : filter === 'AUTHOR'
-                      ? (group[0]?.edition.book.authors.map(a => a.name).join(', ') ?? 'Unknown Author')
+                      ? ((group[0]?.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ') || 'Unknown Author')
                     : filter === 'COMPANY'
                       ? (group[0]?.edition.bookBoxCompany?.name ?? 'Unknown Company')
                     : null
@@ -1033,7 +1035,7 @@ export default function CollectionPage() {
                           </a>
                         )}
                         {filter === 'AUTHOR' && group[0] && (
-                          <a href={`/authors/${group[0].edition.book.authors[0]?.slug}`} className="hover:text-amber-400 transition-colors">
+                          <a href={`/authors/${((group[0].edition.book.authors[0] as any)?.author ?? group[0].edition.book.authors[0])?.slug}`} className="hover:text-amber-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
@@ -1126,15 +1128,16 @@ export default function CollectionPage() {
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                   entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                                  entry.readingStatus === 'READING' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
                                   entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
                               >
-                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : 'UNREAD'}
+                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
                               </span>
                               {openDropdown === `${entry.id}-reading` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['READ', 'UNREAD', 'DNF'] as const).map((val) => (
+                                  {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
@@ -1150,7 +1153,7 @@ export default function CollectionPage() {
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                     >
-                                      {val === 'DNF' ? 'DNF' : val}
+                                      {val}
                                     </button>
                                   ))}
                                 </div>
@@ -1314,7 +1317,7 @@ export default function CollectionPage() {
                 </div>
                 ) : (
                 /* ── List view ── */
-                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
+                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl">
                   {group.map((entry) => {
                     const cover = cloudinaryUrl(resolveEditionCoverRaw(entry.edition), 'w_80,h_120,c_fill,q_auto,f_auto')
                     const book = entry.edition.book
@@ -1329,13 +1332,15 @@ export default function CollectionPage() {
                       <a
                         key={entry.id}
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                        className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors"
+                        className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl"
                       >
                         {/* Thumbnail */}
-                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden bg-stone-950">
+                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover
                             ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(entry.edition.bookBoxCompany?.brandColors)}>
+                                <BookOpen size={14} />
+                              </div>
                           }
                         </div>
 
@@ -1354,20 +1359,22 @@ export default function CollectionPage() {
 
                         {/* Badges */}
                         <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
-                          <span
-                            data-dropdown
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
-                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none relative ${
-                              entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
-                              entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
-                              entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
-                              (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
-                              'text-stone-500 bg-stone-500/10 border-stone-500/30'
-                            }`}
-                          >
-                            {fmtStatus(entry.ownershipStatus)}
+                          {/* Ownership */}
+                          <div className="relative" data-dropdown>
+                            <span
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                                entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                                entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                                (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                                'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                              }`}
+                            >
+                              {fmtStatus(entry.ownershipStatus)}
+                            </span>
                             {openDropdown === `${entry.id}-ownership` && (
-                              <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1375,15 +1382,50 @@ export default function CollectionPage() {
                                 ))}
                               </div>
                             )}
-                          </span>
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' : entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' : 'text-stone-500 bg-stone-500/10 border-stone-500/30'}`}>
-                            {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : 'UNREAD'}
-                          </span>
-                          {entry.signatureType && entry.signatureType !== 'unsigned' && (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30'}`}>
-                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : '🖨️'}
+                          </div>
+
+                          {/* Reading status */}
+                          <div className="relative" data-dropdown>
+                            <span
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                                entry.readingStatus === 'READING' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
+                                entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
+                                'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                              }`}
+                            >
+                              {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
                             </span>
-                          )}
+                            {openDropdown === `${entry.id}-reading` && (
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                  >{val}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Signature type */}
+                          <div className="relative" data-dropdown>
+                            <span
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig` ? null : `${entry.id}-sig`) }}
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30') : 'text-stone-600 bg-stone-800 border-stone-700'}`}
+                            >
+                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'facsimile' ? '🖨️' : '—'}
+                            </span>
+                            {openDropdown === `${entry.id}-sig` && (
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'facsimile'] as const).map((val) => (
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                  >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : '🖨️ Facsimile'}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Date & cost */}
@@ -1397,15 +1439,35 @@ export default function CollectionPage() {
                           })()}
                         </div>
 
-                        {/* Delete */}
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
-                          disabled={removeMutation.isPending}
-                          className="p-1.5 text-stone-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                          aria-label="Remove"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {/* Actions (hover) */}
+                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                          {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumber) && (
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTrackEntry({ id: entry.id, trackingNumber: entry.trackingNumber }); setTrackingInput(entry.trackingNumber ?? ''); setTrackingEditMode(!entry.trackingNumber) }}
+                              className={`p-1.5 rounded-lg transition-colors ${entry.trackingNumber ? 'text-blue-400 hover:bg-blue-500/10' : 'text-stone-500 hover:text-blue-400 hover:bg-blue-500/10'}`}
+                              title={entry.trackingNumber ? `Tracking: ${entry.trackingNumber}` : 'Add tracking number'}
+                            >
+                              <Truck size={12} />
+                            </button>
+                          )}
+                          {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSaleSelectedEntries([entry.id]); setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP'); setAddSaleOpen(true) }}
+                              className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                              title="Record sale"
+                            >
+                              <ShoppingBag size={12} />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
+                            disabled={removeMutation.isPending}
+                            className="p-1.5 text-stone-600 hover:text-red-400 transition-all"
+                            aria-label="Remove"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </a>
                     )
                   })}
@@ -1774,15 +1836,14 @@ function AddToCollectionSearch({
       // Create the collection entry
       const res = await authFetch<{ id: string }>('/collection', {
         method: 'POST',
-        body: JSON.stringify({ bookEditionId: selected.id, ownershipStatus, _entityName: selected.book.title }),
+        body: JSON.stringify({
+          bookEditionId: selected.id,
+          ownershipStatus,
+          acquiredAt: purchasedAt ? new Date(purchasedAt).toISOString() : undefined,
+          _entityName: selected.book.title,
+        }),
       })
       const entryId = res.id
-      if (purchasedAt) {
-        await authFetch(`/collection/${entryId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ acquiredAt: new Date(purchasedAt).toISOString() }),
-        })
-      }
 
       // Create purchase group if there are any financials
       const hasFees = feeEntries.some(f => parseDecimalInput(f.amount) > 0)

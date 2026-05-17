@@ -391,9 +391,16 @@ export class SubscriptionsService {
     }
 
     const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
+    const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
     return {
       ...rest,
       price: this.computeCurrentPrice(priceChanges),
+      // Original price: the sentinel record's value — represents the price from the very beginning,
+      // before any explicit price changes. Used by the frontend as a fallback when resolving
+      // historical prices for months that predate the first explicit price change.
+      originalBasePrice: sentinelRecord
+        ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
+        : this.computeCurrentPrice(priceChanges),
       months,
       componentIds: comboComponents.map((c) => c.componentId),
       components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
