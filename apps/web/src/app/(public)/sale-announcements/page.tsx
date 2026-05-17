@@ -18,6 +18,7 @@ interface ListSaleAnnouncement {
   title: string
   imageUrl: string | null
   basePrice: number | null
+  subscriberBasePrice: number | null
   currency: string | null
   isBundle: boolean
   availableForPurchase: boolean
@@ -100,6 +101,9 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
           {a.basePrice != null && a.currency && (
             <p className="text-xs text-stone-400">from {a.basePrice} {a.currency}</p>
           )}
+          {a.subscriberBasePrice != null && (
+            <p className="text-[10px] text-emerald-400/80">🏷 Subscriber price available</p>
+          )}
         </div>
         <div className="mt-2">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -145,6 +149,9 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
           {saleDate && <span className="text-xs text-stone-400">🗓 {saleDate}</span>}
           {a.basePrice != null && a.currency && (
             <span className="text-xs text-stone-500">from {a.basePrice} {a.currency}</span>
+          )}
+          {a.subscriberBasePrice != null && (
+            <span className="text-[10px] text-emerald-400/80">🏷 sub price</span>
           )}
         </div>
       </div>

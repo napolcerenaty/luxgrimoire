@@ -35,7 +35,11 @@ export function SaleInterestSection({ sale }: Props) {
 
   return (
     <div className="flex items-center gap-2 mt-4">
-      <SaleInterestButton sale={sale} />
+      <SaleInterestButton
+        sale={sale}
+        subscriberBasePrice={sale.subscriberBasePrice ?? null}
+        currency={sale.currency ?? null}
+      />
       {isInterested && saleOpen && (
         <AddToCollectionButton
           saleAnnouncementId={sale.id}

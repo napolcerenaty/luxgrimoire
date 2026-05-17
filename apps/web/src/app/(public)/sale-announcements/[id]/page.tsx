@@ -112,6 +112,15 @@ export default async function SaleAnnouncementPage({ params }: Props) {
           )}
 
           {/* Dates + Region Selector */}
+          {sale.subscriberBasePrice != null && sale.currency && (
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-700/40">
+              <span className="text-emerald-400 text-sm">🏷</span>
+              <span className="text-emerald-300 text-sm">
+                Subscriber price: <strong>{sale.currency === 'GBP' ? '£' : sale.currency === 'USD' ? '$' : sale.currency === 'EUR' ? '€' : sale.currency}{sale.subscriberBasePrice}</strong>
+                <span className="text-emerald-500 text-xs ml-1">(vs {sale.currency === 'GBP' ? '£' : sale.currency === 'USD' ? '$' : sale.currency === 'EUR' ? '€' : sale.currency}{sale.basePrice} general)</span>
+              </span>
+            </div>
+          )}
           <div className="mb-6">
             <SaleDateSelector
               regions={sale.regions ?? []}

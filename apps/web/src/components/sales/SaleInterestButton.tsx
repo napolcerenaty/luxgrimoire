@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Bell, BellOff, Loader2, MapPin } from 'lucide-react'
+import { Bell, BellOff, Loader2, MapPin, Tag } from 'lucide-react'
 import { useSaleInterest, type SaleTier } from '@/hooks/useSaleInterest'
 import { useAuth } from '@/components/AuthProvider'
 import { formatTierDate } from '@/lib/saleDates'
@@ -32,15 +32,22 @@ function resolveDates(
   }
 }
 
+function formatPrice(price: number, currency: string | null | undefined) {
+  const sym = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : (currency ?? '')
+  return `${sym}${price}`
+}
+
 interface Props {
   sale: Pick<ApiSaleAnnouncement, 'id' | 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate' | 'regions'>
+  subscriberBasePrice?: number | null
+  currency?: string | null
   compact?: boolean
 }
 
-export function SaleInterestButton({ sale, compact = false }: Props) {
+export function SaleInterestButton({ sale, subscriberBasePrice, currency, compact = false }: Props) {
   const { user } = useAuth()
   const router = useRouter()
-  const { isInterested, tier, regionId: savedRegionId, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
+  const { isInterested, tier, regionId: savedRegionId, selectedPrice, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -81,7 +88,30 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
   }, [savedRegionId, lsKey])
 
   const effectiveRegion = regions.find(r => r.id === selectedRegionId) ?? findDefaultRegion(regions)
+
+  // Per-region subscriber price override (fallback to top-level)
+  const effectiveSubscriberPrice = (effectiveRegion as (Region & { subscriberBasePrice?: number | null }))?.subscriberBasePrice ?? subscriberBasePrice
+  const hasSubscriberPrice = effectiveSubscriberPrice != null && effectiveSubscriberPrice > 0
+
   const dates = resolveDates(sale, effectiveRegion)
+
+  // Price mode: default to 'subscriber' when subscriber price exists
+  const [priceMode, setPriceMode] = useState<'subscriber' | 'regular'>(() => {
+    // If already saved a selectedPrice = subscriberBasePrice, keep subscriber; if regular keep regular
+    return 'subscriber'
+  })
+
+  // Sync priceMode from existing interest
+  useEffect(() => {
+    if (!hasSubscriberPrice) return
+    if (selectedPrice != null && effectiveSubscriberPrice != null) {
+      setPriceMode(selectedPrice === effectiveSubscriberPrice ? 'subscriber' : 'regular')
+    }
+  }, [selectedPrice, effectiveSubscriberPrice, hasSubscriberPrice])
+
+  const resolvedPrice = hasSubscriberPrice
+    ? (priceMode === 'subscriber' ? effectiveSubscriberPrice : null)
+    : null
 
   const availableTiers = ALL_TIERS.filter(t => {
     if (t.value === 'FA') return !!dates.FA
@@ -97,7 +127,7 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
       router.push(`/login?returnTo=${returnTo}`)
       return
     }
-    if (onlyGS && !hasRegions) {
+    if (onlyGS && !hasRegions && !hasSubscriberPrice) {
       if (isInterested) removeInterest()
       else setInterest('GS', effectiveRegion?.id ?? null)
       return
@@ -110,7 +140,7 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
       let left = rect.right - dropdownWidth
       left = Math.max(8, Math.min(left, vw - dropdownWidth - 8))
       const right = vw - left - dropdownWidth
-      const ESTIMATED_HEIGHT = 320
+      const ESTIMATED_HEIGHT = hasSubscriberPrice ? 380 : 320
       const spaceBelow = vh - rect.bottom - 8
       if (spaceBelow >= ESTIMATED_HEIGHT || spaceBelow >= rect.top - 8) {
         setDropdownPos({ top: rect.bottom + 8, right })
@@ -122,7 +152,9 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
   }
 
   const pickTier = async (t: SaleTier) => {
-    await setInterest(t, effectiveRegion?.id ?? null)
+    const price = hasSubscriberPrice ? resolvedPrice : null
+    const priceCurrency = price != null ? (currency ?? null) : null
+    await setInterest(t, effectiveRegion?.id ?? null, price, priceCurrency)
     setOpen(false)
   }
 
@@ -138,6 +170,44 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
       </button>
     )
   }
+
+  // Price picker section (shared between mobile + desktop)
+  const PricePicker = ({ className = '' }: { className?: string }) => (
+    hasSubscriberPrice ? (
+      <div className={`mb-3 pb-3 border-b border-stone-800 ${className}`}>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Tag size={12} className="text-stone-500" />
+          <span className="text-xs text-stone-500 uppercase tracking-wider">Your price</span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setPriceMode('subscriber') }}
+            className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border text-xs transition-colors ${
+              priceMode === 'subscriber'
+                ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
+                : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+            }`}
+          >
+            <span className="font-semibold text-sm">{formatPrice(effectiveSubscriberPrice!, currency)}</span>
+            <span className="text-[10px] opacity-70 mt-0.5">Subscriber</span>
+          </button>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setPriceMode('regular') }}
+            className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border text-xs transition-colors ${
+              priceMode === 'regular'
+                ? 'bg-stone-700 border-stone-500 text-stone-200'
+                : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+            }`}
+          >
+            <span className="font-semibold text-sm text-stone-400">regular</span>
+            <span className="text-[10px] opacity-70 mt-0.5">General price</span>
+          </button>
+        </div>
+      </div>
+    ) : null
+  )
 
   return (
     <div className="relative">
@@ -192,6 +262,8 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
                   </select>
                 </div>
               )}
+
+              <PricePicker />
 
               <p className="text-xs text-stone-500 uppercase tracking-wider mb-3">
                 When are you planning to buy?
@@ -264,6 +336,41 @@ export function SaleInterestButton({ sale, compact = false }: Props) {
                         <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
                       ))}
                     </select>
+                  </div>
+                )}
+
+                {hasSubscriberPrice && (
+                  <div className="px-2 pb-2 mb-1 border-b border-stone-800">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Tag size={11} className="text-stone-500" />
+                      <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your price</span>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setPriceMode('subscriber') }}
+                        className={`flex-1 flex flex-col items-center py-1.5 px-2 rounded-lg border text-xs transition-colors ${
+                          priceMode === 'subscriber'
+                            ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
+                            : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                        }`}
+                      >
+                        <span className="font-semibold">{formatPrice(effectiveSubscriberPrice!, currency)}</span>
+                        <span className="text-[10px] opacity-70">Subscriber</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setPriceMode('regular') }}
+                        className={`flex-1 flex flex-col items-center py-1.5 px-2 rounded-lg border text-xs transition-colors ${
+                          priceMode === 'regular'
+                            ? 'bg-stone-700 border-stone-500 text-stone-200'
+                            : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                        }`}
+                      >
+                        <span className="font-semibold text-stone-400">regular</span>
+                        <span className="text-[10px] opacity-70">General price</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 

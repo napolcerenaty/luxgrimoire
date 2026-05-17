@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   ExternalLink, Pencil, Check, X, ChevronDown, ChevronUp,
-  Clock, Tag, Package, Wallet, Plus, Trash2,
+  Clock, Tag, Package, Wallet, Plus, Trash2, Hash,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { createSaleGroup } from '@/lib/api'
@@ -71,7 +71,8 @@ interface CollectionEntry {
   ownershipStatus: string
   addedAt: string
   acquiredAt: string | null
-  trackingNumber: string | null
+  trackingNumbers: Array<{ id: string; trackingNumber: string; label: string | null }>
+  orderNumber: string | null
   salePrice: string | null
   saleCurrency: string | null
   saleDate: string | null
@@ -324,9 +325,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [savingSale, setSavingSale] = useState(false)
 
   // Edit state — tracking
-  const [editingTracking, setEditingTracking] = useState(false)
-  const [editTracking, setEditTracking] = useState('')
+  const [addingTracking, setAddingTracking] = useState(false)
+  const [newTrackingNumber, setNewTrackingNumber] = useState('')
+  const [newTrackingLabel, setNewTrackingLabel] = useState('')
   const [savingTracking, setSavingTracking] = useState(false)
+
+  // Edit state — order number
+  const [editingOrderNumber, setEditingOrderNumber] = useState(false)
+  const [editOrderNumber, setEditOrderNumber] = useState('')
+  const [savingOrderNumber, setSavingOrderNumber] = useState(false)
 
   // Edit state — tags
   const [editingTags, setEditingTags] = useState(false)
@@ -759,20 +766,20 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     }
   }
 
-  // ── Tracking section ──────────────────────────────────────────────────────
+  // ── Order number section ──────────────────────────────────────────────────
 
-  function openTrackingEdit() {
-    setEditTracking(entry!.trackingNumber ?? '')
-    setEditingTracking(true)
+  function openOrderNumberEdit() {
+    setEditOrderNumber(entry!.orderNumber ?? '')
+    setEditingOrderNumber(true)
   }
 
-  async function saveTracking() {
-    setSavingTracking(true)
+  async function saveOrderNumber() {
+    setSavingOrderNumber(true)
     try {
-      await patchEntry({ trackingNumber: editTracking || null })
-      setEditingTracking(false)
+      await patchEntry({ orderNumber: editOrderNumber || null })
+      setEditingOrderNumber(false)
     } finally {
-      setSavingTracking(false)
+      setSavingOrderNumber(false)
     }
   }
 
@@ -1610,31 +1617,110 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           })()}
         </div>
 
-        {/* Tracking card — compact */}
+        {/* Tracking card — multi */}
         <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Package size={11} /> Tracking</span></p>
-          {editingTracking ? (
+          <div className="flex flex-col gap-2">
+            {entry.trackingNumbers.map((tn) => (
+              <div key={tn.id} className="flex items-center gap-1.5 group/tn">
+                <div className="flex-1 min-w-0">
+                  {tn.label && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tn.label}</p>}
+                  <a
+                    href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 break-all"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {tn.trackingNumber}
+                    <ExternalLink size={11} className="shrink-0" />
+                  </a>
+                </div>
+                <button
+                  onClick={async () => {
+                    await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, { method: 'DELETE' })
+                    void queryClient.invalidateQueries({ queryKey: ['edition-entry', entry.id] })
+                    void queryClient.invalidateQueries({ queryKey: ['collection'] })
+                  }}
+                  className="p-1 opacity-0 group-hover/tn:opacity-100 text-stone-600 hover:text-red-400 transition-all shrink-0"
+                  title="Remove"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            {addingTracking ? (
+              <div className="flex flex-col gap-1.5 mt-1">
+                <input
+                  value={newTrackingNumber}
+                  onChange={e => setNewTrackingNumber(e.target.value)}
+                  placeholder="Tracking number…"
+                  className={INP}
+                  autoFocus
+                />
+                <input
+                  value={newTrackingLabel}
+                  onChange={e => setNewTrackingLabel(e.target.value)}
+                  placeholder="Label (optional)"
+                  className={INP}
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={async () => {
+                      if (!newTrackingNumber.trim()) return
+                      setSavingTracking(true)
+                      try {
+                        await authFetch(`/collection/${entry.id}/tracking`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ trackingNumber: newTrackingNumber.trim(), label: newTrackingLabel.trim() || undefined }),
+                        })
+                        void queryClient.invalidateQueries({ queryKey: ['edition-entry', entry.id] })
+                        void queryClient.invalidateQueries({ queryKey: ['collection'] })
+                        setNewTrackingNumber('')
+                        setNewTrackingLabel('')
+                        setAddingTracking(false)
+                      } finally {
+                        setSavingTracking(false)
+                      }
+                    }}
+                    disabled={savingTracking || !newTrackingNumber.trim()}
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                  >
+                    {savingTracking ? '…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setAddingTracking(false); setNewTrackingNumber(''); setNewTrackingLabel('') }}
+                    className="text-xs py-1.5 px-3 rounded-lg border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setAddingTracking(true)} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left mt-1" style={{ color: 'var(--text-muted)' }}>
+                + Add tracking number
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Order Number card */}
+        <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Hash size={11} /> Order Number</span></p>
+          {editingOrderNumber ? (
             <div className="flex flex-col gap-2">
-              <input value={editTracking} onChange={e => setEditTracking(e.target.value)} placeholder="Tracking number…" className={INP} />
-              <SaveCancelBtns onSave={saveTracking} onCancel={() => setEditingTracking(false)} saving={savingTracking} />
+              <input value={editOrderNumber} onChange={e => setEditOrderNumber(e.target.value)} placeholder="Order number…" className={INP} />
+              <SaveCancelBtns onSave={saveOrderNumber} onCancel={() => setEditingOrderNumber(false)} saving={savingOrderNumber} />
             </div>
-          ) : entry.trackingNumber ? (
+          ) : entry.orderNumber ? (
             <div className="flex items-center gap-1.5">
-              <a
-                href={`https://parcelsapp.com/en/tracking/${entry.trackingNumber}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                onClick={() => authFetch(`/collection/${entry!.id}/tracking-click`, { method: 'POST' }).catch(() => {})}
-              >
-                {entry.trackingNumber}
-                <ExternalLink size={11} />
-              </a>
-              <EditBtn onClick={openTrackingEdit} />
+              <span className="text-sm text-stone-200">{entry.orderNumber}</span>
+              <EditBtn onClick={openOrderNumberEdit} />
             </div>
           ) : (
-            <button onClick={openTrackingEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
-              + Add tracking number
+            <button onClick={openOrderNumberEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
+              + Add order number
             </button>
           )}
         </div>

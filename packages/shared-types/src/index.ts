@@ -595,9 +595,10 @@ export interface ApiSaleAnnouncement {
   endsAt: string | null;
   saleTimezone: string | null;
   basePrice: number | null;
+  subscriberBasePrice: number | null;
   currency: string | null;
-  imageUrl: string | null;
   extraImagesJson: string[] | null;
+  imageUrl: string | null;
 
   isBundle: boolean;
   expectedShipping: string | null;
@@ -632,6 +633,7 @@ export interface ApiSaleAnnouncement {
     endsAt: string | null;
     saleTimezone: string | null;
     basePrice: number | null;
+    subscriberBasePrice: number | null;
     currency: string | null;
   }>;
 }

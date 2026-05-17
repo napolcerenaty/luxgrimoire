@@ -89,8 +89,8 @@ export class CollectionService {
           readingStatus: true,
           acquiredAt: true,
           signatureType: true,
-          trackingNumber: true,
-          createdAt: true,
+          trackingNumbers: { select: { id: true, trackingNumber: true, label: true, addedAt: true }, orderBy: { addedAt: 'asc' } },
+          orderNumber: true,
           isOriginalPrint: true,
           saleAnnouncementEditionId: true,
           saleAnnouncementEdition: {
@@ -225,9 +225,6 @@ export class CollectionService {
       },
     });
     recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
-    if (entry.editionId && !entry.isWishlist) {
-      this.crowdStatsService.incrementCollectionCount(entry.editionId).catch(() => {});
-    }
     return entry;
   }
 
@@ -266,7 +263,8 @@ export class CollectionService {
           ownershipStatus: true,
           addedAt: true,
           acquiredAt: true,
-          trackingNumber: true,
+          trackingNumbers: { select: { id: true, trackingNumber: true, label: true, addedAt: true }, orderBy: { addedAt: 'asc' } },
+          orderNumber: true,
           salePrice: true,
           saleCurrency: true,
           saleDate: true,
@@ -347,7 +345,7 @@ export class CollectionService {
   async getEntryForTracking(entryId: string, userId: string) {
     const entry = await this.prisma.userBookEntry.findUnique({
       where: { id: entryId },
-      select: { id: true, userId: true, editionId: true, trackingNumber: true },
+      select: { id: true, userId: true, editionId: true },
     });
     if (!entry || entry.userId !== userId) return null;
     return entry;
@@ -368,7 +366,7 @@ export class CollectionService {
         ...(dto.readingStatus !== undefined && { readingStatus: dto.readingStatus }),
         ...(dto.isWishlist !== undefined && { isWishlist: dto.isWishlist }),
         ...(dto.acquiredAt !== undefined && { acquiredAt: new Date(dto.acquiredAt) }),
-        ...(dto.trackingNumber !== undefined && { trackingNumber: dto.trackingNumber }),
+        ...(dto.orderNumber !== undefined && { orderNumber: dto.orderNumber }),
         ...(dto.salePrice !== undefined && { salePrice: dto.salePrice }),
         ...(dto.saleCurrency !== undefined && { saleCurrency: dto.saleCurrency }),
         ...(dto.saleDate !== undefined && { saleDate: dto.saleDate }),
@@ -393,16 +391,6 @@ export class CollectionService {
         effectiveOwnershipStatus,
         effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
       );
-    }
-    // Track wishlist ↔ collection transitions
-    if (dto.isWishlist !== undefined && dto.isWishlist !== existing.isWishlist && existing.editionId) {
-      if (!dto.isWishlist) {
-        // promoted from wishlist → collection
-        this.crowdStatsService.incrementCollectionCount(existing.editionId).catch(() => {});
-      } else {
-        // moved from collection → wishlist
-        this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
-      }
     }
     // Sync sale crowd stats when sale info is updated
     const editionId = existing.editionId;
@@ -517,9 +505,6 @@ export class CollectionService {
     if (!existing) throw new NotFoundException('Entry not found');
     assertOwnership(existing.userId, userId);
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
-    if (existing.editionId && !existing.isWishlist) {
-      this.crowdStatsService.decrementCollectionCount(existing.editionId).catch(() => {});
-    }
     // Clean up the purchase group if it's now empty
     if (existing.purchaseGroupId) {
       const remaining = await this.prisma.userBookEntry.count({
@@ -530,6 +515,24 @@ export class CollectionService {
       }
     }
     return existing;
+  }
+
+  async addTracking(userId: string, entryId: string, trackingNumber: string, label?: string) {
+    const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId } });
+    if (!entry) throw new NotFoundException('Entry not found');
+    assertOwnership(entry.userId, userId);
+    return this.prisma.userBookEntryTracking.create({
+      data: { userBookEntryId: entryId, trackingNumber, label: label ?? null },
+    });
+  }
+
+  async removeTracking(userId: string, entryId: string, trackingId: string) {
+    const tracking = await this.prisma.userBookEntryTracking.findUnique({
+      where: { id: trackingId },
+      include: { entry: { select: { userId: true } } },
+    });
+    if (!tracking || tracking.entry.userId !== userId) throw new NotFoundException('Tracking not found');
+    return this.prisma.userBookEntryTracking.delete({ where: { id: trackingId } });
   }
 
   async getStats(userId: string) {

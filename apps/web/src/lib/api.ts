@@ -557,6 +557,7 @@ export interface SaleAnnouncementFormData {
   saleTimezone?: string;
   basePrice?: number;
   currency?: string;
+  subscriberBasePrice?: number | null;
   imageUrl?: string;
   extraImages?: string[];
 
@@ -701,6 +702,7 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
   saleTimezone?: string | null;
   basePrice?: number | null;
   currency?: string | null;
+  subscriberBasePrice?: number | null;
 }): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions`, {
     credentials: 'include',

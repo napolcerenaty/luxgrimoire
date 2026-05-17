@@ -59,6 +59,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [isSecondHand, setIsSecondHand] = useState(false)
   const [sourcePlatform, setSourcePlatform] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const feeKeyRef = useRef(0)
@@ -110,6 +111,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
     setDiscountEntries([])
     setIsSecondHand(false)
     setSourcePlatform('')
+    setOrderNumber('')
     setSelectedBundle(null)
     setStep(bundles.length > 0 ? 'bundle' : 'form')
     _openModal()
@@ -199,10 +201,14 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           })
           purchaseGroupId = pgRes.id
         }
-      }
 
-      // Additional custom fees and discounts
-      await postFeesAndDiscounts(purchaseGroupId, feeEntries, discountEntries, feeTemplates, feeDate)
+        if (orderNumber.trim()) {
+          await authFetch<void>(`/collection/${targetEntryId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ orderNumber: orderNumber.trim() }),
+          }).catch(() => {})
+        }
+      }
 
       setAddedOnce(true)
       closeModal()
@@ -439,6 +445,10 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                 </div>
 
                 <div className="flex flex-col gap-2">
+                  <div>
+                    <label className={LABEL}>Order number (optional)</label>
+                    <input type="text" value={orderNumber} onChange={e => setOrderNumber(e.target.value)} placeholder="e.g. 12345678" className={INPUT} />
+                  </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
                       className="w-4 h-4 rounded accent-amber-500" />

@@ -148,6 +148,21 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       .catch(() => {})
   }, [subscriptionSlug])
 
+  // Auto-fill base price when costCurrency changes to one with official price records
+  useEffect(() => {
+    const matching = priceChanges.filter(pc => pc.currency === costCurrency)
+    if (matching.length === 0) return
+    const now = new Date()
+    const nowYear = now.getFullYear(); const nowMonth = now.getMonth() + 1
+    const applicable = [...matching]
+      .filter(pc => pc.effectiveYear < nowYear || (pc.effectiveYear === nowYear && pc.effectiveMonth <= nowMonth))
+      .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
+    if (applicable.length > 0) setBasePrice(parseFloat(applicable[0].newBasePrice).toFixed(2))
+  }, [costCurrency]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Whether selected currency has official price records
+  const hasOfficialPriceForCurrency = priceChanges.some(pc => pc.currency === costCurrency)
+
   // Fee templates
   const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
   const [linkedFees, setLinkedFees] = useState<LinkedFee[]>([])
@@ -309,7 +324,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {/* Base price + shipping side by side */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Base price ({cur})</label>
+          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+            Base price ({cur})
+            {priceChanges.length > 0 && (
+              <span className={`ml-2 ${hasOfficialPriceForCurrency ? 'text-green-400' : 'text-stone-500'}`}>
+                {hasOfficialPriceForCurrency ? '🟢 Official price' : '⚪ Custom price'}
+              </span>
+            )}
+          </label>
           <input
             type="number" min={0} step="0.01"
             value={basePrice}
@@ -331,16 +353,26 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       </div>
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
-        {costCurrency !== currency ? (
-          <p>
-            You&apos;re tracking this subscription in <span className="text-stone-300">{costCurrency}</span>, which differs from the subscription&apos;s base currency (<span className="text-stone-300">{currency}</span>). Price change history is recorded in {currency} and won&apos;t apply here — past boxes will be added with your entered price of <span className="text-stone-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
-          </p>
-        ) : priceChanges.length === 0 ? (
-          <p>
-            As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-          </p>
-        ) : (() => {
-          const sorted = [...priceChanges].sort(
+        {(() => {
+          const currencyPriceChanges = priceChanges.filter(pc => pc.currency === costCurrency)
+          if (currencyPriceChanges.length === 0 && priceChanges.length > 0) {
+            return (
+              <p>
+                No official price records found for <span className="text-stone-300">{costCurrency}</span>. Past boxes will use your entered price of <span className="text-stone-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
+                {costCurrency !== currency && (
+                  <> Official records are available in <span className="text-stone-300">{currency}</span>.</>
+                )}
+              </p>
+            )
+          }
+          if (currencyPriceChanges.length === 0) {
+            return (
+              <p>
+                As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+              </p>
+            )
+          }
+          const sorted = [...currencyPriceChanges].sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
           )
           // Parse start month from firstOrderDate

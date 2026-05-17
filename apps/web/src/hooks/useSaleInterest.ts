@@ -10,8 +10,20 @@ export type SaleTier = 'FA' | 'EA' | 'GS'
 // All hook instances for the same announcementId share state.
 // When any instance writes, all others update immediately (no re-fetch needed).
 
-interface CachedState { isInterested: boolean; tier: SaleTier | null; regionId: string | null }
-type SaleInterestRecord = { announcementId: string; tier: string; regionId?: string | null } | null
+interface CachedState {
+  isInterested: boolean;
+  tier: SaleTier | null;
+  regionId: string | null;
+  selectedPrice: number | null;
+  selectedPriceCurrency: string | null;
+}
+type SaleInterestRecord = {
+  announcementId: string;
+  tier: string;
+  regionId?: string | null;
+  selectedPrice?: number | null;
+  selectedPriceCurrency?: string | null;
+} | null
 type Listener = (s: CachedState) => void
 
 const cache = new Map<string, CachedState>()
@@ -36,6 +48,8 @@ export function useSaleInterest(announcementId: string | null) {
     isInterested: false,
     tier: null,
     regionId: null,
+    selectedPrice: null,
+    selectedPriceCurrency: null,
     loading: false,
   })
 
@@ -57,12 +71,18 @@ export function useSaleInterest(announcementId: string | null) {
       authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`)
         .then(data => {
           const next: CachedState = data?.announcementId
-            ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
-            : { isInterested: false, tier: null, regionId: null }
+            ? {
+                isInterested: true,
+                tier: data.tier as SaleTier,
+                regionId: data.regionId ?? null,
+                selectedPrice: data.selectedPrice ?? null,
+                selectedPriceCurrency: data.selectedPriceCurrency ?? null,
+              }
+            : { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
           broadcast(announcementId, next)
         })
         .catch(() => {
-          const next: CachedState = { isInterested: false, tier: null, regionId: null }
+          const next: CachedState = { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
           broadcast(announcementId, next)
         })
     }
@@ -70,23 +90,39 @@ export function useSaleInterest(announcementId: string | null) {
     return unsub
   }, [announcementId])
 
-  const setInterest = useCallback(async (tier: SaleTier, regionId?: string | null) => {
+  const setInterest = useCallback(async (
+    tier: SaleTier,
+    regionId?: string | null,
+    selectedPrice?: number | null,
+    selectedPriceCurrency?: string | null,
+  ) => {
     if (!announcementId) return
-    broadcast(announcementId, { isInterested: true, tier, regionId: regionId ?? null })
+    broadcast(announcementId, {
+      isInterested: true,
+      tier,
+      regionId: regionId ?? null,
+      selectedPrice: selectedPrice ?? null,
+      selectedPriceCurrency: selectedPriceCurrency ?? null,
+    })
     try {
       await authFetch(`/sale-interests/${announcementId}`, {
         method: 'POST',
-        body: JSON.stringify({ tier, regionId: regionId ?? null }),
+        body: JSON.stringify({
+          tier,
+          regionId: regionId ?? null,
+          selectedPrice: selectedPrice ?? null,
+          selectedPriceCurrency: selectedPriceCurrency ?? null,
+        }),
       })
       queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
     } catch {
-      broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
+      broadcast(announcementId, { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null })
     }
   }, [announcementId, queryClient])
 
   const removeInterest = useCallback(async () => {
     if (!announcementId) return
-    broadcast(announcementId, { isInterested: false, tier: null, regionId: null })
+    broadcast(announcementId, { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null })
     try {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
@@ -94,8 +130,14 @@ export function useSaleInterest(announcementId: string | null) {
       // rollback — refetch to get real state
       authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`).then(data => {
         const next: CachedState = data?.announcementId
-          ? { isInterested: true, tier: data.tier as SaleTier, regionId: data.regionId ?? null }
-          : { isInterested: false, tier: null, regionId: null }
+          ? {
+              isInterested: true,
+              tier: data.tier as SaleTier,
+              regionId: data.regionId ?? null,
+              selectedPrice: data.selectedPrice ?? null,
+              selectedPriceCurrency: data.selectedPriceCurrency ?? null,
+            }
+          : { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
         broadcast(announcementId, next)
       }).catch(() => {})
     }

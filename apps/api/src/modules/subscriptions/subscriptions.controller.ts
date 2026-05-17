@@ -75,6 +75,12 @@ export class SubscriptionsController {
     return result;
   }
 
+  @Public()
+  @Get(':slug/stats/subscribers')
+  async getSubscriberCount(@Param('slug') slug: string) {
+    return this.subscriptionsService.getActiveSubscriberCount(slug);
+  }
+
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
@@ -184,8 +190,12 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Get('my/subscriptions')
-  getMySubscriptions(@CurrentUser() user: CurrentUserType) {
-    return this.subscriptionsService.getMySubscriptions(user.id);
+  getMySubscriptions(
+    @CurrentUser() user: CurrentUserType,
+    @Query('active') active?: string,
+  ) {
+    const activeFilter = active === 'true' ? true : active === 'false' ? false : undefined;
+    return this.subscriptionsService.getMySubscriptions(user.id, activeFilter);
   }
 
   @ApiBearerAuth()

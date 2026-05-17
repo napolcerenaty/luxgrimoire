@@ -1,8 +1,12 @@
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, Param, Query } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { CrowdStatsService } from './crowd-stats.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 import { Public } from '../../common/decorators/auth.decorators';
+
+const COLLECTION_COUNT_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
 
 @Controller()
 export class CrowdStatsController {
@@ -10,6 +14,7 @@ export class CrowdStatsController {
     private readonly crowdStatsService: CrowdStatsService,
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   @Public()
@@ -50,12 +55,22 @@ export class CrowdStatsController {
   @Public()
   @Get('editions/:slug/stats/collection')
   async getEditionCollectionCount(@Param('slug') slug: string) {
+    const cacheKey = `edition:collection-count:${slug}`;
+    const cached = await this.cache.get<{ count: number }>(cacheKey);
+    if (cached) return cached;
+
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException('Edition not found');
-    const snapshot = await this.crowdStatsService.getSnapshotForEdition(edition.id);
-    return { count: snapshot?.collectionCount ?? 0 };
+
+    const count = await this.prisma.userBookEntry.count({
+      where: { editionId: edition.id, isWishlist: false, ownershipStatus: { not: 'SOLD' } },
+    });
+    const result = { count };
+    await this.cache.set(cacheKey, result, COLLECTION_COUNT_TTL);
+    return result;
   }
 
+  @Public()
   @Get('subscriptions/:slug/stats/subscribers')
   async getSubscriptionSubscriberCount(@Param('slug') slug: string) {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });

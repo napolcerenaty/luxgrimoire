@@ -542,6 +542,7 @@ model SaleAnnouncement {
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   basePrice            Decimal?                  @db.Decimal(10, 2)
+  subscriberBasePrice  Decimal?                  @db.Decimal(10, 2)
   currency             String?
   extraImagesJson      Json?
   imageUrl             String?
@@ -606,6 +607,7 @@ model SaleAnnouncementRegion {
   endsAt          DateTime?
   saleTimezone    String?
   basePrice       Decimal?         @db.Decimal(10, 2)
+  subscriberBasePrice Decimal?     @db.Decimal(10, 2)
   currency        String?          @db.VarChar(3)
   createdAt       DateTime         @default(now())
   announcement    SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -615,11 +617,13 @@ model SaleAnnouncementRegion {
 }
 
 model UserSaleInterest {
-  userId         String
-  announcementId String
-  tier           String           @default("GS") @db.VarChar(2)
-  regionId       String?
-  createdAt      DateTime         @default(now())
+  userId                String
+  announcementId        String
+  tier                  String           @default("GS") @db.VarChar(2)
+  regionId              String?
+  selectedPrice         Decimal?         @db.Decimal(10, 2)
+  selectedPriceCurrency String?          @db.VarChar(3)
+  createdAt             DateTime         @default(now())
   announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -648,7 +652,7 @@ model UserBookEntry {
   purchaseGroupId       String?
   subscriptionEntryId   String?
   signatureType              SignatureType?
-  trackingNumber             String?
+  orderNumber                String?
   saleAnnouncementEditionId  String?                @db.VarChar(36)
   isOriginalPrint            Boolean                @default(true)
   book                       Book                   @relation(fields: [bookId], references: [id])
@@ -660,6 +664,7 @@ model UserBookEntry {
   saleEntries                UserSaleEntry[]
   ownershipHistory           OwnershipStatusHistory[]
   entryTags                  UserBookEntryTag[]
+  trackingNumbers            UserBookEntryTracking[]
 
   @@index([userId])
   @@index([userId, bookId, editionId])
@@ -683,6 +688,18 @@ model OwnershipStatusHistory {
 
   @@index([userBookEntryId, changedAt])
   @@map("ownership_status_history")
+}
+
+model UserBookEntryTracking {
+  id              String        @id @default(uuid())
+  userBookEntryId String
+  trackingNumber  String        @db.VarChar(100)
+  label           String?       @db.VarChar(100)
+  addedAt         DateTime      @default(now())
+  entry           UserBookEntry @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+
+  @@index([userBookEntryId])
+  @@map("user_book_entry_tracking")
 }
 
 model UserSubscriptionEntry {
@@ -802,7 +819,7 @@ model SubscriptionPriceChange {
   createdAt       DateTime     @default(now())
   subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
-  @@unique([subscriptionId, effectiveYear, effectiveMonth])
+  @@unique([subscriptionId, effectiveYear, effectiveMonth, currency])
   @@index([subscriptionId])
   @@map("subscription_price_changes")
 }
