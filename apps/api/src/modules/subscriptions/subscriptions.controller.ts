@@ -75,12 +75,6 @@ export class SubscriptionsController {
     return result;
   }
 
-  @Public()
-  @Get(':slug/stats/subscribers')
-  async getSubscriberCount(@Param('slug') slug: string) {
-    return this.subscriptionsService.getActiveSubscriberCount(slug);
-  }
-
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post()
