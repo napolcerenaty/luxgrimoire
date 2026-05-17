@@ -1328,6 +1328,10 @@ export class SubscriptionsService {
     await refreshNextRenewalDate(this.prisma, entry.id);
     // Backfill past renewal history for calendar display (fire-and-forget)
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+    // Update subscriber count snapshot (fire-and-forget, skip for already-cancelled historical entries)
+    if (!dto.alreadyCancelled) {
+      this.crowdStatsService.incrementSubscriberCount(sub.id).catch(() => {});
+    }
 
     return { entry, eligibleMonths };
   }
