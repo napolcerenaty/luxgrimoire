@@ -15,12 +15,13 @@ export class CollectionService {
     private readonly crowdStatsService: CrowdStatsService,
   ) {}
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
-    const where: { userId: string; isWishlist?: boolean } = { userId };
+    const where: { userId: string; isWishlist?: boolean; ownershipStatus?: string } = { userId };
     if (isWishlist !== undefined) where.isWishlist = isWishlist;
+    if (ownershipStatus !== undefined) where.ownershipStatus = ownershipStatus;
 
     if (slim) {
       const [data, total] = await Promise.all([
@@ -316,12 +317,18 @@ export class CollectionService {
               _count: { select: { bookEntries: true } },
             },
           },
+          saleEntries: {
+            select: { saleGroupId: true },
+            take: 1,
+          },
         },
       });
     return entries.map((entry) => ({
       ...entry,
       tags: (entry.entryTags ?? []).map((t) => t.tag),
       entryTags: undefined,
+      saleGroupId: (entry.saleEntries as Array<{ saleGroupId: string }> | undefined)?.[0]?.saleGroupId ?? null,
+      saleEntries: undefined,
     }));
   }
 

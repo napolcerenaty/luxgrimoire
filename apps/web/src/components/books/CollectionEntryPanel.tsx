@@ -6,6 +6,7 @@ import {
   Clock, Tag, Package, Wallet, Plus, Trash2,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { createSaleGroup } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
@@ -78,6 +79,7 @@ interface CollectionEntry {
   saleNotes: string | null
   signatureType: string | null
   subscriptionEntryId: string | null
+  saleGroupId: string | null
   tags: string[]
   purchaseGroup: PurchaseGroup | null
   saleAnnouncementEditionId: string | null
@@ -728,6 +730,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         : null
     setSavingSale(true)
     try {
+      const entryId = entry!.id
+      const alreadyHasSaleGroup = !!entry!.saleGroupId
       await patchEntry({
         salePrice: editSalePrice || null,
         saleCurrency: editSaleCurrency || null,
@@ -735,6 +739,20 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         saleVenue: venueToSave,
         saleNotes: editSaleNotes || null,
       })
+      // Auto-create a Recorded Sale if price + date are set and no SaleGroup exists yet
+      if (!alreadyHasSaleGroup && editSalePrice && editSaleDate) {
+        await createSaleGroup({
+          totalAmount: parseFloat(editSalePrice),
+          currency: editSaleCurrency || 'USD',
+          platform: venueToSave || '',
+          soldAt: editSaleDate,
+          notes: editSaleNotes || undefined,
+          priceDistribution: 'EQUAL',
+          entryIds: [entryId],
+        })
+        queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+        queryClient.invalidateQueries({ queryKey: ['collection'] })
+      }
       setEditingSale(false)
     } finally {
       setSavingSale(false)
