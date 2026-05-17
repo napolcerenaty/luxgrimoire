@@ -1810,8 +1810,7 @@ function AddToCollectionSearch({
 
   const openForm = (edition: ApiSearchEdition) => {
     setSelected(edition)
-    const isFutureSale = edition.generalSaleDate != null && new Date(edition.generalSaleDate) > new Date()
-    setOwnershipStatus(isFutureSale ? 'PREORDER' : 'OWNED')
+    setOwnershipStatus('OWNED')
     setPurchasedAt(new Date().toISOString().slice(0, 10))
     setPrice('')
     setShipping('')
