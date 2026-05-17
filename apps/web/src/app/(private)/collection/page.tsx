@@ -11,14 +11,24 @@ import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
-const fmtStatus = (s: string) => s.replace(/_/g, ' ')
+const OWNERSHIP_LABEL: Record<string, string> = {
+  OWNED: 'Own',
+  PREORDER: 'Preorder',
+  SHIPPING: 'Shipping',
+  BORROWED: 'Borrowed',
+  LENDED: 'Lended',
+  TO_SELL: 'To Sell',
+  SOLD: 'Sold',
+  GIFTED_AWAY: 'Gifted Away',
+}
+const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
 
 interface CollectionEntry {
   id: string
@@ -490,12 +500,36 @@ const CONDITION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | '
   POOR: 'destructive',
 }
 
-type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR'
+type FilterMode = 'ALL' | 'BOOK' | 'SERIES' | 'YEAR' | 'AUTHOR' | 'COMPANY'
+type SortOrder = 'DATE_DESC' | 'DATE_ASC'
+type ViewMode = 'grid' | 'list'
+
+const COLLECTION_PREFS_KEY = 'collection_prefs'
+function loadPrefs(): { filter: FilterMode; sortOrder: SortOrder; viewMode: ViewMode } {
+  if (typeof window === 'undefined') return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+  try {
+    const raw = localStorage.getItem(COLLECTION_PREFS_KEY)
+    if (!raw) return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+    const parsed = JSON.parse(raw)
+    return {
+      filter: parsed.filter ?? 'ALL',
+      sortOrder: parsed.sortOrder ?? 'DATE_DESC',
+      viewMode: parsed.viewMode ?? 'grid',
+    }
+  } catch {
+    return { filter: 'ALL', sortOrder: 'DATE_DESC', viewMode: 'grid' }
+  }
+}
+function savePrefs(prefs: { filter: FilterMode; sortOrder: SortOrder; viewMode: ViewMode }) {
+  try { localStorage.setItem(COLLECTION_PREFS_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
+}
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [filter, setFilter] = useState<FilterMode>('ALL')
+  const [filter, setFilter] = useState<FilterMode>(() => loadPrefs().filter)
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
@@ -508,7 +542,11 @@ export default function CollectionPage() {
   // Local tag state per editionId (updated optimistically after saves)
   const [tagOverrides, setTagOverrides] = useState<Record<string, string[]>>({})
   // Paginated collection accumulation
-  const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
+  // Initialize from React Query cache so back-navigation doesn't flash an empty list
+  const [allEntries, setAllEntries] = useState<CollectionEntry[]>(() => {
+    const cached = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
+    return cached ?? []
+  })
   const [collectionTotal, setCollectionTotal] = useState(0)
   const [collectionPage, setCollectionPage] = useState(1)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -522,6 +560,11 @@ export default function CollectionPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  // Persist view preferences to localStorage
+  useEffect(() => {
+    savePrefs({ filter, sortOrder, viewMode })
+  }, [filter, sortOrder, viewMode])
 
   const { isLoading: entriesLoading } = useQuery({
     queryKey: ['collection', false],
@@ -708,19 +751,25 @@ export default function CollectionPage() {
   })
 
   const grouped: CollectionEntry[][] = (() => {
+    // Apply sort first
+    const sortDate = (e: CollectionEntry) => e.purchaseGroup?.purchasedAt ?? e.acquiredAt ?? ''
+    const sorted = [...filtered].sort((a, b) => {
+      const da = sortDate(a), db = sortDate(b)
+      return sortOrder === 'DATE_DESC' ? db.localeCompare(da) : da.localeCompare(db)
+    })
+
     if (filter === 'BOOK') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.edition.book.id
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
-      // Sort: books with multiple editions first
       return Array.from(map.values()).sort((a, b) => b.length - a.length)
     }
     if (filter === 'SERIES') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.edition.book.seriesName ?? 'Standalone'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
@@ -729,7 +778,7 @@ export default function CollectionPage() {
     }
     if (filter === 'YEAR') {
       const map = new Map<string, CollectionEntry[]>()
-      for (const e of filtered) {
+      for (const e of sorted) {
         const key = e.acquiredAt ? new Date(e.acquiredAt).getFullYear().toString() : 'Unknown'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
@@ -738,7 +787,30 @@ export default function CollectionPage() {
         .sort((a, b) => b[0].localeCompare(a[0]))
         .map(([, v]) => v)
     }
-    return [filtered]
+    if (filter === 'AUTHOR') {
+      const map = new Map<string, CollectionEntry[]>()
+      for (const e of sorted) {
+        const authors = e.edition.book.authors
+        const key = authors.length > 0 ? authors.map(a => a.name).join(', ') : 'Unknown Author'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      }
+      return Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => v)
+    }
+    if (filter === 'COMPANY') {
+      const map = new Map<string, CollectionEntry[]>()
+      for (const e of sorted) {
+        const key = e.edition.bookBoxCompany?.name ?? 'Unknown Company'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      }
+      return Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => v)
+    }
+    return [sorted]
   })()
 
   if (entriesLoading) {
@@ -809,7 +881,39 @@ export default function CollectionPage() {
               <option value="BOOK">Group: By Book</option>
               <option value="SERIES">Group: By Series</option>
               <option value="YEAR">Group: By Year</option>
+              <option value="AUTHOR">Group: By Author</option>
+              <option value="COMPANY">Group: By Company</option>
             </select>
+
+            {/* Sort order */}
+            <select
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value as SortOrder)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="DATE_DESC">Sort: Newest first</option>
+              <option value="DATE_ASC">Sort: Oldest first</option>
+            </select>
+
+            {/* View mode toggle */}
+            <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+                aria-label="List view"
+              >
+                <List size={15} />
+              </button>
+            </div>
 
             {/* Signature */}
             <select
@@ -832,12 +936,13 @@ export default function CollectionPage() {
               className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
             >
               <option value="ALL">Status: Any</option>
-              <option value="OWNED">Owned</option>
-              <option value="PREORDER">Pre-order</option>
-              <option value="TO_SELL">To Sell</option>
+              <option value="PREORDER">Preorder</option>
               <option value="SHIPPING">Shipping</option>
+              <option value="OWNED">Own</option>
               <option value="BORROWED">Borrowed</option>
-              <option value="LENDED">Lent Out</option>
+              <option value="LENDED">Lended</option>
+              <option value="TO_SELL">To Sell</option>
+              <option value="SOLD">Sold</option>
               <option value="GIFTED_AWAY">Gifted Away</option>
             </select>
 
@@ -912,7 +1017,11 @@ export default function CollectionPage() {
                       ? (group[0]?.acquiredAt
                           ? new Date(group[0].acquiredAt).getFullYear().toString()
                           : 'Unknown')
-                      : null
+                    : filter === 'AUTHOR'
+                      ? (group[0]?.edition.book.authors.map(a => a.name).join(', ') ?? 'Unknown Author')
+                    : filter === 'COMPANY'
+                      ? (group[0]?.edition.bookBoxCompany?.name ?? 'Unknown Company')
+                    : null
 
                 return (
                   <div key={gi}>
@@ -923,12 +1032,24 @@ export default function CollectionPage() {
                             {groupLabel}
                           </a>
                         )}
-                        {filter !== 'BOOK' && groupLabel}
+                        {filter === 'AUTHOR' && group[0] && (
+                          <a href={`/authors/${group[0].edition.book.authors[0]?.slug}`} className="hover:text-amber-400 transition-colors">
+                            {groupLabel}
+                          </a>
+                        )}
+                        {filter === 'COMPANY' && group[0]?.edition.bookBoxCompany && (
+                          <a href={`/book-boxes/${group[0].edition.bookBoxCompany.slug}`} className="hover:text-amber-400 transition-colors">
+                            {groupLabel}
+                          </a>
+                        )}
+                        {(filter === 'SERIES' || filter === 'YEAR' || (filter === 'COMPANY' && !group[0]?.edition.bookBoxCompany)) && groupLabel}
                         {filter === 'BOOK' && group.length > 1 && (
                           <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5">{group.length} editions</span>
                         )}
+                        <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>
                       </h2>
                     )}
+                {viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {group.map((entry) => (
                     <EditionCard
@@ -973,7 +1094,7 @@ export default function CollectionPage() {
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['PREORDER', 'OWNED', 'TO_SELL', 'SHIPPING', 'BORROWED', 'LENDED', 'GIFTED_AWAY'] as const).map((val) => (
+                                  {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
@@ -1191,6 +1312,105 @@ export default function CollectionPage() {
                     />
                   ))}
                 </div>
+                ) : (
+                /* ── List view ── */
+                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
+                  {group.map((entry) => {
+                    const cover = cloudinaryUrl(resolveEditionCoverRaw(entry.edition), 'w_80,h_120,c_fill,q_auto,f_auto')
+                    const book = entry.edition.book
+                    const authors = (book.authors as any[]).map(a => (a.author ?? a).name).join(', ')
+                    const pg = entry.purchaseGroup
+                    const dateLabel = pg?.purchasedAt
+                      ? new Date(pg.purchasedAt).toLocaleDateString()
+                      : entry.acquiredAt
+                      ? new Date(entry.acquiredAt).toLocaleDateString()
+                      : null
+                    return (
+                      <a
+                        key={entry.id}
+                        href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                        className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden bg-stone-950">
+                          {cover
+                            ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                          }
+                        </div>
+
+                        {/* Main info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-stone-100 truncate">{book.title}</p>
+                          {authors && <p className="text-xs text-stone-400 truncate">{authors}</p>}
+                          {(book.seriesName || entry.edition.bookBoxCompany?.name) && (
+                            <p className="text-[10px] text-stone-500 truncate">
+                              {book.seriesName && <span>{book.seriesName}{book.volumeNumber ? ` #${book.volumeNumber}` : ''}</span>}
+                              {book.seriesName && entry.edition.bookBoxCompany?.name && <span className="mx-1">·</span>}
+                              {entry.edition.bookBoxCompany?.name && <span>{entry.edition.bookBoxCompany.name}</span>}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badges */}
+                        <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                          <span
+                            data-dropdown
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
+                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none relative ${
+                              entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                              entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                              entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                              (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                              'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                            }`}
+                          >
+                            {fmtStatus(entry.ownershipStatus)}
+                            {openDropdown === `${entry.id}-ownership` && (
+                              <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                  >{fmtStatus(val)}</button>
+                                ))}
+                              </div>
+                            )}
+                          </span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' : entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' : 'text-stone-500 bg-stone-500/10 border-stone-500/30'}`}>
+                            {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : 'UNREAD'}
+                          </span>
+                          {entry.signatureType && entry.signatureType !== 'unsigned' && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30'}`}>
+                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : '🖨️'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Date & cost */}
+                        <div className="hidden md:flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[80px]">
+                          {dateLabel && <p className="text-[10px] text-stone-500">{dateLabel}</p>}
+                          {pg && (() => {
+                            const total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
+                            const bookCount = pg._count?.bookEntries ?? 1
+                            const perBook = bookCount > 1 ? total / bookCount : total
+                            return <p className="text-[10px] text-stone-400">{perBook.toFixed(2)} {pg.currency}</p>
+                          })()}
+                        </div>
+
+                        {/* Delete */}
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
+                          disabled={removeMutation.isPending}
+                          className="p-1.5 text-stone-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          aria-label="Remove"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </a>
+                    )
+                  })}
+                </div>
+                )}
               </div>
             )
           })}
@@ -1243,7 +1463,7 @@ export default function CollectionPage() {
                     onChange={e => setHistoryEditStatus(e.target.value)}
                     className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
                   >
-                    {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','SOLD','GIFTED_AWAY','TO_SELL'].map(s => (
+                    {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD','GIFTED_AWAY'].map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -1297,7 +1517,7 @@ export default function CollectionPage() {
                 defaultValue="OWNED"
                 className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
               >
-                {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','SOLD','GIFTED_AWAY','TO_SELL'].map(s => (
+                {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD','GIFTED_AWAY'].map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>

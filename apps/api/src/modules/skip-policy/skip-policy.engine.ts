@@ -78,9 +78,12 @@ export class SkipPolicyEngine {
         // Determine the user's actual first deliverable month.
         // For paymentOnStartup subscriptions: if renewalDay already passed on join date,
         // the user's first month is the NEXT month (same logic as recordFirstMonthAsPreorder).
+        // Exception: signupIncludesCurrentMonth=true means the user DID receive the join month's box
+        // at signup, so we never advance — the join month is always the first deliverable.
         let effectiveStartDate = entry.startDate;
         const paymentOnStartup = (subscription as any).paymentOnStartup as boolean;
-        if (paymentOnStartup && entry.startDate && entry.effectiveRenewalDay) {
+        const signupIncludesCurrentMonth = (subscription as any).signupIncludesCurrentMonth as boolean;
+        if (paymentOnStartup && !signupIncludesCurrentMonth && entry.startDate && entry.effectiveRenewalDay) {
           const joinDate = new Date(entry.startDate);
           const joinDay = joinDate.getDate();
           const renewalD = entry.effectiveRenewalDay;

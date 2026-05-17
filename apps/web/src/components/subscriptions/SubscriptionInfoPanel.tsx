@@ -182,7 +182,10 @@ export default function SubscriptionInfoPanel({
   const showConversion = !!userCurrency && userCurrency !== entryCurrency
 
   useEffect(() => {
-    if (!showConversion || !price) return
+    if (!showConversion || !price) {
+      setConvertedRate(null)
+      return
+    }
     authFetch<{ rate: number }>(`/currency/rate?from=${entryCurrency}&to=${userCurrency}`)
       .then((data) => setConvertedRate(data.rate))
       .catch(() => setConvertedRate(null))
