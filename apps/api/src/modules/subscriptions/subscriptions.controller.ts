@@ -184,8 +184,12 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Get('my/subscriptions')
-  getMySubscriptions(@CurrentUser() user: CurrentUserType) {
-    return this.subscriptionsService.getMySubscriptions(user.id);
+  getMySubscriptions(
+    @CurrentUser() user: CurrentUserType,
+    @Query('active') active?: string,
+  ) {
+    const activeFilter = active === 'true' ? true : active === 'false' ? false : undefined;
+    return this.subscriptionsService.getMySubscriptions(user.id, activeFilter);
   }
 
   @ApiBearerAuth()

@@ -12,13 +12,16 @@ import { CheckCircle2, XCircle, Ban, Trash2, LayoutGrid, List } from 'lucide-rea
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 
-function loadViewMode(): 'list' | 'grid' {
-  if (typeof window === 'undefined') return 'list'
-  try { return (JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}').viewMode) ?? 'list' } catch { return 'list' }
+function loadPrefs(): { viewMode: 'list' | 'grid'; tab: 'active' | 'cancelled' } {
+  if (typeof window === 'undefined') return { viewMode: 'list', tab: 'active' }
+  try {
+    const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}')
+    return { viewMode: p.viewMode ?? 'list', tab: 'active' }
+  } catch { return { viewMode: 'list', tab: 'active' } }
 }
-function saveViewMode(v: 'list' | 'grid') {
+function savePrefs(prefs: { viewMode: 'list' | 'grid' }) {
   if (typeof window === 'undefined') return
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ viewMode: v })) } catch { /* noop */ }
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* noop */ }
 }
 
 interface MembershipHistoryRecord {
@@ -67,32 +70,50 @@ function formatDate(iso: string | null) {
 }
 
 export default function MySubscriptionsPage() {
-  const { data: entries = [], isLoading } = useQuery<MySubscriptionEntry[]>({
-    queryKey: ['my-subscriptions'],
-    queryFn: () => authFetch('/subscriptions/my/subscriptions'),
+  const [{ viewMode, tab }, setPrefs] = useState(() => loadPrefs())
+
+  const setView = (v: 'list' | 'grid') => {
+    setPrefs(p => { const n = { ...p, viewMode: v }; savePrefs(n); return n })
+  }
+  const setTab = (t: 'active' | 'cancelled') => {
+    setPrefs(p => ({ ...p, tab: t }))
+  }
+
+  // Active entries — always fetch
+  const { data: activeEntries = [], isLoading: loadingActive } = useQuery<MySubscriptionEntry[]>({
+    queryKey: ['my-subscriptions', 'active'],
+    queryFn: () => authFetch('/subscriptions/my/subscriptions?active=true'),
   })
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => loadViewMode())
 
-  const setView = (v: 'list' | 'grid') => { setViewMode(v); saveViewMode(v) }
+  // Cancelled entries — lazy: only fetch when tab first opened
+  const [cancelledEnabled, setCancelledEnabled] = useState(false)
+  const { data: cancelledEntries = [], isLoading: loadingCancelled } = useQuery<MySubscriptionEntry[]>({
+    queryKey: ['my-subscriptions', 'cancelled'],
+    queryFn: () => authFetch('/subscriptions/my/subscriptions?active=false'),
+    enabled: cancelledEnabled,
+  })
 
-  const active = entries.filter(e => e.active)
-  const inactive = entries.filter(e => !e.active)
+  const handleCancelledTab = () => {
+    setCancelledEnabled(true)
+    setTab('cancelled')
+  }
 
-  // Collect history records from active entries (re-joined subscriptions with past cancelled periods)
+  // History records from active entries (re-joined subs)
   const historyFromActive: Array<{ entry: MySubscriptionEntry; record: MembershipHistoryRecord }> = []
-  for (const e of active) {
+  for (const e of activeEntries) {
     for (const h of (e.membershipHistory ?? [])) {
       historyFromActive.push({ entry: e, record: h })
     }
   }
-  // Sort by endDate desc
   historyFromActive.sort((a, b) => {
     const da = a.record.endDate ?? ''
     const db = b.record.endDate ?? ''
     return db.localeCompare(da)
   })
 
-  if (isLoading) {
+  const cancelledCount = cancelledEntries.length + historyFromActive.length
+
+  if (loadingActive) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <span className="text-stone-500 animate-pulse">Loading subscriptions…</span>
@@ -101,7 +122,8 @@ export default function MySubscriptionsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
         <div className="flex rounded-lg border border-stone-700 overflow-hidden shrink-0">
@@ -114,48 +136,83 @@ export default function MySubscriptionsPage() {
         </div>
       </div>
 
-      {entries.length === 0 ? (
-        <div className="text-center py-16 text-stone-500">
-          <p className="mb-3">You haven't joined any subscriptions yet.</p>
-          <Link href="/subscriptions" className="text-amber-400 underline text-sm">
-            Browse subscriptions →
-          </Link>
-        </div>
-      ) : (
-        <>
-          {active.length > 0 && (
-            <section>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">
-                Active ({active.length})
-              </h2>
-              {viewMode === 'list' ? (
-                <div className="space-y-3">
-                  {active.map(e => <SubscriptionCard key={e.id} entry={e} />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {active.map(e => <SubscriptionTile key={e.id} entry={e} />)}
-                </div>
-              )}
-            </section>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-stone-800">
+        <button
+          type="button"
+          onClick={() => setTab('active')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'active'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-stone-500 hover:text-stone-300'
+          }`}
+        >
+          Active
+          {activeEntries.length > 0 && (
+            <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${tab === 'active' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
+              {activeEntries.length}
+            </span>
           )}
-          {(inactive.length > 0 || historyFromActive.length > 0) && (
-            <section>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">
-                Cancelled / Inactive ({inactive.length + historyFromActive.length})
-              </h2>
-              <div className={viewMode === 'list' ? 'space-y-3 opacity-70' : 'grid grid-cols-2 sm:grid-cols-3 gap-4 opacity-70'}>
-                {inactive.map(e => viewMode === 'list'
-                  ? <SubscriptionCard key={e.id} entry={e} />
-                  : <SubscriptionTile key={e.id} entry={e} />
-                )}
-                {historyFromActive.map(({ entry: e, record: h }) => (
-                  <HistoryPeriodRow key={h.id} entry={e} record={h} />
-                ))}
-              </div>
-            </section>
+        </button>
+        <button
+          type="button"
+          onClick={handleCancelledTab}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'cancelled'
+              ? 'border-stone-400 text-stone-300'
+              : 'border-transparent text-stone-500 hover:text-stone-300'
+          }`}
+        >
+          Cancelled
+          {cancelledEnabled && cancelledCount > 0 && (
+            <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${tab === 'cancelled' ? 'bg-stone-700 text-stone-400' : 'bg-stone-800 text-stone-500'}`}>
+              {cancelledCount}
+            </span>
           )}
-        </>
+        </button>
+      </div>
+
+      {/* Active tab */}
+      {tab === 'active' && (
+        activeEntries.length === 0 ? (
+          <div className="text-center py-16 text-stone-500">
+            <p className="mb-3">You haven't joined any subscriptions yet.</p>
+            <Link href="/subscriptions" className="text-amber-400 underline text-sm">
+              Browse subscriptions →
+            </Link>
+          </div>
+        ) : (
+          viewMode === 'list' ? (
+            <div className="space-y-3">
+              {activeEntries.map(e => <SubscriptionCard key={e.id} entry={e} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {activeEntries.map(e => <SubscriptionTile key={e.id} entry={e} />)}
+            </div>
+          )
+        )
+      )}
+
+      {/* Cancelled tab */}
+      {tab === 'cancelled' && (
+        loadingCancelled ? (
+          <div className="flex items-center justify-center py-16">
+            <span className="text-stone-500 animate-pulse">Loading history…</span>
+          </div>
+        ) : cancelledEntries.length === 0 && historyFromActive.length === 0 ? (
+          <div className="text-center py-16 text-stone-500">No cancelled subscriptions.</div>
+        ) : (
+          <div className={`opacity-75 ${viewMode === 'list' ? 'space-y-3' : 'grid grid-cols-2 sm:grid-cols-3 gap-4'}`}>
+            {cancelledEntries.map(e => viewMode === 'list'
+              ? <SubscriptionCard key={e.id} entry={e} />
+              : <SubscriptionTile key={e.id} entry={e} />
+            )}
+            {historyFromActive.map(({ entry: e, record: h }) => (
+              <HistoryPeriodRow key={h.id} entry={e} record={h} />
+            ))}
+          </div>
+        )
       )}
     </div>
   )

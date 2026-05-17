@@ -793,9 +793,9 @@ export class SubscriptionsService {
     return month === 12 ? [year + 1, 1] : [year, month + 1];
   }
 
-  async getMySubscriptions(userId: string) {
+  async getMySubscriptions(userId: string, activeFilter?: boolean) {
     const entries = await this.prisma.userSubscriptionEntry.findMany({
-      where: { userId },
+      where: { userId, ...(activeFilter !== undefined ? { active: activeFilter } : {}) },
       orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
       select: {
         id: true,
