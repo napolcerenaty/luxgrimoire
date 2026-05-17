@@ -51,6 +51,7 @@ model User {
   skipRecords              UserSkipRecord[]
   subEntryTags             UserSubEntryTag[]
   subscriptionEntries      UserSubscriptionEntry[]
+  subscriptionMembershipHistory UserSubscriptionMembershipHistory[]
   subscriptionRenewals     UserSubscriptionRenewal[]
   bugReports               BugReport[]
   featureRequests          FeatureRequest[]
@@ -369,6 +370,7 @@ model Subscription {
   parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
   variants             Subscription[]               @relation("SubVariants")
   userEntries          UserSubscriptionEntry[]
+  membershipHistory    UserSubscriptionMembershipHistory[]
   statsSnapshot        SubscriptionStatsSnapshot?
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
@@ -718,12 +720,33 @@ model UserSubscriptionEntry {
   purchaseGroups     UserPurchaseGroup[]
   scheduledPrepayOption   SubscriptionPrepayOption? @relation("ScheduledPrepay", fields: [scheduledPrepayOptionId], references: [id])
 
+  membershipHistory  UserSubscriptionMembershipHistory[]
+
   @@unique([userId, subscriptionId])
   @@index([userId])
   @@index([userId, active])
   @@index([active, nextRenewalDate])
   @@index([subscriptionId, shippingCountry])
   @@map("user_subscription_entries")
+}
+
+model UserSubscriptionMembershipHistory {
+  id                 String    @id @default(uuid())
+  userId             String
+  subscriptionId     String
+  entryId            String
+  startDate          String?
+  endDate            String?
+  cancellationReason String?
+  createdAt          DateTime  @default(now())
+
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription       Subscription @relation(fields: [subscriptionId], references: [id])
+  entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, subscriptionId])
+  @@index([userId])
+  @@map("user_subscription_membership_history")
 }
 
 model UserSubBillingPeriod {
