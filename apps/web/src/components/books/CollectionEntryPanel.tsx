@@ -9,6 +9,7 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
+import { useQueryClient } from '@tanstack/react-query'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -256,6 +257,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
 
 export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
   const { user, loading: authLoading } = useAuth()
+  const queryClient = useQueryClient()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
   const [selectedCopyIdx, setSelectedCopyIdx] = useState(0)
   const [entry, setEntry] = useState<CollectionEntry | null>(null)
@@ -466,6 +468,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     const fresh = freshAll?.find(e => e.id === entry!.id) ?? freshAll?.[0]
     setAllEntries(freshAll ?? [])
     setEntry({ ...(fresh ?? updated), tags: fresh?.tags ?? entry!.tags })
+    queryClient.invalidateQueries({ queryKey: ['collection'] })
   }
 
   async function refetchEntry() {
