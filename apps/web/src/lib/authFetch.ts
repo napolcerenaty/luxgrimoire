@@ -1,4 +1,9 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+// Server-side (SSR): use API_URL (internal Docker network) if set, else fall back to public URL.
+// Client-side: always use NEXT_PUBLIC_API_URL (baked at build time).
+export const API_BASE =
+  typeof window === 'undefined'
+    ? (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api')
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api')
 
 export async function authFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const hasBody = options?.body !== undefined && options.body !== null
