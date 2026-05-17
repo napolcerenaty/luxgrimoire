@@ -5,6 +5,7 @@ export const CURRENCIES = ['EUR', 'USD', 'GBP', 'PLN', 'CAD', 'AUD', 'CHF', 'SEK
 export const SALE_PLATFORMS = [
   { value: 'ebay', label: 'eBay' },
   { value: 'facebook', label: 'Facebook Marketplace' },
+  { value: 'instagram', label: 'Instagram' },
   { value: 'vinted', label: 'Vinted' },
   { value: 'depop', label: 'Depop' },
   { value: 'discord', label: 'Discord' },

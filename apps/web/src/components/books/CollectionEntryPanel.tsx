@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { CURRENCIES } from '@/components/sale/SaleFormFields'
+import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -315,6 +315,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editSaleCurrency, setEditSaleCurrency] = useState('')
   const [editSaleDate, setEditSaleDate] = useState('')
   const [editSaleVenue, setEditSaleVenue] = useState('')
+  const [editSaleVenueCustom, setEditSaleVenueCustom] = useState('')
   const [editSaleNotes, setEditSaleNotes] = useState('')
   const [savingSale, setSavingSale] = useState(false)
 
@@ -695,19 +696,37 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setEditSalePrice(entry!.salePrice ?? '')
     setEditSaleCurrency(entry!.saleCurrency ?? '')
     setEditSaleDate(entry!.saleDate ?? '')
-    setEditSaleVenue(entry!.saleVenue ?? '')
+    const raw = entry!.saleVenue ?? ''
+    const matched = SALE_PLATFORMS.find(
+      p => p.value === raw.toLowerCase() || p.label.toLowerCase() === raw.toLowerCase()
+    )
+    if (matched) {
+      setEditSaleVenue(matched.value)
+      setEditSaleVenueCustom('')
+    } else if (raw) {
+      setEditSaleVenue('other')
+      setEditSaleVenueCustom(raw)
+    } else {
+      setEditSaleVenue('')
+      setEditSaleVenueCustom('')
+    }
     setEditSaleNotes(entry!.saleNotes ?? '')
     setEditingSale(true)
   }
 
   async function saveSale() {
+    const venueToSave = editSaleVenue === 'other'
+      ? (editSaleVenueCustom || null)
+      : editSaleVenue
+        ? (SALE_PLATFORMS.find(p => p.value === editSaleVenue)?.label ?? editSaleVenue)
+        : null
     setSavingSale(true)
     try {
       await patchEntry({
         salePrice: editSalePrice || null,
         saleCurrency: editSaleCurrency || null,
         saleDate: editSaleDate || null,
-        saleVenue: editSaleVenue || null,
+        saleVenue: venueToSave,
         saleNotes: editSaleNotes || null,
       })
       setEditingSale(false)
@@ -1332,7 +1351,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Venue / platform</label>
-                  <input value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} placeholder="e.g. eBay" className={INP} />
+                  <select value={editSaleVenue} onChange={e => setEditSaleVenue(e.target.value)} className={INP}>
+                    <option value="">— Select platform —</option>
+                    {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                  {editSaleVenue === 'other' && (
+                    <input value={editSaleVenueCustom} onChange={e => setEditSaleVenueCustom(e.target.value)} placeholder="Platform name…" className={`${INP} mt-1.5`} />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Notes</label>
