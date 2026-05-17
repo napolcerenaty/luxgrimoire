@@ -1169,9 +1169,23 @@ export class SubscriptionsService {
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
     const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
+
+    // If this sub is a variant of a content stream, months live on the parent.
+    // Also clamp startDate to the variant's own startDate (earliest it could have existed).
+    const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
+    const variantDbStartDate = (sub as any).startDate as Date | null;
+    // Effective user start: max(user-provided startDate, variant's own startDate)
+    let effectiveStartDateObj = startDateObj;
+    if (variantDbStartDate) {
+      if (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj) {
+        effectiveStartDateObj = variantDbStartDate;
+      }
+    }
+    const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
+
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, signupIncludesCurrentMonth)
-      : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
+      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, signupIncludesCurrentMonth)
+      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, signupIncludesCurrentMonth);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
