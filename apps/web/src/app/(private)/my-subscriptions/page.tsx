@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
@@ -20,10 +21,18 @@ function saveViewMode(v: 'list' | 'grid') {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify({ viewMode: v })) } catch { /* noop */ }
 }
 
+interface MembershipHistoryRecord {
+  id: string
+  startDate: string | null
+  endDate: string | null
+  cancellationReason: string | null
+}
+
 interface MySubscriptionEntry {
   id: string
   active: boolean
   startDate: string | null
+  cancellationDate: string | null
   renewalDay: number | null
   costCurrency: string | null
   basePrice: string | null
@@ -31,6 +40,7 @@ interface MySubscriptionEntry {
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
+  membershipHistory: MembershipHistoryRecord[]
   subscription: {
     slug: string
     name: string
@@ -140,20 +150,49 @@ export default function MySubscriptionsPage() {
 
 function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
+  const qc = useQueryClient()
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(false)
+  const [removeSpending, setRemoveSpending] = useState(false)
+  const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+
+  const history = entry.membershipHistory ?? []
+  const hasHistory = history.length > 0
+
+  const cancelMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
+  })
+  const removeMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
+      method: 'DELETE',
+      body: JSON.stringify({
+        removeBooks,
+        removeSpending,
+        ...(hasHistory && !removeAllPeriods && selectedHistoryId ? { historyId: selectedHistoryId } : {}),
+        ...(hasHistory && removeAllPeriods ? { removeAllPeriods: true } : {}),
+      }),
+    }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
+  })
+
   const imageSource = sub.coverImage ?? sub.logoUrl
-  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_pad,b_auto,q_auto,f_auto') : null
   const renewalLabel = formatDate(entry.nextRenewalDate)
   const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
 
   return (
-    <Link href={`/subscriptions/${sub.slug}`}
-      className="group block bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors">
-      {/* Cover */}
-      <div className="relative aspect-[4/3] w-full">
+    <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
+      {/* Cover — clickable */}
+      <Link href={`/subscriptions/${sub.slug}`} className="block relative aspect-[4/3] w-full">
         {thumb ? (
-          <Image src={thumb} alt={sub.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+          <Image src={thumb} alt={sub.name} fill className="object-contain group-hover:scale-105 transition-transform duration-300" unoptimized />
         ) : (
-          <div className="absolute inset-0" style={brandGradientStyle(sub.company.brandColors)} />
+          <div className="absolute inset-0 flex items-center justify-center" style={brandGradientStyle(sub.company.brandColors)}>
+            <span className="text-white/80 font-serif text-lg font-semibold text-center px-3 leading-tight drop-shadow">{sub.name}</span>
+          </div>
         )}
         {/* Status badge */}
         <div className="absolute top-2 right-2">
@@ -167,16 +206,107 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
             </span>
           )}
         </div>
-      </div>
-      {/* Info */}
-      <div className="p-3">
-        <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
-        <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+      </Link>
+
+      {/* Info + actions */}
+      <div className="p-3 flex flex-col gap-1 flex-1">
+        <Link href={`/subscriptions/${sub.slug}`} className="block">
+          <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
+          <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+        </Link>
         {entry.active && renewalLabel && (
-          <p className="text-[10px] text-stone-400 mt-1">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
+          <p className="text-[10px] text-stone-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
         )}
+        {!entry.active && (
+          <div className="flex gap-3">
+            {entry.startDate && <p className="text-[10px] text-stone-500">Since {formatDate(entry.startDate)}</p>}
+            {entry.cancellationDate && <p className="text-[10px] text-stone-500">Cancelled {formatDate(entry.cancellationDate)}</p>}
+          </div>
+        )}
+        {/* Action buttons */}
+        <div className="flex gap-1 mt-auto pt-2 justify-end">
+          {entry.active && (
+            <button type="button" title="Cancel subscription" onClick={() => setShowCancelConfirm(true)}
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors">
+              <Ban size={14} />
+            </button>
+          )}
+          <button type="button" title="Remove from my subscriptions" onClick={() => setShowRemoveConfirm(true)}
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
-    </Link>
+
+      {/* Cancel confirm */}
+      {showCancelConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <p className="text-stone-100 font-semibold">Cancel subscription?</p>
+            <p className="text-sm text-stone-400">Your subscription to <span className="text-stone-200">{sub.name}</span> will be marked as cancelled.</p>
+            {cancelMutation.error && <p className="text-xs text-red-400">{(cancelMutation.error as Error).message}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowCancelConfirm(false)} className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">Keep it</button>
+              <button type="button" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending}
+                className="bg-amber-600 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                {cancelMutation.isPending ? 'Cancelling…' : 'Cancel subscription'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Remove confirm */}
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowRemoveConfirm(false)}>
+          <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <p className="text-stone-100 font-semibold">Remove subscription?</p>
+            <p className="text-sm text-stone-400">This will permanently remove <span className="text-stone-200">{sub.name}</span> from your subscriptions.</p>
+            {hasHistory && (
+              <div className="space-y-2">
+                <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
+                {history.map(h => (
+                  <label key={h.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                    <input type="radio" name={`period-tile-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === h.id}
+                      onChange={() => { setSelectedHistoryId(h.id); setRemoveAllPeriods(false) }}
+                      className="text-amber-500" />
+                    {h.startDate ?? '?'} – {h.endDate ?? 'present'}{h.cancellationReason ? ` (${h.cancellationReason})` : ''}
+                  </label>
+                ))}
+                {history.length > 1 && (
+                  <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
+                    <input type="radio" name={`period-tile-${entry.id}`} checked={removeAllPeriods}
+                      onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
+                      className="text-red-500" />
+                    Remove all periods
+                  </label>
+                )}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                <input type="checkbox" checked={removeBooks} onChange={e => setRemoveBooks(e.target.checked)} className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+                Also remove books from my collection
+              </label>
+              <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                <input type="checkbox" checked={removeSpending} onChange={e => setRemoveSpending(e.target.checked)} className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+                Also remove spending records
+              </label>
+            </div>
+            {removeMutation.error && <p className="text-xs text-red-400">{(removeMutation.error as Error).message}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowRemoveConfirm(false)} className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">Keep it</button>
+              <button type="button" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}
+                className="bg-red-700 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition-colors">
+                {removeMutation.isPending ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
   )
 }
 
@@ -189,6 +319,11 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [removeBooks, setRemoveBooks] = useState(false)
   const [removeSpending, setRemoveSpending] = useState(false)
+  const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+
+  const history = entry.membershipHistory ?? []
+  const hasHistory = history.length > 0
 
   const cancelMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
@@ -198,7 +333,12 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
-      body: JSON.stringify({ removeBooks, removeSpending }),
+      body: JSON.stringify({
+        removeBooks,
+        removeSpending,
+        ...(hasHistory && !removeAllPeriods && selectedHistoryId ? { historyId: selectedHistoryId } : {}),
+        ...(hasHistory && removeAllPeriods ? { removeAllPeriods: true } : {}),
+      }),
     }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
   })
@@ -283,6 +423,26 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
                 </div>
               )}
+              {!entry.active && entry.cancellationDate && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+                  <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
+                </div>
+              )}
+              {/* Membership history periods */}
+              {!entry.active && history.length > 0 && (
+                <div className="col-span-2 mt-1">
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500 mb-1">Membership history</p>
+                  <div className="flex flex-col gap-0.5">
+                    {history.map(h => (
+                      <p key={h.id} className="text-xs text-stone-400">
+                        {h.startDate ?? '?'} – {h.endDate ?? 'present'}
+                        {h.cancellationReason ? <span className="text-stone-500"> · {h.cancellationReason}</span> : null}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Link>
@@ -303,7 +463,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
       </div>
 
       {/* Cancel confirm dialog */}
-      {showCancelConfirm && (
+      {showCancelConfirm && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCancelConfirm(false)}>
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <p className="text-stone-100 font-semibold">Cancel subscription?</p>
@@ -325,17 +485,39 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Remove confirm dialog */}
-      {showRemoveConfirm && (
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowRemoveConfirm(false)}>
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <p className="text-stone-100 font-semibold">Remove subscription?</p>
             <p className="text-sm text-stone-400">
               This will permanently remove <span className="text-stone-200">{sub.name}</span> from your subscriptions.
             </p>
+            {hasHistory && (
+              <div className="space-y-2">
+                <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
+                {history.map(h => (
+                  <label key={h.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                    <input type="radio" name={`period-card-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === h.id}
+                      onChange={() => { setSelectedHistoryId(h.id); setRemoveAllPeriods(false) }}
+                      className="text-amber-500" />
+                    {h.startDate ?? '?'} – {h.endDate ?? 'present'}{h.cancellationReason ? ` (${h.cancellationReason})` : ''}
+                  </label>
+                ))}
+                {history.length > 1 && (
+                  <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
+                    <input type="radio" name={`period-card-${entry.id}`} checked={removeAllPeriods}
+                      onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
+                      className="text-red-500" />
+                    Remove all periods
+                  </label>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
                 <input type="checkbox" checked={removeBooks} onChange={e => setRemoveBooks(e.target.checked)}
@@ -362,7 +544,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

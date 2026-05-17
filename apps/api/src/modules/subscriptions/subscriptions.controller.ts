@@ -251,6 +251,8 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.removeMySubscription(user.id, slug, {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
+      historyId: dto.historyId,
+      removeAllPeriods: dto.removeAllPeriods ?? false,
     });
     this.analyticsService.track({
       eventType: 'subscription_delete',

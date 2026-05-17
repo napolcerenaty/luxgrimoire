@@ -249,7 +249,7 @@ export class EditionsService {
                 subscription: {
                   select: {
                     id: true, slug: true, name: true, isContentStream: true,
-                    variants: { select: { id: true, slug: true, name: true } },
+                    variants: { select: { id: true, slug: true, name: true, startDate: true, endDate: true } },
                   },
                 },
                 series: { select: { id: true, slug: true, name: true } },

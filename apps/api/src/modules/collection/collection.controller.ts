@@ -31,6 +31,7 @@ export class CollectionController {
     @Query('pageSize') pageSize?: string,
     @Query('isWishlist') isWishlist?: string,
     @Query('slim') slim?: string,
+    @Query('ownershipStatus') ownershipStatus?: string,
   ) {
     const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
     const slimMode = slim === 'true';
@@ -40,6 +41,7 @@ export class CollectionController {
       pageSize ? Number(pageSize) : 20,
       wishlistFilter,
       slimMode,
+      ownershipStatus,
     );
   }
 
