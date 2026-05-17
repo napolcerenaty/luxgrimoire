@@ -33,6 +33,7 @@ interface MySubscriptionEntry {
   active: boolean
   startDate: string | null
   cancellationDate: string | null
+  cancellationReason: string | null
   renewalDay: number | null
   costCurrency: string | null
   basePrice: string | null
@@ -76,6 +77,20 @@ export default function MySubscriptionsPage() {
 
   const active = entries.filter(e => e.active)
   const inactive = entries.filter(e => !e.active)
+
+  // Collect history records from active entries (re-joined subscriptions with past cancelled periods)
+  const historyFromActive: Array<{ entry: MySubscriptionEntry; record: MembershipHistoryRecord }> = []
+  for (const e of active) {
+    for (const h of (e.membershipHistory ?? [])) {
+      historyFromActive.push({ entry: e, record: h })
+    }
+  }
+  // Sort by endDate desc
+  historyFromActive.sort((a, b) => {
+    const da = a.record.endDate ?? ''
+    const db = b.record.endDate ?? ''
+    return db.localeCompare(da)
+  })
 
   if (isLoading) {
     return (
@@ -124,20 +139,20 @@ export default function MySubscriptionsPage() {
               )}
             </section>
           )}
-          {inactive.length > 0 && (
+          {(inactive.length > 0 || historyFromActive.length > 0) && (
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">
-                Cancelled / Inactive ({inactive.length})
+                Cancelled / Inactive ({inactive.length + historyFromActive.length})
               </h2>
-              {viewMode === 'list' ? (
-                <div className="space-y-3 opacity-70">
-                  {inactive.map(e => <SubscriptionCard key={e.id} entry={e} />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 opacity-70">
-                  {inactive.map(e => <SubscriptionTile key={e.id} entry={e} />)}
-                </div>
-              )}
+              <div className={viewMode === 'list' ? 'space-y-3 opacity-70' : 'grid grid-cols-2 sm:grid-cols-3 gap-4 opacity-70'}>
+                {inactive.map(e => viewMode === 'list'
+                  ? <SubscriptionCard key={e.id} entry={e} />
+                  : <SubscriptionTile key={e.id} entry={e} />
+                )}
+                {historyFromActive.map(({ entry: e, record: h }) => (
+                  <HistoryPeriodRow key={h.id} entry={e} record={h} />
+                ))}
+              </div>
             </section>
           )}
         </>
@@ -221,6 +236,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           <div className="flex gap-3">
             {entry.startDate && <p className="text-[10px] text-stone-500">Since {formatDate(entry.startDate)}</p>}
             {entry.cancellationDate && <p className="text-[10px] text-stone-500">Cancelled {formatDate(entry.cancellationDate)}</p>}
+            {!entry.active && entry.cancellationReason && <p className="text-[10px] text-stone-500 italic">{entry.cancellationReason}</p>}
           </div>
         )}
         {/* Action buttons */}
@@ -307,6 +323,55 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
         document.body
       )}
     </div>
+  )
+}
+
+// ── History period row (past cancelled period for re-joined subscriptions) ────
+
+function HistoryPeriodRow({ entry, record }: { entry: MySubscriptionEntry; record: MembershipHistoryRecord }) {
+  const sub = entry.subscription
+  const imageSource = sub.logoUrl ?? sub.coverImage
+  const logoThumb = imageSource ? cloudinaryUrl(imageSource, 'w_120,h_120,c_pad,q_auto,f_auto') : null
+  const blurBg = imageSource ? cloudinaryUrl(imageSource, 'w_200,h_200,c_fill,q_auto,f_auto') : null
+
+  return (
+    <Link href={`/subscriptions/${sub.slug}`}
+      className="flex gap-3 bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors items-stretch">
+      {/* Logo */}
+      <div className="relative w-16 shrink-0">
+        {logoThumb ? (
+          <>
+            {blurBg && <Image src={blurBg} alt="" fill className="object-cover blur-sm scale-110 opacity-40" unoptimized />}
+            <div className="relative z-10 flex items-center justify-center h-full p-1.5">
+              <Image src={logoThumb} alt={sub.name} width={48} height={48} className="object-contain rounded" unoptimized />
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center" style={brandGradientStyle(sub.company.brandColors)}>
+            <span className="text-white/80 text-[10px] font-semibold text-center px-1 leading-tight">{sub.name}</span>
+          </div>
+        )}
+      </div>
+      {/* Info */}
+      <div className="flex-1 py-3 pr-3 flex flex-col justify-center gap-0.5 min-w-0">
+        <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
+        <p className="text-sm font-semibold text-stone-300 truncate">{sub.name}</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+          <p className="text-[10px] text-stone-500">
+            {record.startDate ?? '?'} – {record.endDate ?? '?'}
+          </p>
+          {record.cancellationReason && (
+            <p className="text-[10px] text-stone-500 italic">{record.cancellationReason}</p>
+          )}
+        </div>
+      </div>
+      {/* Badge */}
+      <div className="flex items-center pr-3">
+        <span className="flex items-center gap-1 text-[10px] font-medium text-stone-400 bg-stone-800 px-1.5 py-0.5 rounded">
+          <XCircle size={10} /> Past
+        </span>
+      </div>
+    </Link>
   )
 }
 
@@ -427,6 +492,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
                   <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
+                  {entry.cancellationReason && <p className="text-[10px] text-stone-500 italic mt-0.5">{entry.cancellationReason}</p>}
                 </div>
               )}
               {/* Membership history periods */}
