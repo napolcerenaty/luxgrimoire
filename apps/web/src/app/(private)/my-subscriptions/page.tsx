@@ -6,7 +6,19 @@ import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { CheckCircle2, XCircle, Ban, Trash2 } from 'lucide-react'
+import { brandGradientStyle } from '@/lib/brandGradient'
+import { CheckCircle2, XCircle, Ban, Trash2, LayoutGrid, List } from 'lucide-react'
+
+const PREFS_KEY = 'my_subscriptions_prefs'
+
+function loadViewMode(): 'list' | 'grid' {
+  if (typeof window === 'undefined') return 'list'
+  try { return (JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}').viewMode) ?? 'list' } catch { return 'list' }
+}
+function saveViewMode(v: 'list' | 'grid') {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ viewMode: v })) } catch { /* noop */ }
+}
 
 interface MySubscriptionEntry {
   id: string
@@ -27,7 +39,7 @@ interface MySubscriptionEntry {
     currency: string
     price: string | null
     isDiscontinued: boolean
-    company: { name: string; slug: string }
+    company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
 
@@ -48,6 +60,9 @@ export default function MySubscriptionsPage() {
     queryKey: ['my-subscriptions'],
     queryFn: () => authFetch('/subscriptions/my/subscriptions'),
   })
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => loadViewMode())
+
+  const setView = (v: 'list' | 'grid') => { setViewMode(v); saveViewMode(v) }
 
   const active = entries.filter(e => e.active)
   const inactive = entries.filter(e => !e.active)
@@ -62,7 +77,17 @@ export default function MySubscriptionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
+        <div className="flex rounded-lg border border-stone-700 overflow-hidden shrink-0">
+          <button type="button" onClick={() => setView('list')}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+            aria-label="List view"><List size={15} /></button>
+          <button type="button" onClick={() => setView('grid')}
+            className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+            aria-label="Grid view"><LayoutGrid size={15} /></button>
+        </div>
+      </div>
 
       {entries.length === 0 ? (
         <div className="text-center py-16 text-stone-500">
@@ -78,9 +103,15 @@ export default function MySubscriptionsPage() {
               <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">
                 Active ({active.length})
               </h2>
-              <div className="space-y-3">
-                {active.map(e => <SubscriptionCard key={e.id} entry={e} />)}
-              </div>
+              {viewMode === 'list' ? (
+                <div className="space-y-3">
+                  {active.map(e => <SubscriptionCard key={e.id} entry={e} />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {active.map(e => <SubscriptionTile key={e.id} entry={e} />)}
+                </div>
+              )}
             </section>
           )}
           {inactive.length > 0 && (
@@ -88,9 +119,15 @@ export default function MySubscriptionsPage() {
               <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">
                 Cancelled / Inactive ({inactive.length})
               </h2>
-              <div className="space-y-3 opacity-70">
-                {inactive.map(e => <SubscriptionCard key={e.id} entry={e} />)}
-              </div>
+              {viewMode === 'list' ? (
+                <div className="space-y-3 opacity-70">
+                  {inactive.map(e => <SubscriptionCard key={e.id} entry={e} />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 opacity-70">
+                  {inactive.map(e => <SubscriptionTile key={e.id} entry={e} />)}
+                </div>
+              )}
             </section>
           )}
         </>
@@ -98,6 +135,52 @@ export default function MySubscriptionsPage() {
     </div>
   )
 }
+
+// ── Card (tile) view ──────────────────────────────────────────────────────────
+
+function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
+  const sub = entry.subscription
+  const imageSource = sub.coverImage ?? sub.logoUrl
+  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+  const renewalLabel = formatDate(entry.nextRenewalDate)
+  const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
+
+  return (
+    <Link href={`/subscriptions/${sub.slug}`}
+      className="group block bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors">
+      {/* Cover */}
+      <div className="relative aspect-[4/3] w-full">
+        {thumb ? (
+          <Image src={thumb} alt={sub.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+        ) : (
+          <div className="absolute inset-0" style={brandGradientStyle(sub.company.brandColors)} />
+        )}
+        {/* Status badge */}
+        <div className="absolute top-2 right-2">
+          {entry.active ? (
+            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
+              <CheckCircle2 size={10} /> Active
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] font-medium text-stone-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
+              <XCircle size={10} /> Cancelled
+            </span>
+          )}
+        </div>
+      </div>
+      {/* Info */}
+      <div className="p-3">
+        <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
+        <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+        {entry.active && renewalLabel && (
+          <p className="text-[10px] text-stone-400 mt-1">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
+        )}
+      </div>
+    </Link>
+  )
+}
+
+// ── List (row) view ───────────────────────────────────────────────────────────
 
 function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
@@ -133,7 +216,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
         {/* Main clickable area */}
         <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
           {/* Logo — stretches full height of the row */}
-          <div className="relative shrink-0 w-24 self-stretch bg-stone-800">
+          <div className="relative shrink-0 w-24 self-stretch" style={!blurBg ? brandGradientStyle(sub.company.brandColors) : undefined}>
             {blurBg && (
               <Image
                 src={blurBg}
@@ -144,11 +227,12 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                 unoptimized
               />
             )}
+            {!blurBg && <div className="absolute inset-0" style={brandGradientStyle(sub.company.brandColors)} />}
             <div className="absolute inset-0 flex items-center justify-center p-2">
               {logoThumb ? (
                 <Image src={logoThumb} alt={sub.name} fill className="object-contain drop-shadow-md" unoptimized />
               ) : (
-                <span className="text-3xl font-serif text-stone-400">{sub.name[0]}</span>
+                <span className="text-3xl font-serif text-stone-300">{sub.name[0]}</span>
               )}
             </div>
           </div>
@@ -203,24 +287,16 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           </div>
         </Link>
 
-        {/* Right actions panel — mirroring logo panel, rare destructive actions */}
+        {/* Right actions panel */}
         <div className="shrink-0 border-l border-stone-800 flex flex-col items-center justify-center gap-2 px-2 bg-stone-900/60 self-stretch">
           {entry.active && (
-            <button
-              type="button"
-              title="Cancel subscription"
-              onClick={() => setShowCancelConfirm(true)}
-              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
-            >
+            <button type="button" title="Cancel subscription" onClick={() => setShowCancelConfirm(true)}
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors">
               <Ban size={15} />
             </button>
           )}
-          <button
-            type="button"
-            title="Remove from my subscriptions"
-            onClick={() => setShowRemoveConfirm(true)}
-            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
-          >
+          <button type="button" title="Remove from my subscriptions" onClick={() => setShowRemoveConfirm(true)}
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
             <Trash2 size={15} />
           </button>
         </div>
