@@ -44,7 +44,7 @@ export function EditionCard({
   return (
     <Link
       href={href}
-      className={`group flex flex-col rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${
+      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${
         unverified ? 'border-amber-800/50' : 'border-stone-800'
       }`}
     >

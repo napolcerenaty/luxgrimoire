@@ -10,7 +10,7 @@ import { getSaleGroups, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
 import type { ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { Plus, Pencil, Trash2, ShoppingBag } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShoppingBag, LayoutGrid, List } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/SaleFormFields'
@@ -25,6 +25,7 @@ interface CollectionEntry {
   signatureType: string | null
   salePrice: string | null
   saleCurrency: string | null
+  saleDate: string | null
   tags: string[]
   purchaseGroup: { id: string; currency: string; purchasedAt: string; totalAmount: string } | null
   edition: {
@@ -422,6 +423,7 @@ export default function SoldPage() {
   const [bookFilter, setBookFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const addSaleModal = useModalState()
   const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
@@ -539,7 +541,7 @@ export default function SoldPage() {
           </div>
         ) : (
           <>
-            {/* Filters */}
+            {/* Filters + View Toggle */}
             <div className="flex gap-2 flex-wrap items-center mb-6">
               <input
                 type="text"
@@ -568,14 +570,30 @@ export default function SoldPage() {
                   {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               )}
+              <div className="ml-auto flex items-center gap-1 bg-stone-800 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+                  title="Grid view"
+                >
+                  <LayoutGrid size={15} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+                  title="List view"
+                >
+                  <List size={15} />
+                </button>
+              </div>
             </div>
 
             {filtered.length === 0 ? (
               <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
-            ) : (
+            ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {filtered.map(entry => (
-                  <div key={entry.id} className="relative">
+                  <div key={entry.id} className="relative h-full">
                     <EditionCard
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
@@ -601,6 +619,66 @@ export default function SoldPage() {
                       }
                     />
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-stone-800">
+                {filtered.map(entry => (
+                  <a
+                    key={entry.id}
+                    href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                    className="flex items-center gap-4 py-3 hover:bg-stone-900/60 rounded-xl px-2 transition-colors group"
+                  >
+                    {/* Cover thumbnail */}
+                    <div className="w-10 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-stone-800">
+                      {(entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? ''}
+                          alt={entry.edition.book.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-[8px] text-stone-600 text-center leading-tight px-0.5">{entry.edition.book.title}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      {entry.edition.book.seriesName && (
+                        <p className="text-[10px] text-amber-600 font-medium truncate">
+                          {entry.edition.book.seriesName}{entry.edition.book.volumeNumber != null ? ` #${entry.edition.book.volumeNumber}` : ''}
+                        </p>
+                      )}
+                      <p className="text-sm font-serif font-semibold text-stone-100 group-hover:text-amber-400 transition-colors truncate">
+                        {entry.edition.book.title}
+                      </p>
+                      <p className="text-[11px] text-stone-500 truncate">
+                        {entry.edition.book.authors.map(a => a.name).join(', ')}
+                        {entry.edition.bookBoxCompany && (
+                          <span className="text-amber-800 ml-1">· {entry.edition.bookBoxCompany.name}</span>
+                        )}
+                      </p>
+                    </div>
+                    {/* Sale info */}
+                    <div className="flex-shrink-0 text-right">
+                      <Badge variant="default">SOLD</Badge>
+                      {entry.salePrice && entry.saleCurrency && (
+                        <div className="mt-1">
+                          <p className="text-xs text-amber-400 font-medium">
+                            {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
+                          </p>
+                          {(() => { const c = converted(parseFloat(entry.salePrice), entry.saleCurrency); return c ? <p className="text-[10px] text-stone-500">{c}</p> : null })()}
+                        </div>
+                      )}
+                      {entry.saleDate && (
+                        <p className="text-[10px] text-stone-600 mt-0.5">
+                          {new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                  </a>
                 ))}
               </div>
             )}
