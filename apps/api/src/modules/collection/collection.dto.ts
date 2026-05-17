@@ -35,6 +35,7 @@ export class UpdateCollectionEntryDto {
   @IsOptional() @IsIn(READING_STATUSES) readingStatus?: ReadingStatus;
   @IsOptional() @IsDateString() acquiredAt?: string;
   @IsOptional() @IsString() trackingNumber?: string;
+  @IsOptional() @IsString() orderNumber?: string;
   @IsOptional() @IsString() salePrice?: string;
   @IsOptional() @IsString() saleCurrency?: string;
   @IsOptional() @IsString() saleDate?: string;

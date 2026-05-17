@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   ExternalLink, Pencil, Check, X, ChevronDown, ChevronUp,
-  Clock, Tag, Package, Wallet, Plus, Trash2,
+  Clock, Tag, Package, Wallet, Plus, Trash2, Hash,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { createSaleGroup } from '@/lib/api'
@@ -72,6 +72,7 @@ interface CollectionEntry {
   addedAt: string
   acquiredAt: string | null
   trackingNumber: string | null
+  orderNumber: string | null
   salePrice: string | null
   saleCurrency: string | null
   saleDate: string | null
@@ -327,6 +328,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editingTracking, setEditingTracking] = useState(false)
   const [editTracking, setEditTracking] = useState('')
   const [savingTracking, setSavingTracking] = useState(false)
+
+  // Edit state — order number
+  const [editingOrderNumber, setEditingOrderNumber] = useState(false)
+  const [editOrderNumber, setEditOrderNumber] = useState('')
+  const [savingOrderNumber, setSavingOrderNumber] = useState(false)
 
   // Edit state — tags
   const [editingTags, setEditingTags] = useState(false)
@@ -773,6 +779,23 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditingTracking(false)
     } finally {
       setSavingTracking(false)
+    }
+  }
+
+  // ── Order number section ──────────────────────────────────────────────────
+
+  function openOrderNumberEdit() {
+    setEditOrderNumber(entry!.orderNumber ?? '')
+    setEditingOrderNumber(true)
+  }
+
+  async function saveOrderNumber() {
+    setSavingOrderNumber(true)
+    try {
+      await patchEntry({ orderNumber: editOrderNumber || null })
+      setEditingOrderNumber(false)
+    } finally {
+      setSavingOrderNumber(false)
     }
   }
 
@@ -1635,6 +1658,26 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           ) : (
             <button onClick={openTrackingEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
               + Add tracking number
+            </button>
+          )}
+        </div>
+
+        {/* Order Number card */}
+        <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Hash size={11} /> Order Number</span></p>
+          {editingOrderNumber ? (
+            <div className="flex flex-col gap-2">
+              <input value={editOrderNumber} onChange={e => setEditOrderNumber(e.target.value)} placeholder="Order number…" className={INP} />
+              <SaveCancelBtns onSave={saveOrderNumber} onCancel={() => setEditingOrderNumber(false)} saving={savingOrderNumber} />
+            </div>
+          ) : entry.orderNumber ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-stone-200">{entry.orderNumber}</span>
+              <EditBtn onClick={openOrderNumberEdit} />
+            </div>
+          ) : (
+            <button onClick={openOrderNumberEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
+              + Add order number
             </button>
           )}
         </div>
