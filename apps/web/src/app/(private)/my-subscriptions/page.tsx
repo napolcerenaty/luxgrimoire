@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
@@ -310,7 +311,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
       </div>
 
       {/* Cancel confirm dialog */}
-      {showCancelConfirm && (
+      {showCancelConfirm && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCancelConfirm(false)}>
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <p className="text-stone-100 font-semibold">Cancel subscription?</p>
@@ -332,11 +333,12 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Remove confirm dialog */}
-      {showRemoveConfirm && (
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowRemoveConfirm(false)}>
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <p className="text-stone-100 font-semibold">Remove subscription?</p>
@@ -369,7 +371,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
