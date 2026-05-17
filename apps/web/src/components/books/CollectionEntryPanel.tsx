@@ -486,6 +486,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setSavingStatus(true)
     try {
       await patchEntry({ [field]: value === '' ? null : value })
+      if (field === 'ownershipStatus' && history !== null) {
+        await refreshHistory()
+      }
     } finally {
       setSavingStatus(false)
     }
@@ -792,7 +795,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   // ── History section ───────────────────────────────────────────────────────
 
   async function toggleHistory() {
-    if (!showHistory && !history) {
+    if (!showHistory) {
       setLoadingHistory(true)
       try {
         const data = await authFetch<HistoryEntry[]>(`/collection/entry/${entry!.id}/history`)
