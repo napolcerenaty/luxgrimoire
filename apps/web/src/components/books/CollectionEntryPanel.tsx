@@ -292,6 +292,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [newFeeDate, setNewFeeDate] = useState('')
   const [savingFee, setSavingFee] = useState(false)
+  const [editingFeeId, setEditingFeeId] = useState<string | null>(null)
+  const [editFeeName, setEditFeeName] = useState('')
+  const [editFeeAmount, setEditFeeAmount] = useState('')
+  const [editFeeCurrency, setEditFeeCurrency] = useState('')
+  const [editFeeDate, setEditFeeDate] = useState('')
 
   // Refund state
   const [addingRefund, setAddingRefund] = useState(false)
@@ -623,6 +628,34 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   async function deleteFee(feeId: string) {
     await authFetch(`/fees/${feeId}`, { method: 'DELETE' })
     await refetchEntry()
+  }
+
+  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null }) {
+    setEditingFeeId(fee.id)
+    setEditFeeName(fee.name)
+    setEditFeeAmount(parseFloat(fee.amount).toFixed(2))
+    setEditFeeCurrency(fee.currency)
+    setEditFeeDate(fee.date ? fee.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
+  }
+
+  async function saveEditFee() {
+    if (!editingFeeId || !editFeeName.trim() || !editFeeAmount || !editFeeDate) return
+    setSavingFee(true)
+    try {
+      await authFetch(`/fees/${editingFeeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editFeeName,
+          amount: parseFloat(editFeeAmount),
+          currency: editFeeCurrency,
+          date: new Date(editFeeDate).toISOString(),
+        }),
+      })
+      await refetchEntry()
+      setEditingFeeId(null)
+    } finally {
+      setSavingFee(false)
+    }
   }
 
   async function deleteDiscount(discountId: string) {
@@ -990,14 +1023,38 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Fees</label>
                   <div className="flex flex-col gap-1.5">
                     {(pg.fees ?? []).map(fee => (
-                      <div key={fee.id} className="flex items-center gap-1.5 text-xs">
-                        <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
-                        <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
-                        <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
-                        <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
+                      editingFeeId === fee.id ? (
+                        <div key={fee.id} className="flex flex-col gap-1.5 pt-0.5">
+                          <div className="flex gap-1.5">
+                            <input value={editFeeName} onChange={e => setEditFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                            <input type="number" step="0.01" min="0" value={editFeeAmount} onChange={e => setEditFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} style={{ MozAppearance: 'textfield' } as React.CSSProperties} />
+                            <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
+                              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <input type="date" value={editFeeDate} onChange={e => setEditFeeDate(e.target.value)} className={INP} />
+                          <div className="flex gap-1.5">
+                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                              <Check size={11} /> Save
+                            </button>
+                            <button onClick={() => setEditingFeeId(null)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                              <X size={11} /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={fee.id} className="flex items-center gap-1.5 text-xs">
+                          <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
+                          <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
+                          <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
+                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-amber-400 transition-colors shrink-0">
+                            <Pencil size={11} />
+                          </button>
+                          <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )
                     ))}
                     {addingFee ? (
                       <div className="flex flex-col gap-1.5 pt-0.5">
