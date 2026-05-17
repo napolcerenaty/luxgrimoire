@@ -142,20 +142,36 @@ export default function MySubscriptionsPage() {
 
 function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
+  const qc = useQueryClient()
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(false)
+  const [removeSpending, setRemoveSpending] = useState(false)
+
+  const cancelMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
+  })
+  const removeMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, { method: 'DELETE', body: JSON.stringify({ removeBooks, removeSpending }) }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
+  })
+
   const imageSource = sub.coverImage ?? sub.logoUrl
-  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_pad,b_auto,q_auto,f_auto') : null
   const renewalLabel = formatDate(entry.nextRenewalDate)
   const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
 
   return (
-    <Link href={`/subscriptions/${sub.slug}`}
-      className="group block bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors">
-      {/* Cover */}
-      <div className="relative aspect-[4/3] w-full">
+    <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
+      {/* Cover — clickable */}
+      <Link href={`/subscriptions/${sub.slug}`} className="block relative aspect-[4/3] w-full">
         {thumb ? (
-          <Image src={thumb} alt={sub.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+          <Image src={thumb} alt={sub.name} fill className="object-contain group-hover:scale-105 transition-transform duration-300" unoptimized />
         ) : (
-          <div className="absolute inset-0" style={brandGradientStyle(sub.company.brandColors)} />
+          <div className="absolute inset-0 flex items-center justify-center" style={brandGradientStyle(sub.company.brandColors)}>
+            <span className="text-white/80 font-serif text-lg font-semibold text-center px-3 leading-tight drop-shadow">{sub.name}</span>
+          </div>
         )}
         {/* Status badge */}
         <div className="absolute top-2 right-2">
@@ -169,16 +185,86 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
             </span>
           )}
         </div>
-      </div>
-      {/* Info */}
-      <div className="p-3">
-        <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
-        <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+      </Link>
+
+      {/* Info + actions */}
+      <div className="p-3 flex flex-col gap-1 flex-1">
+        <Link href={`/subscriptions/${sub.slug}`} className="block">
+          <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
+          <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+        </Link>
         {entry.active && renewalLabel && (
-          <p className="text-[10px] text-stone-400 mt-1">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
+          <p className="text-[10px] text-stone-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
         )}
+        {!entry.active && (
+          <div className="flex gap-3">
+            {entry.startDate && <p className="text-[10px] text-stone-500">Since {formatDate(entry.startDate)}</p>}
+            {entry.cancellationDate && <p className="text-[10px] text-stone-500">Cancelled {formatDate(entry.cancellationDate)}</p>}
+          </div>
+        )}
+        {/* Action buttons */}
+        <div className="flex gap-1 mt-auto pt-2 justify-end">
+          {entry.active && (
+            <button type="button" title="Cancel subscription" onClick={() => setShowCancelConfirm(true)}
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors">
+              <Ban size={14} />
+            </button>
+          )}
+          <button type="button" title="Remove from my subscriptions" onClick={() => setShowRemoveConfirm(true)}
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
-    </Link>
+
+      {/* Cancel confirm */}
+      {showCancelConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <p className="text-stone-100 font-semibold">Cancel subscription?</p>
+            <p className="text-sm text-stone-400">Your subscription to <span className="text-stone-200">{sub.name}</span> will be marked as cancelled.</p>
+            {cancelMutation.error && <p className="text-xs text-red-400">{(cancelMutation.error as Error).message}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowCancelConfirm(false)} className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">Keep it</button>
+              <button type="button" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending}
+                className="bg-amber-600 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                {cancelMutation.isPending ? 'Cancelling…' : 'Cancel subscription'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Remove confirm */}
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowRemoveConfirm(false)}>
+          <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <p className="text-stone-100 font-semibold">Remove subscription?</p>
+            <p className="text-sm text-stone-400">This will permanently remove <span className="text-stone-200">{sub.name}</span> from your subscriptions.</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                <input type="checkbox" checked={removeBooks} onChange={e => setRemoveBooks(e.target.checked)} className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+                Also remove books from my collection
+              </label>
+              <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+                <input type="checkbox" checked={removeSpending} onChange={e => setRemoveSpending(e.target.checked)} className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+                Also remove spending records
+              </label>
+            </div>
+            {removeMutation.error && <p className="text-xs text-red-400">{(removeMutation.error as Error).message}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowRemoveConfirm(false)} className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">Keep it</button>
+              <button type="button" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}
+                className="bg-red-700 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition-colors">
+                {removeMutation.isPending ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
   )
 }
 
