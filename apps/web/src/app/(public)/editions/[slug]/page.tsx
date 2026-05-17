@@ -21,7 +21,7 @@ interface EditionMonthBook {
     id: string; year: number; month: number; theme: string | null
     subscription: {
       id: string; slug: string; name: string; isContentStream: boolean
-      variants: Array<{ id: string; slug: string; name: string }>
+      variants: Array<{ id: string; slug: string; name: string; startDate: string | null; endDate: string | null }>
     }
     series: { id: string; slug: string; name: string } | null
     books: Array<{
@@ -403,9 +403,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     (b) => !(b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug))
                   )
                   const sub = mb.month.subscription
-                  // If sub is a content stream, show its child subscriptions instead
+                  // Last day of the book's month — variants started after this shouldn't show
+                  const bookMonthLastDay = new Date(mb.month.year, mb.month.month, 0) // day 0 = last day of prev month trick
+                  // If sub is a content stream, show only variants active during book's month
                   const displaySubs = sub.isContentStream && sub.variants.length > 0
-                    ? sub.variants
+                    ? sub.variants.filter(v =>
+                        (!v.startDate || new Date(v.startDate) <= bookMonthLastDay) &&
+                        (!v.endDate || new Date(v.endDate) >= new Date(mb.month.year, mb.month.month - 1, 1))
+                      )
                     : [sub]
                   return (
                     <Fragment key={mb.month.id}>
