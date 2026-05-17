@@ -69,6 +69,9 @@ export class SalesService {
               currency: true,
               purchasedAt: true,
               _count: { select: { bookEntries: true } },
+              fees: { select: { amount: true, currency: true, date: true } },
+              discounts: { select: { amount: true, currency: true, date: true } },
+              refunds: { select: { amount: true, currency: true, date: true } },
             },
           },
         },
@@ -359,8 +362,39 @@ export class SalesService {
 
         if (pg && pg.totalAmount != null) {
           const bookCount = pg._count?.bookEntries ?? 1;
+          const pgDate = new Date(pg.purchasedAt);
+
+          // Convert items (fees/discounts/refunds) to purchase group currency
+          const toPgCur = async (
+            amount: number,
+            currency: string,
+            date: Date,
+          ): Promise<number> => {
+            if (currency === pg.currency) return amount;
+            try {
+              return await this.currencyService.convert(amount, currency, pg.currency, date);
+            } catch {
+              return amount; // fallback: use as-is (matches frontend behaviour)
+            }
+          };
+
+          const sumItems = async (
+            items: Array<{ amount: NumOrDec; currency: string; date: unknown }>,
+          ) => {
+            let total = 0;
+            for (const item of items) {
+              const d = item.date ? new Date(item.date as string) : pgDate;
+              total += await toPgCur(toNum(item.amount), item.currency, d);
+            }
+            return total;
+          };
+
+          const feesTotal = await sumItems(pg.fees ?? []);
+          const discountsTotal = await sumItems(pg.discounts ?? []);
+          const refundsTotal = await sumItems(pg.refunds ?? []);
+
           const rawCost =
-            (toNum(pg.totalAmount) + toNum(pg.shippingAmount ?? 0)) /
+            (toNum(pg.totalAmount) + toNum(pg.shippingAmount ?? 0) + feesTotal - discountsTotal - refundsTotal) /
             Math.max(bookCount, 1);
 
           try {
