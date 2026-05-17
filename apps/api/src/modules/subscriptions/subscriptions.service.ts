@@ -882,7 +882,10 @@ export class SubscriptionsService {
       let nextBase = fallbackBase;
       let nextRenewalPriceChanged = false;
       let nextRenewalNewPrice: string | null = null;
-      if (storedRenewalDate) {
+      // If user set a custom currency different from subscription's default, price changes
+      // (which are in the subscription's currency) must not override the user's own basePrice.
+      const userHasCustomCurrency = entry.costCurrency != null && entry.costCurrency !== sub.currency;
+      if (storedRenewalDate && !userHasCustomCurrency) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
         // Reuse the priceChanges already loaded with the subscription (no extra DB query)
