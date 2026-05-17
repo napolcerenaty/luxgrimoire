@@ -1289,12 +1289,12 @@ export class SubscriptionsService {
     const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
 
     // If this sub is a variant of a content stream, months live on the parent.
-    // Also clamp startDate to the variant's own startDate (earliest it could have existed).
-    // NOTE: only apply this clamping for content stream variants (parentSubscriptionId set).
-    // Combo subs and regular subs should not be clamped by their own DB startDate.
+    // Also clamp startDate to the subscription's own startDate (earliest it could have existed).
+    // This applies to variants, combos, and regular subs alike — a user shouldn't backfill
+    // before the subscription was launched.
     const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
-    const variantDbStartDate = parentSubscriptionId ? (sub as any).startDate as Date | null : null;
-    // Effective user start: max(user-provided startDate, variant's own startDate)
+    const variantDbStartDate = (sub as any).startDate as Date | null;
+    // Effective user start: max(user-provided startDate, subscription's own startDate)
     let effectiveStartDateObj = startDateObj;
     if (variantDbStartDate) {
       if (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj) {
