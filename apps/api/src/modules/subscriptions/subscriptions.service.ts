@@ -228,6 +228,15 @@ export class SubscriptionsService {
     return result;
   }
 
+  async getActiveSubscriberCount(slug: string): Promise<{ count: number }> {
+    const sub = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
+    if (!sub) return { count: 0 };
+    const count = await this.prisma.userSubscriptionEntry.count({
+      where: { subscriptionId: sub.id, active: true },
+    });
+    return { count };
+  }
+
   /** Lean fetch for admin UI — only id, name, companyId needed for breadcrumbs and access checks. */
   async findBySlugForAdmin(slug: string) {
     const sub = await this.prisma.subscription.findUnique({
