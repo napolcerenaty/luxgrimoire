@@ -747,7 +747,7 @@ export default function CollectionPage() {
     }
     if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
     if (filter === 'SERIES') return !!e.edition.book.seriesName
-    if (filter === 'YEAR') return !!e.acquiredAt
+    if (filter === 'YEAR') return !!(e.purchaseGroup?.purchasedAt ?? e.acquiredAt)
     return true
   })
 
@@ -780,7 +780,8 @@ export default function CollectionPage() {
     if (filter === 'YEAR') {
       const map = new Map<string, CollectionEntry[]>()
       for (const e of sorted) {
-        const key = e.acquiredAt ? new Date(e.acquiredAt).getFullYear().toString() : 'Unknown'
+        const dateStr = e.purchaseGroup?.purchasedAt ?? e.acquiredAt
+        const key = dateStr ? new Date(dateStr).getFullYear().toString() : 'Unknown'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
@@ -791,8 +792,8 @@ export default function CollectionPage() {
     if (filter === 'AUTHOR') {
       const map = new Map<string, CollectionEntry[]>()
       for (const e of sorted) {
-        const authors = e.edition.book.authors
-        const key = authors.length > 0 ? authors.map(a => a.name).join(', ') : 'Unknown Author'
+        const authors = e.edition.book.authors as any[]
+        const key = authors.length > 0 ? authors.map(a => (a.author ?? a).name).join(', ') : 'Unknown Author'
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(e)
       }
@@ -1014,11 +1015,12 @@ export default function CollectionPage() {
                     : filter === 'SERIES'
                     ? (group[0]?.edition.book.seriesName ?? 'Standalone')
                     : filter === 'YEAR'
-                      ? (group[0]?.acquiredAt
-                          ? new Date(group[0].acquiredAt).getFullYear().toString()
-                          : 'Unknown')
+                      ? (() => {
+                          const d = group[0]?.purchaseGroup?.purchasedAt ?? group[0]?.acquiredAt
+                          return d ? new Date(d).getFullYear().toString() : 'Unknown'
+                        })()
                     : filter === 'AUTHOR'
-                      ? (group[0]?.edition.book.authors.map(a => a.name).join(', ') ?? 'Unknown Author')
+                      ? ((group[0]?.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ') || 'Unknown Author')
                     : filter === 'COMPANY'
                       ? (group[0]?.edition.bookBoxCompany?.name ?? 'Unknown Company')
                     : null
@@ -1033,7 +1035,7 @@ export default function CollectionPage() {
                           </a>
                         )}
                         {filter === 'AUTHOR' && group[0] && (
-                          <a href={`/authors/${group[0].edition.book.authors[0]?.slug}`} className="hover:text-amber-400 transition-colors">
+                          <a href={`/authors/${((group[0].edition.book.authors[0] as any)?.author ?? group[0].edition.book.authors[0])?.slug}`} className="hover:text-amber-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
