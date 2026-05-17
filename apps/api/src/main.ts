@@ -52,7 +52,13 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    origin: (origin, cb) => {
+      // Allow server-to-server requests (no Origin header, e.g. Next.js SSR)
+      if (!origin) return cb(null, true);
+      const allowed = process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'];
+      if (allowed.includes(origin)) return cb(null, true);
+      cb(new Error(`CORS: origin ${origin} not allowed`), false);
+    },
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
