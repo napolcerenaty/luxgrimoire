@@ -5,7 +5,8 @@ export async function apiFetch<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const url = `${API_URL}${path}`;
+  const res = await fetch(url, {
     credentials: 'include',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -14,7 +15,11 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error?.message ?? `API error ${res.status}`);
+    const msg = error?.message ?? `API error ${res.status}`;
+    if (typeof window === 'undefined') {
+      console.error(`[SSR apiFetch] ${res.status} from ${url}`, JSON.stringify(error).slice(0, 200));
+    }
+    throw new Error(msg);
   }
 
   return res.json();
