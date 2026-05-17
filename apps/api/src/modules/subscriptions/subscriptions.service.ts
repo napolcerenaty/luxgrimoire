@@ -1169,7 +1169,7 @@ export class SubscriptionsService {
     const componentIds = (sub as any).componentIds as string[];
     const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj)
+      ? await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, signupIncludesCurrentMonth)
       : await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
@@ -1255,7 +1255,7 @@ export class SubscriptionsService {
    * ALL component subscriptions' months for the same year/month slot.
    * Synthetic ID format: `COMBO_${year}_${month}` (no colons to avoid key-parsing issues).
    */
-  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null) {
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false) {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
@@ -1263,9 +1263,13 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // First eligible month = the month of the subscription start date (inclusive)
-    const startYear = startDateObj.getFullYear();
-    const startMonth = startDateObj.getMonth() + 1;
+    // Respect signupIncludesCurrentMonth (same logic as getEligibleMonths):
+    // if false → first eligible month is startDate+1 month, if true → startDate month is included
+    const firstEligibleDate = signupIncludesCurrentMonth
+      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
+      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
+    const startYear = firstEligibleDate.getFullYear();
+    const startMonth = firstEligibleDate.getMonth() + 1;
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
@@ -1498,6 +1502,7 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
 
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
@@ -1532,7 +1537,11 @@ export class SubscriptionsService {
         const parts = entry.startDate.split('-').map(Number);
         return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
       })() : null;
-      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj);
+      const cancellationDateObj = entry.cancellationDate ? (() => {
+        const parts = entry.cancellationDate.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
+      })() : null;
+      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
 
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
