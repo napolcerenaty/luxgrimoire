@@ -267,6 +267,7 @@ export interface ApiSubscription {
   isBundleSubscription: boolean;
   currency: string;
   price: string | null;
+  originalBasePrice: string | null;
   language: string | null;
   bookishMerch: boolean;
   isCombo: boolean;

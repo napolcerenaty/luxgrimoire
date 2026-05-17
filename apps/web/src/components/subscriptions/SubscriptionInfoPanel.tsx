@@ -18,6 +18,7 @@ interface Props {
   subscriptionSlug: string
   name: string
   price: string | null
+  originalBasePrice?: string | null
   currency: string
   intervalMonths: number
   shipsInternationally: boolean
@@ -90,6 +91,7 @@ export default function SubscriptionInfoPanel({
   subscriptionSlug,
   name,
   price,
+  originalBasePrice,
   currency,
   intervalMonths,
   shipsInternationally,
@@ -563,6 +565,7 @@ export default function SubscriptionInfoPanel({
           subscriptionCurrency={currency}
           subscriptionRenewalDay={renewalDay ?? null}
           subscriptionPrice={price}
+          subscriptionOriginalBasePrice={originalBasePrice ?? null}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
           prepayOptions={prepayOptions}
           onJoined={() => {
