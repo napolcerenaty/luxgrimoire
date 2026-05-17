@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { API_BASE } from '@/lib/authFetch';
+import { authFetch } from '@/lib/authFetch';
 
 interface SalePriceStats {
   avg: number | null;
@@ -38,14 +38,12 @@ export function EditionCommunityStats({ editionSlug, fallbackCurrency }: Edition
     if (!open || loaded) return;
     setLoaded(true);
 
-    fetch(`${API_BASE}/editions/${editionSlug}/stats/collection`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => data && setCollectionCount(data.count))
+    authFetch<{ count: number }>(`/editions/${editionSlug}/stats/collection`)
+      .then(data => setCollectionCount(data.count))
       .catch(() => {});
 
-    fetch(`${API_BASE}/editions/${editionSlug}/stats/sale-price?currency=${currency}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => data && setSaleStats(data))
+    authFetch<SalePriceStats>(`/editions/${editionSlug}/stats/sale-price?currency=${currency}`)
+      .then(data => setSaleStats(data))
       .catch(() => {});
   }, [open, loaded, editionSlug, currency]);
 
