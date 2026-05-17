@@ -1460,7 +1460,7 @@ export class SubscriptionsService {
     }
 
     return Array.from(grouped.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([, a], [, b]) => a.year !== b.year ? a.year - b.year : a.month - b.month)
       .map(([, { year, month, booksMap }]) => ({
         id: `COMBO_${year}_${month}`,
         year,
