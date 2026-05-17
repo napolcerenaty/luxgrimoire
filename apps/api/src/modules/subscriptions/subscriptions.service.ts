@@ -82,10 +82,11 @@ export class SubscriptionsService {
   private async upsertSentinelPrice(subscriptionId: string, price: string, currency: string): Promise<void> {
     await this.prisma.subscriptionPriceChange.upsert({
       where: {
-        subscriptionId_effectiveYear_effectiveMonth: {
+        subscriptionId_effectiveYear_effectiveMonth_currency: {
           subscriptionId,
           effectiveYear: 1900,
           effectiveMonth: 1,
+          currency: currency || 'EUR',
         },
       },
       create: {
@@ -98,7 +99,6 @@ export class SubscriptionsService {
       },
       update: {
         newBasePrice: parseFloat(price),
-        currency: currency || 'EUR',
       },
     });
   }
@@ -892,18 +892,18 @@ export class SubscriptionsService {
       let nextBase = fallbackBase;
       let nextRenewalPriceChanged = false;
       let nextRenewalNewPrice: string | null = null;
-      // If user set a custom currency different from subscription's default, price changes
-      // (which are in the subscription's currency) must not override the user's own basePrice.
-      const userHasCustomCurrency = entry.costCurrency != null && entry.costCurrency !== sub.currency;
-      if (storedRenewalDate && !userHasCustomCurrency) {
+      if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
-        // Reuse the priceChanges already loaded with the subscription (no extra DB query)
+        // Pass targetCurrency so multi-currency records are resolved correctly.
+        // If no records exist for the user's currency, resolveEffectiveBasePrice
+        // returns fromPriceChange: false and the user's custom price is preserved.
         const resolved = resolveEffectiveBasePrice(
           subPriceChanges ?? [],
           renewalYear,
           renewalMonth,
           fallbackBase,
+          entry.costCurrency,
         );
         if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
           nextBase = resolved.price;
@@ -1762,7 +1762,7 @@ export class SubscriptionsService {
                   })();
               return new Date(Date.UTC(ry, rm - 1, renewalDay));
             })();
-        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency);
         const basePrice = resolved.price ?? fallbackBase;
 
         const group = await this.prisma.userPurchaseGroup.create({
@@ -1847,18 +1847,14 @@ export class SubscriptionsService {
     });
     const monthMap = new Map(monthRecords.map(m => [m.id, m]));
 
-    // Load subscription price changes for historical pricing
-    // Only apply price changes when the user's cost currency matches the subscription's currency.
-    // If the user has set a custom currency, use their entered basePrice for all months.
-    const subCurrency = (sub as any).currency as string ?? 'EUR';
-    const entryCostCurrency = entry.costCurrency ?? subCurrency;
-    const priceHistoryApplies = entryCostCurrency === subCurrency;
-    const subPriceChanges = priceHistoryApplies
-      ? await this.prisma.subscriptionPriceChange.findMany({
-          where: { subscriptionId: sub.id },
-          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-        })
-      : [];
+    // Load subscription price changes for historical pricing.
+    // targetCurrency passed to resolveEffectiveBasePrice ensures multi-currency records are applied
+    // correctly: if no records exist for the user's currency, their entered basePrice is preserved.
+    const entryCostCurrency = entry.costCurrency ?? null;
+    const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    });
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
 
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
@@ -1909,7 +1905,7 @@ export class SubscriptionsService {
       const batchIdx = batchInfo?.batchIndex;
 
       // Determine amounts
-      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase);
+      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
@@ -2413,10 +2409,11 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const result = await this.prisma.subscriptionPriceChange.upsert({
       where: {
-        subscriptionId_effectiveYear_effectiveMonth: {
+        subscriptionId_effectiveYear_effectiveMonth_currency: {
           subscriptionId: sub.id,
           effectiveYear: dto.effectiveYear,
           effectiveMonth: dto.effectiveMonth,
+          currency: dto.currency,
         },
       },
       create: {

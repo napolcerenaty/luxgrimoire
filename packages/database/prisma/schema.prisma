@@ -802,7 +802,7 @@ model SubscriptionPriceChange {
   createdAt       DateTime     @default(now())
   subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
-  @@unique([subscriptionId, effectiveYear, effectiveMonth])
+  @@unique([subscriptionId, effectiveYear, effectiveMonth, currency])
   @@index([subscriptionId])
   @@map("subscription_price_changes")
 }

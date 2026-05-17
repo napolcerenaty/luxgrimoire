@@ -216,30 +216,21 @@ export class RenewalCronService {
       purchasedAt = activePeriod.billedAt ?? renewalDate;
       billingPeriodId = activePeriod.id;
     } else {
-      // Apply subscription-level price changes only if the user's cost currency
-      // matches the subscription's base currency. If different, the price history
-      // is in a foreign currency and doesn't apply — use the user's entered basePrice.
-      const subRecord = await this.prisma.subscription.findUnique({
-        where: { id: entry.subscriptionId },
-        select: { currency: true },
+      // Apply multi-currency price changes: pass entry.costCurrency as targetCurrency so only
+      // matching records are considered. If no records exist for that currency,
+      // resolveEffectiveBasePrice returns fromPriceChange: false and the user's entered price is kept.
+      const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
+        where: { subscriptionId: entry.subscriptionId },
+        orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
       });
-      const subCurrency = subRecord?.currency ?? null;
-      const priceHistoryApplies = !subCurrency || !entry.costCurrency || entry.costCurrency === subCurrency;
-      if (priceHistoryApplies) {
-        const subPriceChanges = await this.prisma.subscriptionPriceChange.findMany({
-          where: { subscriptionId: entry.subscriptionId },
-          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
-        });
-        const resolved = resolveEffectiveBasePrice(
-          subPriceChanges,
-          year,
-          month,
-          fallbackBase,
-        );
-        basePrice = resolved.price ?? fallbackBase;
-      } else {
-        basePrice = fallbackBase;
-      }
+      const resolved = resolveEffectiveBasePrice(
+        subPriceChanges,
+        year,
+        month,
+        fallbackBase,
+        entry.costCurrency,
+      );
+      basePrice = resolved.price ?? fallbackBase;
       shippingAmount = shippingCost;
       purchasedAt = renewalDate;
     }

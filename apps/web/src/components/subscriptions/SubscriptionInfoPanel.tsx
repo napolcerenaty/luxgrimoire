@@ -101,6 +101,7 @@ export default function SubscriptionInfoPanel({
   prepayOptions,
 }: Props) {
   const { user } = useAuth()
+  const userCurrency = user?.preferredCurrency
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
   const [convertedRate, setConvertedRate] = useState<number | null>(null)
@@ -112,20 +113,32 @@ export default function SubscriptionInfoPanel({
   const { isOpen: showCancelModal, open: openCancelModal, close: closeCancelModal } = useModalState()
   const { isOpen: showRemoveModal, open: openRemoveModal, close: closeRemoveModal } = useModalState()
   const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
-  const [futurePriceChanges, setFuturePriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
+  const [allPriceChanges, setAllPriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
 
   useEffect(() => {
     authFetch<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>(`/subscriptions/${subscriptionSlug}/price-changes`)
       .then(data => {
         if (!Array.isArray(data)) return
-        const now = new Date()
-        const cur = now.getFullYear() * 100 + (now.getMonth() + 1)
-        setFuturePriceChanges(data.filter(pc => pc.effectiveYear * 100 + pc.effectiveMonth > cur))
+        setAllPriceChanges(data)
       })
       .catch(() => {})
   }, [subscriptionSlug])
 
-  const userCurrency = user?.preferredCurrency
+  const now = new Date()
+  const curKey = now.getFullYear() * 100 + (now.getMonth() + 1)
+  const futurePriceChanges = allPriceChanges.filter(pc => pc.effectiveYear * 100 + pc.effectiveMonth > curKey)
+
+  // Compute effective current price for user's preferred currency (if official records exist)
+  const preferredCurrencyPrice: string | null = (() => {
+    if (!userCurrency) return null
+    const matching = allPriceChanges.filter(pc => pc.currency === userCurrency)
+    if (matching.length === 0) return null
+    const nowYear = now.getFullYear(); const nowMonth = now.getMonth() + 1
+    const applicable = [...matching]
+      .filter(pc => pc.effectiveYear < nowYear || (pc.effectiveYear === nowYear && pc.effectiveMonth <= nowMonth))
+      .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
+    return applicable.length > 0 ? applicable[0].newBasePrice : null
+  })()
 
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
@@ -232,12 +245,12 @@ export default function SubscriptionInfoPanel({
 
   // Active series (for badge display — series whose date range covers current/next month)
   const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const now = new Date()
-  const curKey = now.getFullYear() * 12 + now.getMonth() + 1
+  const nowForSeries = new Date()
+  const seriesCurKey = nowForSeries.getFullYear() * 12 + nowForSeries.getMonth() + 1
   const activeSeries = seriesList.filter(s => {
     const start = s.startYear * 12 + s.startMonth
     const end = s.endYear * 12 + s.endMonth
-    return s.isActive && curKey >= start && curKey <= end
+    return s.isActive && seriesCurKey >= start && seriesCurKey <= end
   })
 
   // Subscriber cost panel JSX (reused in 2-col layout)
@@ -389,23 +402,38 @@ export default function SubscriptionInfoPanel({
       ) : user ? (
         <>
           <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Base price</p>
-          <p className="text-2xl font-serif font-semibold text-stone-100">
-            {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
-          </p>
-          {convertedRate && userCurrency && (
-            <p className="text-sm text-stone-500 mt-0.5">
-              ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
-            </p>
+          {preferredCurrencyPrice ? (
+            <>
+              <p className="text-2xl font-serif font-semibold text-stone-100">
+                {parseFloat(preferredCurrencyPrice).toFixed(2)} <span className="text-base font-normal text-stone-400">{userCurrency}/mo</span>
+              </p>
+              <p className="text-xs text-stone-500 mt-0.5">
+                🟢 Official {userCurrency} price · {parseFloat(price).toFixed(2)} {currency}/mo listed
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-serif font-semibold text-stone-100">
+                {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
+              </p>
+              {convertedRate && userCurrency && (
+                <p className="text-sm text-stone-500 mt-0.5">
+                  ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
+                </p>
+              )}
+            </>
           )}
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
-          {futurePriceChanges.map(pc => (
-            <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-amber-500/80 mt-1">
-              From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
-              {convertedRate && userCurrency && pc.currency === currency && (
-                <> ≈ {(parseFloat(pc.newBasePrice) * convertedRate).toFixed(2)} {userCurrency}/mo</>
-              )}
-            </p>
-          ))}
+          {futurePriceChanges
+            .filter(pc => preferredCurrencyPrice ? pc.currency === userCurrency : true)
+            .map(pc => (
+              <p key={`${pc.effectiveYear}-${pc.effectiveMonth}-${pc.currency}`} className="text-xs text-amber-500/80 mt-1">
+                From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
+                {!preferredCurrencyPrice && convertedRate && userCurrency && pc.currency === currency && (
+                  <> ≈ {(parseFloat(pc.newBasePrice) * convertedRate).toFixed(2)} {userCurrency}/mo</>
+                )}
+              </p>
+            ))}
         </>
       ) : (
         <>

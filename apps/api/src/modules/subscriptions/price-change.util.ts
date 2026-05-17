@@ -7,18 +7,28 @@ type PriceChange = {
 
 /**
  * Resolves the effective base price for a given month/year from subscription-level price changes.
- * Returns the most recent applicable price change, or the fallback price if none applies.
+ *
+ * When `targetCurrency` is provided, only records matching that currency are considered.
+ * If no records exist for the target currency, falls back to the fallback price
+ * (no price change applied) — this preserves custom-currency user prices.
+ *
+ * Without `targetCurrency`, all records are considered (backward-compatible).
  */
 export function resolveEffectiveBasePrice(
   priceChanges: PriceChange[],
   year: number,
   month: number,
   fallbackPrice: number | null,
+  targetCurrency?: string | null,
 ): { price: number | null; currency: string | null; fromPriceChange: boolean } {
-  if (priceChanges.length === 0) {
+  const candidates = targetCurrency
+    ? priceChanges.filter(pc => pc.currency === targetCurrency)
+    : priceChanges;
+
+  if (candidates.length === 0) {
     return { price: fallbackPrice, currency: null, fromPriceChange: false };
   }
-  const applicable = priceChanges
+  const applicable = candidates
     .filter(pc => pc.effectiveYear < year || (pc.effectiveYear === year && pc.effectiveMonth <= month))
     .sort((a, b) => {
       if (a.effectiveYear !== b.effectiveYear) return b.effectiveYear - a.effectiveYear;
