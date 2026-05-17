@@ -161,7 +161,7 @@ export class SearchService {
 
       subscriptionIds.length
         ? this.prisma.subscription.findMany({
-            where: { id: { in: subscriptionIds } },
+            where: { id: { in: subscriptionIds }, isHidden: false },
             select: {
               id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
               company: { select: { slug: true, name: true, logoUrl: true } },
@@ -297,7 +297,7 @@ export class SearchService {
       // ── Subscriptions ──────────────────────────────────────────────────────
       (all || filter === 'subscriptions')
         ? this.prisma.subscription.findMany({
-            where: { name: { contains: trimmed, mode: 'insensitive' } },
+            where: { name: { contains: trimmed, mode: 'insensitive' }, isHidden: false },
             select: {
               id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
               company: { select: { slug: true, name: true, logoUrl: true } },
