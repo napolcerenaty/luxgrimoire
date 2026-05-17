@@ -766,12 +766,21 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
         )}
         <div className="min-w-0 flex-1">
           <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
-          <p className="text-sm text-stone-100 leading-snug truncate">
-            {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
-          </p>
-          {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
-          {!isMultiBook && allBooks.length > 1 && (
-            <p className="text-xs text-stone-500 mt-0.5">+{allBooks.length - 1} more</p>
+          {allBooks.length <= 1 ? (
+            <>
+              <p className="text-sm text-stone-100 leading-snug truncate">
+                {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
+              </p>
+              {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
+            </>
+          ) : (
+            <ul className="space-y-0.5">
+              {allBooks.map(b => (
+                <li key={b.editionId ?? b.bookId} className="text-sm text-stone-100 leading-snug truncate">
+                  {b.edition?.book?.title ?? b.edition?.title ?? '—'}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </label>
