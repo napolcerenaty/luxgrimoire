@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
@@ -19,14 +20,14 @@ import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 
 const OWNERSHIP_LABEL: Record<string, string> = {
-  OWNED: 'Own',
-  PREORDER: 'Preorder',
-  SHIPPING: 'Shipping',
-  BORROWED: 'Borrowed',
-  LENDED: 'Lended',
-  TO_SELL: 'To Sell',
-  SOLD: 'Sold',
-  GIFTED_AWAY: 'Gifted Away',
+  OWNED: 'OWN',
+  PREORDER: 'PREORDER',
+  SHIPPING: 'SHIPPING',
+  BORROWED: 'BORROWED',
+  LENDED: 'LENDED',
+  TO_SELL: 'TO SELL',
+  SOLD: 'SOLD',
+  GIFTED_AWAY: 'GIFTED AWAY',
 }
 const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
 
@@ -829,6 +830,25 @@ export default function CollectionPage() {
           <p className="text-stone-400 text-sm mt-1">Your physical book library</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* View mode toggle */}
+          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="Grid view"
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="List view"
+            >
+              <List size={15} />
+            </button>
+          </div>
           <button
             onClick={() => setAddModalOpen(true)}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
@@ -894,26 +914,6 @@ export default function CollectionPage() {
               <option value="DATE_DESC">Sort: Newest first</option>
               <option value="DATE_ASC">Sort: Oldest first</option>
             </select>
-
-            {/* View mode toggle */}
-            <div className="flex rounded-lg border border-stone-700 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-                aria-label="Grid view"
-              >
-                <LayoutGrid size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-                aria-label="List view"
-              >
-                <List size={15} />
-              </button>
-            </div>
 
             {/* Signature */}
             <select
@@ -1332,10 +1332,12 @@ export default function CollectionPage() {
                         className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors"
                       >
                         {/* Thumbnail */}
-                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden bg-stone-950">
+                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover
                             ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(entry.edition.bookBoxCompany?.brandColors)}>
+                                <BookOpen size={14} />
+                              </div>
                           }
                         </div>
 
