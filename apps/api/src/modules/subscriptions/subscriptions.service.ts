@@ -801,6 +801,7 @@ export class SubscriptionsService {
         id: true,
         active: true,
         startDate: true,
+        cancellationDate: true,
         renewalDay: true,
         nextRenewalDate: true,
         costCurrency: true,

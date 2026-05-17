@@ -24,6 +24,7 @@ interface MySubscriptionEntry {
   id: string
   active: boolean
   startDate: string | null
+  cancellationDate: string | null
   renewalDay: number | null
   costCurrency: string | null
   basePrice: string | null
@@ -281,6 +282,12 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
                   <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
+                </div>
+              )}
+              {!entry.active && entry.cancellationDate && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+                  <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
                 </div>
               )}
             </div>
