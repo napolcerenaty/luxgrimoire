@@ -5,7 +5,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Bell, X, TrendingUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Bell, RefreshCw, X, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/components/AuthProvider'
@@ -455,7 +455,7 @@ export default function CalendarPage() {
                         onClick={e => e.stopPropagation()}
                       >
                         <span className="flex items-center gap-1 truncate">
-                          <Bell size={9} className="shrink-0" />
+                          <RefreshCw size={9} className="shrink-0" />
                           <span className="truncate">{r.label}</span>
                         </span>
                         {r.companyName && (
