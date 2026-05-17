@@ -105,6 +105,7 @@ export default function WishlistPage() {
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [isSecondHand, setIsSecondHand] = useState(false)
   const [sourcePlatform, setSourcePlatform] = useState('')
+  const [moveOrderNumber, setMoveOrderNumber] = useState('')
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
@@ -141,10 +142,10 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees, discounts, isSecondHand, sourcePlatform }: {
+    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees, discounts, isSecondHand, sourcePlatform, orderNumber }: {
       id: string; date: string; price: string; currency: string;
       ownershipStatus: string; shippingPrice: string; fees: FeeEntry[]; discounts: DiscountEntry[];
-      isSecondHand: boolean; sourcePlatform: string;
+      isSecondHand: boolean; sourcePlatform: string; orderNumber: string;
     }) => {
       const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
       if (date) body.acquiredAt = new Date(date).toISOString()
@@ -207,6 +208,13 @@ export default function WishlistPage() {
           }),
         })
       }
+
+      if (orderNumber.trim()) {
+        await authFetch<void>(`/collection/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ orderNumber: orderNumber.trim() }),
+        }).catch(() => {})
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
@@ -219,6 +227,7 @@ export default function WishlistPage() {
       setDiscountEntries([])
       setIsSecondHand(false)
       setSourcePlatform('')
+      setMoveOrderNumber('')
       setMoveOwnershipStatus('OWNED')
     },
   })
@@ -573,6 +582,10 @@ export default function WishlistPage() {
             </div>
 
             <div className="flex flex-col gap-2">
+              <div>
+                <label className={LABEL}>Order number (optional)</label>
+                <input type="text" value={moveOrderNumber} onChange={e => setMoveOrderNumber(e.target.value)} placeholder="e.g. 12345678" className={INPUT} />
+              </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
                   className="w-4 h-4 rounded accent-amber-500" />
@@ -594,7 +607,7 @@ export default function WishlistPage() {
                 Cancel
               </button>
               <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries, discounts: discountEntries, isSecondHand, sourcePlatform })}
+                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries, discounts: discountEntries, isSecondHand, sourcePlatform, orderNumber: moveOrderNumber })}
                 disabled={moveMutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
               >
