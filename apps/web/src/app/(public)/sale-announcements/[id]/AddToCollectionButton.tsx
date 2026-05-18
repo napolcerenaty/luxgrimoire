@@ -45,12 +45,14 @@ interface Props {
   editions: SaleEditionData[]
   basePrice?: number
   currency: string
+  selectedPrice?: number
+  selectedPriceCurrency?: string
   compact?: boolean
   defaultOwnershipStatus?: string
   triggerLabel?: string
 }
 
-export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice, currency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
+export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice, currency, selectedPrice, selectedPriceCurrency, compact, defaultOwnershipStatus = 'OWNED', triggerLabel }: Props) {
   const { user } = useAuth()
   const { postFeesAndDiscounts } = useRecordSaleGroup()
   const [open, setOpen] = useState(false)
@@ -58,11 +60,14 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const effectivePrice = selectedPrice ?? basePrice
+  const effectiveCurrency = selectedPriceCurrency ?? currency
+
   const [ownershipStatus, setOwnershipStatus] = useState<string>(defaultOwnershipStatus)
   const [purchasedAt, setPurchasedAt] = useState(() => new Date().toISOString().slice(0, 10))
-  const [totalAmount, setTotalAmount] = useState(basePrice != null ? String(basePrice) : '')
+  const [totalAmount, setTotalAmount] = useState(effectivePrice != null ? String(effectivePrice) : '')
   const [shippingAmount, setShippingAmount] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState(currency || 'EUR')
+  const [selectedCurrency, setSelectedCurrency] = useState(effectiveCurrency || 'EUR')
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
@@ -81,9 +86,9 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
     setError(null)
     setSuccess(false)
     setPurchasedAt(new Date().toISOString().slice(0, 10))
-    setTotalAmount(basePrice != null ? String(basePrice) : '')
+    setTotalAmount(effectivePrice != null ? String(effectivePrice) : '')
     setShippingAmount('')
-    setSelectedCurrency(currency || 'EUR')
+    setSelectedCurrency(effectiveCurrency || 'EUR')
     setOwnershipStatus(defaultOwnershipStatus)
     setFeeEntries([])
     setDiscountEntries([])

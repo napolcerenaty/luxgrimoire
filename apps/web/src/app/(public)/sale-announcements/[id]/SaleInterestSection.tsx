@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function SaleInterestSection({ sale }: Props) {
-  const { isInterested, regionId } = useSaleInterest(sale.id)
+  const { isInterested, regionId, selectedPrice, selectedPriceCurrency } = useSaleInterest(sale.id)
 
   const saleOpen = isOpenForPurchase(sale, regionId)
   const salePast = isSalePast(sale, regionId)
@@ -27,6 +27,8 @@ export function SaleInterestSection({ sale }: Props) {
           editions={allEditions}
           basePrice={resolvedPrice ?? undefined}
           currency={resolvedCurrency}
+          selectedPrice={selectedPrice ?? undefined}
+          selectedPriceCurrency={selectedPriceCurrency ?? undefined}
           defaultOwnershipStatus="PREORDER"
         />
       </div>
@@ -46,6 +48,8 @@ export function SaleInterestSection({ sale }: Props) {
           editions={allEditions}
           basePrice={resolvedPrice ?? undefined}
           currency={resolvedCurrency}
+          selectedPrice={selectedPrice ?? undefined}
+          selectedPriceCurrency={selectedPriceCurrency ?? undefined}
           compact
           defaultOwnershipStatus="PREORDER"
           triggerLabel="Confirm Purchase"
