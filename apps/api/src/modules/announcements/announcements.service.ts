@@ -59,20 +59,42 @@ export class AnnouncementsService {
     await deleteCloudinaryImages(ids, this.uploadService);
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent' }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const where: Record<string, unknown> = { editions: { some: {} } };
-    if (query.upcoming) {
-      where.generalSaleDate = { gte: today };
+    const andConditions: Prisma.SaleAnnouncementWhereInput[] = [{ editions: { some: {} } }];
+
+    // Date range filter — any of FA, EA, GS falls in [dateFrom, dateTo]
+    if (query.dateFrom || query.dateTo) {
+      const from = query.dateFrom ? new Date(query.dateFrom) : undefined;
+      const to = query.dateTo ? new Date(query.dateTo) : undefined;
+      const dateFilter: Prisma.DateTimeNullableFilter = {};
+      if (from) dateFilter.gte = from;
+      if (to) dateFilter.lte = to;
+      andConditions.push({
+        OR: [
+          { firstAccessDate: dateFilter },
+          { earlyAccessDate: dateFilter },
+          { generalSaleDate: dateFilter },
+          { regions: { some: { OR: [{ firstAccessDate: dateFilter }, { earlyAccessDate: dateFilter }, { generalSaleDate: dateFilter }] } } },
+        ],
+      });
+    } else if (query.upcoming) {
+      andConditions.push({ generalSaleDate: { gte: today } });
     }
+
     if (query.search) {
       const term = query.search.trim();
-      where.title = { contains: term, mode: 'insensitive' };
+      andConditions.push({ title: { contains: term, mode: 'insensitive' } });
     }
+    if (query.companyId) {
+      andConditions.push({ companyId: query.companyId });
+    }
+
+    const where: Prisma.SaleAnnouncementWhereInput = andConditions.length === 1 ? andConditions[0] : { AND: andConditions };
 
     const [data, total] = await Promise.all([
       this.prisma.saleAnnouncement.findMany({

@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { Megaphone, Search, LayoutGrid, List } from 'lucide-react'
+import { Megaphone, Search, LayoutGrid, List, X } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -30,7 +30,12 @@ interface ListSaleAnnouncement {
   regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
 }
 
-function formatDate(iso: string | null) {
+interface ListCompany {
+  id: string
+  name: string
+}
+
+
   if (!iso) return null
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
@@ -172,7 +177,20 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [companyId, setCompanyId] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const debouncedSearch = useDebounce(search, 300)
+
+  const hasDateFilter = dateFrom || dateTo
+  const hasFilters = debouncedSearch || companyId || hasDateFilter
+
+  const { data: companiesData } = useQuery<PaginatedResponse<ListCompany>>({
+    queryKey: ['companies-list-filter'],
+    queryFn: () => apiFetch('/companies?pageSize=200'),
+    staleTime: 5 * 60_000,
+  })
+  const companies = companiesData?.data ?? []
 
   const {
     data,
@@ -181,15 +199,18 @@ export default function SaleAnnouncementsPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ['sale-announcements', 'upcoming', debouncedSearch],
+    queryKey: ['sale-announcements', 'list', debouncedSearch, companyId, dateFrom, dateTo],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({
         pageSize: String(PAGE_SIZE),
-        upcoming: 'true',
         sort: 'date',
         page: String(pageParam),
       })
+      if (!hasDateFilter) params.set('upcoming', 'true')
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+      if (companyId) params.set('companyId', companyId)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
       return apiFetch<PaginatedResponse<ListSaleAnnouncement>>(`/announcements?${params}`)
     },
     initialPageParam: 1,
@@ -199,6 +220,13 @@ export default function SaleAnnouncementsPage() {
 
   const announcements = data?.pages.flatMap((p) => p.data) ?? []
   const isEmpty = !isLoading && announcements.length === 0
+
+  function clearFilters() {
+    setSearch('')
+    setCompanyId('')
+    setDateFrom('')
+    setDateTo('')
+  }
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
@@ -215,9 +243,10 @@ export default function SaleAnnouncementsPage() {
         </Link>
       </div>
 
-      {/* Search + view toggle */}
-      <div className="flex gap-3 mb-8">
-        <div className="relative flex-1">
+      {/* Filters row */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
           <input
             value={search}
@@ -226,6 +255,38 @@ export default function SaleAnnouncementsPage() {
             className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
           />
         </div>
+
+        {/* Company filter */}
+        <select
+          value={companyId}
+          onChange={(e) => setCompanyId(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
+        >
+          <option value="">All companies</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Date from */}
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          title="Date from (FA / EA / GS)"
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
+        />
+
+        {/* Date to */}
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          title="Date to (FA / EA / GS)"
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
+        />
+
+        {/* View toggle */}
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
           <button
             onClick={() => setView('grid')}
@@ -244,6 +305,20 @@ export default function SaleAnnouncementsPage() {
         </div>
       </div>
 
+      {/* Active filters + clear */}
+      {hasFilters && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <span className="text-xs text-stone-500">Active filters:</span>
+          {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
+          {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
+          {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
+          {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
+          <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">
+            <X size={12} /> Clear all
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
@@ -253,8 +328,8 @@ export default function SaleAnnouncementsPage() {
       ) : isEmpty ? (
         <div className="text-center py-20 text-stone-500">
           <Megaphone size={40} className="mx-auto mb-4 opacity-30" />
-          <p className="text-lg">{search ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
-          {!search && (
+          <p className="text-lg">{hasFilters ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
+          {!hasFilters && (
             <p className="text-sm mt-2">
               Spotted one?{' '}
               <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
