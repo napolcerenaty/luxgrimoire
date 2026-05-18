@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const isAdmin = user?.role === 'ADMIN'
+  const isModerator = user?.role === 'MODERATOR'
 
   useEffect(() => {
     if (user?.role === 'COMPANY_MANAGER') {
@@ -103,7 +104,8 @@ export default function AdminDashboard() {
   })
 
   const totalAttention = counts
-    ? counts.communityImagesPending + counts.dataRequestsPending + counts.saleRequestsPending + counts.bugReportsOpen + counts.featureRequestsPending
+    ? counts.communityImagesPending + counts.dataRequestsPending + counts.saleRequestsPending +
+      (!isModerator ? counts.bugReportsOpen + counts.featureRequestsPending : 0)
     : null
 
   return (
@@ -176,22 +178,26 @@ export default function AdminDashboard() {
             countLabel={counts ? `${counts.saleRequestsPending} pending` : '…'}
             accent="purple"
           />
-          <CountCard
-            href="/admin/bug-reports"
-            icon="🐛"
-            label="Bug Reports"
-            count={counts?.bugReportsOpen ?? 0}
-            countLabel={counts ? `${counts.bugReportsOpen} open` : '…'}
-            accent="red"
-          />
-          <CountCard
-            href="/admin/feature-requests"
-            icon="✨"
-            label="Feature Requests"
-            count={counts?.featureRequestsPending ?? 0}
-            countLabel={counts ? `${counts.featureRequestsPending} pending` : '…'}
-            accent="green"
-          />
+          {!isModerator && (
+            <>
+              <CountCard
+                href="/admin/bug-reports"
+                icon="🐛"
+                label="Bug Reports"
+                count={counts?.bugReportsOpen ?? 0}
+                countLabel={counts ? `${counts.bugReportsOpen} open` : '…'}
+                accent="red"
+              />
+              <CountCard
+                href="/admin/feature-requests"
+                icon="✨"
+                label="Feature Requests"
+                count={counts?.featureRequestsPending ?? 0}
+                countLabel={counts ? `${counts.featureRequestsPending} pending` : '…'}
+                accent="green"
+              />
+            </>
+          )}
         </div>
       </section>
     </div>
