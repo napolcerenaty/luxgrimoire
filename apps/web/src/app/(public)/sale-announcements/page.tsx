@@ -35,7 +35,7 @@ interface ListCompany {
   name: string
 }
 
-
+function formatDate(iso: string | null) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
