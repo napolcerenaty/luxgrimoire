@@ -1133,6 +1133,11 @@ export class SubscriptionsService {
       where: { userId, subscriptionId: sub.id },
     });
 
+    // Decrement subscriber count if the entry was still active when removed
+    if (entry.active) {
+      this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+    }
+
     // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags, membershipHistory)
     await this.prisma.userSubscriptionEntry.delete({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
