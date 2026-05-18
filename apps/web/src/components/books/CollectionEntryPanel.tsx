@@ -329,6 +329,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newTrackingNumber, setNewTrackingNumber] = useState('')
   const [newTrackingLabel, setNewTrackingLabel] = useState('')
   const [savingTracking, setSavingTracking] = useState(false)
+  const [editingTrackingId, setEditingTrackingId] = useState<string | null>(null)
+  const [editTrackingNumber, setEditTrackingNumber] = useState('')
+  const [editTrackingLabel, setEditTrackingLabel] = useState('')
+  const [savingEditTracking, setSavingEditTracking] = useState(false)
 
   // Edit state — order number
   const [editingOrderNumber, setEditingOrderNumber] = useState(false)
@@ -1622,31 +1626,86 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Package size={11} /> Tracking</span></p>
           <div className="flex flex-col gap-2">
             {entry.trackingNumbers.map((tn) => (
-              <div key={tn.id} className="flex items-center gap-1.5 group/tn">
-                <div className="flex-1 min-w-0">
-                  {tn.label && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tn.label}</p>}
-                  <a
-                    href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 break-all"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {tn.trackingNumber}
-                    <ExternalLink size={11} className="shrink-0" />
-                  </a>
-                </div>
-                <button
-                  onClick={async () => {
-                    await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, { method: 'DELETE' })
-                    void queryClient.invalidateQueries({ queryKey: ['edition-entry', entry.id] })
-                    void queryClient.invalidateQueries({ queryKey: ['collection'] })
-                  }}
-                  className="p-1 opacity-0 group-hover/tn:opacity-100 text-stone-600 hover:text-red-400 transition-all shrink-0"
-                  title="Remove"
-                >
-                  <X size={11} />
-                </button>
+              <div key={tn.id} className="flex flex-col gap-1">
+                {editingTrackingId === tn.id ? (
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      value={editTrackingNumber}
+                      onChange={e => setEditTrackingNumber(e.target.value)}
+                      placeholder="Tracking number…"
+                      className={INP}
+                      autoFocus
+                    />
+                    <input
+                      value={editTrackingLabel}
+                      onChange={e => setEditTrackingLabel(e.target.value)}
+                      placeholder="Label (optional)"
+                      className={INP}
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={async () => {
+                          if (!editTrackingNumber.trim()) return
+                          setSavingEditTracking(true)
+                          try {
+                            await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ trackingNumber: editTrackingNumber.trim(), label: editTrackingLabel.trim() || null }),
+                            })
+                            await refetchEntry()
+                            setEditingTrackingId(null)
+                          } finally {
+                            setSavingEditTracking(false)
+                          }
+                        }}
+                        disabled={savingEditTracking || !editTrackingNumber.trim()}
+                        className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                      >
+                        {savingEditTracking ? '…' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditingTrackingId(null)}
+                        className="text-xs py-1.5 px-3 rounded-lg border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 group/tn">
+                    <div className="flex-1 min-w-0">
+                      {tn.label && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tn.label}</p>}
+                      <a
+                        href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 break-all"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {tn.trackingNumber}
+                        <ExternalLink size={11} className="shrink-0" />
+                      </a>
+                    </div>
+                    <EditBtn
+                      onClick={() => {
+                        setEditingTrackingId(tn.id)
+                        setEditTrackingNumber(tn.trackingNumber)
+                        setEditTrackingLabel(tn.label ?? '')
+                      }}
+                    />
+                    <button
+                      onClick={async () => {
+                        await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, { method: 'DELETE' })
+                        await refetchEntry()
+                      }}
+                      className="p-1 opacity-0 group-hover/tn:opacity-100 text-stone-600 hover:text-red-400 transition-all shrink-0"
+                      title="Remove"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {addingTracking ? (
@@ -1675,8 +1734,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ trackingNumber: newTrackingNumber.trim(), label: newTrackingLabel.trim() || undefined }),
                         })
-                        void queryClient.invalidateQueries({ queryKey: ['edition-entry', entry.id] })
-                        void queryClient.invalidateQueries({ queryKey: ['collection'] })
+                        await refetchEntry()
                         setNewTrackingNumber('')
                         setNewTrackingLabel('')
                         setAddingTracking(false)

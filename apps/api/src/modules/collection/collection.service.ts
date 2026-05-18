@@ -526,6 +526,18 @@ export class CollectionService {
     });
   }
 
+  async updateTracking(userId: string, entryId: string, trackingId: string, trackingNumber: string, label?: string | null) {
+    const tracking = await this.prisma.userBookEntryTracking.findUnique({
+      where: { id: trackingId },
+      include: { entry: { select: { userId: true } } },
+    });
+    if (!tracking || tracking.entry.userId !== userId) throw new NotFoundException('Tracking not found');
+    return this.prisma.userBookEntryTracking.update({
+      where: { id: trackingId },
+      data: { trackingNumber, label: label ?? null },
+    });
+  }
+
   async removeTracking(userId: string, entryId: string, trackingId: string) {
     const tracking = await this.prisma.userBookEntryTracking.findUnique({
       where: { id: trackingId },

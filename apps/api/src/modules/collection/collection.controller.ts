@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddTrackingDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddTrackingDto, UpdateTrackingDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -141,6 +141,16 @@ export class CollectionController {
     const result = await this.collectionService.addTracking(user.id, id, dto.trackingNumber, dto.label);
     this.analyticsService.track({ eventType: 'tracking_add', userId: user.id });
     return result;
+  }
+
+  @Patch(':id/tracking/:trackingId')
+  async updateTracking(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Param('trackingId') trackingId: string,
+    @Body() dto: UpdateTrackingDto,
+  ) {
+    return this.collectionService.updateTracking(user.id, id, trackingId, dto.trackingNumber, dto.label);
   }
 
   @Delete(':id/tracking/:trackingId')
