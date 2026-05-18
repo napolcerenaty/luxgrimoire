@@ -652,6 +652,8 @@ function EditEntryCostsModal({
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
   const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
+  const savedCurrency = entry.costCurrency ?? subscriptionCurrency
+  const currencyChanged = costCurrency.trim().toUpperCase() !== savedCurrency.toUpperCase()
   const [feeLinks, setFeeLinks] = useState<Array<{ templateId: string; name: string; customAmount: string; customCurrency: string }>>(
     entry.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
@@ -738,6 +740,11 @@ function EditEntryCostsModal({
               placeholder="e.g. 34.99"
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
+            {currencyChanged && (
+              <p className="mt-1 text-xs text-amber-400">
+                ⚠ Currency changed from {savedCurrency} — check that the price above is correct in {costCurrency}.
+              </p>
+            )}
           </div>
 
           {/* Shipping */}
