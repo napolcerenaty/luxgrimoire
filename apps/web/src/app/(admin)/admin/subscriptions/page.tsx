@@ -677,6 +677,83 @@ function SubscriptionForm({
   )
 }
 
+// ─── Settings History Panel ───────────────────────────────────────────────────
+
+interface SettingsHistoryRecord {
+  id: string
+  effectiveFrom: string
+  renewalDay: number | null
+  renewalDayUserSet: boolean
+  paymentOnStartup: boolean
+  signupIncludesCurrentMonth: boolean
+  renewalMonthOffset: number
+  changedBy: string | null
+  notes: string | null
+  createdAt: string
+}
+
+function SettingsHistoryPanel({ slug }: { slug: string }) {
+  const [open, setOpen] = useState(false)
+
+  const { data: records = [], isLoading } = useQuery<SettingsHistoryRecord[]>({
+    queryKey: ['settings-history', slug],
+    queryFn: () => authFetch<SettingsHistoryRecord[]>(`/subscriptions/${slug}/settings-history`),
+    enabled: open,
+  })
+
+  return (
+    <div className="border border-stone-700 rounded-lg">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-stone-300 hover:text-stone-100 transition-colors"
+      >
+        <span>⚙️ Settings History ({records.length} records)</span>
+        <span className="text-stone-500">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2 text-xs">
+          {isLoading ? (
+            <p className="text-stone-500">Loading…</p>
+          ) : records.length === 0 ? (
+            <p className="text-stone-500">No settings history records.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-stone-300 border-collapse">
+                <thead>
+                  <tr className="text-stone-500 border-b border-stone-700">
+                    <th className="text-left pb-1 pr-3">Effective From</th>
+                    <th className="text-left pb-1 pr-3">Renewal Day</th>
+                    <th className="text-left pb-1 pr-3">User-Set Day</th>
+                    <th className="text-left pb-1 pr-3">Prepaid</th>
+                    <th className="text-left pb-1 pr-3">Current Month</th>
+                    <th className="text-left pb-1 pr-3">Offset</th>
+                    <th className="text-left pb-1">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map(r => (
+                    <tr key={r.id} className="border-b border-stone-800 last:border-0">
+                      <td className="py-1 pr-3 text-stone-400">{new Date(r.effectiveFrom).toLocaleDateString()}</td>
+                      <td className="py-1 pr-3">{r.renewalDay ?? '—'}</td>
+                      <td className="py-1 pr-3">{r.renewalDayUserSet ? '✓' : '—'}</td>
+                      <td className="py-1 pr-3">{r.paymentOnStartup ? '✓' : '—'}</td>
+                      <td className="py-1 pr-3">{r.signupIncludesCurrentMonth ? '✓' : '—'}</td>
+                      <td className="py-1 pr-3">{r.renewalMonthOffset}</td>
+                      <td className="py-1 text-stone-500">{r.notes ?? ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Prepay Options Panel ─────────────────────────────────────────────────────
 
 interface PrepayOption {
@@ -1157,6 +1234,7 @@ export default function AdminSubscriptionsPage() {
             submitting={editMutation.isPending}
             onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form })}
           />
+          <SettingsHistoryPanel slug={editSub.slug} />
           <PrepayOptionsPanel slug={editSub.slug} />
         </div>
       )}

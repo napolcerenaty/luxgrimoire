@@ -36,6 +36,7 @@ import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory 
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { resolveEffectiveBasePrice } from './price-change.util';
+import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 
 function formatIntervalForTypesense(intervalMonths: number): string {
@@ -416,13 +417,43 @@ export class SubscriptionsService {
     };
   }
 
-  async update(slug: string, dto: UpdateSubscriptionDto) {
+  async listSettingsHistory(slug: string) {
+    const sub = await this.findBySlug(slug);
+    return this.prisma.subscriptionSettingsHistory.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+  }
+
+  async update(slug: string, dto: UpdateSubscriptionDto, changedByUserId?: string) {
     const existing = await this.findBySlug(slug);
     const { componentIds, price, ...rest } = dto;
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
     const updated = await this.prisma.subscription.update({ where: { slug }, data });
+
+    // Record settings history if any tracked field changed
+    const settingsFields: (keyof SubscriptionSettings)[] = [
+      'renewalDay', 'renewalDayUserSet', 'paymentOnStartup', 'signupIncludesCurrentMonth', 'renewalMonthOffset',
+    ];
+    const anySettingsChanged = settingsFields.some(
+      f => dto[f as keyof UpdateSubscriptionDto] !== undefined && (dto as any)[f] !== (existing as any)[f],
+    );
+    if (anySettingsChanged) {
+      await this.prisma.subscriptionSettingsHistory.create({
+        data: {
+          subscriptionId: updated.id,
+          effectiveFrom: new Date(),
+          renewalDay: updated.renewalDay ?? null,
+          renewalDayUserSet: (updated as any).renewalDayUserSet ?? false,
+          paymentOnStartup: (updated as any).paymentOnStartup ?? false,
+          signupIncludesCurrentMonth: (updated as any).signupIncludesCurrentMonth ?? true,
+          renewalMonthOffset: (updated as any).renewalMonthOffset ?? 0,
+          changedBy: changedByUserId ?? null,
+        },
+      });
+    }
 
     // If price changed, update the sentinel price change record
     if (price !== undefined && price !== null) {
@@ -1652,7 +1683,6 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
-    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
 
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
@@ -1666,6 +1696,19 @@ export class SubscriptionsService {
     });
     if (!entry) throw new NotFoundException('You must join this subscription before backfilling');
 
+    // Pre-load settings history for per-month resolution (avoids DB calls in the loop)
+    const settingsHistory = await this.prisma.subscriptionSettingsHistory.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const fallbackSettings: SubscriptionSettings = {
+      renewalDay: (sub as any).renewalDay ?? null,
+      renewalDayUserSet: (sub as any).renewalDayUserSet ?? false,
+      paymentOnStartup: (sub as any).paymentOnStartup ?? false,
+      signupIncludesCurrentMonth: (sub as any).signupIncludesCurrentMonth ?? true,
+      renewalMonthOffset: (sub as any).renewalMonthOffset ?? 0,
+    };
+
     // Pre-process billing batches into a map: monthId → { batch, batchIndex }
     const batchByMonthId = new Map<string, { batch: BackfillBillingBatchDto; batchIndex: number }>();
     if (dto.billingBatches?.length) {
@@ -1676,7 +1719,6 @@ export class SubscriptionsService {
     // Track created billing period IDs by batch index (to reuse within same batch)
     const billingPeriodIdByBatch = new Map<number, string>();
 
-    const renewalDay = entry.renewalDay ?? 1;
     let booksAdded = 0;
     let skipsRecorded = 0;
 
@@ -1691,7 +1733,7 @@ export class SubscriptionsService {
         const parts = entry.cancellationDate.split('-').map(Number);
         return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
       })() : null;
-      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, signupIncludesCurrentMonth);
+      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
 
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
@@ -1717,7 +1759,8 @@ export class SubscriptionsService {
 
       // paymentOnStartup: find the earliest selected combo month so we can
       // assign entry.startDate as its purchase date (same logic as regular path).
-      const comboPaymentOnStartup = (sub as any).paymentOnStartup as boolean;
+      // Use fallbackSettings (subscription-level setting at backfill time — resolved per-month in loop)
+      const comboPaymentOnStartup = fallbackSettings.paymentOnStartup;
       let earliestComboId: string | null = null;
       if (comboPaymentOnStartup && entry.startDate) {
         let earliestYear = Infinity; let earliestMonth = Infinity;
@@ -1753,7 +1796,9 @@ export class SubscriptionsService {
         const monthBooks = Array.from(bookMap.values());
         if (monthBooks.length === 0) continue;
 
-        const comboOffset: number = (sub as any).renewalMonthOffset ?? 0;
+        const comboSettings = resolveEffectiveSettings(settingsHistory, year, month, fallbackSettings);
+        const comboOffset: number = comboSettings.renewalMonthOffset;
+        const comboRenewalDay = entry.renewalDay ?? comboSettings.renewalDay ?? 1;
         const renewalDate = (earliestComboId === comboId && entry.startDate)
           ? new Date(entry.startDate)
           : (() => {
@@ -1765,7 +1810,7 @@ export class SubscriptionsService {
                     while (m > 12) { m -= 12; y++; }
                     return [y, m] as [number, number];
                   })();
-              return new Date(Date.UTC(ry, rm - 1, renewalDay));
+              return new Date(Date.UTC(ry, rm - 1, comboRenewalDay));
             })();
         const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency);
         const basePrice = resolved.price ?? fallbackBase;
@@ -1863,7 +1908,8 @@ export class SubscriptionsService {
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
 
     // If paymentOnStartup: the earliest selected month's books get purchaseDate = entry.startDate
-    const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
+    // Use fallbackSettings — the current setting is representative since we resolve per-month in the loop
+    const paymentOnStartup = fallbackSettings.paymentOnStartup;
     let earliestMonthId: string | null = null;
     if (paymentOnStartup && entry.startDate) {
       let earliest: { year: number; month: number; id: string } | null = null;
@@ -1889,7 +1935,9 @@ export class SubscriptionsService {
       const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
-      const nonComboOffset: number = (sub as any).renewalMonthOffset ?? 0;
+      const monthSettings = resolveEffectiveSettings(settingsHistory, monthRecord.year, monthRecord.month, fallbackSettings);
+      const nonComboOffset: number = monthSettings.renewalMonthOffset;
+      const monthRenewalDay = entry.renewalDay ?? monthSettings.renewalDay ?? 1;
       const renewalDate = (earliestMonthId === monthId && entry.startDate)
         ? new Date(entry.startDate)
         : (() => {
@@ -1901,7 +1949,7 @@ export class SubscriptionsService {
                   while (m > 12) { m -= 12; y++; }
                   return [y, m] as [number, number];
                 })();
-            return new Date(Date.UTC(ry, rm - 1, renewalDay));
+            return new Date(Date.UTC(ry, rm - 1, monthRenewalDay));
           })();
       const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
 
@@ -2083,7 +2131,9 @@ export class SubscriptionsService {
 
       for (const m of skippableMonths) {
         const windowKey = this.computeWindowKeyForBackfill(policy, firstSkipDateInWindow, entry.startDate, m.year, m.month);
-        const skippedAt = new Date(m.year, m.month - 1, renewalDay);
+        const skipSettings = resolveEffectiveSettings(settingsHistory, m.year, m.month, fallbackSettings);
+        const skipRenewalDay = entry.renewalDay ?? skipSettings.renewalDay ?? 1;
+        const skippedAt = new Date(m.year, m.month - 1, skipRenewalDay);
 
         await this.prisma.userSkipRecord.upsert({
           where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: m.id } },

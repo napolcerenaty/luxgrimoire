@@ -90,7 +90,7 @@ export class SubscriptionsController {
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateSubscriptionDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
-    const result = await this.subscriptionsService.update(slug, dto);
+    const result = await this.subscriptionsService.update(slug, dto, user.id);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SUBSCRIPTION', entityType: 'subscription', entityId: result.id, entityTitle: result.slug });
     return result;
   }
@@ -379,6 +379,13 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.importMonthsFromVariant(slug, variantSlug);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'IMPORT_MONTHS_FROM_VARIANT', entityType: 'subscription', entityId: slug });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/settings-history')
+  listSettingsHistory(@Param('slug') slug: string) {
+    return this.subscriptionsService.listSettingsHistory(slug);
   }
 
   @Get(':slug/price-changes')
