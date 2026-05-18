@@ -187,7 +187,7 @@ export default function SaleAnnouncementsPage() {
 
   const { data: companiesData, isLoading: companiesLoading } = useQuery<PaginatedResponse<ListCompany>>({
     queryKey: ['companies-list-filter'],
-    queryFn: () => apiFetch('/companies?pageSize=200'),
+    queryFn: () => apiFetch('/companies?pageSize=100'),
     staleTime: 5 * 60_000,
   })
   const companies = companiesData?.data ?? []
