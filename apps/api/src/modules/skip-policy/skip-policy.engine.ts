@@ -88,7 +88,6 @@ export class SkipPolicyEngine {
           if (earliestFirst && policy.windowMonths) {
             // Walk forward in windowMonths increments from earliest first skip to find current window
             let winStart = new Date(earliestFirst);
-            winStart.setHours(0, 0, 0, 0);
             const today = new Date();
             // eslint-disable-next-line no-constant-condition
             while (true) {
@@ -654,7 +653,6 @@ export class SkipPolicyEngine {
 
       case 'FROM_SUB_START': {
         const ref = entry.startDate ? new Date(entry.startDate) : new Date();
-        ref.setHours(0, 0, 0, 0);
         if (!policy.windowMonths) return ref.toISOString().slice(0, 10);
         // Walk forward in windowMonths increments from subscription start to find the current window
         const today = new Date();
