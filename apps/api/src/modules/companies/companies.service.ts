@@ -62,6 +62,13 @@ export class CompaniesService {
     return company;
   }
 
+  async findNames(): Promise<{ id: string; name: string }[]> {
+    return this.prisma.bookBoxCompany.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findAll(query: CompanyQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
 

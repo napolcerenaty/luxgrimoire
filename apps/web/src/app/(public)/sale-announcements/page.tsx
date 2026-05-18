@@ -30,11 +30,6 @@ interface ListSaleAnnouncement {
   regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
 }
 
-interface ListCompany {
-  id: string
-  name: string
-}
-
 function formatDate(iso: string | null) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -185,12 +180,11 @@ export default function SaleAnnouncementsPage() {
   const hasDateFilter = dateFrom || dateTo
   const hasFilters = debouncedSearch || companyId || hasDateFilter
 
-  const { data: companiesData, isLoading: companiesLoading } = useQuery<PaginatedResponse<ListCompany>>({
-    queryKey: ['companies-list-filter'],
-    queryFn: () => apiFetch('/companies?pageSize=100'),
+  const { data: companies = [], isLoading: companiesLoading } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['companies-names'],
+    queryFn: () => apiFetch('/companies/names'),
     staleTime: 5 * 60_000,
   })
-  const companies = companiesData?.data ?? []
 
   const {
     data,

@@ -35,6 +35,12 @@ export class CompaniesController {
   }
 
   @Public()
+  @Get('names')
+  findNames() {
+    return this.companiesService.findNames();
+  }
+
+  @Public()
   @Get(':slug/editions')
   getEditions(@Param('slug') slug: string) {
     return this.companiesService.getEditions(slug);
