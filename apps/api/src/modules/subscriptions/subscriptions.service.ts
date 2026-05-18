@@ -2061,8 +2061,15 @@ export class SubscriptionsService {
     });
     const policy = subWithPolicy?.skipPolicy ?? null;
 
+    const cancellationDateObj = entry.cancellationDate
+      ? (() => {
+          const parts = entry.cancellationDate.split('-').map(Number);
+          return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
+        })()
+      : null;
+
     if (startDateObj) {
-      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj);
+      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
         .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
