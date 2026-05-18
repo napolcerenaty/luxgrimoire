@@ -115,9 +115,6 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           </p>
         </div>
         <div className="flex justify-end items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
-          {sale.subscriberBasePrice != null && (
-            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-emerald-600/20 text-emerald-500 dark:text-emerald-400 border border-emerald-600/30">🏷 sub</span>
-          )}
           <SaleInterestButton
             sale={sale}
             subscriberBasePrice={sale.subscriberBasePrice}
