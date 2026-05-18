@@ -159,7 +159,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   />
                 ) : (
                   <>
-                    <SaleInterestButton sale={sale} />
+                    <SaleInterestButton sale={sale} subscriberBasePrice={sale.subscriberBasePrice} currency={sale.currency} />
                     {isInterested && saleOpen && (
                       <AddToCollectionButton
                         saleAnnouncementId={sale.id}
