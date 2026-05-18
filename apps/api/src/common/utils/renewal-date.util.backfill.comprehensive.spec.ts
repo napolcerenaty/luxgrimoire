@@ -845,4 +845,139 @@ describe('backfillRenewalHistory', () => {
       }
     });
   });
+
+  // ── Bundle subscription with renewalMonthOffset ───────────────────────────
+  //
+  // When renewalMonthOffset > 0, skip records are stored as BOX months.
+  // backfillRenewalHistory calls renewalMonthFromBoxMonth(year, month, -offset)
+  // to convert each skip record to its renewal month before passing to
+  // computePastRenewalDates.
+  //
+  // 2-month bundle (intervalMonths=2, startingMonth=1), offset=1:
+  //   Renewal months: Jan, Mar, May, Jul, Sep, Nov ...
+  //   Box months shift by +1:  first box of Jan bundle = Feb,
+  //                            first box of Mar bundle = Apr, etc.
+  //
+  // startDate=2025-01-01, now=2025-04-01 → past renewal months: Jan 1, Mar 1 = 2 dates
+
+  describe('bundle subscription with renewalMonthOffset', () => {
+    it('skip on FIRST box month of Jan bundle (box Feb, offset=1) → Jan renewal excluded → 1 date (Mar only)', async () => {
+      // Box Feb 2025 → renewalMonthFromBoxMonth(2025, 2, 1) = {2025, 1} = Jan renewal
+      // Skip record stored as month={ year:2025, month:2 } (box month)
+      // backfillRenewalHistory converts it to Jan 2025 → Jan renewal excluded
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2025-01-01',
+          skipRecords: [{ month: { year: 2025, month: 2 } }], // box Feb → renewal Jan
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0] as unknown[];
+      expect(txCall).toHaveLength(1); // only Mar 2025
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+      expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z'); // Jan renewal excluded
+      expect(upsertedDates).toContain('2025-03-01T00:00:00.000Z'); // Mar renewal still present
+    });
+
+    it('skip on SECOND box month of Jan bundle (box Mar, offset=1) → converted renewal Feb (non-aligned) → no effect → 2 dates', async () => {
+      // Box Mar 2025 → renewalMonthFromBoxMonth(2025, 3, 1) = {2025, 2} = Feb renewal
+      // Feb is not a renewal month (offset=(2-1)%12=1, 1%2=1 → not aligned)
+      // → skip has no effect; Jan and Mar 2025 both present
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2025-01-01',
+          skipRecords: [{ month: { year: 2025, month: 3 } }], // box Mar → renewal Feb (non-aligned)
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0] as unknown[];
+      expect(txCall).toHaveLength(2); // Jan + Mar 2025
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+      expect(upsertedDates).toContain('2025-01-01T00:00:00.000Z'); // Jan NOT excluded
+      expect(upsertedDates).toContain('2025-03-01T00:00:00.000Z'); // Mar also present
+    });
+
+    it('3-month bundle with offset=2: skip first box month of Jan quarter (box Mar, offset=2) → Jan renewal excluded', async () => {
+      // 3-month bundle (startingMonth=1, offset=2): renewal Jan → boxes are Mar,Apr,May
+      // Box Mar 2025 → renewalMonthFromBoxMonth(2025, 3, 2) = {2025, 1} = Jan renewal
+      // startDate=2025-01-01, now=2025-04-01, intervalMonths=3, startingMonth=1
+      // Past renewal months: Jan 2025 only (Apr 2025 >= now)
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2025-01-01',
+          skipRecords: [{ month: { year: 2025, month: 3 } }], // box Mar → renewal Jan
+          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 1, renewalMonthOffset: 2 },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      // Jan 2025 was the only past renewal, and it was skipped → $transaction NOT called
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('3-month bundle with offset=2: skip second box month (box Apr, offset=2) → converted renewal Feb (non-aligned) → no effect', async () => {
+      // Box Apr 2025 → renewalMonthFromBoxMonth(2025, 4, 2) = {2025, 2} = Feb renewal
+      // Feb offset=(2-1)%12=1, 1%3=1 → not aligned → no effect
+      // Jan 2025 renewal still present
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2025-01-01',
+          skipRecords: [{ month: { year: 2025, month: 4 } }], // box Apr → renewal Feb (non-aligned)
+          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 1, renewalMonthOffset: 2 },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0] as unknown[];
+      expect(txCall).toHaveLength(1); // Jan 2025 present
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+      expect(upsertedDates).toContain('2025-01-01T00:00:00.000Z'); // Jan NOT excluded
+    });
+
+    it('longer history with offset=1: 2-month bundle, startDate=2024-01-01, 2 skips on first box months → 6 dates out of 8', async () => {
+      // Aligned renewals Jan 2024 – Mar 2025: Jan,Mar,May,Jul,Sep,Nov 2024; Jan,Mar 2025 = 8 dates
+      // Skip first box of Mar 2024 bundle (box Apr 2024) → renewal Mar 2024 excluded
+      // Skip first box of Sep 2024 bundle (box Oct 2024) → renewal Sep 2024 excluded
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2024-01-01',
+          skipRecords: [
+            { month: { year: 2024, month: 4 } },  // box Apr → renewal Mar 2024
+            { month: { year: 2024, month: 10 } }, // box Oct → renewal Sep 2024
+          ],
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0] as unknown[];
+      expect(txCall).toHaveLength(6); // 8 - 2
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+      expect(upsertedDates).not.toContain('2024-03-01T00:00:00.000Z'); // Mar excluded
+      expect(upsertedDates).not.toContain('2024-09-01T00:00:00.000Z'); // Sep excluded
+      expect(upsertedDates).toContain('2024-01-01T00:00:00.000Z'); // Jan still present
+      expect(upsertedDates).toContain('2025-03-01T00:00:00.000Z'); // Mar 2025 still present
+    });
+  });
 });
