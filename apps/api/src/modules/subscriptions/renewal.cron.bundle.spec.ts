@@ -69,6 +69,8 @@ describe('RenewalCronService — bundle subscriptions', () => {
     (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+    // retroactivelyAddBookForSubscribers: no combo links by default
+    (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -410,13 +412,11 @@ describe('RenewalCronService — bundle subscriptions', () => {
     });
 
     it('adds book to existing bundle group when renewal exists and no skip', async () => {
-      (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({
-          renewalMonthOffset: 0,
-          isBundleSubscription: true,
-          intervalMonths: 3,
-        }) // directSub
-        .mockResolvedValueOnce({ parentSubscriptionId: null }); // for effectiveSubId lookup
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        renewalMonthOffset: 0,
+        isBundleSubscription: true,
+        intervalMonths: 3,
+      }); // directSub
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -451,8 +451,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
 
     it('skips entry when first month of bundle has an active skip', async () => {
       (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 })
-        .mockResolvedValueOnce({ parentSubscriptionId: null });
+        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 });
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -472,8 +471,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
 
     it('proceeds without skip check when bundle first month record does not exist', async () => {
       (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 })
-        .mockResolvedValueOnce({ parentSubscriptionId: null });
+        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 });
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -520,8 +518,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
       const mayMonthRecord = { id: 'sm-may', year: 2025, month: 5, signatureType: null };
 
       (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ renewalMonthOffset: 1, isBundleSubscription: true, intervalMonths: 3 })
-        .mockResolvedValueOnce({ parentSubscriptionId: null });
+        .mockResolvedValueOnce({ renewalMonthOffset: 1, isBundleSubscription: true, intervalMonths: 3 });
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -546,8 +543,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
 
     it('does not add book when it already exists in user collection', async () => {
       (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 })
-        .mockResolvedValueOnce({ parentSubscriptionId: null });
+        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 });
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -568,8 +564,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
 
     it('links new book to purchase group with null id when no existing group found', async () => {
       (prisma.subscription.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 })
-        .mockResolvedValueOnce({ parentSubscriptionId: null });
+        .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 });
 
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
         { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
@@ -717,6 +712,221 @@ describe('RenewalCronService — bundle subscriptions', () => {
       await service.retroactivelyAddBookForSubscribers('content-stream', aprilMonthRecord, bookToAdd);
 
       expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+    });
+
+    // =========================================================================
+    // Bug fix: effectiveSubId — content stream with bundle child
+    // =========================================================================
+    it('[bug fix] skip check uses content-stream months, not child bundle months', async () => {
+      // subscriptionId = content stream; child bundle sub uses the content stream's months.
+      // Before fix: effectiveSubId was set to child.id → looked up months on the wrong sub.
+      // After fix: effectiveSubId = subscriptionId (content stream) always.
+      const childBundleSubId = 'child-bundle-sub';
+      const contentStreamId = 'content-stream';
+
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: childBundleSubId, renewalMonthOffset: 0, isBundleSubscription: true, intervalMonths: 3 },
+      ]);
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        renewalMonthOffset: 0,
+        isBundleSubscription: false,
+        intervalMonths: 1,
+      }); // directSub = content stream (no bundle)
+
+      (prisma.userSubscriptionEntry.findMany as jest.Mock)
+        .mockResolvedValueOnce([]) // content stream direct entries: none
+        .mockResolvedValueOnce([{ id: 'entry-child-1', userId: 'user-bundle', costCurrency: 'GBP' }]);
+
+      (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+        renewalDate: aprilRenewalDate,
+      });
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'sm-april' });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-bundle' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await service.retroactivelyAddBookForSubscribers(contentStreamId, aprilMonthRecord, bookToAdd);
+
+      // Skip check MUST use contentStreamId (subscriptionId parameter), not child bundle id
+      const skipMonthCall = (prisma.subscriptionMonth.findUnique as jest.Mock).mock.calls[0][0];
+      expect(skipMonthCall.where.subscriptionId_year_month.subscriptionId).toBe(contentStreamId);
+      expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(1);
+    });
+
+    // =========================================================================
+    // Bug fix: combo subscriptions — retroactive add
+    // =========================================================================
+    describe('retroactivelyAddBookForSubscribers — combo subscription', () => {
+      const aprilMonthRecord = { id: 'sm-april', year: 2025, month: 4, signatureType: null };
+      const bookToAdd = { bookId: 'b-combo', editionId: 'e-combo', signatureType: null };
+
+      it('adds book to combo subscriber when component month is added', async () => {
+        // subscriptionId = component sub; combo-sub has this component
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]); // no child subs
+        (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+          renewalMonthOffset: 0,
+          isBundleSubscription: false,
+          intervalMonths: 1,
+        }); // direct sub
+
+        // No direct subscribers
+        (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+        // Combo link: combo-sub includes component-sub
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-sub' },
+        ]);
+        // Combo sub offset
+        (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ renewalMonthOffset: 0 });
+        // Combo subscriber
+        (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
+          { id: 'entry-combo-1', userId: 'user-combo', costCurrency: 'USD' },
+        ]);
+        // Combo user had a renewal in April
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+          id: 'renewal-1',
+        });
+        // Existing purchase group for April
+        (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-april' });
+        // Book not yet in collection
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              userId: 'user-combo',
+              bookId: 'b-combo',
+              editionId: 'e-combo',
+              purchaseGroupId: 'pg-april',
+            }),
+          }),
+        );
+      });
+
+      it('does not add book to combo subscriber when no renewal exists in the month window', async () => {
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.subscription.findUnique as jest.Mock)
+          .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: false, intervalMonths: 1 })
+          .mockResolvedValueOnce({ renewalMonthOffset: 0 }); // combo sub offset
+
+        (prisma.userSubscriptionEntry.findMany as jest.Mock)
+          .mockResolvedValueOnce([]) // direct
+          .mockResolvedValueOnce([{ id: 'entry-combo-1', userId: 'user-combo', costCurrency: 'USD' }]);
+
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-sub' },
+        ]);
+        // No renewal in window
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+      });
+
+      it('does not add book when already in combo subscriber collection', async () => {
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.subscription.findUnique as jest.Mock)
+          .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: false, intervalMonths: 1 })
+          .mockResolvedValueOnce({ renewalMonthOffset: 0 });
+
+        (prisma.userSubscriptionEntry.findMany as jest.Mock)
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 'entry-combo-1', userId: 'user-combo', costCurrency: 'USD' }]);
+
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-sub' },
+        ]);
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'r1' });
+        (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
+        // Book ALREADY in collection
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existing-1' });
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+      });
+
+      it('combo sub with offset=1: uses correct renewal window (March renewal for April box)', async () => {
+        // component month = April (box), combo sub has offset=1
+        // renewalMonth = April - 1 = March → look for renewal in March window
+        const marchRenewalDate = new Date(Date.UTC(2025, 2, 1));
+
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.subscription.findUnique as jest.Mock)
+          .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: false, intervalMonths: 1 })
+          .mockResolvedValueOnce({ renewalMonthOffset: 1 }); // combo sub has offset=1
+
+        (prisma.userSubscriptionEntry.findMany as jest.Mock)
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 'entry-combo-1', userId: 'user-combo', costCurrency: 'USD' }]);
+
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-sub' },
+        ]);
+        // Renewal in March window
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+          id: 'r1',
+          renewalDate: marchRenewalDate,
+        });
+        (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-march' });
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        // Verify renewal was looked up in March window (offset=1 → renewalMonth = 4-1 = 3)
+        const renewalQuery = (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mock.calls[0][0];
+        const windowStart: Date = renewalQuery.where.renewalDate.gte;
+        expect(windowStart.getUTCMonth()).toBe(2); // March = index 2
+        expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ userId: 'user-combo', purchaseGroupId: 'pg-march' }),
+          }),
+        );
+      });
+
+      it('handles multiple combo subs containing the same component', async () => {
+        // Two different combo subs both include the same component
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.subscription.findUnique as jest.Mock)
+          .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: false, intervalMonths: 1 })
+          .mockResolvedValueOnce({ renewalMonthOffset: 0 }) // combo-1 offset
+          .mockResolvedValueOnce({ renewalMonthOffset: 0 }); // combo-2 offset
+
+        (prisma.userSubscriptionEntry.findMany as jest.Mock)
+          .mockResolvedValueOnce([]) // direct
+          .mockResolvedValueOnce([{ id: 'entry-c1', userId: 'user-a', costCurrency: 'USD' }])
+          .mockResolvedValueOnce([{ id: 'entry-c2', userId: 'user-b', costCurrency: 'USD' }]);
+
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-1' },
+          { comboId: 'combo-2' },
+        ]);
+
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock)
+          .mockResolvedValueOnce({ id: 'r1' })
+          .mockResolvedValueOnce({ id: 'r2' });
+
+        (prisma.userPurchaseGroup.findFirst as jest.Mock)
+          .mockResolvedValueOnce({ id: 'pg-a' })
+          .mockResolvedValueOnce({ id: 'pg-b' });
+
+        (prisma.userBookEntry.findFirst as jest.Mock)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(2);
+        expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ userId: 'user-a' }) }),
+        );
+        expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ userId: 'user-b' }) }),
+        );
+      });
     });
   });
 
