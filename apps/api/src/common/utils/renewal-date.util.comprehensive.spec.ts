@@ -5,12 +5,19 @@
  * Some tests override this with inline jest.setSystemTime().
  *
  * Subscription types covered:
- *  - monthly          (intervalMonths=1, startingMonth=null)
- *  - bimonthly        (intervalMonths=2, startingMonth varies)
- *  - quarterly        (intervalMonths=3, startingMonth varies)
- *  - semi-annual      (intervalMonths=6, startingMonth varies)
- *  - annual           (intervalMonths=12, startingMonth varies)
- *  - monthly + bundle (monthly + paidUpFrontDate — paymentOnStartup flow)
+ *  - monthly           (intervalMonths=1, startingMonth=null)
+ *  - bimonthly         (intervalMonths=2, startingMonth varies)
+ *  - quarterly         (intervalMonths=3, startingMonth varies)
+ *  - 4-month interval  (intervalMonths=4, startingMonth varies)
+ *  - semi-annual       (intervalMonths=6, startingMonth varies)
+ *  - annual            (intervalMonths=12, startingMonth varies)
+ *  - bundle subscription (isBundleSubscription=true, intervalMonths=2/3/4)
+ *    → renewal schedule is identical to the matching multi-month interval;
+ *      the "bundle" distinction is purely in addBooksForBundleMonths (one
+ *      purchase group + one shipment covering all months in the window)
+ *  - paymentOnStartup  (monthly/multi-month + paidUpFrontDate)
+ *    → first payment made at signup covers a specific month; that month is
+ *      skipped when computing the next renewal date
  */
 import { computeNextRenewalDate, computePastRenewalDates } from './renewal-date.util';
 
@@ -188,6 +195,101 @@ describe('computeNextRenewalDate — comprehensive', () => {
   });
 
   // ─────────────────────────────────────────────
+  // 4-MONTH INTERVAL  (intervalMonths=4)
+  // ─────────────────────────────────────────────
+  describe('4-month interval (intervalMonths=4)', () => {
+    // Alignment formula: offset = ((month - startingMonth) % 12 + 12) % 12
+    // Aligned when offset % 4 === 0.
+    // startingMonth=1 → aligned: Jan(0), May(4), Sep(8)
+    // startingMonth=3 → aligned: Mar(0), Jul(4), Nov(8)
+
+    it('startingMonth=1 (Jan/May/Sep): now=Mar 15 in non-aligned month → next aligned is May 1', () => {
+      // Mar: offset=2, 2%4=2 → skip. Apr: offset=3 → skip. May: offset=4, 4%4=0 → aligned.
+      // May 1 2025 > now → return.
+      expect(computeNextRenewalDate(1, 4, 1, null)).toEqual(d(2025, 5, 1));
+    });
+
+    it('startingMonth=3 (Mar/Jul/Nov): now=Mar 15, renewalDay=20 not passed → this month', () => {
+      // Mar: offset=0, 0%4=0 → aligned. renewalDay=20 → Mar 20 > now → return.
+      expect(computeNextRenewalDate(20, 4, 3, null)).toEqual(d(2025, 3, 20));
+    });
+
+    it('startingMonth=3: renewal day already passed → next aligned is July', () => {
+      // Mar 10 < now. Apr: offset=1 → skip. May: offset=2 → skip. Jun: offset=3 → skip.
+      // Jul: offset=4, 4%4=0 → aligned. Jul 10 > now → return.
+      expect(computeNextRenewalDate(10, 4, 3, null)).toEqual(d(2025, 7, 10));
+    });
+
+    it('startingMonth=1: skip the upcoming aligned month (May) → jumps to Sep', () => {
+      // May is next aligned but skipped → Sep 1 2025
+      const result = computeNextRenewalDate(1, 4, 1, null, [{ year: 2025, month: 5 }]);
+      expect(result).toEqual(d(2025, 9, 1));
+    });
+
+    it('year boundary: Sep day passed → Jan next year (startingMonth=1)', () => {
+      jest.setSystemTime(new Date('2025-09-20T12:00:00Z'));
+      // Sep: offset=8, 8%4=0 → aligned. Sep 15 < Sep 20 → passed.
+      // Oct: offset=9 → skip. Nov: offset=10 → skip. Dec: offset=11 → skip.
+      // Jan 2026: offset=0 → aligned. Jan 1 2026 > now → return.
+      expect(computeNextRenewalDate(15, 4, 1, null)).toEqual(d(2026, 1, 15));
+    });
+
+    it('startingMonth=2 (Feb/Jun/Oct): now=Mar → next aligned is Jun', () => {
+      // Mar: offset=(3-2)=1, 1%4=1 → skip. Apr: offset=2 → skip. May: offset=3 → skip.
+      // Jun: offset=4, 4%4=0 → aligned. Jun 1 > now → return.
+      expect(computeNextRenewalDate(1, 4, 2, null)).toEqual(d(2025, 6, 1));
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // BUNDLE SUBSCRIPTION  (isBundleSubscription=true)
+  // One payment + one shipment covering intervalMonths months.
+  // computeNextRenewalDate is not aware of the "bundle" flag —
+  // it uses intervalMonths only. Bundle-specific logic (collecting
+  // books from all window months into one purchase group) lives in
+  // addBooksForBundleMonths. Tests here confirm the renewal schedule.
+  // ─────────────────────────────────────────────
+  describe('bundle subscription — renewal schedule (driven by intervalMonths)', () => {
+    it('2-month bundle (intervalMonths=2, startingMonth=1): Jan/Mar/May — same as bimonthly', () => {
+      // Mar aligned, renewalDay=20 not passed → Mar 20
+      expect(computeNextRenewalDate(20, 2, 1, null)).toEqual(d(2025, 3, 20));
+    });
+
+    it('3-month bundle (intervalMonths=3, startingMonth=1): Jan/Apr/Jul — same as quarterly', () => {
+      // Mar not aligned → next is Apr 1
+      expect(computeNextRenewalDate(1, 3, 1, null)).toEqual(d(2025, 4, 1));
+    });
+
+    it('4-month bundle (intervalMonths=4, startingMonth=1): Jan/May/Sep → next is May', () => {
+      expect(computeNextRenewalDate(1, 4, 1, null)).toEqual(d(2025, 5, 1));
+    });
+
+    it('2-month bundle: skipping the upcoming aligned month defers by one full interval (2 months)', () => {
+      // startingMonth=1. Mar aligned, renewalDay=20 (future). Skip Mar → May 20.
+      const result = computeNextRenewalDate(20, 2, 1, null, [{ year: 2025, month: 3 }]);
+      expect(result).toEqual(d(2025, 5, 20));
+    });
+
+    it('3-month bundle: skipping one cycle defers by one full interval (3 months)', () => {
+      // startingMonth=1, skip Apr → Jul 1
+      const result = computeNextRenewalDate(1, 3, 1, null, [{ year: 2025, month: 4 }]);
+      expect(result).toEqual(d(2025, 7, 1));
+    });
+
+    it('4-month bundle: skipping one cycle defers by one full interval (4 months)', () => {
+      // startingMonth=3, skip Jul 2025 → Nov 1 2025
+      const result = computeNextRenewalDate(1, 4, 3, null, [{ year: 2025, month: 7 }]);
+      expect(result).toEqual(d(2025, 11, 1));
+    });
+
+    it('bundle subscription does NOT bill in non-aligned months — they are skipped by alignment', () => {
+      // 3-month bundle startingMonth=1. Non-aligned months (Feb, Mar) are never returned.
+      // Apr 1 is the first upcoming renewal — user will be charged only then.
+      expect(computeNextRenewalDate(1, 3, 1, null)).toEqual(d(2025, 4, 1));
+    });
+  });
+
+  // ─────────────────────────────────────────────
   // SEMI-ANNUAL  (intervalMonths=6)
   // ─────────────────────────────────────────────
   describe('semi-annual (intervalMonths=6)', () => {
@@ -252,9 +354,11 @@ describe('computeNextRenewalDate — comprehensive', () => {
   });
 
   // ─────────────────────────────────────────────
-  // MONTHLY + BUNDLE  (paymentOnStartup → paidUpFrontDate)
+  // PAYMENT ON STARTUP  (paymentOnStartup=true → paidUpFrontDate)
+  // A specific month was already paid at signup; skip it when computing
+  // the next renewal. This is a separate concern from bundle subscriptions.
   // ─────────────────────────────────────────────
-  describe('monthly with bundle / paidUpFrontDate (paymentOnStartup)', () => {
+  describe('paymentOnStartup — paidUpFrontDate skips the already-paid month', () => {
     it('paidUpFrontDate in current month → skip this month, return next', () => {
       // User signed up mid-March, March box already paid at signup
       // paidUpFrontDate = Mar 20 2025 → skip March → Apr 20
@@ -454,6 +558,59 @@ describe('computePastRenewalDates — comprehensive', () => {
       // startingMonth=1: skip Jul 2024 → [Jan 2024, Jan 2025]
       const result = computePastRenewalDates(15, 6, 1, d(2024, 1, 1), [{ year: 2024, month: 7 }]);
       expect(result).toEqual([d(2024, 1, 15), d(2025, 1, 15)]);
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // 4-MONTH INTERVAL  (intervalMonths=4)
+  // ─────────────────────────────────────────────
+  describe('4-month interval (intervalMonths=4)', () => {
+    // startingMonth=1 → aligned: Jan(0), May(4), Sep(8)
+    // startDate=2024-01-01, now=2025-03-15T12:00Z
+    // Jan 2024, May 2024, Sep 2024, Jan 2025 all < now.
+    // May 2025 >= now → stops. → 4 dates.
+
+    it('startingMonth=1 (Jan/May/Sep): Jan 2024, May 2024, Sep 2024, Jan 2025 qualify', () => {
+      const result = computePastRenewalDates(1, 4, 1, d(2024, 1, 1), []);
+      expect(result).toEqual([
+        d(2024, 1, 1),
+        d(2024, 5, 1),
+        d(2024, 9, 1),
+        d(2025, 1, 1),
+      ]);
+    });
+
+    it('non-aligned months are never included', () => {
+      const result = computePastRenewalDates(1, 4, 1, d(2024, 1, 1), []);
+      const months = result.map((r) => r.getUTCMonth() + 1);
+      for (const m of months) {
+        // Aligned months for startingMonth=1, interval=4: offset=(m-1)%12 must be 0,4,8
+        const offset = ((m - 1) % 12 + 12) % 12;
+        expect(offset % 4).toBe(0);
+      }
+    });
+
+    it('startingMonth=3 (Mar/Jul/Nov): Mar 2024, Jul 2024, Nov 2024 qualify; Mar 2025 day=1 qualifies', () => {
+      // Mar 1 2025 < now(Mar 15). Jul 2025 >= now → stops.
+      const result = computePastRenewalDates(1, 4, 3, d(2024, 3, 1), []);
+      expect(result).toEqual([
+        d(2024, 3, 1),
+        d(2024, 7, 1),
+        d(2024, 11, 1),
+        d(2025, 3, 1),
+      ]);
+    });
+
+    it('skip one 4-month cycle → excluded', () => {
+      // startingMonth=1, skip Sep 2024 → [Jan 2024, May 2024, Jan 2025]
+      const result = computePastRenewalDates(1, 4, 1, d(2024, 1, 1), [{ year: 2024, month: 9 }]);
+      expect(result).toEqual([d(2024, 1, 1), d(2024, 5, 1), d(2025, 1, 1)]);
+    });
+
+    it('startDate between aligned months → first result is the first aligned date ≥ startDate', () => {
+      // startDate=Mar 1 2024; startingMonth=1. Mar not aligned (offset=2). May 2024 is first.
+      const result = computePastRenewalDates(1, 4, 1, d(2024, 3, 1), []);
+      expect(result).toEqual([d(2024, 5, 1), d(2024, 9, 1), d(2025, 1, 1)]);
     });
   });
 
