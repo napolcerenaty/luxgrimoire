@@ -185,7 +185,7 @@ export default function SaleAnnouncementsPage() {
   const hasDateFilter = dateFrom || dateTo
   const hasFilters = debouncedSearch || companyId || hasDateFilter
 
-  const { data: companiesData } = useQuery<PaginatedResponse<ListCompany>>({
+  const { data: companiesData, isLoading: companiesLoading } = useQuery<PaginatedResponse<ListCompany>>({
     queryKey: ['companies-list-filter'],
     queryFn: () => apiFetch('/companies?pageSize=200'),
     staleTime: 5 * 60_000,
@@ -260,31 +260,38 @@ export default function SaleAnnouncementsPage() {
         <select
           value={companyId}
           onChange={(e) => setCompanyId(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
+          disabled={companiesLoading}
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px] disabled:opacity-60"
         >
-          <option value="">All companies</option>
+          <option value="">{companiesLoading ? 'Loading…' : 'All companies'}</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
 
         {/* Date from */}
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          title="Date from (FA / EA / GS)"
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
-        />
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+          <span className="shrink-0 text-stone-500 text-xs">From</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            title="First Access / Early Access / General Sale date from"
+            className="bg-transparent text-stone-300 focus:outline-none"
+          />
+        </label>
 
         {/* Date to */}
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          title="Date to (FA / EA / GS)"
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
-        />
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+          <span className="shrink-0 text-stone-500 text-xs">To</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            title="First Access / Early Access / General Sale date to"
+            className="bg-transparent text-stone-300 focus:outline-none"
+          />
+        </label>
 
         {/* View toggle */}
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
