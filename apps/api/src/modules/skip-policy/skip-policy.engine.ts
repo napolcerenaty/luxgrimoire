@@ -653,10 +653,19 @@ export class SkipPolicyEngine {
       }
 
       case 'FROM_SUB_START': {
-        const ref = entry.startDate
-          ? new Date(entry.startDate)
-          : new Date();
-        return ref.toISOString().slice(0, 10);
+        const ref = entry.startDate ? new Date(entry.startDate) : new Date();
+        ref.setHours(0, 0, 0, 0);
+        if (!policy.windowMonths) return ref.toISOString().slice(0, 10);
+        // Walk forward in windowMonths increments from subscription start to find the current window
+        const today = new Date();
+        let windowStart = new Date(ref);
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const windowEnd = new Date(windowStart);
+          windowEnd.setMonth(windowEnd.getMonth() + policy.windowMonths);
+          if (today < windowEnd) return windowStart.toISOString().slice(0, 10);
+          windowStart = windowEnd;
+        }
       }
 
       default:
