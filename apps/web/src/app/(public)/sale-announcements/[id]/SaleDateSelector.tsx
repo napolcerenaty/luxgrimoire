@@ -104,9 +104,7 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
 
   const hasRegions = regions.length > 0
 
-  const autoRegion = userCountry
-    ? findRegion(regions, userCountry)
-    : findRegion(regions, null, user?.preferredCurrency)
+  const autoRegion = findRegion(regions, user?.shippingCountry ?? userCountry, user?.preferredCurrency)
   const effectiveRegionId = selectedRegionId ?? autoRegion?.id ?? regions.find(r => r.isDefault)?.id ?? regions[0]?.id ?? null
   const region = regions.find(r => r.id === effectiveRegionId) ?? null
 
@@ -155,8 +153,8 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
           </select>
           {autoRegion && !selectedRegionId && (
             <p className="text-xs text-stone-500 mt-1">
-              {userCountry
-                ? `Suggested based on your country (${userCountry})`
+              {(user?.shippingCountry || userCountry)
+                ? `Suggested based on your country (${user?.shippingCountry ?? userCountry})`
                 : `Suggested based on your currency (${user?.preferredCurrency})`}
             </p>
           )}
