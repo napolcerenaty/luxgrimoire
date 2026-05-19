@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
@@ -332,21 +332,38 @@ export class AiService {
       });
     }
 
-    const response = await this.client.chat.completions.create({
+    const content = await this.callOpenAi({
       model: 'gpt-4o',
       messages,
       response_format: { type: 'json_object' },
       max_tokens: 1200,
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new BadRequestException('No response from AI model');
-
     try {
       return JSON.parse(content) as AiParseResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
+  }
+
+  private async callOpenAi(params: Parameters<OpenAI['chat']['completions']['create']>[0]): Promise<string> {
+    let response: OpenAI.Chat.Completions.ChatCompletion;
+    try {
+      response = await this.client!.chat.completions.create(params) as OpenAI.Chat.Completions.ChatCompletion;
+    } catch (err: unknown) {
+      if (err instanceof OpenAI.APIError) {
+        this.logger.error(`OpenAI API error: ${err.status} ${err.message}`);
+        if (err.status === 401) throw new BadRequestException('OpenAI API key is invalid or expired');
+        if (err.status === 429) throw new BadRequestException('OpenAI rate limit or quota exceeded');
+        if (err.status === 503 || err.status === 502) throw new InternalServerErrorException('OpenAI service temporarily unavailable');
+        throw new InternalServerErrorException(`OpenAI error: ${err.message}`);
+      }
+      this.logger.error('Unexpected error calling OpenAI', err);
+      throw new InternalServerErrorException('Unexpected error calling AI service');
+    }
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new BadRequestException('No response from AI model');
+    return content;
   }
 
   private guardSsrf(rawUrl: string): URL {
@@ -457,15 +474,12 @@ export class AiService {
       { role: 'user', content: userContent },
     ];
 
-    const response = await this.client.chat.completions.create({
+    const content = await this.callOpenAi({
       model: 'gpt-4o',
       messages,
       response_format: { type: 'json_object' },
       max_tokens: 2000,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new BadRequestException('No response from AI model');
 
     try {
       return JSON.parse(content) as AiSaleAnnouncementResult;
@@ -484,15 +498,12 @@ export class AiService {
       { role: 'user', content: `Extract book information from this Goodreads text:\n\n${text.slice(0, 8_000)}` },
     ];
 
-    const response = await this.client.chat.completions.create({
+    const content = await this.callOpenAi({
       model: 'gpt-4o-mini',
       messages,
       response_format: { type: 'json_object' },
       max_tokens: 800,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new BadRequestException('No response from AI model');
 
     try {
       return JSON.parse(content) as AiBookResult;

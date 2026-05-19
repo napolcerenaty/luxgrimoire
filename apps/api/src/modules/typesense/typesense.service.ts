@@ -99,6 +99,7 @@ export class TypesenseService implements OnModuleInit {
       nodes: [{ host, port, protocol: 'http' }],
       apiKey,
       connectionTimeoutSeconds: 2,
+      numRetries: 0,
     })
 
     void this.initCollections()

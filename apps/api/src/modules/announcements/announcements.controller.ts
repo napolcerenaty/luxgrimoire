@@ -19,6 +19,9 @@ export class AnnouncementsController {
     @Query('upcoming') upcoming?: string,
     @Query('search') search?: string,
     @Query('sort') sort?: string,
+    @Query('companyId') companyId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.announcementsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
@@ -26,6 +29,9 @@ export class AnnouncementsController {
       upcoming: upcoming === 'true',
       search,
       sort: sort === 'date' ? 'date' : 'recent',
+      companyId,
+      dateFrom,
+      dateTo,
     });
   }
 

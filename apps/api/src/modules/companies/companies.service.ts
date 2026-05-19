@@ -9,6 +9,7 @@ import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
+import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
@@ -60,6 +61,20 @@ export class CompaniesService {
     });
     await this.indexCompany(company);
     return company;
+  }
+
+  async findNames(): Promise<{ id: string; name: string }[]> {
+    return this.prisma.bookBoxCompany.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findAllBrandColors(): Promise<{ slug: string; brandColors: string[] }[]> {
+    return this.prisma.bookBoxCompany.findMany({
+      select: { slug: true, brandColors: true },
+      orderBy: { slug: 'asc' },
+    });
   }
 
   async findAll(query: CompanyQueryDto) {
@@ -222,8 +237,7 @@ export class CompaniesService {
     deletedAnnouncementImages: number;
     errors: string[];
   }> {
-    const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug } });
-    if (!company) throw new NotFoundException('Company not found');
+    const company = await findBySlugOrThrow(this.prisma.bookBoxCompany, slug, 'Company');
 
     const BATCH = 50;
     const errors: string[] = [];

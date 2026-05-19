@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { Megaphone, Search, LayoutGrid, List } from 'lucide-react'
+import { Megaphone, Search, LayoutGrid, List, X } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -25,9 +26,9 @@ interface ListSaleAnnouncement {
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
-  company: { name: string; brandColors?: string[] } | null
+  company: { name: string; slug?: string | null; brandColors?: string[] } | null
   editions: Array<{ edition: { additionalImages: string[] } | null }>
-  regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
+  regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; countryCodes: string; currency: string | null }>
 }
 
 function formatDate(iso: string | null) {
@@ -40,6 +41,8 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_600,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   return (
     <Link
@@ -57,7 +60,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
           />
         ) : (
           <div className="relative w-full h-full flex items-center justify-center text-stone-600">
-            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(a.company?.brandColors)} />
+            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(brandColors)} />
             <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-stone-300">
               {a.title}
             </p>
@@ -119,6 +122,8 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const thumb = cover ? cloudinaryUrl(cover, 'w_80,h_80,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   return (
     <Link
@@ -132,7 +137,7 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
           <img src={thumb} alt={a.title} className="w-full h-full object-cover" />
         ) : (
           <>
-            <div className="absolute inset-0 opacity-20" style={brandGradientStyle(a.company?.brandColors)} />
+            <div className="absolute inset-0 opacity-20" style={brandGradientStyle(brandColors)} />
             <p className="relative z-10 font-serif text-center text-[10px] leading-tight px-1 line-clamp-3 text-stone-300">
               {a.title}
             </p>
@@ -172,7 +177,19 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
 export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [companyId, setCompanyId] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const debouncedSearch = useDebounce(search, 300)
+
+  const hasDateFilter = dateFrom || dateTo
+  const hasFilters = debouncedSearch || companyId || hasDateFilter
+
+  const { data: companies = [], isLoading: companiesLoading } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['companies-names'],
+    queryFn: () => apiFetch('/companies/names'),
+    staleTime: 5 * 60_000,
+  })
 
   const {
     data,
@@ -181,15 +198,18 @@ export default function SaleAnnouncementsPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ['sale-announcements', 'upcoming', debouncedSearch],
+    queryKey: ['sale-announcements', 'list', debouncedSearch, companyId, dateFrom, dateTo],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({
         pageSize: String(PAGE_SIZE),
-        upcoming: 'true',
         sort: 'date',
         page: String(pageParam),
       })
+      if (!hasDateFilter) params.set('upcoming', 'true')
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+      if (companyId) params.set('companyId', companyId)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
       return apiFetch<PaginatedResponse<ListSaleAnnouncement>>(`/announcements?${params}`)
     },
     initialPageParam: 1,
@@ -199,6 +219,13 @@ export default function SaleAnnouncementsPage() {
 
   const announcements = data?.pages.flatMap((p) => p.data) ?? []
   const isEmpty = !isLoading && announcements.length === 0
+
+  function clearFilters() {
+    setSearch('')
+    setCompanyId('')
+    setDateFrom('')
+    setDateTo('')
+  }
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
@@ -215,9 +242,10 @@ export default function SaleAnnouncementsPage() {
         </Link>
       </div>
 
-      {/* Search + view toggle */}
-      <div className="flex gap-3 mb-8">
-        <div className="relative flex-1">
+      {/* Filters row */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
           <input
             value={search}
@@ -226,6 +254,45 @@ export default function SaleAnnouncementsPage() {
             className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
           />
         </div>
+
+        {/* Company filter */}
+        <select
+          value={companyId}
+          onChange={(e) => setCompanyId(e.target.value)}
+          disabled={companiesLoading}
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px] disabled:opacity-60"
+        >
+          <option value="">{companiesLoading ? 'Loading…' : 'All companies'}</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Date from */}
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+          <span className="shrink-0 text-stone-500 text-xs">From</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            title="First Access / Early Access / General Sale date from"
+            className="bg-transparent text-stone-300 focus:outline-none"
+          />
+        </label>
+
+        {/* Date to */}
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+          <span className="shrink-0 text-stone-500 text-xs">To</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            title="First Access / Early Access / General Sale date to"
+            className="bg-transparent text-stone-300 focus:outline-none"
+          />
+        </label>
+
+        {/* View toggle */}
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
           <button
             onClick={() => setView('grid')}
@@ -244,6 +311,20 @@ export default function SaleAnnouncementsPage() {
         </div>
       </div>
 
+      {/* Active filters + clear */}
+      {hasFilters && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <span className="text-xs text-stone-500">Active filters:</span>
+          {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
+          {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
+          {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
+          {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
+          <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">
+            <X size={12} /> Clear all
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
@@ -253,8 +334,8 @@ export default function SaleAnnouncementsPage() {
       ) : isEmpty ? (
         <div className="text-center py-20 text-stone-500">
           <Megaphone size={40} className="mx-auto mb-4 opacity-30" />
-          <p className="text-lg">{search ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
-          {!search && (
+          <p className="text-lg">{hasFilters ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
+          {!hasFilters && (
             <p className="text-sm mt-2">
               Spotted one?{' '}
               <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">

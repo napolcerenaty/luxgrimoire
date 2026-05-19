@@ -68,7 +68,7 @@ if (-not $ApiOnly) {
   Kill-Port 3000
   Start-Sleep -Milliseconds 500
   Write-Host "==> Starting Web..."
-  Start-Process -FilePath "node_modules\.bin\next" -ArgumentList "start","--port","3000" `
+  Start-Process -FilePath "node_modules\.bin\next" -ArgumentList "dev","--port","3000" `
     -WorkingDirectory "$root\apps\web" -WindowStyle Hidden
 }
 

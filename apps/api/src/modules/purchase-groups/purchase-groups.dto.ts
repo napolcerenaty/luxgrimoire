@@ -30,6 +30,10 @@ export class CreatePurchaseGroupDto {
 
   @IsString()
   @IsOptional()
+  orderNumber?: string;
+
+  @IsString()
+  @IsOptional()
   ownershipStatus?: string;
 
   @IsBoolean()

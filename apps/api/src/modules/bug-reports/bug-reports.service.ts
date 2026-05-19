@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { paginatedQuery } from '../../common/prisma.utils';
 
 @Injectable()
 export class BugReportsService {
@@ -41,18 +42,14 @@ export class BugReportsService {
 
   findAll(page = 1, pageSize = 30, status?: string) {
     const where = status ? { status } : {};
-    return Promise.all([
-      this.prisma.bugReport.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          user: { select: { id: true, username: true, email: true } },
-        },
+    return paginatedQuery(
+      page, pageSize,
+      (skip, take) => this.prisma.bugReport.findMany({
+        where, orderBy: { createdAt: 'desc' }, skip, take,
+        include: { user: { select: { id: true, username: true, email: true } } },
       }),
-      this.prisma.bugReport.count({ where }),
-    ]).then(([items, total]) => ({ items, total, page, pageSize }));
+      () => this.prisma.bugReport.count({ where }),
+    );
   }
 
   async updateStatus(id: string, status: string) {

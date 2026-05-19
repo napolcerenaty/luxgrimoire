@@ -359,6 +359,7 @@ model Subscription {
   renewalMonthOffset            Int                          @default(0)
   signupIncludesCurrentMonth    Boolean                      @default(false)
   priceChanges             SubscriptionPriceChange[]
+  settingsHistory          SubscriptionSettingsHistory[]
   comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
   comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")
   months               SubscriptionMonth[]
@@ -751,7 +752,7 @@ model UserSubscriptionMembershipHistory {
   id                 String    @id @default(uuid())
   userId             String
   subscriptionId     String
-  entryId            String
+  entryId            String?
   startDate          String?
   endDate            String?
   cancellationReason String?
@@ -759,7 +760,7 @@ model UserSubscriptionMembershipHistory {
 
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription       Subscription @relation(fields: [subscriptionId], references: [id])
-  entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry              UserSubscriptionEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
 
   @@index([userId, subscriptionId])
   @@index([userId])
@@ -808,6 +809,33 @@ model UserSubscriptionCostChange {
 }
 
 /// Subscription-level base price changes set by admin, effective from a given month.
+/// Tracks historical changes to subscription renewal/billing settings.
+/// Used by backfill to reconstruct the correct renewalDate for each past month
+/// based on settings that were in effect at that time (renewalDay, offset, etc.).
+model SubscriptionSettingsHistory {
+  id             String   @id @default(uuid())
+  subscriptionId String
+
+  /// When this configuration took effect (UTC, first day of effect)
+  effectiveFrom  DateTime
+
+  /// null = renewalDayUserSet mode (each subscriber uses their own sign-up day)
+  renewalDay                 Int?
+  renewalDayUserSet          Boolean
+  paymentOnStartup           Boolean
+  signupIncludesCurrentMonth Boolean
+  renewalMonthOffset         Int
+
+  changedBy  String?  /// userId of admin who made the change (for audit)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, effectiveFrom])
+  @@map("subscription_settings_history")
+}
+
 model SubscriptionPriceChange {
   id              String       @id @default(uuid())
   subscriptionId  String

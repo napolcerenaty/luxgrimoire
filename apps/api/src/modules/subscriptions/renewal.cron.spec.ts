@@ -177,6 +177,8 @@ describe('RenewalCronService', () => {
         isBundleSubscription: false,
         intervalMonths: 1,
       });
+      // Default: no combo links (avoids "comboLinks is not iterable")
+      (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     it('returns early when book.editionId is null', async () => {

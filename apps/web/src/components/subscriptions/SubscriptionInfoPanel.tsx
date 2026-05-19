@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints, removeMySubscriptionEntry } from '@/lib/api'
+import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
 import type { CountryFeeHint } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
+import { CancelSubscriptionModal } from './CancelSubscriptionModal'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import SkipStatusPanel from '@/components/SkipStatusPanel'
 import { useModalState } from '@/hooks/useModalState'
@@ -111,7 +112,6 @@ export default function SubscriptionInfoPanel({
   const { isOpen: showJoinModal, open: openJoinModal, close: closeJoinModal } = useModalState()
   const { isOpen: showEditCosts, open: openEditCosts, close: closeEditCosts } = useModalState()
   const { isOpen: showCancelModal, open: openCancelModal, close: closeCancelModal } = useModalState()
-  const { isOpen: showRemoveModal, open: openRemoveModal, close: closeRemoveModal } = useModalState()
   const [countryFeeHints, setCountryFeeHints] = useState<CountryFeeHint[]>([])
   const [allPriceChanges, setAllPriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
 
@@ -407,9 +407,6 @@ export default function SubscriptionInfoPanel({
               <p className="text-2xl font-serif font-semibold text-stone-100">
                 {parseFloat(preferredCurrencyPrice).toFixed(2)} <span className="text-base font-normal text-stone-400">{userCurrency}/mo</span>
               </p>
-              <p className="text-xs text-stone-500 mt-0.5">
-                🟢 Official {userCurrency} price · {parseFloat(price).toFixed(2)} {currency}/mo listed
-              </p>
             </>
           ) : (
             <>
@@ -505,13 +502,6 @@ export default function SubscriptionInfoPanel({
             >
               Cancel subscription
             </button>
-            <button
-              type="button"
-              onClick={() => openRemoveModal()}
-              className="text-xs text-stone-600 hover:text-red-400 transition-colors underline underline-offset-2"
-            >
-              Remove from my subscriptions
-            </button>
           </div>
         )}
       </div>
@@ -549,13 +539,6 @@ export default function SubscriptionInfoPanel({
             <p className="text-xs text-stone-500">Reason: {myEntry.cancellationReason}</p>
           )}
           <p className="text-xs text-stone-600 mt-1">You can add this subscription to your list again by clicking the button below.</p>
-          <button
-            type="button"
-            onClick={() => openRemoveModal()}
-            className="text-xs text-stone-500 hover:text-red-400 transition-colors underline underline-offset-2 mt-1"
-          >
-            Remove from my subscriptions
-          </button>
         </div>
       )}
 
@@ -595,6 +578,7 @@ export default function SubscriptionInfoPanel({
           subscriptionPrice={price}
           subscriptionOriginalBasePrice={originalBasePrice ?? null}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
+          userDefaultCurrency={user?.preferredCurrency ?? null}
           prepayOptions={prepayOptions}
           onJoined={() => {
             closeJoinModal()
@@ -622,14 +606,6 @@ export default function SubscriptionInfoPanel({
         />
       )}
 
-      {showRemoveModal && (
-        <RemoveSubscriptionModal
-          subscriptionSlug={subscriptionSlug}
-          subscriptionName={name}
-          onRemoved={() => { closeRemoveModal(); refreshEntry() }}
-          onClose={() => closeRemoveModal()}
-        />
-      )}
     </div>
   )
 }
@@ -652,6 +628,8 @@ function EditEntryCostsModal({
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
   const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
+  const savedCurrency = entry.costCurrency ?? subscriptionCurrency
+  const currencyChanged = costCurrency.trim().toUpperCase() !== savedCurrency.toUpperCase()
   const [feeLinks, setFeeLinks] = useState<Array<{ templateId: string; name: string; customAmount: string; customCurrency: string }>>(
     entry.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
@@ -738,6 +716,11 @@ function EditEntryCostsModal({
               placeholder="e.g. 34.99"
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
+            {currencyChanged && (
+              <p className="mt-1 text-xs text-amber-400">
+                ⚠ Currency changed from {savedCurrency} — check that the price above is correct in {costCurrency}.
+              </p>
+            )}
           </div>
 
           {/* Shipping */}
@@ -858,185 +841,4 @@ function EditEntryCostsModal({
   )
 }
 
-// ─── Cancel Subscription Modal ─────────────────────────────────────────────────
-
-function CancelSubscriptionModal({
-  subscriptionSlug,
-  onCancelled,
-  onClose,
-}: {
-  subscriptionSlug: string
-  onCancelled: () => void
-  onClose: () => void
-}) {
-  const today = new Date().toISOString().slice(0, 10)
-  const [cancellationDate, setCancellationDate] = useState(today)
-  const [reason, setReason] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleConfirm() {
-    setSaving(true)
-    setError(null)
-    try {
-      await cancelMySubscriptionEntry(subscriptionSlug, {
-        cancellationDate,
-        cancellationReason: reason || undefined,
-      })
-      onCancelled()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to cancel subscription')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-stone-800">
-          <h2 className="text-base font-semibold text-red-400">Cancel subscription</h2>
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-300 text-lg leading-none">✕</button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <p className="text-sm text-stone-400">
-            Mark this subscription as cancelled. It will remain in your history.
-          </p>
-
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Cancellation date</label>
-            <input
-              type="date"
-              value={cancellationDate}
-              onChange={e => setCancellationDate(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Reason (optional)</label>
-            <textarea
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              rows={3}
-              placeholder="e.g. Too expensive, changed box, etc."
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm resize-none"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </div>
-
-        <div className="flex gap-3 p-5 border-t border-stone-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors"
-          >
-            Keep subscription
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={saving}
-            className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {saving ? 'Cancelling…' : 'Confirm cancellation'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Remove Subscription Modal ─────────────────────────────────────────────────
-
-function RemoveSubscriptionModal({
-  subscriptionSlug,
-  subscriptionName,
-  onRemoved,
-  onClose,
-}: {
-  subscriptionSlug: string
-  subscriptionName: string
-  onRemoved: () => void
-  onClose: () => void
-}) {
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
-  const [removing, setRemoving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleRemove() {
-    setRemoving(true)
-    setError(null)
-    try {
-      await removeMySubscriptionEntry(subscriptionSlug, { removeBooks, removeSpending })
-      onRemoved()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to remove')
-    } finally {
-      setRemoving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-sm">
-        <div className="p-5 border-b border-stone-800">
-          <h2 className="text-stone-100 font-semibold">Remove subscription</h2>
-          <p className="text-xs text-stone-400 mt-1">Remove <span className="text-stone-200">{subscriptionName}</span> from your tracked subscriptions.</p>
-        </div>
-        <div className="p-5 space-y-3">
-          <p className="text-xs text-stone-500">Your subscription entry and all related data (skip history, cost changes) will be permanently deleted.</p>
-
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={removeBooks}
-              onChange={e => setRemoveBooks(e.target.checked)}
-              className="mt-0.5 accent-amber-600"
-            />
-            <div>
-              <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove books from my collection</span>
-              <p className="text-xs text-stone-600 mt-0.5">Books acquired through this subscription will be removed from your library.</p>
-            </div>
-          </label>
-
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={removeSpending}
-              onChange={e => setRemoveSpending(e.target.checked)}
-              className="mt-0.5 accent-amber-600"
-            />
-            <div>
-              <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove spending history</span>
-              <p className="text-xs text-stone-600 mt-0.5">Payment transactions linked to this subscription will be deleted.</p>
-            </div>
-          </label>
-
-          {error && <p className="text-xs text-red-400">{error}</p>}
-        </div>
-        <div className="flex gap-3 p-5 border-t border-stone-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleRemove}
-            disabled={removing}
-            className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {removing ? 'Removing…' : 'Remove'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+// ─── Cancel Subscription Modal → shared component (CancelSubscriptionModal.tsx)

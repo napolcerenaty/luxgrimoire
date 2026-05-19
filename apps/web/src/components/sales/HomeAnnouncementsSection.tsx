@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRef, memo } from 'react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementModal } from '@/components/sales/SaleAnnouncementModal'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
@@ -54,8 +55,9 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
   const raw = sale.imageUrl ?? firstEdition?.additionalImages?.[0] ?? null
   const imgUrl = raw ? cloudinaryUrl(raw, 'w_320,h_480,c_fill,q_auto,f_auto') : null
 
+  const getBrandColors = useBrandColors()
   const companyName = (sale as any).company?.name ?? null
-  const brandColors: string[] | null = (sale as any).company?.brandColors ?? null
+  const brandColors: string[] | null = getBrandColors((sale as any).company?.slug ?? null) ?? (sale as any).company?.brandColors ?? null
 
   return (
     <div
@@ -115,9 +117,6 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
           </p>
         </div>
         <div className="flex justify-end items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
-          {sale.subscriberBasePrice != null && (
-            <span className="text-[9px] text-emerald-400/80 font-medium">🏷 sub</span>
-          )}
           <SaleInterestButton
             sale={sale}
             subscriberBasePrice={sale.subscriberBasePrice}

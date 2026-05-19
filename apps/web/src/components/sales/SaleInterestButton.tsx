@@ -17,7 +17,18 @@ const ALL_TIERS: { value: SaleTier; label: string }[] = [
   { value: 'GS', label: 'General Sale' },
 ]
 
-function findDefaultRegion(regions: Region[]): Region | null {
+function findDefaultRegion(regions: Region[], shippingCountry?: string | null, preferredCurrency?: string | null): Region | null {
+  if (shippingCountry) {
+    const byCountry = regions.find(r => {
+      try { return (JSON.parse(r.countryCodes) as string[]).includes(shippingCountry.toUpperCase()) }
+      catch { return false }
+    })
+    if (byCountry) return byCountry
+  }
+  if (preferredCurrency) {
+    const byCurrency = regions.find(r => r.currency?.toUpperCase() === preferredCurrency.toUpperCase())
+    if (byCurrency) return byCurrency
+  }
   return regions.find(r => r.isDefault) ?? regions[0] ?? null
 }
 
@@ -38,7 +49,7 @@ function formatPrice(price: number, currency: string | null | undefined) {
 }
 
 interface Props {
-  sale: Pick<ApiSaleAnnouncement, 'id' | 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate' | 'regions'>
+  sale: Pick<ApiSaleAnnouncement, 'id' | 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate' | 'regions' | 'basePrice'>
   subscriberBasePrice?: number | null
   currency?: string | null
   compact?: boolean
@@ -47,6 +58,7 @@ interface Props {
 export function SaleInterestButton({ sale, subscriberBasePrice, currency, compact = false }: Props) {
   const { user } = useAuth()
   const router = useRouter()
+  const hour12 = user?.timeFormat === '12h'
   const { isInterested, tier, regionId: savedRegionId, selectedPrice, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
@@ -87,7 +99,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
     }
   }, [savedRegionId, lsKey])
 
-  const effectiveRegion = regions.find(r => r.id === selectedRegionId) ?? findDefaultRegion(regions)
+  const effectiveRegion = regions.find(r => r.id === selectedRegionId) ?? findDefaultRegion(regions, user?.shippingCountry, user?.preferredCurrency)
 
   // Per-region subscriber price override (fallback to top-level)
   const effectiveSubscriberPrice = (effectiveRegion as (Region & { subscriberBasePrice?: number | null }))?.subscriberBasePrice ?? subscriberBasePrice
@@ -152,7 +164,12 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
   }
 
   const pickTier = async (t: SaleTier) => {
-    const price = hasSubscriberPrice ? resolvedPrice : null
+    // Save actual price: subscriber price when subscriber mode, base price when regular
+    // null means "never set" — using actual regular price lets SaleInterestSection distinguish the two
+    const regularPrice = (effectiveRegion as typeof effectiveRegion & { basePrice?: number | null })?.basePrice ?? sale.basePrice
+    const price = hasSubscriberPrice
+      ? (priceMode === 'subscriber' ? effectiveSubscriberPrice : (regularPrice ?? null))
+      : null
     const priceCurrency = price != null ? (currency ?? null) : null
     await setInterest(t, effectiveRegion?.id ?? null, price, priceCurrency)
     setOpen(false)
@@ -271,7 +288,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
 
               <div className="flex flex-col gap-2">
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value])
+                  const formattedDate = formatTierDate(dates[t.value], hour12)
                   return (
                     <button
                       key={t.value}
@@ -379,7 +396,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                 </p>
 
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value])
+                  const formattedDate = formatTierDate(dates[t.value], hour12)
                   return (
                     <button
                       key={t.value}

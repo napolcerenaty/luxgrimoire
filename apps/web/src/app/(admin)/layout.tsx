@@ -171,9 +171,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading && !isAuthorized) {
-      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`)
+      if (!user) {
+        router.push(`/login?returnTo=${encodeURIComponent(pathname)}`)
+      } else {
+        router.push('/')
+      }
     }
-  }, [loading, isAuthorized, router, pathname])
+  }, [loading, isAuthorized, user, router, pathname])
 
   // Close drawer on route change
   useEffect(() => {

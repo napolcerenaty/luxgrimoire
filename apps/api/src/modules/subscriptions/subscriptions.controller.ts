@@ -57,6 +57,13 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get('genres')
+  findGenres(@Query('search') search?: string) {
+    return this.subscriptionsService.findGenres(search);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Get(':slug/for-edit')
   findBySlugForEdit(@Param('slug') slug: string) {
     return this.subscriptionsService.findBySlugForAdmin(slug);
@@ -90,7 +97,7 @@ export class SubscriptionsController {
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateSubscriptionDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
-    const result = await this.subscriptionsService.update(slug, dto);
+    const result = await this.subscriptionsService.update(slug, dto, user.id);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SUBSCRIPTION', entityType: 'subscription', entityId: result.id, entityTitle: result.slug });
     return result;
   }
@@ -193,6 +200,18 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get('my/orphaned-history')
+  getOrphanedHistory(@CurrentUser() user: CurrentUserType) {
+    return this.subscriptionsService.getOrphanedMembershipHistory(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Delete('my/orphaned-history/:historyId')
+  removeOrphanedHistory(@CurrentUser() user: CurrentUserType, @Param('historyId') historyId: string) {
+    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId);
+  }
+
+  @ApiBearerAuth()
   @Get(':slug/country-fees')
   getCountryFeeHints(
     @Param('slug') slug: string,
@@ -257,6 +276,7 @@ export class SubscriptionsController {
       removeSpending: dto.removeSpending ?? false,
       historyId: dto.historyId,
       removeAllPeriods: dto.removeAllPeriods ?? false,
+      removeCurrentOnly: dto.removeCurrentOnly ?? false,
     });
     this.analyticsService.track({
       eventType: 'subscription_delete',
@@ -379,6 +399,13 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.importMonthsFromVariant(slug, variantSlug);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'IMPORT_MONTHS_FROM_VARIANT', entityType: 'subscription', entityId: slug });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/settings-history')
+  listSettingsHistory(@Param('slug') slug: string) {
+    return this.subscriptionsService.listSettingsHistory(slug);
   }
 
   @Get(':slug/price-changes')

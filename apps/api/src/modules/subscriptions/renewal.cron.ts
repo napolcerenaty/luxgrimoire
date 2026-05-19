@@ -490,9 +490,9 @@ export class RenewalCronService {
           let bStartMonth = rDate.getUTCMonth() + 1 + offset;
           let bStartYear = rDate.getUTCFullYear();
           while (bStartMonth > 12) { bStartMonth -= 12; bStartYear++; }
-          const effectiveSubId = directSub?.isBundleSubscription
-            ? (await this.prisma.subscription.findUnique({ where: { id: sub.id }, select: { parentSubscriptionId: true } }))?.parentSubscriptionId ?? sub.id
-            : sub.id;
+          // Months always live on the subscription passed to this function (subscriptionId),
+          // whether that's a direct bundle sub or a content-stream parent.
+          const effectiveSubId = subscriptionId;
           const bundleFirstMonthRecord = await this.prisma.subscriptionMonth.findUnique({
             where: { subscriptionId_year_month: { subscriptionId: effectiveSubId, year: bStartYear, month: bStartMonth } },
             select: { id: true },
@@ -565,6 +565,64 @@ export class RenewalCronService {
               },
             }).catch(() => {});
           }
+        }
+      }
+    }
+
+    // Also retroactively add to subscribers of any COMBO sub that includes this subscription as a component.
+    // Combo subs don't use parentSubscriptionId — they reference components via SubscriptionComboComponent.
+    const comboLinks = await this.prisma.subscriptionComboComponent.findMany({
+      where: { componentId: subscriptionId },
+      select: { comboId: true },
+    });
+
+    for (const link of comboLinks) {
+      const comboSub = await this.prisma.subscription.findUnique({
+        where: { id: link.comboId },
+        select: { renewalMonthOffset: true },
+      });
+      const comboOffset = comboSub?.renewalMonthOffset ?? 0;
+      const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(monthRecord.year, monthRecord.month, comboOffset);
+      const comboMonthStart = new Date(Date.UTC(renewalYear, renewalMonth - 1, 1));
+      const comboMonthEnd = new Date(Date.UTC(renewalYear, renewalMonth, 1));
+
+      const comboEntries = await this.prisma.userSubscriptionEntry.findMany({
+        where: { subscriptionId: link.comboId, active: true },
+        select: { id: true, userId: true, costCurrency: true },
+      });
+      if (comboEntries.length === 0) continue;
+
+      for (const entry of comboEntries) {
+        const renewalRecord = await this.prisma.userSubscriptionRenewal.findFirst({
+          where: { entryId: entry.id, renewalDate: { gte: comboMonthStart, lt: comboMonthEnd } },
+          select: { id: true },
+        });
+        if (!renewalRecord) continue;
+
+        // Combo subs have no per-month skip check (consistent with addBooksForComboMonth)
+        const groupTitle = `Subscription – ${renewalYear}/${String(renewalMonth).padStart(2, '0')}`;
+        const existingGroup = await this.prisma.userPurchaseGroup.findFirst({
+          where: { userId: entry.userId, subscriptionEntryId: entry.id, title: groupTitle },
+          select: { id: true },
+        });
+
+        const existingBookEntry = await this.prisma.userBookEntry.findFirst({
+          where: { userId: entry.userId, editionId: book.editionId!, subscriptionEntryId: entry.id },
+          select: { id: true },
+        });
+        if (!existingBookEntry) {
+          await this.prisma.userBookEntry.create({
+            data: {
+              userId: entry.userId,
+              bookId: book.bookId,
+              editionId: book.editionId!,
+              ownershipStatus: 'PREORDER',
+              readingStatus: 'UNREAD',
+              subscriptionEntryId: entry.id,
+              purchaseGroupId: existingGroup?.id ?? null,
+              signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
+            },
+          }).catch(() => {});
         }
       }
     }

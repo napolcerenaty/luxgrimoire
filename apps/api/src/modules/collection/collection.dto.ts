@@ -65,3 +65,8 @@ export class AddTrackingDto {
   @IsString() trackingNumber!: string;
   @IsOptional() @IsString() label?: string;
 }
+
+export class UpdateTrackingDto {
+  @IsString() trackingNumber!: string;
+  @IsOptional() @IsString() label?: string | null;
+}

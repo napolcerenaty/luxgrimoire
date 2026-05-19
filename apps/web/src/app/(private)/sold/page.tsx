@@ -15,6 +15,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/SaleFormFields'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 
 interface CollectionEntry {
@@ -420,6 +421,7 @@ function EditSaleModal({
 export default function SoldPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const getBrandColors = useBrandColors()
   const userCurrency = user?.preferredCurrency ?? null
 
   const [bookFilter, setBookFilter] = useState('')
@@ -603,7 +605,7 @@ export default function SoldPage() {
                       authors={entry.edition.book.authors}
                       companyName={entry.edition.bookBoxCompany?.name}
                       companySlug={entry.edition.bookBoxCompany?.slug}
-                      companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
+                      companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}
                       footer={
@@ -642,7 +644,7 @@ export default function SoldPage() {
                       <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                         {cover
                           ? <img src={cover} alt={entry.edition.book.title} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(entry.edition.bookBoxCompany?.brandColors)}>
+                          : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
                               <BookOpen size={14} />
                             </div>
                         }

@@ -6,6 +6,7 @@ import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
@@ -48,6 +49,9 @@ interface CollectionEntry {
     announcement: { id: string; title: string; generalSaleDate: string | null }
   } | null
   tags: string[]
+  subscriptionEntry: {
+    subscription: { id: string; name: string; parentSubscriptionId: string | null }
+  } | null
   purchaseGroup: {
     id: string; currency: string; purchasedAt: string; totalAmount: number; shippingAmount: number | null
     fromSubscription: boolean; isSecondHand: boolean; sourcePlatform: string | null; _count: { bookEntries: number }
@@ -95,11 +99,14 @@ interface FeeTemplate {
 interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 
 const ADD_OWNERSHIP_OPTIONS = [
-  { value: 'OWNED', label: 'Owned' },
   { value: 'PREORDER', label: 'Pre-order' },
-  { value: 'SHIPPING', label: 'Shipping / In transit' },
+  { value: 'SHIPPING', label: 'Shipping' },
+  { value: 'OWNED', label: 'Own' },
   { value: 'BORROWED', label: 'Borrowed' },
-  { value: 'LENDED', label: 'Lent out' },
+  { value: 'LENDED', label: 'Lended' },
+  { value: 'TO_SELL', label: 'To Sell' },
+  { value: 'SOLD', label: 'Sold' },
+  { value: 'GIFTED_AWAY', label: 'Gifted Away' },
 ] as const
 
 interface AddSaleFormProps {
@@ -527,6 +534,7 @@ function savePrefs(prefs: { filter: FilterMode; sortOrder: SortOrder; viewMode: 
 
 export default function CollectionPage() {
   const queryClient = useQueryClient()
+  const getBrandColors = useBrandColors()
   const { user } = useAuth()
   const [filter, setFilter] = useState<FilterMode>(() => loadPrefs().filter)
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
@@ -537,6 +545,7 @@ export default function CollectionPage() {
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
   const [readingFilter, setReadingFilter] = useState<'ALL' | 'UNREAD' | 'READING' | 'READ' | 'DNF'>('ALL')
+  const [subFilter, setSubFilter] = useState<string>('ALL')
   const { isOpen: addModalOpen, setIsOpen: setAddModalOpen } = useModalState()
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
@@ -732,6 +741,15 @@ export default function CollectionPage() {
     return Array.from(set).sort()
   }, [entries])
 
+  const { data: subscriptions = [] } = useQuery<{ id: string; name: string; parentSubscriptionId: string | null }[]>({
+    queryKey: ['collection-subscriptions'],
+    queryFn: () => authFetch('/collection/subscriptions'),
+  })
+  // Show child subs only (specific tiers); fall back to all if none have a parent
+  const subFilterOptions = subscriptions.some(s => s.parentSubscriptionId !== null)
+    ? subscriptions.filter(s => s.parentSubscriptionId !== null)
+    : subscriptions
+
   const filtered = entries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
     if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
@@ -747,6 +765,10 @@ export default function CollectionPage() {
       if (!entryTags.includes(tagFilter)) return false
     }
     if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
+    if (subFilter !== 'ALL') {
+      const sub = e.subscriptionEntry?.subscription
+      if (!sub || sub.id !== subFilter) return false
+    }
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!(e.purchaseGroup?.purchasedAt ?? e.acquiredAt)
     return true
@@ -944,7 +966,6 @@ export default function CollectionPage() {
               <option value="BORROWED">Borrowed</option>
               <option value="LENDED">Lended</option>
               <option value="TO_SELL">To Sell</option>
-              <option value="SOLD">Sold</option>
               <option value="GIFTED_AWAY">Gifted Away</option>
             </select>
 
@@ -985,11 +1006,23 @@ export default function CollectionPage() {
               <option value="DNF">❌ DNF</option>
             </select>
 
+            {/* Subscription filter */}
+            {subFilterOptions.length > 0 && (
+              <select
+                value={subFilter}
+                onChange={e => setSubFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Sub: Any</option>
+                {subFilterOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+
             {/* Reset all */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
               <button
                 type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setSubFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
                 className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
                 ✕ Clear
@@ -1060,7 +1093,7 @@ export default function CollectionPage() {
                       href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                       coverImage={resolveEditionCoverRaw(entry.edition)}
                       companyName={entry.edition.bookBoxCompany?.name}
-                      companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
+                      companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumber={entry.edition.book.volumeNumber}
                       title={entry.edition.book.title}
@@ -1096,7 +1129,7 @@ export default function CollectionPage() {
                                 {fmtStatus(entry.ownershipStatus)}
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                   {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
                                     <button
                                       key={val}
@@ -1193,13 +1226,13 @@ export default function CollectionPage() {
                                 )}
                               </div>
                             )}
-                            {!entry.signatureType && (
+                            {(!entry.signatureType || entry.signatureType === 'unsigned') && (
                               <div className="relative" data-dropdown>
                                 <span
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig-grid` ? null : `${entry.id}-sig-grid`) }}
                                   className="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-stone-600 bg-stone-800 border-stone-700"
                                   title="Set signature type"
-                                >✍️</span>
+                                >UNSIGNED</span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed'] as const).map((val) => (
@@ -1372,7 +1405,7 @@ export default function CollectionPage() {
                         <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover
                             ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(entry.edition.bookBoxCompany?.brandColors)}>
+                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
                                 <BookOpen size={14} />
                               </div>
                           }
@@ -1408,7 +1441,7 @@ export default function CollectionPage() {
                               {fmtStatus(entry.ownershipStatus)}
                             </span>
                             {openDropdown === `${entry.id}-ownership` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                 {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1798,7 +1831,7 @@ function AddToCollectionSearch({
   const [selected, setSelected] = useState<ApiSearchEdition | null>(null)
 
   // Form state
-  const [ownershipStatus, setOwnershipStatus] = useState('OWNED')
+  const [ownershipStatus, setOwnershipStatus] = useState('PREORDER')
   const [purchasedAt, setPurchasedAt] = useState(() => new Date().toISOString().slice(0, 10))
   const [price, setPrice] = useState('')
   const [shipping, setShipping] = useState('')
@@ -1807,6 +1840,7 @@ function AddToCollectionSearch({
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [isSecondHand, setIsSecondHand] = useState(false)
   const [sourcePlatform, setSourcePlatform] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const feeKeyRef = useRef(0)
@@ -1838,7 +1872,7 @@ function AddToCollectionSearch({
 
   const openForm = (edition: ApiSearchEdition) => {
     setSelected(edition)
-    setOwnershipStatus('OWNED')
+    setOwnershipStatus('PREORDER')
     setPurchasedAt(new Date().toISOString().slice(0, 10))
     setPrice('')
     setShipping('')
@@ -1847,6 +1881,7 @@ function AddToCollectionSearch({
     setDiscountEntries([])
     setIsSecondHand(false)
     setSourcePlatform('')
+    setOrderNumber('')
     setError(null)
     setStep('form')
   }
@@ -1923,6 +1958,13 @@ function AddToCollectionSearch({
             ...(purchaseGroupId ? { purchaseGroupId } : {}),
           }),
         })
+      }
+
+      if (orderNumber.trim()) {
+        await authFetch<void>(`/collection/${entryId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ orderNumber: orderNumber.trim() }),
+        }).catch(() => {})
       }
 
       onAdded()
@@ -2053,6 +2095,11 @@ function AddToCollectionSearch({
         </div>
 
         <div className="flex flex-col gap-2">
+          <div>
+            <label className={LBL}>Order number (optional)</label>
+            <input type="text" value={orderNumber} onChange={e => setOrderNumber(e.target.value)}
+              placeholder="e.g. 12345678" className={INP} />
+          </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
               className="w-4 h-4 rounded accent-amber-500" />

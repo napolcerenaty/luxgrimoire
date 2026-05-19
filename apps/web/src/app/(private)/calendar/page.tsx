@@ -9,6 +9,8 @@ import { ChevronLeft, ChevronRight, Bell, RefreshCw, X, TrendingUp } from 'lucid
 import Link from 'next/link'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/components/AuthProvider'
+import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 
 interface CalEntry {
   id: string
@@ -44,7 +46,7 @@ interface SaleInterest {
     earlyAccessDate: string | null
     generalSaleDate: string | null
     saleTimezone: string | null
-    company: { id: string; name: string; logoUrl: string | null; brandColors?: string[] | null } | null
+    company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
     regions: Array<{
       id: string
       firstAccessDate: string | null
@@ -167,6 +169,7 @@ function resolveInterestDate(interest: SaleInterest): string | null {
 export default function CalendarPage() {
   const { theme } = useTheme()
   const { user } = useAuth()
+  const getBrandColors = useBrandColors()
   const lightMode = theme === 'light'
   const preferredCurrency = (user?.preferredCurrency ?? 'EUR').toUpperCase()
   const today = new Date()
@@ -239,7 +242,7 @@ export default function CalendarPage() {
         id: e.id,
         label: e.subscription.name,
         companyName: e.subscription.company?.name ?? null,
-        brandColors: e.subscription.company?.brandColors ?? null,
+        brandColors: getBrandColors(e.subscription.company?.slug) ?? e.subscription.company?.brandColors ?? null,
         slug: e.subscription.slug,
         hue: strHue(e.subscription.company?.slug ?? e.subscription.slug),
         logoUrl: e.subscription.logoUrl ?? e.subscription.coverImage,
@@ -268,7 +271,7 @@ export default function CalendarPage() {
           id: i.announcementId,
           label: i.announcement.title,
           companyName: i.announcement.company?.name ?? null,
-          brandColors: i.announcement.company?.brandColors ?? null,
+          brandColors: getBrandColors(i.announcement.company?.slug) ?? i.announcement.company?.brandColors ?? null,
           hue: strHue(i.announcement.company?.name ?? i.announcementId),
           tier: i.tier,
           time,

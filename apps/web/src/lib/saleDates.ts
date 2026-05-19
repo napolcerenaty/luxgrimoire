@@ -54,13 +54,34 @@ export function resolveSalePrice(
   return { basePrice, currency }
 }
 
+export function resolveSubscriberPrice(
+  sale: ApiSaleAnnouncement,
+  regionId?: string | null,
+): number | null {
+  const regions = (sale.regions ?? []) as any[]
 
-export function formatTierDate(isoDate: string | null | undefined): string | null {
+  let region: any = null
+  if (regionId) {
+    region = regions.find((r: any) => r.id === regionId) ?? null
+  }
+  if (!region && regions.length > 0) {
+    region = regions.find((r: any) => r.isDefault) ?? regions[0]
+  }
+
+  return region?.subscriberBasePrice ?? sale.subscriberBasePrice ?? null
+}
+
+
+export function formatTierDate(isoDate: string | null | undefined, hour12?: boolean): string | null {
   if (!isoDate) return null
   try {
     const d = new Date(isoDate)
     const day = d.getDate()
     const month = d.toLocaleString('en', { month: 'short' })
+    if (hour12) {
+      const time = d.toLocaleString('en', { hour: 'numeric', minute: '2-digit', hour12: true })
+      return `${day} ${month} · ${time}`
+    }
     const h = String(d.getHours()).padStart(2, '0')
     const m = String(d.getMinutes()).padStart(2, '0')
     return `${day} ${month} · ${h}:${m}`

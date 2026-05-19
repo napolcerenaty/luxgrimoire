@@ -145,6 +145,27 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     return { component: component as unknown as { id: string; slug: string; name: string }, currentMonth: cur, upcomingMonth: upc }
   }).filter(Boolean) as { component: { id: string; slug: string; name: string }; currentMonth?: ApiSubscriptionMonth; upcomingMonth?: ApiSubscriptionMonth }[]
 
+  // For combo subscriptions, collect deduplicated component months for the skip panel.
+  // Combo subscriptions have no own SubscriptionMonth records; months live on components.
+  const comboSkipMonths: ApiSubscriptionMonth[] = sub.isCombo
+    ? (() => {
+        const seen = new Set<string>()
+        const result: ApiSubscriptionMonth[] = []
+        for (const { component } of comboComponents) {
+          if (!component) continue
+          const compMs = ((component as unknown as { months?: ApiSubscriptionMonth[] }).months ?? [])
+          for (const m of compMs) {
+            const key = `${m.year}-${m.month}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              result.push(m)
+            }
+          }
+        }
+        return result
+      })()
+    : []
+
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Back to previous page */}
@@ -231,7 +252,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
           country={sub.company?.country ?? null}
           renewalDay={sub.renewalDay ?? null}
-          months={months}
+          months={sub.isCombo ? comboSkipMonths : months}
           prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[] }).prepayOptions}
         />
       </div>

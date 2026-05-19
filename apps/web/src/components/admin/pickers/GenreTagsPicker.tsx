@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 
-export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres: string[]; onChange: (v: string[]) => void; allowNew?: boolean }) {
+export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptions, endpoint = '/books/genres' }: { genres: string[]; onChange: (v: string[]) => void; allowNew?: boolean; staticOptions?: string[]; endpoint?: string }) {
   const [q, setQ] = useState('')
   const [dq, setDq] = useState('')
   const [open, setOpen] = useState(false)
@@ -16,11 +16,13 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true }: { genres:
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  const { data: suggestions } = useQuery({
-    queryKey: ['genres-search', dq],
-    queryFn: () => authFetch<string[]>(`/books/genres${dq ? `?search=${encodeURIComponent(dq)}` : ''}`),
-    enabled: true,
+  const { data: apiFetchedGenres } = useQuery({
+    queryKey: ['genres-search', endpoint, dq],
+    queryFn: () => authFetch<string[]>(`${endpoint}${dq ? `?search=${encodeURIComponent(dq)}` : ''}`),
+    enabled: !staticOptions,
   })
+
+  const suggestions = staticOptions ?? apiFetchedGenres
 
   const handleChange = (v: string) => {
     setQ(v); setOpen(true); setActiveIndex(-1)

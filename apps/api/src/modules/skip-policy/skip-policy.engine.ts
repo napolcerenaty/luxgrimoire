@@ -40,15 +40,109 @@ export class SkipPolicyEngine {
   // ─── Public API ────────────────────────────────────────────────────
 
   async getStatus(userId: string, subscriptionSlug: string): Promise<SkipStatus> {
-    const { subscription, policy, state, entry, skipRecords } = await this.loadContext(userId, subscriptionSlug);
+    const { subscription, policy, state, entry, skipRecords, isCombo, componentIds } = await this.loadContext(userId, subscriptionSlug);
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // 1-12
 
     const offset: number = (subscription as any).renewalMonthOffset ?? 0;
 
-    const skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    const skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+    let skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    let skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+    let effectiveState = state;
+    // Flat list of all skip records (with windowKey) used later to filter display to current window
+    let allSkipRecordsForWindow: Array<{ windowKey: string | null; month: { year: number; month: number } }> = skipRecords;
+
+    // For combo subscriptions: aggregate skip records from component entries so the counter
+    // reflects all historical skips (which may have been recorded on component entry IDs).
+    if (isCombo && componentIds.length > 0) {
+      const compEntries = await this.prisma.userSubscriptionEntry.findMany({
+        where: { userId, subscriptionId: { in: componentIds }, active: true },
+        select: { id: true, firstSkipDate: true },
+      });
+      if (compEntries.length > 0) {
+        const compEntryIds = compEntries.map((e) => e.id);
+        const compRecords = await this.prisma.userSkipRecord.findMany({
+          where: { userEntryId: { in: compEntryIds }, undoneAt: null },
+          include: { month: { select: { year: true, month: true } } },
+          orderBy: { skippedAt: 'asc' },
+        });
+
+        // Merge, dedup by calendar month
+        const seen = new Set(skipRecords.map((r) => `${r.month.year}-${r.month.month}`));
+        const additional = compRecords.filter((r) => !seen.has(`${r.month.year}-${r.month.month}`));
+        const allRecords = [...skipRecords, ...additional];
+
+        skippedMonths = allRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+        skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+        allSkipRecordsForWindow = allRecords;
+
+        // Build effectiveState when state is null (no skips recorded via combo entry yet)
+        if (!state && allRecords.length > 0 && policy?.type === 'FROM_FIRST_SKIP') {
+          const allFirstDates = [
+            entry.firstSkipDate,
+            ...compEntries.map((e) => e.firstSkipDate),
+          ].filter(Boolean) as Date[];
+          const earliestFirst = allFirstDates.length > 0
+            ? allFirstDates.reduce((a, b) => (a < b ? a : b))
+            : null;
+
+          let skipsInCurrentWindow = allRecords.length;
+          // Window key of the current active window, derived from stored skip records.
+          // Used to populate effectiveState.windowKey so the display filter can match records.
+          let activeWindowKeyFromRecords: string | null = null;
+          if (earliestFirst && policy.windowMonths) {
+            // Walk forward in windowMonths increments from earliest first skip to find current window
+            let winStart = new Date(earliestFirst);
+            const today = new Date();
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+              const winEnd = new Date(winStart);
+              winEnd.setMonth(winEnd.getMonth() + policy.windowMonths);
+              if (today < winEnd) {
+                // Count records skipped within [winStart, winEnd) and extract their windowKey
+                const winRecords = allRecords.filter((r) => {
+                  const t = (r as any).skippedAt ? new Date((r as any).skippedAt) : null;
+                  return t && t >= winStart && t < winEnd;
+                });
+                skipsInCurrentWindow = winRecords.length;
+                activeWindowKeyFromRecords = winRecords[0]?.windowKey ?? null;
+                break;
+              }
+              winStart = winEnd;
+            }
+          }
+
+          effectiveState = {
+            totalSkips: allRecords.length,
+            skipsInWindow: skipsInCurrentWindow,
+            consecutiveSkips: 0,
+            windowKey: activeWindowKeyFromRecords,
+          } as NonNullable<typeof state>;
+        }
+      }
+    }
+
+    // Fix stale skipsInWindow: if the current window key has changed since last skip, show 0.
+    // Skip this check when state.windowKey is null — the state is desynced (e.g. created before
+    // windowKey was persisted in recomputeState). In that case, trust state.skipsInWindow as-is.
+    if (state && policy && state.windowKey !== null) {
+      const currentWindowKey = this.computeWindowKey(policy, state, entry);
+      if (currentWindowKey !== null && currentWindowKey !== state.windowKey) {
+        effectiveState = { ...state, skipsInWindow: 0 };
+      }
+    }
+
+    // Filter skippedMonths for display to the CURRENT window only.
+    // skippedSet is intentionally kept as all-time (used to block re-skipping previous window months).
+    if (policy && policy.type !== 'UNLIMITED' && policy.type !== 'UNLIMITED_MAX_CONSEC' && policy.type !== 'NONE') {
+      const activeWindowKey = this.computeWindowKey(policy, effectiveState, entry);
+      if (activeWindowKey !== null) {
+        skippedMonths = allSkipRecordsForWindow
+          .filter((r) => r.windowKey === activeWindowKey)
+          .map((r) => ({ year: r.month.year, month: r.month.month }));
+      }
+    }
 
     // Deadline targets the NEXT month, not current month.
     // The skip window for month M opens after M-1's renewal day passes.
@@ -97,24 +191,40 @@ export class SkipPolicyEngine {
         }
 
         // Determine the user's first deliverable month (and its series, if any) for blocking logic.
-        firstMonthInfo = await this.getFirstDeliverableMonthInfo(subscription.id, effectiveStartDate);
+        // For combo subscriptions the months live on component subscriptions — skip first-box protection.
+        firstMonthInfo = isCombo ? null : await this.getFirstDeliverableMonthInfo(subscription.id, effectiveStartDate);
 
         // Find the first upcoming month the user CAN skip:
         // - must be >= candidate month (next calendar month + offset)
         // - must not already be skipped
         // - must NOT be the first standalone box, or any month in the first series
-        const candidates = await this.prisma.subscriptionMonth.findMany({
-          where: {
-            subscriptionId: subscription.id,
-            OR: [
-              { year: { gt: candidateYear } },
-              { year: candidateYear, month: { gte: candidateMonth } },
-            ],
-          },
+        const candidateWhere = {
+          OR: [
+            { year: { gt: candidateYear } },
+            { year: candidateYear, month: { gte: candidateMonth } },
+          ],
+        };
+        const rawCandidates = await this.prisma.subscriptionMonth.findMany({
+          where: isCombo
+            ? { subscriptionId: { in: componentIds }, ...candidateWhere }
+            : { subscriptionId: subscription.id, ...candidateWhere },
           select: { id: true, year: true, month: true, seriesId: true },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
-          take: 12,
+          take: isCombo ? 24 : 12,
         });
+
+        // For combos: deduplicate by (year, month) — keep first component month per calendar slot
+        const candidates = isCombo
+          ? (() => {
+              const seen = new Set<string>();
+              return rawCandidates.filter((m) => {
+                const key = `${m.year}-${m.month}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            })()
+          : rawCandidates;
 
         for (const m of candidates) {
           if (skippedSet.has(`${m.year}-${m.month}`)) continue;
@@ -141,7 +251,7 @@ export class SkipPolicyEngine {
     const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
 
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
-    return this.buildStatus(policy, state, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
+    return this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
   }
 
   async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
@@ -164,42 +274,51 @@ export class SkipPolicyEngine {
     year: number,
     month: number,
   ): Promise<SkipStatus> {
-    const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+    const { subscription, policy, state, entry, isCombo, componentIds } = await this.loadContext(userId, subscriptionSlug);
     if (!this.evaluateCanSkip(policy, state, entry.prepaidMonths)) {
       throw new ForbiddenException('Skip not allowed under current policy');
     }
 
     // Deadline is informational only — we allow late tracking (user may have skipped on time but forgot to log it here)
 
-    // Find the subscription month
-    const subMonth = await this.prisma.subscriptionMonth.findUnique({
-      where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
-      include: { series: true },
-    });
+    // Find the subscription month.
+    // For combo subscriptions the months live on component subscriptions;
+    // we pick the first component month for the given calendar slot (deterministic ordering).
+    const subMonth = isCombo
+      ? await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: { in: componentIds }, year, month },
+          include: { series: true },
+          orderBy: { subscriptionId: 'asc' },
+        })
+      : await this.prisma.subscriptionMonth.findUnique({
+          where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
+          include: { series: true },
+        });
     if (!subMonth) {
       throw new NotFoundException(`Month ${month}/${year} not found for this subscription`);
     }
 
-    // If month belongs to a NO_SKIP series, skipping is not allowed at all
-    if (subMonth.series && subMonth.series.skipMode === 'NO_SKIP') {
-      throw new ForbiddenException(
-        `Month ${month}/${year} belongs to series "${subMonth.series.name}" which does not allow skips.`,
-      );
-    }
+    // Series-based skip restrictions only apply to non-combo subscriptions.
+    if (!isCombo) {
+      if (subMonth.series && subMonth.series.skipMode === 'NO_SKIP') {
+        throw new ForbiddenException(
+          `Month ${month}/${year} belongs to series "${subMonth.series.name}" which does not allow skips.`,
+        );
+      }
 
-    // If month belongs to a series that requires whole-series skipping, block individual skip
-    const seriesBlockModes = ['SERIES_ONLY', 'SERIES_AS_ONE', 'SERIES_AS_MANY'];
-    if (subMonth.series && seriesBlockModes.includes(subMonth.series.skipMode)) {
-      throw new BadRequestException(
-        `Month ${month}/${year} belongs to series "${subMonth.series.name}" (skip mode: ${subMonth.series.skipMode}). Use the series skip endpoint instead.`,
-      );
+      const seriesBlockModes = ['SERIES_ONLY', 'SERIES_AS_ONE', 'SERIES_AS_MANY'];
+      if (subMonth.series && seriesBlockModes.includes(subMonth.series.skipMode)) {
+        throw new BadRequestException(
+          `Month ${month}/${year} belongs to series "${subMonth.series.name}" (skip mode: ${subMonth.series.skipMode}). Use the series skip endpoint instead.`,
+        );
+      }
     }
 
     const windowKey = this.computeWindowKey(policy, state, entry);
     const now = new Date();
 
     // Check if the previous month was also skipped (for consecutive counting)
-    const newConsecutive = await this.computeNewConsecutive(entry.id, subscription.id, year, month, state);
+    const newConsecutive = await this.computeNewConsecutive(entry.id, subscription.id, year, month, state, isCombo ? componentIds : null);
 
     // Create skip record (idempotent via upsert)
     await this.prisma.userSkipRecord.upsert({
@@ -267,15 +386,21 @@ export class SkipPolicyEngine {
     year: number,
     month: number,
   ): Promise<SkipStatus> {
-    const { subscription, policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
+    const { subscription, policy, entry, isCombo, componentIds } = await this.loadContext(userId, subscriptionSlug);
 
     if (!policy?.allowUnskip) {
       throw new ForbiddenException('Unskip is not allowed for this subscription');
     }
 
-    const subMonth = await this.prisma.subscriptionMonth.findUnique({
-      where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
-    });
+    // For combo subscriptions find the component month that was used when the skip was recorded.
+    const subMonth = isCombo
+      ? await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: { in: componentIds }, year, month },
+          orderBy: { subscriptionId: 'asc' },
+        })
+      : await this.prisma.subscriptionMonth.findUnique({
+          where: { subscriptionId_year_month: { subscriptionId: subscription.id, year, month } },
+        });
     if (!subMonth) throw new NotFoundException(`Month ${month}/${year} not found`);
 
     const record = await this.prisma.userSkipRecord.findUnique({
@@ -462,13 +587,15 @@ export class SkipPolicyEngine {
       where: { slug: subscriptionSlug },
       include: {
         skipPolicy: true,
+        comboComponents: { select: { componentId: true } },
         userEntries: {
           where: { userId },
           take: 1,
           include: {
             skipRecords: {
               where: { undoneAt: null },
-              include: { month: { select: { year: true, month: true } } },
+              include: { month: { select: { year: true, month: true } }, series: { select: { skipMode: true } } },
+              orderBy: { skippedAt: 'asc' },
             },
           },
         },
@@ -487,8 +614,10 @@ export class SkipPolicyEngine {
 
     const skipRecords = entry.skipRecords;
     const effectiveRenewalDay = entry.renewalDay ?? subscription.renewalDay ?? null;
+    const isCombo = (subscription as any).isCombo as boolean;
+    const componentIds: string[] = subscription.comboComponents.map((c) => c.componentId);
 
-    return { subscription, policy, state, entry: { ...entry, effectiveRenewalDay }, skipRecords };
+    return { subscription, policy, state, entry: { ...entry, effectiveRenewalDay }, skipRecords, isCombo, componentIds };
   }
 
   private evaluateCanSkip(
@@ -532,19 +661,35 @@ export class SkipPolicyEngine {
         return String(new Date().getFullYear());
 
       case 'FROM_FIRST_SKIP': {
-        if (entry.firstSkipDate) {
-          // Keep existing window until it expires
-          if (state?.windowKey) return state.windowKey;
+        // Prefer state.windowKey as the anchor (most accurate); fall back to firstSkipDate.
+        // For combo entries, firstSkipDate is null but state.windowKey (or effectiveState.windowKey)
+        // was derived during aggregation and must be used here.
+        const anchorKey = state?.windowKey
+          ?? (entry.firstSkipDate ? new Date(entry.firstSkipDate).toISOString().slice(0, 10) : null);
+        if (anchorKey) {
+          if (!policy.windowMonths) return anchorKey; // no expiry configured
+          const windowStart = new Date(anchorKey);
+          const windowEnd = new Date(windowStart);
+          windowEnd.setMonth(windowEnd.getMonth() + policy.windowMonths);
+          if (new Date() < windowEnd) return anchorKey; // still within window
+          // Window has expired — start a new one from today
         }
-        // Start new window from today
         return new Date().toISOString().slice(0, 10);
       }
 
       case 'FROM_SUB_START': {
-        const ref = entry.startDate
-          ? new Date(entry.startDate)
-          : new Date();
-        return ref.toISOString().slice(0, 10);
+        const ref = entry.startDate ? new Date(entry.startDate) : new Date();
+        if (!policy.windowMonths) return ref.toISOString().slice(0, 10);
+        // Walk forward in windowMonths increments from subscription start to find the current window
+        const today = new Date();
+        let windowStart = new Date(ref);
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const windowEnd = new Date(windowStart);
+          windowEnd.setMonth(windowEnd.getMonth() + policy.windowMonths);
+          if (today < windowEnd) return windowStart.toISOString().slice(0, 10);
+          windowStart = windowEnd;
+        }
       }
 
       default:
@@ -781,6 +926,7 @@ export class SkipPolicyEngine {
    * Computes the consecutive skip count for the skip being recorded right now.
    * Checks if the month immediately before (year, month) was already skipped.
    * If yes → current consecutive + 1. If no → 1 (new streak starts).
+   * For combo subscriptions pass componentIds; the prev month is looked up across component subscriptions.
    */
   private async computeNewConsecutive(
     entryId: string,
@@ -788,15 +934,21 @@ export class SkipPolicyEngine {
     year: number,
     month: number,
     state: { consecutiveSkips: number } | null,
+    componentIds: string[] | null = null,
   ): Promise<number> {
     // Compute previous month
     const prevDate = new Date(year, month - 2); // month is 1-based, so month-2 = prev month as 0-based
     const prevYear = prevDate.getFullYear();
     const prevMonth = prevDate.getMonth() + 1;
 
-    const prevSubMonth = await this.prisma.subscriptionMonth.findUnique({
-      where: { subscriptionId_year_month: { subscriptionId, year: prevYear, month: prevMonth } },
-    });
+    const prevSubMonth = componentIds?.length
+      ? await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: { in: componentIds }, year: prevYear, month: prevMonth },
+          orderBy: { subscriptionId: 'asc' },
+        })
+      : await this.prisma.subscriptionMonth.findUnique({
+          where: { subscriptionId_year_month: { subscriptionId, year: prevYear, month: prevMonth } },
+        });
 
     if (!prevSubMonth) return 1; // No prev month record → new streak
 
@@ -851,7 +1003,7 @@ export class SkipPolicyEngine {
     if (total === 0) {
       return this.prisma.userSubscriptionSkipState.upsert({
         where: { userId_subscriptionId: { userId, subscriptionId } },
-        create: { userId, subscriptionId, skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0 },
+        create: { userId, subscriptionId, skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0, windowKey: null },
         update: { skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0, lastSkipAt: null, windowKey: null },
       });
     }
@@ -887,7 +1039,7 @@ export class SkipPolicyEngine {
 
     return this.prisma.userSubscriptionSkipState.upsert({
       where: { userId_subscriptionId: { userId, subscriptionId } },
-      create: { userId, subscriptionId, skipsInWindow, consecutiveSkips: consecutive, totalSkips: total },
+      create: { userId, subscriptionId, skipsInWindow, consecutiveSkips: consecutive, totalSkips: total, windowKey: latestWindowKey },
       update: {
         skipsInWindow,
         consecutiveSkips: consecutive,

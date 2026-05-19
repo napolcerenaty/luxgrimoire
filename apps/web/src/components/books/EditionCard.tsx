@@ -98,9 +98,13 @@ export function EditionCard({
               {companyName && (
                 <p className="text-[10px] text-amber-700 font-medium truncate mt-0.5">
                   {companySlug ? (
-                    <span onClick={e => e.preventDefault()}>
-                      <a href={`/companies/${companySlug}`} className="hover:text-amber-500 transition-colors">{companyName}</a>
-                    </span>
+                    <span
+                      role="link"
+                      tabIndex={0}
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${companySlug}` }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); window.location.href = `/companies/${companySlug}` } }}
+                      className="hover:text-amber-500 transition-colors cursor-pointer"
+                    >{companyName}</span>
                   ) : companyName}
                 </p>
               )}
@@ -109,9 +113,13 @@ export function EditionCard({
             /* No title mode: only show company/edition name prominently */
             <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-amber-400 transition-colors truncate">
               {companySlug ? (
-                <span onClick={e => e.preventDefault()}>
-                  <a href={`/companies/${companySlug}`} className="hover:text-amber-500 transition-colors">{companyName}</a>
-                </span>
+                <span
+                  role="link"
+                  tabIndex={0}
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${companySlug}` }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); window.location.href = `/companies/${companySlug}` } }}
+                  className="hover:text-amber-500 transition-colors cursor-pointer"
+                >{companyName}</span>
               ) : (companyName ?? 'Edition')}
             </p>
           )}

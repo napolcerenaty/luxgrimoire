@@ -66,8 +66,12 @@ export default async function HomePage() {
           >
             LuxGrimoire
           </h1>
-          <p className="text-xs font-serif uppercase tracking-[0.3em] font-semibold text-[#1a4f6e] dark:text-[#4a88a8] mb-7">
+          <p className="text-xs font-serif uppercase tracking-[0.3em] font-semibold text-[#1a4f6e] dark:text-[#4a88a8] mb-5">
             Limited books.<br className="sm:hidden" /> Unlimited obsession.
+          </p>
+          <p className="text-sm text-stone-400 max-w-xl mx-auto mb-7 leading-relaxed">
+            Track special editions, manage your collection, follow subscription boxes,
+            and keep up with your book spending — all in one place.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
