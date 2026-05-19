@@ -178,6 +178,25 @@ export class CollectionService {
     return { data: dataWithTags, total, page, pageSize };
   }
 
+  async getCollectionSubscriptions(userId: string): Promise<{ id: string; name: string; parentSubscriptionId: string | null }[]> {
+    const rows = await this.prisma.userBookEntry.findMany({
+      where: { userId, isWishlist: false, subscriptionEntryId: { not: null } },
+      select: {
+        subscriptionEntry: {
+          select: {
+            subscription: { select: { id: true, name: true, parentSubscriptionId: true } },
+          },
+        },
+      },
+    });
+    const seen = new Map<string, { id: string; name: string; parentSubscriptionId: string | null }>();
+    for (const r of rows) {
+      const sub = r.subscriptionEntry?.subscription;
+      if (sub && !seen.has(sub.id)) seen.set(sub.id, sub);
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   async getUserTags(userId: string): Promise<string[]> {
     const rows = await this.prisma.userBookEntryTag.findMany({
       where: { userId },

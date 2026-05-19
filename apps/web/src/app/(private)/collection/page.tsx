@@ -741,14 +741,10 @@ export default function CollectionPage() {
     return Array.from(set).sort()
   }, [entries])
 
-  const subscriptions = useMemo(() => {
-    const seen = new Map<string, string>()
-    for (const e of entries) {
-      const sub = e.subscriptionEntry?.subscription
-      if (sub) seen.set(sub.id, sub.name)
-    }
-    return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [entries])
+  const { data: subscriptions = [] } = useQuery<{ id: string; name: string; parentSubscriptionId: string | null }[]>({
+    queryKey: ['collection-subscriptions'],
+    queryFn: () => authFetch('/collection/subscriptions'),
+  })
 
   const filtered = entries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false

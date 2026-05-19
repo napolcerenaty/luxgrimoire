@@ -19,6 +19,11 @@ export class CollectionController {
     return this.collectionService.getStats(user.id);
   }
 
+  @Get('subscriptions')
+  getCollectionSubscriptions(@CurrentUser() user: { id: string }) {
+    return this.collectionService.getCollectionSubscriptions(user.id);
+  }
+
   @Get('tags')
   getUserTags(@CurrentUser() user: { id: string }) {
     return this.collectionService.getUserTags(user.id);
