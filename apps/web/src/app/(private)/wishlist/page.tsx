@@ -1,15 +1,20 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { apiFetch } from '@/lib/api'
 import { EditionCard } from '@/components/books/EditionCard'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
-import { BookOpen, Megaphone, Tag, Trash2, MoveRight, X, Plus } from 'lucide-react'
+import { BookOpen, Megaphone, Tag, Trash2, MoveRight, ShoppingCart, X } from 'lucide-react'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
+import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
+import { AddToCollectionButton, type SaleEditionData } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
+import { CollectionFormModal, type CollectionFormData } from '@/components/collection/CollectionFormModal'
+import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface CollectionEntry {
   id: string
@@ -34,29 +39,6 @@ interface CollectionEntry {
   }
 }
 
-interface FeeEntry {
-  key: number
-  templateId: string
-  amount: string
-  currency: string
-}
-
-interface DiscountEntry {
-  key: number
-  name: string
-  amount: string
-  currency: string
-}
-
-interface FeeTemplate {
-  id: string
-  name: string
-  category: string | null
-  defaultAmount: number | null
-  defaultCurrency: string | null
-  isActive: boolean
-}
-
 interface PaginatedEntries {
   data: CollectionEntry[]
   total: number
@@ -64,20 +46,53 @@ interface PaginatedEntries {
   pageSize: number
 }
 
+interface SaleRegion {
+  id: string
+  firstAccessDate: string | null
+  earlyAccessDate: string | null
+  generalSaleDate: string | null
+}
+
 interface SaleInterestItem {
   userId: string
   announcementId: string
   tier: string
   regionId: string | null
+  selectedPrice: number | null
+  selectedPriceCurrency: string | null
   announcement: {
     id: string
     title: string
     imageUrl: string | null
+    basePrice: number | null
+    subscriberBasePrice: number | null
+    currency: string | null
     generalSaleDate: string | null
     earlyAccessDate: string | null
     firstAccessDate: string | null
-    company: { id: string; name: string }
+    company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null }
+    regions: SaleRegion[]
   }
+}
+
+/** Returns the effective sale-open date for this interest based on region + tier. */
+function getEffectiveDate(interest: SaleInterestItem): string | null {
+  const { announcement: sa, regionId, tier } = interest
+  const region = regionId ? sa.regions?.find((r) => r.id === regionId) : null
+
+  const fa = region?.firstAccessDate ?? sa.firstAccessDate
+  const ea = region?.earlyAccessDate ?? sa.earlyAccessDate
+  const gs = region?.generalSaleDate ?? sa.generalSaleDate
+
+  if (tier === 'FA') return fa ?? ea ?? gs
+  if (tier === 'EA') return ea ?? gs
+  return gs // 'GS' or unknown
+}
+
+function tierLabel(tier: string): string {
+  if (tier === 'FA') return 'First Access'
+  if (tier === 'EA') return 'Early Access'
+  return 'General Sale'
 }
 
 const OWNERSHIP_OPTIONS = [
@@ -88,26 +103,29 @@ const OWNERSHIP_OPTIONS = [
   { value: 'LENDED', label: 'Lent out' },
 ] as const
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
-const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
-
 export default function WishlistPage() {
   const queryClient = useQueryClient()
-
+  const getBrandColors = useBrandColors()
   const [activeTab, setActiveTab] = useState<'wishlist' | 'sales'>('wishlist')
   const [moveEntry, setMoveEntry] = useState<CollectionEntry | null>(null)
-  const [moveDate, setMoveDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [movePrice, setMovePrice] = useState('')
-  const [moveCurrency, setMoveCurrency] = useState('EUR')
-  const [moveOwnershipStatus, setMoveOwnershipStatus] = useState<string>('OWNED')
-  const [shippingPrice, setShippingPrice] = useState('')
-  const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
-  const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
-  const [isSecondHand, setIsSecondHand] = useState(false)
-  const [sourcePlatform, setSourcePlatform] = useState('')
-  const [moveOrderNumber, setMoveOrderNumber] = useState('')
-  const feeKeyRef = useRef(0)
-  const discountKeyRef = useRef(0)
+
+  const [addModalSale, setAddModalSale] = useState<ApiSaleAnnouncement | null>(null)
+  const [addModalLoading, setAddModalLoading] = useState<string | null>(null)
+
+  // Sale interests filters
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  const openAddModal = async (announcementId: string) => {
+    setAddModalLoading(announcementId)
+    try {
+      const sale = await apiFetch<ApiSaleAnnouncement>(`/announcements/${announcementId}`)
+      setAddModalSale(sale)
+    } catch { /* ignore */ } finally {
+      setAddModalLoading(null)
+    }
+  }
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['collection', 'wishlist-slim'],
@@ -123,15 +141,34 @@ export default function WishlistPage() {
     enabled: activeTab === 'sales',
   })
 
+  // Derive company list from loaded interests (no extra API call)
+  const filterCompanies = useMemo(() => {
+    const seen = new Map<string, string>()
+    saleInterests.forEach((i) => seen.set(i.announcement.company.id, i.announcement.company.name))
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [saleInterests])
+
+  const hasFilters = companyFilter || dateFrom || dateTo
+
+  const filteredInterests = useMemo(() => {
+    if (!hasFilters) return saleInterests
+    return saleInterests.filter((interest) => {
+      if (companyFilter && interest.announcement.company.id !== companyFilter) return false
+      if (dateFrom || dateTo) {
+        const d = getEffectiveDate(interest)
+        const dateStr = d ? d.slice(0, 10) : null
+        if (dateFrom && (!dateStr || dateStr < dateFrom)) return false
+        if (dateTo && (!dateStr || dateStr > dateTo)) return false
+      }
+      return true
+    })
+  }, [saleInterests, companyFilter, dateFrom, dateTo, hasFilters])
+
   const removeSaleInterestMutation = useMutation({
     mutationFn: (announcementId: string) => authFetch<void>(`/sale-interests/${announcementId}`, { method: 'DELETE' }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['sale-interests'] }),
-  })
-
-  const { data: feeTemplates = [] } = useQuery({
-    queryKey: ['fee-templates'],
-    queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
-    enabled: !!moveEntry,
   })
 
   const entries = result?.data ?? []
@@ -142,44 +179,40 @@ export default function WishlistPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, date, price, currency, ownershipStatus, shippingPrice, fees, discounts, isSecondHand, sourcePlatform, orderNumber }: {
-      id: string; date: string; price: string; currency: string;
-      ownershipStatus: string; shippingPrice: string; fees: FeeEntry[]; discounts: DiscountEntry[];
-      isSecondHand: boolean; sourcePlatform: string; orderNumber: string;
-    }) => {
-      const body: Record<string, unknown> = { isWishlist: false, ownershipStatus }
-      if (date) body.acquiredAt = new Date(date).toISOString()
-      await authFetch<void>(`/collection/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      })
-      const feeDate = date || new Date().toISOString().slice(0, 10)
-      const parsedPrice = parseDecimalInput(price)
-      const parsedShipping = parseDecimalInput(shippingPrice)
-      const hasFees = fees.some(f => parseDecimalInput(f.amount) > 0)
-      const hasDiscounts = discounts.some(d => parseDecimalInput(d.amount) > 0)
-
-      // Create a purchase group if price, shipping, fees or discounts provided
+    mutationFn: async ({ id, data }: { id: string; data: CollectionFormData }) => {
+      const body: Record<string, unknown> = { isWishlist: false, ownershipStatus: data.ownershipStatus }
+      if (data.purchasedAt) body.acquiredAt = new Date(data.purchasedAt).toISOString()
+      await authFetch<void>(`/collection/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      const feeDate = data.purchasedAt || new Date().toISOString().slice(0, 10)
+      const parsedPrice = parseDecimalInput(data.totalAmount)
+      const parsedShipping = parseDecimalInput(data.shippingAmount)
+      const hasFees = data.feeEntries.some(f => parseDecimalInput(f.amount) > 0)
+      const hasDiscounts = data.discountEntries.some(d => parseDecimalInput(d.amount) > 0)
       let purchaseGroupId: string | null = null
       if (parsedPrice > 0 || parsedShipping > 0 || hasFees || hasDiscounts) {
         const group = await authFetch<{ id: string }>(`/collection/bundles/for-entry/${id}`, {
           method: 'POST',
           body: JSON.stringify({
             totalAmount: parsedPrice > 0 ? parsedPrice : 0,
-            currency,
+            currency: data.currency,
             shippingAmount: parsedShipping > 0 ? parsedShipping : undefined,
             purchasedAt: new Date(feeDate).toISOString(),
-            isSecondHand,
-            sourcePlatform: sourcePlatform || undefined,
+            isSecondHand: data.isSecondHand,
+            sourcePlatform: data.sourcePlatform || undefined,
           }),
         })
         purchaseGroupId = group?.id ?? null
       }
-
-      for (const fee of fees) {
+      if (data.orderNumber.trim()) {
+        await authFetch<void>(`/collection/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ orderNumber: data.orderNumber.trim() }),
+        }).catch(() => {})
+      }
+      for (const fee of data.feeEntries) {
         const parsedAmount = parseDecimalInput(fee.amount)
         if (parsedAmount <= 0) continue
-        const template = feeTemplates.find(t => t.id === fee.templateId)
+        const template = data.feeTemplates.find(t => t.id === fee.templateId)
         await authFetch('/fees', {
           method: 'POST',
           body: JSON.stringify({
@@ -193,8 +226,7 @@ export default function WishlistPage() {
           }),
         })
       }
-
-      for (const disc of discounts) {
+      for (const disc of data.discountEntries) {
         const parsedAmount = parseDecimalInput(disc.amount)
         if (parsedAmount <= 0 || !disc.name.trim()) continue
         await authFetch('/fees/discounts', {
@@ -208,27 +240,12 @@ export default function WishlistPage() {
           }),
         })
       }
-
-      if (orderNumber.trim()) {
-        await authFetch<void>(`/collection/${id}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ orderNumber: orderNumber.trim() }),
-        }).catch(() => {})
-      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['collection'] })
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
       void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
       setMoveEntry(null)
-      setMovePrice('')
-      setShippingPrice('')
-      setFeeEntries([])
-      setDiscountEntries([])
-      setIsSecondHand(false)
-      setSourcePlatform('')
-      setMoveOrderNumber('')
-      setMoveOwnershipStatus('OWNED')
     },
   })
 
@@ -294,7 +311,7 @@ export default function WishlistPage() {
                 href={`/editions/${entry.edition.slug}`}
                 coverImage={resolveEditionCoverRaw(entry.edition)}
                 companyName={entry.edition.bookBoxCompany?.name}
-                companyBrandColors={entry.edition.bookBoxCompany?.brandColors}
+                companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                 volumeNumber={entry.edition.book.volumeNumber}
                 title={entry.edition.book.title}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
@@ -304,9 +321,6 @@ export default function WishlistPage() {
                       onClick={(e) => {
                         e.preventDefault(); e.stopPropagation()
                         setMoveEntry(entry)
-                        setMoveDate(new Date().toISOString().slice(0, 10))
-                        setMovePrice('')
-                        setMoveCurrency('EUR')
                       }}
                       className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
                     >
@@ -342,283 +356,164 @@ export default function WishlistPage() {
             <p className="text-sm mt-1">Mark sale announcements as Interested to track them here</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {saleInterests.map((interest) => {
-              const { announcement: sa } = interest
-              const coverSrc = sa.imageUrl ? cloudinaryUrl(sa.imageUrl, 'w_400,h_300,c_fill,q_auto,f_auto') : null
-              const saleDate = sa.generalSaleDate ?? sa.earlyAccessDate ?? sa.firstAccessDate
-              const isOpen = !!saleDate && new Date(saleDate) <= new Date()
-              const dateLabel = saleDate
-                ? new Date(saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                : null
+          <>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              {/* Company filter */}
+              <select
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
+              >
+                <option value="">All companies</option>
+                {filterCompanies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
 
-              return (
-                <div key={sa.id} className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden group hover:border-stone-700 transition-colors">
-                  {coverSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverSrc} alt={sa.title} className="w-full aspect-[4/3] object-cover" />
-                  ) : (
-                    <div className="w-full aspect-[4/3] bg-stone-800 flex items-center justify-center">
-                      <Megaphone size={32} className="text-stone-600" />
+              {/* Date from */}
+              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+                <span className="shrink-0 text-stone-500 text-xs">From</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  title="Sale date from"
+                  className="bg-transparent text-stone-300 focus:outline-none"
+                />
+              </label>
+
+              {/* Date to */}
+              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+                <span className="shrink-0 text-stone-500 text-xs">To</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  title="Sale date to"
+                  className="bg-transparent text-stone-300 focus:outline-none"
+                />
+              </label>
+
+              {hasFilters && (
+                <button
+                  onClick={() => { setCompanyFilter(''); setDateFrom(''); setDateTo('') }}
+                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2.5 rounded-xl transition-colors"
+                >
+                  <X size={12} /> Clear
+                </button>
+              )}
+            </div>
+
+            {/* Active filter chips */}
+            {hasFilters && (
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="text-xs text-stone-500">Filtered:</span>
+                {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
+                {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
+                {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
+                <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
+              </div>
+            )}
+
+            {filteredInterests.length === 0 ? (
+              <div className="text-center py-12 text-stone-500">
+                <p>No results for current filters.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredInterests.map((interest) => {
+                  const { announcement: sa } = interest
+                  const coverSrc = sa.imageUrl ? cloudinaryUrl(sa.imageUrl, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+                  const effectiveDate = getEffectiveDate(interest)
+                  const isOpen = !!effectiveDate && new Date(effectiveDate) <= new Date()
+                  const dateLabel = effectiveDate
+                    ? new Date(effectiveDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : null
+                  const tl = tierLabel(interest.tier)
+
+                  return (
+                    <div key={sa.id} className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden group hover:border-stone-700 transition-colors">
+                      {coverSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={coverSrc} alt={sa.title} className="w-full aspect-[4/3] object-cover" />
+                      ) : (
+                        <div className="relative w-full aspect-[4/3] flex items-center justify-center bg-stone-900">
+                          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(getBrandColors(sa.company.slug) ?? sa.company.brandColors)} />
+                          <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{sa.title}</span>
+                        </div>
+                      )}
+                      <div className="p-3 space-y-2">
+                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2">{sa.title}</p>
+                        <p className="text-stone-500 text-xs">{sa.company.name}</p>
+                        {dateLabel && (
+                          <p className="text-xs text-stone-500 flex items-center gap-1">
+                            <Tag size={10} />
+                            <span className={isOpen ? 'text-green-400' : ''}>{tl}{isOpen ? ' (open)' : ''}: {dateLabel}</span>
+                          </p>
+                        )}
+                        <div className="flex gap-1.5 pt-1">
+                          <Link
+                            href={`/sale-announcements/${sa.id}`}
+                            className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
+                          >
+                            View
+                          </Link>
+                          {isOpen && (
+                            <button
+                              onClick={() => openAddModal(sa.id)}
+                              disabled={addModalLoading === sa.id}
+                              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50"
+                            >
+                              <ShoppingCart size={11} />
+                              {addModalLoading === sa.id ? '…' : 'Add to collection'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeSaleInterestMutation.mutate(sa.id)}
+                            disabled={removeSaleInterestMutation.isPending}
+                            className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
+                            title="Remove from tracked sales"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="p-3 space-y-2">
-                    <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2">{sa.title}</p>
-                    <p className="text-stone-500 text-xs">{sa.company.name}</p>
-                    {dateLabel && (
-                      <p className="text-xs text-stone-500 flex items-center gap-1">
-                        <Tag size={10} />
-                        {isOpen ? 'Sale opened' : 'General sale'}: {dateLabel}
-                      </p>
-                    )}
-                    <div className="flex gap-2 pt-1">
-                      <Link
-                        href={`/sale-announcements/${sa.id}`}
-                        className={`flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                          isOpen
-                            ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700'
-                            : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700'
-                        }`}
-                      >
-                        {isOpen ? 'View & Add to Collection' : 'View Sale'}
-                      </Link>
-                      <button
-                        onClick={() => removeSaleInterestMutation.mutate(sa.id)}
-                        disabled={removeSaleInterestMutation.isPending}
-                        className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
-                        title="Remove from tracked sales"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )
       )}
 
-      {/* Move to Collection Modal */}
-      {moveEntry && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setMoveEntry(null) }}
-        >
-          <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif font-semibold text-stone-100">Move to Collection</h2>
-              <button onClick={() => setMoveEntry(null)} className="p-1 text-stone-500 hover:text-stone-200 transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <p className="text-sm text-stone-400">
-              <span className="text-stone-200 font-medium">{moveEntry.edition.book.title}</span>
-            </p>
+      <CollectionFormModal
+        open={!!moveEntry}
+        onClose={() => setMoveEntry(null)}
+        title="Move to Collection"
+        submitLabel="Move"
+        subtitle={moveEntry?.edition.book.title ?? null}
+        defaultOwnershipStatus="OWNED"
+        ownershipOptions={[...OWNERSHIP_OPTIONS]}
+        submitting={moveMutation.isPending}
+        error={moveMutation.error instanceof Error ? moveMutation.error.message : null}
+        onSubmit={async (data) => {
+          if (!moveEntry) return
+          await moveMutation.mutateAsync({ id: moveEntry.id, data })
+        }}
+      />
 
-            <div>
-              <label className={LABEL}>Status</label>
-              <select value={moveOwnershipStatus} onChange={e => setMoveOwnershipStatus(e.target.value)} className={INPUT}>
-                {OWNERSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className={LABEL}>Purchase date</label>
-              <input type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} className={INPUT} />
-            </div>
-
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
-              <div>
-                <label className={LABEL}>Price paid (optional)</label>
-                <input
-                  type="text"
-                  value={movePrice}
-                  onChange={e => setMovePrice(e.target.value)}
-                  placeholder="0.00"
-                  className={INPUT}
-                />
-              </div>
-              <div>
-                <label className={LABEL}>Shipping (optional)</label>
-                <input
-                  type="text"
-                  value={shippingPrice}
-                  onChange={e => setShippingPrice(e.target.value)}
-                  placeholder="0.00"
-                  className={INPUT}
-                />
-              </div>
-              <div>
-                <label className={LABEL}>Currency</label>
-                <select value={moveCurrency} onChange={e => setMoveCurrency(e.target.value)} className={INPUT}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Multi-fee entries */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className={LABEL.replace('mb-1', '')}>Additional fees (optional)</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    feeKeyRef.current++
-                    setFeeEntries(prev => [...prev, { key: feeKeyRef.current, templateId: '', amount: '', currency: 'EUR' }])
-                  }}
-                  className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
-                >
-                  <Plus size={12} /> Add fee
-                </button>
-              </div>
-              {feeEntries.length === 0 && (
-                <p className="text-xs text-stone-500 italic">No additional fees</p>
-              )}
-              <div className="space-y-2">
-                {feeEntries.map((fee) => (
-                  <div key={fee.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
-                    <div>
-                      <select
-                        value={fee.templateId}
-                        onChange={e => {
-                          const tpl = feeTemplates.find(t => t.id === e.target.value)
-                          setFeeEntries(prev => prev.map(f => f.key === fee.key ? {
-                            ...f,
-                            templateId: e.target.value,
-                            amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : f.amount,
-                            currency: tpl?.defaultCurrency ?? f.currency,
-                          } : f))
-                        }}
-                        className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors"
-                      >
-                        <option value="">— Template —</option>
-                        {feeTemplates.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}{t.category ? ` (${t.category})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <input
-                      type="text"
-                      value={fee.amount}
-                      onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
-                      placeholder="0.00"
-                      className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors"
-                    />
-                    <select
-                      value={fee.currency}
-                      onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors"
-                    >
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setFeeEntries(prev => prev.filter(f => f.key !== fee.key))}
-                      className="p-2 text-stone-500 hover:text-red-400 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Discounts */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className={LABEL.replace('mb-1', '')}>Discounts (optional)</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    discountKeyRef.current++
-                    setDiscountEntries(prev => [...prev, { key: discountKeyRef.current, name: '', amount: '', currency: moveCurrency || 'EUR' }])
-                  }}
-                  className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
-                >
-                  <Plus size={12} /> Add discount
-                </button>
-              </div>
-              {discountEntries.length === 0 && (
-                <p className="text-xs text-stone-500 italic">No discounts</p>
-              )}
-              <div className="space-y-2">
-                {discountEntries.map(disc => (
-                  <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
-                    <input
-                      type="text"
-                      value={disc.name}
-                      onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
-                      placeholder="e.g. Promo code, loyalty…"
-                      className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors"
-                    />
-                    <input
-                      type="text"
-                      value={disc.amount}
-                      onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
-                      placeholder="0.00"
-                      className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors"
-                    />
-                    <select
-                      value={disc.currency}
-                      onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
-                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors"
-                    >
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setDiscountEntries(prev => prev.filter(d => d.key !== disc.key))}
-                      className="p-2 text-stone-500 hover:text-red-400 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className={LABEL}>Order number (optional)</label>
-                <input type="text" value={moveOrderNumber} onChange={e => setMoveOrderNumber(e.target.value)} placeholder="e.g. 12345678" className={INPUT} />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
-                  className="w-4 h-4 rounded accent-amber-500" />
-                <span className="text-sm text-stone-300">Second-hand purchase</span>
-              </label>
-              {isSecondHand && (
-                <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)} className={INPUT}>
-                  <option value="">Select platform (optional)</option>
-                  {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setMoveEntry(null)}
-                className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => moveMutation.mutate({ id: moveEntry.id, date: moveDate, price: movePrice, currency: moveCurrency, ownershipStatus: moveOwnershipStatus, shippingPrice, fees: feeEntries, discounts: discountEntries, isSecondHand, sourcePlatform, orderNumber: moveOrderNumber })}
-                disabled={moveMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors"
-              >
-                <MoveRight size={14} />
-                {moveMutation.isPending ? 'Moving…' : 'Move'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {addModalSale && (
+        <AddToCollectionButton
+          saleAnnouncementId={addModalSale.id}
+          editions={(addModalSale.editions ?? []) as SaleEditionData[]}
+          basePrice={addModalSale.basePrice ?? undefined}
+          currency={addModalSale.currency ?? 'EUR'}
+          defaultOpen
+          onClose={() => setAddModalSale(null)}
+        />
       )}
     </div>
   )
 }
-
