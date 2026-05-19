@@ -26,13 +26,19 @@ const ACCESS_LABELS: Record<string, string> = {
   general: '🛒 General Sale',
 }
 
-function findRegion(regions: Region[], countryCode: string | null | undefined): Region | null {
-  if (!countryCode || regions.length === 0) return null
-  const exact = regions.find(r => {
-    try { return (JSON.parse(r.countryCodes) as string[]).includes(countryCode.toUpperCase()) }
-    catch { return false }
-  })
-  if (exact) return exact
+function findRegion(regions: Region[], countryCode: string | null | undefined, currency?: string | null): Region | null {
+  if (regions.length === 0) return null
+  if (countryCode) {
+    const exact = regions.find(r => {
+      try { return (JSON.parse(r.countryCodes) as string[]).includes(countryCode.toUpperCase()) }
+      catch { return false }
+    })
+    if (exact) return exact
+  }
+  if (currency) {
+    const byCurrency = regions.find(r => r.currency?.toUpperCase() === currency.toUpperCase())
+    if (byCurrency) return byCurrency
+  }
   return regions.find(r => r.isDefault) ?? null
 }
 
@@ -98,7 +104,9 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
 
   const hasRegions = regions.length > 0
 
-  const autoRegion = userCountry ? findRegion(regions, userCountry) : null
+  const autoRegion = userCountry
+    ? findRegion(regions, userCountry)
+    : findRegion(regions, null, user?.preferredCurrency)
   const effectiveRegionId = selectedRegionId ?? autoRegion?.id ?? regions.find(r => r.isDefault)?.id ?? regions[0]?.id ?? null
   const region = regions.find(r => r.id === effectiveRegionId) ?? null
 
@@ -146,7 +154,11 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
             ))}
           </select>
           {autoRegion && !selectedRegionId && (
-            <p className="text-xs text-stone-500 mt-1">Suggested based on your country ({userCountry})</p>
+            <p className="text-xs text-stone-500 mt-1">
+              {userCountry
+                ? `Suggested based on your country (${userCountry})`
+                : `Suggested based on your currency (${user?.preferredCurrency})`}
+            </p>
           )}
         </div>
       )}
