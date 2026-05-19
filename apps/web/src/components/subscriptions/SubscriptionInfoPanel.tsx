@@ -407,9 +407,6 @@ export default function SubscriptionInfoPanel({
               <p className="text-2xl font-serif font-semibold text-stone-100">
                 {parseFloat(preferredCurrencyPrice).toFixed(2)} <span className="text-base font-normal text-stone-400">{userCurrency}/mo</span>
               </p>
-              <p className="text-xs text-stone-500 mt-0.5">
-                🟢 Official {userCurrency} price · {parseFloat(price).toFixed(2)} {currency}/mo listed
-              </p>
             </>
           ) : (
             <>
