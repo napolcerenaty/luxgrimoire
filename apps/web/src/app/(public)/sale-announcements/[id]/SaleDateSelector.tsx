@@ -150,13 +150,6 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
               </option>
             ))}
           </select>
-          {autoRegion && !selectedRegionId && (
-            <p className="text-xs text-stone-500 mt-1">
-              {(user?.shippingCountry || userCountry)
-                ? `Suggested based on your country (${user?.shippingCountry ?? userCountry})`
-                : `Suggested based on your currency (${user?.preferredCurrency})`}
-            </p>
-          )}
         </div>
       )}
 

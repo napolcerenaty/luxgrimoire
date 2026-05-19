@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -10,6 +10,7 @@ import type { ApiSubscription, ApiBookBoxCompany, PaginatedResponse } from '@lux
 import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import ImageUpload from '@/components/admin/ImageUpload'
+import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -19,61 +20,7 @@ const SELECT_CLASS =
 
 const LANGUAGES = ['English', 'Polish', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian', 'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese']
 
-// ─── GenreCombobox ────────────────────────────────────────────────────────────
-
-function GenreCombobox({ options, selected, onAdd }: { options: string[]; selected: string[]; onAdd: (g: string) => void }) {
-  const [input, setInput] = useState('')
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  const filtered = options.filter(g => !selected.includes(g) && g.toLowerCase().includes(input.toLowerCase()))
-
-  const addGenre = (val: string) => {
-    const v = val.trim()
-    if (v && !selected.includes(v)) onAdd(v)
-    setInput('')
-    setOpen(false)
-  }
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        className={INPUT_CLASS}
-        placeholder="Add genre…"
-        value={input}
-        onChange={e => { setInput(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGenre(input) }
-          if (e.key === 'Escape') setOpen(false)
-        }}
-      />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg max-h-48 overflow-y-auto shadow-xl">
-          {filtered.map(g => (
-            <li key={g}>
-              <button
-                type="button"
-                className="w-full text-left px-3 py-1.5 text-sm text-stone-200 hover:bg-stone-700"
-                onMouseDown={e => { e.preventDefault(); addGenre(g) }}
-              >
-                {g}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SubFormData {
   companyId: string
@@ -501,19 +448,10 @@ function SubscriptionForm({
       {/* Genres */}
       <div>
         <label className={LABEL_CLASS}>Genres</label>
-        <div className="flex flex-wrap gap-1 mb-2">
-          {form.genres.map((g) => (
-            <span key={g} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-0.5 rounded-full">
-              {g}
-              <button type="button" onClick={() => setField('genres', form.genres.filter((x) => x !== g))}
-                className="text-stone-400 hover:text-red-400 leading-none">×</button>
-            </span>
-          ))}
-        </div>
-        <GenreCombobox
-          options={genreOptions}
-          selected={form.genres}
-          onAdd={(g) => setField('genres', [...form.genres, g])}
+        <GenreTagsPicker
+          genres={form.genres}
+          onChange={(v) => setField('genres', v)}
+          staticOptions={genreOptions}
         />
       </div>
 
