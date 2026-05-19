@@ -10,8 +10,9 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
+import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
+import { CancelSubscriptionModal } from '@/components/subscriptions/CancelSubscriptionModal'
 import { CheckCircle2, XCircle, Ban, Trash2, LayoutGrid, List } from 'lucide-react'
-import { Modal } from '@/components/ui/Modal'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 
@@ -259,11 +260,6 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const history = entry.membershipHistory ?? []
   const hasHistory = history.length > 0
 
-  const cancelMutation = useMutation({
-    mutationFn: (data: { cancellationDate: string; cancellationReason?: string }) =>
-      authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify(data) }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
-  })
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
@@ -278,24 +274,17 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
   })
 
-  const imageSource = sub.coverImage ?? sub.logoUrl
-  const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_pad,b_auto,q_auto,f_auto') : null
+  const coverUrl = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
   const renewalLabel = formatDate(entry.nextRenewalDate)
   const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
 
   return (
     <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
       {/* Cover — clickable */}
-      <Link href={`/subscriptions/${sub.slug}`} className="block relative aspect-[4/3] w-full">
-        {thumb ? (
-          <Image src={thumb} alt={sub.name} fill className="object-contain group-hover:scale-105 transition-transform duration-300" unoptimized />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center" style={brandGradientStyle(brandColors)}>
-            <span className="text-white/80 font-serif text-lg font-semibold text-center px-3 leading-tight drop-shadow">{sub.name}</span>
-          </div>
-        )}
+      <Link href={`/subscriptions/${sub.slug}`} className="block relative">
+        <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
         {/* Status badge */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 z-10">
           {entry.active ? (
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
               <CheckCircle2 size={10} /> Active
@@ -341,12 +330,10 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
 
       {/* Cancel confirm */}
       {showCancelConfirm && (
-        <CancelConfirmDialog
-          subName={sub.name}
+        <CancelSubscriptionModal
+          subscriptionSlug={sub.slug}
+          onCancelled={() => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) }}
           onClose={() => setShowCancelConfirm(false)}
-          onConfirm={(data) => cancelMutation.mutate(data)}
-          isPending={cancelMutation.isPending}
-          error={cancelMutation.error?.message}
         />
       )}
 
@@ -760,58 +747,6 @@ function EntryRemoveDialog({
   )
 }
 
-function CancelConfirmDialog({ subName, onClose, onConfirm, isPending, error }: {
-  subName: string
-  onClose: () => void
-  onConfirm: (data: { cancellationDate: string; cancellationReason?: string }) => void
-  isPending: boolean
-  error?: string | null
-}) {
-  const today = new Date().toISOString().slice(0, 10)
-  const [cancellationDate, setCancellationDate] = useState(today)
-  const [reason, setReason] = useState('')
-
-  return (
-    <Modal open onClose={onClose} title="Cancel subscription">
-      <p className="text-sm text-stone-400 mb-4">
-        Mark <span className="text-stone-200">{subName}</span> as cancelled. It will remain in your history.
-      </p>
-      <div className="space-y-3 mb-4">
-        <div>
-          <label className="block text-xs text-stone-400 mb-1">Cancellation date</label>
-          <input
-            type="date"
-            value={cancellationDate}
-            onChange={e => setCancellationDate(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-stone-400 mb-1">Reason (optional)</label>
-          <textarea
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            rows={3}
-            placeholder="e.g. Too expensive, changed box, etc."
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm resize-none"
-          />
-        </div>
-      </div>
-      {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
-      <div className="flex gap-3">
-        <button type="button" onClick={onClose}
-          className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors">
-          Keep subscription
-        </button>
-        <button type="button" onClick={() => onConfirm({ cancellationDate, cancellationReason: reason || undefined })} disabled={isPending}
-          className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50">
-          {isPending ? 'Cancelling…' : 'Confirm cancellation'}
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
 function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
   const getBrandColors = useBrandColors()
@@ -826,12 +761,6 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
 
   const history = entry.membershipHistory ?? []
   const hasHistory = history.length > 0
-
-  const cancelMutation = useMutation({
-    mutationFn: (data: { cancellationDate: string; cancellationReason?: string }) =>
-      authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify(data) }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
-  })
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
@@ -946,12 +875,10 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
 
       {/* Cancel confirm dialog */}
       {showCancelConfirm && (
-        <CancelConfirmDialog
-          subName={sub.name}
+        <CancelSubscriptionModal
+          subscriptionSlug={sub.slug}
+          onCancelled={() => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) }}
           onClose={() => setShowCancelConfirm(false)}
-          onConfirm={(data) => cancelMutation.mutate(data)}
-          isPending={cancelMutation.isPending}
-          error={cancelMutation.error?.message}
         />
       )}
 
