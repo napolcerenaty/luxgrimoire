@@ -581,6 +581,7 @@ export default function SubscriptionInfoPanel({
           subscriptionPrice={price}
           subscriptionOriginalBasePrice={originalBasePrice ?? null}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
+          userDefaultCurrency={user?.defaultCurrency ?? null}
           prepayOptions={prepayOptions}
           onJoined={() => {
             closeJoinModal()

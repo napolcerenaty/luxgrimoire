@@ -59,6 +59,7 @@ interface Props {
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
+  userDefaultCurrency?: string | null
   prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onJoined: () => void
   onClose: () => void
@@ -98,6 +99,7 @@ interface Step1Props {
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
+  userDefaultCurrency?: string | null
   prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
   onNext: (data: {
     startDate: string
@@ -114,7 +116,7 @@ interface Step1Props {
   }) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, prepayOptions, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -159,6 +161,33 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
     if (applicable.length > 0) setBasePrice(parseFloat(applicable[0].newBasePrice).toFixed(2))
   }, [costCurrency]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Once price changes load, set currency to user's default if official price exists for it;
+  // otherwise fall back to sub's default currency with its official price
+  useEffect(() => {
+    if (priceChanges.length === 0) return
+    const now = new Date()
+    const nowYear = now.getFullYear(); const nowMonth = now.getMonth() + 1
+    function latestPrice(cur: string) {
+      return priceChanges
+        .filter(pc => pc.currency === cur && (pc.effectiveYear < nowYear || (pc.effectiveYear === nowYear && pc.effectiveMonth <= nowMonth)))
+        .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)[0]
+    }
+    const userCur = userDefaultCurrency?.toUpperCase()
+    if (userCur && userCur !== currency) {
+      const userPrice = latestPrice(userCur)
+      if (userPrice) {
+        setCostCurrency(userCur)
+        setBasePrice(parseFloat(userPrice.newBasePrice).toFixed(2))
+        return
+      }
+    }
+    // Fall back: if sub's default currency has official price records, apply the latest
+    const subPrice = latestPrice(currency)
+    if (subPrice) {
+      setBasePrice(parseFloat(subPrice.newBasePrice).toFixed(2))
+    }
+  }, [priceChanges]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Whether selected currency has official price records
   const hasOfficialPriceForCurrency = priceChanges.some(pc => pc.currency === costCurrency)
@@ -326,11 +355,6 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
             Base price ({cur})
-            {priceChanges.length > 0 && (
-              <span className={`ml-2 ${hasOfficialPriceForCurrency ? 'text-green-400' : 'text-stone-500'}`}>
-                {hasOfficialPriceForCurrency ? '🟢 Official price' : '⚪ Custom price'}
-              </span>
-            )}
           </label>
           <input
             type="number" min={0} step="0.01"
@@ -339,6 +363,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             placeholder="0.00"
             className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
           />
+          {priceChanges.length > 0 && (
+            <p className={`text-[10px] mt-1 ${hasOfficialPriceForCurrency ? 'text-green-400' : 'text-stone-500'}`}>
+              {hasOfficialPriceForCurrency ? '🟢 Official price' : '⚪ Custom price'}
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping ({cur})</label>
@@ -1277,6 +1306,7 @@ export default function JoinSubscriptionModal({
   subscriptionPrice,
   subscriptionOriginalBasePrice,
   userDefaultTaxRate,
+  userDefaultCurrency,
   prepayOptions,
   onJoined,
   onClose,
@@ -1313,13 +1343,11 @@ export default function JoinSubscriptionModal({
           basePrice: data.basePrice || undefined,
           shippingCost: data.shippingCost || undefined,
           renewalDay: data.renewalDay,
-          linkedFeeTemplates: data.linkedFeeTemplates.length > 0
-            ? data.linkedFeeTemplates.map(f => ({
-                templateId: f.templateId,
-                customAmount: f.customAmount,
-                customCurrency: f.customCurrency,
-              }))
-            : undefined,
+          linkedFeeTemplates: data.linkedFeeTemplates.map(f => ({
+              templateId: f.templateId,
+              customAmount: f.customAmount,
+              customCurrency: f.customCurrency,
+            })),
           ...(data.alreadyCancelled && {
             alreadyCancelled: true,
             cancellationDate: data.cancellationDate,
@@ -1387,6 +1415,7 @@ export default function JoinSubscriptionModal({
               subscriptionPrice={subscriptionPrice}
               subscriptionOriginalBasePrice={subscriptionOriginalBasePrice}
               userDefaultTaxRate={userDefaultTaxRate}
+              userDefaultCurrency={userDefaultCurrency}
               prepayOptions={prepayOptions}
               onNext={handleStep1}
             />
