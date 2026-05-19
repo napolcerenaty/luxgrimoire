@@ -1227,13 +1227,13 @@ export default function CollectionPage() {
                                 )}
                               </div>
                             )}
-                            {!entry.signatureType && (
+                            {(!entry.signatureType || entry.signatureType === 'unsigned') && (
                               <div className="relative" data-dropdown>
                                 <span
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig-grid` ? null : `${entry.id}-sig-grid`) }}
                                   className="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-stone-600 bg-stone-800 border-stone-700"
                                   title="Set signature type"
-                                >✍️</span>
+                                >UNSIGNED</span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed'] as const).map((val) => (
