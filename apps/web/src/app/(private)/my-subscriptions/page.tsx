@@ -260,7 +260,8 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const hasHistory = history.length > 0
 
   const cancelMutation = useMutation({
-    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
+    mutationFn: (data: { cancellationDate: string; cancellationReason?: string }) =>
+      authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify(data) }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
   })
   const removeMutation = useMutation({
@@ -343,7 +344,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
         <CancelConfirmDialog
           subName={sub.name}
           onClose={() => setShowCancelConfirm(false)}
-          onConfirm={() => cancelMutation.mutate()}
+          onConfirm={(data) => cancelMutation.mutate(data)}
           isPending={cancelMutation.isPending}
           error={cancelMutation.error?.message}
         />
@@ -762,21 +763,49 @@ function EntryRemoveDialog({
 function CancelConfirmDialog({ subName, onClose, onConfirm, isPending, error }: {
   subName: string
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (data: { cancellationDate: string; cancellationReason?: string }) => void
   isPending: boolean
   error?: string | null
 }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [cancellationDate, setCancellationDate] = useState(today)
+  const [reason, setReason] = useState('')
+
   return (
-    <Modal open onClose={onClose} title="Cancel subscription?">
+    <Modal open onClose={onClose} title="Cancel subscription">
       <p className="text-sm text-stone-400 mb-4">
-        Your subscription to <span className="text-stone-200">{subName}</span> will be marked as cancelled.
+        Mark <span className="text-stone-200">{subName}</span> as cancelled. It will remain in your history.
       </p>
+      <div className="space-y-3 mb-4">
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Cancellation date</label>
+          <input
+            type="date"
+            value={cancellationDate}
+            onChange={e => setCancellationDate(e.target.value)}
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Reason (optional)</label>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            rows={3}
+            placeholder="e.g. Too expensive, changed box, etc."
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm resize-none"
+          />
+        </div>
+      </div>
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
-      <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">Keep it</button>
-        <button type="button" onClick={onConfirm} disabled={isPending}
-          className="bg-amber-600 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-amber-500 disabled:opacity-50 transition-colors">
-          {isPending ? 'Cancelling…' : 'Cancel subscription'}
+      <div className="flex gap-3">
+        <button type="button" onClick={onClose}
+          className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors">
+          Keep subscription
+        </button>
+        <button type="button" onClick={() => onConfirm({ cancellationDate, cancellationReason: reason || undefined })} disabled={isPending}
+          className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50">
+          {isPending ? 'Cancelling…' : 'Confirm cancellation'}
         </button>
       </div>
     </Modal>
@@ -799,7 +828,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const hasHistory = history.length > 0
 
   const cancelMutation = useMutation({
-    mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify({}) }),
+    mutationFn: (data: { cancellationDate: string; cancellationReason?: string }) =>
+      authFetch(`/subscriptions/${sub.slug}/my-entry/cancel`, { method: 'PATCH', body: JSON.stringify(data) }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) },
   })
 
@@ -919,7 +949,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
         <CancelConfirmDialog
           subName={sub.name}
           onClose={() => setShowCancelConfirm(false)}
-          onConfirm={() => cancelMutation.mutate()}
+          onConfirm={(data) => cancelMutation.mutate(data)}
           isPending={cancelMutation.isPending}
           error={cancelMutation.error?.message}
         />
