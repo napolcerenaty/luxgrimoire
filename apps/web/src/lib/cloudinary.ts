@@ -21,7 +21,8 @@ export function cloudinaryUrl(
 ): string | null {
   if (!publicId) return null
   const id = normalizePublicId(publicId)
-  return `https://res.cloudinary.com/${CLOUD}/image/upload/${transforms}/${id}`
+  const src = `${transforms}/${id}`
+  return `/api/img?src=${encodeURIComponent(src)}`
 }
 
 /**
