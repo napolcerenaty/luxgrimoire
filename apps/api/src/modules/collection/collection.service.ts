@@ -272,6 +272,13 @@ export class CollectionService {
           saleNotes: true,
           signatureType: true,
           subscriptionEntryId: true,
+          subscriptionEntry: {
+            select: {
+              subscription: {
+                select: { id: true, name: true, parentSubscriptionId: true },
+              },
+            },
+          },
           saleAnnouncementEditionId: true,
           isOriginalPrint: true,
           saleAnnouncementEdition: {
