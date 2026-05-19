@@ -147,7 +147,6 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
             {regions.map(r => (
               <option key={r.id} value={r.id}>
                 {r.name}
-                {autoRegion?.id === r.id && r.id !== selectedRegionId ? ' ✓ (suggested)' : ''}
               </option>
             ))}
           </select>
