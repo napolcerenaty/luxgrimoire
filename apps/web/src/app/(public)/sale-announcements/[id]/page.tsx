@@ -7,6 +7,7 @@ import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import SaleDateSelector from './SaleDateSelector'
 import { SaleInterestSection } from './SaleInterestSection'
+import { brandGradientStyle } from '@/lib/brandGradient'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -44,13 +45,19 @@ export default async function SaleAnnouncementPage({ params }: Props) {
           {sale.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={cloudinaryUrl(sale.imageUrl, 'w_560,h_560,c_fill,q_auto,f_auto') ?? sale.imageUrl}
+              src={cloudinaryUrl(sale.imageUrl, 'w_560,q_auto,f_auto') ?? sale.imageUrl}
               alt={sale.title}
-              className="rounded-xl shadow-2xl w-full object-cover"
+              className="rounded-xl shadow-2xl w-full h-auto"
             />
           ) : (
-            <div className="w-full aspect-[4/3] rounded-xl bg-stone-800 flex items-center justify-center text-stone-500">
-              No image
+            <div
+              className="w-full aspect-[2/3] rounded-xl flex items-center justify-center relative overflow-hidden"
+              style={brandGradientStyle(sale.company?.brandColors)}
+            >
+              <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sale.company?.brandColors)} />
+              <p className="relative z-10 font-serif font-semibold text-center px-4 text-stone-200 leading-snug line-clamp-5">
+                {sale.title}
+              </p>
             </div>
           )}
           {sale.photoCredit && (() => {
@@ -171,8 +178,12 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                       className="w-full aspect-[2/3] object-cover"
                     />
                   ) : (
-                    <div className="w-full aspect-[2/3] bg-stone-800 flex items-center justify-center text-stone-600 text-xs">
-                      No cover
+                    <div
+                      className="w-full aspect-[2/3] relative flex items-center justify-center overflow-hidden"
+                      style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)}
+                    >
+                      <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)} />
+                      <p className="relative z-10 font-serif font-semibold text-center px-2 text-xs text-stone-200 leading-snug line-clamp-4">{displayTitle}</p>
                     </div>
                   )}
                   <div className="p-3">

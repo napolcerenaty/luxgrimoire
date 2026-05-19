@@ -6,7 +6,9 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import { LayoutGrid, List } from 'lucide-react'
 import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import type { ApiSubscription } from '@luxgrimoire/shared-types'
+import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 
 interface Props {
   subscriptions: ApiSubscription[]
@@ -17,6 +19,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
   const [companyFilter, setCompanyFilter] = useState('')
   const [genreFilter, setGenreFilter] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const getBrandColors = useBrandColors()
 
   const companies = useMemo(() => {
     const names = subscriptions
@@ -109,8 +112,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((sub) => {
             const cover = cloudinaryUrl(sub.coverImage, 'w_600,q_auto,f_auto')
-            const brandColors = sub.company?.brandColors
-            const tc = brandTextClasses(brandColors)
+            const brandColors = getBrandColors(sub.company?.slug) ?? sub.company?.brandColors
             const subGenres: string[] = [
               ...(Array.isArray(sub.genres) ? sub.genres : []),
               ...(sub.genre ? [sub.genre] : []),
@@ -121,23 +123,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
                 href={`/subscriptions/${sub.slug}?from=subscriptions`}
                 className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
               >
-                <div className="aspect-[2/1] relative overflow-hidden bg-stone-950 flex items-center justify-center">
-                  {cover ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={cover} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50" />
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={cover} alt={sub.name} className="relative z-10 max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                    </>
-                  ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center px-4"
-                      style={brandGradientStyle(brandColors)}
-                    >
-                      <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{sub.name}</span>
-                    </div>
-                  )}
-                </div>
+                <SubCoverImage coverUrl={cover} name={sub.name} brandColors={brandColors} />
                 <div className="p-4">
                   {sub.company && (
                     <p className="text-xs text-amber-600 mb-1">{sub.company.name}</p>
@@ -160,7 +146,7 @@ export default function SubscriptionList({ subscriptions }: Props) {
         <div className="flex flex-col divide-y divide-stone-800">
           {filtered.map((sub) => {
             const thumb = cloudinaryUrl(sub.coverImage, 'w_80,h_80,c_fill,q_auto,f_auto')
-            const brandColors = sub.company?.brandColors
+            const brandColors = getBrandColors(sub.company?.slug) ?? sub.company?.brandColors
             const tc = brandTextClasses(brandColors)
             const subGenres: string[] = [
               ...(Array.isArray(sub.genres) ? sub.genres : []),

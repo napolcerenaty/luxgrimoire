@@ -6,6 +6,7 @@ import {
   AssignMonthsToSeriesDto,
 } from './subscription-series.dto';
 import { generateSlug } from '../../common/utils/slug.util';
+import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const SERIES_SELECT = {
   id: true,
@@ -39,8 +40,7 @@ export class SubscriptionSeriesService {
   }
 
   async findBySubscriptionSlug(subscriptionSlug: string) {
-    const sub = await this.prisma.subscription.findUnique({ where: { slug: subscriptionSlug } });
-    if (!sub) throw new NotFoundException(`Subscription '${subscriptionSlug}' not found`);
+    const sub = await findBySlugOrThrow(this.prisma.subscription, subscriptionSlug, 'Subscription');
     return this.prisma.subscriptionSeries.findMany({
       where: { subscriptionId: sub.id },
       select: {

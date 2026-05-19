@@ -59,6 +59,7 @@ export class SaleInterestsService {
               select: {
                 id: true,
                 name: true,
+                slug: true,
                 logoUrl: true,
                 brandColors: true,
               },

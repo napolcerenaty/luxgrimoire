@@ -50,12 +50,14 @@ export class SkipPolicyEngine {
     let skippedMonths = skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     let skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
     let effectiveState = state;
+    // Flat list of all skip records (with windowKey) used later to filter display to current window
+    let allSkipRecordsForWindow: Array<{ windowKey: string | null; month: { year: number; month: number } }> = skipRecords;
 
     // For combo subscriptions: aggregate skip records from component entries so the counter
     // reflects all historical skips (which may have been recorded on component entry IDs).
     if (isCombo && componentIds.length > 0) {
       const compEntries = await this.prisma.userSubscriptionEntry.findMany({
-        where: { userId, subscriptionId: { in: componentIds } },
+        where: { userId, subscriptionId: { in: componentIds }, active: true },
         select: { id: true, firstSkipDate: true },
       });
       if (compEntries.length > 0) {
@@ -73,6 +75,7 @@ export class SkipPolicyEngine {
 
         skippedMonths = allRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
         skippedSet = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+        allSkipRecordsForWindow = allRecords;
 
         // Build effectiveState when state is null (no skips recorded via combo entry yet)
         if (!state && allRecords.length > 0 && policy?.type === 'FROM_FIRST_SKIP') {
@@ -85,6 +88,9 @@ export class SkipPolicyEngine {
             : null;
 
           let skipsInCurrentWindow = allRecords.length;
+          // Window key of the current active window, derived from stored skip records.
+          // Used to populate effectiveState.windowKey so the display filter can match records.
+          let activeWindowKeyFromRecords: string | null = null;
           if (earliestFirst && policy.windowMonths) {
             // Walk forward in windowMonths increments from earliest first skip to find current window
             let winStart = new Date(earliestFirst);
@@ -94,11 +100,13 @@ export class SkipPolicyEngine {
               const winEnd = new Date(winStart);
               winEnd.setMonth(winEnd.getMonth() + policy.windowMonths);
               if (today < winEnd) {
-                // Count records skipped within [winStart, winEnd)
-                skipsInCurrentWindow = allRecords.filter((r) => {
+                // Count records skipped within [winStart, winEnd) and extract their windowKey
+                const winRecords = allRecords.filter((r) => {
                   const t = (r as any).skippedAt ? new Date((r as any).skippedAt) : null;
                   return t && t >= winStart && t < winEnd;
-                }).length;
+                });
+                skipsInCurrentWindow = winRecords.length;
+                activeWindowKeyFromRecords = winRecords[0]?.windowKey ?? null;
                 break;
               }
               winStart = winEnd;
@@ -109,16 +117,30 @@ export class SkipPolicyEngine {
             totalSkips: allRecords.length,
             skipsInWindow: skipsInCurrentWindow,
             consecutiveSkips: 0,
+            windowKey: activeWindowKeyFromRecords,
           } as NonNullable<typeof state>;
         }
       }
     }
 
-    // Fix stale skipsInWindow: if the current window key has changed since last skip, show 0
-    if (state && policy) {
+    // Fix stale skipsInWindow: if the current window key has changed since last skip, show 0.
+    // Skip this check when state.windowKey is null — the state is desynced (e.g. created before
+    // windowKey was persisted in recomputeState). In that case, trust state.skipsInWindow as-is.
+    if (state && policy && state.windowKey !== null) {
       const currentWindowKey = this.computeWindowKey(policy, state, entry);
       if (currentWindowKey !== null && currentWindowKey !== state.windowKey) {
         effectiveState = { ...state, skipsInWindow: 0 };
+      }
+    }
+
+    // Filter skippedMonths for display to the CURRENT window only.
+    // skippedSet is intentionally kept as all-time (used to block re-skipping previous window months).
+    if (policy && policy.type !== 'UNLIMITED' && policy.type !== 'UNLIMITED_MAX_CONSEC' && policy.type !== 'NONE') {
+      const activeWindowKey = this.computeWindowKey(policy, effectiveState, entry);
+      if (activeWindowKey !== null) {
+        skippedMonths = allSkipRecordsForWindow
+          .filter((r) => r.windowKey === activeWindowKey)
+          .map((r) => ({ year: r.month.year, month: r.month.month }));
       }
     }
 
@@ -639,13 +661,17 @@ export class SkipPolicyEngine {
         return String(new Date().getFullYear());
 
       case 'FROM_FIRST_SKIP': {
-        if (entry.firstSkipDate && state?.windowKey) {
-          if (!policy.windowMonths) return state.windowKey; // no expiry configured
-          // Check if the current window has expired
-          const windowStart = new Date(state.windowKey);
+        // Prefer state.windowKey as the anchor (most accurate); fall back to firstSkipDate.
+        // For combo entries, firstSkipDate is null but state.windowKey (or effectiveState.windowKey)
+        // was derived during aggregation and must be used here.
+        const anchorKey = state?.windowKey
+          ?? (entry.firstSkipDate ? new Date(entry.firstSkipDate).toISOString().slice(0, 10) : null);
+        if (anchorKey) {
+          if (!policy.windowMonths) return anchorKey; // no expiry configured
+          const windowStart = new Date(anchorKey);
           const windowEnd = new Date(windowStart);
           windowEnd.setMonth(windowEnd.getMonth() + policy.windowMonths);
-          if (new Date() < windowEnd) return state.windowKey; // still within window
+          if (new Date() < windowEnd) return anchorKey; // still within window
           // Window has expired — start a new one from today
         }
         return new Date().toISOString().slice(0, 10);
@@ -977,7 +1003,7 @@ export class SkipPolicyEngine {
     if (total === 0) {
       return this.prisma.userSubscriptionSkipState.upsert({
         where: { userId_subscriptionId: { userId, subscriptionId } },
-        create: { userId, subscriptionId, skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0 },
+        create: { userId, subscriptionId, skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0, windowKey: null },
         update: { skipsInWindow: 0, consecutiveSkips: 0, totalSkips: 0, lastSkipAt: null, windowKey: null },
       });
     }
@@ -1013,7 +1039,7 @@ export class SkipPolicyEngine {
 
     return this.prisma.userSubscriptionSkipState.upsert({
       where: { userId_subscriptionId: { userId, subscriptionId } },
-      create: { userId, subscriptionId, skipsInWindow, consecutiveSkips: consecutive, totalSkips: total },
+      create: { userId, subscriptionId, skipsInWindow, consecutiveSkips: consecutive, totalSkips: total, windowKey: latestWindowKey },
       update: {
         skipsInWindow,
         consecutiveSkips: consecutive,

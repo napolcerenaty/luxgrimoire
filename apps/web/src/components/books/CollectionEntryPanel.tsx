@@ -338,6 +338,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editingOrderNumber, setEditingOrderNumber] = useState(false)
   const [editOrderNumber, setEditOrderNumber] = useState('')
   const [savingOrderNumber, setSavingOrderNumber] = useState(false)
+  const [deletingOrderNumber, setDeletingOrderNumber] = useState(false)
 
   // Edit state — tags
   const [editingTags, setEditingTags] = useState(false)
@@ -784,6 +785,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditingOrderNumber(false)
     } finally {
       setSavingOrderNumber(false)
+    }
+  }
+
+  async function deleteOrderNumber() {
+    setDeletingOrderNumber(true)
+    try {
+      await patchEntry({ orderNumber: null })
+    } finally {
+      setDeletingOrderNumber(false)
     }
   }
 
@@ -1775,6 +1785,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             <div className="flex items-center gap-1.5">
               <span className="text-sm text-stone-200">{entry.orderNumber}</span>
               <EditBtn onClick={openOrderNumberEdit} />
+              <button
+                onClick={deleteOrderNumber}
+                disabled={deletingOrderNumber}
+                className="ml-0.5 text-stone-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                title="Remove order number"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           ) : (
             <button onClick={openOrderNumberEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>

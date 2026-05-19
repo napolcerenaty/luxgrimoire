@@ -96,11 +96,14 @@ function tierLabel(tier: string): string {
 }
 
 const OWNERSHIP_OPTIONS = [
-  { value: 'OWNED', label: 'Owned' },
   { value: 'PREORDER', label: 'Pre-order' },
-  { value: 'SHIPPING', label: 'Shipping / In transit' },
+  { value: 'SHIPPING', label: 'Shipping' },
+  { value: 'OWNED', label: 'Own' },
   { value: 'BORROWED', label: 'Borrowed' },
-  { value: 'LENDED', label: 'Lent out' },
+  { value: 'LENDED', label: 'Lended' },
+  { value: 'TO_SELL', label: 'To Sell' },
+  { value: 'SOLD', label: 'Sold' },
+  { value: 'GIFTED_AWAY', label: 'Gifted Away' },
 ] as const
 
 export default function WishlistPage() {
@@ -494,7 +497,7 @@ export default function WishlistPage() {
         title="Move to Collection"
         submitLabel="Move"
         subtitle={moveEntry?.edition.book.title ?? null}
-        defaultOwnershipStatus="OWNED"
+        defaultOwnershipStatus="PREORDER"
         ownershipOptions={[...OWNERSHIP_OPTIONS]}
         submitting={moveMutation.isPending}
         error={moveMutation.error instanceof Error ? moveMutation.error.message : null}

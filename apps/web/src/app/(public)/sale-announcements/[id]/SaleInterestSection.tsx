@@ -3,7 +3,7 @@
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { AddToCollectionButton } from './AddToCollectionButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase, isSalePast, resolveSalePrice } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast, resolveSalePrice, resolveSubscriberPrice } from '@/lib/saleDates'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -18,6 +18,13 @@ export function SaleInterestSection({ sale }: Props) {
 
   const allEditions = sale.editions ?? []
   const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
+  const subscriberPrice = resolveSubscriberPrice(sale, regionId)
+
+  // selectedPrice from hook = explicitly saved price (null = never saved / old record)
+  // Fall back to resolved subscriber price since UI defaults to showing subscriber when price exists
+  const effectiveSelectedPrice = selectedPrice ?? (subscriberPrice ?? undefined)
+  const effectiveSelectedCurrency = selectedPriceCurrency ?? (subscriberPrice != null ? resolvedCurrency : undefined)
+
 
   if (salePast) {
     return (
@@ -27,8 +34,8 @@ export function SaleInterestSection({ sale }: Props) {
           editions={allEditions}
           basePrice={resolvedPrice ?? undefined}
           currency={resolvedCurrency}
-          selectedPrice={selectedPrice ?? undefined}
-          selectedPriceCurrency={selectedPriceCurrency ?? undefined}
+          selectedPrice={effectiveSelectedPrice}
+          selectedPriceCurrency={effectiveSelectedCurrency}
           defaultOwnershipStatus="PREORDER"
         />
       </div>
@@ -48,8 +55,8 @@ export function SaleInterestSection({ sale }: Props) {
           editions={allEditions}
           basePrice={resolvedPrice ?? undefined}
           currency={resolvedCurrency}
-          selectedPrice={selectedPrice ?? undefined}
-          selectedPriceCurrency={selectedPriceCurrency ?? undefined}
+          selectedPrice={effectiveSelectedPrice}
+          selectedPriceCurrency={effectiveSelectedCurrency}
           compact
           defaultOwnershipStatus="PREORDER"
           triggerLabel="Confirm Purchase"

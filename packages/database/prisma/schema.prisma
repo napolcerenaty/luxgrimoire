@@ -752,7 +752,7 @@ model UserSubscriptionMembershipHistory {
   id                 String    @id @default(uuid())
   userId             String
   subscriptionId     String
-  entryId            String
+  entryId            String?
   startDate          String?
   endDate            String?
   cancellationReason String?
@@ -760,7 +760,7 @@ model UserSubscriptionMembershipHistory {
 
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription       Subscription @relation(fields: [subscriptionId], references: [id])
-  entry              UserSubscriptionEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry              UserSubscriptionEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
 
   @@index([userId, subscriptionId])
   @@index([userId])

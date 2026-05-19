@@ -62,7 +62,7 @@ function makeQuarterlyBundleSubscription(overrides: {
   startingMonth?: number;
   intervalMonths?: number;
   policy?: ReturnType<typeof makePolicy> | null;
-  skipRecords?: Array<{ id: string; month: { year: number; month: number }; series: null }>;
+  skipRecords?: Array<{ id: string; month: { year: number; month: number }; windowKey?: string; series: null }>;
 } = {}) {
   const policy = overrides.policy !== undefined ? overrides.policy : makePolicy('CALENDAR_YEAR', { maxSkips: 2 });
   return {
@@ -268,7 +268,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
 
     it('after skipping Q2 (April), target becomes Q3 (July)', async () => {
       const sub = makeQuarterlyBundleSubscription({
-        skipRecords: [{ id: 'skip-1', month: { year: 2025, month: 4 }, series: null }],
+        skipRecords: [{ id: 'skip-1', month: { year: 2025, month: 4 }, windowKey: '2025', series: null }],
       });
       const prisma = makePrismaForGetStatus({
         subscription: sub,
@@ -292,8 +292,8 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
     it('after skipping Q2+Q3 (2 skips), canSkip=false (CALENDAR_YEAR maxSkips=2)', async () => {
       const sub = makeQuarterlyBundleSubscription({
         skipRecords: [
-          { id: 'skip-1', month: { year: 2025, month: 4 }, series: null },
-          { id: 'skip-2', month: { year: 2025, month: 7 }, series: null },
+          { id: 'skip-1', month: { year: 2025, month: 4 }, windowKey: '2025', series: null },
+          { id: 'skip-2', month: { year: 2025, month: 7 }, windowKey: '2025', series: null },
         ],
       });
       const prisma = makePrismaForGetStatus({

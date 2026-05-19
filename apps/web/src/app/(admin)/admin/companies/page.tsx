@@ -23,6 +23,7 @@ function ManualColorEditor({
   initial: string[]
   onSaved: () => void
 }) {
+  const queryClient = useQueryClient()
   const [colors, setColors] = useState<string[]>(() => {
     const c = [...initial]
     while (c.length < 3) c.push('#c8b48c')
@@ -44,6 +45,7 @@ function ManualColorEditor({
         method: 'POST',
         body: JSON.stringify({ colors }),
       })
+      void queryClient.invalidateQueries({ queryKey: ['brand-colors'] })
       onSaved()
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)

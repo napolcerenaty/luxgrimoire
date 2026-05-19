@@ -6,6 +6,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { Megaphone, Search, LayoutGrid, List, X } from 'lucide-react'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
@@ -25,9 +26,9 @@ interface ListSaleAnnouncement {
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
-  company: { name: string; brandColors?: string[] } | null
+  company: { name: string; slug?: string | null; brandColors?: string[] } | null
   editions: Array<{ edition: { additionalImages: string[] } | null }>
-  regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null }>
+  regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; countryCodes: string; currency: string | null }>
 }
 
 function formatDate(iso: string | null) {
@@ -40,6 +41,8 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_600,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   return (
     <Link
@@ -57,7 +60,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
           />
         ) : (
           <div className="relative w-full h-full flex items-center justify-center text-stone-600">
-            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(a.company?.brandColors)} />
+            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(brandColors)} />
             <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-stone-300">
               {a.title}
             </p>
@@ -119,6 +122,8 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
   const thumb = cover ? cloudinaryUrl(cover, 'w_80,h_80,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   return (
     <Link
@@ -132,7 +137,7 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
           <img src={thumb} alt={a.title} className="w-full h-full object-cover" />
         ) : (
           <>
-            <div className="absolute inset-0 opacity-20" style={brandGradientStyle(a.company?.brandColors)} />
+            <div className="absolute inset-0 opacity-20" style={brandGradientStyle(brandColors)} />
             <p className="relative z-10 font-serif text-center text-[10px] leading-tight px-1 line-clamp-3 text-stone-300">
               {a.title}
             </p>

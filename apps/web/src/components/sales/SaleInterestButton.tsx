@@ -58,6 +58,7 @@ interface Props {
 export function SaleInterestButton({ sale, subscriberBasePrice, currency, compact = false }: Props) {
   const { user } = useAuth()
   const router = useRouter()
+  const hour12 = user?.timeFormat === '12h'
   const { isInterested, tier, regionId: savedRegionId, selectedPrice, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
@@ -287,7 +288,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
 
               <div className="flex flex-col gap-2">
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value])
+                  const formattedDate = formatTierDate(dates[t.value], hour12)
                   return (
                     <button
                       key={t.value}
@@ -395,7 +396,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                 </p>
 
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value])
+                  const formattedDate = formatTierDate(dates[t.value], hour12)
                   return (
                     <button
                       key={t.value}

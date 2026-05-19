@@ -20,6 +20,7 @@ const editionsInclude = {
           },
         },
         artists: { include: { artist: true } },
+        bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
       },
     },
   },
@@ -113,7 +114,7 @@ export class AnnouncementsService {
           generalSaleDate: true,
           firstAccessDate: true,
           earlyAccessDate: true,
-          company: { select: { name: true, brandColors: true } },
+          company: { select: { name: true, slug: true, brandColors: true } },
           editions: {
             take: 1,
             orderBy: { sortOrder: 'asc' as const },
@@ -122,7 +123,7 @@ export class AnnouncementsService {
             },
           },
           regions: {
-            select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
+            select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true, countryCodes: true, currency: true },
           },
         },
       }),
@@ -135,7 +136,11 @@ export class AnnouncementsService {
   async findById(id: string) {
     const announcement = await this.prisma.saleAnnouncement.findUnique({
       where: { id },
-      include: { editions: editionsInclude, regions: regionsInclude },
+      include: {
+        editions: editionsInclude,
+        regions: regionsInclude,
+        company: { select: { name: true, slug: true, brandColors: true } },
+      },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
     return announcement;

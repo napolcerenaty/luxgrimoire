@@ -256,6 +256,7 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
   cancellationDate: string | null;
   cancellationReason: string | null;
   scheduledPrepayOptionId: string | null;
+  membershipHistory: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }>;
   feeTemplates: Array<{
     customAmount: string | null;
     customCurrency: string | null;
@@ -299,7 +300,7 @@ export async function cancelMySubscriptionEntry(
 
 export async function removeMySubscriptionEntry(
   slug: string,
-  opts: { removeBooks: boolean; removeSpending: boolean },
+  opts: { removeBooks: boolean; removeSpending: boolean; historyId?: string; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
 ): Promise<void> {
   const res = await fetch(`${API_URL}/subscriptions/${slug}/my-entry`, {
     credentials: 'include',
@@ -390,6 +391,7 @@ export interface CreatePurchaseGroupData {
   shippingAmount?: number;
   purchasedAt: string;
   notes?: string;
+  orderNumber?: string;
   ownershipStatus?: string;
   isSecondHand?: boolean;
   sourcePlatform?: string;

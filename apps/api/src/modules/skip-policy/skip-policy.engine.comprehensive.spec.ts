@@ -201,6 +201,11 @@ function getUpsertUpdate(prisma: PrismaService) {
   return (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls[0][0].update;
 }
 
+// Helper: extract the create payload from the upsert call
+function getUpsertCreate(prisma: PrismaService) {
+  return (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls[0][0].create;
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('SkipPolicyEngine — comprehensive', () => {
@@ -259,6 +264,19 @@ describe('SkipPolicyEngine — comprehensive', () => {
         expect(
           call(policy, null, { startDate: '2024-01-01', firstSkipDate: null }),
         ).toBe('2025-05-18');
+      });
+
+      it('returns firstSkipDate key when state.windowKey is null but window still active', () => {
+        // firstSkipDate=2025-01-01, windowMonths=12 → window expires 2026-01-01
+        // today=2025-05-18 (inside window) → should return '2025-01-01', NOT today
+        jest.useFakeTimers().setSystemTime(new Date('2025-05-18T10:00:00Z'));
+        expect(
+          call(
+            policy,
+            { windowKey: null },
+            { startDate: '2024-01-01', firstSkipDate: new Date('2025-01-01') },
+          ),
+        ).toBe('2025-01-01');
       });
 
       it('returns today when firstSkipDate set but state has no windowKey', () => {
@@ -576,7 +594,8 @@ describe('SkipPolicyEngine — comprehensive', () => {
       expect(status.canSkip).toBe(true);
     });
 
-    it('skippedMonths reflects all historical records regardless of window', async () => {
+    it('CALENDAR_YEAR skippedMonths shows only current-year records (not all-time)', async () => {
+      // Previous years' skips are tracked in skippedSet but hidden from skippedMonths display.
       jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
       const skipRecords = [
         makeRecord({ year: 2024, month: 3, windowKey: '2024' }),
@@ -586,10 +605,12 @@ describe('SkipPolicyEngine — comprehensive', () => {
       const prisma = makePrismaForGetStatus({
         policyType: 'CALENDAR_YEAR', maxSkips: 3,
         skipRecords,
-        state: { windowKey: '2025', skipsInWindow: 1, consecutiveSkips: 0, totalSkips: 3 },
+        state: { windowKey: '2026', skipsInWindow: 1, consecutiveSkips: 0, totalSkips: 3 },
       });
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
-      expect(status.skippedMonths).toHaveLength(3);
+      // Only the 2026 record belongs to the current window
+      expect(status.skippedMonths).toHaveLength(1);
+      expect(status.skippedMonths[0]).toEqual({ year: 2026, month: 2 });
     });
   });
 
@@ -723,6 +744,52 @@ describe('SkipPolicyEngine — comprehensive', () => {
       });
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
       expect(status.skipsInWindow).toBe(1);
+    });
+
+    it('state.windowKey=null (desynced): stale check skipped, skipsInWindow trusted as-is', async () => {
+      // Backfill ran before windowKey was persisted → state.windowKey=null but skipsInWindow=2 is correct.
+      // The stale check must NOT reset skipsInWindow to 0 in this case.
+      jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
+      const prisma = makePrismaForGetStatus({
+        policyType: 'FROM_FIRST_SKIP', maxSkips: 4, windowMonths: 12,
+        firstSkipDate: new Date('2025-11-01'),
+        skipRecords: [
+          makeRecord({ year: 2025, month: 11, windowKey: '2025-11-01' }),
+          makeRecord({ year: 2026, month: 5, windowKey: '2025-11-01' }),
+        ],
+        state: { windowKey: null, skipsInWindow: 2, consecutiveSkips: 0, totalSkips: 2 },
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.skipsInWindow).toBe(2); // NOT reset to 0
+      expect(status.canSkip).toBe(true);
+      expect(status.totalSkips).toBe(2);
+    });
+
+    it('multi-window backfill: skippedMonths filtered to current window only', async () => {
+      // W1 (2024-01-05→2025-01-05): 4 skips — expired; W2 (2025-01-05→2026-01-05): 2 skips — active
+      // skippedMonths display should show only W2 skips
+      jest.useFakeTimers().setSystemTime(new Date('2025-05-18T10:00:00Z'));
+      const prisma = makePrismaForGetStatus({
+        policyType: 'FROM_FIRST_SKIP', maxSkips: 4, windowMonths: 12,
+        firstSkipDate: new Date('2024-01-05'),
+        skipRecords: [
+          makeRecord({ year: 2024, month: 3, windowKey: '2024-01-05', skippedAt: new Date('2024-03-05') }),
+          makeRecord({ year: 2024, month: 6, windowKey: '2024-01-05', skippedAt: new Date('2024-06-05') }),
+          makeRecord({ year: 2024, month: 9, windowKey: '2024-01-05', skippedAt: new Date('2024-09-05') }),
+          makeRecord({ year: 2024, month: 12, windowKey: '2024-01-05', skippedAt: new Date('2024-12-05') }),
+          makeRecord({ year: 2025, month: 2, windowKey: '2025-01-05', skippedAt: new Date('2025-02-05') }),
+          makeRecord({ year: 2025, month: 4, windowKey: '2025-01-05', skippedAt: new Date('2025-04-05') }),
+        ],
+        state: { windowKey: '2025-01-05', skipsInWindow: 2, consecutiveSkips: 0, totalSkips: 6 },
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.skipsInWindow).toBe(2);
+      expect(status.totalSkips).toBe(6);
+      // Display: only W2 (2025) months, not the W1 (2024) ones
+      expect(status.skippedMonths).toHaveLength(2);
+      expect(status.skippedMonths).toContainEqual({ year: 2025, month: 2 });
+      expect(status.skippedMonths).toContainEqual({ year: 2025, month: 4 });
+      expect(status.skippedMonths).not.toContainEqual({ year: 2024, month: 3 });
     });
   });
 
@@ -1072,6 +1139,31 @@ describe('SkipPolicyEngine — comprehensive', () => {
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
       expect(status.skipsInWindow).toBe(1);
     });
+
+    it('no state, 2 windows: skippedMonths shows only current-window months', async () => {
+      // W1 (2024-01-05→2025-01-05): 3 skips — expired; W2 (2025-01-05→2026-01-05): 2 skips — active
+      jest.useFakeTimers().setSystemTime(new Date('2025-05-18T10:00:00Z'));
+      const prisma = makePrismaForGetStatus({
+        policyType: 'FROM_FIRST_SKIP', maxSkips: 4, windowMonths: 12,
+        isCombo: true, componentIds: ['comp-sub-1'],
+        skipRecords: [], firstSkipDate: null, state: null,
+        componentEntries: [{ id: 'comp-e1', firstSkipDate: new Date('2024-01-05') }],
+        componentSkipRecords: [
+          makeRecord({ year: 2024, month: 3, windowKey: '2024-01-05', skippedAt: new Date('2024-03-05') }),
+          makeRecord({ year: 2024, month: 7, windowKey: '2024-01-05', skippedAt: new Date('2024-07-05') }),
+          makeRecord({ year: 2024, month: 11, windowKey: '2024-01-05', skippedAt: new Date('2024-11-05') }),
+          makeRecord({ year: 2025, month: 2, windowKey: '2025-01-05', skippedAt: new Date('2025-02-05') }),
+          makeRecord({ year: 2025, month: 4, windowKey: '2025-01-05', skippedAt: new Date('2025-04-05') }),
+        ],
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.skipsInWindow).toBe(2);
+      expect(status.totalSkips).toBe(5);
+      // Only W2 months shown in display (W1 is expired)
+      expect(status.skippedMonths).toHaveLength(2);
+      expect(status.skippedMonths).toContainEqual({ year: 2025, month: 2 });
+      expect(status.skippedMonths).toContainEqual({ year: 2025, month: 4 });
+    });
   });
 
   // =========================================================================
@@ -1099,6 +1191,13 @@ describe('SkipPolicyEngine — comprehensive', () => {
       const eng = new SkipPolicyEngine(prisma);
       await (eng as any).recomputeState('user-1', 'sub-1', policy ?? { type: 'FROM_FIRST_SKIP', windowMonths: 12 });
       return getUpsertUpdate(prisma);
+    };
+
+    const invokeCreate = async (records: ReturnType<typeof makeRecord>[], policy?: any) => {
+      const prisma = makePrismaForRecompute(records);
+      const eng = new SkipPolicyEngine(prisma);
+      await (eng as any).recomputeState('user-1', 'sub-1', policy ?? { type: 'FROM_FIRST_SKIP', windowMonths: 12 });
+      return getUpsertCreate(prisma);
     };
 
     it('zero records → resets all counters to 0', async () => {
@@ -1263,6 +1362,29 @@ describe('SkipPolicyEngine — comprehensive', () => {
       // Latest windowKey='2025-01-01', months Jan–Dec 2025 = 12 records
       expect(update.skipsInWindow).toBe(12);
       expect(update.windowKey).toBe('2025-01-01');
+    });
+
+    // ── create payload (upsert.create) ───────────────────────────────────────
+
+    it('create payload: zero records → windowKey=null', async () => {
+      const create = await invokeCreate([]);
+      expect(create.windowKey).toBeNull();
+    });
+
+    it('create payload: non-zero records → windowKey matches latest window', async () => {
+      const create = await invokeCreate([
+        makeRecord({ year: 2025, month: 3, windowKey: '2025-01-01', skippedAt: new Date('2025-03-01') }),
+        makeRecord({ year: 2025, month: 5, windowKey: '2025-01-01', skippedAt: new Date('2025-05-01') }),
+      ]);
+      expect(create.windowKey).toBe('2025-01-01');
+    });
+
+    it('create payload: multi-window → windowKey is the LATEST window key', async () => {
+      const create = await invokeCreate([
+        makeRecord({ year: 2024, month: 3, windowKey: '2024-01-01', skippedAt: new Date('2024-03-01') }),
+        makeRecord({ year: 2025, month: 2, windowKey: '2025-01-01', skippedAt: new Date('2025-02-01') }),
+      ]);
+      expect(create.windowKey).toBe('2025-01-01');
     });
   });
 });

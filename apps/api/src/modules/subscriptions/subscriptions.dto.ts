@@ -700,6 +700,8 @@ export class RemoveMyEntryDto {
   @IsOptional() @IsString() historyId?: string;
   /** If true, remove all membership periods and optionally their books/spending */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeAllPeriods?: boolean;
+  /** If true, remove only the current active period but keep historical records */
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeCurrentOnly?: boolean;
 }
 
 export class UpdateMyEntryCostsDto {

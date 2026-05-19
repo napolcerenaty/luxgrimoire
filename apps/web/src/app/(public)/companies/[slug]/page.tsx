@@ -286,10 +286,6 @@ export default async function CompanyPage({ params }: Props) {
           brandColors={company.brandColors}
         />
       </Suspense>
-
-      {subscriptions.length === 0 && (
-        <p className="text-stone-500 text-sm">No content found for this company.</p>
-      )}
     </div>
   )
 }

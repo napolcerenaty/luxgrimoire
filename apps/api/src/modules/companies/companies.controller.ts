@@ -41,6 +41,12 @@ export class CompaniesController {
   }
 
   @Public()
+  @Get('brand-colors')
+  findAllBrandColors() {
+    return this.companiesService.findAllBrandColors();
+  }
+
+  @Public()
   @Get(':slug/editions')
   getEditions(@Param('slug') slug: string) {
     return this.companiesService.getEditions(slug);

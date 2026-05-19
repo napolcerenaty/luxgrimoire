@@ -5,12 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { X, ExternalLink } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle } from '@/lib/brandGradient'
+import { useBrandColors } from '@/lib/useBrandColors'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { AddToCollectionButton } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
-import { isOpenForPurchase, isSalePast, resolveSalePrice } from '@/lib/saleDates'
+import { isOpenForPurchase, isSalePast, resolveSalePrice, resolveSubscriberPrice } from '@/lib/saleDates'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -19,7 +21,8 @@ interface Props {
 
 export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
-  const { isInterested, regionId } = useSaleInterest(sale?.id ?? null)
+  const { isInterested, regionId, selectedPrice, selectedPriceCurrency } = useSaleInterest(sale?.id ?? null)
+  const getBrandColors = useBrandColors()
   const saleOpen = sale ? isOpenForPurchase(sale, regionId) : false
   const salePast = sale ? isSalePast(sale, regionId) : false
 
@@ -42,9 +45,12 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
 
   const editions = sale.editions ?? []
   const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
+  const subscriberPrice = resolveSubscriberPrice(sale, regionId)
+  const effectiveSelectedPrice = selectedPrice ?? (subscriberPrice ?? undefined)
+  const effectiveSelectedCurrency = selectedPriceCurrency ?? (subscriberPrice != null ? resolvedCurrency : undefined)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
   const coverImg = (sale.imageUrl ?? firstEditionCover)
-    ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_600,h_450,c_fill,q_auto,f_auto')
+    ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_300,q_auto,f_auto')
     : null
 
   return (
@@ -86,12 +92,17 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           <div className="flex gap-4 mb-5">
             {/* Cover */}
             <div className="shrink-0 w-20 sm:w-28">
-              <div className="relative rounded-xl overflow-hidden border border-stone-700" style={{ aspectRatio: '2/3' }}>
+              <div className="rounded-xl overflow-hidden border border-stone-700">
                 {coverImg ? (
-                  <Image src={coverImg} alt={sale.title} fill className="object-cover" unoptimized />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverImg} alt={sale.title} className="w-full h-auto block" />
                 ) : (
-                  <div className="w-full h-full bg-stone-800 flex items-center justify-center p-3">
-                    <span className="text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{sale.title}</span>
+                  <div
+                    className="w-full aspect-[2/3] relative flex items-center justify-center p-3 overflow-hidden"
+                    style={brandGradientStyle(getBrandColors(sale.company?.slug ?? null) ?? sale.company?.brandColors)}
+                  >
+                    <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(getBrandColors(sale.company?.slug ?? null) ?? sale.company?.brandColors)} />
+                    <span className="relative z-10 text-xs font-serif text-stone-200 text-center leading-snug line-clamp-4">{sale.title}</span>
                   </div>
                 )}
               </div>
@@ -155,6 +166,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     editions={editions}
                     basePrice={resolvedPrice ?? undefined}
                     currency={resolvedCurrency}
+                    selectedPrice={effectiveSelectedPrice}
+                    selectedPriceCurrency={effectiveSelectedCurrency}
                     compact
                   />
                 ) : (
@@ -166,6 +179,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                         editions={editions}
                         basePrice={resolvedPrice ?? undefined}
                         currency={resolvedCurrency}
+                        selectedPrice={effectiveSelectedPrice}
+                        selectedPriceCurrency={effectiveSelectedCurrency}
                         compact
                         defaultOwnershipStatus="PREORDER"
                         triggerLabel="Confirm Purchase"
@@ -214,6 +229,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   const authors = (book?.authors ?? []) as any[]
                   const raw = edition.additionalImages?.[0]
                   const imgSrc = raw ? cloudinaryUrl(raw, 'w_200,h_300,c_fill,q_auto,f_auto') : null
+                  const editionTitle = book?.title ?? 'Unknown'
+                  const editionColors = getBrandColors((edition as any).bookBoxCompany?.slug) ?? (edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors
 
                   return (
                     <Link
@@ -225,13 +242,19 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     >
                       {imgSrc ? (
                         <div className="relative w-full" style={{ aspectRatio: '2/3' }}>
-                          <Image src={imgSrc} alt={book?.title ?? 'Edition'} fill className="object-cover group-hover:scale-105 transition-transform" unoptimized />
+                          <Image src={imgSrc} alt={editionTitle} fill className="object-cover group-hover:scale-105 transition-transform" unoptimized />
                         </div>
                       ) : (
-                        <div className="w-full bg-stone-800 flex items-center justify-center text-stone-600 text-xs" style={{ aspectRatio: '2/3' }}>No cover</div>
+                        <div
+                          className="w-full relative flex items-center justify-center overflow-hidden"
+                          style={{ aspectRatio: '2/3', ...brandGradientStyle(editionColors) }}
+                        >
+                          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(editionColors)} />
+                          <p className="relative z-10 font-serif text-center text-[10px] leading-tight px-1.5 line-clamp-4 text-stone-200">{editionTitle}</p>
+                        </div>
                       )}
                       <div className="px-2 py-1.5">
-                        <p className="text-stone-200 text-xs font-medium leading-tight line-clamp-2">{book?.title ?? 'Unknown'}</p>
+                        <p className="text-stone-200 text-xs font-medium leading-tight line-clamp-2">{editionTitle}</p>
                         {authors.length > 0 && (
                           <p className="text-stone-500 text-[10px] mt-0.5 line-clamp-1">
                             {authors.map((a: any) => (a.author ?? a).name).join(', ')}
