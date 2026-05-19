@@ -745,6 +745,10 @@ export default function CollectionPage() {
     queryKey: ['collection-subscriptions'],
     queryFn: () => authFetch('/collection/subscriptions'),
   })
+  // Show child subs only (specific tiers); fall back to all if none have a parent
+  const subFilterOptions = subscriptions.some(s => s.parentSubscriptionId !== null)
+    ? subscriptions.filter(s => s.parentSubscriptionId !== null)
+    : subscriptions
 
   const filtered = entries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
@@ -763,8 +767,7 @@ export default function CollectionPage() {
     if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
     if (subFilter !== 'ALL') {
       const sub = e.subscriptionEntry?.subscription
-      if (!sub) return false
-      if (sub.id !== subFilter && sub.parentSubscriptionId !== subFilter) return false
+      if (!sub || sub.id !== subFilter) return false
     }
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!(e.purchaseGroup?.purchasedAt ?? e.acquiredAt)
@@ -1004,14 +1007,14 @@ export default function CollectionPage() {
             </select>
 
             {/* Subscription filter */}
-            {subscriptions.length > 0 && (
+            {subFilterOptions.length > 0 && (
               <select
                 value={subFilter}
                 onChange={e => setSubFilter(e.target.value)}
                 className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
                 <option value="ALL">Sub: Any</option>
-                {subscriptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {subFilterOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}
 
