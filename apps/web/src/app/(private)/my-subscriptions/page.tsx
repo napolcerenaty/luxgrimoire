@@ -792,7 +792,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
-                <h3 className="font-semibold text-stone-100 uppercase tracking-wide leading-tight group-hover:text-amber-400 transition-colors truncate">
+                <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors truncate">
                   {sub.name}
                 </h3>
               </div>
