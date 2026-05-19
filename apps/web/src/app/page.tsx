@@ -70,7 +70,8 @@ export default async function HomePage() {
             Limited books.<br className="sm:hidden" /> Unlimited obsession.
           </p>
           <p className="text-sm text-stone-400 max-w-xl mx-auto mb-7 leading-relaxed">
-            LuxGrimoire is a free community database for tracking luxury special editions and book subscription boxes — browse upcoming sales, manage your collection, and follow boxes from Illumicrate, FairyLoot, and more.
+            Track special editions, manage your collection, follow subscription boxes,
+            and keep up with your book spending — all in one place.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
