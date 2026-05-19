@@ -451,7 +451,7 @@ function SubscriptionForm({
         <GenreTagsPicker
           genres={form.genres}
           onChange={(v) => setField('genres', v)}
-          staticOptions={genreOptions}
+          endpoint="/subscriptions/genres"
         />
       </div>
 
