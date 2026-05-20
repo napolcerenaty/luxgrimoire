@@ -16,7 +16,7 @@ type Tab = 'active' | 'upcoming' | 'discontinued'
 
 const TAB_LABELS: Record<Tab, string> = {
   active: 'Active',
-  upcoming: '🔔 Upcoming',
+  upcoming: 'Upcoming',
   discontinued: 'Discontinued',
 }
 

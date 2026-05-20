@@ -284,6 +284,26 @@ export class SubscriptionsService {
   private async _fetchSubscriptionBySlug(slug: string) {    const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
+
+    // For bundle subscriptions, include months from the start of the current bundle window
+    const bundleInfo = await this.prisma.subscription.findUnique({
+      where: { slug },
+      select: { isBundleSubscription: true, intervalMonths: true, startingMonth: true },
+    });
+    let monthsFromYear = nowYear;
+    let monthsFromMonth = nowMonth;
+    if (bundleInfo?.isBundleSubscription && (bundleInfo.intervalMonths ?? 1) > 1) {
+      const interval = bundleInfo.intervalMonths ?? 1;
+      const startingMonth = bundleInfo.startingMonth ?? 1;
+      const monthsFromStart = (nowYear * 12 + nowMonth) - (nowYear * 12 + startingMonth);
+      const cycleOffset = ((monthsFromStart % interval) + interval) % interval;
+      let bm = nowMonth - cycleOffset;
+      let by = nowYear;
+      while (bm <= 0) { bm += 12; by--; }
+      monthsFromYear = by;
+      monthsFromMonth = bm;
+    }
+
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug },
       include: {
@@ -349,8 +369,8 @@ export class SubscriptionsService {
         months: {
           where: {
             OR: [
-              { year: { gt: nowYear } },
-              { year: nowYear, month: { gte: nowMonth } },
+              { year: { gt: monthsFromYear } },
+              { year: monthsFromYear, month: { gte: monthsFromMonth } },
             ],
           },
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -389,8 +409,8 @@ export class SubscriptionsService {
       const andConditions: Record<string, unknown>[] = [
         {
           OR: [
-            { year: { gt: nowYear } },
-            { year: nowYear, month: { gte: nowMonth } },
+            { year: { gt: monthsFromYear } },
+            { year: monthsFromYear, month: { gte: monthsFromMonth } },
           ],
         },
       ];

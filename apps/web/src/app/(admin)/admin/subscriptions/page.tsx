@@ -329,6 +329,15 @@ function SubscriptionForm({
             value={form.coverImage ?? ''} onChange={(id) => setField('coverImage', id)}
             onClear={() => setField('coverImage', null as unknown as string)}
             aspectRatio="2/3" />
+          <div>
+            <label className={LABEL_CLASS}>Waitlist link</label>
+            <input
+              className={INPUT_CLASS}
+              value={form.waitlistLink}
+              onChange={setStr('waitlistLink')}
+              placeholder="https://..."
+            />
+          </div>
         </div>
 
         {/* RIGHT: settings */}
@@ -457,7 +466,7 @@ function SubscriptionForm({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {form.isUpcoming && (
             <div>
               <label className={LABEL_CLASS}>Upcoming note</label>
               <input
@@ -467,16 +476,7 @@ function SubscriptionForm({
                 placeholder="e.g. Launching Spring 2026"
               />
             </div>
-            <div>
-              <label className={LABEL_CLASS}>Waitlist link</label>
-              <input
-                className={INPUT_CLASS}
-                value={form.waitlistLink}
-                onChange={setStr('waitlistLink')}
-                placeholder="https://..."
-              />
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

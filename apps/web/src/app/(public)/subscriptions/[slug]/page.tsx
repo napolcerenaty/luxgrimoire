@@ -395,6 +395,9 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           name: (component as unknown as { name: string }).name,
         }))}
         comboStartDate={sub.isCombo ? sub.startDate ?? null : null}
+        isBundleSubscription={isBundleSubscription}
+        intervalMonths={intervalMonths}
+        startingMonth={startingMonth}
       />
 
       {/* Series history — streams in via Suspense */}
