@@ -75,8 +75,8 @@ export class SubscriptionsService {
   private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
   private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
 
-  // Months list changes ~1-2x/month → 3h cache with version-based invalidation
-  private readonly SUB_MONTHS_TTL = 3 * 60 * 60 * 1000;
+  // Months list changes ~1-2x/month → 24h cache with version-based invalidation
+  private readonly SUB_MONTHS_TTL = 24 * 60 * 60 * 1000;
   private readonly subMonthsBustKey = (slug: string) => `subscriptions:months-bust:${slug}`;
   private readonly subMonthsKey = (slug: string, version: number, page: number, pageSize: number, all: boolean, ownOnly: boolean, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) =>
     `subscriptions:months:${slug}:v${version}:${page}:${pageSize}:${all}:${ownOnly}:${fromYear ?? ''}:${fromMonth ?? ''}:${untilYear ?? ''}:${untilMonth ?? ''}`;
