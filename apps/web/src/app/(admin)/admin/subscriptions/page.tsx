@@ -45,6 +45,9 @@ interface SubFormData {
   isContentStream: boolean
   isBundleSubscription: boolean
   paymentOnStartup: boolean
+  isUpcoming: boolean
+  upcomingNote: string
+  waitlistLink: string
   signupIncludesCurrentMonth: boolean
   renewalMonthOffset: string
   startDate: string
@@ -93,6 +96,9 @@ const EMPTY_FORM: SubFormData = {
   isContentStream: false,
   isBundleSubscription: false,
   paymentOnStartup: false,
+  isUpcoming: false,
+  upcomingNote: '',
+  waitlistLink: '',
   signupIncludesCurrentMonth: false,
   renewalMonthOffset: '0',
   startDate: '',
@@ -139,8 +145,11 @@ function subToForm(sub: ApiSubscription): SubFormData {
     isHidden: sub.isHidden ?? false,
     isContentStream: sub.isContentStream ?? false,
     isBundleSubscription: sub.isBundleSubscription ?? false,
-    paymentOnStartup: (sub as any).paymentOnStartup ?? false,
-    signupIncludesCurrentMonth: (sub as any).signupIncludesCurrentMonth ?? false,
+    paymentOnStartup: sub.paymentOnStartup ?? false,
+    isUpcoming: sub.isUpcoming ?? false,
+    upcomingNote: sub.upcomingNote ?? '',
+    waitlistLink: sub.waitlistLink ?? '',
+    signupIncludesCurrentMonth: sub.signupIncludesCurrentMonth ?? false,
     renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
@@ -195,6 +204,9 @@ function formToCreatePayload(form: SubFormData) {
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
+    isUpcoming: form.isUpcoming,
+    upcomingNote: form.upcomingNote,
+    waitlistLink: form.waitlistLink,
     signupIncludesCurrentMonth: form.signupIncludesCurrentMonth,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -225,6 +237,9 @@ function formToUpdatePayload(form: SubFormData) {
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
     paymentOnStartup: form.paymentOnStartup,
+    isUpcoming: form.isUpcoming,
+    upcomingNote: form.upcomingNote,
+    waitlistLink: form.waitlistLink,
     signupIncludesCurrentMonth: form.signupIncludesCurrentMonth,
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
@@ -420,6 +435,7 @@ function SubscriptionForm({
               { field: 'bookishMerch', label: 'Bookish Merch included' },
               { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
               { field: 'signupIncludesCurrentMonth', label: 'Signup includes current month (default: next month)' },
+              { field: 'isUpcoming', label: 'Upcoming (not yet launched)' },
               { field: 'isDiscontinued', label: 'Discontinued' },
               { field: 'isHidden', label: 'Hidden (draft / historical data)' },
               { field: 'isContentStream', label: 'Content stream (hidden parent, holds all months)' },
@@ -439,6 +455,27 @@ function SubscriptionForm({
                 Bundle — ships multiple months as one package
               </label>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLASS}>Upcoming note</label>
+              <input
+                className={INPUT_CLASS}
+                value={form.upcomingNote}
+                onChange={setStr('upcomingNote')}
+                placeholder="e.g. Launching Spring 2026"
+              />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>Waitlist link</label>
+              <input
+                className={INPUT_CLASS}
+                value={form.waitlistLink}
+                onChange={setStr('waitlistLink')}
+                placeholder="https://..."
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -735,20 +772,23 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
 
 // ─── Prepay Options Panel ─────────────────────────────────────────────────────
 
+const COMMON_CURRENCIES = ['EUR','GBP','USD','CAD','AUD','CHF','PLN','SEK','NOK','DKK','CZK','HUF']
+
 interface PrepayOption {
   id: string
   months: number
   price: string
+  currency: string
   label: string | null
   validFrom: string | null
   validUntil: string | null
 }
 
-function PrepayOptionsPanel({ slug }: { slug: string }) {
+function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subscriptionCurrency: string }) {
   const queryClient = useQueryClient()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [newForm, setNewForm] = useState({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
-  const [editForm, setEditForm] = useState({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
+  const [newForm, setNewForm] = useState({ months: '', price: '', currency: subscriptionCurrency, label: '', validFrom: '', validUntil: '' })
+  const [editForm, setEditForm] = useState({ months: '', price: '', currency: '', label: '', validFrom: '', validUntil: '' })
   const [adding, setAdding] = useState(false)
 
   const { data: options = [], isLoading } = useQuery<PrepayOption[]>({
@@ -762,7 +802,8 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
         method: 'POST',
         body: JSON.stringify({
           months: parseInt(newForm.months, 10),
-          price: newForm.price,
+          price: newForm.price.replace(',', '.'),
+          currency: newForm.currency,
           label: newForm.label || undefined,
           validFrom: newForm.validFrom || undefined,
           validUntil: newForm.validUntil || undefined,
@@ -770,7 +811,7 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
-      setNewForm({ months: '', price: '', label: '', validFrom: '', validUntil: '' })
+      setNewForm({ months: '', price: '', currency: subscriptionCurrency, label: '', validFrom: '', validUntil: '' })
       setAdding(false)
     },
     onError: (err: Error) => alert(`Error: ${err.message}`),
@@ -782,7 +823,8 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
         method: 'PATCH',
         body: JSON.stringify({
           months: editForm.months ? parseInt(editForm.months, 10) : undefined,
-          price: editForm.price || undefined,
+          price: editForm.price ? editForm.price.replace(',', '.') : undefined,
+          currency: editForm.currency || undefined,
           label: editForm.label || null,
           validFrom: editForm.validFrom || null,
           validUntil: editForm.validUntil || null,
@@ -807,6 +849,7 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
     setEditForm({
       months: String(o.months),
       price: o.price,
+      currency: o.currency,
       label: o.label ?? '',
       validFrom: o.validFrom ? o.validFrom.slice(0, 10) : '',
       validUntil: o.validUntil ? o.validUntil.slice(0, 10) : '',
@@ -848,6 +891,16 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
                 onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} placeholder="e.g. 169.99" />
             </div>
             <div>
+              <label className={LABEL_CLASS}>Currency</label>
+              <select className={`${INPUT_CLASS} w-24`} value={editForm.currency}
+                onChange={(e) => setEditForm((f) => ({ ...f, currency: e.target.value }))}>
+                {COMMON_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {!COMMON_CURRENCIES.includes(editForm.currency) && editForm.currency && (
+                  <option value={editForm.currency}>{editForm.currency}</option>
+                )}
+              </select>
+            </div>
+            <div>
               <label className={LABEL_CLASS}>Label</label>
               <input className={`${INPUT_CLASS} w-40`} value={editForm.label}
                 onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} placeholder="e.g. Half-year" />
@@ -876,7 +929,7 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
           <div key={o.id} className="flex items-center justify-between gap-2 text-sm text-stone-300 bg-stone-800/50 rounded px-3 py-2">
             <span>
               <span className="font-semibold text-stone-100">{o.label ?? `${o.months} months`}</span>
-              {' '}— {o.months} mo · {o.price}
+              {' '}— {o.months} mo · {o.price} <span className="text-stone-400">{o.currency}</span>
               {(o.validFrom || o.validUntil) && (
                 <span className="text-xs text-stone-500 ml-2">
                   {o.validFrom ? `from ${o.validFrom.slice(0, 10)}` : ''}
@@ -907,6 +960,16 @@ function PrepayOptionsPanel({ slug }: { slug: string }) {
             <label className={LABEL_CLASS}>Price *</label>
             <input required className={`${INPUT_CLASS} w-28`} value={newForm.price}
               onChange={(e) => setNewForm((f) => ({ ...f, price: e.target.value }))} placeholder="e.g. 169.99" />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Currency *</label>
+            <select required className={`${INPUT_CLASS} w-24`} value={newForm.currency}
+              onChange={(e) => setNewForm((f) => ({ ...f, currency: e.target.value }))}>
+              {COMMON_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {!COMMON_CURRENCIES.includes(newForm.currency) && newForm.currency && (
+                <option value={newForm.currency}>{newForm.currency}</option>
+              )}
+            </select>
           </div>
           <div>
             <label className={LABEL_CLASS}>Label</label>
@@ -1113,6 +1176,8 @@ export default function AdminSubscriptionsPage() {
             <span className="text-stone-500 text-xs font-medium">Hidden</span>
           ) : row.isDiscontinued ? (
             <span className="text-red-400 text-xs font-medium">Discontinued</span>
+          ) : row.isUpcoming ? (
+            <span className="text-amber-300 text-xs font-medium">Upcoming</span>
           ) : (
             <span className="text-emerald-400 text-xs font-medium">Active</span>
           )}
@@ -1214,7 +1279,7 @@ export default function AdminSubscriptionsPage() {
             onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form })}
           />
           <SettingsHistoryPanel slug={editSub.slug} />
-          <PrepayOptionsPanel slug={editSub.slug} />
+          <PrepayOptionsPanel slug={editSub.slug} subscriptionCurrency={editSub.currency} />
         </div>
       )}
 

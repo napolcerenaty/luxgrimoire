@@ -60,7 +60,7 @@ interface Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
   onJoined: () => void
   onClose: () => void
 }
@@ -100,7 +100,7 @@ interface Step1Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
   onNext: (data: {
     startDate: string
     costCurrency: string
@@ -151,7 +151,15 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
   }, [subscriptionSlug])
 
   // Auto-fill base price when costCurrency changes to one with official price records
+  // Also clear prepay selection if it no longer matches the new currency
   useEffect(() => {
+    // Clear prepay selection if it doesn't match the new currency
+    if (selectedPrepayOptionId !== null) {
+      const opt = prepayOptions?.find(o => o.id === selectedPrepayOptionId)
+      if (opt && opt.currency !== costCurrency) {
+        handleSelectPrepay(null)
+      }
+    }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
     if (matching.length === 0) return
     const now = new Date()
@@ -274,8 +282,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (only shown if prepay options exist) */}
-      {prepayOptions && prepayOptions.length > 0 && (
+      {/* Billing period (only shown if prepay options exist for the selected currency) */}
+      {prepayOptions && prepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -294,7 +302,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {prepayOptions.map(opt => (
+            {prepayOptions.filter(o => o.currency === costCurrency).map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -305,7 +313,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 />
                 <div className="flex-1 flex items-center justify-between">
                   <span className="text-sm text-stone-200">{opt.label ?? `${opt.months} months`}</span>
-                  <span className="text-xs text-stone-400">{parseFloat(String(opt.price)).toFixed(2)} {currency}</span>
+                  <span className="text-xs text-stone-400">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span>
                 </div>
               </label>
             ))}

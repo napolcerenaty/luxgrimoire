@@ -35,11 +35,13 @@ export class FeatureRequestsController {
   findPublic(
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('status') status?: string,
     @Request() req?: any,
   ) {
     return this.service.findPublic({
       page: page ? Number(page) : 1,
       pageSize: pageSize ? Number(pageSize) : 20,
+      status,
       userId: req?.user?.id,
     });
   }
@@ -73,7 +75,7 @@ export class FeatureRequestsController {
   @Roles('ADMIN', 'MODERATOR')
   review(
     @Param('id') id: string,
-    @Body() body: { status: 'accepted' | 'rejected'; adminNote?: string },
+    @Body() body: { status: 'accepted' | 'rejected' | 'implemented'; adminNote?: string },
   ) {
     return this.service.review(id, body);
   }

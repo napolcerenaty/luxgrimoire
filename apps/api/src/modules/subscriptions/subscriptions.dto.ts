@@ -128,6 +128,18 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isUpcoming?: boolean;
+
+  @IsOptional()
+  @IsString()
+  upcomingNote?: string;
+
+  @IsOptional()
+  @IsString()
+  waitlistLink?: string;
+
+  @IsOptional()
+  @IsBoolean()
   signupIncludesCurrentMonth?: boolean;
 
   @IsOptional()
@@ -250,6 +262,18 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isUpcoming?: boolean;
+
+  @IsOptional()
+  @IsString()
+  upcomingNote?: string;
+
+  @IsOptional()
+  @IsString()
+  waitlistLink?: string;
+
+  @IsOptional()
+  @IsBoolean()
   signupIncludesCurrentMonth?: boolean;
 
   @IsOptional()
@@ -267,6 +291,9 @@ export class CreatePrepayOptionDto {
 
   @IsString()
   price!: string;
+
+  @IsString()
+  currency!: string;
 
   @IsOptional()
   @IsString()
@@ -290,6 +317,10 @@ export class UpdatePrepayOptionDto {
   @IsOptional()
   @IsString()
   price?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
 
   @IsOptional()
   @IsString()
@@ -508,6 +539,10 @@ export class SubscriptionQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   isContentStream?: boolean;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()

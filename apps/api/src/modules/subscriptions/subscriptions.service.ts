@@ -141,6 +141,9 @@ export class SubscriptionsService {
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         isDiscontinued: dto.isDiscontinued ?? false,
+        isUpcoming: dto.isUpcoming ?? false,
+        upcomingNote: dto.upcomingNote,
+        waitlistLink: dto.waitlistLink,
         currency,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
@@ -198,7 +201,10 @@ export class SubscriptionsService {
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
-    if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
+    if (query.genre) {
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ genre: query.genre }, { genres: { has: query.genre } }] }];
+    }
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
@@ -207,6 +213,20 @@ export class SubscriptionsService {
     }
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
+    }
+    if (query.status === 'active') {
+      const now = new Date();
+      where.isDiscontinued = false;
+      where.isUpcoming = false;
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ startDate: null }, { startDate: { lte: now } }] }];
+    } else if (query.status === 'discontinued') {
+      where.isDiscontinued = true;
+    } else if (query.status === 'upcoming') {
+      const now = new Date();
+      where.isDiscontinued = false;
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ isUpcoming: true }, { startDate: { gt: now } }] }];
     }
 
     const [data, total] = await Promise.all([
@@ -2679,6 +2699,7 @@ export class SubscriptionsService {
         subscriptionId: sub.id,
         months: dto.months,
         price: dto.price,
+        currency: dto.currency,
         label: dto.label ?? null,
         validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
@@ -2697,6 +2718,7 @@ export class SubscriptionsService {
       data: {
         ...(dto.months !== undefined && { months: dto.months }),
         ...(dto.price !== undefined && { price: dto.price }),
+        ...(dto.currency !== undefined && { currency: dto.currency }),
         ...(dto.label !== undefined && { label: dto.label ?? null }),
         ...(dto.validFrom !== undefined && { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }),
         ...(dto.validUntil !== undefined && { validUntil: dto.validUntil ? new Date(dto.validUntil) : null }),

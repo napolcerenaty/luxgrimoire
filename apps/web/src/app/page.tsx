@@ -1,12 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
 import { apiFetch } from '@/lib/api'
-import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
-import type { ApiSponsoredSlot, ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,20 +15,18 @@ export const metadata: Metadata = {
 }
 
 async function getHomeData() {
-  const [featuredSlots, announcementsRes, editionsRes] = await Promise.all([
-    apiFetch<ApiSponsoredSlot[]>('/sponsored/active?slotType=HOMEPAGE_FEATURED').catch(() => [] as ApiSponsoredSlot[]),
+  const [announcementsRes, editionsRes] = await Promise.all([
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
   ])
   return {
-    featuredSlots: Array.isArray(featuredSlots) ? featuredSlots : [],
     announcements: announcementsRes?.data ?? [],
     recentEditions: editionsRes?.data ?? [],
   }
 }
 
 export default async function HomePage() {
-  const { featuredSlots, announcements, recentEditions } = await getHomeData()
+  const { announcements, recentEditions } = await getHomeData()
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -115,52 +111,6 @@ export default async function HomePage() {
         centered
       />
 
-      {/* Featured Partners (sponsored) */}
-      {featuredSlots.length > 0 && (
-        <section className="container mx-auto px-4 py-10 pb-20">
-          <div className="flex items-center gap-3 mb-6">
-            <h2 className="text-xl font-serif font-semibold text-stone-100 tracking-wide">Featured Partners</h2>
-            <span className="text-[10px] text-amber-400 border border-amber-700 bg-amber-900/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-widest">
-              ✦ Sponsored
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featuredSlots.map((slot) => {
-              const logo = cloudinaryUrl(slot.company.logoUrl, 'w_300,h_300,c_fill,q_auto,f_auto')
-              return (
-                <Link
-                  key={slot.id}
-                  href={`/companies/${slot.company.slug}`}
-                  className="flex items-center gap-4 p-5 rounded-xl border border-amber-800/50 hover:border-amber-500/60 transition-all group"
-                  style={{ background: 'var(--bg-raised)' }}
-                >
-                  <div
-                    className="relative w-16 h-16 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
-                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-                  >
-                    {logo ? (
-                      <Image src={logo} alt={slot.company.name} fill className="object-cover" unoptimized />
-                    ) : (
-                      <span className="text-2xl font-serif text-amber-500">{slot.company.name.charAt(0)}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="inline-block text-[10px] text-amber-400 border border-amber-700 bg-amber-900/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-widest mb-2">
-                      ✦ Featured
-                    </span>
-                    <h3 className="font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors truncate">
-                      {slot.company.name}
-                    </h3>
-                    {slot.company.country && (
-                      <p className="text-xs text-stone-500 mt-0.5">{slot.company.country}</p>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

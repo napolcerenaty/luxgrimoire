@@ -412,17 +412,10 @@ export function EditionFieldsSection({
         </div>
       )}
 
-      {/* Publisher + Photo credit */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LBL}>Publisher</label>
-          <PublisherPicker value={publisher} onChange={onPublisherChange} />
-        </div>
-        <div>
-          <label className={LBL}>Photo by (IG handle)</label>
-          <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
-            placeholder="@username" className={INP} />
-        </div>
+      {/* Publisher */}
+      <div>
+        <label className={LBL}>Publisher</label>
+        <PublisherPicker value={publisher} onChange={onPublisherChange} />
       </div>
 
       {/* Language */}
@@ -448,6 +441,13 @@ export function EditionFieldsSection({
           <label className={LBL}>General sale</label>
           <input type="date" value={generalSaleDate} onChange={e => onGeneralSaleDateChange(e.target.value)} className={INP} />
         </div>
+      </div>
+
+      {/* Photo credit + Images */}
+      <div>
+        <label className={LBL}>Photo by (IG handle)</label>
+        <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
+          placeholder="@username" className={INP} />
       </div>
 
       {/* Images */}

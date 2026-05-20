@@ -202,7 +202,6 @@ export interface ApiBookBoxCompany {
   brandColors: string[];
   subscriptions?: ApiSubscription[];
   collections?: ApiBookBoxCollection[];
-  sponsoredSlots?: ApiSponsoredSlot[];
   editions?: ApiCompanyEdition[];
   _count?: { collections: number; editions: number };
 }
@@ -262,6 +261,9 @@ export interface ApiSubscription {
   startDate: string | null;
   endDate: string | null;
   isDiscontinued: boolean;
+  isUpcoming: boolean;
+  upcomingNote: string | null;
+  waitlistLink: string | null;
   isHidden: boolean;
   isContentStream: boolean;
   isBundleSubscription: boolean;
@@ -305,20 +307,6 @@ export interface ApiSubscriptionMonthBook {
   isMainBook: boolean;
   book: ApiBook;
   edition: ApiBookEdition | null;
-}
-
-export interface ApiSponsoredSlot {
-  id: string;
-  companyId: string;
-  type: 'HOMEPAGE_FEATURED' | 'COMPANY_PAGE_BANNER' | 'NEWSLETTER_SLOT';
-  startsAt: string;
-  endsAt: string;
-  priceEur: number;
-  notes: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  company: ApiBookBoxCompany;
 }
 
 export interface PaginatedResponse<T> {

@@ -302,7 +302,6 @@ model BookBoxCompany {
   brandColors       String[]
   collections       BookBoxCollection[]
   editions          BookEdition[]
-  sponsoredSlots    SponsoredSlot[]
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
@@ -353,6 +352,9 @@ model Subscription {
   language             String?
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
+  isUpcoming           Boolean                      @default(false)
+  upcomingNote         String?
+  waitlistLink         String?
   isContentStream      Boolean                      @default(false)
   isBundleSubscription Boolean                      @default(false)
   paymentOnStartup              Boolean                      @default(false)
@@ -476,6 +478,7 @@ model SubscriptionPrepayOption {
   subscriptionId   String
   months           Int
   price            Decimal                 @db.Decimal(10, 2)
+  currency         String                  @db.VarChar(3) @default("USD")
   label            String?
   validFrom        DateTime?
   validUntil       DateTime?
@@ -935,24 +938,6 @@ model UserNotification {
   @@map("user_notifications")
 }
 
-model SponsoredSlot {
-  id        String            @id @default(uuid())
-  companyId String
-  type      SponsoredSlotType
-  startsAt  DateTime
-  endsAt    DateTime
-  priceEur  Float
-  notes     String?
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  company   BookBoxCompany    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([isActive])
-  @@map("sponsored_slots")
-}
-
 model AppSetting {
   key       String   @id
   value     String
@@ -1239,12 +1224,6 @@ enum SignatureType {
   autopen
   digitally_signed
   signed_bookplate
-}
-
-enum SponsoredSlotType {
-  HOMEPAGE_FEATURED
-  COMPANY_PAGE_BANNER
-  NEWSLETTER_SLOT
 }
 
 enum FeeCategory {

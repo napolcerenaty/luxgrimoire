@@ -16,17 +16,18 @@ const STATUS_BADGE: Record<string, string> = {
   pending: 'bg-amber-900/40 text-amber-400',
   accepted: 'bg-green-900/40 text-green-400',
   rejected: 'bg-red-900/40 text-red-400',
+  implemented: 'bg-purple-900/40 text-purple-400',
 }
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 
 function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => void }) {
   const [adminNote, setAdminNote] = useState(req.adminNote ?? '')
-  const [action, setAction] = useState<'accepted' | 'rejected'>('accepted')
   const qc = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: () => adminReviewFeatureRequest(req.id, { status: action, adminNote: adminNote || undefined }),
+    mutationFn: (status: 'accepted' | 'rejected' | 'implemented') =>
+      adminReviewFeatureRequest(req.id, { status, adminNote: adminNote || undefined }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'feature-requests'] }); onDone() },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
@@ -39,16 +40,23 @@ function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => vo
           onChange={e => setAdminNote(e.target.value)}
           placeholder="Add context, link to roadmap, explain rejection…" />
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button
-          onClick={() => { setAction('accepted'); mutation.mutate() }}
+          onClick={() => mutation.mutate('accepted')}
           disabled={mutation.isPending}
           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-700 text-green-100 hover:bg-green-600 disabled:opacity-50 transition-colors"
         >
           ✅ Accept
         </button>
         <button
-          onClick={() => { setAction('rejected'); mutation.mutate() }}
+          onClick={() => mutation.mutate('implemented')}
+          disabled={mutation.isPending}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-700 text-purple-100 hover:bg-purple-600 disabled:opacity-50 transition-colors"
+        >
+          🎉 Mark Implemented
+        </button>
+        <button
+          onClick={() => mutation.mutate('rejected')}
           disabled={mutation.isPending}
           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-800 text-red-200 hover:bg-red-700 disabled:opacity-50 transition-colors"
         >
@@ -99,13 +107,13 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
 
         {/* Actions */}
         <div className="flex gap-1.5 shrink-0">
-          {req.status === 'pending' && !reviewing && (
+          {(req.status === 'pending' || req.status === 'accepted') && !reviewing && (
             <button onClick={() => setReviewing(true)}
               className="px-2.5 py-1 rounded-lg text-xs bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors">
-              Review
+              {req.status === 'pending' ? 'Review' : 'Edit'}
             </button>
           )}
-          {req.status !== 'pending' && (
+          {(req.status === 'rejected' || req.status === 'implemented') && (
             <button onClick={() => setReviewing(true)}
               className="px-2.5 py-1 rounded-lg text-xs bg-stone-700 text-stone-400 hover:bg-stone-600 transition-colors">
               Edit
@@ -160,7 +168,7 @@ export default function AdminFeatureRequestsPage() {
           <p className="text-stone-500 text-sm mt-0.5">Review community suggestions and manage the public voting list</p>
         </div>
         <div className="flex gap-2">
-          {['', 'pending', 'accepted', 'rejected'].map(s => (
+          {['', 'pending', 'accepted', 'implemented', 'rejected'].map(s => (
             <button key={s}
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}

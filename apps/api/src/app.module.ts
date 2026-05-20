@@ -28,7 +28,6 @@ import { SpendingModule } from './modules/spending/spending.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProfileModule } from './modules/profile/profile.module';
-import { SponsoredModule } from './modules/sponsored/sponsored.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
@@ -124,7 +123,6 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
     FeesModule,
     NotificationsModule,
     ProfileModule,
-    SponsoredModule,
     AnnouncementsModule,
     SaleInterestsModule,
     SkipPolicyModule,

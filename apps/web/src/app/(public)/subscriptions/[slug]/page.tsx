@@ -192,8 +192,8 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         <div>
           <div className="flex items-center gap-3 flex-wrap mb-3">
             {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
-            <Badge variant={sub.isDiscontinued ? 'destructive' : 'success'}>
-              {sub.isDiscontinued ? 'Discontinued' : 'Active'}
+            <Badge variant={sub.isDiscontinued ? 'destructive' : sub.isUpcoming ? 'outline' : 'success'}>
+              {sub.isDiscontinued ? 'Discontinued' : sub.isUpcoming ? '🔔 Upcoming' : 'Active'}
             </Badge>
             {(sub.company as unknown as { hasOfficialImagePermission?: boolean })?.hasOfficialImagePermission && (
               <Badge variant="outline">✓ Images used with brand permission</Badge>
@@ -221,6 +221,12 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             <SubscriberCountBadge subscriptionSlug={slug} />
           </div>
 
+          {sub.isUpcoming && sub.upcomingNote && (
+            <div className="mt-3 bg-amber-900/20 border border-amber-700/40 rounded-xl px-4 py-3">
+              <p className="text-sm text-amber-300 font-medium">🔔 {sub.upcomingNote}</p>
+            </div>
+          )}
+
           <div className="flex gap-4 mt-4 text-xs text-stone-500">
             {sub.startDate && <span>Started: {sub.startDate.slice(0, 7)}</span>}
             {sub.endDate && <span>Ended: {sub.endDate.slice(0, 7)}</span>}
@@ -235,6 +241,19 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               alt={sub.name}
               className="rounded-xl shadow-xl w-full object-cover max-h-72 md:max-h-none"
             />
+          )}
+          {sub.waitlistLink && (
+            <a
+              href={sub.waitlistLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600/10 border border-amber-600/40 hover:bg-amber-600/20 text-sm text-amber-400 hover:text-amber-300 transition-all"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Join waitlist here
+            </a>
           )}
           <WaitlistButton subscriptionSlug={sub.slug} />
         </div>
@@ -253,7 +272,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           country={sub.company?.country ?? null}
           renewalDay={sub.renewalDay ?? null}
           months={sub.isCombo ? comboSkipMonths : months}
-          prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[] }).prepayOptions}
+          prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null; currency: string }[] }).prepayOptions}
         />
       </div>
 

@@ -129,10 +129,6 @@ export class CompaniesService {
         collections: {
           select: { id: true, slug: true, name: true },
         },
-        sponsoredSlots: {
-          where: { isActive: true },
-          select: { isActive: true, type: true },
-        },
       },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
