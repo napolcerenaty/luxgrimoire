@@ -553,7 +553,7 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
@@ -599,6 +599,14 @@ export class SubscriptionsService {
       const fm = fromMonth ?? 1;
       andConditions.push({
         OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }],
+      });
+    }
+
+    if (untilYear != null) {
+      const uy = untilYear;
+      const um = untilMonth ?? 12;
+      andConditions.push({
+        OR: [{ year: { lt: uy } }, { year: uy, month: { lt: um } }],
       });
     }
 

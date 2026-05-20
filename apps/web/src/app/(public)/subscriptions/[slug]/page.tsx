@@ -398,6 +398,8 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         isBundleSubscription={isBundleSubscription}
         intervalMonths={intervalMonths}
         startingMonth={startingMonth}
+        bundleUntilYear={isBundleSubscription ? currentBundleStartYear : undefined}
+        bundleUntilMonth={isBundleSubscription ? currentBundleStartMonth : undefined}
       />
 
       {/* Series history — streams in via Suspense */}

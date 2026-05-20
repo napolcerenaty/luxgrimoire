@@ -488,6 +488,18 @@ export class MonthQueryDto {
   @Min(1)
   @Max(12)
   fromMonth?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  untilYear?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  untilMonth?: number;
 }
 
 export class SubscriptionQueryDto {

@@ -61,6 +61,8 @@ interface Props {
   isBundleSubscription?: boolean
   intervalMonths?: number
   startingMonth?: number
+  bundleUntilYear?: number
+  bundleUntilMonth?: number
 }
 
 const PAGE_SIZE = 12
@@ -89,10 +91,12 @@ function PreviousBoxesList({
   totalMonths,
   fromYear,
   fromMonth,
+  untilYear,
+  untilMonth,
   isBundleSubscription,
   intervalMonths = 1,
   startingMonth = 1,
-}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number; fromYear?: number; fromMonth?: number; isBundleSubscription?: boolean; intervalMonths?: number; startingMonth?: number }) {
+}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number; fromYear?: number; fromMonth?: number; untilYear?: number; untilMonth?: number; isBundleSubscription?: boolean; intervalMonths?: number; startingMonth?: number }) {
   const [page, setPage] = useState(1)
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -101,11 +105,15 @@ function PreviousBoxesList({
     ? `&fromYear=${fromYear}${fromMonth != null ? `&fromMonth=${fromMonth}` : ''}`
     : ''
 
+  const untilParams = untilYear != null
+    ? `&untilYear=${untilYear}${untilMonth != null ? `&untilMonth=${untilMonth}` : ''}`
+    : ''
+
   const { data, isLoading, isFetching } = useQuery<PaginatedMonths>({
-    queryKey: ['subscription-past-months', subscriptionSlug, page, fromYear, fromMonth],
+    queryKey: ['subscription-past-months', subscriptionSlug, page, fromYear, fromMonth, untilYear, untilMonth],
     queryFn: () =>
       apiFetch<PaginatedMonths>(
-        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}${fromParams}`,
+        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}${fromParams}${untilParams}`,
       ),
     staleTime: 1000 * 60 * 5,
   })
@@ -221,7 +229,7 @@ function PreviousBoxesList({
   )
 }
 
-export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents, comboStartDate, isBundleSubscription, intervalMonths, startingMonth }: Props) {
+export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents, comboStartDate, isBundleSubscription, intervalMonths, startingMonth, bundleUntilYear, bundleUntilMonth }: Props) {
   const [visible, setVisible] = useState(false)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
 
@@ -280,6 +288,8 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
         subscriptionSlug={subscriptionSlug}
         accentColors={accentColors}
         totalMonths={totalMonths}
+        untilYear={bundleUntilYear}
+        untilMonth={bundleUntilMonth}
         isBundleSubscription={isBundleSubscription}
         intervalMonths={intervalMonths}
         startingMonth={startingMonth}
