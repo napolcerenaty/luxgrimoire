@@ -75,6 +75,20 @@ export class SubscriptionsService {
   private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
   private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
 
+  // Months list changes ~1-2x/month → 3h cache with version-based invalidation
+  private readonly SUB_MONTHS_TTL = 3 * 60 * 60 * 1000;
+  private readonly subMonthsBustKey = (slug: string) => `subscriptions:months-bust:${slug}`;
+  private readonly subMonthsKey = (slug: string, version: number, page: number, pageSize: number, all: boolean, ownOnly: boolean, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) =>
+    `subscriptions:months:${slug}:v${version}:${page}:${pageSize}:${all}:${ownOnly}:${fromYear ?? ''}:${fromMonth ?? ''}:${untilYear ?? ''}:${untilMonth ?? ''}`;
+
+  private async getMonthsCacheVersion(slug: string): Promise<number> {
+    return (await this.cache.get<number>(this.subMonthsBustKey(slug))) ?? 0;
+  }
+
+  private async invalidateMonthsCache(slug: string): Promise<void> {
+    await this.cache.set(this.subMonthsBustKey(slug), Date.now(), this.SUB_MONTHS_TTL);
+  }
+
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -554,6 +568,11 @@ export class SubscriptionsService {
   }
 
   async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) {
+    const version = await this.getMonthsCacheVersion(slug);
+    const cacheKey = this.subMonthsKey(slug, version, page, pageSize, all, ownOnly, fromYear, fromMonth, untilYear, untilMonth);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
@@ -656,7 +675,9 @@ export class SubscriptionsService {
       this.prisma.subscriptionMonth.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const result = { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    await this.cache.set(cacheKey, result, this.SUB_MONTHS_TTL);
+    return result;
   }
 
   async addMonth(subscriptionSlug: string, dto: CreateMonthDto) {
@@ -694,6 +715,7 @@ export class SubscriptionsService {
       data: { subscriptionId: subscription.id, ...monthData },
     });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return created;
   }
 
@@ -719,6 +741,7 @@ export class SubscriptionsService {
       },
     });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return updated;
   }
 
@@ -733,6 +756,7 @@ export class SubscriptionsService {
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return deleted;
   }
 
