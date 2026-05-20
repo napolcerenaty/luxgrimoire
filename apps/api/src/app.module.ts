@@ -74,6 +74,7 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
       isGlobal: true,
       useFactory: async (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
+        const redisMaxMemory = config.get<string>('REDIS_MAX_MEMORY') ?? '128mb';
         if (redisUrl) {
           try {
             const keyvRedis = new KeyvRedis(redisUrl);
@@ -85,6 +86,13 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
                 setTimeout(() => reject(new Error('Redis connection timeout')), 4000),
               ),
             ]);
+            // Set memory limit and LRU eviction policy so Redis never grows unbounded
+            try {
+              const client = keyvRedis.client;
+              await client.configSet({ maxmemory: redisMaxMemory, 'maxmemory-policy': 'allkeys-lru' });
+            } catch {
+              // CONFIG SET may be disabled on some managed Redis instances — non-fatal
+            }
             return { stores: [store], ttl: 300_000 };
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
