@@ -17,6 +17,7 @@ import {
   adminSetAllAnnouncementEditionsReprint,
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
+  adminDuplicateSaleAnnouncement,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -1399,14 +1400,16 @@ function AnnouncementCard({
   companyMap,
   onEdit,
   onDelete,
+  onCopy,
   isEditing,
 }: {
   announcement: ApiSaleAnnouncement
   companyMap: Record<string, string>
   onEdit: () => void
   onDelete: () => void
+  onCopy: () => void
   isEditing?: boolean
-}) {
+}){
   const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
   const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
   const saleDate = announcement.generalSaleDate
@@ -1460,6 +1463,10 @@ function AnnouncementCard({
               <button onClick={onEdit}
                 className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-amber-400/20 text-amber-300 border-amber-400/50' : 'text-amber-400 hover:text-amber-300 border-stone-600 hover:border-amber-400/50'}`}>
                 {isEditing ? 'Cancel' : 'Edit'}
+              </button>
+              <button onClick={onCopy}
+                className="text-sky-400 hover:text-sky-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-sky-400/50 transition-colors">
+                Copy
               </button>
               <button onClick={onDelete}
                 className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-red-400/50 transition-colors">
@@ -1730,6 +1737,12 @@ export default function AdminSaleAnnouncementsPage() {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const copyMutation = useMutation({
+    mutationFn: (id: string) => adminDuplicateSaleAnnouncement(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   const handleAiApply = (result: AiSaleResult, sourceUrl?: string) => {
     setShowAiModal(false)
     const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
@@ -1848,6 +1861,7 @@ export default function AdminSaleAnnouncementsPage() {
                 companyMap={companyMap}
                 onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); createModal.close() }}
                 onDelete={() => setDeleteItem(a)}
+                onCopy={() => copyMutation.mutate(a.id)}
                 isEditing={editItem?.id === a.id}
               />
               {editItem?.id === a.id && (

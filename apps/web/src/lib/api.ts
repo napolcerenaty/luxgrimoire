@@ -642,6 +642,15 @@ export async function adminUpdateSaleAnnouncement(id: string, data: SaleAnnounce
   return res.json();
 }
 
+export async function adminDuplicateSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/duplicate`, {
+    credentials: 'include',
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function adminDeleteSaleAnnouncement(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}`, {
     credentials: 'include',

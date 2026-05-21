@@ -379,6 +379,82 @@ export class AnnouncementsService {
     void this.deleteCloudinaryImages([existing.imageUrl, ...extraImages]);
   }
 
+  async duplicate(id: string) {
+    const source = await this.prisma.saleAnnouncement.findUnique({
+      where: { id },
+      include: {
+        editions: { include: { variants: true }, orderBy: { sortOrder: 'asc' } },
+        regions: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!source) throw new NotFoundException('Sale announcement not found');
+
+    const copy = await this.prisma.saleAnnouncement.create({
+      data: {
+        title: `${source.title} (Copy)`,
+        companyId: source.companyId,
+        generalSaleDate: source.generalSaleDate,
+        firstAccessDate: source.firstAccessDate,
+        earlyAccessDate: source.earlyAccessDate,
+        saleTimezone: source.saleTimezone,
+        basePrice: source.basePrice,
+        currency: source.currency,
+        subscriberBasePrice: source.subscriberBasePrice,
+        imageUrl: source.imageUrl,
+        extraImagesJson: source.extraImagesJson ?? Prisma.DbNull,
+        isBundle: source.isBundle,
+        availableForPurchase: false,
+        expectedShipping: source.expectedShipping,
+        photoCredit: source.photoCredit,
+        sourceUrl: source.sourceUrl,
+      },
+    });
+
+    for (const edition of source.editions) {
+      const newEdition = await this.prisma.saleAnnouncementEdition.create({
+        data: {
+          saleId: copy.id,
+          editionId: edition.editionId,
+          sortOrder: edition.sortOrder,
+          isReprint: edition.isReprint,
+        },
+      });
+      if (edition.variants.length > 0) {
+        await this.prisma.saleAnnouncementEditionVariant.createMany({
+          data: edition.variants.map(v => ({
+            saleAnnouncementEditionId: newEdition.id,
+            signatureType: v.signatureType,
+            price: v.price,
+            currency: v.currency,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    if (source.regions.length > 0) {
+      await this.prisma.saleAnnouncementRegion.createMany({
+        data: source.regions.map(r => ({
+          saleId: copy.id,
+          name: r.name,
+          countryCodes: r.countryCodes as Prisma.InputJsonValue,
+          isDefault: r.isDefault,
+          generalSaleDate: r.generalSaleDate,
+          firstAccessDate: r.firstAccessDate,
+          earlyAccessDate: r.earlyAccessDate,
+          endsAt: r.endsAt,
+          saleTimezone: r.saleTimezone,
+          basePrice: r.basePrice,
+          currency: r.currency,
+          subscriberBasePrice: r.subscriberBasePrice,
+        })),
+      });
+    }
+
+    await this.indexSale(copy.id);
+    return this.findById(copy.id);
+  }
+
   async adminUpsertRegion(saleId: string, data: {
     id?: string;
     name: string;
