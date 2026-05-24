@@ -76,6 +76,36 @@ export class EditionsService {
     return { tagsCount };
   }
 
+  /** Retag all editions. Meant to be called once after a schema/category migration on production. */
+  async retagAll(): Promise<{ total: number; done: number; failed: number }> {
+    const editions = await this.prisma.bookEdition.findMany({
+      select: {
+        id: true,
+        features: true,
+        artists: { select: { role: true, artistId: true, artistName: true } },
+      },
+    });
+    let done = 0;
+    let failed = 0;
+    for (const edition of editions) {
+      try {
+        const features = (edition.features as string[]) ?? [];
+        const artistEntries = edition.artists.map((a) => ({
+          role: a.role,
+          artistId: a.artistId,
+          artistName: a.artistName,
+        }));
+        await this.tagger.retagEdition(edition.id, features, artistEntries);
+        done++;
+      } catch (err) {
+        this.logger.error(`retagAll: failed for edition ${edition.id}: ${(err as Error).message}`);
+        failed++;
+      }
+    }
+    this.logger.log(`retagAll complete: ${done}/${editions.length} succeeded, ${failed} failed`);
+    return { total: editions.length, done, failed };
+  }
+
   /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
   async addFeatureTag(
     slug: string,

@@ -115,6 +115,13 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
+  @Roles('ADMIN')
+  @Post('retag-all')
+  retagAll() {
+    return this.editionsService.retagAll();
+  }
+
+  @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post(':slug/feature-tags')
   addFeatureTag(
