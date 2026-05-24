@@ -39,13 +39,17 @@ export class EditionsService {
       where: { id: editionId },
       select: {
         features: true,
-        artists: { select: { role: true } },
+        artists: { select: { role: true, artistId: true, artistName: true } },
       },
     });
     if (!data) return;
     const features = (data.features as string[]) ?? [];
-    const artistRoles = data.artists.map((a: { role: string }) => a.role);
-    await this.tagger.retagEdition(editionId, features, artistRoles).catch((err) => {
+    const artistEntries = data.artists.map((artist) => ({
+      role: artist.role,
+      artistId: artist.artistId,
+      artistName: artist.artistName,
+    }));
+    await this.tagger.retagEdition(editionId, features, artistEntries).catch((err) => {
       this.logger.error(`retagEdition failed for ${editionId}: ${err.message}`);
     });
   }
@@ -54,12 +58,20 @@ export class EditionsService {
   async retagBySlug(slug: string): Promise<{ tagsCount: number }> {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
-      select: { id: true, features: true, artists: { select: { role: true } } },
+      select: {
+        id: true,
+        features: true,
+        artists: { select: { role: true, artistId: true, artistName: true } },
+      },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     const features = (edition.features as string[]) ?? [];
-    const artistRoles = edition.artists.map((a: { role: string }) => a.role);
-    await this.tagger.retagEdition(edition.id, features, artistRoles);
+    const artistEntries = edition.artists.map((artist) => ({
+      role: artist.role,
+      artistId: artist.artistId,
+      artistName: artist.artistName,
+    }));
+    await this.tagger.retagEdition(edition.id, features, artistEntries);
     const tagsCount = await this.prisma.editionFeatureTag.count({ where: { editionId: edition.id } });
     return { tagsCount };
   }
@@ -277,6 +289,8 @@ export class EditionsService {
         featureTags: {
           select: {
             id: true, rawValue: true, source: true, isManual: true,
+            artistId: true, artistName: true,
+            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
             category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
           orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
@@ -321,15 +335,11 @@ export class EditionsService {
             },
           },
         },
-        artists: {
-          select: {
-            id: true, role: true, artistName: true,
-            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
-          },
-        },
         featureTags: {
           select: {
             id: true, rawValue: true, source: true, isManual: true,
+            artistId: true, artistName: true,
+            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
             category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
           orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],

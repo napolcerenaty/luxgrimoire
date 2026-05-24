@@ -133,6 +133,9 @@ export interface ApiBookEdition {
     rawValue: string;
     source: string;
     isManual: boolean;
+    artistId?: string | null;
+    artistName?: string | null;
+    artist?: { id: string; name: string; slug: string; photoUrl?: string | null } | null;
     category: { id: string; slug: string; label: string; group: string; sortOrder: number };
   }>;
   firstAccessDate?: string | null;

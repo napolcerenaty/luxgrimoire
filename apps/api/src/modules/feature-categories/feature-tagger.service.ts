@@ -92,14 +92,14 @@ export class FeatureTaggerService {
   /**
    * Re-tags a single edition: deletes all existing feature tags for the edition
    * and reinserts based on current patterns.
-   * @param editionId  UUID of the edition
-   * @param features   edition.features[] array
-   * @param artistRoles artist_contributions.role values for this edition
+   * @param editionId UUID of the edition
+   * @param features edition.features[] array
+   * @param artistEntries artist contribution entries for this edition
    */
   async retagEdition(
     editionId: string,
     features: string[],
-    artistRoles: string[],
+    artistEntries: { role: string; artistId: string; artistName?: string | null }[],
   ): Promise<void> {
     const rules = await this.loadRules();
     if (rules.length === 0) {
@@ -111,32 +111,49 @@ export class FeatureTaggerService {
       editionId: string;
       categoryId: string;
       rawValue: string;
+      artistId: string | null;
+      artistName: string | null;
       source: string;
     }[] = [];
 
-    const tagValue = (rawValue: string, source: string) => {
-      const v = rawValue.trim().toLowerCase();
+    const tagValue = (
+      rawValue: string,
+      source: string,
+      artistId: string | null,
+      artistName: string | null,
+    ) => {
+      const trimmedValue = rawValue.trim();
+      const v = trimmedValue.toLowerCase();
       if (!v) return;
       for (const rule of rules) {
         if (rule.excludePatterns.some((re) => re.test(v))) continue;
         if (rule.includePatterns.some((re) => re.test(v))) {
-          toInsert.push({ editionId, categoryId: rule.id, rawValue: rawValue.trim(), source });
+          toInsert.push({
+            editionId,
+            categoryId: rule.id,
+            rawValue: trimmedValue,
+            artistId,
+            artistName,
+            source,
+          });
         }
       }
     };
 
-    for (const f of features) tagValue(f, 'features');
-    for (const r of artistRoles) tagValue(r, 'artist_contribution');
+    for (const feature of features) tagValue(feature, 'features', null, null);
+    for (const entry of artistEntries) {
+      tagValue(entry.role, 'artist', entry.artistId, entry.artistName ?? null);
+    }
 
     // Deduplicate by categoryId — one row per edition per category.
-    // Prefer 'features' source over 'artist_contribution' when both match the same category.
+    // Prefer artist-derived tags so public artist reads stay available from feature tags.
     const deduped = new Map<string, (typeof toInsert)[0]>();
-    for (const r of toInsert) {
-      const existing = deduped.get(r.categoryId);
+    for (const row of toInsert) {
+      const existing = deduped.get(row.categoryId);
       if (!existing) {
-        deduped.set(r.categoryId, r);
-      } else if (r.source === 'artist_contribution' && existing.source === 'features') {
-        deduped.set(r.categoryId, r);
+        deduped.set(row.categoryId, row);
+      } else if (row.source === 'artist' && existing.source === 'features') {
+        deduped.set(row.categoryId, row);
       }
     }
     const unique = Array.from(deduped.values());
@@ -152,7 +169,7 @@ export class FeatureTaggerService {
     ]);
 
     this.logger.debug(
-      `Retagged edition ${editionId}: ${unique.length} tags from ${features.length} features + ${artistRoles.length} artist roles`,
+      `Retagged edition ${editionId}: ${unique.length} tags from ${features.length} features + ${artistEntries.length} artist roles`,
     );
   }
 

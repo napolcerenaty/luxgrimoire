@@ -336,7 +336,7 @@ export function FeatureCategoryPreview({
   initialTags?: FeatureTag[]
   /** All raw feature strings from the edition */
   featureValues?: string[]
-  /** Artist entries (name + role) for source=artist_contribution */
+  /** Artist entries (name + role) for source=artist */
   artistEntries?: Array<{ name: string; role: string }>
 }) {
   const [tags, setTags] = useState<FeatureTag[]>(initialTags ?? [])
@@ -414,7 +414,7 @@ export function FeatureCategoryPreview({
     if (a.role) artistSet.set(a.role, a.name)
   }
   for (const tag of tags) {
-    if (tag.source === 'artist_contribution' && !artistSet.has(tag.rawValue)) {
+    if (tag.source === 'artist' && !artistSet.has(tag.rawValue)) {
       artistSet.set(tag.rawValue, tag.rawValue)
     }
   }
@@ -508,7 +508,7 @@ export function FeatureCategoryPreview({
         <div>
           <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Artist roles</p>
           {[...artistSet.entries()].map(([role, artistName]) =>
-            renderRow(role, 'artist_contribution', `${artistName} — ${role}`)
+            renderRow(role, 'artist', `${artistName} — ${role}`)
           )}
         </div>
       )}

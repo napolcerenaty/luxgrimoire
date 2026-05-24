@@ -1,4 +1,5 @@
--- Feature Normalisation: FeatureCategory + EditionFeatureTag tables
+-- Feature normalisation: FeatureCategory + EditionFeatureTag
+-- Replaces artist_contributions as the source of truth for edition features and artist roles.
 -- Safe to apply on production: pure additions, no drops.
 
 CREATE TABLE "feature_categories" (
@@ -12,28 +13,30 @@ CREATE TABLE "feature_categories" (
     "excludePatterns" JSONB NOT NULL DEFAULT '[]',
     "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"       TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "feature_categories_pkey" PRIMARY KEY ("id")
 );
-
-CREATE UNIQUE INDEX "feature_categories_slug_key" ON "feature_categories"("slug");
-CREATE INDEX "feature_categories_group_idx" ON "feature_categories"("group");
+CREATE UNIQUE INDEX "feature_categories_slug_key"  ON "feature_categories"("slug");
+CREATE INDEX        "feature_categories_group_idx" ON "feature_categories"("group");
 
 CREATE TABLE "edition_feature_tags" (
-    "id"         TEXT NOT NULL,
-    "editionId"  TEXT NOT NULL,
-    "categoryId" TEXT NOT NULL,
-    "rawValue"   TEXT NOT NULL,
-    "source"     TEXT NOT NULL,
-    "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
+    "id"          TEXT NOT NULL,
+    "editionId"   TEXT NOT NULL,
+    "categoryId"  TEXT NOT NULL,
+    "rawValue"    TEXT NOT NULL,
+    "artistId"    TEXT,
+    "artistName"  TEXT,
+    "source"      TEXT NOT NULL,           -- 'features' | 'artist'
+    "is_manual"   BOOLEAN NOT NULL DEFAULT false,
+    "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "edition_feature_tags_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "edition_feature_tags_editionId_categoryId_rawValue_key"
-    ON "edition_feature_tags"("editionId", "categoryId", "rawValue");
-CREATE INDEX "edition_feature_tags_editionId_idx" ON "edition_feature_tags"("editionId");
+-- One category per edition (artist-sourced tag wins over feature-sourced when both match)
+CREATE UNIQUE INDEX "edition_feature_tags_editionId_categoryId_key"
+    ON "edition_feature_tags"("editionId", "categoryId");
+CREATE INDEX "edition_feature_tags_editionId_idx"  ON "edition_feature_tags"("editionId");
 CREATE INDEX "edition_feature_tags_categoryId_idx" ON "edition_feature_tags"("categoryId");
+CREATE INDEX "edition_feature_tags_artistId_idx"   ON "edition_feature_tags"("artistId");
 
 ALTER TABLE "edition_feature_tags"
     ADD CONSTRAINT "edition_feature_tags_editionId_fkey"
@@ -42,3 +45,7 @@ ALTER TABLE "edition_feature_tags"
 ALTER TABLE "edition_feature_tags"
     ADD CONSTRAINT "edition_feature_tags_categoryId_fkey"
     FOREIGN KEY ("categoryId") REFERENCES "feature_categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "edition_feature_tags"
+    ADD CONSTRAINT "edition_feature_tags_artistId_fkey"
+    FOREIGN KEY ("artistId") REFERENCES "artists"("id") ON DELETE SET NULL ON UPDATE CASCADE;

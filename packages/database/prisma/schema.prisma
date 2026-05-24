@@ -188,6 +188,7 @@ model Artist {
   twitter       String?
   website       String?
   contributions ArtistContribution[]
+  featureTags   EditionFeatureTag[]
   cardArtistMonths SubscriptionMonth[]
 
   @@index([specialty])
@@ -1400,14 +1401,18 @@ model EditionFeatureTag {
   editionId  String
   categoryId String
   rawValue   String
-  source     String          // "features" | "artist_contribution"
+  artistId   String?
+  artistName String?
+  source     String          // "features" | "artist"
   isManual   Boolean         @default(false) @map("is_manual")
   createdAt  DateTime        @default(now())
   edition    BookEdition     @relation(fields: [editionId], references: [id], onDelete: Cascade)
   category   FeatureCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  artist     Artist?         @relation(fields: [artistId], references: [id], onDelete: SetNull)
 
   @@unique([editionId, categoryId])
   @@index([editionId])
   @@index([categoryId])
+  @@index([artistId])
   @@map("edition_feature_tags")
 }
