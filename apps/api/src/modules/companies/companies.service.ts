@@ -12,12 +12,11 @@ import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
-const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
-const COMPANY_EDITIONS_FILTERED_TTL = 2 * 60 * 60 * 1000; // 2 hours — per-group lazy-load cache
+const COMPANY_EDITIONS_COUNT_TTL = 2 * 60 * 60 * 1000; // 2 hours — total count cache per filter
 const companySlugKey = (slug: string) => `companies:slug:${slug}`;
-const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
-const companyEditionsSubKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}`;
-const companyEditionsColKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}`;
+const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
+const companyEditionsSubCountKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}:count`;
+const companyEditionsColCountKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}:count`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -143,31 +142,44 @@ export class CompaniesService {
     filter?: { subscriptionId?: string; collectionId?: string },
     pagination: { skip: number; take: number } = { skip: 0, take: 20 },
   ) {
-    // Extract cache return type once at method scope (typeof this.method fails inside nested if blocks in TS)
-    type CachedEditions = Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
     const { skip, take } = pagination;
 
-    const getOrPopulate = async (key: string, ttl: number): Promise<CachedEditions> => {
-      const cached = await this.cache.get(key);
-      if (cached) return cached as CachedEditions;
-      const result = await this._fetchCompanyEditions(slug, filter);
-      await this.cache.set(key, result, ttl);
-      return result;
-    };
-
-    let all: CachedEditions;
+    // Resolve count cache key and fetch/populate it
+    let countKey: string;
     if (filter?.subscriptionId) {
-      all = await getOrPopulate(companyEditionsSubKey(slug, filter.subscriptionId), COMPANY_EDITIONS_FILTERED_TTL);
+      countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
     } else if (filter?.collectionId) {
-      all = await getOrPopulate(companyEditionsColKey(slug, filter.collectionId), COMPANY_EDITIONS_FILTERED_TTL);
+      countKey = companyEditionsColCountKey(slug, filter.collectionId);
     } else {
-      all = await getOrPopulate(companyEditionsKey(slug), COMPANY_EDITIONS_TTL);
+      countKey = companyEditionsAllCountKey(slug);
     }
 
-    return { data: all.slice(skip, skip + take), total: all.length };
+    const cachedCount = await this.cache.get(countKey);
+    let total: number;
+    if (cachedCount !== undefined && cachedCount !== null) {
+      total = cachedCount as number;
+    } else {
+      total = await this._countCompanyEditions(slug, filter);
+      await this.cache.set(countKey, total, COMPANY_EDITIONS_COUNT_TTL);
+    }
+
+    const data = await this._fetchCompanyEditions(slug, filter, skip, take);
+    return { data, total };
   }
 
-  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
+  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }): Promise<number> {
+    const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug }, select: { id: true } });
+    if (!company) throw new NotFoundException(`Company '${slug}' not found`);
+    return this.prisma.bookEdition.count({
+      where: {
+        bookBoxCompanyId: company.id,
+        ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
+        ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+      },
+    });
+  }
+
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }, skip = 0, take = 20) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -209,6 +221,8 @@ export class CompaniesService {
         },
       },
       orderBy: { generalSaleDate: 'desc' },
+      skip,
+      take,
     });
 
     return editions.map((e) => {
@@ -230,7 +244,6 @@ export class CompaniesService {
       await this.deleteCloudinaryImages([existing.logoUrl]);
     }
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
     return company;
@@ -240,7 +253,7 @@ export class CompaniesService {
     const company = await this.findBySlug(slug);
     await this.deleteCloudinaryImages([company.logoUrl]);
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
+    await this.cache.del(companyEditionsAllCountKey(slug));
     await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }
@@ -250,7 +263,6 @@ export class CompaniesService {
     const normalized = colors.map((c) => (c.startsWith('#') ? c : `#${c}`));
     await this.prisma.bookBoxCompany.update({ where: { slug }, data: { brandColors: normalized } });
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
     return normalized;
   }
 

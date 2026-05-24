@@ -16,7 +16,9 @@ import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 
-const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
+const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
+const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
+const companyEditionsColCountKey = (slug: string, colId: string) => `companies:slug:${slug}:editions:col:${colId}:count`;
 
 @Injectable()
 export class EditionsService {
@@ -31,6 +33,12 @@ export class EditionsService {
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
     return deleteCloudinaryImages(ids, this.uploadService);
+  }
+
+  private async invalidateEditionCountCaches(companySlug: string, subscriptionId?: string | null, collectionId?: string | null) {
+    await this.cache.del(companyEditionsAllCountKey(companySlug));
+    if (subscriptionId) await this.cache.del(companyEditionsSubCountKey(companySlug, subscriptionId));
+    if (collectionId) await this.cache.del(companyEditionsColCountKey(companySlug, collectionId));
   }
 
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {
@@ -73,7 +81,7 @@ export class EditionsService {
       },
     });
     await this.indexEdition(edition.id);
-    if (companySlug) await this.cache.del(companyEditionsKey(companySlug));
+    if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     return edition;
   }
 
@@ -216,7 +224,7 @@ export class EditionsService {
       where: { slug },
       select: {
         id: true, slug: true,
-        bookBoxCompanyId: true, collectionId: true, bookBoxCompanyCustomName: true,
+        bookBoxCompanyId: true, collectionId: true, subscriptionId: true, bookBoxCompanyCustomName: true,
         publisher: true, isSpecial: true, isOmnibus: true,
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
@@ -381,7 +389,9 @@ export class EditionsService {
     await this.deleteCloudinaryImages(edition.additionalImages as string[]);
     await this.typesense.deleteDocument('editions', edition.id);
     const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
-    if (edition.bookBoxCompany?.slug) await this.cache.del(companyEditionsKey(edition.bookBoxCompany.slug));
+    if (edition.bookBoxCompany?.slug) {
+      await this.invalidateEditionCountCaches(edition.bookBoxCompany.slug, edition.subscriptionId, edition.collectionId);
+    }
     return { ...deleted, collectionsAffected: collectionCount };
   }
 
