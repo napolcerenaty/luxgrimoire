@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, type AiBookResult } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
@@ -41,8 +41,6 @@ export interface CreateBookEditionFormProps {
   /** Bundle prefill defaults */
   defaultPublisher?: string
   defaultCollectionId?: string
-  defaultArtists?: ArtistEntry[]
-  defaultFeatures?: string[]
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
@@ -58,7 +56,7 @@ export default function CreateBookEditionForm({
   defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
-  defaultPublisher, defaultCollectionId, defaultArtists, defaultFeatures,
+  defaultPublisher, defaultCollectionId,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -95,9 +93,9 @@ export default function CreateBookEditionForm({
     return `${monthYear}-${mm}-${dd}`
   })
   const [allImages, setAllImages] = useState<string[]>([])
-  const [artists, setArtists] = useState<ArtistEntry[]>(defaultArtists ?? [])
-  const [features, setFeatures] = useState<string[]>(defaultFeatures ?? [])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
+  // Feature tags to POST after edition creation (filled by AI parser)
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; source: 'features' | 'artist'; artistName?: string }>>([])
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
@@ -141,7 +139,21 @@ export default function CreateBookEditionForm({
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
     }
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
+    // Stage features/artists for POST after edition creation
+    const newTags: Array<{ rawValue: string; source: 'features' | 'artist'; artistName?: string }> = []
+    for (const feature of (r.edition?.features ?? [])) {
+      if (feature.trim()) newTags.push({ rawValue: feature.trim(), source: 'features' })
+    }
+    for (const artist of (r.edition?.artists ?? [])) {
+      if (artist.role?.trim()) newTags.push({ rawValue: artist.role.trim(), source: 'artist', artistName: artist.name })
+    }
+    if (newTags.length > 0) {
+      setPendingFeatureTags(prev => {
+        const existing = new Set(prev.map(p => p.rawValue))
+        return [...prev, ...newTags.filter(t => !existing.has(t.rawValue))]
+      })
+    }
   }
 
   // ── Goodreads parser handler ─────────────────────────────────────────────
@@ -265,42 +277,20 @@ export default function CreateBookEditionForm({
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
-          features: features.filter(Boolean),
         }),
       })
-      // Add artists — resolve each artist once, but allow multiple roles per artist
-      const artistIdByName = new Map<string, string>() // name.lower → artistId
-      for (const art of artists) {
-        const name = art.name.trim()
-        if (!name) continue
-        const key = name.toLowerCase()
-        let artistId = art.id
-        if (!artistId) {
-          if (artistIdByName.has(key)) {
-            artistId = artistIdByName.get(key)!
-          } else {
-            // Check if artist already exists in DB before creating
-            const existing = await authFetch<{ data: { id: string; name: string }[] }>(
-              `/artists?search=${encodeURIComponent(name)}&pageSize=5`
-            )
-            const match = existing.data?.find(a => a.name.toLowerCase() === key)
-            if (match) {
-              artistId = match.id
-            } else {
-              const created = await authFetch<{ id: string }>('/artists', {
-                method: 'POST', body: JSON.stringify({ name }),
-              })
-              artistId = created.id
-            }
-          }
-        }
-        artistIdByName.set(key, artistId)
-        await authFetch(`/editions/${ed.slug}/artists`, {
-          method: 'POST',
-          body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
-        })
+      // POST AI-parsed feature tags to edition_feature_tags (no duplicates — unique constraint in DB)
+      if (pendingFeatureTags.length > 0) {
+        await Promise.all(pendingFeatureTags.map(t =>
+          authFetch(`/editions/${ed.slug}/feature-tags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rawValue: t.rawValue, source: t.source, categories: [], artistName: t.artistName }),
+          }).catch(() => null)
+        ))
+        qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(ed.slug) })
       }
-      qc.invalidateQueries({ queryKey: ['artists-search'] })
+      setCreatedEditionSlug(ed.slug)
       // Link to month (only when used in subscription context)
       if (subscriptionSlug && monthYear != null && monthMonth != null) {
         await authFetch(
@@ -313,7 +303,6 @@ export default function CreateBookEditionForm({
       setSaved(true)
       // If this was a re-edition (bypassed duplicate check), show the link step
       if (shouldBypass && duplicateEdition) {
-        setCreatedEditionSlug(ed.slug)
         setCreatedEditionId(ed.id)
         setShowLinkStep(true)
       } else {
@@ -513,10 +502,7 @@ export default function CreateBookEditionForm({
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}
-        artists={artists}
-        onArtistsChange={setArtists}
-        features={features}
-        onFeaturesChange={setFeatures}
+        hideDeprecatedInputs
         editionSlug={createdEditionSlug ?? undefined}
         companies={companies}
         collections={collections}

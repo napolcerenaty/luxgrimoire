@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type EditionCompany, type PendingAiTag } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -161,8 +161,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
   const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
-  // AI-suggested tags pending user confirmation
-  const [pendingAiTags, setPendingAiTags] = useState<PendingAiTag[]>([])
 
   // Companies list
   const { data: companiesData } = useQuery({
@@ -179,21 +177,32 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   })
   const collections = collectionsData?.data ?? []
 
-  const applyAiResult = (r: AiParseResult) => {
+  const applyAiResult = async (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
-    // Stage AI-extracted features/artists as pending suggestions — user confirms each one
-    const newPending: PendingAiTag[] = []
+    const slug = edition.slug
+    const posts: Promise<unknown>[] = []
     for (const feature of (r.edition?.features ?? [])) {
-      if (feature.trim()) newPending.push({ rawValue: feature.trim(), source: 'features' })
+      if (feature.trim()) {
+        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: feature.trim(), source: 'features', categories: [] }),
+        }).catch(() => null))
+      }
     }
     for (const artist of (r.edition?.artists ?? [])) {
-      if (artist.role?.trim()) newPending.push({ rawValue: artist.role.trim(), source: 'artist', artistName: artist.name })
+      if (artist.role?.trim()) {
+        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: artist.role.trim(), source: 'artist', categories: [], artistName: artist.name }),
+        }).catch(() => null))
+      }
     }
-    if (newPending.length > 0) setPendingAiTags(prev => {
-      // Deduplicate by rawValue
-      const existing = new Set(prev.map(p => p.rawValue))
-      return [...prev, ...newPending.filter(p => !existing.has(p.rawValue))]
-    })
+    if (posts.length > 0) {
+      await Promise.all(posts)
+      qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(slug) })
+    }
   }
 
   const handleSubmit = async () => {
@@ -264,8 +273,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onAiResult={applyAiResult}
         hideDeprecatedInputs
         featureTags={edition.featureTags}
-        pendingAiTags={pendingAiTags}
-        onPendingAiTagDismiss={rawValue => setPendingAiTags(prev => prev.filter(p => p.rawValue !== rawValue))}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}
         editionSlug={edition.slug}

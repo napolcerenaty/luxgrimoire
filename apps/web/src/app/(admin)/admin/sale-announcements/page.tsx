@@ -24,7 +24,7 @@ import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
-import type { ArtistEntry, AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
+import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -309,10 +309,9 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   const [bdPublisher, setBdPublisher] = useState('')
   const [bdCompanyId, setBdCompanyId] = useState(defaultCompanyId ?? '')
   const [bdCollectionId, setBdCollectionId] = useState('')
-  const [bdArtistsText, setBdArtistsText] = useState('')
-  const [bdArtists, setBdArtists] = useState<ArtistEntry[]>([])
-  const [bdFeatures, setBdFeatures] = useState<string[]>([])
   const [bdParsing, setBdParsing] = useState(false)
+  // bundle AI text parse (kept for UI compatibility — features/artists now managed in CreateBookEditionForm)
+  const [bdArtistsText, setBdArtistsText] = useState('')
 
   const perBookPrice = isBundle && bundleBasePrice != null && bdBookCount && Number(bdBookCount) > 0
     ? Math.round(bundleBasePrice / Number(bdBookCount) * 100) / 100
@@ -338,9 +337,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     if (!bdArtistsText.trim()) return
     setBdParsing(true)
     try {
-      const result = await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
-      if (result?.edition?.artists) setBdArtists(result.edition.artists.map(a => ({ name: a.name, role: a.role ?? '' })))
-      if (result?.edition?.features) setBdFeatures(result.edition.features)
+      await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
+      // Note: features/artists are now handled directly in CreateBookEditionForm's AI parser
     } catch { /* ignore */ }
     setBdParsing(false)
   }
@@ -415,8 +413,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultLanguage={isBundle ? bdLanguage : undefined}
           defaultPublisher={isBundle ? bdPublisher : undefined}
           defaultCollectionId={isBundle ? bdCollectionId : undefined}
-          defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
-          defaultFeatures={isBundle && bdFeatures.length > 0 ? bdFeatures : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -513,11 +509,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
             </button>
-            {(bdArtists.length > 0 || bdFeatures.length > 0) && (
-              <div className="mt-2 text-xs text-stone-400 space-y-0.5">
-                {bdArtists.length > 0 && <div>Artists: {bdArtists.map(a => `${a.name}${a.role ? ` (${a.role})` : ''}`).join(', ')}</div>}
-                {bdFeatures.length > 0 && <div>Features: {bdFeatures.join(', ')}</div>}
-              </div>
+            {bdParsing && (
+              <div className="mt-2 text-xs text-stone-400">Parsing…</div>
             )}
           </div>
         </div>
