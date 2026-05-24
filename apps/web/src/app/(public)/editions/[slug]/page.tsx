@@ -493,91 +493,19 @@ export default async function EditionPage({ params, searchParams }: Props) {
       <div className="container mx-auto px-4 py-10 max-w-5xl space-y-12">
 
         {/* ── Features ─────────────────────────────────────────────────────── */}
-        {(() => {
-          const featureTags = edition.featureTags ?? []
-          // Build a map of group → unique category labels
-          const groupMap = new Map<string, { slug: string; label: string; sortOrder: number }[]>()
-          const seen = new Set<string>()
-          for (const tag of featureTags) {
-            if (seen.has(tag.category.slug)) continue
-            seen.add(tag.category.slug)
-            const list = groupMap.get(tag.category.group) ?? []
-            list.push(tag.category)
-            groupMap.set(tag.category.group, list)
-          }
-          const GROUP_LABELS: Record<string, string> = {
-            cover: 'Cover',
-            binding: 'Binding',
-            interior: 'Interior',
-            signatures: 'Signatures',
-            extras: 'Extras',
-            format: 'Format',
-            edition_type: 'Edition Type',
-          }
-          const GROUP_ORDER = ['edition_type', 'cover', 'binding', 'interior', 'signatures', 'extras', 'format']
-          const orderedGroups = GROUP_ORDER.filter(g => groupMap.has(g))
-          // Groups not in the predefined order (future-proof)
-          for (const g of groupMap.keys()) {
-            if (!orderedGroups.includes(g)) orderedGroups.push(g)
-          }
-
-          if (orderedGroups.length > 0) {
-            return (
-              <section>
-                <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">What&apos;s Included</h2>
-                <div className="space-y-4">
-                  {orderedGroups.map(group => (
-                    <div key={group}>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
-                        {GROUP_LABELS[group] ?? group}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {(groupMap.get(group) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
-                          <span key={cat.slug}
-                            className="inline-flex items-center gap-1.5 bg-stone-800 border border-stone-700 text-stone-200 text-sm px-3 py-1 rounded-full">
-                            {cat.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {features.length > 0 && (
-                  <details className="mt-5 group">
-                    <summary className="cursor-pointer text-xs text-stone-500 hover:text-stone-400 select-none list-none flex items-center gap-1.5">
-                      <span className="transition-transform group-open:rotate-90">▶</span>
-                      Full details from publisher
-                    </summary>
-                    <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm text-stone-400">
-                          <span className="text-stone-600 mt-0.5 shrink-0">✦</span>
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </section>
-            )
-          }
-
-          // Fallback: show raw features when no tags available yet
-          if (features.length === 0) return null
-          return (
-            <section>
-              <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">What&apos;s Included</h2>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
-                    <span className="text-amber-500 mt-0.5 shrink-0">✦</span>
-                    <span>{f.charAt(0).toUpperCase() + f.slice(1).toLowerCase()}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )
-        })()}
+        {features.length > 0 && (
+          <section>
+            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">What&apos;s Included</h2>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {features.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
+                  <span className="text-amber-500 mt-0.5 shrink-0">✦</span>
+                  <span>{f.charAt(0).toUpperCase() + f.slice(1).toLowerCase()}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* ── Artists ──────────────────────────────────────────────────────── */}
         {artists.length > 0 && (
