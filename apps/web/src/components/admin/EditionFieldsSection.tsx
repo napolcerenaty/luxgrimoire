@@ -347,6 +347,11 @@ export function FeatureCategoryPreview({
   const [retagMsg, setRetagMsg] = useState<string | null>(null)
   // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
   const [adding, setAdding] = useState<Record<string, string>>({})
+  // New manual entry form
+  const [newRaw, setNewRaw] = useState('')
+  const [newSource, setNewSource] = useState<'features' | 'artist'>('features')
+  const [newCategory, setNewCategory] = useState('')
+  const [addingNew, setAddingNew] = useState(false)
 
   // Fetch all categories for the add-picker
   const { data: allCategoriesData } = useQuery({
@@ -409,6 +414,19 @@ export function FeatureCategoryPreview({
       setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: '' }))
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  const handleAddNewTag = async () => {
+    const raw = newRaw.trim()
+    if (!raw || !newCategory) return
+    setAddingNew(true)
+    try {
+      await handleAddTag(raw, newSource, newCategory)
+      setNewRaw('')
+      setNewCategory('')
+    } finally {
+      setAddingNew(false)
     }
   }
 
@@ -524,6 +542,45 @@ export function FeatureCategoryPreview({
       {featureRows.length === 0 && artistSet.size === 0 && (
         <p className="text-xs text-stone-500 italic">No features or artists yet.</p>
       )}
+
+      {/* ── Add new tag manually ── */}
+      <div className="mt-3 pt-3 border-t border-stone-700/50">
+        <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">Add entry manually</p>
+        <div className="flex flex-wrap gap-2 items-end">
+          <input
+            value={newRaw}
+            onChange={e => setNewRaw(e.target.value)}
+            placeholder="Raw value (e.g. Foil cover, @artist — cover art…)"
+            className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
+          />
+          <select
+            value={newSource}
+            onChange={e => setNewSource(e.target.value as 'features' | 'artist')}
+            className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500"
+          >
+            <option value="features">Feature</option>
+            <option value="artist">Artist role</option>
+          </select>
+          <select
+            value={newCategory}
+            onChange={e => setNewCategory(e.target.value)}
+            className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
+          >
+            <option value="">— category —</option>
+            {allCategories.map(c => (
+              <option key={c.slug} value={c.slug}>{c.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!newRaw.trim() || !newCategory || addingNew}
+            onClick={handleAddNewTag}
+            className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {addingNew ? 'Adding…' : '+ Add'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
