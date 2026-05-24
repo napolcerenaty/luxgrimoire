@@ -251,6 +251,7 @@ model BookEdition {
   communityImages          UserEditionImage[]
   saleStats                EditionSaleStat[]
   statsSnapshot            EditionStatsSnapshot?
+  featureTags              EditionFeatureTag[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -1372,4 +1373,40 @@ model SubscriptionCountryFeeSnapshot {
   @@unique([subscriptionId, country])
   @@index([subscriptionId])
   @@map("subscription_country_fee_snapshots")
+}
+
+// ─── Feature Normalisation ───────────────────────────────────────────────────
+
+model FeatureCategory {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  label       String
+  group       String
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  // include/exclude patterns stored as JSON string[]
+  includePatterns Json @default("[]")
+  excludePatterns Json @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tags        EditionFeatureTag[]
+
+  @@index([group])
+  @@map("feature_categories")
+}
+
+model EditionFeatureTag {
+  id         String          @id @default(uuid())
+  editionId  String
+  categoryId String
+  rawValue   String
+  source     String          // "features" | "artist_contribution"
+  createdAt  DateTime        @default(now())
+  edition    BookEdition     @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  category   FeatureCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([editionId, categoryId, rawValue])
+  @@index([editionId])
+  @@index([categoryId])
+  @@map("edition_feature_tags")
 }

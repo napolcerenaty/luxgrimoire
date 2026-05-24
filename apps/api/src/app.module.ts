@@ -46,6 +46,7 @@ import { TrackingModule } from './modules/tracking/tracking.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { TypesenseModule } from './modules/typesense/typesense.module';
 import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
+import { FeatureCategoriesModule } from './modules/feature-categories/feature-categories.module';
 
 @Module({
   imports: [
@@ -148,6 +149,7 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
     TrackingModule,
     BackupModule,
     CrowdStatsModule,
+    FeatureCategoriesModule,
   ],
   providers: [
     ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),

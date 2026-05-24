@@ -685,3 +685,15 @@ export interface ApiSubscriptionSeries {
   _count?: { months: number };
 }
 
+export interface ApiFeatureCategory {
+  id: string;
+  slug: string;
+  label: string;
+  group: string;
+  isActive: boolean;
+  sortOrder: number;
+  includePatterns: string[];
+  excludePatterns: string[];
+  createdAt: string;
+  updatedAt: string;
+}

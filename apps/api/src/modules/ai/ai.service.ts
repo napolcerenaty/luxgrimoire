@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
 
 export interface AiSaleRegion {
   name: string;
@@ -48,6 +49,8 @@ export interface AiParseResult {
     generalSaleDate?: string;
     features?: string[];
     artists?: { name: string; role: string }[];
+    /** Normalized category slugs per raw feature value (post-processing) */
+    featureTags?: Record<string, string[]>;
   };
 }
 
@@ -265,7 +268,10 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly client: OpenAI | null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly featureTagger: FeatureTaggerService,
+  ) {
     const key = this.configService.get<string>('OPENAI_API_KEY');
     if (key) {
       this.client = new OpenAI({ apiKey: key });
@@ -340,7 +346,18 @@ export class AiService {
     });
 
     try {
-      return JSON.parse(content) as AiParseResult;
+      const result = JSON.parse(content) as AiParseResult;
+      // Post-process: tag features with normalized category slugs
+      const features = result.edition?.features;
+      if (features && features.length > 0) {
+        try {
+          const featureTags = await this.featureTagger.categorizeMany(features);
+          if (result.edition) result.edition.featureTags = featureTags;
+        } catch {
+          // Tagging is best-effort — never fail the AI parse due to tagger errors
+        }
+      }
+      return result;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
