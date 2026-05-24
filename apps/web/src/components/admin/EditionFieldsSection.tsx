@@ -349,6 +349,8 @@ export function FeatureCategoryPreview({
   const [newRaw, setNewRaw] = useState('')
   const [newSource, setNewSource] = useState<'features' | 'artist'>('features')
   const [newCategory, setNewCategory] = useState('')
+  const [newArtistId, setNewArtistId] = useState<string | undefined>(undefined)
+  const [newArtistName, setNewArtistName] = useState('')
   const [addingNew, setAddingNew] = useState(false)
 
   // Fetch all categories for the add-picker
@@ -377,13 +379,12 @@ export function FeatureCategoryPreview({
     }
   }
 
-  const handleAddTag = async (rawValue: string, source: string, categorySlug: string) => {
-    if (!categorySlug) return
+  const handleAddTag = async (rawValue: string, source: string, categorySlug: string, artistId?: string, artistName?: string) => {
     try {
       const res = await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawValue, source, categorySlug }),
+        body: JSON.stringify({ rawValue, source, ...(categorySlug && { categorySlug }), artistId, artistName }),
       })
       setTags(prev => {
         const idx = prev.findIndex(t => t.rawValue === rawValue)
@@ -401,15 +402,31 @@ export function FeatureCategoryPreview({
   }
 
   const handleAddNewTag = async () => {
-    const raw = newRaw.trim()
-    if (!raw || !newCategory) return
-    setAddingNew(true)
-    try {
-      await handleAddTag(raw, newSource, newCategory)
-      setNewRaw('')
-      setNewCategory('')
-    } finally {
-      setAddingNew(false)
+    if (newSource === 'artist') {
+      const role = newRaw.trim()
+      if (!role && !newArtistName) return
+      const rawValue = role || newArtistName
+      setAddingNew(true)
+      try {
+        await handleAddTag(rawValue, 'artist', newCategory, newArtistId, newArtistName || rawValue)
+        setNewRaw('')
+        setNewCategory('')
+        setNewArtistId(undefined)
+        setNewArtistName('')
+      } finally {
+        setAddingNew(false)
+      }
+    } else {
+      const raw = newRaw.trim()
+      if (!raw) return
+      setAddingNew(true)
+      try {
+        await handleAddTag(raw, newSource, newCategory)
+        setNewRaw('')
+        setNewCategory('')
+      } finally {
+        setAddingNew(false)
+      }
     }
   }
 
@@ -523,33 +540,63 @@ export function FeatureCategoryPreview({
       <div className="mt-3 pt-3 border-t border-stone-700/50">
         <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">Add entry manually</p>
         <div className="flex flex-wrap gap-2 items-end">
-          <input
-            value={newRaw}
-            onChange={e => setNewRaw(e.target.value)}
-            placeholder="Raw value (e.g. Foil cover, @artist — cover art…)"
-            className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
-          />
           <select
             value={newSource}
-            onChange={e => setNewSource(e.target.value as 'features' | 'artist')}
+            onChange={e => {
+              setNewSource(e.target.value as 'features' | 'artist')
+              setNewRaw('')
+              setNewArtistId(undefined)
+              setNewArtistName('')
+            }}
             className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500"
           >
             <option value="features">Feature</option>
             <option value="artist">Artist role</option>
           </select>
+
+          {newSource === 'artist' ? (
+            <>
+              <div className="flex-1 min-w-[180px]">
+                {newArtistName ? (
+                  <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-200">
+                    <span className="flex-1">{newArtistName}</span>
+                    <button type="button" onClick={() => { setNewArtistId(undefined); setNewArtistName('') }}
+                      className="text-stone-500 hover:text-red-400">×</button>
+                  </div>
+                ) : (
+                  <PersonPicker endpoint="artists" placeholder="Search artist…"
+                    onAdd={(a: PersonEntry) => { setNewArtistId(a.id); setNewArtistName(a.name) }} />
+                )}
+              </div>
+              <input
+                value={newRaw}
+                onChange={e => setNewRaw(e.target.value)}
+                placeholder="Role (e.g. cover art, map…)"
+                className="flex-1 min-w-[140px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
+              />
+            </>
+          ) : (
+            <input
+              value={newRaw}
+              onChange={e => setNewRaw(e.target.value)}
+              placeholder="Raw value (e.g. Foil cover, Sprayed edges…)"
+              className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
+            />
+          )}
+
           <select
             value={newCategory}
             onChange={e => setNewCategory(e.target.value)}
             className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
           >
-            <option value="">— category —</option>
+            <option value="">— category (optional) —</option>
             {allCategories.map(c => (
               <option key={c.slug} value={c.slug}>{c.label}</option>
             ))}
           </select>
           <button
             type="button"
-            disabled={!newRaw.trim() || !newCategory || addingNew}
+            disabled={newSource === 'artist' ? (!newArtistName && !newRaw.trim()) || addingNew : !newRaw.trim() || addingNew}
             onClick={handleAddNewTag}
             className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
@@ -588,12 +635,18 @@ export interface EditionFieldsSectionProps {
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
-  artists: ArtistEntry[]
-  onArtistsChange: (artists: ArtistEntry[]) => void
+  /** @deprecated Only used by Create form — edit form uses edition_feature_tags directly */
+  artists?: ArtistEntry[]
+  /** @deprecated Only used by Create form */
+  onArtistsChange?: (artists: ArtistEntry[]) => void
   /** Called when an existing artist (existing: true) is removed — Edit form uses this to track deleted IDs */
   onRemoveExistingArtist?: (artistId: string) => void
-  features: string[]
-  onFeaturesChange: (features: string[]) => void
+  /** @deprecated Only used by Create form */
+  features?: string[]
+  /** @deprecated Only used by Create form */
+  onFeaturesChange?: (features: string[]) => void
+  /** When true: hides deprecated Artists and old FeatureTags sections (use in edit form) */
+  hideDeprecatedInputs?: boolean
   /** Show omnibus toggle (Edit form only) */
   isOmnibus?: boolean
   onIsOmnibusChange?: (v: boolean) => void
@@ -616,8 +669,9 @@ export function EditionFieldsSection({
   generalSaleDate, onGeneralSaleDateChange,
   allImages, onImagesChange,
   onAiResult,
-  artists, onArtistsChange, onRemoveExistingArtist,
-  features, onFeaturesChange,
+  artists = [], onArtistsChange, onRemoveExistingArtist,
+  features = [], onFeaturesChange,
+  hideDeprecatedInputs,
   isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
   companies, collections,
 }: EditionFieldsSectionProps) {
@@ -626,7 +680,7 @@ export function EditionFieldsSection({
     if (art.existing && art.id) {
       onRemoveExistingArtist?.(art.id)
     }
-    onArtistsChange(artists.filter((_, j) => j !== index))
+    onArtistsChange?.(artists.filter((_, j) => j !== index))
   }
 
   return (
@@ -721,12 +775,13 @@ export function EditionFieldsSection({
 
       <AiParseSection onResult={onAiResult} />
 
-      {/* Artists */}
+      {/* Artists — deprecated, only shown in Create form */}
+      {!hideDeprecatedInputs && (
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className={LBL}>Artists / contributors</label>
           <button type="button"
-            onClick={() => onArtistsChange([...artists, { name: '', role: '' }])}
+            onClick={() => onArtistsChange?.([...artists, { name: '', role: '' }])}
             className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add artist</button>
         </div>
         {artists.length > 0 && (
@@ -739,16 +794,16 @@ export function EditionFieldsSection({
                       {!art.existing && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
-                      onAdd={(a: PersonEntry) => onArtistsChange(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
+                      onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
                   )}
                 </div>
                 <input value={art.role}
-                  onChange={e => onArtistsChange(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                  onChange={e => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                   placeholder="Role (e.g. cover art, map…)"
                   className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-xs" />
                 <button type="button" onClick={() => handleRemoveArtist(i)}
@@ -758,11 +813,16 @@ export function EditionFieldsSection({
           </div>
         )}
       </div>
+      )}
 
-      {/* Features */}
+      {/* Features — deprecated input only shown in Create form; edit uses FeatureCategoryPreview */}
       <div>
-        <label className={LBL}>Features / extras</label>
-        <FeatureTags features={features} onChange={onFeaturesChange} />
+        {!hideDeprecatedInputs && (
+          <>
+            <label className={LBL}>Features / extras</label>
+            <FeatureTags features={features} onChange={v => onFeaturesChange?.(v)} />
+          </>
+        )}
         {editionSlug && (
           <FeatureCategoryPreview
             editionSlug={editionSlug}

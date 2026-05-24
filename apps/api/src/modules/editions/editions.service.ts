@@ -109,31 +109,43 @@ export class EditionsService {
   /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
   async addFeatureTag(
     slug: string,
-    body: { rawValue: string; source: string; categorySlug: string },
+    body: { rawValue: string; source: string; categorySlug?: string; artistId?: string; artistName?: string },
   ) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
-    const category = await this.prisma.featureCategory.findUnique({ where: { slug: body.categorySlug } });
-    if (!category) throw new NotFoundException(`Category '${body.categorySlug}' not found`);
+
+    const newCategories: string[] = [];
+    if (body.categorySlug) {
+      const category = await this.prisma.featureCategory.findUnique({ where: { slug: body.categorySlug } });
+      if (!category) throw new NotFoundException(`Category '${body.categorySlug}' not found`);
+      newCategories.push(body.categorySlug);
+    }
 
     const existing = await this.prisma.editionFeatureTag.findUnique({
       where: { editionId_rawValue: { editionId: edition.id, rawValue: body.rawValue } },
     });
 
     if (existing) {
-      const cats = Array.from(new Set([...(existing.categories as string[]), body.categorySlug]));
+      const cats = Array.from(new Set([...(existing.categories as string[]), ...newCategories]));
       await this.prisma.editionFeatureTag.update({
         where: { id: existing.id },
-        data: { categories: cats, isManual: true },
+        data: {
+          categories: cats,
+          isManual: true,
+          ...(body.artistId && { artistId: body.artistId }),
+          ...(body.artistName && { artistName: body.artistName }),
+        },
       });
     } else {
       await this.prisma.editionFeatureTag.create({
         data: {
           editionId: edition.id,
           rawValue: body.rawValue,
-          categories: [body.categorySlug],
+          categories: newCategories,
           source: body.source,
           isManual: true,
+          artistId: body.artistId ?? null,
+          artistName: body.artistName ?? null,
         },
       });
     }

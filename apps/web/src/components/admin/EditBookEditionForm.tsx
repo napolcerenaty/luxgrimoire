@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type EditionCompany } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -160,13 +160,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
-  const [features, setFeatures] = useState<string[]>(edition.features ?? [])
   const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
-  const [artists, setArtists] = useState<ArtistEntry[]>(
-    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
-  )
-  // Track which existing artists were removed
-  const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
   // Companies list
   const { data: companiesData } = useQuery({
@@ -184,7 +178,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
   }
 
   const handleSubmit = async () => {
@@ -205,78 +199,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
-          features: features.filter(Boolean),
           isOmnibus,
         }),
       })
-
-      // 2. Remove deleted artists
-      for (const artistId of removedArtistIds) {
-        await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
-      }
-
-      // 2b. Sync role changes for existing artists.
-      // An artist can have MULTIPLE roles — group by artistId and compare full sets.
-      // Backend DELETE removes ALL roles for an artist, so we delete-then-repost ALL current roles when any changed.
-      const originalRolesByArtist = new Map<string, Set<string>>()
-      for (const a of (edition.artists ?? [])) {
-        if (!originalRolesByArtist.has(a.artist.id)) originalRolesByArtist.set(a.artist.id, new Set())
-        originalRolesByArtist.get(a.artist.id)!.add((a.role || 'cover art').toLowerCase())
-      }
-      const currentRolesByArtist = new Map<string, string[]>()
-      for (const art of artists) {
-        if (!art.existing || !art.id || removedArtistIds.has(art.id)) continue
-        if (!currentRolesByArtist.has(art.id)) currentRolesByArtist.set(art.id, [])
-        currentRolesByArtist.get(art.id)!.push(art.role || 'cover art')
-      }
-      for (const [artistId, currentRoles] of currentRolesByArtist) {
-        const origSet = originalRolesByArtist.get(artistId) ?? new Set()
-        const currSet = new Set(currentRoles.map(r => r.toLowerCase()))
-        const changed = currentRoles.some(r => !origSet.has(r.toLowerCase())) ||
-          [...origSet].some(r => !currSet.has(r))
-        if (changed) {
-          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
-          for (const role of currentRoles) {
-            await authFetch(`/editions/${edition.slug}/artists`, {
-              method: 'POST',
-              body: JSON.stringify({ artistId, role }),
-            })
-          }
-        }
-      }
-
-      // 3. Add new artists (those without `existing` flag)
-      const artistIdByName = new Map<string, string>()
-      for (const art of artists) {
-        if (art.existing) continue
-        const name = art.name.trim()
-        if (!name) continue
-        const key = name.toLowerCase()
-        let artistId = art.id
-        if (!artistId) {
-          if (artistIdByName.has(key)) {
-            artistId = artistIdByName.get(key)!
-          } else {
-            const existing = await authFetch<{ data: { id: string; name: string }[] }>(
-              `/artists?search=${encodeURIComponent(name)}&pageSize=5`
-            )
-            const match = existing.data?.find(a => a.name.toLowerCase() === key)
-            if (match) {
-              artistId = match.id
-            } else {
-              const created = await authFetch<{ id: string }>('/artists', {
-                method: 'POST', body: JSON.stringify({ name }),
-              })
-              artistId = created.id
-            }
-          }
-        }
-        artistIdByName.set(key, artistId)
-        await authFetch(`/editions/${edition.slug}/artists`, {
-          method: 'POST',
-          body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
-        })
-      }
 
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       qc.invalidateQueries({ queryKey: ['artists-search'] })
@@ -322,11 +247,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}
-        artists={artists}
-        onArtistsChange={setArtists}
-        onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
-        features={features}
-        onFeaturesChange={setFeatures}
+        hideDeprecatedInputs
         featureTags={edition.featureTags}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}
