@@ -43,3 +43,7 @@ backend/
 frontend/
 uploads/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
