@@ -187,6 +187,7 @@ model Artist {
   tiktok        String?
   twitter       String?
   website       String?
+  /// @deprecated Use EditionFeatureTag.artistId/source='artist' instead (artist_contributions table will be removed)
   contributions ArtistContribution[]
   featureTags   EditionFeatureTag[]
   cardArtistMonths SubscriptionMonth[]
@@ -196,6 +197,7 @@ model Artist {
   @@map("artists")
 }
 
+/// @deprecated Replaced by EditionFeatureTag (edition_feature_tags). Will be removed after full migration.
 model ArtistContribution {
   id         String      @id @default(uuid())
   editionId  String
@@ -229,6 +231,7 @@ model BookEdition {
   collectionId             String?
   currency                 String?
   earlyAccessDate          String?
+  /// @deprecated Use EditionFeatureTag source='features' (rawValue) instead. book_editions.features[] will be removed after migration.
   features                 String[]
   firstAccessDate          String?
   generalSaleDate          String?
@@ -240,6 +243,7 @@ model BookEdition {
   previousEditionId        String?                   @unique
   previousEdition          BookEdition?              @relation("EditionHistory", fields: [previousEditionId], references: [id], onDelete: SetNull)
   nextEdition              BookEdition?              @relation("EditionHistory")
+  /// @deprecated Use featureTags (source='artist') instead (artist_contributions table will be removed)
   artists                  ArtistContribution[]
   bookBoxCompany           BookBoxCompany?           @relation(fields: [bookBoxCompanyId], references: [id])
   book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
