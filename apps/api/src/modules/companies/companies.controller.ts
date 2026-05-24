@@ -48,8 +48,12 @@ export class CompaniesController {
 
   @Public()
   @Get(':slug/editions')
-  getEditions(@Param('slug') slug: string) {
-    return this.companiesService.getEditions(slug);
+  getEditions(
+    @Param('slug') slug: string,
+    @Query('subscriptionId') subscriptionId?: string,
+    @Query('collectionId') collectionId?: string,
+  ) {
+    return this.companiesService.getEditions(slug, { subscriptionId, collectionId });
   }
 
   @Public()

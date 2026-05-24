@@ -265,6 +265,7 @@ export default async function CompanyPage({ params }: Props) {
         <CompanyEditionsSection
           companySlug={slug}
           subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name, isCombo: s.isCombo, isContentStream: s.isContentStream, parentSubscriptionId: s.parentSubscriptionId ?? null }))}
+          collections={(company.collections ?? []).map((c) => ({ id: c.id, slug: c.slug, name: c.name }))}
           brandColors={company.brandColors}
         />
       </Suspense>

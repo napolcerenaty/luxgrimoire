@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { API_BASE } from '@/lib/authFetch'
 
 export interface EditionGroup {
   label: string
   href: string | null
-  editions: ApiCompanyEdition[]
+  fetchPath: string
 }
 
 interface Props {
@@ -32,21 +33,46 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   const [activeTab, setActiveTab] = useState(0)
   const [search, setSearch] = useState('')
   const [visible, setVisible] = useState<Record<number, number>>({})
+  const [loadedEditions, setLoadedEditions] = useState<Record<number, ApiCompanyEdition[]>>({})
+  const [loadingTab, setLoadingTab] = useState<number | null>(null)
 
   if (groups.length === 0) return null
 
+  const loadTab = useCallback(async (idx: number) => {
+    if (loadedEditions[idx] !== undefined) return
+    setLoadingTab(idx)
+    try {
+      const res = await fetch(`${API_BASE}${groups[idx].fetchPath}`, { credentials: 'include' })
+      const data: ApiCompanyEdition[] = await res.json()
+      setLoadedEditions((prev) => ({ ...prev, [idx]: data }))
+    } catch {
+      setLoadedEditions((prev) => ({ ...prev, [idx]: [] }))
+    } finally {
+      setLoadingTab((prev) => (prev === idx ? null : prev))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, loadedEditions])
+
+  // Load first tab on mount
+  useEffect(() => {
+    loadTab(0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const getVisible = (idx: number) => visible[idx] ?? PAGE_SIZE
   const activeGroup = groups[activeTab]
+  const activeEditions = loadedEditions[activeTab] ?? []
+  const isLoading = loadingTab === activeTab
 
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     const q = search.toLowerCase().trim()
-    if (!q) return activeGroup.editions
-    return activeGroup.editions.filter(
+    if (!q) return activeEditions
+    return activeEditions.filter(
       (e) =>
         e.book.title.toLowerCase().includes(q) ||
         e.book.authors.some((a) => a.author.name.toLowerCase().includes(q)),
     )
-  }, [activeGroup, search])
+  })()
 
   const visibleCount = getVisible(activeTab)
   const displayed = filtered.slice(0, visibleCount)
@@ -55,6 +81,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
+    loadTab(idx)
   }
 
   const loadMore = () => {
@@ -83,7 +110,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </div>
       </div>
 
-      {/* Tabs — wrap when many collections */}
+      {/* Tabs */}
       <div className="border-b border-stone-800 mb-6">
         <div className="flex flex-wrap gap-0">
           {groups.map((group, idx) => (
@@ -97,14 +124,20 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
               }`}
             >
               {group.label}
-              <span className="ml-1.5 text-xs text-stone-500">({group.editions.length})</span>
+              {loadedEditions[idx] !== undefined && (
+                <span className="ml-1.5 text-xs text-stone-500">({loadedEditions[idx].length})</span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
       {/* Grid */}
-      {displayed.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
+          Loading…
+        </div>
+      ) : displayed.length > 0 ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {displayed.map((edition) => (
@@ -142,7 +175,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </>
       ) : (
         <p className="text-stone-500 text-sm py-10 text-center">
-          {search ? 'No books match your search.' : 'No books in this collection.'}
+          {search ? 'No books match your search.' : 'No books in this group yet.'}
         </p>
       )}
     </section>

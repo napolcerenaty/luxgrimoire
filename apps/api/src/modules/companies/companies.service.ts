@@ -135,7 +135,11 @@ export class CompaniesService {
     return company;
   }
 
-  async getEditions(slug: string) {
+  async getEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
+    // Filtered queries skip Redis cache — they're cheap per-group fetches
+    if (filter?.subscriptionId || filter?.collectionId) {
+      return this._fetchCompanyEditions(slug, filter);
+    }
     const cached = await this.cache.get(companyEditionsKey(slug));
     if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
     const result = await this._fetchCompanyEditions(slug);
@@ -143,7 +147,7 @@ export class CompaniesService {
     return result;
   }
 
-  private async _fetchCompanyEditions(slug: string) {
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -151,7 +155,11 @@ export class CompaniesService {
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
 
     const editions = await this.prisma.bookEdition.findMany({
-      where: { bookBoxCompanyId: company.id },
+      where: {
+        bookBoxCompanyId: company.id,
+        ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
+        ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+      },
       select: {
         id: true,
         slug: true,
@@ -181,7 +189,7 @@ export class CompaniesService {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      ...((!filter?.subscriptionId && !filter?.collectionId) ? { take: 100 } : {}),
     });
 
     return editions.map((e) => {
