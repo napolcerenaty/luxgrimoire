@@ -329,29 +329,34 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 }
 
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
+export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
+
 export function FeatureCategoryPreview({
   editionSlug,
   initialTags,
-  featureValues,
-  artistEntries,
 }: {
   editionSlug: string
   initialTags?: FeatureTag[]
-  /** All raw feature strings from the edition */
-  featureValues?: string[]
-  /** Artist entries (name + role) for source=artist */
-  artistEntries?: Array<{ name: string; role: string }>
 }) {
-  const [tags, setTags] = useState<FeatureTag[]>(initialTags ?? [])
+  const qc = useQueryClient()
   // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
   const [adding, setAdding] = useState<Record<string, string>>({})
   // New manual entry form
   const [newRaw, setNewRaw] = useState('')
   const [newSource, setNewSource] = useState<'features' | 'artist'>('features')
-  const [newCategory, setNewCategory] = useState('')
+  const [newCategories, setNewCategories] = useState<string[]>([])
+  const [newCategoryPick, setNewCategoryPick] = useState('')
   const [newArtistId, setNewArtistId] = useState<string | undefined>(undefined)
   const [newArtistName, setNewArtistName] = useState('')
   const [addingNew, setAddingNew] = useState(false)
+
+  // Fetch tags via React Query — enables external invalidation (e.g. after AI parse)
+  const { data: tags = initialTags ?? [] } = useQuery({
+    queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug),
+    queryFn: () => authFetch<FeatureTag[]>(`/editions/${editionSlug}/feature-tags`),
+    initialData: initialTags,
+    staleTime: 0,
+  })
 
   // Fetch all categories for the add-picker
   const { data: allCategoriesData } = useQuery({
@@ -362,39 +367,28 @@ export function FeatureCategoryPreview({
   })
   const allCategories = allCategoriesData?.data ?? []
 
+  const refreshTags = () => qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
+
   const handleRemoveCategory = async (tagId: string, categorySlug: string) => {
     try {
-      const res = await authFetch<FeatureTag | { deleted: true }>(
+      await authFetch<FeatureTag | { deleted: true }>(
         `/editions/${editionSlug}/feature-tags/${tagId}/categories/${categorySlug}`,
         { method: 'DELETE' }
       )
-      setTags(prev => {
-        if ('deleted' in res) {
-          return prev.filter(t => t.id !== tagId)
-        }
-        return prev.map(t => t.id === tagId ? res : t)
-      })
+      refreshTags()
     } catch (e) {
       alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
-  const handleAddTag = async (rawValue: string, source: string, categorySlug: string, artistId?: string, artistName?: string) => {
+  const handleAddTag = async (rawValue: string, source: string, categories: string[], artistId?: string, artistName?: string) => {
     try {
-      const res = await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
+      await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawValue, source, ...(categorySlug && { categorySlug }), artistId, artistName }),
+        body: JSON.stringify({ rawValue, source, categories, artistId, artistName }),
       })
-      setTags(prev => {
-        const idx = prev.findIndex(t => t.rawValue === rawValue)
-        if (idx >= 0) {
-          const updated = [...prev]
-          updated[idx] = res
-          return updated
-        }
-        return [...prev, res]
-      })
+      refreshTags()
       setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: '' }))
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -408,9 +402,10 @@ export function FeatureCategoryPreview({
       const rawValue = role || newArtistName
       setAddingNew(true)
       try {
-        await handleAddTag(rawValue, 'artist', newCategory, newArtistId, newArtistName || rawValue)
+        await handleAddTag(rawValue, 'artist', newCategories, newArtistId, newArtistName || rawValue)
         setNewRaw('')
-        setNewCategory('')
+        setNewCategories([])
+        setNewCategoryPick('')
         setNewArtistId(undefined)
         setNewArtistName('')
       } finally {
@@ -421,9 +416,10 @@ export function FeatureCategoryPreview({
       if (!raw) return
       setAddingNew(true)
       try {
-        await handleAddTag(raw, newSource, newCategory)
+        await handleAddTag(raw, newSource, newCategories)
         setNewRaw('')
-        setNewCategory('')
+        setNewCategories([])
+        setNewCategoryPick('')
       } finally {
         setAddingNew(false)
       }
@@ -435,21 +431,8 @@ export function FeatureCategoryPreview({
     tagsByKey.set(tag.rawValue, tag)
   }
 
-  const featureSet = new Set<string>(featureValues ?? [])
-  for (const tag of tags) {
-    if (tag.source === 'features') featureSet.add(tag.rawValue)
-  }
-  const featureRows = [...featureSet]
-
-  const artistSet = new Map<string, string>()
-  for (const a of (artistEntries ?? [])) {
-    if (a.role) artistSet.set(a.role, a.name)
-  }
-  for (const tag of tags) {
-    if (tag.source === 'artist' && !artistSet.has(tag.rawValue)) {
-      artistSet.set(tag.rawValue, tag.artistName ?? tag.rawValue)
-    }
-  }
+  const featureRows = tags.filter(t => t.source === 'features').map(t => t.rawValue)
+  const artistTags = tags.filter(t => t.source === 'artist')
 
   const renderRow = (rawValue: string, source: string, label?: string) => {
     const tag = tagsByKey.get(rawValue)
@@ -494,7 +477,7 @@ export function FeatureCategoryPreview({
               </select>
               {addValue && (
                 <button type="button"
-                  onClick={() => handleAddTag(rawValue, source, addValue)}
+                  onClick={() => handleAddTag(rawValue, source, [addValue])}
                   className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">
                   Add
                 </button>
@@ -505,6 +488,8 @@ export function FeatureCategoryPreview({
       </div>
     )
   }
+
+  const availableForNew = allCategories.filter(c => !newCategories.includes(c.slug))
 
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
@@ -523,16 +508,17 @@ export function FeatureCategoryPreview({
         </div>
       )}
 
-      {artistSet.size > 0 && (
+      {artistTags.length > 0 && (
         <div>
           <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Artist roles</p>
-          {[...artistSet.entries()].map(([role, artistName]) =>
-            renderRow(role, 'artist', artistName !== role ? `${artistName} — ${role}` : role)
+          {artistTags.map(tag =>
+            renderRow(tag.rawValue, 'artist',
+              tag.artistName ? `${tag.artistName} — ${tag.rawValue}` : tag.rawValue)
           )}
         </div>
       )}
 
-      {featureRows.length === 0 && artistSet.size === 0 && (
+      {featureRows.length === 0 && artistTags.length === 0 && (
         <p className="text-xs text-stone-500 italic">No features or artists yet.</p>
       )}
 
@@ -556,7 +542,7 @@ export function FeatureCategoryPreview({
 
           {newSource === 'artist' ? (
             <>
-              <div className="flex-1 min-w-[180px]">
+              <div className="flex-1 min-w-[160px]">
                 {newArtistName ? (
                   <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-200">
                     <span className="flex-1">{newArtistName}</span>
@@ -572,7 +558,7 @@ export function FeatureCategoryPreview({
                 value={newRaw}
                 onChange={e => setNewRaw(e.target.value)}
                 placeholder="Role (e.g. cover art, map…)"
-                className="flex-1 min-w-[140px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
+                className="flex-1 min-w-[120px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
               />
             </>
           ) : (
@@ -584,16 +570,39 @@ export function FeatureCategoryPreview({
             />
           )}
 
-          <select
-            value={newCategory}
-            onChange={e => setNewCategory(e.target.value)}
-            className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
-          >
-            <option value="">— category (optional) —</option>
-            {allCategories.map(c => (
-              <option key={c.slug} value={c.slug}>{c.label}</option>
-            ))}
-          </select>
+          {/* Multi-category picker */}
+          <div className="flex flex-col gap-1 min-w-[160px]">
+            {newCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {newCategories.map(slug => {
+                  const cat = allCategories.find(c => c.slug === slug)
+                  return (
+                    <span key={slug} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 border border-amber-700 text-amber-200">
+                      {cat?.label ?? slug}
+                      <button type="button" onClick={() => setNewCategories(prev => prev.filter(s => s !== slug))}
+                        className="text-amber-500 hover:text-red-400 leading-none">×</button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            {availableForNew.length > 0 && (
+              <select
+                value={newCategoryPick}
+                onChange={e => {
+                  const v = e.target.value
+                  if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') }
+                }}
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500"
+              >
+                <option value="">+ add category…</option>
+                {availableForNew.map(c => (
+                  <option key={c.slug} value={c.slug}>{c.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           <button
             type="button"
             disabled={newSource === 'artist' ? (!newArtistName && !newRaw.trim()) || addingNew : !newRaw.trim() || addingNew}

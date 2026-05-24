@@ -124,10 +124,17 @@ export class EditionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/feature-tags')
+  getFeatureTags(@Param('slug') slug: string) {
+    return this.editionsService.getFeatureTags(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post(':slug/feature-tags')
   addFeatureTag(
     @Param('slug') slug: string,
-    @Body() body: { rawValue: string; source: string; categorySlug?: string; artistId?: string; artistName?: string },
+    @Body() body: { rawValue: string; source: string; categorySlug?: string; categories?: string[]; artistId?: string; artistName?: string },
   ) {
     return this.editionsService.addFeatureTag(slug, body);
   }

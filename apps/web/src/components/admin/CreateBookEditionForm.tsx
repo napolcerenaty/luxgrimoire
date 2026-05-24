@@ -517,6 +517,7 @@ export default function CreateBookEditionForm({
         onArtistsChange={setArtists}
         features={features}
         onFeaturesChange={setFeatures}
+        editionSlug={createdEditionSlug ?? undefined}
         companies={companies}
         collections={collections}
       />

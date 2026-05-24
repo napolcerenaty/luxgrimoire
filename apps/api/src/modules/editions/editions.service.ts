@@ -106,19 +106,49 @@ export class EditionsService {
     return { total: editions.length, done, failed };
   }
 
+  /** Fetch all feature tags for an edition. */
+  async getFeatureTags(slug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        featureTags: {
+          select: {
+            id: true,
+            rawValue: true,
+            source: true,
+            isManual: true,
+            artistId: true,
+            artistName: true,
+            categories: true,
+            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+          },
+          orderBy: { rawValue: 'asc' },
+        },
+      },
+    });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    return this.enrichTagsWithCategories(edition.featureTags as any);
+  }
+
   /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
   async addFeatureTag(
     slug: string,
-    body: { rawValue: string; source: string; categorySlug?: string; artistId?: string; artistName?: string },
+    body: { rawValue: string; source: string; categorySlug?: string; categories?: string[]; artistId?: string; artistName?: string },
   ) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
 
+    // Merge single categorySlug + categories[] into one deduplicated list
+    const requestedCategories = Array.from(new Set([
+      ...(body.categories ?? []),
+      ...(body.categorySlug ? [body.categorySlug] : []),
+    ]));
+
     const newCategories: string[] = [];
-    if (body.categorySlug) {
-      const category = await this.prisma.featureCategory.findUnique({ where: { slug: body.categorySlug } });
-      if (!category) throw new NotFoundException(`Category '${body.categorySlug}' not found`);
-      newCategories.push(body.categorySlug);
+    for (const catSlug of requestedCategories) {
+      const category = await this.prisma.featureCategory.findUnique({ where: { slug: catSlug } });
+      if (category) newCategories.push(catSlug);
     }
 
     const existing = await this.prisma.editionFeatureTag.findUnique({

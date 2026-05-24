@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type EditionCompany } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -177,8 +177,33 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   })
   const collections = collectionsData?.data ?? []
 
-  const applyAiResult = (r: AiParseResult) => {
+  const applyAiResult = async (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
+    // Post AI-extracted features and artists directly to edition_feature_tags
+    const slug = edition.slug
+    const posts: Promise<unknown>[] = []
+    for (const feature of (r.edition?.features ?? [])) {
+      if (feature.trim()) {
+        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: feature.trim(), source: 'features', categories: [] }),
+        }).catch(() => null))
+      }
+    }
+    for (const artist of (r.edition?.artists ?? [])) {
+      if (artist.role?.trim()) {
+        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: artist.role.trim(), source: 'artist', categories: [], artistName: artist.name }),
+        }).catch(() => null))
+      }
+    }
+    if (posts.length > 0) {
+      await Promise.all(posts)
+      qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(slug) })
+    }
   }
 
   const handleSubmit = async () => {
