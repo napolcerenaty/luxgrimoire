@@ -119,41 +119,48 @@ export class ArtistsService {
   private async _fetchArtistContributions(slug: string) {
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
+      select: { id: true },
+    });
+    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
+
+    const tags = await this.prisma.editionFeatureTag.findMany({
+      where: { artistId: artist.id, source: 'artist' },
       select: {
-        contributions: {
+        rawValue: true,
+        categories: true,
+        edition: {
           select: {
-            role: true,
-            edition: {
-              select: {
-                id: true,
-                slug: true,
-                additionalImages: true,
-                bookBoxCompany: { select: { name: true, brandColors: true } },
-                communityImages: {
-                  where: { status: 'APPROVED' },
-                  orderBy: { sortOrder: 'asc' },
-                  take: 1,
-                  select: { url: true },
-                },
-              },
+            id: true,
+            slug: true,
+            additionalImages: true,
+            bookBoxCompany: { select: { name: true, brandColors: true } },
+            communityImages: {
+              where: { status: 'APPROVED' },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              select: { url: true },
             },
           },
         },
       },
     });
-    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return artist.contributions.map((c) => {
-      const { communityImages, ...editionRest } = c.edition as typeof c.edition & { communityImages: Array<{ url: string }> };
-      return {
-        ...c,
-        edition: {
-          ...editionRest,
-          communityPhotoCover: (c.edition.additionalImages as string[]).length === 0
-            ? (communityImages?.[0]?.url ?? null)
-            : null,
-        },
+
+    // Flatten: one entry per category per tag (categories are role slugs like 'cover', 'illustration')
+    const result: Array<{ role: string; edition: Record<string, unknown> }> = [];
+    for (const tag of tags) {
+      const { communityImages, ...editionRest } = tag.edition as typeof tag.edition & { communityImages: Array<{ url: string }> };
+      const editionWithCover = {
+        ...editionRest,
+        communityPhotoCover: (tag.edition.additionalImages as string[]).length === 0
+          ? (communityImages?.[0]?.url ?? null)
+          : null,
       };
-    });
+      const roles = (tag.categories as string[]).length > 0 ? (tag.categories as string[]) : [tag.rawValue];
+      for (const role of roles) {
+        result.push({ role, edition: editionWithCover });
+      }
+    }
+    return result;
   }
 
   async findCardMonths(slug: string) {
