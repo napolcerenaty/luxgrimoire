@@ -1,223 +1,328 @@
 """
 feature_tags_migrate.py
-───────────────────────
-Backfills edition_feature_tags table by:
-  1. Reading book_editions.features[] → source="features"
-  2. Reading artist_contributions.role → source="artist_contribution"
-  3. Running each raw value through regex patterns loaded from feature_categories
-  4. Inserting (editionId, categoryId, rawValue, source) into edition_feature_tags
-
-Must run feature_categories_seed.py first to populate feature_categories table.
+──────────────────────
+Normalizes edition_feature_tags by:
+  1. Applying local schema fixes needed for artist-backed feature tags.
+  2. Reading book_editions.features[] → source="features".
+  3. Reading artist_contributions.role → source="artist" with artistId/artistName.
+  4. Running each raw value through regex patterns loaded from feature_categories.
+  5. Rebuilding non-manual edition_feature_tags rows with one row per (editionId, categoryId).
 
 Usage (from project root):
-    python scripts/feature_tags_migrate.py [--db <database_url>] [--dry-run] [--limit N]
+    python scripts/feature_tags_migrate.py [--db <database_url>]... [--dry-run] [--limit N]
 
-Options:
-    --db        Override DB URL
-    --dry-run   Print stats and sample matches without inserting
-    --limit N   Process only first N editions (for testing)
+If no --db values are passed, both local LuxGrimoire databases are processed.
 """
+
+from __future__ import annotations
 
 import re
 import sys
-import json
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
+from typing import Iterable
 
 import psycopg2
 from psycopg2.extras import execute_values
 
-DB_URL_DEFAULT = "postgresql://postgres:postgres@localhost:5432/luxgrimoire_v2"
+DB_URLS_DEFAULT = [
+    "postgresql://postgres:postgres@localhost:5432/luxgrimoire_v2",
+    "postgresql://postgres:postgres@localhost:5432/luxgrimoire_prodsnap",
+]
 
 
-# ─── Regex cache ──────────────────────────────────────────────────────────────
-
-def compile_patterns(patterns: list[str]) -> list[re.Pattern]:
-    return [re.compile(p, re.IGNORECASE) for p in patterns]
+def compile_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
+    return [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
 
 
-def matches_category(value: str, includes: list[re.Pattern], excludes: list[re.Pattern]) -> bool:
-    if not any(p.search(value) for p in includes):
+def matches_category(value: str, includes: list[re.Pattern[str]], excludes: list[re.Pattern[str]]) -> bool:
+    if not any(pattern.search(value) for pattern in includes):
         return False
-    if any(p.search(value) for p in excludes):
+    if any(pattern.search(value) for pattern in excludes):
         return False
     return True
 
 
 def build_tagger(categories: list[dict]) -> callable:
-    """Returns a function: value -> list[category_id]"""
     compiled = []
-    for cat in categories:
-        inc = compile_patterns(cat["includePatterns"])
-        exc = compile_patterns(cat["excludePatterns"])
-        compiled.append((cat["id"], inc, exc))
+    for category in categories:
+        compiled.append(
+            (
+                category["id"],
+                compile_patterns(category["includePatterns"]),
+                compile_patterns(category["excludePatterns"]),
+            )
+        )
 
     def tagger(value: str) -> list[str]:
-        v = value.strip().lower()
-        return [cat_id for cat_id, inc, exc in compiled if matches_category(v, inc, exc)]
+        normalized = value.strip().lower()
+        return [
+            category_id
+            for category_id, includes, excludes in compiled
+            if matches_category(normalized, includes, excludes)
+        ]
 
     return tagger
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+def parse_args(argv: list[str]) -> tuple[list[str], bool, int | None]:
+    dry_run = "--dry-run" in argv
+    db_urls: list[str] = []
+    limit: int | None = None
 
-def main():
-    dry_run = "--dry-run" in sys.argv
-    db_url = DB_URL_DEFAULT
-    limit = None
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--db":
+            db_urls.append(argv[index + 1])
+            index += 2
+            continue
+        if arg == "--limit":
+            limit = int(argv[index + 1])
+            index += 2
+            continue
+        index += 1
 
-    if "--db" in sys.argv:
-        db_url = sys.argv[sys.argv.index("--db") + 1]
-    if "--limit" in sys.argv:
-        limit = int(sys.argv[sys.argv.index("--limit") + 1])
+    return (db_urls or DB_URLS_DEFAULT), dry_run, limit
 
-    prefix = "[DRY RUN] " if dry_run else ""
-    print(f"{prefix}Connecting to DB...")
 
-    conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
+def ensure_schema(cur) -> None:
+    cur.execute('ALTER TABLE edition_feature_tags ADD COLUMN IF NOT EXISTS "artistId" TEXT;')
+    cur.execute('ALTER TABLE edition_feature_tags ADD COLUMN IF NOT EXISTS "artistName" TEXT;')
+    cur.execute('ALTER TABLE edition_feature_tags ADD COLUMN IF NOT EXISTS "is_manual" BOOLEAN NOT NULL DEFAULT false;')
+    cur.execute('CREATE INDEX IF NOT EXISTS "edition_feature_tags_artistId_idx" ON "edition_feature_tags"("artistId");')
+    cur.execute('DROP INDEX IF EXISTS "edition_feature_tags_editionId_categoryId_rawValue_key";')
 
-    # ── 1. Load categories ────────────────────────────────────────────────────
-    cur.execute("""
+    cur.execute(
+        """
+        DO $$
+        BEGIN
+            ALTER TABLE edition_feature_tags
+              ADD CONSTRAINT "edition_feature_tags_artistId_fkey"
+              FOREIGN KEY ("artistId") REFERENCES "artists"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+        """
+    )
+
+    cur.execute(
+        """
+        WITH ranked AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY "editionId", "categoryId"
+                       ORDER BY
+                           CASE WHEN is_manual THEN 0 ELSE 1 END,
+                           CASE source WHEN 'artist' THEN 0 WHEN 'artist_contribution' THEN 0 ELSE 1 END,
+                           "createdAt"
+                   ) AS rn
+            FROM edition_feature_tags
+        )
+        DELETE FROM edition_feature_tags
+        WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+        """
+    )
+    cur.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "edition_feature_tags_editionId_categoryId_key" ON "edition_feature_tags"("editionId", "categoryId");'
+    )
+
+
+def load_categories(cur) -> list[dict]:
+    cur.execute(
+        """
         SELECT id, slug, label, "group", "includePatterns", "excludePatterns"
         FROM feature_categories
         WHERE "isActive" = true
-        ORDER BY "sortOrder"
-    """)
+        ORDER BY "group", "sortOrder"
+        """
+    )
     rows = cur.fetchall()
-    if not rows:
-        print("❌ No categories found. Run 01_seed_categories.py first.")
-        conn.close()
-        sys.exit(1)
-
-    categories = [
+    return [
         {
-            "id": r[0], "slug": r[1], "label": r[2], "group": r[3],
-            "includePatterns": r[4], "excludePatterns": r[5],
+            "id": row[0],
+            "slug": row[1],
+            "label": row[2],
+            "group": row[3],
+            "includePatterns": row[4],
+            "excludePatterns": row[5],
         }
-        for r in rows
+        for row in rows
     ]
-    print(f"  Loaded {len(categories)} active categories.")
 
-    tagger = build_tagger(categories)
 
-    # ── 2. Process book_editions.features[] ───────────────────────────────────
+def collect_feature_rows(cur, limit: int | None, tagger: callable, stats: defaultdict[str, int], unmatched: set[str]):
     limit_clause = f"LIMIT {limit}" if limit else ""
-    cur.execute(f"""
+    cur.execute(
+        f'''
         SELECT id, features
         FROM book_editions
         WHERE array_length(features, 1) > 0
         ORDER BY id
         {limit_clause}
-    """)
-    editions = cur.fetchall()
-    print(f"  Processing {len(editions)} editions with features...")
+        '''
+    )
 
-    tag_rows = []
-    stats = defaultdict(int)
-    unmatched_samples = set()
-
-    for edition_id, features in editions:
-        for raw_value in (features or []):
-            if not raw_value or not raw_value.strip():
+    deduped: dict[tuple[str, str], tuple[str, str | None, str | None, str]] = {}
+    for edition_id, features in cur.fetchall():
+        for raw_value in features or []:
+            cleaned = (raw_value or "").strip()
+            if not cleaned:
                 continue
-            matched = tagger(raw_value.strip())
+            matches = tagger(cleaned)
             stats["features_total"] += 1
-            if matched:
-                stats["features_matched"] += 1
-                for cat_id in matched:
-                    tag_rows.append((
-                        str(uuid.uuid4()),
-                        edition_id,
-                        cat_id,
-                        raw_value.strip(),
-                        "features",
-                        datetime.now(timezone.utc),
-                    ))
-            else:
+            if not matches:
                 stats["features_unmatched"] += 1
-                if len(unmatched_samples) < 30:
-                    unmatched_samples.add(raw_value.strip().lower())
+                if len(unmatched) < 30:
+                    unmatched.add(cleaned.lower())
+                continue
 
-    # ── 3. Process artist_contributions.role ──────────────────────────────────
-    cur.execute(f"""
-        SELECT ac."editionId", ac.role
+            stats["features_matched"] += 1
+            for category_id in matches:
+                deduped.setdefault((edition_id, category_id), (cleaned, None, None, "features"))
+
+    return deduped
+
+
+def collect_artist_rows(
+    cur,
+    limit: int | None,
+    tagger: callable,
+    deduped: dict[tuple[str, str], tuple[str, str | None, str | None, str]],
+    stats: defaultdict[str, int],
+    unmatched: set[str],
+) -> None:
+    artist_limit_clause = f"LIMIT {limit * 10}" if limit else ""
+    cur.execute(
+        f'''
+        SELECT ac."editionId", ac.role, ac."artistId", ac."artistName"
         FROM artist_contributions ac
         JOIN book_editions be ON be.id = ac."editionId"
         WHERE ac.role IS NOT NULL AND trim(ac.role) <> ''
         ORDER BY ac."editionId"
-        {'LIMIT ' + str(limit * 10) if limit else ''}
-    """)
-    contributions = cur.fetchall()
-    print(f"  Processing {len(contributions)} artist contributions...")
+        {artist_limit_clause}
+        '''
+    )
 
-    for edition_id, role in contributions:
-        matched = tagger(role.strip())
+    for edition_id, role, artist_id, artist_name in cur.fetchall():
+        cleaned = role.strip()
+        matches = tagger(cleaned)
         stats["artist_total"] += 1
-        if matched:
-            stats["artist_matched"] += 1
-            for cat_id in matched:
-                tag_rows.append((
-                    str(uuid.uuid4()),
-                    edition_id,
-                    cat_id,
-                    role.strip(),
-                    "artist_contribution",
-                    datetime.now(timezone.utc),
-                ))
-        else:
+        if not matches:
             stats["artist_unmatched"] += 1
-            if len(unmatched_samples) < 50:
-                unmatched_samples.add(role.strip().lower())
+            if len(unmatched) < 50:
+                unmatched.add(cleaned.lower())
+            continue
 
-    # ── 4. Stats report ───────────────────────────────────────────────────────
-    print("\n── Stats ────────────────────────────────────────────")
-    print(f"  Features:    {stats['features_matched']:>5} matched / {stats['features_total']:>5} total "
-          f"({stats['features_matched']/max(stats['features_total'],1)*100:.1f}%)")
-    print(f"  Artist roles:{stats['artist_matched']:>5} matched / {stats['artist_total']:>5} total "
-          f"({stats['artist_matched']/max(stats['artist_total'],1)*100:.1f}%)")
-    print(f"  Tag rows to insert: {len(tag_rows)}")
+        stats["artist_matched"] += 1
+        for category_id in matches:
+            deduped[(edition_id, category_id)] = (cleaned, artist_id, artist_name, "artist")
 
-    if unmatched_samples:
-        print(f"\n  Unmatched samples ({len(unmatched_samples)}):")
-        for s in sorted(unmatched_samples)[:30]:
-            print(f"    - {s!r}")
+
+def build_insert_rows(deduped: dict[tuple[str, str], tuple[str, str | None, str | None, str]]) -> list[tuple]:
+    now = datetime.now(timezone.utc)
+    rows: list[tuple] = []
+    for (edition_id, category_id), (raw_value, artist_id, artist_name, source) in deduped.items():
+        rows.append(
+            (
+                str(uuid.uuid4()),
+                edition_id,
+                category_id,
+                raw_value,
+                artist_id,
+                artist_name,
+                source,
+                False,
+                now,
+            )
+        )
+    return rows
+
+
+def migrate_database(db_url: str, dry_run: bool, limit: int | None) -> None:
+    prefix = "[DRY RUN] " if dry_run else ""
+    print(f"\n{prefix}Connecting to {db_url}...")
+
+    conn = psycopg2.connect(db_url)
+    cur = conn.cursor()
+
+    ensure_schema(cur)
+    categories = load_categories(cur)
+    if not categories:
+        conn.rollback()
+        conn.close()
+        raise RuntimeError(f"No categories found in {db_url}. Seed feature_categories first.")
+
+    print(f"  Loaded {len(categories)} active categories.")
+    tagger = build_tagger(categories)
+    stats: defaultdict[str, int] = defaultdict(int)
+    unmatched: set[str] = set()
+
+    deduped = collect_feature_rows(cur, limit, tagger, stats, unmatched)
+    collect_artist_rows(cur, limit, tagger, deduped, stats, unmatched)
+    tag_rows = build_insert_rows(deduped)
+
+    print("  Stats:")
+    print(
+        f"    Features: {stats['features_matched']} matched / {stats['features_total']} total "
+        f"({stats['features_matched'] / max(stats['features_total'], 1) * 100:.1f}%)"
+    )
+    print(
+        f"    Artist roles: {stats['artist_matched']} matched / {stats['artist_total']} total "
+        f"({stats['artist_matched'] / max(stats['artist_total'], 1) * 100:.1f}%)"
+    )
+    print(f"    Final tag rows: {len(tag_rows)}")
+
+    if unmatched:
+        print("  Unmatched samples:")
+        for sample in sorted(unmatched)[:30]:
+            print(f"    - {sample!r}")
 
     if dry_run:
-        print(f"\n{prefix}Done. Pass without --dry-run to insert {len(tag_rows)} rows.")
+        conn.rollback()
         conn.close()
         return
 
-    # ── 5. Insert (skip existing via ON CONFLICT DO NOTHING) ──────────────────
-    print("\nInserting tag rows (ON CONFLICT DO NOTHING)...")
-
-    # Clear existing migration data before re-running (idempotent re-run support)
-    cur.execute("DELETE FROM edition_feature_tags WHERE source IN ('features', 'artist_contribution')")
+    cur.execute(
+        "DELETE FROM edition_feature_tags WHERE is_manual = false AND source IN ('features', 'artist', 'artist_contribution')"
+    )
     deleted = cur.rowcount
     if deleted:
-        print(f"  Cleared {deleted} existing migration rows.")
+        print(f"  Cleared {deleted} existing auto-generated rows.")
 
-    BATCH = 500
-    inserted = 0
-    for i in range(0, len(tag_rows), BATCH):
-        batch = tag_rows[i:i + BATCH]
+    if tag_rows:
         execute_values(
             cur,
-            """
-            INSERT INTO edition_feature_tags (id, "editionId", "categoryId", "rawValue", source, "createdAt")
+            '''
+            INSERT INTO edition_feature_tags (
+                id,
+                "editionId",
+                "categoryId",
+                "rawValue",
+                "artistId",
+                "artistName",
+                source,
+                is_manual,
+                "createdAt"
+            )
             VALUES %s
-            ON CONFLICT ("editionId", "categoryId", "rawValue") DO NOTHING
-            """,
-            batch,
-            template='(%s, %s, %s, %s, %s, %s)'
+            ON CONFLICT ("editionId", "categoryId") DO NOTHING
+            ''',
+            tag_rows,
+            template='(%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+            page_size=500,
         )
-        inserted += cur.rowcount
 
     conn.commit()
     conn.close()
+    print("  Migration complete.")
 
-    print(f"✅ Done. Inserted {inserted} tag rows ({len(tag_rows) - inserted} skipped as duplicates).")
+
+def main(argv: Iterable[str] | None = None) -> None:
+    db_urls, dry_run, limit = parse_args(list(argv or sys.argv[1:]))
+    for db_url in db_urls:
+        migrate_database(db_url, dry_run, limit)
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ interface EditionDetail {
   photoCredit?: string | null
   subscriptionId?: string | null
   subscriptionMonthId?: string | null
-  artists: EditionArtist[]
+  artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
