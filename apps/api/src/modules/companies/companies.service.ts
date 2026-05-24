@@ -138,30 +138,33 @@ export class CompaniesService {
     return company;
   }
 
-  async getEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
+  async getEditions(
+    slug: string,
+    filter?: { subscriptionId?: string; collectionId?: string },
+    pagination: { skip: number; take: number } = { skip: 0, take: 20 },
+  ) {
     // Extract cache return type once at method scope (typeof this.method fails inside nested if blocks in TS)
     type CachedEditions = Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
+    const { skip, take } = pagination;
+
+    const getOrPopulate = async (key: string, ttl: number): Promise<CachedEditions> => {
+      const cached = await this.cache.get(key);
+      if (cached) return cached as CachedEditions;
+      const result = await this._fetchCompanyEditions(slug, filter);
+      await this.cache.set(key, result, ttl);
+      return result;
+    };
+
+    let all: CachedEditions;
     if (filter?.subscriptionId) {
-      const key = companyEditionsSubKey(slug, filter.subscriptionId);
-      const cached = await this.cache.get(key);
-      if (cached) return cached as CachedEditions;
-      const result = await this._fetchCompanyEditions(slug, filter);
-      await this.cache.set(key, result, COMPANY_EDITIONS_FILTERED_TTL);
-      return result;
+      all = await getOrPopulate(companyEditionsSubKey(slug, filter.subscriptionId), COMPANY_EDITIONS_FILTERED_TTL);
+    } else if (filter?.collectionId) {
+      all = await getOrPopulate(companyEditionsColKey(slug, filter.collectionId), COMPANY_EDITIONS_FILTERED_TTL);
+    } else {
+      all = await getOrPopulate(companyEditionsKey(slug), COMPANY_EDITIONS_TTL);
     }
-    if (filter?.collectionId) {
-      const key = companyEditionsColKey(slug, filter.collectionId);
-      const cached = await this.cache.get(key);
-      if (cached) return cached as CachedEditions;
-      const result = await this._fetchCompanyEditions(slug, filter);
-      await this.cache.set(key, result, COMPANY_EDITIONS_FILTERED_TTL);
-      return result;
-    }
-    const cached = await this.cache.get(companyEditionsKey(slug));
-    if (cached) return cached as CachedEditions;
-    const result = await this._fetchCompanyEditions(slug);
-    await this.cache.set(companyEditionsKey(slug), result, COMPANY_EDITIONS_TTL);
-    return result;
+
+    return { data: all.slice(skip, skip + take), total: all.length };
   }
 
   private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
@@ -206,7 +209,6 @@ export class CompaniesService {
         },
       },
       orderBy: { generalSaleDate: 'desc' },
-      ...((!filter?.subscriptionId && !filter?.collectionId) ? { take: 100 } : {}),
     });
 
     return editions.map((e) => {
