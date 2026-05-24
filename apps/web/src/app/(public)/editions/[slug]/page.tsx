@@ -542,6 +542,22 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     </div>
                   ))}
                 </div>
+                {features.length > 0 && (
+                  <details className="mt-5 group">
+                    <summary className="cursor-pointer text-xs text-stone-500 hover:text-stone-400 select-none list-none flex items-center gap-1.5">
+                      <span className="transition-transform group-open:rotate-90">▶</span>
+                      Full details from publisher
+                    </summary>
+                    <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {features.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-sm text-stone-400">
+                          <span className="text-stone-600 mt-0.5 shrink-0">✦</span>
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </section>
             )
           }

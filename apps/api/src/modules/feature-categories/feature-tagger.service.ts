@@ -128,17 +128,24 @@ export class FeatureTaggerService {
     for (const f of features) tagValue(f, 'features');
     for (const r of artistRoles) tagValue(r, 'artist_contribution');
 
-    // Deduplicate by (categoryId, rawValue) — same raw value can appear in both sources
-    const seen = new Set<string>();
-    const unique = toInsert.filter((r) => {
-      const key = `${r.categoryId}::${r.rawValue}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Deduplicate by categoryId — one row per edition per category.
+    // Prefer 'features' source over 'artist_contribution' when both match the same category.
+    const deduped = new Map<string, (typeof toInsert)[0]>();
+    for (const r of toInsert) {
+      const existing = deduped.get(r.categoryId);
+      if (!existing) {
+        deduped.set(r.categoryId, r);
+      } else if (r.source === 'artist_contribution' && existing.source === 'features') {
+        deduped.set(r.categoryId, r);
+      }
+    }
+    const unique = Array.from(deduped.values());
 
     await this.prisma.$transaction([
-      this.prisma.editionFeatureTag.deleteMany({ where: { editionId } }),
+      // Only delete auto-detected tags; preserve isManual=true entries
+      this.prisma.editionFeatureTag.deleteMany({
+        where: { editionId, isManual: false },
+      }),
       ...unique.map((r) =>
         this.prisma.editionFeatureTag.create({ data: r }),
       ),

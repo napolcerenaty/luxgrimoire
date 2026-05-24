@@ -18,6 +18,7 @@ export type FeatureTag = {
   id: string
   rawValue: string
   source: string
+  isManual: boolean
   category: { id: string; slug: string; label: string; group: string; sortOrder: number }
 }
 
@@ -328,79 +329,192 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 export function FeatureCategoryPreview({
   editionSlug,
   initialTags,
+  featureValues,
+  artistEntries,
 }: {
   editionSlug: string
   initialTags?: FeatureTag[]
+  /** All raw feature strings from the edition */
+  featureValues?: string[]
+  /** Artist entries (name + role) for source=artist_contribution */
+  artistEntries?: Array<{ name: string; role: string }>
 }) {
   const [tags, setTags] = useState<FeatureTag[]>(initialTags ?? [])
   const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [retagMsg, setRetagMsg] = useState<string | null>(null)
+  // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
+  const [adding, setAdding] = useState<Record<string, string>>({})
+
+  // Fetch all categories for the add-picker
+  const { data: allCategoriesData } = useQuery({
+    queryKey: ['feature-categories-all'],
+    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; label: string; group: string }> }>(
+      '/feature-categories?pageSize=200'
+    ),
+  })
+  const allCategories = allCategoriesData?.data ?? []
 
   const handleRetag = async () => {
     setRunning(true)
-    setResult(null)
+    setRetagMsg(null)
     try {
       await authFetch<{ tagsCount: number }>(`/editions/${editionSlug}/retag`, { method: 'POST' })
       const updated = await authFetch<{ featureTags?: FeatureTag[] }>(`/editions/${editionSlug}/for-edit`)
       setTags(updated.featureTags ?? [])
-      setResult(`✓ ${updated.featureTags?.length ?? 0} categories detected`)
+      setRetagMsg(`✓ Auto-detection refreshed — ${updated.featureTags?.length ?? 0} tags`)
     } catch (e) {
-      setResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
+      setRetagMsg(`Error: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setRunning(false)
     }
   }
 
-  const groupMap = new Map<string, { slug: string; label: string; sortOrder: number }[]>()
-  const seen = new Set<string>()
-  for (const tag of tags) {
-    if (seen.has(tag.category.slug)) continue
-    seen.add(tag.category.slug)
-    const list = groupMap.get(tag.category.group) ?? []
-    list.push(tag.category)
-    groupMap.set(tag.category.group, list)
+  const handleRemoveTag = async (tagId: string) => {
+    try {
+      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
+      setTags(prev => prev.filter(t => t.id !== tagId))
+    } catch (e) {
+      alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
-  const orderedGroups = CATEGORY_GROUP_ORDER.filter(g => groupMap.has(g))
-  for (const g of groupMap.keys()) {
-    if (!orderedGroups.includes(g)) orderedGroups.push(g)
+
+  const handleAddTag = async (rawValue: string, source: string, categorySlug: string) => {
+    if (!categorySlug) return
+    try {
+      const newTag = await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
+        method: 'POST',
+        body: JSON.stringify({ rawValue, source, categorySlug }),
+      })
+      setTags(prev => [...prev, newTag])
+      setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: '' }))
+    } catch (e) {
+      alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  // Build a lookup: "source::rawValue" → FeatureTag[]
+  const tagsByKey = new Map<string, FeatureTag[]>()
+  for (const tag of tags) {
+    const key = `${tag.source}::${tag.rawValue}`
+    const list = tagsByKey.get(key) ?? []
+    list.push(tag)
+    tagsByKey.set(key, list)
+  }
+
+  // Collect all raw feature values to show (from props + any tags with source='features' not in featureValues)
+  const featureSet = new Set<string>(featureValues ?? [])
+  for (const tag of tags) {
+    if (tag.source === 'features') featureSet.add(tag.rawValue)
+  }
+  const featureRows = [...featureSet]
+
+  // Collect artist rows
+  const artistSet = new Map<string, string>() // role → name
+  for (const a of (artistEntries ?? [])) {
+    if (a.role) artistSet.set(a.role, a.name)
+  }
+  for (const tag of tags) {
+    if (tag.source === 'artist_contribution' && !artistSet.has(tag.rawValue)) {
+      artistSet.set(tag.rawValue, tag.rawValue)
+    }
+  }
+
+  // Filtered categories for add-picker: exclude already-assigned ones
+  const availableFor = (rawValue: string, source: string) => {
+    const existing = new Set((tagsByKey.get(`${source}::${rawValue}`) ?? []).map(t => t.category.slug))
+    return allCategories.filter(c => !existing.has(c.slug))
+  }
+
+  const renderRow = (rawValue: string, source: string, label?: string) => {
+    const key = `${source}::${rawValue}`
+    const rowTags = tagsByKey.get(key) ?? []
+    const addValue = adding[key] ?? ''
+    const available = availableFor(rawValue, source)
+
+    return (
+      <div key={key} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-stone-800 last:border-0">
+        <span className="text-xs text-stone-300 min-w-0 flex-1 pt-0.5 truncate" title={rawValue}>
+          {label ?? rawValue}
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {rowTags.sort((a, b) => a.category.sortOrder - b.category.sortOrder).map(tag => (
+            <span key={tag.id}
+              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
+                tag.isManual
+                  ? 'bg-amber-900/40 border-amber-700 text-amber-200'
+                  : 'bg-stone-700 border-stone-600 text-stone-200'
+              }`}
+              title={tag.isManual ? 'Manually assigned' : 'Auto-detected'}>
+              {tag.category.label}
+              {tag.isManual && <span className="text-amber-500 text-[9px]">✎</span>}
+              <button type="button" onClick={() => handleRemoveTag(tag.id)}
+                className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
+            </span>
+          ))}
+          {/* Add picker */}
+          {available.length > 0 && (
+            <div className="flex items-center gap-1">
+              <select
+                value={addValue}
+                onChange={e => setAdding(prev => ({ ...prev, [key]: e.target.value }))}
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
+              >
+                <option value="">+ category…</option>
+                {allCategories
+                  .filter(c => !new Set((tagsByKey.get(key) ?? []).map(t => t.category.slug)).has(c.slug))
+                  .map(c => (
+                    <option key={c.slug} value={c.slug}>{c.label}</option>
+                  ))}
+              </select>
+              {addValue && (
+                <button type="button"
+                  onClick={() => handleAddTag(rawValue, source, addValue)}
+                  className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">
+                  Add
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Detected categories</span>
-        <button
-          type="button"
-          onClick={handleRetag}
-          disabled={running}
-          className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors disabled:opacity-50"
-        >
-          {running ? 'Detecting…' : '↺ Re-run detection'}
+        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Category tags</span>
+        <button type="button" onClick={handleRetag} disabled={running}
+          className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors disabled:opacity-50">
+          {running ? 'Detecting…' : '↺ Re-run auto-detection'}
         </button>
       </div>
-      {result && (
-        <p className={`text-xs mb-2 ${result.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{result}</p>
+      {retagMsg && (
+        <p className={`text-xs mb-2 ${retagMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{retagMsg}</p>
       )}
-      {orderedGroups.length === 0 ? (
-        <p className="text-xs text-stone-500 italic">No categories detected yet — click Re-run to detect.</p>
-      ) : (
-        <div className="space-y-2">
-          {orderedGroups.map(group => (
-            <div key={group} className="flex items-start gap-2">
-              <span className="text-[10px] font-semibold uppercase text-stone-500 mt-1 w-20 shrink-0">
-                {CATEGORY_GROUP_LABELS[group] ?? group}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {(groupMap.get(group) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
-                  <span key={cat.slug}
-                    className="text-xs bg-stone-700 text-stone-200 px-2 py-0.5 rounded-full border border-stone-600">
-                    {cat.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+      <p className="text-[10px] text-stone-500 mb-2">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
+      </p>
+
+      {featureRows.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Features</p>
+          {featureRows.map(rv => renderRow(rv, 'features'))}
         </div>
+      )}
+
+      {artistSet.size > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Artist roles</p>
+          {[...artistSet.entries()].map(([role, artistName]) =>
+            renderRow(role, 'artist_contribution', `${artistName} — ${role}`)
+          )}
+        </div>
+      )}
+
+      {featureRows.length === 0 && artistSet.size === 0 && (
+        <p className="text-xs text-stone-500 italic">No features or artists yet.</p>
       )}
     </div>
   )

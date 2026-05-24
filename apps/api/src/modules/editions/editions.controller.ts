@@ -116,6 +116,23 @@ export class EditionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Post(':slug/feature-tags')
+  addFeatureTag(
+    @Param('slug') slug: string,
+    @Body() body: { rawValue: string; source: string; categorySlug: string },
+  ) {
+    return this.editionsService.addFeatureTag(slug, body);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Delete(':slug/feature-tags/:tagId')
+  removeFeatureTag(@Param('slug') slug: string, @Param('tagId') tagId: string) {
+    return this.editionsService.removeFeatureTag(slug, tagId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateEditionDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') {

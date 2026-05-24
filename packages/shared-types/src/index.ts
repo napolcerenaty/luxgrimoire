@@ -132,6 +132,7 @@ export interface ApiBookEdition {
     id: string;
     rawValue: string;
     source: string;
+    isManual: boolean;
     category: { id: string; slug: string; label: string; group: string; sortOrder: number };
   }>;
   firstAccessDate?: string | null;

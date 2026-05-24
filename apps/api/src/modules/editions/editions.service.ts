@@ -64,6 +64,44 @@ export class EditionsService {
     return { tagsCount };
   }
 
+  /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
+  async addFeatureTag(
+    slug: string,
+    body: { rawValue: string; source: string; categorySlug: string },
+  ) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const category = await this.prisma.featureCategory.findUnique({ where: { slug: body.categorySlug } });
+    if (!category) throw new NotFoundException(`Category '${body.categorySlug}' not found`);
+    return this.prisma.editionFeatureTag.upsert({
+      where: {
+        editionId_categoryId: {
+          editionId: edition.id,
+          categoryId: category.id,
+        },
+      },
+      create: {
+        editionId: edition.id,
+        categoryId: category.id,
+        rawValue: body.rawValue,
+        source: body.source,
+        isManual: true,
+      },
+      update: { isManual: true, rawValue: body.rawValue, source: body.source },
+    });
+  }
+
+  /** Remove a specific feature tag by ID. */
+  async removeFeatureTag(slug: string, tagId: string) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const tag = await this.prisma.editionFeatureTag.findFirst({
+      where: { id: tagId, editionId: edition.id },
+    });
+    if (!tag) throw new NotFoundException(`Tag '${tagId}' not found for this edition`);
+    return this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
+  }
+
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
     return deleteCloudinaryImages(ids, this.uploadService);
   }
@@ -238,7 +276,7 @@ export class EditionsService {
         },
         featureTags: {
           select: {
-            id: true, rawValue: true, source: true,
+            id: true, rawValue: true, source: true, isManual: true,
             category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
           orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
@@ -291,7 +329,7 @@ export class EditionsService {
         },
         featureTags: {
           select: {
-            id: true, rawValue: true, source: true,
+            id: true, rawValue: true, source: true, isManual: true,
             category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
           orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
