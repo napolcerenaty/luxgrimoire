@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -154,7 +153,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-4">
+          <div className="mt-5 flex items-center justify-center">
             {hasMore && (
               <button
                 onClick={loadMore}
@@ -162,14 +161,6 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
               >
                 Load more ({filtered.length - visibleCount} remaining)
               </button>
-            )}
-            {activeGroup.href && !hasMore && (
-              <Link
-                href={activeGroup.href}
-                className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
-              >
-                View full collection →
-              </Link>
             )}
           </div>
         </>

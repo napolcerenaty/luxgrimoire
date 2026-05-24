@@ -205,7 +205,7 @@ export class CompaniesService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { generalSaleDate: 'desc' },
       ...((!filter?.subscriptionId && !filter?.collectionId) ? { take: 100 } : {}),
     });
 
