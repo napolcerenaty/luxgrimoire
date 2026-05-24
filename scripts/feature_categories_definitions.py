@@ -599,7 +599,7 @@ CATEGORIES = [
             r"\billustrator\b",
             r"\bfull art\b",
         ],
-        [r"\bhidden illustration\b"]
+        [r"\bhidden illustration\b", r"\bon the hardcover\b", r"\bon the hardback\b"]
     ),
     (
         "interior_formatting",
