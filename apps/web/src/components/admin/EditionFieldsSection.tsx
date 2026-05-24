@@ -734,8 +734,6 @@ export function EditionFieldsSection({
           <FeatureCategoryPreview
             editionSlug={editionSlug}
             initialTags={featureTags}
-            featureValues={features}
-            artistEntries={artists.filter(a => a.name && a.role).map(a => ({ name: a.name, role: a.role }))}
           />
         )}
       </div>

@@ -164,7 +164,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
   }
 
   const book = edition.book
-  const features = Array.isArray(edition.features) ? edition.features : []
+  // Features come from featureTags (new table) — source of truth
+  const features = (edition.featureTags ?? [])
+    .filter((tag) => tag.source === 'features')
+    .map((tag) => tag.rawValue)
   const artistTags = (edition.featureTags ?? []).filter(
     (tag) => tag.source === 'artist' && tag.artistId && tag.artist,
   )
