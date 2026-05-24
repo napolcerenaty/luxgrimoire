@@ -343,8 +343,6 @@ export function FeatureCategoryPreview({
   artistEntries?: Array<{ name: string; role: string }>
 }) {
   const [tags, setTags] = useState<FeatureTag[]>(initialTags ?? [])
-  const [running, setRunning] = useState(false)
-  const [retagMsg, setRetagMsg] = useState<string | null>(null)
   // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
   const [adding, setAdding] = useState<Record<string, string>>({})
   // New manual entry form
@@ -361,21 +359,6 @@ export function FeatureCategoryPreview({
     ),
   })
   const allCategories = allCategoriesData?.data ?? []
-
-  const handleRetag = async () => {
-    setRunning(true)
-    setRetagMsg(null)
-    try {
-      await authFetch<{ tagsCount: number }>(`/editions/${editionSlug}/retag`, { method: 'POST' })
-      const updated = await authFetch<{ featureTags?: FeatureTag[] }>(`/editions/${editionSlug}/for-edit`)
-      setTags(updated.featureTags ?? [])
-      setRetagMsg(`✓ Auto-detection refreshed — ${updated.featureTags?.length ?? 0} tags`)
-    } catch (e) {
-      setRetagMsg(`Error: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setRunning(false)
-    }
-  }
 
   const handleRemoveCategory = async (tagId: string, categorySlug: string) => {
     try {
@@ -508,16 +491,9 @@ export function FeatureCategoryPreview({
 
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2">
         <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Category tags</span>
-        <button type="button" onClick={handleRetag} disabled={running}
-          className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors disabled:opacity-50">
-          {running ? 'Detecting…' : '↺ Re-run auto-detection'}
-        </button>
       </div>
-      {retagMsg && (
-        <p className={`text-xs mb-2 ${retagMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{retagMsg}</p>
-      )}
       <p className="text-[10px] text-stone-500 mb-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
