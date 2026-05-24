@@ -126,8 +126,18 @@ FEATURES RULES:
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
-- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions (e.g. "Book size: 5 ⅜" x 8 ¼"", "234 x 153 mm", etc.). Add the full size string as a feature exactly as written, prefixed with "book size:" if a label is present.
-  Example: "Book size: 5 ⅜" x 8 ¼"" → features: ["book size: 5 ⅜\" x 8 ¼\""]
+- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions. When dimensions are given in US inches, convert to the closest UK/European standard name — do NOT output raw inch dimensions. Use this mapping:
+  • ~4.25" × 6.87" / ~108 × 175mm → "A format" (mass market paperback)
+  • ~5" × 7.75" to 5.12" × 7.8" / ~129 × 198mm → "B format"
+  • ~5.5" × 8.5" / ~140 × 216mm → "Demy" (if hardcover: "Demy hardback"; if paperback: "Demy paperback")
+  • ~6" × 9" / ~152 × 229mm → "Royal" (if hardcover: "Royal hardback"; if paperback: "Royal paperback")
+  • ~6.14" × 9.21" / ~156 × 234mm → "Royal"
+  • ~7" × 10" / ~178 × 254mm → "Crown Quarto"
+  • ~8.5" × 11" / A4 → "A4 large format"
+  • Metric dimensions (mm): convert to nearest named format using the same table
+  If the format already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present (e.g. "Royal hardback"). If the size does not match any standard name within reasonable tolerance, output the metric equivalent as "book size: [WxH]mm".
+  Examples: "Book size: 5.5\" x 8.5\"" → features: ["Demy"]
+  Example: "5 ⅜\" x 8 ¼\"" → features: ["Demy"] (5.375" × 8.25" ≈ 137 × 210mm ≈ Demy)
   Example: "B format paperback" → features: ["B format paperback"] (keep size + binding together as one compound feature)
   Example: "Royal hardback" → features: ["Royal hardback"] (NOT split into ["Royal", "hardback"])
   Example: "Demy hardcover" → features: ["Demy hardcover"]
@@ -148,14 +158,18 @@ FEATURES RULES:
     artists: [{ name: "@artist1", role: "New chapter headers (illustration)" }, { name: "@artist2", role: "New chapter headers (lettering)" }, { name: "@artist3", role: "New chapter headers (colour)" }]
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - When a feature includes "of [title/name]" — e.g. "first chapter of A Ballad for the Broken", "preview of Book 2", "excerpt of..." — keep the FULL phrase including "of [title]". Do NOT truncate to just "first chapter" or "preview".
-- IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.
+- IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), add the artist to the artists array with role = the feature description. Do NOT add that feature separately to the features array — the artist entry already captures it. Only add to features array items that have NO artist attribution.
+  Exception: When ONE feature has MULTIPLE artists (e.g. via parenthetical or semicolons), DO include it once in features array (using the base feature name only) AND also create one artist entry per person.
   Example: "An exclusive foiled cover (front and spine) by @artisthandle" →
-    features: ["exclusive foiled cover (front and spine)"]
+    features: [] (no standalone feature — covered by artist entry)
     artists: [{ name: "@artisthandle", role: "exclusive foiled cover (front and spine)" }]
   Example: "naked hardcover (no dust jacket) with illustrations by @artist and endpapers by @artist2" →
-    features: ["naked hardcover (no dust jacket)", "illustrations", "endpapers"]
+    features: ["naked hardcover (no dust jacket)"] (binding = no artist, so it stays)
     artists: [{ name: "@artist", role: "naked hardcover (no dust jacket) with illustrations" }, { name: "@artist2", role: "endpapers" }]
-- INLINE MULTI-ARTIST (no parenthetical): When a line reads "[feature description] [role1] by @artist1 with [role2] by @artist2" (multiple artists credited inline for the SAME physical item), create ONE feature = the initial description before the first role verb/attribution, and create one artist entry per person using the pattern: role = feature name + " (" + their role word + ")". The feature must NOT include role verbs or artist handles.
+  Example: "sprayed edges, ribbon bookmark, art print" (no artists) →
+    features: ["sprayed edges", "ribbon bookmark", "art print"]
+    artists: []
+- INLINE MULTI-ARTIST (no parenthetical): When a line reads "[feature description] [role1] by @artist1 with [role2] by @artist2" (multiple artists credited inline for the SAME physical item), create ONE feature = the initial description before the first role verb/attribution (because multiple artists → feature goes in features array), and create one artist entry per person using the pattern: role = feature name + " (" + their role word + ")". The feature must NOT include role verbs or artist handles.
   Example: "exclusive redesigned covers with foil illustrated by @palinlineart with design by @amysharpillustration" →
     features: ["exclusive redesigned covers with foil"]
     artists: [{ name: "@palinlineart", role: "exclusive redesigned covers with foil (illustrated)" }, { name: "@amysharpillustration", role: "exclusive redesigned covers with foil (design)" }]

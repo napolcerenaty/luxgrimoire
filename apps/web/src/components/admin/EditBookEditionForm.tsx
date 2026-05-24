@@ -181,12 +181,18 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
     const slug = edition.slug
     const posts: Promise<unknown>[] = []
+    // Collect all artist roles to avoid creating duplicate standalone feature entries
+    const artistRoles = new Set(
+      (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
+    )
     for (const feature of (r.edition?.features ?? [])) {
-      if (feature.trim()) {
+      const trimmed = feature.trim()
+      // Skip feature if an artist entry already covers the same rawValue
+      if (trimmed && !artistRoles.has(trimmed)) {
         posts.push(authFetch(`/editions/${slug}/feature-tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: feature.trim(), source: 'features', categories: [] }),
+          body: JSON.stringify({ rawValue: trimmed, source: 'features', categories: [] }),
         }).catch(() => null))
       }
     }

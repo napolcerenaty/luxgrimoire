@@ -142,8 +142,13 @@ export default function CreateBookEditionForm({
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
     // Stage features/artists for POST after edition creation
     const newTags: Array<{ rawValue: string; source: 'features' | 'artist'; artistName?: string }> = []
+    // Collect artist roles to avoid duplicate standalone feature entries
+    const artistRoles = new Set(
+      (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
+    )
     for (const feature of (r.edition?.features ?? [])) {
-      if (feature.trim()) newTags.push({ rawValue: feature.trim(), source: 'features' })
+      const trimmed = feature.trim()
+      if (trimmed && !artistRoles.has(trimmed)) newTags.push({ rawValue: trimmed, source: 'features' })
     }
     for (const artist of (r.edition?.artists ?? [])) {
       if (artist.role?.trim()) newTags.push({ rawValue: artist.role.trim(), source: 'artist', artistName: artist.name })
