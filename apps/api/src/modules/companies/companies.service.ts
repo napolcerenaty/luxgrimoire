@@ -13,8 +13,11 @@ import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
+const COMPANY_EDITIONS_FILTERED_TTL = 2 * 60 * 60 * 1000; // 2 hours — per-group lazy-load cache
 const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
+const companyEditionsSubKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}`;
+const companyEditionsColKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -136,12 +139,26 @@ export class CompaniesService {
   }
 
   async getEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }) {
-    // Filtered queries skip Redis cache — they're cheap per-group fetches
-    if (filter?.subscriptionId || filter?.collectionId) {
-      return this._fetchCompanyEditions(slug, filter);
+    // Extract cache return type once at method scope (typeof this.method fails inside nested if blocks in TS)
+    type CachedEditions = Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
+    if (filter?.subscriptionId) {
+      const key = companyEditionsSubKey(slug, filter.subscriptionId);
+      const cached = await this.cache.get(key);
+      if (cached) return cached as CachedEditions;
+      const result = await this._fetchCompanyEditions(slug, filter);
+      await this.cache.set(key, result, COMPANY_EDITIONS_FILTERED_TTL);
+      return result;
+    }
+    if (filter?.collectionId) {
+      const key = companyEditionsColKey(slug, filter.collectionId);
+      const cached = await this.cache.get(key);
+      if (cached) return cached as CachedEditions;
+      const result = await this._fetchCompanyEditions(slug, filter);
+      await this.cache.set(key, result, COMPANY_EDITIONS_FILTERED_TTL);
+      return result;
     }
     const cached = await this.cache.get(companyEditionsKey(slug));
-    if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
+    if (cached) return cached as CachedEditions;
     const result = await this._fetchCompanyEditions(slug);
     await this.cache.set(companyEditionsKey(slug), result, COMPANY_EDITIONS_TTL);
     return result;
