@@ -158,8 +158,9 @@ const SIGNATURE_LABELS: Record<string, string> = {
   autopen: 'Autopen',
   digitally_signed: 'Digitally signed',
   signed_bookplate: 'Bookplate',
+  stamped: 'Stamped',
 }
-const SIGNATURE_TYPES = ['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'] as const
+const SIGNATURE_TYPES = ['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

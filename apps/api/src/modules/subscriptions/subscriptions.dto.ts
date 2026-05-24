@@ -371,8 +371,8 @@ export class CreateMonthDto {
   boxPrice?: string;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
 
   @IsOptional()
   @IsString()
@@ -417,8 +417,8 @@ export class UpdateMonthDto {
   boxPrice?: string;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | null;
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped' | null;
 
   @IsOptional()
   @IsString()
@@ -443,14 +443,14 @@ export class AddMonthBookDto {
   sortOrder?: number;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
 }
 
 export class UpdateMonthBookDto {
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', null])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | null;
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped', null])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped' | null;
 }
 
 export class MonthQueryDto {

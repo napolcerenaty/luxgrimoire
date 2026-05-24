@@ -150,10 +150,10 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
     queryFn: () => authFetch<EditionComponent[]>(`/editions/${editionSlug}/components`),
   })
 
-  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string }[]>({
+  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string; seriesName: string | null }[]>({
     queryKey: ['book-search', bookSearch],
     queryFn: async () => {
-      const res = await authFetch<{ data: { id: string; title: string; slug: string }[] }>(
+      const res = await authFetch<{ data: { id: string; title: string; slug: string; seriesName: string | null }[] }>(
         `/books?search=${encodeURIComponent(bookSearch)}&pageSize=8`
       )
       return res.data ?? []
@@ -247,6 +247,9 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
                     className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
                   >
                     {b.title}
+                    {b.seriesName && (
+                      <span className="text-stone-400 ml-1">({b.seriesName})</span>
+                    )}
                   </button>
                 ))}
               </div>

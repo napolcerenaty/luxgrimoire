@@ -633,6 +633,7 @@ export default function SoldPage() {
                     : entry.signatureType === 'signed_bookplate' ? '🏷️'
                     : entry.signatureType === 'autopen' ? '✒️'
                     : entry.signatureType === 'digitally_signed' ? '🖨️'
+                    : entry.signatureType === 'stamped' ? '🔏'
                     : null
                   return (
                     <a

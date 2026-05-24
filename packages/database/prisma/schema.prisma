@@ -1224,6 +1224,7 @@ enum SignatureType {
   autopen
   digitally_signed
   signed_bookplate
+  stamped
 }
 
 enum FeeCategory {
