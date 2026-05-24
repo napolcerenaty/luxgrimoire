@@ -147,6 +147,17 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Patch(':slug/feature-tags/:tagId')
+  updateFeatureTag(
+    @Param('slug') slug: string,
+    @Param('tagId') tagId: string,
+    @Body() body: { rawValue?: string; categories?: string[] },
+  ) {
+    return this.editionsService.updateFeatureTag(slug, tagId, body);
+  }
+
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':slug/feature-tags/:tagId/categories/:categorySlug')

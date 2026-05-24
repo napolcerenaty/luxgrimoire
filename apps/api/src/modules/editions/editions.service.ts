@@ -208,6 +208,29 @@ export class EditionsService {
     return this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
   }
 
+  /** Update rawValue and/or categories of a feature tag. */
+  async updateFeatureTag(slug: string, tagId: string, dto: { rawValue?: string; categories?: string[] }) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const tag = await this.prisma.editionFeatureTag.findFirst({ where: { id: tagId, editionId: edition.id } });
+    if (!tag) throw new NotFoundException(`Tag '${tagId}' not found for this edition`);
+
+    const updated = await this.prisma.editionFeatureTag.update({
+      where: { id: tagId },
+      data: {
+        ...(dto.rawValue !== undefined && { rawValue: dto.rawValue }),
+        ...(dto.categories !== undefined && { categories: dto.categories }),
+        isManual: true,
+      },
+      select: {
+        id: true, rawValue: true, source: true, isManual: true,
+        artistId: true, artistName: true, categories: true,
+        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+      },
+    });
+    return this.enrichTagWithCategories(updated);
+  }
+
   async removeCategoryFromTag(slug: string, tagId: string, categorySlug: string) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);

@@ -339,8 +339,10 @@ export function FeatureCategoryPreview({
   initialTags?: FeatureTag[]
 }) {
   const qc = useQueryClient()
-  // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
+  // Per-row inline category-add state: key = tagId, value = picked categorySlug
   const [adding, setAdding] = useState<Record<string, string>>({})
+  // Per-row inline edit state: key = tagId → {rawValue, saving}
+  const [editingRow, setEditingRow] = useState<Record<string, { rawValue: string; saving: boolean }>>({})
   // New manual entry form
   const [newRaw, setNewRaw] = useState('')
   const [newSource, setNewSource] = useState<'features' | 'artist'>('features')
@@ -359,13 +361,12 @@ export function FeatureCategoryPreview({
   })
 
   // Fetch all categories for the add-picker
-  const { data: allCategoriesData } = useQuery({
+  const { data: allCategories = [] } = useQuery({
     queryKey: ['feature-categories-all'],
-    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }> }>(
-      '/feature-categories?pageSize=200'
+    queryFn: () => authFetch<Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>>(
+      '/feature-categories'
     ),
   })
-  const allCategories = allCategoriesData?.data ?? []
 
   const refreshTags = () => qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
 
@@ -426,28 +427,75 @@ export function FeatureCategoryPreview({
     }
   }
 
+  const handleUpdateTag = async (tagId: string, rawValue: string) => {
+    setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: true } }))
+    try {
+      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawValue }),
+      })
+      refreshTags()
+      setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
+    } catch (e) {
+      alert(`Update failed: ${e instanceof Error ? e.message : String(e)}`)
+      setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: false } }))
+    }
+  }
+
   const tagsByKey = new Map<string, FeatureTag>()
   for (const tag of tags) {
     tagsByKey.set(tag.rawValue, tag)
   }
 
-  const featureRows = tags.filter(t => t.source === 'features').map(t => t.rawValue)
-  const artistTags = tags.filter(t => t.source === 'artist')
-
-  const renderRow = (rawValue: string, source: string, label?: string) => {
-    const tag = tagsByKey.get(rawValue)
-    const tagId = tag?.id
-    const rowCategories = tag?.categories ?? []
-    const isManual = tag?.isManual ?? false
-    const addValue = adding[`${source}::${rawValue}`] ?? ''
+  const renderRow = (tag: FeatureTag) => {
+    const { id: tagId, rawValue, source, categories: rowCategories, isManual, artistName } = tag
+    const addValue = adding[tagId] ?? ''
     const existingSlugs = new Set(rowCategories.map(c => c.slug))
     const available = allCategories.filter(c => !existingSlugs.has(c.slug))
+    const editing = editingRow[tagId]
+    const label = source === 'artist' && artistName ? `${artistName} — ${rawValue}` : rawValue
 
     return (
-      <div key={rawValue} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-stone-800 last:border-0">
-        <span className="text-xs text-stone-300 min-w-0 flex-1 pt-0.5 truncate" title={rawValue}>
-          {label ?? rawValue}
-        </span>
+      <div key={tagId} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-stone-800 last:border-0">
+        {/* Type badge */}
+        <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide self-start mt-0.5 ${
+          source === 'artist' ? 'bg-violet-900/40 text-violet-300 border border-violet-700' : 'bg-stone-700/60 text-stone-400 border border-stone-600'
+        }`}>{source === 'artist' ? 'artist' : 'feature'}</span>
+
+        {/* Raw value — editable inline */}
+        {editing ? (
+          <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+            <input
+              autoFocus
+              value={editing.rawValue}
+              onChange={e => setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], rawValue: e.target.value } }))}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); handleUpdateTag(tagId, editing.rawValue) }
+                if (e.key === 'Escape') setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
+              }}
+              className="flex-1 text-xs bg-stone-900 border border-amber-600 rounded px-2 py-0.5 text-stone-100 focus:outline-none"
+            />
+            <button type="button" disabled={editing.saving}
+              onClick={() => handleUpdateTag(tagId, editing.rawValue)}
+              className="text-xs px-2 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40">
+              {editing.saving ? '…' : '✓'}
+            </button>
+            <button type="button"
+              onClick={() => setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })}
+              className="text-xs text-stone-500 hover:text-stone-300">✕</button>
+          </div>
+        ) : (
+          <button type="button"
+            onClick={() => setEditingRow(prev => ({ ...prev, [tagId]: { rawValue, saving: false } }))}
+            className="text-xs text-stone-300 hover:text-amber-300 min-w-0 flex-1 text-left pt-0.5 truncate group"
+            title={`${label} — click to edit`}>
+            {label}
+            <span className="ml-1 text-stone-600 group-hover:text-amber-600 text-[9px]">✎</span>
+          </button>
+        )}
+
+        {/* Category chips + picker */}
         <div className="flex flex-wrap items-center gap-1.5">
           {rowCategories.sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
             <span key={cat.slug}
@@ -458,7 +506,6 @@ export function FeatureCategoryPreview({
               }`}
               title={isManual ? 'Manually assigned' : 'Auto-detected'}>
               {cat.label}
-              {isManual && <span className="text-amber-500 text-[9px]">✎</span>}
               <button type="button" onClick={() => tagId && handleRemoveCategory(tagId, cat.slug)}
                 className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
             </span>
@@ -467,7 +514,7 @@ export function FeatureCategoryPreview({
             <div className="flex items-center gap-1">
               <select
                 value={addValue}
-                onChange={e => setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: e.target.value }))}
+                onChange={e => setAdding(prev => ({ ...prev, [tagId]: e.target.value }))}
                 className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
               >
                 <option value="">+ category…</option>
@@ -484,6 +531,14 @@ export function FeatureCategoryPreview({
               )}
             </div>
           )}
+          {/* Delete tag */}
+          <button type="button"
+            onClick={async () => {
+              if (!confirm('Remove this entry?')) return
+              await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
+              refreshTags()
+            }}
+            className="text-[10px] text-stone-600 hover:text-red-400 ml-0.5" title="Remove entry">🗑</button>
         </div>
       </div>
     )
@@ -501,25 +556,12 @@ export function FeatureCategoryPreview({
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
       </p>
 
-      {featureRows.length > 0 && (
-        <div className="mb-3">
-          <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Features</p>
-          {featureRows.map(rv => renderRow(rv, 'features'))}
+      {tags.length > 0 ? (
+        <div className="mb-2">
+          {tags.map(tag => renderRow(tag))}
         </div>
-      )}
-
-      {artistTags.length > 0 && (
-        <div>
-          <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Artist roles</p>
-          {artistTags.map(tag =>
-            renderRow(tag.rawValue, 'artist',
-              tag.artistName ? `${tag.artistName} — ${tag.rawValue}` : tag.rawValue)
-          )}
-        </div>
-      )}
-
-      {featureRows.length === 0 && artistTags.length === 0 && (
-        <p className="text-xs text-stone-500 italic">No features or artists yet.</p>
+      ) : (
+        <p className="text-xs text-stone-500 italic mb-2">No features or artists yet.</p>
       )}
 
       {/* ── Add new tag manually ── */}
