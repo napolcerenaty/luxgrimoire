@@ -104,6 +104,7 @@ export default async function CompanyPage({ params }: Props) {
 
   const logoUrl = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fit,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
+  const displaySubscriptions = subscriptions.filter((s) => !s.isContentStream)
 
   const socials = [
     company.website
@@ -208,11 +209,11 @@ export default async function CompanyPage({ params }: Props) {
       </div>
 
       {/* Subscriptions — compact cards, denser grid */}
-      {subscriptions.length > 0 && (
+      {displaySubscriptions.length > 0 && (
         <section className="mt-12">
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {subscriptions.map((sub) => {
+            {displaySubscriptions.map((sub) => {
               const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_400,h_300,c_fill,q_auto,f_auto')
               const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_200,h_120,c_fit,q_auto,f_auto')
               return (
