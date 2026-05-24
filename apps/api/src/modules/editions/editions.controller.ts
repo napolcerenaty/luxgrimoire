@@ -108,6 +108,13 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/retag')
+  retagEdition(@Param('slug') slug: string) {
+    return this.editionsService.retagBySlug(slug);
+  }
+
+  @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug')
   async update(@Param('slug') slug: string, @Body() dto: UpdateEditionDto, @CurrentUser() user: CurrentUserType) {

@@ -128,6 +128,12 @@ export interface ApiBookEdition {
   currency?: string | null;
   language?: string | null;
   features?: string[];
+  featureTags?: Array<{
+    id: string;
+    rawValue: string;
+    source: string;
+    category: { id: string; slug: string; label: string; group: string; sortOrder: number };
+  }>;
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   generalSaleDate?: string | null;

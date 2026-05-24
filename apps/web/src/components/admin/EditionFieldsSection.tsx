@@ -14,6 +14,23 @@ const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
+export type FeatureTag = {
+  id: string
+  rawValue: string
+  source: string
+  category: { id: string; slug: string; label: string; group: string; sortOrder: number }
+}
+
+const CATEGORY_GROUP_LABELS: Record<string, string> = {
+  cover: 'Cover',
+  binding: 'Binding',
+  interior: 'Interior',
+  signatures: 'Signatures',
+  extras: 'Extras',
+  format: 'Format',
+  edition_type: 'Edition Type',
+}
+const CATEGORY_GROUP_ORDER = ['edition_type', 'cover', 'binding', 'interior', 'signatures', 'extras', 'format']
 
 const BOOK_LANGUAGES = [
   'English', 'Polish', 'French', 'German', 'Spanish',
@@ -307,6 +324,88 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
   )
 }
 
+// ─── FeatureCategoryPreview ───────────────────────────────────────────────────
+export function FeatureCategoryPreview({
+  editionSlug,
+  initialTags,
+}: {
+  editionSlug: string
+  initialTags?: FeatureTag[]
+}) {
+  const [tags, setTags] = useState<FeatureTag[]>(initialTags ?? [])
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+
+  const handleRetag = async () => {
+    setRunning(true)
+    setResult(null)
+    try {
+      await authFetch<{ tagsCount: number }>(`/editions/${editionSlug}/retag`, { method: 'POST' })
+      const updated = await authFetch<{ featureTags?: FeatureTag[] }>(`/editions/${editionSlug}/for-edit`)
+      setTags(updated.featureTags ?? [])
+      setResult(`✓ ${updated.featureTags?.length ?? 0} categories detected`)
+    } catch (e) {
+      setResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const groupMap = new Map<string, { slug: string; label: string; sortOrder: number }[]>()
+  const seen = new Set<string>()
+  for (const tag of tags) {
+    if (seen.has(tag.category.slug)) continue
+    seen.add(tag.category.slug)
+    const list = groupMap.get(tag.category.group) ?? []
+    list.push(tag.category)
+    groupMap.set(tag.category.group, list)
+  }
+  const orderedGroups = CATEGORY_GROUP_ORDER.filter(g => groupMap.has(g))
+  for (const g of groupMap.keys()) {
+    if (!orderedGroups.includes(g)) orderedGroups.push(g)
+  }
+
+  return (
+    <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Detected categories</span>
+        <button
+          type="button"
+          onClick={handleRetag}
+          disabled={running}
+          className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors disabled:opacity-50"
+        >
+          {running ? 'Detecting…' : '↺ Re-run detection'}
+        </button>
+      </div>
+      {result && (
+        <p className={`text-xs mb-2 ${result.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{result}</p>
+      )}
+      {orderedGroups.length === 0 ? (
+        <p className="text-xs text-stone-500 italic">No categories detected yet — click Re-run to detect.</p>
+      ) : (
+        <div className="space-y-2">
+          {orderedGroups.map(group => (
+            <div key={group} className="flex items-start gap-2">
+              <span className="text-[10px] font-semibold uppercase text-stone-500 mt-1 w-20 shrink-0">
+                {CATEGORY_GROUP_LABELS[group] ?? group}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {(groupMap.get(group) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
+                  <span key={cat.slug}
+                    className="text-xs bg-stone-700 text-stone-200 px-2 py-0.5 rounded-full border border-stone-600">
+                    {cat.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── EditionFieldsSection ─────────────────────────────────────────────────────
 export interface EditionFieldsSectionProps {
   companyId: string
@@ -345,6 +444,8 @@ export interface EditionFieldsSectionProps {
   onIsOmnibusChange?: (v: boolean) => void
   /** When provided together with isOmnibus=true, renders OmnibusComponentsPanel */
   editionSlug?: string
+  /** Existing feature tags from DB — shown in FeatureCategoryPreview (edit form only) */
+  featureTags?: FeatureTag[]
   companies: EditionCompany[]
   collections: { id: string; name: string }[]
 }
@@ -362,7 +463,7 @@ export function EditionFieldsSection({
   onAiResult,
   artists, onArtistsChange, onRemoveExistingArtist,
   features, onFeaturesChange,
-  isOmnibus, onIsOmnibusChange, editionSlug,
+  isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
   companies, collections,
 }: EditionFieldsSectionProps) {
   const handleRemoveArtist = (index: number) => {
@@ -507,6 +608,9 @@ export function EditionFieldsSection({
       <div>
         <label className={LBL}>Features / extras</label>
         <FeatureTags features={features} onChange={onFeaturesChange} />
+        {editionSlug && (
+          <FeatureCategoryPreview editionSlug={editionSlug} initialTags={featureTags} />
+        )}
       </div>
 
       {/* Omnibus (Edit form only) */}

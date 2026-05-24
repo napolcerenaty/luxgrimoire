@@ -15,6 +15,7 @@ import {
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
+import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
 
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
@@ -29,7 +30,39 @@ export class EditionsService {
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly tagger: FeatureTaggerService,
   ) {}
+
+  /** Re-runs feature tag detection for an edition (features[] + artist roles). */
+  private async retagEditionById(editionId: string) {
+    const data = await this.prisma.bookEdition.findUnique({
+      where: { id: editionId },
+      select: {
+        features: true,
+        artists: { select: { role: true } },
+      },
+    });
+    if (!data) return;
+    const features = (data.features as string[]) ?? [];
+    const artistRoles = data.artists.map((a: { role: string }) => a.role);
+    await this.tagger.retagEdition(editionId, features, artistRoles).catch((err) => {
+      this.logger.error(`retagEdition failed for ${editionId}: ${err.message}`);
+    });
+  }
+
+  /** Public method for manual retag via the API endpoint. */
+  async retagBySlug(slug: string): Promise<{ tagsCount: number }> {
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { slug },
+      select: { id: true, features: true, artists: { select: { role: true } } },
+    });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const features = (edition.features as string[]) ?? [];
+    const artistRoles = edition.artists.map((a: { role: string }) => a.role);
+    await this.tagger.retagEdition(edition.id, features, artistRoles);
+    const tagsCount = await this.prisma.editionFeatureTag.count({ where: { editionId: edition.id } });
+    return { tagsCount };
+  }
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
     return deleteCloudinaryImages(ids, this.uploadService);
@@ -82,6 +115,8 @@ export class EditionsService {
     });
     await this.indexEdition(edition.id);
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
+    // Tag features asynchronously (artist roles not yet available at create time)
+    void this.retagEditionById(edition.id);
     return edition;
   }
 
@@ -201,6 +236,13 @@ export class EditionsService {
             artist: { select: { id: true, name: true } },
           },
         },
+        featureTags: {
+          select: {
+            id: true, rawValue: true, source: true,
+            category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
+          },
+          orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
+        },
         previousEdition: {
           select: {
             slug: true, generalSaleDate: true,
@@ -246,6 +288,13 @@ export class EditionsService {
             id: true, role: true, artistName: true,
             artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
           },
+        },
+        featureTags: {
+          select: {
+            id: true, rawValue: true, source: true,
+            category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
+          },
+          orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
         },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true } },
@@ -373,6 +422,8 @@ export class EditionsService {
       await this.deleteCloudinaryImages(removed);
     }
     await this.indexEdition(edition.id);
+    // Retag whenever features may have changed
+    if (dto.features !== undefined) void this.retagEditionById(edition.id);
     return edition;
   }
 
@@ -398,7 +449,7 @@ export class EditionsService {
   async addArtist(slug: string, dto: AddArtistDto) {
     const edition = await this.findBySlug(slug);
     const role = dto.role ?? 'cover';
-    return this.prisma.artistContribution.upsert({
+    const result = await this.prisma.artistContribution.upsert({
       where: { editionId_artistId_role: { editionId: edition.id, artistId: dto.artistId, role } },
       create: {
         editionId: edition.id,
@@ -408,13 +459,17 @@ export class EditionsService {
       },
       update: { artistName: dto.artistName },
     });
+    void this.retagEditionById(edition.id);
+    return result;
   }
 
   async removeArtist(slug: string, artistId: string) {
     const edition = await this.findBySlug(slug);
-    return this.prisma.artistContribution.deleteMany({
+    const result = await this.prisma.artistContribution.deleteMany({
       where: { editionId: edition.id, artistId },
     });
+    void this.retagEditionById(edition.id);
+    return result;
   }
 
   async getComponents(slug: string) {

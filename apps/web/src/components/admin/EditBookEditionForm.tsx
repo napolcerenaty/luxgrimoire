@@ -327,6 +327,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
         features={features}
         onFeaturesChange={setFeatures}
+        featureTags={edition.featureTags}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}
         editionSlug={edition.slug}
