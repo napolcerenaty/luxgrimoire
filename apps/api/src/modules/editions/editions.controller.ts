@@ -27,6 +27,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { assertCompanyAccess } from '../../common/utils/assert-company-access.util';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
@@ -136,6 +137,18 @@ export class EditionsController {
   @Delete(':slug/feature-tags/:tagId')
   removeFeatureTag(@Param('slug') slug: string, @Param('tagId') tagId: string) {
     return this.editionsService.removeFeatureTag(slug, tagId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Delete(':slug/feature-tags/:tagId/categories/:categorySlug')
+  removeCategoryFromFeatureTag(
+    @Param('slug') slug: string,
+    @Param('tagId') tagId: string,
+    @Param('categorySlug') categorySlug: string,
+  ) {
+    return this.editionsService.removeCategoryFromTag(slug, tagId, categorySlug);
   }
 
   @ApiBearerAuth()

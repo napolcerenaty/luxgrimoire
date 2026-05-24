@@ -1379,40 +1379,37 @@ model SubscriptionCountryFeeSnapshot {
 // ─── Feature Normalisation ───────────────────────────────────────────────────
 
 model FeatureCategory {
-  id          String   @id @default(uuid())
-  slug        String   @unique
-  label       String
-  group       String
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  // include/exclude patterns stored as JSON string[]
-  includePatterns Json @default("[]")
-  excludePatterns Json @default("[]")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tags        EditionFeatureTag[]
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  label           String
+  group           String
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  includePatterns Json     @default("[]")
+  excludePatterns Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([group])
   @@map("feature_categories")
 }
 
 model EditionFeatureTag {
-  id         String          @id @default(uuid())
+  id         String      @id @default(uuid())
   editionId  String
-  categoryId String
   rawValue   String
+  categories String[]    @default([])
   artistId   String?
   artistName String?
-  source     String          // "features" | "artist"
-  isManual   Boolean         @default(false) @map("is_manual")
-  createdAt  DateTime        @default(now())
-  edition    BookEdition     @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  category   FeatureCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  artist     Artist?         @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  source     String      @default("features")
+  isManual   Boolean     @default(false) @map("is_manual")
+  createdAt  DateTime    @default(now())
 
-  @@unique([editionId, categoryId])
+  edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  artist     Artist?     @relation(fields: [artistId], references: [id], onDelete: SetNull)
+
+  @@unique([editionId, rawValue])
   @@index([editionId])
-  @@index([categoryId])
   @@index([artistId])
   @@map("edition_feature_tags")
 }

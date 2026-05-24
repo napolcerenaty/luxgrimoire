@@ -136,7 +136,7 @@ export interface ApiBookEdition {
     artistId?: string | null;
     artistName?: string | null;
     artist?: { id: string; name: string; slug: string; photoUrl?: string | null } | null;
-    category: { id: string; slug: string; label: string; group: string; sortOrder: number };
+    categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>;
   }>;
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;

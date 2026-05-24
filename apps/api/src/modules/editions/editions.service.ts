@@ -115,22 +115,44 @@ export class EditionsService {
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     const category = await this.prisma.featureCategory.findUnique({ where: { slug: body.categorySlug } });
     if (!category) throw new NotFoundException(`Category '${body.categorySlug}' not found`);
-    return this.prisma.editionFeatureTag.upsert({
-      where: {
-        editionId_categoryId: {
-          editionId: edition.id,
-          categoryId: category.id,
-        },
-      },
-      create: {
-        editionId: edition.id,
-        categoryId: category.id,
-        rawValue: body.rawValue,
-        source: body.source,
-        isManual: true,
-      },
-      update: { isManual: true, rawValue: body.rawValue, source: body.source },
+
+    const existing = await this.prisma.editionFeatureTag.findUnique({
+      where: { editionId_rawValue: { editionId: edition.id, rawValue: body.rawValue } },
     });
+
+    if (existing) {
+      const cats = Array.from(new Set([...(existing.categories as string[]), body.categorySlug]));
+      await this.prisma.editionFeatureTag.update({
+        where: { id: existing.id },
+        data: { categories: cats, isManual: true },
+      });
+    } else {
+      await this.prisma.editionFeatureTag.create({
+        data: {
+          editionId: edition.id,
+          rawValue: body.rawValue,
+          categories: [body.categorySlug],
+          source: body.source,
+          isManual: true,
+        },
+      });
+    }
+
+    const tag = await this.prisma.editionFeatureTag.findUnique({
+      where: { editionId_rawValue: { editionId: edition.id, rawValue: body.rawValue } },
+      select: {
+        id: true,
+        rawValue: true,
+        source: true,
+        isManual: true,
+        artistId: true,
+        artistName: true,
+        categories: true,
+        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+      },
+    });
+
+    return this.enrichTagWithCategories(tag);
   }
 
   /** Remove a specific feature tag by ID. */
@@ -142,6 +164,78 @@ export class EditionsService {
     });
     if (!tag) throw new NotFoundException(`Tag '${tagId}' not found for this edition`);
     return this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
+  }
+
+  async removeCategoryFromTag(slug: string, tagId: string, categorySlug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const tag = await this.prisma.editionFeatureTag.findFirst({ where: { id: tagId, editionId: edition.id } });
+    if (!tag) throw new NotFoundException(`Tag '${tagId}' not found for this edition`);
+
+    const cats = (tag.categories as string[]).filter((c) => c !== categorySlug);
+    if (cats.length === 0 && !tag.isManual) {
+      await this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
+      return { deleted: true };
+    }
+
+    const updated = await this.prisma.editionFeatureTag.update({
+      where: { id: tagId },
+      data: { categories: cats, isManual: true },
+      select: {
+        id: true,
+        rawValue: true,
+        source: true,
+        isManual: true,
+        artistId: true,
+        artistName: true,
+        categories: true,
+        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+      },
+    });
+
+    return this.enrichTagWithCategories(updated);
+  }
+
+  private async enrichTagsWithCategories(
+    featureTags: Array<{
+      id: string;
+      rawValue: string;
+      source: string;
+      isManual: boolean;
+      artistId: string | null;
+      artistName: string | null;
+      categories: string[];
+      artist: unknown;
+    }>,
+  ) {
+    const allCategories = await this.prisma.featureCategory.findMany({
+      where: { isActive: true },
+      select: { id: true, slug: true, label: true, group: true, sortOrder: true },
+    });
+    const catMap = new Map(allCategories.map((c) => [c.slug, c]));
+    return featureTags.map((t) => ({
+      ...t,
+      categories: (t.categories as string[]).map((slug) => catMap.get(slug)).filter(Boolean),
+    }));
+  }
+
+  private async enrichTagWithCategories(
+    tag:
+      | {
+          id: string;
+          rawValue: string;
+          source: string;
+          isManual: boolean;
+          artistId: string | null;
+          artistName: string | null;
+          categories: string[];
+          artist: unknown;
+        }
+      | null,
+  ) {
+    if (!tag) throw new NotFoundException('Feature tag not found');
+    const [enriched] = await this.enrichTagsWithCategories([tag]);
+    return enriched;
   }
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
@@ -319,11 +413,10 @@ export class EditionsService {
         featureTags: {
           select: {
             id: true, rawValue: true, source: true, isManual: true,
-            artistId: true, artistName: true,
+            artistId: true, artistName: true, categories: true,
             artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
-            category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
-          orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
+          orderBy: [{ rawValue: 'asc' as const }],
         },
         previousEdition: {
           select: {
@@ -340,7 +433,10 @@ export class EditionsService {
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
-    return edition;
+    return {
+      ...edition,
+      featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
+    };
   }
 
   async findBySlug(slug: string) {
@@ -368,11 +464,10 @@ export class EditionsService {
         featureTags: {
           select: {
             id: true, rawValue: true, source: true, isManual: true,
-            artistId: true, artistName: true,
+            artistId: true, artistName: true, categories: true,
             artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
-            category: { select: { id: true, slug: true, label: true, group: true, sortOrder: true } },
           },
-          orderBy: [{ category: { group: 'asc' as const } }, { category: { sortOrder: 'asc' as const } }],
+          orderBy: [{ rawValue: 'asc' as const }],
         },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true } },
@@ -447,6 +542,7 @@ export class EditionsService {
     // Flatten authors on nested book
     return {
       ...edition,
+      featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
       book: edition.book
         ? { ...edition.book, authors: edition.book.authors.map((ba: { author: unknown }) => ba.author) }
         : edition.book,

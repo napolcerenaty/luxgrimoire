@@ -21,30 +21,25 @@ CREATE INDEX        "feature_categories_group_idx" ON "feature_categories"("grou
 CREATE TABLE "edition_feature_tags" (
     "id"          TEXT NOT NULL,
     "editionId"   TEXT NOT NULL,
-    "categoryId"  TEXT NOT NULL,
     "rawValue"    TEXT NOT NULL,
+    "categories"  TEXT[] NOT NULL DEFAULT '{}',
     "artistId"    TEXT,
     "artistName"  TEXT,
-    "source"      TEXT NOT NULL,           -- 'features' | 'artist'
+    "source"      TEXT NOT NULL DEFAULT 'features',
     "is_manual"   BOOLEAN NOT NULL DEFAULT false,
     "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "edition_feature_tags_pkey" PRIMARY KEY ("id")
 );
 
--- One category per edition (artist-sourced tag wins over feature-sourced when both match)
-CREATE UNIQUE INDEX "edition_feature_tags_editionId_categoryId_key"
-    ON "edition_feature_tags"("editionId", "categoryId");
+-- One row per unique rawValue per edition (no FK to categories — slugs stored as array)
+CREATE UNIQUE INDEX "edition_feature_tags_editionId_rawValue_key"
+    ON "edition_feature_tags"("editionId", "rawValue");
 CREATE INDEX "edition_feature_tags_editionId_idx"  ON "edition_feature_tags"("editionId");
-CREATE INDEX "edition_feature_tags_categoryId_idx" ON "edition_feature_tags"("categoryId");
 CREATE INDEX "edition_feature_tags_artistId_idx"   ON "edition_feature_tags"("artistId");
 
 ALTER TABLE "edition_feature_tags"
     ADD CONSTRAINT "edition_feature_tags_editionId_fkey"
     FOREIGN KEY ("editionId") REFERENCES "book_editions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "edition_feature_tags"
-    ADD CONSTRAINT "edition_feature_tags_categoryId_fkey"
-    FOREIGN KEY ("categoryId") REFERENCES "feature_categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "edition_feature_tags"
     ADD CONSTRAINT "edition_feature_tags_artistId_fkey"

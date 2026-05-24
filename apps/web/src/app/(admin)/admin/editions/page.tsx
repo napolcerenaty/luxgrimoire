@@ -127,6 +127,8 @@ export default function AdminEditionsPage() {
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [retagging, setRetagging] = useState(false)
+  const [retagResult, setRetagResult] = useState<{ total: number; done: number; failed: number } | null>(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -196,6 +198,19 @@ export default function AdminEditionsPage() {
 
   const canVerify = user?.role === 'ADMIN' || user?.role === 'MODERATOR'
 
+  const handleRetagAll = async () => {
+    if (!confirm('Re-run auto-detection for all editions? This may take a while.')) return
+    setRetagging(true)
+    try {
+      const res = await authFetch<{ total: number; done: number; failed: number }>('/editions/retag-all', { method: 'POST' })
+      setRetagResult(res)
+    } catch (e) {
+      alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRetagging(false)
+    }
+  }
+
   const columns = [
     {
       key: 'book',
@@ -263,14 +278,33 @@ export default function AdminEditionsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-stone-100">Editions</h1>
-        <button
-          onClick={() => createModal.open()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
-        >
-          Add Edition
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {user?.role === 'ADMIN' && (
+            <>
+              <button
+                type="button"
+                onClick={handleRetagAll}
+                disabled={retagging}
+                className="text-xs px-3 py-1.5 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50"
+              >
+                {retagging ? 'Retagging…' : '↺ Retag All Editions'}
+              </button>
+              {retagResult && (
+                <span className="text-xs text-stone-400">
+                  Done: {retagResult.done}/{retagResult.total} ({retagResult.failed} failed)
+                </span>
+              )}
+            </>
+          )}
+          <button
+            onClick={() => createModal.open()}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          >
+            Add Edition
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

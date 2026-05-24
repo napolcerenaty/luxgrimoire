@@ -21,7 +21,7 @@ export type FeatureTag = {
   isManual: boolean
   artistId?: string | null
   artistName?: string | null
-  category: { id: string; slug: string; label: string; group: string; sortOrder: number }
+  categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>
 }
 
 const CATEGORY_GROUP_LABELS: Record<string, string> = {
@@ -351,7 +351,7 @@ export function FeatureCategoryPreview({
   // Fetch all categories for the add-picker
   const { data: allCategoriesData } = useQuery({
     queryKey: ['feature-categories-all'],
-    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; label: string; group: string }> }>(
+    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }> }>(
       '/feature-categories?pageSize=200'
     ),
   })
@@ -372,10 +372,18 @@ export function FeatureCategoryPreview({
     }
   }
 
-  const handleRemoveTag = async (tagId: string) => {
+  const handleRemoveCategory = async (tagId: string, categorySlug: string) => {
     try {
-      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
-      setTags(prev => prev.filter(t => t.id !== tagId))
+      const res = await authFetch<FeatureTag | { deleted: true }>(
+        `/editions/${editionSlug}/feature-tags/${tagId}/categories/${categorySlug}`,
+        { method: 'DELETE' }
+      )
+      setTags(prev => {
+        if ('deleted' in res) {
+          return prev.filter(t => t.id !== tagId)
+        }
+        return prev.map(t => t.id === tagId ? res : t)
+      })
     } catch (e) {
       alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -384,35 +392,38 @@ export function FeatureCategoryPreview({
   const handleAddTag = async (rawValue: string, source: string, categorySlug: string) => {
     if (!categorySlug) return
     try {
-      const newTag = await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
+      const res = await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawValue, source, categorySlug }),
       })
-      setTags(prev => [...prev, newTag])
+      setTags(prev => {
+        const idx = prev.findIndex(t => t.rawValue === rawValue)
+        if (idx >= 0) {
+          const updated = [...prev]
+          updated[idx] = res
+          return updated
+        }
+        return [...prev, res]
+      })
       setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: '' }))
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
-  // Build a lookup: "source::rawValue" → FeatureTag[]
-  const tagsByKey = new Map<string, FeatureTag[]>()
+  const tagsByKey = new Map<string, FeatureTag>()
   for (const tag of tags) {
-    const key = `${tag.source}::${tag.rawValue}`
-    const list = tagsByKey.get(key) ?? []
-    list.push(tag)
-    tagsByKey.set(key, list)
+    tagsByKey.set(tag.rawValue, tag)
   }
 
-  // Collect all raw feature values to show (from props + any tags with source='features' not in featureValues)
   const featureSet = new Set<string>(featureValues ?? [])
   for (const tag of tags) {
     if (tag.source === 'features') featureSet.add(tag.rawValue)
   }
   const featureRows = [...featureSet]
 
-  // Collect artist rows
-  const artistSet = new Map<string, string>() // role → name
+  const artistSet = new Map<string, string>()
   for (const a of (artistEntries ?? [])) {
     if (a.role) artistSet.set(a.role, a.name)
   }
@@ -422,52 +433,46 @@ export function FeatureCategoryPreview({
     }
   }
 
-  // Filtered categories for add-picker: exclude already-assigned ones
-  const availableFor = (rawValue: string, source: string) => {
-    const existing = new Set((tagsByKey.get(`${source}::${rawValue}`) ?? []).map(t => t.category.slug))
-    return allCategories.filter(c => !existing.has(c.slug))
-  }
-
   const renderRow = (rawValue: string, source: string, label?: string) => {
-    const key = `${source}::${rawValue}`
-    const rowTags = tagsByKey.get(key) ?? []
-    const addValue = adding[key] ?? ''
-    const available = availableFor(rawValue, source)
+    const tag = tagsByKey.get(rawValue)
+    const tagId = tag?.id
+    const rowCategories = tag?.categories ?? []
+    const isManual = tag?.isManual ?? false
+    const addValue = adding[`${source}::${rawValue}`] ?? ''
+    const existingSlugs = new Set(rowCategories.map(c => c.slug))
+    const available = allCategories.filter(c => !existingSlugs.has(c.slug))
 
     return (
-      <div key={key} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-stone-800 last:border-0">
+      <div key={rawValue} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-stone-800 last:border-0">
         <span className="text-xs text-stone-300 min-w-0 flex-1 pt-0.5 truncate" title={rawValue}>
           {label ?? rawValue}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {rowTags.sort((a, b) => a.category.sortOrder - b.category.sortOrder).map(tag => (
-            <span key={tag.id}
+          {rowCategories.sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
+            <span key={cat.slug}
               className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
-                tag.isManual
+                isManual
                   ? 'bg-amber-900/40 border-amber-700 text-amber-200'
                   : 'bg-stone-700 border-stone-600 text-stone-200'
               }`}
-              title={tag.isManual ? 'Manually assigned' : 'Auto-detected'}>
-              {tag.category.label}
-              {tag.isManual && <span className="text-amber-500 text-[9px]">✎</span>}
-              <button type="button" onClick={() => handleRemoveTag(tag.id)}
+              title={isManual ? 'Manually assigned' : 'Auto-detected'}>
+              {cat.label}
+              {isManual && <span className="text-amber-500 text-[9px]">✎</span>}
+              <button type="button" onClick={() => tagId && handleRemoveCategory(tagId, cat.slug)}
                 className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
             </span>
           ))}
-          {/* Add picker */}
           {available.length > 0 && (
             <div className="flex items-center gap-1">
               <select
                 value={addValue}
-                onChange={e => setAdding(prev => ({ ...prev, [key]: e.target.value }))}
+                onChange={e => setAdding(prev => ({ ...prev, [`${source}::${rawValue}`]: e.target.value }))}
                 className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
               >
                 <option value="">+ category…</option>
-                {allCategories
-                  .filter(c => !new Set((tagsByKey.get(key) ?? []).map(t => t.category.slug)).has(c.slug))
-                  .map(c => (
-                    <option key={c.slug} value={c.slug}>{c.label}</option>
-                  ))}
+                {available.map(c => (
+                  <option key={c.slug} value={c.slug}>{c.label}</option>
+                ))}
               </select>
               {addValue && (
                 <button type="button"

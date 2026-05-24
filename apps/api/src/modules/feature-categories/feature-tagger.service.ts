@@ -89,13 +89,6 @@ export class FeatureTaggerService {
     return result;
   }
 
-  /**
-   * Re-tags a single edition: deletes all existing feature tags for the edition
-   * and reinserts based on current patterns.
-   * @param editionId UUID of the edition
-   * @param features edition.features[] array
-   * @param artistEntries artist contribution entries for this edition
-   */
   async retagEdition(
     editionId: string,
     features: string[],
@@ -107,69 +100,66 @@ export class FeatureTaggerService {
       return;
     }
 
-    const toInsert: {
+    const matchCategories = (rawValue: string): string[] => {
+      const v = rawValue.trim().toLowerCase();
+      if (!v) return [];
+      return rules
+        .filter((r) => !r.excludePatterns.some((re) => re.test(v)) && r.includePatterns.some((re) => re.test(v)))
+        .map((r) => r.slug);
+    };
+
+    type Row = {
       editionId: string;
-      categoryId: string;
       rawValue: string;
+      categories: string[];
       artistId: string | null;
       artistName: string | null;
       source: string;
-    }[] = [];
-
-    const tagValue = (
-      rawValue: string,
-      source: string,
-      artistId: string | null,
-      artistName: string | null,
-    ) => {
-      const trimmedValue = rawValue.trim();
-      const v = trimmedValue.toLowerCase();
-      if (!v) return;
-      for (const rule of rules) {
-        if (rule.excludePatterns.some((re) => re.test(v))) continue;
-        if (rule.includePatterns.some((re) => re.test(v))) {
-          toInsert.push({
-            editionId,
-            categoryId: rule.id,
-            rawValue: trimmedValue,
-            artistId,
-            artistName,
-            source,
-          });
-        }
-      }
     };
 
-    for (const feature of features) tagValue(feature, 'features', null, null);
+    const artistRows = new Map<string, Row>();
+    const artistCoveredCategories = new Set<string>();
+
     for (const entry of artistEntries) {
-      tagValue(entry.role, 'artist', entry.artistId, entry.artistName ?? null);
+      const rv = entry.role.trim();
+      if (!rv || artistRows.has(rv)) continue;
+      const cats = matchCategories(rv);
+      artistRows.set(rv, {
+        editionId,
+        rawValue: rv,
+        categories: cats,
+        artistId: entry.artistId,
+        artistName: entry.artistName ?? null,
+        source: 'artist',
+      });
+      for (const c of cats) artistCoveredCategories.add(c);
     }
 
-    // Deduplicate by categoryId — one row per edition per category.
-    // Prefer artist-derived tags so public artist reads stay available from feature tags.
-    const deduped = new Map<string, (typeof toInsert)[0]>();
-    for (const row of toInsert) {
-      const existing = deduped.get(row.categoryId);
-      if (!existing) {
-        deduped.set(row.categoryId, row);
-      } else if (row.source === 'artist' && existing.source === 'features') {
-        deduped.set(row.categoryId, row);
-      }
+    const featureRows = new Map<string, Row>();
+    for (const feature of features) {
+      const rv = feature.trim();
+      if (!rv || artistRows.has(rv)) continue;
+      const cats = matchCategories(rv);
+      if (cats.length > 0 && cats.every((c) => artistCoveredCategories.has(c))) continue;
+      featureRows.set(rv, {
+        editionId,
+        rawValue: rv,
+        categories: cats,
+        artistId: null,
+        artistName: null,
+        source: 'features',
+      });
     }
-    const unique = Array.from(deduped.values());
+
+    const unique = [...artistRows.values(), ...featureRows.values()];
 
     await this.prisma.$transaction([
-      // Only delete auto-detected tags; preserve isManual=true entries
-      this.prisma.editionFeatureTag.deleteMany({
-        where: { editionId, isManual: false },
-      }),
-      ...unique.map((r) =>
-        this.prisma.editionFeatureTag.create({ data: r }),
-      ),
+      this.prisma.editionFeatureTag.deleteMany({ where: { editionId, isManual: false } }),
+      ...unique.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
     ]);
 
     this.logger.debug(
-      `Retagged edition ${editionId}: ${unique.length} tags from ${features.length} features + ${artistEntries.length} artist roles`,
+      `Retagged edition ${editionId}: ${unique.length} tags (${artistRows.size} artist, ${featureRows.size} feature)`,
     );
   }
 
