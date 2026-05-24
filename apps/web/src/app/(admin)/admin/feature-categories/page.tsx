@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { INPUT_CLASS, LABEL_CLASS, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
@@ -45,6 +45,92 @@ const EMPTY_FORM: CategoryFormState = {
   excludePatterns: '',
 }
 
+// ─── Pattern helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Converts a plain phrase entered by a non-programmer into a regex pattern.
+ * e.g. "foil"         → \bfoil\w*\b
+ *      "hand signed"  → \bhand[\s\-]*signed\w*\b
+ *      "UV-spot"      → \bUV[\s\-]*spot\w*\b
+ */
+function phraseToRegex(phrase: string): string {
+  const words = phrase.trim().split(/[\s\-]+/).filter(Boolean)
+  const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return `\\b${escaped.join('[\\s\\-]*')}\\w*\\b`
+}
+
+/**
+ * Strips regex syntax to produce a human-readable keyword string.
+ * e.g.  \bfoil\w*\b  →  "foil…"
+ *       \bhand.?signed\b  →  "hand signed"
+ *       \bbound.?in author letter with.{0,10}digital signature\b  →  "bound in author letter with … digital signature"
+ */
+function simplifyPattern(raw: string): string {
+  return raw
+    .replace(/\\b/g, '')                           // word boundaries
+    .replace(/\\.?\{0,\d+\}/g, ' … ')              // .{0,N}
+    .replace(/\\w[\*\+\?]*/g, '…')                 // \w* \w+ \w?
+    .replace(/\(\?:[^)]+\)/g, m =>                 // (?:a|b) → a/b
+      m.slice(3, -1).replace(/\|/g, '/'))
+    .replace(/\[^[^\]]+\]/g, '…')                  // [^x]
+    .replace(/\\\./g, '.')                          // \. → literal dot
+    .replace(/\\[a-z]/g, '')                        // remaining \x escapes
+    .replace(/\.[\?]/g, ' ')                        // .? → space
+    .replace(/\.\*/g, '…')                          // .* → …
+    .replace(/\.\+/g, '…')                          // .+ → …
+    .replace(/[\[\]()?+*]/g, '')                    // stray metacharacters
+    .replace(/\|/g, '/')                            // alternatives
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*…\s*/g, '…')
+    .trim()
+}
+
+/** Try to compile a regex; return null if invalid */
+function tryRegex(pattern: string): RegExp | null {
+  try { return new RegExp(pattern, 'i') } catch { return null }
+}
+
+/** Quick phrase → regex adder. Appends generated pattern to a textarea. */
+function QuickAddPhrase({
+  onAdd,
+  placeholder,
+}: {
+  onAdd: (regex: string) => void
+  placeholder?: string
+}) {
+  const [phrase, setPhrase] = useState('')
+
+  const submit = () => {
+    const trimmed = phrase.trim()
+    if (!trimmed) return
+    onAdd(phraseToRegex(trimmed))
+    setPhrase('')
+  }
+
+  return (
+    <div className="flex gap-2 items-center">
+      <input
+        type="text"
+        className="flex-1 bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20"
+        placeholder={placeholder ?? 'Type a phrase and press Enter…'}
+        value={phrase}
+        onChange={e => setPhrase(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); submit() }
+        }}
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={!phrase.trim()}
+        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-200 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+      >
+        + Add
+      </button>
+    </div>
+  )
+}
+
 // ─── Form ────────────────────────────────────────────────────────────────────
 
 function CategoryForm({
@@ -61,8 +147,33 @@ function CategoryForm({
   error?: string
 }) {
   const [form, setForm] = useState<CategoryFormState>(initial)
+  const [testValue, setTestValue] = useState('')
+  const [showRegex, setShowRegex] = useState(false)
+
   const set = (k: keyof CategoryFormState, v: string | boolean | number) =>
     setForm(f => ({ ...f, [k]: v }))
+
+  // ── Live pattern test ──────────────────────────────────────────────────────
+  const testResult = useMemo(() => {
+    const val = testValue.trim()
+    if (!val) return null
+    const includes = linesToPatterns(form.includePatterns)
+    const excludes = linesToPatterns(form.excludePatterns)
+    const matchedIncludes = includes.filter(p => tryRegex(p)?.test(val) ?? false)
+    const matchedExcludes = excludes.filter(p => tryRegex(p)?.test(val) ?? false)
+    const wouldMatch = matchedIncludes.length > 0 && matchedExcludes.length === 0
+    return { matchedIncludes, matchedExcludes, wouldMatch }
+  }, [testValue, form.includePatterns, form.excludePatterns])
+
+  // ── Pattern preview ────────────────────────────────────────────────────────
+  const includeKeywords = useMemo(
+    () => linesToPatterns(form.includePatterns).map(simplifyPattern).filter(Boolean),
+    [form.includePatterns]
+  )
+  const excludeKeywords = useMemo(
+    () => linesToPatterns(form.excludePatterns).map(simplifyPattern).filter(Boolean),
+    [form.excludePatterns]
+  )
 
   return (
     <form
@@ -117,30 +228,146 @@ function CategoryForm({
         </div>
       </div>
 
-      <div>
-        <label className={LABEL_CLASS}>
-          Include Patterns <span className="text-stone-500">(one regex per line)</span>
-        </label>
-        <textarea
-          rows={5}
-          className={`${INPUT_CLASS} font-mono text-xs`}
-          placeholder={'\\bfoil\\b\n\\bfoiling\\b'}
-          value={form.includePatterns}
-          onChange={e => set('includePatterns', e.target.value)}
-        />
+      {/* Pattern mode toggle */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-stone-500">
+          Patterns — type a phrase and press Enter, or edit regex directly below
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowRegex(v => !v)}
+          className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+        >
+          {showRegex ? '👁 Hide regex' : '⌨️ Show raw regex'}
+        </button>
       </div>
 
-      <div>
+      <div className="space-y-1.5">
         <label className={LABEL_CLASS}>
-          Exclude Patterns <span className="text-stone-500">(one regex per line)</span>
+          Matches when feature value contains…
         </label>
-        <textarea
-          rows={3}
-          className={`${INPUT_CLASS} font-mono text-xs`}
-          placeholder={'\\bgilded edges\\b'}
-          value={form.excludePatterns}
-          onChange={e => set('excludePatterns', e.target.value)}
+        {/* Quick phrase adder */}
+        <QuickAddPhrase
+          placeholder='e.g. "foil" or "hand signed"'
+          onAdd={regex => set('includePatterns', form.includePatterns
+            ? form.includePatterns + '\n' + regex
+            : regex
+          )}
         />
+        {/* Keyword preview pills */}
+        {includeKeywords.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {includeKeywords.map((kw, i) => (
+              <span key={i} className="text-xs bg-emerald-900/40 border border-emerald-700/40 text-emerald-300 px-2 py-0.5 rounded-full">
+                {kw}
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Raw regex textarea (advanced) */}
+        {showRegex && (
+          <textarea
+            rows={5}
+            className={`${INPUT_CLASS} font-mono text-xs`}
+            placeholder={'\\bfoil\\w*\\b\n\\bfoiling\\b'}
+            value={form.includePatterns}
+            onChange={e => set('includePatterns', e.target.value)}
+          />
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={LABEL_CLASS}>
+          Do NOT tag if value also contains…
+          <span className="text-stone-500 font-normal ml-1 text-xs">(exclusions)</span>
+        </label>
+        <QuickAddPhrase
+          placeholder='e.g. "gilded edges"'
+          onAdd={regex => set('excludePatterns', form.excludePatterns
+            ? form.excludePatterns + '\n' + regex
+            : regex
+          )}
+        />
+        {excludeKeywords.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {excludeKeywords.map((kw, i) => (
+              <span key={i} className="text-xs bg-red-900/40 border border-red-700/40 text-red-300 px-2 py-0.5 rounded-full">
+                🚫 {kw}
+              </span>
+            ))}
+          </div>
+        )}
+        {showRegex && (
+          <textarea
+            rows={3}
+            className={`${INPUT_CLASS} font-mono text-xs`}
+            placeholder={'\\bgilded\\b'}
+            value={form.excludePatterns}
+            onChange={e => set('excludePatterns', e.target.value)}
+          />
+        )}
+      </div>
+
+      {/* ── Test panel ───────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-3 space-y-2">
+        <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
+          🧪 Test a value
+        </label>
+        <input
+          type="text"
+          className={`${INPUT_CLASS} text-sm`}
+          placeholder="e.g. exclusive foiled edges with a hidden illustration"
+          value={testValue}
+          onChange={e => setTestValue(e.target.value)}
+        />
+
+        {testResult && (
+          <div className="space-y-2 pt-1">
+            {/* Verdict */}
+            <div className={`text-sm font-semibold px-3 py-1.5 rounded-lg ${
+              testResult.wouldMatch
+                ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/40'
+                : 'bg-red-900/40 text-red-300 border border-red-700/40'
+            }`}>
+              {testResult.wouldMatch
+                ? '✅ Would be tagged as this category'
+                : testResult.matchedExcludes.length > 0
+                  ? '🚫 Excluded — matched an exclude pattern'
+                  : '❌ No include pattern matched'}
+            </div>
+
+            {/* Matched includes */}
+            {testResult.matchedIncludes.length > 0 && (
+              <div>
+                <p className="text-xs text-stone-500 mb-1">Matched include patterns:</p>
+                <div className="flex flex-wrap gap-1">
+                  {testResult.matchedIncludes.map((p, i) => (
+                    <code key={i} className="text-xs bg-emerald-900/30 border border-emerald-700/30 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
+                      {p}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Matched excludes */}
+            {testResult.matchedExcludes.length > 0 && (
+              <div>
+                <p className="text-xs text-stone-500 mb-1">Triggered exclude patterns:</p>
+                <div className="flex flex-wrap gap-1">
+                  {testResult.matchedExcludes.map((p, i) => (
+                    <code key={i} className="text-xs bg-red-900/30 border border-red-700/30 text-red-400 px-1.5 py-0.5 rounded font-mono">
+                      {p}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!testResult && (
+          <p className="text-xs text-stone-600">Enter any feature value above to test if it matches.</p>
+        )}
       </div>
 
       <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
@@ -207,6 +434,48 @@ const GROUP_LABELS: Record<string, string> = {
   extras: '🎁 Extras',
   interior: '📖 Interior',
   format: '📐 Format',
+}
+
+// ─── Pattern pill (table view) ────────────────────────────────────────────────
+
+function PatternPills({ patterns, variant }: { patterns: string[]; variant: 'include' | 'exclude' }) {
+  const [expanded, setExpanded] = useState(false)
+  const keywords = patterns.map(simplifyPattern).filter(Boolean)
+  const visible = expanded ? keywords : keywords.slice(0, 3)
+  const rest = keywords.length - 3
+
+  const pillClass = variant === 'include'
+    ? 'bg-stone-800 text-stone-300 border border-stone-700/50'
+    : 'bg-red-950/40 text-red-400 border border-red-800/40'
+
+  if (keywords.length === 0) return <span className="text-stone-600 text-xs">—</span>
+
+  return (
+    <div className="flex flex-wrap gap-1 items-center">
+      {visible.map((kw, i) => (
+        <span key={i} className={`text-xs px-1.5 py-0.5 rounded-full ${pillClass}`} title={patterns[i]}>
+          {variant === 'exclude' && <span className="opacity-60 mr-0.5">🚫</span>}
+          {kw}
+        </span>
+      ))}
+      {!expanded && rest > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="text-xs text-stone-500 hover:text-stone-300 transition-colors"
+        >
+          +{rest} more
+        </button>
+      )}
+      {expanded && keywords.length > 3 && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="text-xs text-stone-500 hover:text-stone-300 transition-colors"
+        >
+          less
+        </button>
+      )}
+    </div>
+  )
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -330,11 +599,9 @@ export default function FeatureCategoriesPage() {
                 <table className="w-full text-sm text-stone-200">
                   <thead>
                     <tr className="border-b border-stone-800 bg-stone-900/80">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Slug</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Label</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Include patterns</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Excl.</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Order</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Matches when value contains…</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Excluded if contains…</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Actions</th>
                     </tr>
@@ -347,22 +614,16 @@ export default function FeatureCategoriesPage() {
                           !cat.isActive ? 'opacity-50' : ''
                         }`}
                       >
-                        <td className="px-4 py-2.5 font-mono text-amber-400 text-xs whitespace-nowrap">{cat.slug}</td>
-                        <td className="px-4 py-2.5 text-stone-200">{cat.label}</td>
                         <td className="px-4 py-2.5">
-                          <div className="flex flex-wrap gap-1">
-                            {cat.includePatterns.slice(0, 3).map((p, i) => (
-                              <code key={i} className="text-xs bg-stone-800 px-1.5 py-0.5 rounded text-stone-300 font-mono">
-                                {p.length > 30 ? p.slice(0, 30) + '…' : p}
-                              </code>
-                            ))}
-                            {cat.includePatterns.length > 3 && (
-                              <span className="text-xs text-stone-500">+{cat.includePatterns.length - 3} more</span>
-                            )}
-                          </div>
+                          <div className="font-medium text-stone-200">{cat.label}</div>
+                          <div className="text-xs text-stone-500 font-mono mt-0.5">{cat.slug}</div>
                         </td>
-                        <td className="px-4 py-2.5 text-stone-500 text-xs">{cat.excludePatterns.length}</td>
-                        <td className="px-4 py-2.5 text-stone-400 text-xs">{cat.sortOrder}</td>
+                        <td className="px-4 py-2.5 max-w-xs">
+                          <PatternPills patterns={cat.includePatterns} variant="include" />
+                        </td>
+                        <td className="px-4 py-2.5 max-w-xs">
+                          <PatternPills patterns={cat.excludePatterns} variant="exclude" />
+                        </td>
                         <td className="px-4 py-2.5">
                           {cat.isActive
                             ? <span className="text-xs text-emerald-400">Active</span>
@@ -409,7 +670,7 @@ export default function FeatureCategoriesPage() {
       {/* Edit modal */}
       <FormModal
         open={editCategory !== null}
-        title={`Edit: ${editCategory?.slug ?? ''}`}
+        title={`Edit: ${editCategory?.label ?? ''}`}
         onClose={() => setEditCategory(null)}
       >
         {editCategory && (
