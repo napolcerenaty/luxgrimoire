@@ -540,7 +540,7 @@ export default function CollectionPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
-  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
+  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE' | 'STAMPED'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')

@@ -263,7 +263,7 @@ export default async function CompanyPage({ params }: Props) {
       <Suspense fallback={<EditionsSkeleton />}>
         <CompanyEditionsSection
           companySlug={slug}
-          subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name }))}
+          subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name, isCombo: s.isCombo, isContentStream: s.isContentStream, parentSubscriptionId: s.parentSubscriptionId ?? null }))}
           brandColors={company.brandColors}
         />
       </Suspense>

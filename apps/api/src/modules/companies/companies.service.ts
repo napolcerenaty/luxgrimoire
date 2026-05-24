@@ -123,8 +123,8 @@ export class CompaniesService {
       where: { slug },
       include: {
         subscriptions: {
-          where: { isHidden: false, isContentStream: false },
-          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true },
+          where: { isHidden: false },
+          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true, isCombo: true, isContentStream: true, parentSubscriptionId: true },
         },
         collections: {
           select: { id: true, slug: true, name: true },
