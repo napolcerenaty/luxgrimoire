@@ -331,12 +331,19 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
 export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
 
+export type PendingAiTag = { rawValue: string; source: 'features' | 'artist'; artistName?: string }
+
 export function FeatureCategoryPreview({
   editionSlug,
   initialTags,
+  pendingAiTags,
+  onPendingDismiss,
 }: {
   editionSlug: string
   initialTags?: FeatureTag[]
+  /** AI-suggested tags waiting for user confirmation before being saved */
+  pendingAiTags?: PendingAiTag[]
+  onPendingDismiss?: (rawValue: string) => void
 }) {
   const qc = useQueryClient()
   // Per-row "adding" state: key = `${source}::${rawValue}`, value = picked categorySlug
@@ -518,8 +525,43 @@ export function FeatureCategoryPreview({
         </div>
       )}
 
-      {featureRows.length === 0 && artistTags.length === 0 && (
+      {featureRows.length === 0 && artistTags.length === 0 && (!pendingAiTags?.length) && (
         <p className="text-xs text-stone-500 italic">No features or artists yet.</p>
+      )}
+
+      {/* ── AI suggestions (pending confirmation) ── */}
+      {(pendingAiTags?.length ?? 0) > 0 && (
+        <div className="mt-3 pt-3 border-t border-stone-700/50">
+          <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">🤖 AI suggestions — click + to save</p>
+          <div className="space-y-1">
+            {pendingAiTags!.map(pt => {
+              const label = pt.source === 'artist' && pt.artistName
+                ? `${pt.artistName} — ${pt.rawValue}`
+                : pt.rawValue
+              return (
+                <div key={pt.rawValue} className="flex items-center gap-2 py-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold ${
+                    pt.source === 'artist' ? 'bg-sky-900/40 text-sky-300' : 'bg-stone-700 text-stone-400'
+                  }`}>
+                    {pt.source === 'artist' ? 'artist' : 'feature'}
+                  </span>
+                  <span className="text-xs text-stone-300 flex-1 truncate">{label}</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleAddTag(pt.rawValue, pt.source, [], undefined, pt.artistName)
+                      onPendingDismiss?.(pt.rawValue)
+                    }}
+                    className="text-xs px-2 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">+ Add</button>
+                  <button
+                    type="button"
+                    onClick={() => onPendingDismiss?.(pt.rawValue)}
+                    className="text-stone-500 hover:text-red-400 text-xs">✕</button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
       {/* ── Add new tag manually ── */}
@@ -663,6 +705,10 @@ export interface EditionFieldsSectionProps {
   editionSlug?: string
   /** Existing feature tags from DB — shown in FeatureCategoryPreview (edit form only) */
   featureTags?: FeatureTag[]
+  /** AI-suggested tags pending user confirmation (edit form only) */
+  pendingAiTags?: PendingAiTag[]
+  /** Called when user dismisses a pending AI suggestion */
+  onPendingAiTagDismiss?: (rawValue: string) => void
   companies: EditionCompany[]
   collections: { id: string; name: string }[]
 }
@@ -682,6 +728,7 @@ export function EditionFieldsSection({
   features = [], onFeaturesChange,
   hideDeprecatedInputs,
   isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
+  pendingAiTags, onPendingAiTagDismiss,
   companies, collections,
 }: EditionFieldsSectionProps) {
   const handleRemoveArtist = (index: number) => {
@@ -836,6 +883,8 @@ export function EditionFieldsSection({
           <FeatureCategoryPreview
             editionSlug={editionSlug}
             initialTags={featureTags}
+            pendingAiTags={pendingAiTags}
+            onPendingDismiss={onPendingAiTagDismiss}
           />
         )}
       </div>
