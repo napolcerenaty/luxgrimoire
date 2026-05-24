@@ -19,6 +19,8 @@ export type FeatureTag = {
   rawValue: string
   source: string
   isManual: boolean
+  artistId?: string | null
+  artistName?: string | null
   category: { id: string; slug: string; label: string; group: string; sortOrder: number }
 }
 
@@ -57,6 +59,7 @@ export interface AiParseResult {
     generalSaleDate?: string
     features?: string[]
     artists?: { name: string; role: string }[]
+    artistTags?: Record<string, string[]>
   }
 }
 
@@ -415,7 +418,7 @@ export function FeatureCategoryPreview({
   }
   for (const tag of tags) {
     if (tag.source === 'artist' && !artistSet.has(tag.rawValue)) {
-      artistSet.set(tag.rawValue, tag.rawValue)
+      artistSet.set(tag.rawValue, tag.artistName ?? tag.rawValue)
     }
   }
 
@@ -508,7 +511,7 @@ export function FeatureCategoryPreview({
         <div>
           <p className="text-[10px] font-semibold uppercase text-stone-500 mb-1">Artist roles</p>
           {[...artistSet.entries()].map(([role, artistName]) =>
-            renderRow(role, 'artist', `${artistName} — ${role}`)
+            renderRow(role, 'artist', artistName !== role ? `${artistName} — ${role}` : role)
           )}
         </div>
       )}
@@ -723,7 +726,12 @@ export function EditionFieldsSection({
         <label className={LBL}>Features / extras</label>
         <FeatureTags features={features} onChange={onFeaturesChange} />
         {editionSlug && (
-          <FeatureCategoryPreview editionSlug={editionSlug} initialTags={featureTags} />
+          <FeatureCategoryPreview
+            editionSlug={editionSlug}
+            initialTags={featureTags}
+            featureValues={features}
+            artistEntries={artists.filter(a => a.name && a.role).map(a => ({ name: a.name, role: a.role }))}
+          />
         )}
       </div>
 

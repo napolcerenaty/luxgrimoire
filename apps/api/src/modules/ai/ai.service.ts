@@ -51,6 +51,7 @@ export interface AiParseResult {
     artists?: { name: string; role: string }[];
     /** Normalized category slugs per raw feature value (post-processing) */
     featureTags?: Record<string, string[]>;
+    artistTags?: Record<string, string[]>;
   };
 }
 
@@ -355,6 +356,16 @@ export class AiService {
           if (result.edition) result.edition.featureTags = featureTags;
         } catch {
           // Tagging is best-effort — never fail the AI parse due to tagger errors
+        }
+      }
+      const artists = result.edition?.artists;
+      if (artists && artists.length > 0) {
+        try {
+          const roles = artists.map(a => a.role).filter(Boolean);
+          const artistTags = await this.featureTagger.categorizeMany(roles);
+          if (result.edition) result.edition.artistTags = artistTags;
+        } catch {
+          // best-effort
         }
       }
       return result;
