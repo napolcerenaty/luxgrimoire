@@ -152,7 +152,7 @@ export class EditionsController {
   updateFeatureTag(
     @Param('slug') slug: string,
     @Param('tagId') tagId: string,
-    @Body() body: { rawValue?: string; categories?: string[] },
+    @Body() body: { rawValue?: string; categories?: string[]; artistId?: string | null; artistName?: string | null },
   ) {
     return this.editionsService.updateFeatureTag(slug, tagId, body);
   }

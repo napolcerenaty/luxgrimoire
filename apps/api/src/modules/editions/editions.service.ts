@@ -208,8 +208,8 @@ export class EditionsService {
     return this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
   }
 
-  /** Update rawValue and/or categories of a feature tag. */
-  async updateFeatureTag(slug: string, tagId: string, dto: { rawValue?: string; categories?: string[] }) {
+  /** Update rawValue, categories, artistId and/or artistName of a feature tag. */
+  async updateFeatureTag(slug: string, tagId: string, dto: { rawValue?: string; categories?: string[]; artistId?: string | null; artistName?: string | null }) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     const tag = await this.prisma.editionFeatureTag.findFirst({ where: { id: tagId, editionId: edition.id } });
@@ -220,6 +220,8 @@ export class EditionsService {
       data: {
         ...(dto.rawValue !== undefined && { rawValue: dto.rawValue }),
         ...(dto.categories !== undefined && { categories: dto.categories }),
+        ...(dto.artistId !== undefined && { artistId: dto.artistId }),
+        ...(dto.artistName !== undefined && { artistName: dto.artistName }),
         isManual: true,
       },
       select: {
