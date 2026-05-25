@@ -589,7 +589,10 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
 
         {!editing && (
           <div className="flex flex-wrap items-center gap-1.5 pl-[4px]">
-            {rowCategories.sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
+            {rowCategories
+              .map(cat => allCategories.find(c => c.slug === cat.slug) ?? cat)
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map(cat => (
               <span key={cat.slug}
                 className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
                   isManual
@@ -605,9 +608,21 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
               <div className="flex items-center gap-1">
                 <select value={addValue}
                   onChange={e => setAdding(prev => ({ ...prev, [tagId]: e.target.value }))}
-                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]">
+                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[180px]">
                   <option value="">+ category…</option>
-                  {available.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+                  {Object.entries(
+                    available.reduce<Record<string, typeof available>>((acc, c) => {
+                      const g = c.group || 'Other';
+                      (acc[g] = acc[g] ?? []).push(c);
+                      return acc;
+                    }, {})
+                  ).map(([group, cats]) => (
+                    <optgroup key={group} label={group}>
+                      {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                        <option key={c.slug} value={c.slug}>{c.label}</option>
+                      )}
+                    </optgroup>
+                  ))}
                 </select>
                 {addValue && (
                   <button type="button"
