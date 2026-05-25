@@ -1400,11 +1400,13 @@ model EditionFeatureTag {
   rawValue   String
   categories String[]    @default([])
   isManual   Boolean     @default(false) @map("is_manual")
+  sortOrder  Int         @default(0)
   createdAt  DateTime    @default(now())
 
   edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   @@unique([editionId, rawValue])
   @@index([editionId])
+  @@index([editionId, sortOrder])
   @@map("edition_feature_tags")
 }

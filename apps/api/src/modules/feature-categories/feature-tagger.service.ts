@@ -107,11 +107,12 @@ export class FeatureTaggerService {
         .map((r) => r.slug);
     };
 
-    const rows: Array<{ editionId: string; rawValue: string; categories: string[] }> = [];
+    const rows: Array<{ editionId: string; rawValue: string; categories: string[]; sortOrder: number }> = [];
+    let idx = 0;
     for (const feature of features) {
       const rv = feature.trim();
       if (!rv) continue;
-      rows.push({ editionId, rawValue: rv, categories: matchCategories(rv) });
+      rows.push({ editionId, rawValue: rv, categories: matchCategories(rv), sortOrder: idx++ });
     }
 
     // Fetch manual tags so we don't create duplicates for already-manual rawValues

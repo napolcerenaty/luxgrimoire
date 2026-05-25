@@ -93,7 +93,7 @@ export class EditionsService {
             isManual: true,
             categories: true,
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { sortOrder: 'asc' },
         },
       },
     });
@@ -130,12 +130,18 @@ export class EditionsService {
         data: { categories: cats, isManual: true },
       });
     } else {
+      const maxResult = await this.prisma.editionFeatureTag.aggregate({
+        where: { editionId: edition.id },
+        _max: { sortOrder: true },
+      });
+      const nextOrder = (maxResult._max.sortOrder ?? -1) + 1;
       await this.prisma.editionFeatureTag.create({
         data: {
           editionId: edition.id,
           rawValue: body.rawValue,
           categories: newCategories,
           isManual: true,
+          sortOrder: nextOrder,
         },
       });
     }
@@ -409,7 +415,7 @@ export class EditionsService {
           select: {
             id: true, rawValue: true, isManual: true, categories: true,
           },
-          orderBy: [{ createdAt: 'asc' as const }],
+          orderBy: [{ sortOrder: 'asc' as const }],
         },
         previousEdition: {
           select: {
@@ -458,7 +464,7 @@ export class EditionsService {
           select: {
             id: true, rawValue: true, isManual: true, categories: true,
           },
-          orderBy: [{ createdAt: 'asc' as const }],
+          orderBy: [{ sortOrder: 'asc' as const }],
         },
         artists: {
           select: {
