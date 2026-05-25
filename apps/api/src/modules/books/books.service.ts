@@ -238,22 +238,6 @@ export class BooksService {
             },
           },
         },
-        editions: {
-          select: {
-            id: true,
-            slug: true,
-            additionalImages: true,
-            verifiedAt: true,
-            generalSaleDate: true,
-            bookBoxCompany: { select: { slug: true, name: true, brandColors: true } },
-            communityImages: {
-              where: { status: 'APPROVED' },
-              orderBy: { sortOrder: 'asc' },
-              take: 1,
-              select: { url: true },
-            },
-          },
-        },
         editionComponents: {
           select: {
             id: true,
@@ -274,21 +258,47 @@ export class BooksService {
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);
-    // Flatten authors so response matches ApiBook type
     return {
       ...book,
       authors: book.authors.map(ba => ba.author),
-      editions: book.editions.map((e) => {
-        const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
-        return {
-          ...rest,
-          communityPhotoCover: (e.additionalImages as string[]).length === 0
-            ? (communityImages?.[0]?.url ?? null)
-            : null,
-        };
-      }),
       appearsInOmnibus: book.editionComponents,
     };
+  }
+
+  async findEditionsBySlug(slug: string) {
+    const book = await this.prisma.book.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+
+    const editions = await this.prisma.bookEdition.findMany({
+      where: { bookId: book.id },
+      select: {
+        id: true,
+        slug: true,
+        additionalImages: true,
+        verifiedAt: true,
+        generalSaleDate: true,
+        bookBoxCompany: { select: { slug: true, name: true, brandColors: true } },
+        communityImages: {
+          where: { status: 'APPROVED' },
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+          select: { url: true },
+        },
+      },
+    });
+
+    return editions.map((e) => {
+      const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+      return {
+        ...rest,
+        communityPhotoCover: (e.additionalImages as string[]).length === 0
+          ? (communityImages?.[0]?.url ?? null)
+          : null,
+      };
+    });
   }
 
   async update(slug: string, dto: UpdateBookDto) {

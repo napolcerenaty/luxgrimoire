@@ -51,6 +51,12 @@ export class BooksController {
   }
 
   @Public()
+  @Get(':slug/editions')
+  findEditionsBySlug(@Param('slug') slug: string) {
+    return this.booksService.findEditionsBySlug(slug);
+  }
+
+  @Public()
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string) {
     const result = await this.booksService.findBySlug(slug);

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { BookDescription } from '@/components/books/BookDescription'
-import { BookEditionsSection } from '@/components/books/BookEditionsSection'
+import { BookEditionsSection, BookEditionsSkeleton } from '@/components/books/BookEditionsSection'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiBook } from '@luxgrimoire/shared-types'
 
@@ -37,8 +38,6 @@ export default async function BookPage({ params }: Props) {
   } catch {
     notFound()
   }
-
-  const editions = book.editions ?? []
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -128,17 +127,9 @@ export default async function BookPage({ params }: Props) {
       )}
 
       {/* Editions */}
-      <section>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100">
-            Editions
-            {editions.length > 0 && (
-              <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
-            )}
-          </h2>
-        </div>
-        <BookEditionsSection editions={editions} />
-      </section>
+      <Suspense fallback={<BookEditionsSkeleton />}>
+        <BookEditionsSection bookSlug={slug} />
+      </Suspense>
 
     </div>
   )
