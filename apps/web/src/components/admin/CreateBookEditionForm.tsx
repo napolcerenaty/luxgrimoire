@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, type AiBookResult } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
@@ -95,9 +95,11 @@ export default function CreateBookEditionForm({
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
   // Feature tags to POST after edition creation (filled by AI parser)
-  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])  
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
   // Artists to POST after edition creation (filled by AI parser / user input)
   const [artists, setArtists] = useState<ArtistEntry[]>([])
+  const [isOmnibus, setIsOmnibus] = useState(false)
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
@@ -282,8 +284,10 @@ export default function CreateBookEditionForm({
           additionalImages: allImages.filter(Boolean),
         }),
       })
-      // POST AI-parsed feature tags to edition_feature_tags (no duplicates — unique constraint in DB)
-      if (pendingFeatureTags.length > 0) {
+      // POST AI-parsed / staged feature tags via ref (flushChanges handles new, deleted and patched)
+      if (featurePreviewRef.current) {
+        await featurePreviewRef.current.flushChanges(ed.slug)
+      } else if (pendingFeatureTags.length > 0) {
         await Promise.all(pendingFeatureTags.map(t =>
           authFetch(`/editions/${ed.slug}/feature-tags`, {
             method: 'POST',
@@ -538,6 +542,10 @@ export default function CreateBookEditionForm({
         onAiResult={applyAiResult}
         artists={artists}
         onArtistsChange={setArtists}
+        pendingFeatureTags={pendingFeatureTags}
+        featurePreviewRef={featurePreviewRef}
+        isOmnibus={isOmnibus}
+        onIsOmnibusChange={setIsOmnibus}
         editionSlug={createdEditionSlug ?? undefined}
         companies={companies}
         collections={collections}

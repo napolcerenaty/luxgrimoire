@@ -329,14 +329,14 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
 export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
 
-export type FeaturePreviewHandle = { flushChanges: () => Promise<void> }
+export type FeaturePreviewHandle = { flushChanges: (slugOverride?: string) => Promise<void> }
 
 // Synthetic ID for tags not yet in DB
 const newTagId = (rawValue: string) => `_new_${rawValue}`
 const isNewTag = (id: string) => id.startsWith('_new_')
 
 export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
-  editionSlug: string
+  editionSlug?: string
   initialTags?: FeatureTag[]
   /** When true, all edits are staged locally and flushed to API via flushChanges() */
   staged?: boolean
@@ -359,12 +359,13 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   const cancelEdit = (tagId: string) =>
     setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
 
-  // React Query fetch
+  // React Query fetch — disabled in staged-create mode (no slug yet)
   const { data: dbTags = initialTags ?? [] } = useQuery({
-    queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug),
+    queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug ?? ''),
     queryFn: () => authFetch<FeatureTag[]>(`/editions/${editionSlug}/feature-tags`),
     initialData: initialTags,
     staleTime: 0,
+    enabled: !!editionSlug,
   })
 
   // Sync DB data into local state once on initial load (staged mode)
@@ -406,7 +407,9 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
     queryFn: () => authFetch<Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>>('/feature-categories'),
   })
 
-  const refreshTags = () => qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
+  const refreshTags = () => {
+    if (editionSlug) qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
+  }
 
   // ── Handlers (staged: update local state; live: call API immediately) ────────
 
@@ -506,17 +509,18 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   }
 
   useImperativeHandle(ref, () => ({
-    flushChanges: async () => {
+    flushChanges: async (slugOverride?: string) => {
+      const slug = slugOverride ?? editionSlug
       // 1. POST new tags (synthetic IDs — AI-parsed or manually added)
       for (const tag of localTags.filter(t => isNewTag(t.id))) {
-        await authFetch(`/editions/${editionSlug}/feature-tags`, {
+        await authFetch(`/editions/${slug}/feature-tags`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rawValue: tag.rawValue, categories: tag.categories.map(c => c.slug) }),
         }).catch(() => null)
       }
       // 2. DELETE removed DB tags
       for (const id of deletedDbIds) {
-        await authFetch(`/editions/${editionSlug}/feature-tags/${id}`, { method: 'DELETE' }).catch(() => null)
+        await authFetch(`/editions/${slug}/feature-tags/${id}`, { method: 'DELETE' }).catch(() => null)
       }
       // 3. PATCH modified DB tags (diff against original)
       const originalById = new Map(originalTagsRef.current.map(t => [t.id, t]))
@@ -527,7 +531,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
         const catsChanged = JSON.stringify(tag.categories.map(c => c.slug).sort()) !==
           JSON.stringify(orig.categories.map(c => c.slug).sort())
         if (rawChanged || catsChanged) {
-          await authFetch(`/editions/${editionSlug}/feature-tags/${tag.id}`, {
+          await authFetch(`/editions/${slug}/feature-tags/${tag.id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...(rawChanged && { rawValue: tag.rawValue }),
@@ -907,7 +911,7 @@ export function EditionFieldsSection({
 
       {/* Features / Category tags */}
       <div>
-        {editionSlug && (
+        {(editionSlug || featurePreviewRef) && (
           <FeatureCategoryPreview
             ref={featurePreviewRef}
             editionSlug={editionSlug}
