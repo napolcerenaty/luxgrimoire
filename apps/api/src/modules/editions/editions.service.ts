@@ -119,8 +119,11 @@ export class EditionsService {
       if (category) newCategories.push(catSlug);
     }
 
-    const existing = await this.prisma.editionFeatureTag.findUnique({
-      where: { editionId_rawValue: { editionId: edition.id, rawValue: body.rawValue } },
+    const existing = await this.prisma.editionFeatureTag.findFirst({
+      where: {
+        editionId: edition.id,
+        rawValue: { equals: body.rawValue, mode: 'insensitive' },
+      },
     });
 
     if (existing) {

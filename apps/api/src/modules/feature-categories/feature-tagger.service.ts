@@ -108,10 +108,14 @@ export class FeatureTaggerService {
     };
 
     const rows: Array<{ editionId: string; rawValue: string; categories: string[]; sortOrder: number }> = [];
+    const seen = new Set<string>();
     let idx = 0;
     for (const feature of features) {
       const rv = feature.trim();
       if (!rv) continue;
+      const key = rv.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
       rows.push({ editionId, rawValue: rv, categories: matchCategories(rv), sortOrder: idx++ });
     }
 
@@ -120,8 +124,8 @@ export class FeatureTaggerService {
       where: { editionId, isManual: true },
       select: { rawValue: true },
     });
-    const manualRawValues = new Set(manualTags.map((t) => t.rawValue));
-    const rowsToCreate = rows.filter((r) => !manualRawValues.has(r.rawValue));
+    const manualRawLower = new Set(manualTags.map((t) => t.rawValue.toLowerCase()));
+    const rowsToCreate = rows.filter((r) => !manualRawLower.has(r.rawValue.toLowerCase()));
 
     await this.prisma.$transaction([
       this.prisma.editionFeatureTag.deleteMany({ where: { editionId, isManual: false } }),
