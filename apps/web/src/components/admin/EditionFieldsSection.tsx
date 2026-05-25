@@ -472,7 +472,6 @@ export function FeatureCategoryPreview({
                   className="text-[10px] text-stone-500 hover:text-amber-400 px-1" title="Edit">✎</button>
                 <button type="button"
                   onClick={async () => {
-                    if (!confirm('Remove this entry?')) return
                     await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
                     refreshTags()
                   }}
@@ -530,7 +529,7 @@ export function FeatureCategoryPreview({
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
       <div className="mb-2">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Category tags</span>
+        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Features with categories</span>
       </div>
       <p className="text-[10px] text-stone-500 mb-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
