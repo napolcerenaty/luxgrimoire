@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle, type Ref } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
@@ -329,76 +329,94 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
 export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
 
-export function FeatureCategoryPreview({
-  editionSlug,
-  initialTags,
-}: {
+export type FeaturePreviewHandle = { flushChanges: () => Promise<void> }
+
+export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   editionSlug: string
   initialTags?: FeatureTag[]
-}) {
+  /** When true, all edits are staged locally and flushed to API via flushChanges() */
+  staged?: boolean
+  pendingTags?: Array<{ rawValue: string; categories: string[] }>
+  onRemovePending?: (rawValue: string) => void
+}>(function FeatureCategoryPreview({ editionSlug, initialTags, staged = false, pendingTags = [], onRemovePending }, ref) {
   const qc = useQueryClient()
-  // Per-row inline category-add state: key = tagId, value = picked categorySlug
   const [adding, setAdding] = useState<Record<string, string>>({})
-  // Per-row inline edit state: key = tagId
-  const [editingRow, setEditingRow] = useState<Record<string, {
-    rawValue: string
-    saving: boolean
-  }>>({})
-
-  const startEdit = (tag: FeatureTag) =>
-    setEditingRow(prev => ({
-      ...prev,
-      [tag.id]: { rawValue: tag.rawValue, saving: false }
-    }))
-  const cancelEdit = (tagId: string) =>
-    setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
-  // New manual entry form
+  const [editingRow, setEditingRow] = useState<Record<string, { rawValue: string; saving: boolean }>>({})
   const [newRaw, setNewRaw] = useState('')
   const [newCategories, setNewCategories] = useState<string[]>([])
   const [newCategoryPick, setNewCategoryPick] = useState('')
   const [addingNew, setAddingNew] = useState(false)
 
-  // Fetch tags via React Query — enables external invalidation (e.g. after AI parse)
-  const { data: tags = initialTags ?? [] } = useQuery({
+  // Staged mode state
+  const [localTags, setLocalTags] = useState<FeatureTag[]>(initialTags ?? [])
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [localNewTags, setLocalNewTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const originalTagsRef = useRef<FeatureTag[]>(initialTags ?? [])
+  const pendingTagsRef = useRef(pendingTags)
+  useEffect(() => { pendingTagsRef.current = pendingTags }, [pendingTags])
+
+  const startEdit = (tag: FeatureTag) =>
+    setEditingRow(prev => ({ ...prev, [tag.id]: { rawValue: tag.rawValue, saving: false } }))
+  const cancelEdit = (tagId: string) =>
+    setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
+
+  // React Query fetch
+  const { data: dbTags = initialTags ?? [] } = useQuery({
     queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug),
     queryFn: () => authFetch<FeatureTag[]>(`/editions/${editionSlug}/feature-tags`),
     initialData: initialTags,
     staleTime: 0,
   })
 
-  // Fetch all categories for the add-picker
+  // Sync DB data into local state once on initial load (staged mode)
+  const dbSyncedRef = useRef(false)
+  useEffect(() => {
+    if (staged && dbTags.length > 0 && !dbSyncedRef.current) {
+      setLocalTags(dbTags)
+      originalTagsRef.current = dbTags
+      dbSyncedRef.current = true
+    }
+  }, [staged, dbTags])
+
+  const tags = staged ? localTags : dbTags
+
   const { data: allCategories = [] } = useQuery({
     queryKey: ['feature-categories-all'],
-    queryFn: () => authFetch<Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>>(
-      '/feature-categories'
-    ),
+    queryFn: () => authFetch<Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>>('/feature-categories'),
   })
 
   const refreshTags = () => qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
 
+  // ── Handlers (staged: update local state; live: call API immediately) ────────
+
   const handleRemoveCategory = async (tagId: string, categorySlug: string) => {
+    if (staged) {
+      setLocalTags(prev => prev.map(t =>
+        t.id === tagId ? { ...t, categories: t.categories.filter(c => c.slug !== categorySlug) } : t
+      ))
+      return
+    }
     try {
       await authFetch<FeatureTag | { deleted: true }>(
         `/editions/${editionSlug}/feature-tags/${tagId}/categories/${categorySlug}`,
         { method: 'DELETE' }
       )
       refreshTags()
-    } catch (e) {
-      alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`)
-    }
+    } catch (e) { alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   const handleAddTag = async (rawValue: string, categories: string[]) => {
+    if (staged) {
+      setLocalNewTags(prev => prev.some(t => t.rawValue === rawValue) ? prev : [...prev, { rawValue, categories }])
+      return
+    }
     try {
       await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawValue, categories }),
       })
       refreshTags()
-    } catch (e) {
-      alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`)
-    }
+    } catch (e) { alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   const handleAddNewTag = async () => {
@@ -407,46 +425,105 @@ export function FeatureCategoryPreview({
     setAddingNew(true)
     try {
       await handleAddTag(raw, newCategories)
-      setNewRaw('')
-      setNewCategories([])
-      setNewCategoryPick('')
-    } finally {
-      setAddingNew(false)
-    }
+      setNewRaw(''); setNewCategories([]); setNewCategoryPick('')
+    } finally { setAddingNew(false) }
   }
 
   const handleAddCategoryToTag = async (tagId: string, currentSlugs: string[], newSlug: string) => {
+    if (staged) {
+      const cat = allCategories.find(c => c.slug === newSlug)
+      if (!cat) return
+      setLocalTags(prev => prev.map(t =>
+        t.id === tagId ? { ...t, categories: [...t.categories, cat] } : t
+      ))
+      setAdding(prev => { const n = { ...prev }; delete n[tagId]; return n })
+      return
+    }
     try {
       await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: [...currentSlugs, newSlug] }),
       })
       setAdding(prev => { const n = { ...prev }; delete n[tagId]; return n })
       refreshTags()
-    } catch (e) {
-      alert(`Add category failed: ${e instanceof Error ? e.message : String(e)}`)
-    }
+    } catch (e) { alert(`Add category failed: ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   const handleUpdateTag = async (tagId: string) => {
     const editing = editingRow[tagId]
     if (!editing) return
+    if (staged) {
+      setLocalTags(prev => prev.map(t => t.id === tagId ? { ...t, rawValue: editing.rawValue } : t))
+      cancelEdit(tagId)
+      return
+    }
     setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: true } }))
     try {
       await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawValue: editing.rawValue }),
       })
-      refreshTags()
-      cancelEdit(tagId)
+      refreshTags(); cancelEdit(tagId)
     } catch (e) {
       alert(`Update failed: ${e instanceof Error ? e.message : String(e)}`)
       setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: false } }))
     }
   }
 
+  const handleDeleteTag = async (tagId: string) => {
+    if (staged) {
+      setDeletedIds(prev => new Set([...prev, tagId]))
+      setLocalTags(prev => prev.filter(t => t.id !== tagId))
+      return
+    }
+    await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
+    refreshTags()
+  }
+
+  // ── Flush all staged changes to API ─────────────────────────────────────────
+  useImperativeHandle(ref, () => ({
+    flushChanges: async () => {
+      // 1. POST AI-parsed pending tags
+      for (const t of pendingTagsRef.current) {
+        await authFetch(`/editions/${editionSlug}/feature-tags`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: t.rawValue, categories: t.categories }),
+        }).catch(() => null)
+      }
+      // 2. POST manually-added new tags
+      for (const t of localNewTags) {
+        await authFetch(`/editions/${editionSlug}/feature-tags`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: t.rawValue, categories: t.categories }),
+        }).catch(() => null)
+      }
+      // 3. DELETE removed tags
+      for (const id of deletedIds) {
+        await authFetch(`/editions/${editionSlug}/feature-tags/${id}`, { method: 'DELETE' }).catch(() => null)
+      }
+      // 4. PATCH modified DB tags (diff against original)
+      const originalById = new Map(originalTagsRef.current.map(t => [t.id, t]))
+      for (const tag of localTags) {
+        const orig = originalById.get(tag.id)
+        if (!orig) continue
+        const rawChanged = tag.rawValue !== orig.rawValue
+        const catsChanged = JSON.stringify(tag.categories.map(c => c.slug).sort()) !==
+          JSON.stringify(orig.categories.map(c => c.slug).sort())
+        if (rawChanged || catsChanged) {
+          await authFetch(`/editions/${editionSlug}/feature-tags/${tag.id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...(rawChanged && { rawValue: tag.rawValue }),
+              ...(catsChanged && { categories: tag.categories.map(c => c.slug) }),
+            }),
+          }).catch(() => null)
+        }
+      }
+      refreshTags()
+    }
+  }))
+
+  // ── Row renderer ─────────────────────────────────────────────────────────────
   const renderRow = (tag: FeatureTag) => {
     const { id: tagId, rawValue, categories: rowCategories, isManual } = tag
     const addValue = adding[tagId] ?? ''
@@ -456,7 +533,6 @@ export function FeatureCategoryPreview({
 
     return (
       <div key={tagId} className="py-2 border-b border-stone-800 last:border-0">
-        {/* ── Row line 1: label + actions ── */}
         <div className="flex items-start gap-2 mb-1.5">
           {editing ? (
             <div className="flex-1 flex items-center gap-1.5">
@@ -482,21 +558,15 @@ export function FeatureCategoryPreview({
             <div className="flex-1 flex items-start justify-between gap-2 min-w-0">
               <span className="text-xs text-stone-300 leading-snug break-words">{rawValue}</span>
               <div className="flex items-center gap-1 shrink-0">
-                <button type="button"
-                  onClick={() => startEdit(tag)}
+                <button type="button" onClick={() => startEdit(tag)}
                   className="text-[10px] text-stone-500 hover:text-amber-400 px-1" title="Edit">✎</button>
-                <button type="button"
-                  onClick={async () => {
-                    await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
-                    refreshTags()
-                  }}
+                <button type="button" onClick={() => handleDeleteTag(tagId)}
                   className="text-[10px] text-stone-600 hover:text-red-400 px-1" title="Remove">🗑</button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Row line 2: category chips + picker ── */}
         {!editing && (
           <div className="flex flex-wrap items-center gap-1.5 pl-[4px]">
             {rowCategories.sort((a, b) => a.sortOrder - b.sortOrder).map(cat => (
@@ -505,31 +575,24 @@ export function FeatureCategoryPreview({
                   isManual
                     ? 'bg-amber-900/40 border-amber-700 text-amber-200'
                     : 'bg-stone-700 border-stone-600 text-stone-200'
-                }`}
-                title={isManual ? 'Manually assigned' : 'Auto-detected'}>
+                }`}>
                 {cat.label}
-                <button type="button" onClick={() => tagId && handleRemoveCategory(tagId, cat.slug)}
+                <button type="button" onClick={() => handleRemoveCategory(tagId, cat.slug)}
                   className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
               </span>
             ))}
             {available.length > 0 && (
               <div className="flex items-center gap-1">
-                <select
-                  value={addValue}
+                <select value={addValue}
                   onChange={e => setAdding(prev => ({ ...prev, [tagId]: e.target.value }))}
-                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]"
-                >
+                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[160px]">
                   <option value="">+ category…</option>
-                  {available.map(c => (
-                    <option key={c.slug} value={c.slug}>{c.label}</option>
-                  ))}
+                  {available.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
                 </select>
                 {addValue && (
                   <button type="button"
                     onClick={() => handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), addValue)}
-                    className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">
-                    Add
-                  </button>
+                    className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">Add</button>
                 )}
               </div>
             )}
@@ -540,6 +603,7 @@ export function FeatureCategoryPreview({
   }
 
   const availableForNew = allCategories.filter(c => !newCategories.includes(c.slug))
+  const hasPending = pendingTags.length > 0 || localNewTags.length > 0
 
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
@@ -549,17 +613,51 @@ export function FeatureCategoryPreview({
       <p className="text-[10px] text-stone-500 mb-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
+        {staged && <><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-900/40 border border-blue-600 mr-1 ml-3" />pending save</>}
       </p>
 
       {tags.length > 0 ? (
-        <div className="mb-2">
-          {tags.map(tag => renderRow(tag))}
-        </div>
+        <div className="mb-2">{tags.map(tag => renderRow(tag))}</div>
       ) : (
         <p className="text-xs text-stone-500 italic mb-2">No features yet.</p>
       )}
 
-      {/* ── Add new feature manually ── */}
+      {/* Pending tags (AI-parsed or manually staged, not yet saved) */}
+      {hasPending && (
+        <div className="mb-2 border-t border-blue-900/40 pt-2">
+          {[...pendingTags.map(t => ({ ...t, _src: 'ai' as const })),
+            ...localNewTags.map(t => ({ ...t, _src: 'manual' as const }))].map(t => (
+            <div key={t.rawValue} className="py-1.5 border-b border-stone-800/60 last:border-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[9px] px-1 py-0.5 rounded bg-blue-900/40 border border-blue-600 text-blue-300 shrink-0">pending</span>
+                  <span className="text-xs text-stone-300 break-words">{t.rawValue}</span>
+                </div>
+                <button type="button"
+                  onClick={() => {
+                    if (t._src === 'ai') onRemovePending?.(t.rawValue)
+                    else setLocalNewTags(prev => prev.filter(x => x.rawValue !== t.rawValue))
+                  }}
+                  className="text-[10px] text-stone-600 hover:text-red-400 shrink-0">×</button>
+              </div>
+              {t.categories.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1 pl-[4px]">
+                  {t.categories.map(slug => {
+                    const cat = allCategories.find(c => c.slug === slug)
+                    return (
+                      <span key={slug} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/40 border border-blue-600 text-blue-200">
+                        {cat?.label ?? slug}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add new feature manually */}
       <div className="mt-3 pt-3 border-t border-stone-700/50">
         <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">Add feature manually</p>
         <div className="flex flex-wrap gap-2 items-end">
@@ -569,8 +667,6 @@ export function FeatureCategoryPreview({
             placeholder="Raw value (e.g. Foil cover, Sprayed edges…)"
             className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
           />
-
-          {/* Multi-category picker */}
           <div className="flex flex-col gap-1 min-w-[160px]">
             {newCategories.length > 0 && (
               <div className="flex flex-wrap gap-1">
@@ -587,35 +683,23 @@ export function FeatureCategoryPreview({
               </div>
             )}
             {availableForNew.length > 0 && (
-              <select
-                value={newCategoryPick}
-                onChange={e => {
-                  const v = e.target.value
-                  if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') }
-                }}
-                className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500"
-              >
+              <select value={newCategoryPick}
+                onChange={e => { const v = e.target.value; if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') } }}
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500">
                 <option value="">+ add category…</option>
-                {availableForNew.map(c => (
-                  <option key={c.slug} value={c.slug}>{c.label}</option>
-                ))}
+                {availableForNew.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
               </select>
             )}
           </div>
-
-          <button
-            type="button"
-            disabled={!newRaw.trim() || addingNew}
-            onClick={handleAddNewTag}
-            className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
+          <button type="button" disabled={!newRaw.trim() || addingNew} onClick={handleAddNewTag}
+            className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {addingNew ? 'Adding…' : '+ Add'}
           </button>
         </div>
       </div>
     </div>
   )
-}
+})
 
 // ─── EditionFieldsSection ─────────────────────────────────────────────────────
 export interface EditionFieldsSectionProps {
@@ -660,6 +744,11 @@ export interface EditionFieldsSectionProps {
   editionSlug?: string
   /** Existing feature tags from DB — shown in FeatureCategoryPreview (edit form only) */
   featureTags?: FeatureTag[]
+  /** AI-parsed feature tags staged for save — shown as pending in FeatureCategoryPreview */
+  pendingFeatureTags?: Array<{ rawValue: string; categories: string[] }>
+  onRemovePendingFeatureTag?: (rawValue: string) => void
+  /** Ref to FeatureCategoryPreview for calling flushChanges() on save (staged mode) */
+  featurePreviewRef?: Ref<FeaturePreviewHandle>
   companies: EditionCompany[]
   collections: { id: string; name: string }[]
 }
@@ -678,6 +767,7 @@ export function EditionFieldsSection({
   artists = [], onArtistsChange, onRemoveExistingArtist,
   features = [], onFeaturesChange,
   isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
+  pendingFeatureTags, onRemovePendingFeatureTag, featurePreviewRef,
   companies, collections,
 }: EditionFieldsSectionProps) {
   const handleRemoveArtist = (index: number) => {
@@ -831,8 +921,12 @@ export function EditionFieldsSection({
       <div>
         {editionSlug && (
           <FeatureCategoryPreview
+            ref={featurePreviewRef}
             editionSlug={editionSlug}
             initialTags={featureTags}
+            staged={!!featurePreviewRef}
+            pendingTags={pendingFeatureTags}
+            onRemovePending={onRemovePendingFeatureTag}
           />
         )}
       </div>

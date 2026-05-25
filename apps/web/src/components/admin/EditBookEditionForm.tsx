@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -168,6 +168,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   )
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
+  // Feature tags: staged until Save Changes
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
+
   // Companies list
   const { data: companiesData } = useQuery({
     queryKey: ['companies-list'],
@@ -183,33 +187,32 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   })
   const collections = collectionsData?.data ?? []
 
-  const applyAiResult = async (r: AiParseResult) => {
+  const applyAiResult = (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
-    const slug = edition.slug
     // Collect all feature raw values: standalone features[] + base names from artist roles
-    // (single-artist features only appear in artists[], not in features[])
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
     const artistBaseFeatures = (r.edition?.artists ?? [])
       .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
       .filter(Boolean)
     const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
-    const featurePosts: Promise<unknown>[] = []
-    for (const rawValue of allFeatureRaws) {
-      featurePosts.push(authFetch(`/editions/${slug}/feature-tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawValue, categories: r.edition?.featureTags?.[rawValue] ?? [] }),
-      }).catch(() => null))
-    }
-    if (featurePosts.length > 0) {
-      await Promise.all(featurePosts)
-      qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(slug) })
+    const newPending = allFeatureRaws.map(rawValue => ({
+      rawValue,
+      categories: r.edition?.featureTags?.[rawValue] ?? [],
+    }))
+    if (newPending.length > 0) {
+      setPendingFeatureTags(prev => {
+        const existing = new Set(prev.map(p => p.rawValue))
+        return [...prev, ...newPending.filter(t => !existing.has(t.rawValue))]
+      })
     }
   }
 
   const handleSubmit = async () => {
     setBusy(true)
     try {
+      // 0. Flush staged feature-tag changes (add/edit/delete/pending)
+      await featurePreviewRef.current?.flushChanges()
+
       // 1. Patch the edition fields
       await authFetch(`/editions/${edition.slug}`, {
         method: 'PATCH',
@@ -342,6 +345,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onArtistsChange={setArtists}
         onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
         featureTags={edition.featureTags}
+        pendingFeatureTags={pendingFeatureTags}
+        onRemovePendingFeatureTag={rv => setPendingFeatureTags(prev => prev.filter(t => t.rawValue !== rv))}
+        featurePreviewRef={featurePreviewRef}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}
         editionSlug={edition.slug}
