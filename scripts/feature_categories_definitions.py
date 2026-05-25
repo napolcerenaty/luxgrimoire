@@ -42,22 +42,6 @@ CATEGORIES = [
 
     # ── GROUP: signed ──────────────────────────────────────
     (
-        "author_letter_signed",
-        "Author Letter with Signature",
-        "signed",
-        [
-            r"\bauthor letter with.{0,10}digital signature\b",
-            r"\bbound.?in author letter with.{0,10}digital signature\b",
-            r"\bbound in author letter with.{0,10}digital signature\b",
-            r"\bbound.?in letter with.{0,10}digital signature\b",
-            r"\bbound in letter with.{0,10}digital signature\b",
-            r"\bbound.?in letter from the author with.{0,10}digital signature\b",
-            r"\bdigitally signed author letter\b",
-            r"\bdigit\w+ signed.{0,20}letter\b",
-        ],
-        []
-    ),
-    (
         "signed",
         "Signed",
         "signed",
@@ -119,6 +103,22 @@ CATEGORIES = [
         [
             r"\bstamped signature\b", r"\bhand.?stamped author signature\b",
             r"\bstamped author\b",
+        ],
+        []
+    ),
+    (
+        "author_letter_signed",
+        "Author Letter with Signature",
+        "signed",
+        [
+            r"\bauthor letter with.{0,10}digital signature\b",
+            r"\bbound.?in author letter with.{0,10}digital signature\b",
+            r"\bbound in author letter with.{0,10}digital signature\b",
+            r"\bbound.?in letter with.{0,10}digital signature\b",
+            r"\bbound in letter with.{0,10}digital signature\b",
+            r"\bbound.?in letter from the author with.{0,10}digital signature\b",
+            r"\bdigitally signed author letter\b",
+            r"\bdigit\w+ signed.{0,20}letter\b",
         ],
         []
     ),
