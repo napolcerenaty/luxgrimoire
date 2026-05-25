@@ -1,5 +1,5 @@
 import { apiFetch } from '@/lib/api'
-import { ArtistTabs, type GroupedEdition, type CardMonth } from './ArtistTabs'
+import { ArtistTabs, type GroupedEdition } from './ArtistTabs'
 
 interface Contribution {
   role: string
@@ -13,10 +13,7 @@ interface Contribution {
 }
 
 export async function ArtistContributionsSection({ artistSlug }: { artistSlug: string }) {
-  const [contributions, cardMonths] = await Promise.all([
-    apiFetch<Contribution[]>(`/artists/${artistSlug}/contributions`),
-    apiFetch<CardMonth[]>(`/artists/${artistSlug}/months`).catch(() => [] as CardMonth[]),
-  ])
+  const contributions = await apiFetch<Contribution[]>(`/artists/${artistSlug}/contributions`)
 
   const editionMap = new Map<string, GroupedEdition>()
   for (const c of contributions) {
@@ -29,5 +26,5 @@ export async function ArtistContributionsSection({ artistSlug }: { artistSlug: s
   }
   const groupedEditions = Array.from(editionMap.values())
 
-  return <ArtistTabs groupedEditions={groupedEditions} cardMonths={cardMonths} />
+  return <ArtistTabs artistSlug={artistSlug} groupedEditions={groupedEditions} />
 }

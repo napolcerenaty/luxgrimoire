@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { API_BASE } from '@/lib/authFetch'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -93,8 +95,25 @@ function EditionGrid({ editions }: { editions: GroupedEdition[] }) {
   )
 }
 
-function CardMonthGrid({ months }: { months: CardMonth[] }) {
-  if (!months.length) {
+function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
+  const { data: months, isLoading } = useQuery<CardMonth[]>({
+    queryKey: ['artist-card-months', artistSlug],
+    queryFn: () => fetch(`${API_BASE}/artists/${artistSlug}/months`)
+      .then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (!months?.length) {
     return <p className="text-stone-500 text-center py-20 font-serif text-lg">No card months listed yet.</p>
   }
 
@@ -145,11 +164,11 @@ function CardMonthGrid({ months }: { months: CardMonth[] }) {
 type Tab = 'editions' | 'months'
 
 export function ArtistTabs({
+  artistSlug,
   groupedEditions,
-  cardMonths,
 }: {
+  artistSlug: string
   groupedEditions: GroupedEdition[]
-  cardMonths: CardMonth[]
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('editions')
 
@@ -184,7 +203,7 @@ export function ArtistTabs({
 
       {/* Tab panels */}
       {activeTab === 'editions' && <EditionGrid editions={groupedEditions} />}
-      {activeTab === 'months'   && <CardMonthGrid months={cardMonths} />}
+      {activeTab === 'months'   && <CardMonthGrid artistSlug={artistSlug} />}
     </div>
   )
 }
