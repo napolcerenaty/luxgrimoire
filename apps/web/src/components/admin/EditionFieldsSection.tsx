@@ -415,6 +415,20 @@ export function FeatureCategoryPreview({
     }
   }
 
+  const handleAddCategoryToTag = async (tagId: string, currentSlugs: string[], newSlug: string) => {
+    try {
+      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: [...currentSlugs, newSlug] }),
+      })
+      setAdding(prev => { const n = { ...prev }; delete n[tagId]; return n })
+      refreshTags()
+    } catch (e) {
+      alert(`Add category failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   const handleUpdateTag = async (tagId: string) => {
     const editing = editingRow[tagId]
     if (!editing) return
@@ -512,7 +526,7 @@ export function FeatureCategoryPreview({
                 </select>
                 {addValue && (
                   <button type="button"
-                    onClick={() => handleAddTag(rawValue, [addValue])}
+                    onClick={() => handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), addValue)}
                     className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">
                     Add
                   </button>
