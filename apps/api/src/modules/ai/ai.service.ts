@@ -135,11 +135,11 @@ FEATURES RULES:
   • ~7" × 10" / ~178 × 254mm → "Crown Quarto"
   • ~8.5" × 11" / A4 → "A4 large format"
   • Metric dimensions (mm): convert to nearest named format using the same table
-  OUTPUT FORMAT: When the original text uses non-UK dimensions (inches or mm), output the feature as "[UK name] (corresponds to [original size text])". When the text already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present.
+  OUTPUT FORMAT: When the original text uses non-UK dimensions (inches or mm), output the feature as "[original size text] (≈ [UK name])". When the text already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present — no "(≈ …)" annotation needed.
   If the size does not match any standard name within reasonable tolerance, output as "book size: [WxH]mm".
-  Examples: "Book size: 5.5\" x 8.5\"" → features: ["Demy (corresponds to 5.5\" x 8.5\")"]
-  Example: "5 ⅜\" x 8 ¼\"" → features: ["Demy (corresponds to 5 ⅜\" x 8 ¼\")"]
-  Example: "B format paperback" → features: ["B format paperback"] (already UK standard — no "(corresponds to …)" needed)
+  Examples: "Book size: 5.5\" x 8.5\"" → features: ["5.5\" x 8.5\" (≈ Demy)"]
+  Example: "5 ⅜\" x 8 ¼\"" → features: ["5 ⅜\" x 8 ¼\" (≈ Demy)"]
+  Example: "B format paperback" → features: ["B format paperback"] (already UK standard — no annotation needed)
   Example: "Royal hardback" → features: ["Royal hardback"] (NOT split into ["Royal", "hardback"])
   Example: "Demy hardcover" → features: ["Demy hardcover"]
   Example: "Royal" alone (no binding mentioned) → features: ["Royal"]
