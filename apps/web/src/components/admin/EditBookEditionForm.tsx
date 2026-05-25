@@ -186,20 +186,20 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const applyAiResult = async (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
     const slug = edition.slug
-    // Collect all artist roles to avoid creating duplicate standalone feature entries
-    const artistRoles = new Set(
-      (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
-    )
+    // Collect all feature raw values: standalone features[] + base names from artist roles
+    // (single-artist features only appear in artists[], not in features[])
+    const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
+    const artistBaseFeatures = (r.edition?.artists ?? [])
+      .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
+      .filter(Boolean)
+    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
     const featurePosts: Promise<unknown>[] = []
-    for (const feature of (r.edition?.features ?? [])) {
-      const trimmed = feature.trim()
-      if (trimmed && !artistRoles.has(trimmed)) {
-        featurePosts.push(authFetch(`/editions/${slug}/feature-tags`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: trimmed, categories: r.edition?.featureTags?.[trimmed] ?? [] }),
-        }).catch(() => null))
-      }
+    for (const rawValue of allFeatureRaws) {
+      featurePosts.push(authFetch(`/editions/${slug}/feature-tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawValue, categories: r.edition?.featureTags?.[rawValue] ?? [] }),
+      }).catch(() => null))
     }
     if (featurePosts.length > 0) {
       await Promise.all(featurePosts)

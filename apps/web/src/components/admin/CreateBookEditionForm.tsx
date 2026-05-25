@@ -142,15 +142,15 @@ export default function CreateBookEditionForm({
       })
     }
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
-    // Stage features for POST after edition creation
-    const artistRoles = new Set(
-      (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
-    )
-    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = []
-    for (const feature of (r.edition?.features ?? [])) {
-      const trimmed = feature.trim()
-      if (trimmed && !artistRoles.has(trimmed)) newFeatureTags.push({ rawValue: trimmed, categories: r.edition?.featureTags?.[trimmed] ?? [] })
-    }
+    // Stage features for POST after edition creation:
+    // includes standalone features[] + base names from artist roles
+    const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
+    const artistBaseFeatures = (r.edition?.artists ?? [])
+      .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
+      .filter(Boolean)
+    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = allFeatureRaws
+      .map(rawValue => ({ rawValue, categories: r.edition?.featureTags?.[rawValue] ?? [] }))
     if (newFeatureTags.length > 0) {
       setPendingFeatureTags(prev => {
         const existing = new Set(prev.map(p => p.rawValue))

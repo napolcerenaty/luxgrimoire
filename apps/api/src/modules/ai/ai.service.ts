@@ -372,25 +372,21 @@ export class AiService {
 
     try {
       const result = JSON.parse(content) as AiParseResult;
-      // Post-process: tag features with normalized category slugs
-      const features = result.edition?.features;
-      if (features && features.length > 0) {
-        try {
-          const featureTags = await this.featureTagger.categorizeMany(features);
+      // Post-process: build unified featureTags map covering both standalone features
+      // and base feature names derived from artist roles (single-artist features only
+      // appear in artists[], not features[], so we must include them here).
+      try {
+        const standaloneFeatures = result.edition?.features ?? [];
+        const artistBaseFeatures = (result.edition?.artists ?? [])
+          .map(a => (a.role ?? '').replace(/\s*\(\w+\)$/, '').trim())
+          .filter(Boolean);
+        const allRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        if (allRaws.length > 0) {
+          const featureTags = await this.featureTagger.categorizeMany(allRaws);
           if (result.edition) result.edition.featureTags = featureTags;
-        } catch {
-          // Tagging is best-effort — never fail the AI parse due to tagger errors
         }
-      }
-      const artists = result.edition?.artists;
-      if (artists && artists.length > 0) {
-        try {
-          const roles = artists.map(a => a.role).filter(Boolean);
-          const artistTags = await this.featureTagger.categorizeMany(roles);
-          if (result.edition) result.edition.artistTags = artistTags;
-        } catch {
-          // best-effort
-        }
+      } catch {
+        // Tagging is best-effort — never fail the AI parse due to tagger errors
       }
       return result;
     } catch {
