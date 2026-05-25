@@ -69,11 +69,7 @@ interface EditionDetail {
   featureTags?: Array<{
     id: string
     rawValue: string
-    source: string
     isManual: boolean
-    artistId?: string | null
-    artistName?: string | null
-    artist?: { id: string; name: string; slug: string; photoUrl?: string | null } | null
     categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>
   }>
   firstAccessDate?: string | null
@@ -166,7 +162,6 @@ export default async function EditionPage({ params, searchParams }: Props) {
   const book = edition.book
   // Features come from featureTags (new table) — source of truth
   const features = (edition.featureTags ?? [])
-    .filter((tag) => tag.source === 'features')
     .map((tag) => tag.rawValue)
   const rawArtists = (edition.artists ?? [])
   const artistMap = new Map<string, { artist: NonNullable<typeof rawArtists[number]['artist']>; roles: string[] }>()
