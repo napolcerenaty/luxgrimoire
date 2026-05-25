@@ -180,7 +180,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
       ) : (
         <button
           onClick={() => { setDateInput(new Date().toISOString().slice(0, 10)); setShowDateForm(true) }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-800/60 border border-stone-700/60 hover:border-stone-600 hover:bg-stone-800 text-sm text-stone-400 hover:text-stone-300 transition-all"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-stone-800/60 border border-stone-700/60 hover:border-stone-600 hover:bg-stone-800 text-sm text-stone-400 hover:text-stone-300 transition-all"
         >
           <Clock className="w-4 h-4" />
           I&apos;m on the waitlist
