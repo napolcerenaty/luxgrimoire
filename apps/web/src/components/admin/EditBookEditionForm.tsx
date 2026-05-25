@@ -166,7 +166,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [artists, setArtists] = useState<ArtistEntry[]>(() =>
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
-  const [removedArtistIds, setRemovedArtistIds] = useState<string[]>([])
+  const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
   // Companies list
   const { data: companiesData } = useQuery({
@@ -184,7 +184,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = async (r: AiParseResult) => {
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
     const slug = edition.slug
     // Collect all artist roles to avoid creating duplicate standalone feature entries
     const artistRoles = new Set(
@@ -204,17 +204,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     if (featurePosts.length > 0) {
       await Promise.all(featurePosts)
       qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(slug) })
-    }
-    // Add AI-parsed artists to local state — user must link them via PersonPicker to save
-    const aiArtists = (r.edition?.artists ?? [])
-      .filter(a => a.role?.trim())
-      .map(a => ({ name: a.name ?? '', role: a.role!.trim() }))
-    if (aiArtists.length > 0) {
-      setArtists(prev => {
-        const existingRoles = new Set(prev.map(a => a.role.toLowerCase()))
-        const toAdd = aiArtists.filter(a => !existingRoles.has(a.role.toLowerCase()))
-        return [...prev, ...toAdd]
-      })
     }
   }
 
@@ -239,22 +228,71 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           isOmnibus,
         }),
       })
-      // 2. Sync artist contributions
-      await Promise.all(
-        removedArtistIds.map(artistId =>
-          authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
-        )
-      )
-      await Promise.all(
-        artists
-          .filter(a => !a.existing && a.id)
-          .map(a =>
-            authFetch(`/editions/${edition.slug}/artists`, {
+      // 2. Remove deleted artists
+      for (const artistId of removedArtistIds) {
+        await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
+      }
+
+      // 2b. Sync role changes for existing artists
+      const originalRolesByArtist = new Map<string, Set<string>>()
+      for (const a of (edition.artists ?? [])) {
+        if (!originalRolesByArtist.has(a.artist.id)) originalRolesByArtist.set(a.artist.id, new Set())
+        originalRolesByArtist.get(a.artist.id)!.add((a.role || 'cover art').toLowerCase())
+      }
+      const currentRolesByArtist = new Map<string, string[]>()
+      for (const art of artists) {
+        if (!art.existing || !art.id || removedArtistIds.has(art.id)) continue
+        if (!currentRolesByArtist.has(art.id)) currentRolesByArtist.set(art.id, [])
+        currentRolesByArtist.get(art.id)!.push(art.role || 'cover art')
+      }
+      for (const [artistId, currentRoles] of currentRolesByArtist) {
+        const origSet = originalRolesByArtist.get(artistId) ?? new Set()
+        const currSet = new Set(currentRoles.map(r => r.toLowerCase()))
+        const changed = currentRoles.some(r => !origSet.has(r.toLowerCase())) ||
+          [...origSet].some(r => !currSet.has(r))
+        if (changed) {
+          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
+          for (const role of currentRoles) {
+            await authFetch(`/editions/${edition.slug}/artists`, {
               method: 'POST',
-              body: JSON.stringify({ artistId: a.id, role: a.role, artistName: a.name }),
+              body: JSON.stringify({ artistId, role }),
             }).catch(() => null)
-          )
-      )
+          }
+        }
+      }
+
+      // 3. Add new artists — auto-search/create by name (no manual PersonPicker linking required)
+      const artistIdByName = new Map<string, string>()
+      for (const art of artists) {
+        if (art.existing) continue
+        const name = art.name.trim()
+        if (!name) continue
+        const key = name.toLowerCase()
+        let artistId = art.id
+        if (!artistId) {
+          if (artistIdByName.has(key)) {
+            artistId = artistIdByName.get(key)!
+          } else {
+            const res = await authFetch<{ data: { id: string; name: string }[] }>(
+              `/artists?search=${encodeURIComponent(name)}&pageSize=5`
+            )
+            const match = res.data?.find(a => a.name.toLowerCase() === key)
+            if (match) {
+              artistId = match.id
+            } else {
+              const created = await authFetch<{ id: string }>('/artists', {
+                method: 'POST', body: JSON.stringify({ name }),
+              })
+              artistId = created.id
+            }
+          }
+        }
+        artistIdByName.set(key, artistId)
+        await authFetch(`/editions/${edition.slug}/artists`, {
+          method: 'POST',
+          body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
+        }).catch(() => null)
+      }
 
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       qc.invalidateQueries({ queryKey: ['artists-search'] })
@@ -302,7 +340,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onAiResult={applyAiResult}
         artists={artists}
         onArtistsChange={setArtists}
-        onRemoveExistingArtist={id => setRemovedArtistIds(prev => [...prev, id])}
+        onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
         featureTags={edition.featureTags}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}

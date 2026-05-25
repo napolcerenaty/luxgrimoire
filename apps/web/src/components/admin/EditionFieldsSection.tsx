@@ -787,6 +787,14 @@ export function EditionFieldsSection({
                         onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
+                  ) : art.name ? (
+                    <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                      {!art.existing && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
+                      <span className="flex-1">{art.name}</span>
+                      <button
+                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        className="text-stone-500 hover:text-red-400 text-xs">×</button>
+                    </div>
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
                       initialQuery={art.name || undefined}

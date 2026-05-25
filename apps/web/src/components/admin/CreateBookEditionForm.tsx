@@ -141,7 +141,7 @@ export default function CreateBookEditionForm({
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
     }
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
     // Stage features for POST after edition creation
     const artistRoles = new Set(
       (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
@@ -155,17 +155,6 @@ export default function CreateBookEditionForm({
       setPendingFeatureTags(prev => {
         const existing = new Set(prev.map(p => p.rawValue))
         return [...prev, ...newFeatureTags.filter(t => !existing.has(t.rawValue))]
-      })
-    }
-    // Stage artists for user to link, then POST on submit
-    const aiArtists = (r.edition?.artists ?? [])
-      .filter(a => a.role?.trim())
-      .map(a => ({ name: a.name ?? '', role: a.role!.trim() }))
-    if (aiArtists.length > 0) {
-      setArtists(prev => {
-        const existingRoles = new Set(prev.map(a => a.role.toLowerCase()))
-        const toAdd = aiArtists.filter(a => !existingRoles.has(a.role.toLowerCase()))
-        return [...prev, ...toAdd]
       })
     }
   }
@@ -304,15 +293,36 @@ export default function CreateBookEditionForm({
         ))
         qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(ed.slug) })
       }
-      // POST artists that have been linked to DB records
-      const linkedArtists = artists.filter(a => a.id)
-      if (linkedArtists.length > 0) {
-        await Promise.all(linkedArtists.map(a =>
-          authFetch(`/editions/${ed.slug}/artists`, {
-            method: 'POST',
-            body: JSON.stringify({ artistId: a.id, role: a.role, artistName: a.name }),
-          }).catch(() => null)
-        ))
+      // POST artists — auto-search/create by name (no manual linking required)
+      const artistIdByName = new Map<string, string>()
+      for (const art of artists) {
+        const name = art.name.trim()
+        if (!name) continue
+        const key = name.toLowerCase()
+        let artistId = art.id
+        if (!artistId) {
+          if (artistIdByName.has(key)) {
+            artistId = artistIdByName.get(key)!
+          } else {
+            const res = await authFetch<{ data: { id: string; name: string }[] }>(
+              `/artists?search=${encodeURIComponent(name)}&pageSize=5`
+            )
+            const match = res.data?.find(a => a.name.toLowerCase() === key)
+            if (match) {
+              artistId = match.id
+            } else {
+              const created = await authFetch<{ id: string }>('/artists', {
+                method: 'POST', body: JSON.stringify({ name }),
+              })
+              artistId = created.id
+            }
+          }
+        }
+        artistIdByName.set(key, artistId)
+        await authFetch(`/editions/${ed.slug}/artists`, {
+          method: 'POST',
+          body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
+        }).catch(() => null)
       }
       setCreatedEditionSlug(ed.slug)
       // Link to month (only when used in subscription context)
