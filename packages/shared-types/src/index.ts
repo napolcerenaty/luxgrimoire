@@ -127,7 +127,14 @@ export interface ApiBookEdition {
   basePrice?: string | null;
   currency?: string | null;
   language?: string | null;
+  /** @deprecated Use featureTags (source='features') as single source of truth. book_editions.features[] will be removed. */
   features?: string[];
+  featureTags?: Array<{
+    id: string;
+    rawValue: string;
+    isManual: boolean;
+    categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>;
+  }>;
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   generalSaleDate?: string | null;
@@ -202,7 +209,6 @@ export interface ApiBookBoxCompany {
   brandColors: string[];
   subscriptions?: ApiSubscription[];
   collections?: ApiBookBoxCollection[];
-  sponsoredSlots?: ApiSponsoredSlot[];
   editions?: ApiCompanyEdition[];
   _count?: { collections: number; editions: number };
 }
@@ -262,6 +268,9 @@ export interface ApiSubscription {
   startDate: string | null;
   endDate: string | null;
   isDiscontinued: boolean;
+  isUpcoming: boolean;
+  upcomingNote: string | null;
+  waitlistLink: string | null;
   isHidden: boolean;
   isContentStream: boolean;
   isBundleSubscription: boolean;
@@ -305,20 +314,6 @@ export interface ApiSubscriptionMonthBook {
   isMainBook: boolean;
   book: ApiBook;
   edition: ApiBookEdition | null;
-}
-
-export interface ApiSponsoredSlot {
-  id: string;
-  companyId: string;
-  type: 'HOMEPAGE_FEATURED' | 'COMPANY_PAGE_BANNER' | 'NEWSLETTER_SLOT';
-  startsAt: string;
-  endsAt: string;
-  priceEur: number;
-  notes: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  company: ApiBookBoxCompany;
 }
 
 export interface PaginatedResponse<T> {
@@ -617,7 +612,7 @@ export interface ApiSaleAnnouncement {
     currency: string;
     variants: Array<{
       id: string;
-      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
       price: number | null;
       currency: string | null;
     }>;
@@ -697,3 +692,15 @@ export interface ApiSubscriptionSeries {
   _count?: { months: number };
 }
 
+export interface ApiFeatureCategory {
+  id: string;
+  slug: string;
+  label: string;
+  group: string;
+  isActive: boolean;
+  sortOrder: number;
+  includePatterns: string[];
+  excludePatterns: string[];
+  createdAt: string;
+  updatedAt: string;
+}

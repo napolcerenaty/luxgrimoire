@@ -26,7 +26,7 @@ interface Props {
   country: string | null
   renewalDay?: number | null
   months: ApiSubscriptionMonth[]
-  prepayOptions?: { id: string; months: number; price: number | string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
 }
 
 type FeeTemplateLink = {
@@ -391,7 +391,7 @@ export default function SubscriptionInfoPanel({
                   <option value="">Standard (monthly)</option>
                   {prepayOptions?.map(o => (
                     <option key={o.id} value={o.id}>
-                      {o.label ?? `${o.months} months`} — {o.price}
+                      {o.label ?? `${o.months} months`} — {o.price} {o.currency}
                     </option>
                   ))}
                 </select>

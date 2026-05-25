@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
 
 export interface AiSaleRegion {
   name: string;
@@ -48,6 +49,9 @@ export interface AiParseResult {
     generalSaleDate?: string;
     features?: string[];
     artists?: { name: string; role: string }[];
+    /** Normalized category slugs per raw feature value (post-processing) */
+    featureTags?: Record<string, string[]>;
+    artistTags?: Record<string, string[]>;
   };
 }
 
@@ -69,7 +73,7 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     "firstAccessDate": "YYYY-MM-DD",
     "earlyAccessDate": "YYYY-MM-DD",
     "generalSaleDate": "YYYY-MM-DD",
-    "features": ["sprayed edges", "ribbon bookmark", "exclusive art print", "signed bookplate"],
+    "features": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"],
     "artists": [
       { "name": "@artisthandle", "role": "full description of what they created, e.g. cover art, character illustrations, map, typography, interior artwork, endpapers design" }
     ]
@@ -117,14 +121,26 @@ ARTIST EXTRACTION RULES:
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
 
 FEATURES RULES:
+- CASING: Preserve the original capitalisation from the source text. Do NOT normalise feature names to lowercase. If the source says "Foiled end pages" keep the capital F. If it says "ribbon bookmark" in lowercase, keep it lowercase. Never change the case of words.
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
-- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions (e.g. "Book size: 5 ⅜" x 8 ¼"", "234 x 153 mm", etc.). Add the full size string as a feature exactly as written, prefixed with "book size:" if a label is present.
-  Example: "Book size: 5 ⅜" x 8 ¼"" → features: ["book size: 5 ⅜\" x 8 ¼\""]
-  Example: "B format paperback" → features: ["B format paperback"] (keep size + binding together as one compound feature)
+- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions. When dimensions are given in US inches, convert to the closest UK/European standard name — do NOT output raw inch dimensions alone. Use this mapping:
+  • ~4.25" × 6.87" / ~108 × 175mm → "A format" (mass market paperback)
+  • ~5" × 7.75" to 5.12" × 7.8" / ~129 × 198mm → "B format"
+  • ~5.5" × 8.5" / ~140 × 216mm → "Demy" (if hardcover: "Demy hardback"; if paperback: "Demy paperback")
+  • ~6" × 9" / ~152 × 229mm → "Royal" (if hardcover: "Royal hardback"; if paperback: "Royal paperback")
+  • ~6.14" × 9.21" / ~156 × 234mm → "Royal"
+  • ~7" × 10" / ~178 × 254mm → "Crown Quarto"
+  • ~8.5" × 11" / A4 → "A4 large format"
+  • Metric dimensions (mm): convert to nearest named format using the same table
+  OUTPUT FORMAT: When the original text uses non-UK dimensions (inches or mm), output the feature as "[original size text] (≈ [UK name])". When the text already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present — no "(≈ …)" annotation needed.
+  If the size does not match any standard name within reasonable tolerance, output as "book size: [WxH]mm".
+  Examples: "Book size: 5.5\" x 8.5\"" → features: ["5.5\" x 8.5\" (≈ Demy)"]
+  Example: "5 ⅜\" x 8 ¼\"" → features: ["5 ⅜\" x 8 ¼\" (≈ Demy)"]
+  Example: "B format paperback" → features: ["B format paperback"] (already UK standard — no annotation needed)
   Example: "Royal hardback" → features: ["Royal hardback"] (NOT split into ["Royal", "hardback"])
   Example: "Demy hardcover" → features: ["Demy hardcover"]
   Example: "Royal" alone (no binding mentioned) → features: ["Royal"]
@@ -135,6 +151,11 @@ FEATURES RULES:
   Example: "Illustrated endpapers (by @nekokonut22); different front and back" →
     features: ["Illustrated endpapers; different front and back"]
     artists: [{ name: "@nekokonut22", role: "Illustrated endpapers; different front and back" }]
+  IMPORTANT: This rule applies ONLY when the original source text contains a semicolon AFTER an artist attribution parenthetical. Do NOT use semicolons to replace parentheses that are already in the feature name itself.
+  Example: "Foiled end pages (different front and back) designed by @harteus" →
+    features: [] (covered by artist entry)
+    artists: [{ name: "@harteus", role: "Foiled end pages (different front and back)" }]
+  The parenthetical "(different front and back)" is part of the feature name — keep it in parentheses, do NOT rewrite it as "Foiled end pages; different front and back".
 - MULTI-ARTIST PARENTHETICAL: When a single feature line has a parenthetical that contains multiple "role by @artist" pairs separated by semicolons, create ONE feature entry using only the base feature name (strip the entire parenthetical). Split into one artist entry per pair — each artist's role is: the feature name + " (" + their specific role portion + ")".
   Example: "Exclusive redesigned covers (art by @penglu_art; design by @chattynora)" →
     features: ["Exclusive redesigned covers"]
@@ -144,20 +165,33 @@ FEATURES RULES:
     artists: [{ name: "@artist1", role: "New chapter headers (illustration)" }, { name: "@artist2", role: "New chapter headers (lettering)" }, { name: "@artist3", role: "New chapter headers (colour)" }]
 - Keep all parenthetical details in the feature description — e.g. "foiled cover (front and spine)" — do not strip text in parentheses
 - When a feature includes "of [title/name]" — e.g. "first chapter of A Ballad for the Broken", "preview of Book 2", "excerpt of..." — keep the FULL phrase including "of [title]". Do NOT truncate to just "first chapter" or "preview".
-- IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), ALWAYS add the feature description (without the "by @handle" part) to the features array AND also add the artist to the artists array. Both entries must be created — never skip the feature just because there is an artist attached to it.
+- IMPORTANT: When a physical feature is attributed to an artist (e.g. "foiled cover by @artist", "illustrations by @artist"), add the artist to the artists array with role = the feature description. Do NOT add that feature separately to the features array — the artist entry already captures it. Only add to features array items that have NO artist attribution.
+  Exception: When ONE feature has MULTIPLE artists (e.g. via parenthetical or semicolons), DO include it once in features array (using the base feature name only) AND also create one artist entry per person.
   Example: "An exclusive foiled cover (front and spine) by @artisthandle" →
-    features: ["exclusive foiled cover (front and spine)"]
+    features: [] (no standalone feature — covered by artist entry)
     artists: [{ name: "@artisthandle", role: "exclusive foiled cover (front and spine)" }]
   Example: "naked hardcover (no dust jacket) with illustrations by @artist and endpapers by @artist2" →
-    features: ["naked hardcover (no dust jacket)", "illustrations", "endpapers"]
+    features: ["naked hardcover (no dust jacket)"] (binding = no artist, so it stays)
     artists: [{ name: "@artist", role: "naked hardcover (no dust jacket) with illustrations" }, { name: "@artist2", role: "endpapers" }]
-- INLINE MULTI-ARTIST (no parenthetical): When a line reads "[feature description] [role1] by @artist1 with [role2] by @artist2" (multiple artists credited inline for the SAME physical item), create ONE feature = the initial description before the first role verb/attribution, and create one artist entry per person using the pattern: role = feature name + " (" + their role word + ")". The feature must NOT include role verbs or artist handles.
+  Example: "sprayed edges, ribbon bookmark, art print" (no artists) →
+    features: ["sprayed edges", "ribbon bookmark", "art print"]
+    artists: []
+- FEATURE TRAILING VERBS: When a feature description ends with a trailing attribution verb (e.g. "designed", "illustrated", "painted", "drawn", "created", "written"), strip that trailing verb. The trailing verb is one that would normally be followed by "by @artist" but either no artist is credited or the artist is mentioned elsewhere.
+  Example: "Reversible dust jacket designed" → feature: "Reversible dust jacket"
+  Example: "Exclusive gilded edges painted" → feature: "Exclusive gilded edges"
+  NOTE: Do NOT strip verbs that are an integral part of the feature name (e.g. "digitally printed edges" — "printed" is part of the material description, not an attribution verb).
+- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create ONE feature = the initial description before the first role verb, and one artist entry per person. Each artist's role = feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles.
+  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour".
+  Artist names may or may not have an @ prefix — capture them exactly as written (with or without @).
+  Example: "Exclusive redesigned dust jacket with art by 2 ghosts and designed by @lichen_and_limestone" →
+    features: ["Exclusive redesigned dust jacket"]
+    artists: [{ name: "2 ghosts", role: "Exclusive redesigned dust jacket (art)" }, { name: "@lichen_and_limestone", role: "Exclusive redesigned dust jacket (design)" }]
   Example: "exclusive redesigned covers with foil illustrated by @palinlineart with design by @amysharpillustration" →
     features: ["exclusive redesigned covers with foil"]
-    artists: [{ name: "@palinlineart", role: "exclusive redesigned covers with foil (illustrated)" }, { name: "@amysharpillustration", role: "exclusive redesigned covers with foil (design)" }]
+    artists: [{ name: "@palinlineart", role: "exclusive redesigned covers with foil (illustration)" }, { name: "@amysharpillustration", role: "exclusive redesigned covers with foil (design)" }]
   Example: "special edition endpapers painted by @artist1 with lettering by @artist2" →
     features: ["special edition endpapers"]
-    artists: [{ name: "@artist1", role: "special edition endpapers (painted)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
+    artists: [{ name: "@artist1", role: "special edition endpapers (painting)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 - EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
 - PRINT RUN / LIMITED COPIES: If the text mentions the number of copies, print run size, or limited edition quantity (e.g. "limited to 1500 copies", "strictly limited to 1500 signed and numbered copies", "print run of 500", "only 750 copies"), add it as a feature in the format: "limited to [N] copies". Extract the number and format consistently.
@@ -265,7 +299,10 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly client: OpenAI | null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly featureTagger: FeatureTaggerService,
+  ) {
     const key = this.configService.get<string>('OPENAI_API_KEY');
     if (key) {
       this.client = new OpenAI({ apiKey: key });
@@ -340,7 +377,24 @@ export class AiService {
     });
 
     try {
-      return JSON.parse(content) as AiParseResult;
+      const result = JSON.parse(content) as AiParseResult;
+      // Post-process: build unified featureTags map covering both standalone features
+      // and base feature names derived from artist roles (single-artist features only
+      // appear in artists[], not features[], so we must include them here).
+      try {
+        const standaloneFeatures = result.edition?.features ?? [];
+        const artistBaseFeatures = (result.edition?.artists ?? [])
+          .map(a => (a.role ?? '').replace(/\s*\(\w+\)$/, '').trim())
+          .filter(Boolean);
+        const allRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        if (allRaws.length > 0) {
+          const featureTags = await this.featureTagger.categorizeMany(allRaws);
+          if (result.edition) result.edition.featureTags = featureTags;
+        }
+      } catch {
+        // Tagging is best-effort — never fail the AI parse due to tagger errors
+      }
+      return result;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }

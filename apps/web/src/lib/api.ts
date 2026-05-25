@@ -198,6 +198,24 @@ export async function deletePurchaseDiscount(id: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────
+// Subscriptions
+// ─────────────────────────────────────────────
+
+export async function getSubscriptions(params?: {
+  status?: 'active' | 'discontinued' | 'upcoming';
+  pageSize?: number;
+  companySlug?: string;
+}): Promise<{ data: import('@luxgrimoire/shared-types').ApiSubscription[]; total: number; totalPages: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  if (params?.companySlug) qs.set('companySlug', params.companySlug);
+  const res = await fetch(`${API_URL}/subscriptions?${qs}`, { credentials: 'include' });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+// ─────────────────────────────────────────────
 // Subscription Waitlist
 // ─────────────────────────────────────────────
 
@@ -619,6 +637,15 @@ export async function adminUpdateSaleAnnouncement(id: string, data: SaleAnnounce
   return res.json();
 }
 
+export async function adminDuplicateSaleAnnouncement(id: string): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/duplicate`, {
+    credentials: 'include',
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function adminDeleteSaleAnnouncement(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}`, {
     credentials: 'include',
@@ -670,7 +697,7 @@ export async function adminRemoveAnnouncementEdition(id: string, editionId: stri
 
 export async function adminSetAnnouncementVariant(
   id: string, editionId: string,
-  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
+  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped',
   price?: number | null, currency?: string | null,
 ): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants`, {
@@ -685,7 +712,7 @@ export async function adminSetAnnouncementVariant(
 
 export async function adminRemoveAnnouncementVariant(
   id: string, editionId: string,
-  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate',
+  signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped',
 ): Promise<void> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/variants/${signatureType}`, {
     credentials: 'include',
@@ -746,10 +773,11 @@ export async function submitFeatureRequest(data: { title: string; description: s
   return res.json();
 }
 
-export async function getFeatureRequests(params?: { page?: number; pageSize?: number }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
+export async function getFeatureRequests(params?: { page?: number; pageSize?: number; status?: string }): Promise<{ data: import('@luxgrimoire/shared-types').ApiFeatureRequest[]; total: number; totalPages: number }> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  if (params?.status) qs.set('status', params.status);
   const res = await fetch(`${API_URL}/feature-requests?${qs}`, {
     credentials: 'include',
   });
@@ -785,7 +813,7 @@ export async function adminGetFeatureRequests(params?: { page?: number; status?:
   return res.json();
 }
 
-export async function adminReviewFeatureRequest(id: string, data: { status: 'accepted' | 'rejected'; adminNote?: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
+export async function adminReviewFeatureRequest(id: string, data: { status: 'accepted' | 'rejected' | 'implemented'; adminNote?: string }): Promise<import('@luxgrimoire/shared-types').ApiFeatureRequest> {
   const res = await fetch(`${API_URL}/feature-requests/${id}/review`, {
     credentials: 'include',
     method: 'PATCH',

@@ -12,9 +12,11 @@ import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
-const COMPANY_EDITIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours — invalidated in EditionsService on create/delete
+const COMPANY_EDITIONS_COUNT_TTL = 2 * 60 * 60 * 1000; // 2 hours — total count cache per filter
 const companySlugKey = (slug: string) => `companies:slug:${slug}`;
-const companyEditionsKey = (slug: string) => `companies:slug:${slug}:editions`;
+const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
+const companyEditionsSubCountKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}:count`;
+const companyEditionsColCountKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}:count`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -123,15 +125,11 @@ export class CompaniesService {
       where: { slug },
       include: {
         subscriptions: {
-          where: { isHidden: false, isContentStream: false },
-          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true },
+          where: { isHidden: false },
+          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true, isCombo: true, isContentStream: true, parentSubscriptionId: true },
         },
         collections: {
           select: { id: true, slug: true, name: true },
-        },
-        sponsoredSlots: {
-          where: { isActive: true },
-          select: { isActive: true, type: true },
         },
       },
     });
@@ -139,15 +137,49 @@ export class CompaniesService {
     return company;
   }
 
-  async getEditions(slug: string) {
-    const cached = await this.cache.get(companyEditionsKey(slug));
-    if (cached) return cached as Awaited<ReturnType<typeof this._fetchCompanyEditions>>;
-    const result = await this._fetchCompanyEditions(slug);
-    await this.cache.set(companyEditionsKey(slug), result, COMPANY_EDITIONS_TTL);
-    return result;
+  async getEditions(
+    slug: string,
+    filter?: { subscriptionId?: string; collectionId?: string },
+    pagination: { skip: number; take: number } = { skip: 0, take: 20 },
+  ) {
+    const { skip, take } = pagination;
+
+    // Resolve count cache key and fetch/populate it
+    let countKey: string;
+    if (filter?.subscriptionId) {
+      countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
+    } else if (filter?.collectionId) {
+      countKey = companyEditionsColCountKey(slug, filter.collectionId);
+    } else {
+      countKey = companyEditionsAllCountKey(slug);
+    }
+
+    const cachedCount = await this.cache.get(countKey);
+    let total: number;
+    if (cachedCount !== undefined && cachedCount !== null) {
+      total = cachedCount as number;
+    } else {
+      total = await this._countCompanyEditions(slug, filter);
+      await this.cache.set(countKey, total, COMPANY_EDITIONS_COUNT_TTL);
+    }
+
+    const data = await this._fetchCompanyEditions(slug, filter, skip, take);
+    return { data, total };
   }
 
-  private async _fetchCompanyEditions(slug: string) {
+  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }): Promise<number> {
+    const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug }, select: { id: true } });
+    if (!company) throw new NotFoundException(`Company '${slug}' not found`);
+    return this.prisma.bookEdition.count({
+      where: {
+        bookBoxCompanyId: company.id,
+        ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
+        ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+      },
+    });
+  }
+
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }, skip = 0, take = 20) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -155,7 +187,11 @@ export class CompaniesService {
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
 
     const editions = await this.prisma.bookEdition.findMany({
-      where: { bookBoxCompanyId: company.id },
+      where: {
+        bookBoxCompanyId: company.id,
+        ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
+        ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+      },
       select: {
         id: true,
         slug: true,
@@ -184,8 +220,9 @@ export class CompaniesService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: { generalSaleDate: 'desc' },
+      skip,
+      take,
     });
 
     return editions.map((e) => {
@@ -207,7 +244,6 @@ export class CompaniesService {
       await this.deleteCloudinaryImages([existing.logoUrl]);
     }
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
     return company;
@@ -217,7 +253,7 @@ export class CompaniesService {
     const company = await this.findBySlug(slug);
     await this.deleteCloudinaryImages([company.logoUrl]);
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
+    await this.cache.del(companyEditionsAllCountKey(slug));
     await this.typesense.deleteDocument('companies', company.id);
     return this.prisma.bookBoxCompany.delete({ where: { slug } });
   }
@@ -227,7 +263,6 @@ export class CompaniesService {
     const normalized = colors.map((c) => (c.startsWith('#') ? c : `#${c}`));
     await this.prisma.bookBoxCompany.update({ where: { slug }, data: { brandColors: normalized } });
     await this.cache.del(companySlugKey(slug));
-    await this.cache.del(companyEditionsKey(slug));
     return normalized;
   }
 

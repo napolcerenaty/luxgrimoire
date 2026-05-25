@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle, type Ref } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
@@ -14,6 +14,23 @@ const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
+export type FeatureTag = {
+  id: string
+  rawValue: string
+  isManual: boolean
+  categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>
+}
+
+const CATEGORY_GROUP_LABELS: Record<string, string> = {
+  cover: 'Cover',
+  binding: 'Binding',
+  interior: 'Interior',
+  signatures: 'Signatures',
+  extras: 'Extras',
+  format: 'Format',
+  edition_type: 'Edition Type',
+}
+const CATEGORY_GROUP_ORDER = ['edition_type', 'cover', 'binding', 'interior', 'signatures', 'extras', 'format']
 
 const BOOK_LANGUAGES = [
   'English', 'Polish', 'French', 'German', 'Spanish',
@@ -38,7 +55,9 @@ export interface AiParseResult {
     earlyAccessDate?: string
     generalSaleDate?: string
     features?: string[]
+    featureTags?: Record<string, string[]>
     artists?: { name: string; role: string }[]
+    artistTags?: Record<string, string[]>
   }
 }
 
@@ -150,10 +169,10 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
     queryFn: () => authFetch<EditionComponent[]>(`/editions/${editionSlug}/components`),
   })
 
-  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string }[]>({
+  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string; seriesName: string | null }[]>({
     queryKey: ['book-search', bookSearch],
     queryFn: async () => {
-      const res = await authFetch<{ data: { id: string; title: string; slug: string }[] }>(
+      const res = await authFetch<{ data: { id: string; title: string; slug: string; seriesName: string | null }[] }>(
         `/books?search=${encodeURIComponent(bookSearch)}&pageSize=8`
       )
       return res.data ?? []
@@ -247,6 +266,9 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
                     className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
                   >
                     {b.title}
+                    {b.seriesName && (
+                      <span className="text-stone-400 ml-1">({b.seriesName})</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -304,6 +326,374 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
   )
 }
 
+// ─── FeatureCategoryPreview ───────────────────────────────────────────────────
+export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
+
+export type FeaturePreviewHandle = { flushChanges: (slugOverride?: string) => Promise<void> }
+
+// Synthetic ID for tags not yet in DB
+const newTagId = (rawValue: string) => `_new_${rawValue}`
+const isNewTag = (id: string) => id.startsWith('_new_')
+
+export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
+  editionSlug?: string
+  initialTags?: FeatureTag[]
+  /** When true, all edits are staged locally and flushed to API via flushChanges() */
+  staged?: boolean
+  pendingTags?: Array<{ rawValue: string; categories: string[] }>
+}>(function FeatureCategoryPreview({ editionSlug, initialTags, staged = false, pendingTags = [] }, ref) {
+  const qc = useQueryClient()
+  const [editingRow, setEditingRow] = useState<Record<string, { rawValue: string; saving: boolean }>>({})
+  const [newRaw, setNewRaw] = useState('')
+  const [newCategories, setNewCategories] = useState<string[]>([])
+  const [newCategoryPick, setNewCategoryPick] = useState('')
+  const [addingNew, setAddingNew] = useState(false)
+
+  // Staged mode: single unified tag list (DB tags + new/pending with synthetic IDs)
+  const [localTags, setLocalTags] = useState<FeatureTag[]>(initialTags ?? [])
+  const [deletedDbIds, setDeletedDbIds] = useState<Set<string>>(new Set())
+  const originalTagsRef = useRef<FeatureTag[]>(initialTags ?? [])
+
+  const startEdit = (tag: FeatureTag) =>
+    setEditingRow(prev => ({ ...prev, [tag.id]: { rawValue: tag.rawValue, saving: false } }))
+  const cancelEdit = (tagId: string) =>
+    setEditingRow(prev => { const n = { ...prev }; delete n[tagId]; return n })
+
+  // React Query fetch — disabled in staged-create mode (no slug yet)
+  const { data: dbTags = initialTags ?? [] } = useQuery({
+    queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug ?? ''),
+    queryFn: () => authFetch<FeatureTag[]>(`/editions/${editionSlug}/feature-tags`),
+    initialData: initialTags,
+    staleTime: 0,
+    enabled: !!editionSlug,
+  })
+
+  // Sync DB data into local state once on initial load (staged mode)
+  const dbSyncedRef = useRef(false)
+  useEffect(() => {
+    if (staged && dbTags.length > 0 && !dbSyncedRef.current) {
+      setLocalTags(dbTags)
+      originalTagsRef.current = dbTags
+      dbSyncedRef.current = true
+    }
+  }, [staged, dbTags])
+
+  // Merge incoming pendingTags into localTags — no visual distinction (same as DB tags)
+  const prevPendingRef = useRef<typeof pendingTags>([])
+  useEffect(() => {
+    if (!staged) return
+    const prev = new Set(prevPendingRef.current.map(t => t.rawValue))
+    const toAdd = pendingTags.filter(t => !prev.has(t.rawValue))
+    prevPendingRef.current = pendingTags
+    if (toAdd.length === 0) return
+    setLocalTags(cur => {
+      const existing = new Set(cur.map(t => t.rawValue))
+      const newEntries: FeatureTag[] = toAdd
+        .filter(t => !existing.has(t.rawValue))
+        .map(t => ({
+          id: newTagId(t.rawValue),
+          rawValue: t.rawValue,
+          isManual: false,
+          categories: t.categories.map(slug => ({ id: slug, slug, label: slug, group: '', sortOrder: 0 })),
+        }))
+      return [...cur, ...newEntries]
+    })
+  }, [staged, pendingTags])
+
+  const tags = staged ? localTags : dbTags
+
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ['feature-categories-all'],
+    queryFn: () => authFetch<Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>>('/feature-categories'),
+  })
+
+  const refreshTags = () => {
+    if (editionSlug) qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(editionSlug) })
+  }
+
+  // ── Handlers (staged: update local state; live: call API immediately) ────────
+
+  const handleRemoveCategory = async (tagId: string, categorySlug: string) => {
+    if (staged) {
+      setLocalTags(prev => prev.map(t =>
+        t.id === tagId ? { ...t, categories: t.categories.filter(c => c.slug !== categorySlug) } : t
+      ))
+      return
+    }
+    try {
+      await authFetch<FeatureTag | { deleted: true }>(
+        `/editions/${editionSlug}/feature-tags/${tagId}/categories/${categorySlug}`,
+        { method: 'DELETE' }
+      )
+      refreshTags()
+    } catch (e) { alert(`Remove failed: ${e instanceof Error ? e.message : String(e)}`) }
+  }
+
+  const handleAddTag = async (rawValue: string, categories: string[]) => {
+    if (staged) {
+      setLocalTags(prev => {
+        if (prev.some(t => t.rawValue === rawValue)) return prev
+        const catObjs = categories
+          .map(slug => allCategories.find(c => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+        return [...prev, { id: newTagId(rawValue), rawValue, isManual: true, categories: catObjs }]
+      })
+      return
+    }
+    try {
+      await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawValue, categories }),
+      })
+      refreshTags()
+    } catch (e) { alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`) }
+  }
+
+  const handleAddNewTag = async () => {
+    const raw = newRaw.trim()
+    if (!raw) return
+    setAddingNew(true)
+    try {
+      await handleAddTag(raw, newCategories)
+      setNewRaw(''); setNewCategories([]); setNewCategoryPick('')
+    } finally { setAddingNew(false) }
+  }
+
+  const handleAddCategoryToTag = async (tagId: string, currentSlugs: string[], newSlug: string) => {
+    if (staged) {
+      const cat = allCategories.find(c => c.slug === newSlug)
+      if (!cat) return
+      setLocalTags(prev => prev.map(t =>
+        t.id === tagId ? { ...t, categories: [...t.categories, cat] } : t
+      ))
+      return
+    }
+    try {
+      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: [...currentSlugs, newSlug] }),
+      })
+      refreshTags()
+    } catch (e) { alert(`Add category failed: ${e instanceof Error ? e.message : String(e)}`) }
+  }
+
+  const handleUpdateTag = async (tagId: string) => {
+    const editing = editingRow[tagId]
+    if (!editing) return
+    if (staged) {
+      setLocalTags(prev => prev.map(t => t.id === tagId ? { ...t, rawValue: editing.rawValue } : t))
+      cancelEdit(tagId)
+      return
+    }
+    setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: true } }))
+    try {
+      await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawValue: editing.rawValue }),
+      })
+      refreshTags(); cancelEdit(tagId)
+    } catch (e) {
+      alert(`Update failed: ${e instanceof Error ? e.message : String(e)}`)
+      setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], saving: false } }))
+    }
+  }
+
+  const handleDeleteTag = async (tagId: string) => {
+    if (staged) {
+      setLocalTags(prev => prev.filter(t => t.id !== tagId))
+      if (!isNewTag(tagId)) setDeletedDbIds(prev => new Set([...prev, tagId]))
+      return
+    }
+    await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
+    refreshTags()
+  }
+
+  useImperativeHandle(ref, () => ({
+    flushChanges: async (slugOverride?: string) => {
+      const slug = slugOverride ?? editionSlug
+      // 1. POST new tags (synthetic IDs — AI-parsed or manually added)
+      for (const tag of localTags.filter(t => isNewTag(t.id))) {
+        await authFetch(`/editions/${slug}/feature-tags`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawValue: tag.rawValue, categories: tag.categories.map(c => c.slug) }),
+        }).catch(() => null)
+      }
+      // 2. DELETE removed DB tags
+      for (const id of deletedDbIds) {
+        await authFetch(`/editions/${slug}/feature-tags/${id}`, { method: 'DELETE' }).catch(() => null)
+      }
+      // 3. PATCH modified DB tags (diff against original)
+      const originalById = new Map(originalTagsRef.current.map(t => [t.id, t]))
+      for (const tag of localTags.filter(t => !isNewTag(t.id))) {
+        const orig = originalById.get(tag.id)
+        if (!orig) continue
+        const rawChanged = tag.rawValue !== orig.rawValue
+        const catsChanged = JSON.stringify(tag.categories.map(c => c.slug).sort()) !==
+          JSON.stringify(orig.categories.map(c => c.slug).sort())
+        if (rawChanged || catsChanged) {
+          await authFetch(`/editions/${slug}/feature-tags/${tag.id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...(rawChanged && { rawValue: tag.rawValue }),
+              ...(catsChanged && { categories: tag.categories.map(c => c.slug) }),
+            }),
+          }).catch(() => null)
+        }
+      }
+      refreshTags()
+    }
+  }))
+
+  // ── Row renderer ─────────────────────────────────────────────────────────────
+  const renderRow = (tag: FeatureTag) => {
+    const { id: tagId, rawValue, categories: rowCategories, isManual } = tag
+    const existingSlugs = new Set(rowCategories.map(c => c.slug))
+    const available = allCategories.filter(c => !existingSlugs.has(c.slug))
+    const editing = editingRow[tagId]
+
+    return (
+      <div key={tagId} className="py-2 border-b border-stone-800 last:border-0">
+        <div className="flex items-start gap-2 mb-1.5">
+          {editing ? (
+            <div className="flex-1 flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={editing.rawValue}
+                onChange={e => setEditingRow(prev => ({ ...prev, [tagId]: { ...prev[tagId], rawValue: e.target.value } }))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleUpdateTag(tagId) }
+                  if (e.key === 'Escape') cancelEdit(tagId)
+                }}
+                className="flex-1 text-xs bg-stone-900 border border-amber-600 rounded px-2 py-0.5 text-stone-100 focus:outline-none"
+              />
+              <button type="button" disabled={editing.saving}
+                onClick={() => handleUpdateTag(tagId)}
+                className="shrink-0 text-xs px-2 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40">
+                {editing.saving ? '…' : '✓'}
+              </button>
+              <button type="button" onClick={() => cancelEdit(tagId)}
+                className="shrink-0 text-xs text-stone-500 hover:text-stone-300">✕</button>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-start justify-between gap-2 min-w-0">
+              <span className="text-xs text-stone-300 leading-snug break-words">{rawValue}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => startEdit(tag)}
+                  className="text-[10px] text-stone-500 hover:text-amber-400 px-1" title="Edit">✎</button>
+                <button type="button" onClick={() => handleDeleteTag(tagId)}
+                  className="text-[10px] text-stone-600 hover:text-red-400 px-1" title="Remove">🗑</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!editing && (
+          <div className="flex flex-wrap items-center gap-1.5 pl-[4px]">
+            {rowCategories
+              .map(cat => allCategories.find(c => c.slug === cat.slug) ?? cat)
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map(cat => (
+              <span key={cat.slug}
+                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
+                  isManual
+                    ? 'bg-amber-900/40 border-amber-700 text-amber-200'
+                    : 'bg-stone-700 border-stone-600 text-stone-200'
+                }`}>
+                {cat.label}
+                <button type="button" onClick={() => handleRemoveCategory(tagId, cat.slug)}
+                  className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
+              </span>
+            ))}
+            {available.length > 0 && (
+              <div className="flex items-center gap-1">
+                <select value=""
+                  onChange={e => { if (e.target.value) handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), e.target.value) }}
+                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[180px]">
+                  <option value="">+ category…</option>
+                  {Object.entries(
+                    available.reduce<Record<string, typeof available>>((acc, c) => {
+                      const g = c.group || 'Other';
+                      (acc[g] = acc[g] ?? []).push(c);
+                      return acc;
+                    }, {})
+                  ).map(([group, cats]) => (
+                    <optgroup key={group} label={group}>
+                      {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                        <option key={c.slug} value={c.slug}>{c.label}</option>
+                      )}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const availableForNew = allCategories.filter(c => !newCategories.includes(c.slug))
+
+  return (
+    <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
+      <div className="mb-2">
+        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Features with categories</span>
+      </div>
+      <p className="text-[10px] text-stone-500 mb-2">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
+      </p>
+
+      {tags.length > 0 ? (
+        <div className="mb-2">{tags.map(tag => renderRow(tag))}</div>
+      ) : (
+        <p className="text-xs text-stone-500 italic mb-2">No features yet.</p>
+      )}
+
+      {/* Add new feature manually */}
+      <div className="mt-3 pt-3 border-t border-stone-700/50">
+        <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">Add feature manually</p>
+        <div className="flex flex-wrap gap-2 items-end">
+          <input
+            value={newRaw}
+            onChange={e => setNewRaw(e.target.value)}
+            placeholder="Raw value (e.g. Foil cover, Sprayed edges…)"
+            className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-amber-500 placeholder:text-stone-600"
+          />
+          <div className="flex flex-col gap-1 min-w-[160px]">
+            {newCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {newCategories.map(slug => {
+                  const cat = allCategories.find(c => c.slug === slug)
+                  return (
+                    <span key={slug} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 border border-amber-700 text-amber-200">
+                      {cat?.label ?? slug}
+                      <button type="button" onClick={() => setNewCategories(prev => prev.filter(s => s !== slug))}
+                        className="text-amber-500 hover:text-red-400 leading-none">×</button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            {availableForNew.length > 0 && (
+              <select value={newCategoryPick}
+                onChange={e => { const v = e.target.value; if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') } }}
+                className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500">
+                <option value="">+ add category…</option>
+                {availableForNew.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+              </select>
+            )}
+          </div>
+          <button type="button" disabled={!newRaw.trim() || addingNew} onClick={handleAddNewTag}
+            className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            {addingNew ? 'Adding…' : '+ Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+})
+
 // ─── EditionFieldsSection ─────────────────────────────────────────────────────
 export interface EditionFieldsSectionProps {
   companyId: string
@@ -331,17 +721,26 @@ export interface EditionFieldsSectionProps {
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
-  artists: ArtistEntry[]
-  onArtistsChange: (artists: ArtistEntry[]) => void
+  /** Artists / contributors — managed in artist_contributions table */
+  artists?: ArtistEntry[]
+  onArtistsChange?: (artists: ArtistEntry[]) => void
   /** Called when an existing artist (existing: true) is removed — Edit form uses this to track deleted IDs */
   onRemoveExistingArtist?: (artistId: string) => void
-  features: string[]
-  onFeaturesChange: (features: string[]) => void
+  /** @deprecated Only used by Create form */
+  features?: string[]
+  /** @deprecated Only used by Create form */
+  onFeaturesChange?: (features: string[]) => void
   /** Show omnibus toggle (Edit form only) */
   isOmnibus?: boolean
   onIsOmnibusChange?: (v: boolean) => void
   /** When provided together with isOmnibus=true, renders OmnibusComponentsPanel */
   editionSlug?: string
+  /** Existing feature tags from DB — shown in FeatureCategoryPreview (edit form only) */
+  featureTags?: FeatureTag[]
+  /** AI-parsed feature tags staged for save — merged into FeatureCategoryPreview as regular entries */
+  pendingFeatureTags?: Array<{ rawValue: string; categories: string[] }>
+  /** Ref to FeatureCategoryPreview for calling flushChanges() on save (staged mode) */
+  featurePreviewRef?: Ref<FeaturePreviewHandle>
   companies: EditionCompany[]
   collections: { id: string; name: string }[]
 }
@@ -357,9 +756,10 @@ export function EditionFieldsSection({
   generalSaleDate, onGeneralSaleDateChange,
   allImages, onImagesChange,
   onAiResult,
-  artists, onArtistsChange, onRemoveExistingArtist,
-  features, onFeaturesChange,
-  isOmnibus, onIsOmnibusChange, editionSlug,
+  artists = [], onArtistsChange, onRemoveExistingArtist,
+  features = [], onFeaturesChange,
+  isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
+  pendingFeatureTags, featurePreviewRef,
   companies, collections,
 }: EditionFieldsSectionProps) {
   const handleRemoveArtist = (index: number) => {
@@ -367,7 +767,7 @@ export function EditionFieldsSection({
     if (art.existing && art.id) {
       onRemoveExistingArtist?.(art.id)
     }
-    onArtistsChange(artists.filter((_, j) => j !== index))
+    onArtistsChange?.(artists.filter((_, j) => j !== index))
   }
 
   return (
@@ -412,17 +812,10 @@ export function EditionFieldsSection({
         </div>
       )}
 
-      {/* Publisher + Photo credit */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LBL}>Publisher</label>
-          <PublisherPicker value={publisher} onChange={onPublisherChange} />
-        </div>
-        <div>
-          <label className={LBL}>Photo by (IG handle)</label>
-          <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
-            placeholder="@username" className={INP} />
-        </div>
+      {/* Publisher */}
+      <div>
+        <label className={LBL}>Publisher</label>
+        <PublisherPicker value={publisher} onChange={onPublisherChange} />
       </div>
 
       {/* Language */}
@@ -450,6 +843,13 @@ export function EditionFieldsSection({
         </div>
       </div>
 
+      {/* Photo credit + Images */}
+      <div>
+        <label className={LBL}>Photo by (IG handle)</label>
+        <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
+          placeholder="@username" className={INP} />
+      </div>
+
       {/* Images */}
       <div>
         <label className={LBL}>Images <span className="text-stone-600 font-normal normal-case tracking-normal">(first image will be the main cover)</span></label>
@@ -462,12 +862,12 @@ export function EditionFieldsSection({
 
       <AiParseSection onResult={onAiResult} />
 
-      {/* Artists */}
+      {/* Artists / contributors */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className={LBL}>Artists / contributors</label>
           <button type="button"
-            onClick={() => onArtistsChange([...artists, { name: '', role: '' }])}
+            onClick={() => onArtistsChange?.([...artists, { name: '', role: '' }])}
             className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add artist</button>
         </div>
         {artists.length > 0 && (
@@ -475,21 +875,30 @@ export function EditionFieldsSection({
             {artists.map((art, i) => (
               <div key={i} className="flex gap-2 items-start">
                 <div className="flex-1">
-                  {art.name ? (
+                  {art.id ? (
+                    <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                      {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
+                      <span className="flex-1">{art.name}</span>
+                      <button
+                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        className="text-stone-500 hover:text-red-400 text-xs">×</button>
+                    </div>
+                  ) : art.name ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
-                      onAdd={(a: PersonEntry) => onArtistsChange(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
+                      initialQuery={art.name || undefined}
+                      onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
                   )}
                 </div>
                 <input value={art.role}
-                  onChange={e => onArtistsChange(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                  onChange={e => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                   placeholder="Role (e.g. cover art, map…)"
                   className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-xs" />
                 <button type="button" onClick={() => handleRemoveArtist(i)}
@@ -500,10 +909,17 @@ export function EditionFieldsSection({
         )}
       </div>
 
-      {/* Features */}
+      {/* Features / Category tags */}
       <div>
-        <label className={LBL}>Features / extras</label>
-        <FeatureTags features={features} onChange={onFeaturesChange} />
+        {(editionSlug || featurePreviewRef) && (
+          <FeatureCategoryPreview
+            ref={featurePreviewRef}
+            editionSlug={editionSlug}
+            initialTags={featureTags}
+            staged={!!featurePreviewRef}
+            pendingTags={pendingFeatureTags}
+          />
+        )}
       </div>
 
       {/* Omnibus (Edit form only) */}

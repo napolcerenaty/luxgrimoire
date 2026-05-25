@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -540,7 +540,7 @@ export default function CollectionPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
-  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE'>('ALL')
+  const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE' | 'STAMPED'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
@@ -758,6 +758,7 @@ export default function CollectionPage() {
     if (sigFilter === 'AUTOPEN' && e.signatureType !== 'autopen') return false
     if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
     if (sigFilter === 'SIGNED_BOOKPLATE' && e.signatureType !== 'signed_bookplate') return false
+    if (sigFilter === 'STAMPED' && e.signatureType !== 'stamped') return false
     if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
     if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
     if (tagFilter !== 'ALL') {
@@ -951,6 +952,7 @@ export default function CollectionPage() {
               <option value="AUTOPEN">✒️ Autopen</option>
               <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
               <option value="SIGNED_BOOKPLATE">🏷️ Signed Bookplate</option>
+              <option value="STAMPED">🕹️ Stamped</option>
             </select>
 
             {/* Ownership status */}
@@ -1210,17 +1212,19 @@ export default function CollectionPage() {
                                       ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
                                       : entry.signatureType === 'autopen'
                                       ? 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+                                      : entry.signatureType === 'stamped'
+                                      ? 'text-teal-400 bg-teal-500/10 border-teal-500/30'
                                       : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                                   }`}
                                 >
-                                  {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : entry.signatureType === 'autopen' ? '✒️ AUTOPEN' : '🖨️ DIGITALLY SIGNED'}
+                                  {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : entry.signatureType === 'autopen' ? '✒️ AUTOPEN' : entry.signatureType === 'stamped' ? '🕹️ STAMPED' : '🖨️ DIGITALLY SIGNED'}
                                 </span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed'] as const).map((val) => (
+                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                       <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
-                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : '🖨️ Digitally Signed'}</button>
+                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
                                   </div>
                                 )}
@@ -1235,10 +1239,10 @@ export default function CollectionPage() {
                                 >UNSIGNED</span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed'] as const).map((val) => (
+                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                       <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
-                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : '🖨️ Digitally Signed'}</button>
+                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
                                   </div>
                                 )}
@@ -1479,16 +1483,16 @@ export default function CollectionPage() {
                           <div className="relative" data-dropdown>
                             <span
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig` ? null : `${entry.id}-sig`) }}
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30') : 'text-stone-600 bg-stone-800 border-stone-700'}`}
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : entry.signatureType === 'stamped' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30') : 'text-stone-600 bg-stone-800 border-stone-700'}`}
                             >
-                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : '—'}
+                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : '—'}
                             </span>
                             {openDropdown === `${entry.id}-sig` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed'] as const).map((val) => (
+                                {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
-                                  >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : '🖨️ Digitally Signed'}</button>
+                                  >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                 ))}
                               </div>
                             )}

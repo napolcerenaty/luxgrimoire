@@ -15,6 +15,7 @@ const STATUS_BADGE: Record<string, string> = {
   pending: 'bg-stone-700 text-stone-400',
   accepted: 'bg-green-900/40 text-green-400',
   rejected: 'bg-red-900/40 text-red-400',
+  implemented: 'bg-purple-900/40 text-purple-400',
 }
 
 function VoteButton({ req, onVote }: { req: ApiFeatureRequest; onVote: () => void }) {
@@ -96,11 +97,18 @@ export default function FeatureRequestsPage() {
   const qc = useQueryClient()
   const [showSubmit, setShowSubmit] = useState(false)
   const [showMine, setShowMine] = useState(false)
+  const [showImplemented, setShowImplemented] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
 
   const { data: publicData, isLoading } = useQuery({
     queryKey: ['feature-requests', 'public'],
     queryFn: () => getFeatureRequests({ pageSize: 50 }),
+  })
+
+  const { data: implementedData, isLoading: implementedLoading } = useQuery({
+    queryKey: ['feature-requests', 'implemented'],
+    queryFn: () => getFeatureRequests({ pageSize: 100, status: 'implemented' }),
+    enabled: showImplemented,
   })
 
   const { data: myRequests = [] } = useQuery({
@@ -127,6 +135,7 @@ export default function FeatureRequestsPage() {
   })
 
   const requests: ApiFeatureRequest[] = publicData?.data ?? []
+  const implemented: ApiFeatureRequest[] = implementedData?.data ?? []
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -230,6 +239,55 @@ export default function FeatureRequestsPage() {
           <a href="/login" className="text-amber-400 hover:text-amber-300">Log in</a> to vote and submit feature requests
         </p>
       )}
+
+      {/* Implemented section */}
+      <div className="mt-12 border-t border-stone-800 pt-8">
+        <button
+          onClick={() => setShowImplemented(v => !v)}
+          className="flex items-center gap-2 text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
+        >
+          <span className="text-base">{showImplemented ? '▼' : '▶'}</span>
+          <span>🎉 Implemented</span>
+          {implementedData && (
+            <span className="ml-1 text-xs bg-purple-900/40 text-purple-400 px-2 py-0.5 rounded-full">
+              {implementedData.total}
+            </span>
+          )}
+        </button>
+
+        {showImplemented && (
+          <div className="mt-4">
+            {implementedLoading ? (
+              <div className="text-stone-500 py-8 text-center text-sm">Loading…</div>
+            ) : implemented.length === 0 ? (
+              <div className="text-stone-600 text-sm py-6 text-center">No implemented features yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {implemented.map(req => (
+                  <div key={req.id} className="flex gap-4 bg-stone-900 border border-purple-900/30 rounded-2xl p-4">
+                    <div className="flex flex-col items-center justify-center min-w-[52px]">
+                      <span className="text-2xl">✅</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-stone-100 font-semibold mb-1">{req.title}</div>
+                      <div className="text-stone-400 text-sm leading-relaxed whitespace-pre-line line-clamp-2">{req.description}</div>
+                      {req.adminNote && (
+                        <div className="mt-2 text-xs text-purple-400/80 bg-purple-900/10 border border-purple-900/20 rounded-lg px-3 py-2">
+                          <span className="font-semibold">Note:</span> {req.adminNote}
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-stone-600">
+                        {req.voteCount} votes
+                        {req.user?.username && <span> · by {req.user.username}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {showSubmit && (
         <SubmitModal

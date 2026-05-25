@@ -114,7 +114,7 @@ export class SubscriptionsController {
   @Public()
   @Get(':slug/months')
   getMonths(@Param('slug') slug: string, @Query() query: MonthQueryDto) {
-    return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12, query.all ?? false, query.ownOnly ?? false, query.fromYear, query.fromMonth);
+    return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12, query.all ?? false, query.ownOnly ?? false, query.fromYear, query.fromMonth, query.untilYear, query.untilMonth);
   }
 
   @ApiBearerAuth()

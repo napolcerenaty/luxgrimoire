@@ -28,7 +28,6 @@ import { SpendingModule } from './modules/spending/spending.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProfileModule } from './modules/profile/profile.module';
-import { SponsoredModule } from './modules/sponsored/sponsored.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
@@ -47,6 +46,7 @@ import { TrackingModule } from './modules/tracking/tracking.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { TypesenseModule } from './modules/typesense/typesense.module';
 import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
+import { FeatureCategoriesModule } from './modules/feature-categories/feature-categories.module';
 
 @Module({
   imports: [
@@ -67,6 +67,11 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
               id: req.id,
             };
           },
+          res(res) {
+            return {
+              statusCode: res.statusCode,
+            };
+          },
         },
       },
     }),
@@ -75,6 +80,7 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
       isGlobal: true,
       useFactory: async (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
+        const redisMaxMemory = config.get<string>('REDIS_MAX_MEMORY') ?? '128mb';
         if (redisUrl) {
           try {
             const keyvRedis = new KeyvRedis(redisUrl);
@@ -86,6 +92,13 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
                 setTimeout(() => reject(new Error('Redis connection timeout')), 4000),
               ),
             ]);
+            // Set memory limit and LRU eviction policy so Redis never grows unbounded
+            try {
+              const client = keyvRedis.client;
+              await client.configSet({ maxmemory: redisMaxMemory, 'maxmemory-policy': 'allkeys-lru' });
+            } catch {
+              // CONFIG SET may be disabled on some managed Redis instances — non-fatal
+            }
             return { stores: [store], ttl: 300_000 };
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -124,7 +137,6 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
     FeesModule,
     NotificationsModule,
     ProfileModule,
-    SponsoredModule,
     AnnouncementsModule,
     SaleInterestsModule,
     SkipPolicyModule,
@@ -142,6 +154,7 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
     TrackingModule,
     BackupModule,
     CrowdStatsModule,
+    FeatureCategoriesModule,
   ],
   providers: [
     ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),

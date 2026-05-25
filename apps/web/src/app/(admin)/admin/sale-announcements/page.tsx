@@ -17,13 +17,14 @@ import {
   adminSetAllAnnouncementEditionsReprint,
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
+  adminDuplicateSaleAnnouncement,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
-import type { ArtistEntry, AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
+import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -308,10 +309,9 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   const [bdPublisher, setBdPublisher] = useState('')
   const [bdCompanyId, setBdCompanyId] = useState(defaultCompanyId ?? '')
   const [bdCollectionId, setBdCollectionId] = useState('')
-  const [bdArtistsText, setBdArtistsText] = useState('')
-  const [bdArtists, setBdArtists] = useState<ArtistEntry[]>([])
-  const [bdFeatures, setBdFeatures] = useState<string[]>([])
   const [bdParsing, setBdParsing] = useState(false)
+  // bundle AI text parse (kept for UI compatibility — features/artists now managed in CreateBookEditionForm)
+  const [bdArtistsText, setBdArtistsText] = useState('')
 
   const perBookPrice = isBundle && bundleBasePrice != null && bdBookCount && Number(bdBookCount) > 0
     ? Math.round(bundleBasePrice / Number(bdBookCount) * 100) / 100
@@ -337,9 +337,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     if (!bdArtistsText.trim()) return
     setBdParsing(true)
     try {
-      const result = await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
-      if (result?.edition?.artists) setBdArtists(result.edition.artists.map(a => ({ name: a.name, role: a.role ?? '' })))
-      if (result?.edition?.features) setBdFeatures(result.edition.features)
+      await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
+      // Note: features/artists are now handled directly in CreateBookEditionForm's AI parser
     } catch { /* ignore */ }
     setBdParsing(false)
   }
@@ -414,8 +413,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultLanguage={isBundle ? bdLanguage : undefined}
           defaultPublisher={isBundle ? bdPublisher : undefined}
           defaultCollectionId={isBundle ? bdCollectionId : undefined}
-          defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
-          defaultFeatures={isBundle && bdFeatures.length > 0 ? bdFeatures : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -512,11 +509,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
             </button>
-            {(bdArtists.length > 0 || bdFeatures.length > 0) && (
-              <div className="mt-2 text-xs text-stone-400 space-y-0.5">
-                {bdArtists.length > 0 && <div>Artists: {bdArtists.map(a => `${a.name}${a.role ? ` (${a.role})` : ''}`).join(', ')}</div>}
-                {bdFeatures.length > 0 && <div>Features: {bdFeatures.join(', ')}</div>}
-              </div>
+            {bdParsing && (
+              <div className="mt-2 text-xs text-stone-400">Parsing…</div>
             )}
           </div>
         </div>
@@ -1158,6 +1152,7 @@ const SIGNATURE_TYPES = [
   { value: 'autopen', label: 'Autopen' },
   { value: 'digitally_signed', label: 'Digitally Signed' },
   { value: 'signed_bookplate', label: 'Signed Bookplate' },
+  { value: 'stamped', label: 'Stamped' },
 ] as const
 
 function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
@@ -1193,7 +1188,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   const setVariantMutation = useMutation({
     mutationFn: ({ editionId, signatureType, price, currency }: {
       editionId: string
-      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped'
       price?: number | null
       currency?: string | null
     }) => adminSetAnnouncementVariant(announcement.id, editionId, signatureType, price, currency),
@@ -1204,7 +1199,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   const removeVariantMutation = useMutation({
     mutationFn: ({ editionId, signatureType }: {
       editionId: string
-      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
+      signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped'
     }) => adminRemoveAnnouncementVariant(announcement.id, editionId, signatureType),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -1399,14 +1394,16 @@ function AnnouncementCard({
   companyMap,
   onEdit,
   onDelete,
+  onCopy,
   isEditing,
 }: {
   announcement: ApiSaleAnnouncement
   companyMap: Record<string, string>
   onEdit: () => void
   onDelete: () => void
+  onCopy: () => void
   isEditing?: boolean
-}) {
+}){
   const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
   const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
   const saleDate = announcement.generalSaleDate
@@ -1460,6 +1457,10 @@ function AnnouncementCard({
               <button onClick={onEdit}
                 className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-amber-400/20 text-amber-300 border-amber-400/50' : 'text-amber-400 hover:text-amber-300 border-stone-600 hover:border-amber-400/50'}`}>
                 {isEditing ? 'Cancel' : 'Edit'}
+              </button>
+              <button onClick={onCopy}
+                className="text-sky-400 hover:text-sky-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-sky-400/50 transition-colors">
+                Copy
               </button>
               <button onClick={onDelete}
                 className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-red-400/50 transition-colors">
@@ -1730,6 +1731,12 @@ export default function AdminSaleAnnouncementsPage() {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const copyMutation = useMutation({
+    mutationFn: (id: string) => adminDuplicateSaleAnnouncement(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   const handleAiApply = (result: AiSaleResult, sourceUrl?: string) => {
     setShowAiModal(false)
     const defaultRegion = result.regions?.find(r => r.isDefault) ?? result.regions?.[0]
@@ -1848,6 +1855,7 @@ export default function AdminSaleAnnouncementsPage() {
                 companyMap={companyMap}
                 onEdit={() => { setEditItem(editItem?.id === a.id ? null : a); createModal.close() }}
                 onDelete={() => setDeleteItem(a)}
+                onCopy={() => copyMutation.mutate(a.id)}
                 isEditing={editItem?.id === a.id}
               />
               {editItem?.id === a.id && (

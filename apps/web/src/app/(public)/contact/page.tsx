@@ -22,7 +22,7 @@ export default function ContactPage() {
             title: `Contact: ${form.subject || '(no subject)'}`,
             description: `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`,
             category: 'OTHER',
-            pageUrl: '/contact',
+            pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
           }),
         },
       )

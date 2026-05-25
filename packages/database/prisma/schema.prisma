@@ -228,6 +228,7 @@ model BookEdition {
   collectionId             String?
   currency                 String?
   earlyAccessDate          String?
+  /// @deprecated Use EditionFeatureTag source='features' (rawValue) instead. book_editions.features[] will be removed after migration.
   features                 String[]
   firstAccessDate          String?
   generalSaleDate          String?
@@ -251,6 +252,7 @@ model BookEdition {
   communityImages          UserEditionImage[]
   saleStats                EditionSaleStat[]
   statsSnapshot            EditionStatsSnapshot?
+  featureTags              EditionFeatureTag[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -302,7 +304,6 @@ model BookBoxCompany {
   brandColors       String[]
   collections       BookBoxCollection[]
   editions          BookEdition[]
-  sponsoredSlots    SponsoredSlot[]
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
@@ -353,6 +354,9 @@ model Subscription {
   language             String?
   contentType          String                       @default("MIX")
   isHidden             Boolean                      @default(false)
+  isUpcoming           Boolean                      @default(false)
+  upcomingNote         String?
+  waitlistLink         String?
   isContentStream      Boolean                      @default(false)
   isBundleSubscription Boolean                      @default(false)
   paymentOnStartup              Boolean                      @default(false)
@@ -476,6 +480,7 @@ model SubscriptionPrepayOption {
   subscriptionId   String
   months           Int
   price            Decimal                 @db.Decimal(10, 2)
+  currency         String                  @db.VarChar(3) @default("USD")
   label            String?
   validFrom        DateTime?
   validUntil       DateTime?
@@ -935,24 +940,6 @@ model UserNotification {
   @@map("user_notifications")
 }
 
-model SponsoredSlot {
-  id        String            @id @default(uuid())
-  companyId String
-  type      SponsoredSlotType
-  startsAt  DateTime
-  endsAt    DateTime
-  priceEur  Float
-  notes     String?
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  company   BookBoxCompany    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([isActive])
-  @@map("sponsored_slots")
-}
-
 model AppSetting {
   key       String   @id
   value     String
@@ -1239,12 +1226,7 @@ enum SignatureType {
   autopen
   digitally_signed
   signed_bookplate
-}
-
-enum SponsoredSlotType {
-  HOMEPAGE_FEATURED
-  COMPANY_PAGE_BANNER
-  NEWSLETTER_SLOT
+  stamped
 }
 
 enum FeeCategory {
@@ -1392,4 +1374,39 @@ model SubscriptionCountryFeeSnapshot {
   @@unique([subscriptionId, country])
   @@index([subscriptionId])
   @@map("subscription_country_fee_snapshots")
+}
+
+// ─── Feature Normalisation ───────────────────────────────────────────────────
+
+model FeatureCategory {
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  label           String
+  group           String
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  includePatterns Json     @default("[]")
+  excludePatterns Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([group])
+  @@map("feature_categories")
+}
+
+model EditionFeatureTag {
+  id         String      @id @default(uuid())
+  editionId  String
+  rawValue   String
+  categories String[]    @default([])
+  isManual   Boolean     @default(false) @map("is_manual")
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+
+  edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@unique([editionId, rawValue])
+  @@index([editionId])
+  @@index([editionId, sortOrder])
+  @@map("edition_feature_tags")
 }

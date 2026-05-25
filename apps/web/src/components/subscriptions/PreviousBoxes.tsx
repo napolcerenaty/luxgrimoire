@@ -58,9 +58,32 @@ interface Props {
   isCombo?: boolean
   comboComponents?: { slug: string; name: string }[]
   comboStartDate?: string | null
+  isBundleSubscription?: boolean
+  intervalMonths?: number
+  startingMonth?: number
+  bundleUntilYear?: number
+  bundleUntilMonth?: number
 }
 
 const PAGE_SIZE = 12
+
+function getBundleKey(year: number, month: number, intervalMonths: number, startingMonth: number): string {
+  const monthsFromStart = (year * 12 + month) - (year * 12 + startingMonth)
+  const cycleOffset = ((monthsFromStart % intervalMonths) + intervalMonths) % intervalMonths
+  let bm = month - cycleOffset
+  let by = year
+  while (bm <= 0) { bm += 12; by-- }
+  return `${by}-${String(bm).padStart(2, '0')}`
+}
+
+function getBundleLabel(key: string, intervalMonths: number): string {
+  const [y, m] = key.split('-').map(Number)
+  const endM = m + intervalMonths - 1
+  const endMonth = ((endM - 1) % 12) + 1
+  const endYear = y + Math.floor((endM - 1) / 12)
+  if (intervalMonths === 1) return `${MONTH_NAMES[m - 1]} ${y}`
+  return `${MONTH_NAMES[m - 1]} – ${MONTH_NAMES[endMonth - 1]} ${endYear}`
+}
 
 function PreviousBoxesList({
   subscriptionSlug,
@@ -68,7 +91,12 @@ function PreviousBoxesList({
   totalMonths,
   fromYear,
   fromMonth,
-}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number; fromYear?: number; fromMonth?: number }) {
+  untilYear,
+  untilMonth,
+  isBundleSubscription,
+  intervalMonths = 1,
+  startingMonth = 1,
+}: { subscriptionSlug: string; accentColors?: string[] | null; totalMonths?: number; fromYear?: number; fromMonth?: number; untilYear?: number; untilMonth?: number; isBundleSubscription?: boolean; intervalMonths?: number; startingMonth?: number }) {
   const [page, setPage] = useState(1)
   const [allMonths, setAllMonths] = useState<PastMonth[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -77,11 +105,15 @@ function PreviousBoxesList({
     ? `&fromYear=${fromYear}${fromMonth != null ? `&fromMonth=${fromMonth}` : ''}`
     : ''
 
+  const untilParams = untilYear != null
+    ? `&untilYear=${untilYear}${untilMonth != null ? `&untilMonth=${untilMonth}` : ''}`
+    : ''
+
   const { data, isLoading, isFetching } = useQuery<PaginatedMonths>({
-    queryKey: ['subscription-past-months', subscriptionSlug, page, fromYear, fromMonth],
+    queryKey: ['subscription-past-months', subscriptionSlug, page, fromYear, fromMonth, untilYear, untilMonth],
     queryFn: () =>
       apiFetch<PaginatedMonths>(
-        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}${fromParams}`,
+        `/subscriptions/${subscriptionSlug}/months?page=${page}&pageSize=${PAGE_SIZE}${fromParams}${untilParams}`,
       ),
     staleTime: 1000 * 60 * 5,
   })
@@ -97,6 +129,43 @@ function PreviousBoxesList({
   }, [data])
 
   const hasMore = page < totalPages
+
+  // Group by bundle when applicable
+  const bundleGroups: { key: string; label: string; months: PastMonth[] }[] | null =
+    isBundleSubscription && intervalMonths > 1
+      ? (() => {
+          const map = new Map<string, PastMonth[]>()
+          for (const m of allMonths) {
+            const key = getBundleKey(m.year, m.month, intervalMonths, startingMonth)
+            if (!map.has(key)) map.set(key, [])
+            map.get(key)!.push(m)
+          }
+          // Sort groups newest first
+          return [...map.entries()]
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .map(([key, months]) => ({ key, label: getBundleLabel(key, intervalMonths), months }))
+        })()
+      : null
+
+  const MonthGrid = ({ months }: { months: PastMonth[] }) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {months.map((m) => (
+        <MonthCard
+          key={m.id}
+          year={m.year}
+          month={m.month}
+          monthName={MONTH_NAMES[m.month - 1]}
+          theme={m.theme}
+          coverImage={m.coverImage}
+          mainBook={getMainBook(m)}
+          isSpoiler={m.isSpoiler}
+          cardArtist={m.cardArtist ?? null}
+          accentColors={accentColors}
+          editionSlug={getEditionSlug(m)}
+        />
+      ))}
+    </div>
+  )
 
   return (
     <>
@@ -116,26 +185,33 @@ function PreviousBoxesList({
             <div key={i} className="animate-pulse rounded-xl bg-stone-800 aspect-[3/4]" />
           ))}
         </div>
-      ) : (
+      ) : bundleGroups ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {allMonths.map((m) => (
-              <MonthCard
-                key={m.id}
-                year={m.year}
-                month={m.month}
-                monthName={MONTH_NAMES[m.month - 1]}
-                theme={m.theme}
-                coverImage={m.coverImage}
-                mainBook={getMainBook(m)}
-                isSpoiler={m.isSpoiler}
-                cardArtist={m.cardArtist ?? null}
-                accentColors={accentColors}
-                editionSlug={getEditionSlug(m)}
-              />
+          <div className="space-y-8">
+            {bundleGroups.map((group) => (
+              <div key={group.key}>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-3">
+                  {group.label}
+                </h3>
+                <MonthGrid months={group.months} />
+              </div>
             ))}
           </div>
-
+          {hasMore && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={isFetching}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isFetching ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <MonthGrid months={allMonths} />
           {hasMore && (
             <div className="mt-8 text-center">
               <button
@@ -153,7 +229,7 @@ function PreviousBoxesList({
   )
 }
 
-export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents, comboStartDate }: Props) {
+export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMonths, isCombo, comboComponents, comboStartDate, isBundleSubscription, intervalMonths, startingMonth, bundleUntilYear, bundleUntilMonth }: Props) {
   const [visible, setVisible] = useState(false)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
 
@@ -208,7 +284,16 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
   // Regular subscription
   return (
     <section className="mt-10">
-      <PreviousBoxesList subscriptionSlug={subscriptionSlug} accentColors={accentColors} totalMonths={totalMonths} />
+      <PreviousBoxesList
+        subscriptionSlug={subscriptionSlug}
+        accentColors={accentColors}
+        totalMonths={totalMonths}
+        untilYear={bundleUntilYear}
+        untilMonth={bundleUntilMonth}
+        isBundleSubscription={isBundleSubscription}
+        intervalMonths={intervalMonths}
+        startingMonth={startingMonth}
+      />
     </section>
   )
 }

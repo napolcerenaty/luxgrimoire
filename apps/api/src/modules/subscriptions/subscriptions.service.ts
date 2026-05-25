@@ -75,6 +75,20 @@ export class SubscriptionsService {
   private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
   private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
 
+  // Months list changes ~1-2x/month → 24h cache with version-based invalidation
+  private readonly SUB_MONTHS_TTL = 24 * 60 * 60 * 1000;
+  private readonly subMonthsBustKey = (slug: string) => `subscriptions:months-bust:${slug}`;
+  private readonly subMonthsKey = (slug: string, version: number, page: number, pageSize: number, all: boolean, ownOnly: boolean, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) =>
+    `subscriptions:months:${slug}:v${version}:${page}:${pageSize}:${all}:${ownOnly}:${fromYear ?? ''}:${fromMonth ?? ''}:${untilYear ?? ''}:${untilMonth ?? ''}`;
+
+  private async getMonthsCacheVersion(slug: string): Promise<number> {
+    return (await this.cache.get<number>(this.subMonthsBustKey(slug))) ?? 0;
+  }
+
+  private async invalidateMonthsCache(slug: string): Promise<void> {
+    await this.cache.set(this.subMonthsBustKey(slug), Date.now(), this.SUB_MONTHS_TTL);
+  }
+
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -141,6 +155,9 @@ export class SubscriptionsService {
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         isDiscontinued: dto.isDiscontinued ?? false,
+        isUpcoming: dto.isUpcoming ?? false,
+        upcomingNote: dto.upcomingNote,
+        waitlistLink: dto.waitlistLink,
         currency,
         language: dto.language,
         shipsInternationally: dto.shipsInternationally ?? false,
@@ -198,7 +215,10 @@ export class SubscriptionsService {
     if (query.companyId) where.companyId = query.companyId;
     if (query.companySlug) where.company = { slug: query.companySlug };
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
-    if (query.genre) where.OR = [{ genre: query.genre }, { genres: { has: query.genre } }];
+    if (query.genre) {
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ genre: query.genre }, { genres: { has: query.genre } }] }];
+    }
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
@@ -207,6 +227,20 @@ export class SubscriptionsService {
     }
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
+    }
+    if (query.status === 'active') {
+      const now = new Date();
+      where.isDiscontinued = false;
+      where.isUpcoming = false;
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ startDate: null }, { startDate: { lte: now } }] }];
+    } else if (query.status === 'discontinued') {
+      where.isDiscontinued = true;
+    } else if (query.status === 'upcoming') {
+      const now = new Date();
+      where.isDiscontinued = false;
+      const currentAnd = (where.AND as unknown[]) ?? [];
+      where.AND = [...currentAnd, { OR: [{ isUpcoming: true }, { startDate: { gt: now } }] }];
     }
 
     const [data, total] = await Promise.all([
@@ -264,6 +298,26 @@ export class SubscriptionsService {
   private async _fetchSubscriptionBySlug(slug: string) {    const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
+
+    // For bundle subscriptions, include months from the start of the current bundle window
+    const bundleInfo = await this.prisma.subscription.findUnique({
+      where: { slug },
+      select: { isBundleSubscription: true, intervalMonths: true, startingMonth: true },
+    });
+    let monthsFromYear = nowYear;
+    let monthsFromMonth = nowMonth;
+    if (bundleInfo?.isBundleSubscription && (bundleInfo.intervalMonths ?? 1) > 1) {
+      const interval = bundleInfo.intervalMonths ?? 1;
+      const startingMonth = bundleInfo.startingMonth ?? 1;
+      const monthsFromStart = (nowYear * 12 + nowMonth) - (nowYear * 12 + startingMonth);
+      const cycleOffset = ((monthsFromStart % interval) + interval) % interval;
+      let bm = nowMonth - cycleOffset;
+      let by = nowYear;
+      while (bm <= 0) { bm += 12; by--; }
+      monthsFromYear = by;
+      monthsFromMonth = bm;
+    }
+
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug },
       include: {
@@ -329,8 +383,8 @@ export class SubscriptionsService {
         months: {
           where: {
             OR: [
-              { year: { gt: nowYear } },
-              { year: nowYear, month: { gte: nowMonth } },
+              { year: { gt: monthsFromYear } },
+              { year: monthsFromYear, month: { gte: monthsFromMonth } },
             ],
           },
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -369,8 +423,8 @@ export class SubscriptionsService {
       const andConditions: Record<string, unknown>[] = [
         {
           OR: [
-            { year: { gt: nowYear } },
-            { year: nowYear, month: { gte: nowMonth } },
+            { year: { gt: monthsFromYear } },
+            { year: monthsFromYear, month: { gte: monthsFromMonth } },
           ],
         },
       ];
@@ -513,7 +567,12 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number) {
+  async getMonths(slug: string, page = 1, pageSize = 12, all = false, ownOnly = false, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) {
+    const version = await this.getMonthsCacheVersion(slug);
+    const cacheKey = this.subMonthsKey(slug, version, page, pageSize, all, ownOnly, fromYear, fromMonth, untilYear, untilMonth);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
       select: { id: true, parentSubscriptionId: true, startDate: true, endDate: true },
@@ -559,6 +618,14 @@ export class SubscriptionsService {
       const fm = fromMonth ?? 1;
       andConditions.push({
         OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }],
+      });
+    }
+
+    if (untilYear != null) {
+      const uy = untilYear;
+      const um = untilMonth ?? 12;
+      andConditions.push({
+        OR: [{ year: { lt: uy } }, { year: uy, month: { lt: um } }],
       });
     }
 
@@ -608,7 +675,9 @@ export class SubscriptionsService {
       this.prisma.subscriptionMonth.count({ where }),
     ]);
 
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const result = { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    await this.cache.set(cacheKey, result, this.SUB_MONTHS_TTL);
+    return result;
   }
 
   async addMonth(subscriptionSlug: string, dto: CreateMonthDto) {
@@ -646,6 +715,7 @@ export class SubscriptionsService {
       data: { subscriptionId: subscription.id, ...monthData },
     });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return created;
   }
 
@@ -671,6 +741,7 @@ export class SubscriptionsService {
       },
     });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return updated;
   }
 
@@ -685,6 +756,7 @@ export class SubscriptionsService {
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return deleted;
   }
 
@@ -2679,6 +2751,7 @@ export class SubscriptionsService {
         subscriptionId: sub.id,
         months: dto.months,
         price: dto.price,
+        currency: dto.currency,
         label: dto.label ?? null,
         validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
@@ -2697,6 +2770,7 @@ export class SubscriptionsService {
       data: {
         ...(dto.months !== undefined && { months: dto.months }),
         ...(dto.price !== undefined && { price: dto.price }),
+        ...(dto.currency !== undefined && { currency: dto.currency }),
         ...(dto.label !== undefined && { label: dto.label ?? null }),
         ...(dto.validFrom !== undefined && { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }),
         ...(dto.validUntil !== undefined && { validUntil: dto.validUntil ? new Date(dto.validUntil) : null }),

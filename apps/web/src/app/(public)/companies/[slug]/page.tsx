@@ -104,10 +104,7 @@ export default async function CompanyPage({ params }: Props) {
 
   const logoUrl = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fit,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
-  const hasActiveSponsored = company.sponsoredSlots?.some((s) => s.isActive) ?? false
-  const hasBanner = company.sponsoredSlots?.some(
-    (s) => s.isActive && s.type === 'COMPANY_PAGE_BANNER',
-  ) ?? false
+  const displaySubscriptions = subscriptions.filter((s) => !s.isContentStream)
 
   const socials = [
     company.website
@@ -150,18 +147,6 @@ export default async function CompanyPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Featured Partner banner */}
-      {hasBanner && (
-        <div className="mb-8 rounded-2xl overflow-hidden bg-gradient-to-r from-amber-900/40 via-amber-800/20 to-stone-900 border border-amber-700/40 px-6 py-4 flex items-center gap-3">
-          <span className="text-amber-400 text-lg">✦</span>
-          <div>
-            <p className="text-xs text-amber-400/70 uppercase tracking-widest font-semibold mb-0.5">
-              Featured Partner
-            </p>
-            <p className="text-stone-200 font-serif font-semibold text-base">{company.name}</p>
-          </div>
-        </div>
-      )}
 
       {/* Company header: logo+links left, info right */}
       <div className="flex flex-col sm:flex-row gap-8 items-start mb-12">
@@ -209,9 +194,6 @@ export default async function CompanyPage({ params }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap mb-2">
             <p className="text-xs text-amber-600 uppercase tracking-widest font-medium">Company</p>
-            {hasActiveSponsored && (
-              <Badge variant="warning">✦ Featured Partner</Badge>
-            )}
             {company.hasOfficialImagePermission && (
               <Badge variant="outline">✓ Images used with brand permission</Badge>
             )}
@@ -227,11 +209,11 @@ export default async function CompanyPage({ params }: Props) {
       </div>
 
       {/* Subscriptions — compact cards, denser grid */}
-      {subscriptions.length > 0 && (
+      {displaySubscriptions.length > 0 && (
         <section className="mt-12">
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {subscriptions.map((sub) => {
+            {displaySubscriptions.map((sub) => {
               const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_400,h_300,c_fill,q_auto,f_auto')
               const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_200,h_120,c_fit,q_auto,f_auto')
               return (
@@ -282,7 +264,8 @@ export default async function CompanyPage({ params }: Props) {
       <Suspense fallback={<EditionsSkeleton />}>
         <CompanyEditionsSection
           companySlug={slug}
-          subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name }))}
+          subscriptions={subscriptions.map((s) => ({ id: s.id, slug: s.slug, name: s.name, isCombo: s.isCombo, isContentStream: s.isContentStream, parentSubscriptionId: s.parentSubscriptionId ?? null }))}
+          collections={(company.collections ?? []).map((c) => ({ id: c.id, slug: c.slug, name: c.name }))}
           brandColors={company.brandColors}
         />
       </Suspense>

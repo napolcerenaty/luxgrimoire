@@ -27,6 +27,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { assertCompanyAccess } from '../../common/utils/assert-company-access.util';
 
 type CurrentUserType = { id: string; username: string; role: string; managedCompanyId: string | null };
@@ -105,6 +106,67 @@ export class EditionsController {
     const result = await this.editionsService.verify(slug);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'VERIFY_EDITION', entityType: 'edition', entityId: result.id, entityTitle: result.slug });
     return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/retag')
+  retagEdition(@Param('slug') slug: string) {
+    return this.editionsService.retagBySlug(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @Post('retag-all')
+  retagAll() {
+    return this.editionsService.retagAll();
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/feature-tags')
+  getFeatureTags(@Param('slug') slug: string) {
+    return this.editionsService.getFeatureTags(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Post(':slug/feature-tags')
+  addFeatureTag(
+    @Param('slug') slug: string,
+    @Body() body: { rawValue: string; categorySlug?: string; categories?: string[] },
+  ) {
+    return this.editionsService.addFeatureTag(slug, body);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Delete(':slug/feature-tags/:tagId')
+  removeFeatureTag(@Param('slug') slug: string, @Param('tagId') tagId: string) {
+    return this.editionsService.removeFeatureTag(slug, tagId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Patch(':slug/feature-tags/:tagId')
+  updateFeatureTag(
+    @Param('slug') slug: string,
+    @Param('tagId') tagId: string,
+    @Body() body: { rawValue?: string; categories?: string[] },
+  ) {
+    return this.editionsService.updateFeatureTag(slug, tagId, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Delete(':slug/feature-tags/:tagId/categories/:categorySlug')
+  removeCategoryFromFeatureTag(
+    @Param('slug') slug: string,
+    @Param('tagId') tagId: string,
+    @Param('categorySlug') categorySlug: string,
+  ) {
+    return this.editionsService.removeCategoryFromTag(slug, tagId, categorySlug);
   }
 
   @ApiBearerAuth()

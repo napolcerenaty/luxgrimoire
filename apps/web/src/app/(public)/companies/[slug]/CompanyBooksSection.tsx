@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from 'react'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { API_BASE } from '@/lib/authFetch'
 
 export interface EditionGroup {
   label: string
   href: string | null
-  editions: ApiCompanyEdition[]
+  fetchPath: string
 }
 
 interface Props {
@@ -31,37 +31,71 @@ function SearchIcon() {
 export function CompanyBooksSection({ groups, brandColors }: Props) {
   const [activeTab, setActiveTab] = useState(0)
   const [search, setSearch] = useState('')
-  const [visible, setVisible] = useState<Record<number, number>>({})
+  // Accumulated editions per tab index
+  const [loadedEditions, setLoadedEditions] = useState<Record<number, ApiCompanyEdition[]>>({})
+  // Server-reported total per tab (used for hasMore)
+  const [totals, setTotals] = useState<Record<number, number>>({})
+  const [loadingTab, setLoadingTab] = useState<number | null>(null)
 
   if (groups.length === 0) return null
 
-  const getVisible = (idx: number) => visible[idx] ?? PAGE_SIZE
-  const activeGroup = groups[activeTab]
+  const loadPage = useCallback(async (idx: number, skip: number) => {
+    setLoadingTab(idx)
+    try {
+      const sep = groups[idx].fetchPath.includes('?') ? '&' : '?'
+      const url = `${API_BASE}${groups[idx].fetchPath}${sep}skip=${skip}&take=${PAGE_SIZE}`
+      const res = await fetch(url, { credentials: 'include' })
+      const { data, total }: { data: ApiCompanyEdition[]; total: number } = await res.json()
+      setTotals((prev) => ({ ...prev, [idx]: total }))
+      setLoadedEditions((prev) => {
+        const existing = prev[idx] ?? []
+        // Deduplicate by id in case of race conditions
+        const existingIds = new Set(existing.map((e) => e.id))
+        const newItems = data.filter((e) => !existingIds.has(e.id))
+        return { ...prev, [idx]: [...existing, ...newItems] }
+      })
+    } catch {
+      setLoadedEditions((prev) => ({ ...prev, [idx]: prev[idx] ?? [] }))
+    } finally {
+      setLoadingTab((prev) => (prev === idx ? null : prev))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups])
 
-  const filtered = useMemo(() => {
+  // Load first tab on mount
+  useEffect(() => {
+    loadPage(0, 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const activeEditions = loadedEditions[activeTab] ?? []
+  const isLoading = loadingTab === activeTab && activeEditions.length === 0
+  const isFetchingMore = loadingTab === activeTab && activeEditions.length > 0
+
+  const filtered = (() => {
     const q = search.toLowerCase().trim()
-    if (!q) return activeGroup.editions
-    return activeGroup.editions.filter(
+    if (!q) return activeEditions
+    return activeEditions.filter(
       (e) =>
         e.book.title.toLowerCase().includes(q) ||
         e.book.authors.some((a) => a.author.name.toLowerCase().includes(q)),
     )
-  }, [activeGroup, search])
+  })()
 
-  const visibleCount = getVisible(activeTab)
-  const displayed = filtered.slice(0, visibleCount)
-  const hasMore = filtered.length > visibleCount
+  const serverTotal = totals[activeTab] ?? 0
+  const hasMore = activeEditions.length < serverTotal
 
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
+    if (loadedEditions[idx] === undefined) {
+      loadPage(idx, 0)
+    }
   }
 
   const loadMore = () => {
-    setVisible((prev) => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] ?? PAGE_SIZE) + PAGE_SIZE,
-    }))
+    if (loadingTab !== null) return
+    loadPage(activeTab, activeEditions.length)
   }
 
   return (
@@ -83,7 +117,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </div>
       </div>
 
-      {/* Tabs — wrap when many collections */}
+      {/* Tabs */}
       <div className="border-b border-stone-800 mb-6">
         <div className="flex flex-wrap gap-0">
           {groups.map((group, idx) => (
@@ -97,17 +131,23 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
               }`}
             >
               {group.label}
-              <span className="ml-1.5 text-xs text-stone-500">({group.editions.length})</span>
+              {totals[idx] !== undefined && (
+                <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
       {/* Grid */}
-      {displayed.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
+          Loading…
+        </div>
+      ) : filtered.length > 0 ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {displayed.map((edition) => (
+            {filtered.map((edition) => (
               <EditionCard
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
@@ -121,28 +161,21 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-4">
+          <div className="mt-5 flex items-center justify-center">
             {hasMore && (
               <button
                 onClick={loadMore}
-                className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                disabled={isFetchingMore}
+                className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Load more ({filtered.length - visibleCount} remaining)
+                {isFetchingMore ? 'Loading…' : `Load more (${serverTotal - activeEditions.length} remaining)`}
               </button>
-            )}
-            {activeGroup.href && !hasMore && (
-              <Link
-                href={activeGroup.href}
-                className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
-              >
-                View full collection →
-              </Link>
             )}
           </div>
         </>
       ) : (
         <p className="text-stone-500 text-sm py-10 text-center">
-          {search ? 'No books match your search.' : 'No books in this collection.'}
+          {search ? 'No books match your search.' : 'No books in this group yet.'}
         </p>
       )}
     </section>

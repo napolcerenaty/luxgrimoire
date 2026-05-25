@@ -27,9 +27,7 @@ export type {
   SaleAnnouncement,
   SaleAnnouncementEdition,
   UserSaleInterest,
-  SponsoredSlot,
   AppSetting,
   ExchangeRateCache,
   Role,
-  SponsoredSlotType,
 } from '@prisma/client';

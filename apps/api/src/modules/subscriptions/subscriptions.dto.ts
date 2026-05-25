@@ -128,6 +128,18 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isUpcoming?: boolean;
+
+  @IsOptional()
+  @IsString()
+  upcomingNote?: string;
+
+  @IsOptional()
+  @IsString()
+  waitlistLink?: string;
+
+  @IsOptional()
+  @IsBoolean()
   signupIncludesCurrentMonth?: boolean;
 
   @IsOptional()
@@ -250,6 +262,18 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  isUpcoming?: boolean;
+
+  @IsOptional()
+  @IsString()
+  upcomingNote?: string;
+
+  @IsOptional()
+  @IsString()
+  waitlistLink?: string;
+
+  @IsOptional()
+  @IsBoolean()
   signupIncludesCurrentMonth?: boolean;
 
   @IsOptional()
@@ -267,6 +291,9 @@ export class CreatePrepayOptionDto {
 
   @IsString()
   price!: string;
+
+  @IsString()
+  currency!: string;
 
   @IsOptional()
   @IsString()
@@ -290,6 +317,10 @@ export class UpdatePrepayOptionDto {
   @IsOptional()
   @IsString()
   price?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
 
   @IsOptional()
   @IsString()
@@ -340,8 +371,8 @@ export class CreateMonthDto {
   boxPrice?: string;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
 
   @IsOptional()
   @IsString()
@@ -386,8 +417,8 @@ export class UpdateMonthDto {
   boxPrice?: string;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | null;
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped' | null;
 
   @IsOptional()
   @IsString()
@@ -412,14 +443,14 @@ export class AddMonthBookDto {
   sortOrder?: number;
 
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate'])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate';
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped'])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
 }
 
 export class UpdateMonthBookDto {
   @IsOptional()
-  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', null])
-  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | null;
+  @IsIn(['unsigned', 'signed', 'autopen', 'digitally_signed', 'signed_bookplate', 'stamped', null])
+  signatureType?: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped' | null;
 }
 
 export class MonthQueryDto {
@@ -457,6 +488,18 @@ export class MonthQueryDto {
   @Min(1)
   @Max(12)
   fromMonth?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  untilYear?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  untilMonth?: number;
 }
 
 export class SubscriptionQueryDto {
@@ -508,6 +551,10 @@ export class SubscriptionQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   isContentStream?: boolean;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()

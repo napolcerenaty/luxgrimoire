@@ -66,6 +66,12 @@ interface EditionDetail {
   basePrice?: string | null
   currency?: string | null
   features?: string[]
+  featureTags?: Array<{
+    id: string
+    rawValue: string
+    isManual: boolean
+    categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>
+  }>
   firstAccessDate?: string | null
   earlyAccessDate?: string | null
   generalSaleDate?: string | null
@@ -74,7 +80,7 @@ interface EditionDetail {
   photoCredit?: string | null
   subscriptionId?: string | null
   subscriptionMonthId?: string | null
-  artists: EditionArtist[]
+  artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
@@ -154,8 +160,19 @@ export default async function EditionPage({ params, searchParams }: Props) {
   }
 
   const book = edition.book
-  const features = Array.isArray(edition.features) ? edition.features : []
-  const artists = edition.artists ?? []
+  // Features come from featureTags (new table) — source of truth
+  const features = (edition.featureTags ?? [])
+    .map((tag) => tag.rawValue)
+  const rawArtists = (edition.artists ?? [])
+  const artistMap = new Map<string, { artist: NonNullable<typeof rawArtists[number]['artist']>; roles: string[] }>()
+  for (const contrib of rawArtists) {
+    if (!contrib.artist) continue
+    if (!artistMap.has(contrib.artist.id)) {
+      artistMap.set(contrib.artist.id, { artist: contrib.artist, roles: [] })
+    }
+    artistMap.get(contrib.artist.id)!.roles.push(contrib.role)
+  }
+  const artistList = Array.from(artistMap.values())
   // Only show editionLabel if it's a custom name distinct from the company name
   const editionLabel = edition.bookBoxCompanyCustomName ?? null
   const monthBooks = edition.monthBooks ?? []
@@ -502,17 +519,11 @@ export default async function EditionPage({ params, searchParams }: Props) {
         )}
 
         {/* ── Artists ──────────────────────────────────────────────────────── */}
-        {artists.length > 0 && (
+        {artistList.length > 0 && (
           <section>
             <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Artists</h2>
             <div className="flex flex-wrap gap-4">
-              {Object.values(
-                artists.reduce<Record<string, { artist: EditionArtist['artist']; roles: string[] }>>((acc, c) => {
-                  if (!acc[c.artist.id]) acc[c.artist.id] = { artist: c.artist, roles: [] }
-                  acc[c.artist.id].roles.push(c.role)
-                  return acc
-                }, {})
-              ).map(({ artist, roles }) => {
+              {artistList.map(({ artist, roles }) => {
                 const cleanName = artist.name.startsWith('@') ? artist.name.slice(1) : artist.name
                 const photoUrl = cloudinaryUrl(artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
                 return (
@@ -540,9 +551,9 @@ export default async function EditionPage({ params, searchParams }: Props) {
                       <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
-                      {roles.map((r) => (
-                          <p key={r} className="text-sm text-stone-400">{r.charAt(0).toUpperCase() + r.slice(1).toLowerCase()}</p>
-                        ))}
+                      {roles.map((role) => (
+                        <p key={role} className="text-sm text-stone-400">{role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}</p>
+                      ))}
                     </div>
                   </Link>
                 )

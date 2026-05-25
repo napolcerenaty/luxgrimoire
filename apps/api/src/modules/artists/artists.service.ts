@@ -119,36 +119,38 @@ export class ArtistsService {
   private async _fetchArtistContributions(slug: string) {
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
+      select: { id: true },
+    });
+    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
+
+    const contributions = await this.prisma.artistContribution.findMany({
+      where: { artistId: artist.id },
       select: {
-        contributions: {
+        role: true,
+        edition: {
           select: {
-            role: true,
-            edition: {
-              select: {
-                id: true,
-                slug: true,
-                additionalImages: true,
-                bookBoxCompany: { select: { name: true, brandColors: true } },
-                communityImages: {
-                  where: { status: 'APPROVED' },
-                  orderBy: { sortOrder: 'asc' },
-                  take: 1,
-                  select: { url: true },
-                },
-              },
+            id: true,
+            slug: true,
+            additionalImages: true,
+            bookBoxCompany: { select: { name: true, brandColors: true } },
+            communityImages: {
+              where: { status: 'APPROVED' },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              select: { url: true },
             },
           },
         },
       },
     });
-    if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return artist.contributions.map((c) => {
-      const { communityImages, ...editionRest } = c.edition as typeof c.edition & { communityImages: Array<{ url: string }> };
+
+    return contributions.map((contrib) => {
+      const { communityImages, ...editionRest } = contrib.edition as typeof contrib.edition & { communityImages: Array<{ url: string }> };
       return {
-        ...c,
+        role: contrib.role,
         edition: {
           ...editionRest,
-          communityPhotoCover: (c.edition.additionalImages as string[]).length === 0
+          communityPhotoCover: (contrib.edition.additionalImages as string[]).length === 0
             ? (communityImages?.[0]?.url ?? null)
             : null,
         },

@@ -39,6 +39,8 @@ export class RenewalCronService {
         basePrice: true,
         shippingCost: true,
         nextRenewalDate: true,
+        scheduledPrepayOptionId: true,
+        scheduledPrepayOption: { select: { id: true, months: true, price: true, currency: true } },
         subscription: { select: { renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true } },
       },
     });
@@ -62,6 +64,8 @@ export class RenewalCronService {
     basePrice: { toString(): string } | null;
     shippingCost: { toString(): string } | null;
     nextRenewalDate: Date | null;
+    scheduledPrepayOptionId: string | null;
+    scheduledPrepayOption: { id: string; months: number; price: { toString(): string }; currency: string } | null;
     subscription: { renewalMonthOffset: number; isBundleSubscription: boolean; intervalMonths: number } | null;
   }) {
     const renewalDate = entry.nextRenewalDate!;
@@ -87,6 +91,13 @@ export class RenewalCronService {
         data: { userId: entry.userId, entryId: entry.id, renewalDate, source: 'cron' },
       });
 
+      // Ensure a prepay billing period exists when the entry has a scheduled prepay option.
+      // This creates (or reuses) a billing period covering N months at the prepaid price/currency.
+      // Bundle subscriptions are not supported for prepay billing periods.
+      if (entry.scheduledPrepayOption && !entry.subscription?.isBundleSubscription) {
+        await this.ensurePrepayBillingPeriod(entry.id, year, month, renewalDate, entry.scheduledPrepayOption);
+      }
+
       if (entry.subscription?.isBundleSubscription) {
         await this.addBooksForBundleMonths(entry, year, month, entry.subscription.intervalMonths, renewalDate);
       } else {
@@ -96,6 +107,61 @@ export class RenewalCronService {
 
     // Always advance nextRenewalDate (safe if already advanced)
     await refreshNextRenewalDate(this.prisma, entry.id);
+  }
+
+  /**
+   * Ensures a prepay billing period exists for the given entry and box month.
+   * If an active billing period (with available slots) already covers [year, month],
+   * nothing is created. Otherwise a new period is created using the scheduled
+   * prepay option's price, currency, and month count.
+   *
+   * Idempotent: safe to call multiple times for the same renewal date.
+   */
+  private async ensurePrepayBillingPeriod(
+    entryId: string,
+    year: number,
+    month: number,
+    renewalDate: Date,
+    option: { id: string; months: number; price: { toString(): string }; currency: string },
+  ): Promise<void> {
+    const fullEntry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entryId },
+      select: { billingPeriods: { orderBy: { billedAt: 'asc' } } },
+    });
+
+    const cur = year * 12 + month;
+    for (const period of fullEntry?.billingPeriods ?? []) {
+      const fromY = period.coveredFromYear, fromM = period.coveredFromMonth;
+      const toY = period.coveredToYear ?? fromY, toM = period.coveredToMonth ?? fromM;
+      if (cur >= fromY * 12 + fromM && cur <= toY * 12 + toM) {
+        const slotsFilled = await this.prisma.userPurchaseGroup.count({
+          where: { subscriptionEntryId: entryId, billingPeriodId: period.id },
+        });
+        if (slotsFilled < period.monthsCovered) {
+          return; // Active period with slots available already exists
+        }
+      }
+    }
+
+    // No active period covers this month — create one for the next N months
+    const endAbsMonth = month + option.months - 1;
+    const coveredToYear = year + Math.floor((endAbsMonth - 1) / 12);
+    const coveredToMonth = ((endAbsMonth - 1) % 12) + 1;
+
+    await this.prisma.userSubBillingPeriod.create({
+      data: {
+        entryId,
+        baseAmount: option.price.toString(),
+        monthsCovered: option.months,
+        paidCurrency: option.currency,
+        coveredFromYear: year,
+        coveredFromMonth: month,
+        coveredToYear,
+        coveredToMonth,
+        billedAt: renewalDate,
+        prepayOptionId: option.id,
+      },
+    });
   }
 
   /**
@@ -170,8 +236,6 @@ export class RenewalCronService {
     const currency = entry.costCurrency ?? 'USD';
     const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
     const shippingCost = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
-
-    // Load billing periods for this entry
     const fullEntry = await this.prisma.userSubscriptionEntry.findUnique({
       where: { id: entry.id },
       select: {
@@ -209,12 +273,15 @@ export class RenewalCronService {
     let purchasedAt: Date;
     let billingPeriodId: string | undefined;
 
+    let effectiveCurrency: string;
     if (activePeriod) {
       const n = activePeriod.monthsCovered;
       basePrice = activePeriod.baseAmount ? parseFloat(activePeriod.baseAmount.toString()) / n : fallbackBase;
       shippingAmount = activePeriod.shipping ? parseFloat(activePeriod.shipping.toString()) / n : shippingCost;
       purchasedAt = activePeriod.billedAt ?? renewalDate;
       billingPeriodId = activePeriod.id;
+      // Use the billing period's currency (may differ from entry.costCurrency for multi-currency prepay)
+      effectiveCurrency = activePeriod.paidCurrency ?? currency;
     } else {
       // Apply multi-currency price changes: pass entry.costCurrency as targetCurrency so only
       // matching records are considered. If no records exist for that currency,
@@ -233,6 +300,7 @@ export class RenewalCronService {
       basePrice = resolved.price ?? fallbackBase;
       shippingAmount = shippingCost;
       purchasedAt = renewalDate;
+      effectiveCurrency = currency;
     }
 
     const groupTitle = titleOverride ?? `Subscription – ${year}/${String(month).padStart(2, '0')}`;
@@ -251,7 +319,7 @@ export class RenewalCronService {
           subscriptionEntryId: entry.id,
           totalAmount: basePrice,
           shippingAmount,
-          currency,
+          currency: effectiveCurrency,
           purchasedAt,
           title: groupTitle,
           ...(billingPeriodId ? { billingPeriodId } : {}),

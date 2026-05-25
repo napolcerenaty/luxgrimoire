@@ -48,8 +48,18 @@ export class CompaniesController {
 
   @Public()
   @Get(':slug/editions')
-  getEditions(@Param('slug') slug: string) {
-    return this.companiesService.getEditions(slug);
+  getEditions(
+    @Param('slug') slug: string,
+    @Query('subscriptionId') subscriptionId?: string,
+    @Query('collectionId') collectionId?: string,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const pagination = {
+      skip: skip ? parseInt(skip, 10) : 0,
+      take: take ? parseInt(take, 10) : 20,
+    };
+    return this.companiesService.getEditions(slug, { subscriptionId, collectionId }, pagination);
   }
 
   @Public()

@@ -8,13 +8,14 @@ const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 te
 
 export type PersonEntry = { id?: string; name: string }
 
-export function PersonPicker({ endpoint, placeholder, onAdd }: {
+export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
   endpoint: 'authors' | 'artists'
   placeholder: string
   onAdd: (entry: PersonEntry) => void
+  initialQuery?: string
 }) {
-  const [q, setQ] = useState('')
-  const [dq, setDq] = useState('')
+  const [q, setQ] = useState(initialQuery ?? '')
+  const [dq, setDq] = useState(initialQuery ?? '')
   const [creating, setCreating] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

@@ -155,7 +155,7 @@ export function CompaniesClient({ companies }: Props) {
       )}
       <p className="mt-10 text-center text-xs text-stone-400 max-w-2xl mx-auto leading-relaxed">
         LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
-        We are not affiliated with, endorsed by, or sponsored by any listed companies unless explicitly stated as a Featured Partner.
+        We are not affiliated with or endorsed by any listed companies.
         Some brands featured on LuxGrimoire are displayed with permission from their respective owners.
         All trademarks, cover images, logos, and brand materials belong to their respective owners.
       </p>

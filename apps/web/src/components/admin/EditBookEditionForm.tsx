@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -160,13 +160,17 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
-  const [features, setFeatures] = useState<string[]>(edition.features ?? [])
   const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
-  const [artists, setArtists] = useState<ArtistEntry[]>(
+
+  // Artists state — initialized from existing contributions
+  const [artists, setArtists] = useState<ArtistEntry[]>(() =>
     (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
   )
-  // Track which existing artists were removed
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
+
+  // Feature tags: staged until Save Changes
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
 
   // Companies list
   const { data: companiesData } = useQuery({
@@ -184,12 +188,31 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setFeatures, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
+    // Collect all feature raw values: standalone features[] + base names from artist roles
+    const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
+    const artistBaseFeatures = (r.edition?.artists ?? [])
+      .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
+      .filter(Boolean)
+    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const newPending = allFeatureRaws.map(rawValue => ({
+      rawValue,
+      categories: r.edition?.featureTags?.[rawValue] ?? [],
+    }))
+    if (newPending.length > 0) {
+      setPendingFeatureTags(prev => {
+        const existing = new Set(prev.map(p => p.rawValue))
+        return [...prev, ...newPending.filter(t => !existing.has(t.rawValue))]
+      })
+    }
   }
 
   const handleSubmit = async () => {
     setBusy(true)
     try {
+      // 0. Flush staged feature-tag changes (add/edit/delete/pending)
+      await featurePreviewRef.current?.flushChanges()
+
       // 1. Patch the edition fields
       await authFetch(`/editions/${edition.slug}`, {
         method: 'PATCH',
@@ -205,19 +228,15 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
-          features: features.filter(Boolean),
           isOmnibus,
         }),
       })
-
       // 2. Remove deleted artists
       for (const artistId of removedArtistIds) {
-        await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
+        await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
       }
 
-      // 2b. Sync role changes for existing artists.
-      // An artist can have MULTIPLE roles — group by artistId and compare full sets.
-      // Backend DELETE removes ALL roles for an artist, so we delete-then-repost ALL current roles when any changed.
+      // 2b. Sync role changes for existing artists
       const originalRolesByArtist = new Map<string, Set<string>>()
       for (const a of (edition.artists ?? [])) {
         if (!originalRolesByArtist.has(a.artist.id)) originalRolesByArtist.set(a.artist.id, new Set())
@@ -235,17 +254,17 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         const changed = currentRoles.some(r => !origSet.has(r.toLowerCase())) ||
           [...origSet].some(r => !currSet.has(r))
         if (changed) {
-          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' })
+          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
           for (const role of currentRoles) {
             await authFetch(`/editions/${edition.slug}/artists`, {
               method: 'POST',
               body: JSON.stringify({ artistId, role }),
-            })
+            }).catch(() => null)
           }
         }
       }
 
-      // 3. Add new artists (those without `existing` flag)
+      // 3. Add new artists — auto-search/create by name (no manual PersonPicker linking required)
       const artistIdByName = new Map<string, string>()
       for (const art of artists) {
         if (art.existing) continue
@@ -257,10 +276,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           if (artistIdByName.has(key)) {
             artistId = artistIdByName.get(key)!
           } else {
-            const existing = await authFetch<{ data: { id: string; name: string }[] }>(
+            const res = await authFetch<{ data: { id: string; name: string }[] }>(
               `/artists?search=${encodeURIComponent(name)}&pageSize=5`
             )
-            const match = existing.data?.find(a => a.name.toLowerCase() === key)
+            const match = res.data?.find(a => a.name.toLowerCase() === key)
             if (match) {
               artistId = match.id
             } else {
@@ -275,7 +294,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         await authFetch(`/editions/${edition.slug}/artists`, {
           method: 'POST',
           body: JSON.stringify({ artistId, role: art.role || 'cover art' }),
-        })
+        }).catch(() => null)
       }
 
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
@@ -325,8 +344,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         artists={artists}
         onArtistsChange={setArtists}
         onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
-        features={features}
-        onFeaturesChange={setFeatures}
+        featureTags={edition.featureTags}
+        pendingFeatureTags={pendingFeatureTags}
+        featurePreviewRef={featurePreviewRef}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}
         editionSlug={edition.slug}

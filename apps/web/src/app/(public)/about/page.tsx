@@ -38,7 +38,7 @@ export default function AboutPage() {
           LuxGrimoire is an independent, fan-made reference database dedicated to book subscription boxes, special editions, and related publishing content.
         </p>
         <p>
-          We are not affiliated with, endorsed by, or sponsored by any subscription box company unless explicitly marked as a Featured Partner (a paid or approved collaboration clearly disclosed on the platform).
+          We are not affiliated with or endorsed by any subscription box company.
         </p>
         <p>
           Some brands featured on LuxGrimoire may be displayed with permission from their respective owners.

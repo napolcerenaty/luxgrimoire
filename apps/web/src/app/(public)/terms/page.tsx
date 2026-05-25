@@ -154,18 +154,9 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">8. Sponsored Content</h2>
-          <p>
-            LuxGrimoire may display sponsored slots (Featured Partners). Sponsored content is always clearly
-            labeled with a &ldquo;Sponsored&rdquo; or &ldquo;Featured&rdquo; badge. Sponsorships do not influence editorial
-            decisions about the accuracy of database content. We are not liable for the products, services, or
-            websites of sponsor companies.
-          </p>
-        </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">9. Intellectual Property</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">8. Intellectual Property</h2>
           <p>
             The LuxGrimoire name, logo, design, and original code are the intellectual property of LuxGrimoire
             and its creators. You may not reproduce, distribute, or create derivative works from them without
@@ -179,7 +170,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">10. Disclaimers</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">9. Disclaimers</h2>
           <p>
             The Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties of any kind, express or
             implied. We do not warrant that:
@@ -195,7 +186,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">11. DMCA / Copyright Takedown</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">10. DMCA / Copyright Takedown</h2>
           <p>
             If you believe that content on LuxGrimoire infringes your copyright, please send a takedown notice to{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a> including:
@@ -213,7 +204,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">12. Limitation of Liability</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">11. Limitation of Liability</h2>
           <p>
             To the maximum extent permitted by applicable law, LuxGrimoire and its contributors shall not be
             liable for any indirect, incidental, special, or consequential damages arising from use of or
@@ -222,7 +213,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">13. Governing Law</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">12. Governing Law</h2>
           <p>
             These Terms are governed by the laws of the European Union and the Republic of Poland, without regard
             to conflict of law principles. Any disputes shall be subject to the exclusive jurisdiction of the
@@ -231,7 +222,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">14. Changes to Terms</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">13. Changes to Terms</h2>
           <p>
             We may update these Terms from time to time. We will notify registered users of material changes by
             email and by posting the updated Terms with a new effective date. Your continued use of the Service
@@ -240,7 +231,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">15. Contact</h2>
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">14. Contact</h2>
           <p>
             Questions about these Terms:{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>

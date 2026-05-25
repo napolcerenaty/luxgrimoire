@@ -76,6 +76,13 @@ export class AnnouncementsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/duplicate')
+  adminDuplicate(@Param('id') id: string) {
+    return this.announcementsService.duplicate(id);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
   @Post('admin/:id/editions')
   adminAddEdition(@Param('id') id: string, @Body('editionId') editionId: string) {
     return this.announcementsService.adminAddEdition(id, editionId);

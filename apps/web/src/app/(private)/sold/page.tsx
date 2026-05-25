@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -633,6 +633,7 @@ export default function SoldPage() {
                     : entry.signatureType === 'signed_bookplate' ? '🏷️'
                     : entry.signatureType === 'autopen' ? '✒️'
                     : entry.signatureType === 'digitally_signed' ? '🖨️'
+                    : entry.signatureType === 'stamped' ? '🕹️'
                     : null
                   return (
                     <a

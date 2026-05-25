@@ -15,7 +15,7 @@ export interface SaleEditionData {
   edition: { book?: { title?: string | null } | null } | null
   variants: Array<{
     id: string
-    signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate'
+    signatureType: 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped'
     price: number | null
     currency: string | null
   }>

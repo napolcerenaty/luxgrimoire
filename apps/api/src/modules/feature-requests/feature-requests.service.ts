@@ -31,12 +31,13 @@ export class FeatureRequestsService {
     return req;
   }
 
-  async findPublic(query: { page?: number; pageSize?: number; userId?: string }) {
+  async findPublic(query: { page?: number; pageSize?: number; userId?: string; status?: string }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
+    const statusFilter = query.status === 'implemented' ? 'implemented' : 'accepted';
 
     const [items, total] = await Promise.all([
       this.prisma.featureRequest.findMany({
-        where: { status: 'accepted' },
+        where: { status: statusFilter },
         include: {
           _count: { select: { votes: true } },
           votes: query.userId ? { where: { userId: query.userId } } : false,
@@ -46,7 +47,7 @@ export class FeatureRequestsService {
         skip,
         take: pageSize,
       }),
-      this.prisma.featureRequest.count({ where: { status: 'accepted' } }),
+      this.prisma.featureRequest.count({ where: { status: statusFilter } }),
     ]);
 
     return {
@@ -97,7 +98,7 @@ export class FeatureRequestsService {
     };
   }
 
-  async review(id: string, data: { status: 'accepted' | 'rejected'; adminNote?: string }) {
+  async review(id: string, data: { status: 'accepted' | 'rejected' | 'implemented'; adminNote?: string }) {
     const req = await this.prisma.featureRequest.findUnique({
       where: { id },
       include: { user: { select: { id: true } } },
@@ -110,14 +111,22 @@ export class FeatureRequestsService {
     });
 
     if (req.userId) {
-      const msg =
-        data.status === 'accepted'
-          ? `✅ Your feature request "${req.title}" has been accepted and is now open for voting!`
-          : `Your feature request "${req.title}" has been reviewed and won't be added at this time.${data.adminNote ? ` Note: ${data.adminNote}` : ''}`;
+      let title: string;
+      let msg: string;
+      if (data.status === 'accepted') {
+        title = '✅ Feature request accepted!';
+        msg = `Your feature request "${req.title}" has been accepted and is now open for voting!`;
+      } else if (data.status === 'implemented') {
+        title = '🎉 Feature request implemented!';
+        msg = `Great news! Your feature request "${req.title}" has been implemented.${data.adminNote ? ` ${data.adminNote}` : ''}`;
+      } else {
+        title = 'Feature request reviewed';
+        msg = `Your feature request "${req.title}" has been reviewed and won't be added at this time.${data.adminNote ? ` Note: ${data.adminNote}` : ''}`;
+      }
       await this.notifications.createNotification(
         req.userId,
         `feature_request_${data.status}`,
-        data.status === 'accepted' ? '✅ Feature request accepted!' : 'Feature request reviewed',
+        title,
         msg,
       );
     }

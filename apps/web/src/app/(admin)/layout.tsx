@@ -13,7 +13,6 @@ import {
   Building2,
   Package,
   ShieldCheck,
-  Sparkles,
   Bell,
   Megaphone,
   LibraryBig,
@@ -25,6 +24,7 @@ import {
   Image,
   Menu,
   X,
+  Tags,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -72,7 +72,8 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
-    ],
+    { href: '/admin/feature-categories', label: 'Feature Categories', icon: Tags },
+  ],
   },
   {
     heading: 'Community',
@@ -100,7 +101,6 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/users', label: 'Users', icon: ShieldCheck },
       { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
-      { href: '/admin/sponsored-slots', label: 'Sponsored Slots', icon: Sparkles },
       { href: '/admin/company-image-purge', label: 'Image Purge', icon: Image },
     ],
   },
