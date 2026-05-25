@@ -67,6 +67,11 @@ import { FeatureCategoriesModule } from './modules/feature-categories/feature-ca
               id: req.id,
             };
           },
+          res(res) {
+            return {
+              statusCode: res.statusCode,
+            };
+          },
         },
       },
     }),
