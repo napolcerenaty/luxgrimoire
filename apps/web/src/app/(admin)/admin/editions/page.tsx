@@ -243,7 +243,7 @@ export default function AdminEditionsPage() {
       label: 'Edition',
       render: (row: ApiBookEdition) => (
         <div>
-          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.bookBoxCompany?.name ?? row.slug}</a>
+          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.slug}</a>
         </div>
       ),
     },
@@ -253,26 +253,6 @@ export default function AdminEditionsPage() {
       render: (row: ApiBookEdition) => row.bookBoxCompany?.name
         ? <span className="text-amber-400 text-sm">{row.bookBoxCompany.name}</span>
         : <span className="text-stone-500">—</span>,
-    },
-    {
-      key: 'verified',
-      label: 'Status',
-      render: (row: ApiBookEdition) => row.verifiedAt ? (
-        <span className="inline-flex items-center gap-1 text-xs text-emerald-400">✓ Verified</span>
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">⚠ Unverified</span>
-          {canVerify && (
-            <button
-              onClick={(e) => { e.stopPropagation(); verifyMutation.mutate(row.slug) }}
-              disabled={verifyMutation.isPending}
-              className="text-xs px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-400 hover:bg-emerald-800/60 border border-emerald-700/40 transition-colors disabled:opacity-50"
-            >
-              Verify
-            </button>
-          )}
-        </div>
-      ),
     },
   ]
 
