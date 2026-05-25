@@ -56,7 +56,22 @@ import { FeatureCategoriesModule } from './modules/feature-categories/feature-ca
       pinoHttp: {
         transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
-          : undefined,
+          : {
+              targets: [
+                // stdout — captured by Docker json-file driver (limited via Coolify/compose logging config)
+                {
+                  target: 'pino/file',
+                  level: process.env.LOG_LEVEL ?? 'info',
+                  options: { destination: 1 }, // fd 1 = stdout
+                },
+                // error-only log file — mount /app/logs as a Docker volume for persistence
+                {
+                  target: 'pino/file',
+                  level: 'error',
+                  options: { destination: '/app/logs/errors.log', mkdir: true },
+                },
+              ],
+            },
         level: process.env.LOG_LEVEL ?? 'info',
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         serializers: {

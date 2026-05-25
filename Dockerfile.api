@@ -56,4 +56,6 @@ COPY apps/api/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 3001
+# Ensure error log directory exists (mounted as a Docker volume in production)
+RUN mkdir -p /app/logs
 CMD ["./docker-entrypoint.sh"]
