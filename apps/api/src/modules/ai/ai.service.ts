@@ -126,7 +126,7 @@ FEATURES RULES:
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
-- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions. When dimensions are given in US inches, convert to the closest UK/European standard name — do NOT output raw inch dimensions. Use this mapping:
+- BOOK SIZE: If the text mentions a book size or format, extract it as a feature. This includes named formats (B format, A format, Royal, Demy, Crown Quarto, trade paperback, mass market, etc.) AND explicit dimensions. When dimensions are given in US inches, convert to the closest UK/European standard name — do NOT output raw inch dimensions alone. Use this mapping:
   • ~4.25" × 6.87" / ~108 × 175mm → "A format" (mass market paperback)
   • ~5" × 7.75" to 5.12" × 7.8" / ~129 × 198mm → "B format"
   • ~5.5" × 8.5" / ~140 × 216mm → "Demy" (if hardcover: "Demy hardback"; if paperback: "Demy paperback")
@@ -135,10 +135,11 @@ FEATURES RULES:
   • ~7" × 10" / ~178 × 254mm → "Crown Quarto"
   • ~8.5" × 11" / A4 → "A4 large format"
   • Metric dimensions (mm): convert to nearest named format using the same table
-  If the format already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present (e.g. "Royal hardback"). If the size does not match any standard name within reasonable tolerance, output the metric equivalent as "book size: [WxH]mm".
-  Examples: "Book size: 5.5\" x 8.5\"" → features: ["Demy"]
-  Example: "5 ⅜\" x 8 ¼\"" → features: ["Demy"] (5.375" × 8.25" ≈ 137 × 210mm ≈ Demy)
-  Example: "B format paperback" → features: ["B format paperback"] (keep size + binding together as one compound feature)
+  OUTPUT FORMAT: When the original text uses non-UK dimensions (inches or mm), output the feature as "[UK name] (corresponds to [original size text])". When the text already uses UK standard names (Royal, Demy, B format, etc.), output as-is combined with binding if present.
+  If the size does not match any standard name within reasonable tolerance, output as "book size: [WxH]mm".
+  Examples: "Book size: 5.5\" x 8.5\"" → features: ["Demy (corresponds to 5.5\" x 8.5\")"]
+  Example: "5 ⅜\" x 8 ¼\"" → features: ["Demy (corresponds to 5 ⅜\" x 8 ¼\")"]
+  Example: "B format paperback" → features: ["B format paperback"] (already UK standard — no "(corresponds to …)" needed)
   Example: "Royal hardback" → features: ["Royal hardback"] (NOT split into ["Royal", "hardback"])
   Example: "Demy hardcover" → features: ["Demy hardcover"]
   Example: "Royal" alone (no binding mentioned) → features: ["Royal"]
@@ -169,13 +170,22 @@ FEATURES RULES:
   Example: "sprayed edges, ribbon bookmark, art print" (no artists) →
     features: ["sprayed edges", "ribbon bookmark", "art print"]
     artists: []
-- INLINE MULTI-ARTIST (no parenthetical): When a line reads "[feature description] [role1] by @artist1 with [role2] by @artist2" (multiple artists credited inline for the SAME physical item), create ONE feature = the initial description before the first role verb/attribution (because multiple artists → feature goes in features array), and create one artist entry per person using the pattern: role = feature name + " (" + their role word + ")". The feature must NOT include role verbs or artist handles.
+- FEATURE TRAILING VERBS: When a feature description ends with a trailing attribution verb (e.g. "designed", "illustrated", "painted", "drawn", "created", "written"), strip that trailing verb. The trailing verb is one that would normally be followed by "by @artist" but either no artist is credited or the artist is mentioned elsewhere.
+  Example: "Reversible dust jacket designed" → feature: "Reversible dust jacket"
+  Example: "Exclusive gilded edges painted" → feature: "Exclusive gilded edges"
+  NOTE: Do NOT strip verbs that are an integral part of the feature name (e.g. "digitally printed edges" — "printed" is part of the material description, not an attribution verb).
+- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create ONE feature = the initial description before the first role verb, and one artist entry per person. Each artist's role = feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles.
+  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour".
+  Artist names may or may not have an @ prefix — capture them exactly as written (with or without @).
+  Example: "Exclusive redesigned dust jacket with art by 2 ghosts and designed by @lichen_and_limestone" →
+    features: ["Exclusive redesigned dust jacket"]
+    artists: [{ name: "2 ghosts", role: "Exclusive redesigned dust jacket (art)" }, { name: "@lichen_and_limestone", role: "Exclusive redesigned dust jacket (design)" }]
   Example: "exclusive redesigned covers with foil illustrated by @palinlineart with design by @amysharpillustration" →
     features: ["exclusive redesigned covers with foil"]
-    artists: [{ name: "@palinlineart", role: "exclusive redesigned covers with foil (illustrated)" }, { name: "@amysharpillustration", role: "exclusive redesigned covers with foil (design)" }]
+    artists: [{ name: "@palinlineart", role: "exclusive redesigned covers with foil (illustration)" }, { name: "@amysharpillustration", role: "exclusive redesigned covers with foil (design)" }]
   Example: "special edition endpapers painted by @artist1 with lettering by @artist2" →
     features: ["special edition endpapers"]
-    artists: [{ name: "@artist1", role: "special edition endpapers (painted)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
+    artists: [{ name: "@artist1", role: "special edition endpapers (painting)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 - EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
 - PRINT RUN / LIMITED COPIES: If the text mentions the number of copies, print run size, or limited edition quantity (e.g. "limited to 1500 copies", "strictly limited to 1500 signed and numbered copies", "print run of 500", "only 750 copies"), add it as a feature in the format: "limited to [N] copies". Extract the number and format consistently.
