@@ -343,7 +343,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   pendingTags?: Array<{ rawValue: string; categories: string[] }>
 }>(function FeatureCategoryPreview({ editionSlug, initialTags, staged = false, pendingTags = [] }, ref) {
   const qc = useQueryClient()
-  const [adding, setAdding] = useState<Record<string, string>>({})
   const [editingRow, setEditingRow] = useState<Record<string, { rawValue: string; saving: boolean }>>({})
   const [newRaw, setNewRaw] = useState('')
   const [newCategories, setNewCategories] = useState<string[]>([])
@@ -464,7 +463,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
       setLocalTags(prev => prev.map(t =>
         t.id === tagId ? { ...t, categories: [...t.categories, cat] } : t
       ))
-      setAdding(prev => { const n = { ...prev }; delete n[tagId]; return n })
       return
     }
     try {
@@ -472,7 +470,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: [...currentSlugs, newSlug] }),
       })
-      setAdding(prev => { const n = { ...prev }; delete n[tagId]; return n })
       refreshTags()
     } catch (e) { alert(`Add category failed: ${e instanceof Error ? e.message : String(e)}`) }
   }
@@ -546,7 +543,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   // ── Row renderer ─────────────────────────────────────────────────────────────
   const renderRow = (tag: FeatureTag) => {
     const { id: tagId, rawValue, categories: rowCategories, isManual } = tag
-    const addValue = adding[tagId] ?? ''
     const existingSlugs = new Set(rowCategories.map(c => c.slug))
     const available = allCategories.filter(c => !existingSlugs.has(c.slug))
     const editing = editingRow[tagId]
@@ -606,8 +602,8 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
             ))}
             {available.length > 0 && (
               <div className="flex items-center gap-1">
-                <select value={addValue}
-                  onChange={e => setAdding(prev => ({ ...prev, [tagId]: e.target.value }))}
+                <select value=""
+                  onChange={e => { if (e.target.value) handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), e.target.value) }}
                   className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-amber-500 max-w-[180px]">
                   <option value="">+ category…</option>
                   {Object.entries(
@@ -624,11 +620,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                     </optgroup>
                   ))}
                 </select>
-                {addValue && (
-                  <button type="button"
-                    onClick={() => handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), addValue)}
-                    className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500">Add</button>
-                )}
               </div>
             )}
           </div>
