@@ -114,12 +114,20 @@ export class FeatureTaggerService {
       rows.push({ editionId, rawValue: rv, categories: matchCategories(rv) });
     }
 
+    // Fetch manual tags so we don't create duplicates for already-manual rawValues
+    const manualTags = await this.prisma.editionFeatureTag.findMany({
+      where: { editionId, isManual: true },
+      select: { rawValue: true },
+    });
+    const manualRawValues = new Set(manualTags.map((t) => t.rawValue));
+    const rowsToCreate = rows.filter((r) => !manualRawValues.has(r.rawValue));
+
     await this.prisma.$transaction([
       this.prisma.editionFeatureTag.deleteMany({ where: { editionId, isManual: false } }),
-      ...rows.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
+      ...rowsToCreate.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
     ]);
 
-    this.logger.debug(`Retagged edition ${editionId}: ${rows.length} feature tags`);
+    this.logger.debug(`Retagged edition ${editionId}: ${rowsToCreate.length} auto tags (${rows.length - rowsToCreate.length} skipped — manual)`);
   }
 
   /** Force-invalidate the in-memory rule cache (call after category CRUD). */
