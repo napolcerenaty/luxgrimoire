@@ -17,10 +17,7 @@ export type EditionCompany = { id: string; name: string; slug: string; defaultCu
 export type FeatureTag = {
   id: string
   rawValue: string
-  source: string
   isManual: boolean
-  artistId?: string | null
-  artistName?: string | null
   categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>
 }
 
@@ -395,7 +392,7 @@ export function FeatureCategoryPreview({
       await authFetch<FeatureTag>(`/editions/${editionSlug}/feature-tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawValue, source: 'features', categories }),
+        body: JSON.stringify({ rawValue, categories }),
       })
       refreshTags()
     } catch (e) {
@@ -540,9 +537,9 @@ export function FeatureCategoryPreview({
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
       </p>
 
-      {tags.filter(t => t.source === 'features').length > 0 ? (
+      {tags.length > 0 ? (
         <div className="mb-2">
-          {tags.filter(t => t.source === 'features').map(tag => renderRow(tag))}
+          {tags.map(tag => renderRow(tag))}
         </div>
       ) : (
         <p className="text-xs text-stone-500 italic mb-2">No features yet.</p>
@@ -785,7 +782,6 @@ export function EditionFieldsSection({
                   {art.name ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
-                      {art.name && !art.id && <span className="text-yellow-500 text-[9px] font-semibold uppercase" title="Not linked to DB — won't be saved">⚠ unlinked</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
                         onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}

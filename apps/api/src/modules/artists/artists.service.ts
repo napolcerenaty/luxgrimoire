@@ -123,11 +123,10 @@ export class ArtistsService {
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
-    const tags = await this.prisma.editionFeatureTag.findMany({
-      where: { artistId: artist.id, source: 'artist' },
+    const contributions = await this.prisma.artistContribution.findMany({
+      where: { artistId: artist.id },
       select: {
-        rawValue: true,
-        categories: true,
+        role: true,
         edition: {
           select: {
             id: true,
@@ -145,22 +144,18 @@ export class ArtistsService {
       },
     });
 
-    // Flatten: one entry per category per tag (categories are role slugs like 'cover', 'illustration')
-    const result: Array<{ role: string; edition: Record<string, unknown> }> = [];
-    for (const tag of tags) {
-      const { communityImages, ...editionRest } = tag.edition as typeof tag.edition & { communityImages: Array<{ url: string }> };
-      const editionWithCover = {
-        ...editionRest,
-        communityPhotoCover: (tag.edition.additionalImages as string[]).length === 0
-          ? (communityImages?.[0]?.url ?? null)
-          : null,
+    return contributions.map((contrib) => {
+      const { communityImages, ...editionRest } = contrib.edition as typeof contrib.edition & { communityImages: Array<{ url: string }> };
+      return {
+        role: contrib.role,
+        edition: {
+          ...editionRest,
+          communityPhotoCover: (contrib.edition.additionalImages as string[]).length === 0
+            ? (communityImages?.[0]?.url ?? null)
+            : null,
+        },
       };
-      const roles = (tag.categories as string[]).length > 0 ? (tag.categories as string[]) : [tag.rawValue];
-      for (const role of roles) {
-        result.push({ role, edition: editionWithCover });
-      }
-    }
-    return result;
+    });
   }
 
   async findCardMonths(slug: string) {

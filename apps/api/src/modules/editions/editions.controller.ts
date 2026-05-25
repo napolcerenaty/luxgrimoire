@@ -134,7 +134,7 @@ export class EditionsController {
   @Post(':slug/feature-tags')
   addFeatureTag(
     @Param('slug') slug: string,
-    @Body() body: { rawValue: string; source: string; categorySlug?: string; categories?: string[]; artistId?: string; artistName?: string },
+    @Body() body: { rawValue: string; categorySlug?: string; categories?: string[] },
   ) {
     return this.editionsService.addFeatureTag(slug, body);
   }
@@ -152,7 +152,7 @@ export class EditionsController {
   updateFeatureTag(
     @Param('slug') slug: string,
     @Param('tagId') tagId: string,
-    @Body() body: { rawValue?: string; categories?: string[]; artistId?: string | null; artistName?: string | null },
+    @Body() body: { rawValue?: string; categories?: string[] },
   ) {
     return this.editionsService.updateFeatureTag(slug, tagId, body);
   }

@@ -132,11 +132,7 @@ export interface ApiBookEdition {
   featureTags?: Array<{
     id: string;
     rawValue: string;
-    source: string;
     isManual: boolean;
-    artistId?: string | null;
-    artistName?: string | null;
-    artist?: { id: string; name: string; slug: string; photoUrl?: string | null } | null;
     categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>;
   }>;
   firstAccessDate?: string | null;

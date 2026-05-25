@@ -37,19 +37,11 @@ export class EditionsService {
   private async retagEditionById(editionId: string) {
     const data = await this.prisma.bookEdition.findUnique({
       where: { id: editionId },
-      select: {
-        features: true,
-        artists: { select: { role: true, artistId: true, artistName: true } },
-      },
+      select: { features: true },
     });
     if (!data) return;
     const features = (data.features as string[]) ?? [];
-    const artistEntries = data.artists.map((artist) => ({
-      role: artist.role,
-      artistId: artist.artistId,
-      artistName: artist.artistName,
-    }));
-    await this.tagger.retagEdition(editionId, features, artistEntries).catch((err) => {
+    await this.tagger.retagEdition(editionId, features).catch((err) => {
       this.logger.error(`retagEdition failed for ${editionId}: ${err.message}`);
     });
   }
@@ -58,20 +50,11 @@ export class EditionsService {
   async retagBySlug(slug: string): Promise<{ tagsCount: number }> {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
-      select: {
-        id: true,
-        features: true,
-        artists: { select: { role: true, artistId: true, artistName: true } },
-      },
+      select: { id: true, features: true },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     const features = (edition.features as string[]) ?? [];
-    const artistEntries = edition.artists.map((artist) => ({
-      role: artist.role,
-      artistId: artist.artistId,
-      artistName: artist.artistName,
-    }));
-    await this.tagger.retagEdition(edition.id, features, artistEntries);
+    await this.tagger.retagEdition(edition.id, features);
     const tagsCount = await this.prisma.editionFeatureTag.count({ where: { editionId: edition.id } });
     return { tagsCount };
   }
@@ -79,23 +62,14 @@ export class EditionsService {
   /** Retag all editions. Meant to be called once after a schema/category migration on production. */
   async retagAll(): Promise<{ total: number; done: number; failed: number }> {
     const editions = await this.prisma.bookEdition.findMany({
-      select: {
-        id: true,
-        features: true,
-        artists: { select: { role: true, artistId: true, artistName: true } },
-      },
+      select: { id: true, features: true },
     });
     let done = 0;
     let failed = 0;
     for (const edition of editions) {
       try {
         const features = (edition.features as string[]) ?? [];
-        const artistEntries = edition.artists.map((a) => ({
-          role: a.role,
-          artistId: a.artistId,
-          artistName: a.artistName,
-        }));
-        await this.tagger.retagEdition(edition.id, features, artistEntries);
+        await this.tagger.retagEdition(edition.id, features);
         done++;
       } catch (err) {
         this.logger.error(`retagAll: failed for edition ${edition.id}: ${(err as Error).message}`);
@@ -116,12 +90,8 @@ export class EditionsService {
           select: {
             id: true,
             rawValue: true,
-            source: true,
             isManual: true,
-            artistId: true,
-            artistName: true,
             categories: true,
-            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
           },
           orderBy: { rawValue: 'asc' },
         },
@@ -134,7 +104,7 @@ export class EditionsService {
   /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
   async addFeatureTag(
     slug: string,
-    body: { rawValue: string; source: string; categorySlug?: string; categories?: string[]; artistId?: string; artistName?: string },
+    body: { rawValue: string; categorySlug?: string; categories?: string[] },
   ) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
@@ -159,12 +129,7 @@ export class EditionsService {
       const cats = Array.from(new Set([...(existing.categories as string[]), ...newCategories]));
       await this.prisma.editionFeatureTag.update({
         where: { id: existing.id },
-        data: {
-          categories: cats,
-          isManual: true,
-          ...(body.artistId && { artistId: body.artistId }),
-          ...(body.artistName && { artistName: body.artistName }),
-        },
+        data: { categories: cats, isManual: true },
       });
     } else {
       await this.prisma.editionFeatureTag.create({
@@ -172,10 +137,7 @@ export class EditionsService {
           editionId: edition.id,
           rawValue: body.rawValue,
           categories: newCategories,
-          source: body.source,
           isManual: true,
-          artistId: body.artistId ?? null,
-          artistName: body.artistName ?? null,
         },
       });
     }
@@ -185,12 +147,8 @@ export class EditionsService {
       select: {
         id: true,
         rawValue: true,
-        source: true,
         isManual: true,
-        artistId: true,
-        artistName: true,
         categories: true,
-        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
       },
     });
 
@@ -208,8 +166,8 @@ export class EditionsService {
     return this.prisma.editionFeatureTag.delete({ where: { id: tagId } });
   }
 
-  /** Update rawValue, categories, artistId and/or artistName of a feature tag. */
-  async updateFeatureTag(slug: string, tagId: string, dto: { rawValue?: string; categories?: string[]; artistId?: string | null; artistName?: string | null }) {
+  /** Update rawValue and/or categories of a feature tag. */
+  async updateFeatureTag(slug: string, tagId: string, dto: { rawValue?: string; categories?: string[] }) {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     const tag = await this.prisma.editionFeatureTag.findFirst({ where: { id: tagId, editionId: edition.id } });
@@ -220,14 +178,10 @@ export class EditionsService {
       data: {
         ...(dto.rawValue !== undefined && { rawValue: dto.rawValue }),
         ...(dto.categories !== undefined && { categories: dto.categories }),
-        ...(dto.artistId !== undefined && { artistId: dto.artistId }),
-        ...(dto.artistName !== undefined && { artistName: dto.artistName }),
         isManual: true,
       },
       select: {
-        id: true, rawValue: true, source: true, isManual: true,
-        artistId: true, artistName: true, categories: true,
-        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+        id: true, rawValue: true, isManual: true, categories: true,
       },
     });
     return this.enrichTagWithCategories(updated);
@@ -248,16 +202,7 @@ export class EditionsService {
     const updated = await this.prisma.editionFeatureTag.update({
       where: { id: tagId },
       data: { categories: cats, isManual: true },
-      select: {
-        id: true,
-        rawValue: true,
-        source: true,
-        isManual: true,
-        artistId: true,
-        artistName: true,
-        categories: true,
-        artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
-      },
+      select: { id: true, rawValue: true, isManual: true, categories: true },
     });
 
     return this.enrichTagWithCategories(updated);
@@ -267,12 +212,8 @@ export class EditionsService {
     featureTags: Array<{
       id: string;
       rawValue: string;
-      source: string;
       isManual: boolean;
-      artistId: string | null;
-      artistName: string | null;
       categories: string[];
-      artist: unknown;
     }>,
   ) {
     const allCategories = await this.prisma.featureCategory.findMany({
@@ -287,18 +228,7 @@ export class EditionsService {
   }
 
   private async enrichTagWithCategories(
-    tag:
-      | {
-          id: string;
-          rawValue: string;
-          source: string;
-          isManual: boolean;
-          artistId: string | null;
-          artistName: string | null;
-          categories: string[];
-          artist: unknown;
-        }
-      | null,
+    tag: { id: string; rawValue: string; isManual: boolean; categories: string[] } | null,
   ) {
     if (!tag) throw new NotFoundException('Feature tag not found');
     const [enriched] = await this.enrichTagsWithCategories([tag]);
@@ -479,9 +409,7 @@ export class EditionsService {
         },
         featureTags: {
           select: {
-            id: true, rawValue: true, source: true, isManual: true,
-            artistId: true, artistName: true, categories: true,
-            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+            id: true, rawValue: true, isManual: true, categories: true,
           },
           orderBy: [{ rawValue: 'asc' as const }],
         },
@@ -530,9 +458,7 @@ export class EditionsService {
         },
         featureTags: {
           select: {
-            id: true, rawValue: true, source: true, isManual: true,
-            artistId: true, artistName: true, categories: true,
-            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+            id: true, rawValue: true, isManual: true, categories: true,
           },
           orderBy: [{ rawValue: 'asc' as const }],
         },

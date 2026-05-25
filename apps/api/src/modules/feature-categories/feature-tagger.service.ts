@@ -92,7 +92,6 @@ export class FeatureTaggerService {
   async retagEdition(
     editionId: string,
     features: string[],
-    artistEntries: { role: string; artistId: string; artistName?: string | null }[],
   ): Promise<void> {
     const rules = await this.loadRules();
     if (rules.length === 0) {
@@ -108,59 +107,19 @@ export class FeatureTaggerService {
         .map((r) => r.slug);
     };
 
-    type Row = {
-      editionId: string;
-      rawValue: string;
-      categories: string[];
-      artistId: string | null;
-      artistName: string | null;
-      source: string;
-    };
-
-    const artistRows = new Map<string, Row>();
-    const artistCoveredCategories = new Set<string>();
-
-    for (const entry of artistEntries) {
-      const rv = entry.role.trim();
-      if (!rv || artistRows.has(rv)) continue;
-      const cats = matchCategories(rv);
-      artistRows.set(rv, {
-        editionId,
-        rawValue: rv,
-        categories: cats,
-        artistId: entry.artistId,
-        artistName: entry.artistName ?? null,
-        source: 'artist',
-      });
-      for (const c of cats) artistCoveredCategories.add(c);
-    }
-
-    const featureRows = new Map<string, Row>();
+    const rows: Array<{ editionId: string; rawValue: string; categories: string[] }> = [];
     for (const feature of features) {
       const rv = feature.trim();
-      if (!rv || artistRows.has(rv)) continue;
-      const cats = matchCategories(rv);
-      if (cats.length > 0 && cats.every((c) => artistCoveredCategories.has(c))) continue;
-      featureRows.set(rv, {
-        editionId,
-        rawValue: rv,
-        categories: cats,
-        artistId: null,
-        artistName: null,
-        source: 'features',
-      });
+      if (!rv) continue;
+      rows.push({ editionId, rawValue: rv, categories: matchCategories(rv) });
     }
-
-    const unique = [...artistRows.values(), ...featureRows.values()];
 
     await this.prisma.$transaction([
       this.prisma.editionFeatureTag.deleteMany({ where: { editionId, isManual: false } }),
-      ...unique.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
+      ...rows.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
     ]);
 
-    this.logger.debug(
-      `Retagged edition ${editionId}: ${unique.length} tags (${artistRows.size} artist, ${featureRows.size} feature)`,
-    );
+    this.logger.debug(`Retagged edition ${editionId}: ${rows.length} feature tags`);
   }
 
   /** Force-invalidate the in-memory rule cache (call after category CRUD). */

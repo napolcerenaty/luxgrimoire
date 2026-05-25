@@ -187,9 +187,7 @@ model Artist {
   tiktok        String?
   twitter       String?
   website       String?
-  /// @deprecated Use EditionFeatureTag.artistId/source='artist' instead (artist_contributions table will be removed)
   contributions ArtistContribution[]
-  featureTags   EditionFeatureTag[]
   cardArtistMonths SubscriptionMonth[]
 
   @@index([specialty])
@@ -197,7 +195,6 @@ model Artist {
   @@map("artists")
 }
 
-/// @deprecated Replaced by EditionFeatureTag (edition_feature_tags). Will be removed after full migration.
 model ArtistContribution {
   id         String      @id @default(uuid())
   editionId  String
@@ -243,7 +240,6 @@ model BookEdition {
   previousEditionId        String?                   @unique
   previousEdition          BookEdition?              @relation("EditionHistory", fields: [previousEditionId], references: [id], onDelete: SetNull)
   nextEdition              BookEdition?              @relation("EditionHistory")
-  /// @deprecated Use featureTags (source='artist') instead (artist_contributions table will be removed)
   artists                  ArtistContribution[]
   bookBoxCompany           BookBoxCompany?           @relation(fields: [bookBoxCompanyId], references: [id])
   book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
@@ -1403,17 +1399,12 @@ model EditionFeatureTag {
   editionId  String
   rawValue   String
   categories String[]    @default([])
-  artistId   String?
-  artistName String?
-  source     String      @default("features")
   isManual   Boolean     @default(false) @map("is_manual")
   createdAt  DateTime    @default(now())
 
   edition    BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  artist     Artist?     @relation(fields: [artistId], references: [id], onDelete: SetNull)
 
   @@unique([editionId, rawValue])
   @@index([editionId])
-  @@index([artistId])
   @@map("edition_feature_tags")
 }

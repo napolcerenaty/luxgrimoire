@@ -197,7 +197,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         featurePosts.push(authFetch(`/editions/${slug}/feature-tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: trimmed, source: 'features', categories: [] }),
+          body: JSON.stringify({ rawValue: trimmed, categories: [] }),
         }).catch(() => null))
       }
     }

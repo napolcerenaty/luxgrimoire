@@ -299,7 +299,7 @@ export default function CreateBookEditionForm({
           authFetch(`/editions/${ed.slug}/feature-tags`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rawValue: t.rawValue, source: 'features', categories: [] }),
+            body: JSON.stringify({ rawValue: t.rawValue, categories: [] }),
           }).catch(() => null)
         ))
         qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(ed.slug) })
