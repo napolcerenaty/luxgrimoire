@@ -93,15 +93,13 @@ export class EditionsService {
             isManual: true,
             categories: true,
           },
-          orderBy: { rawValue: 'asc' },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     return this.enrichTagsWithCategories(edition.featureTags as any);
   }
-
-  /** Manually assign a category to a raw feature value (isManual=true, survives auto-retag). */
   async addFeatureTag(
     slug: string,
     body: { rawValue: string; categorySlug?: string; categories?: string[] },
@@ -411,7 +409,7 @@ export class EditionsService {
           select: {
             id: true, rawValue: true, isManual: true, categories: true,
           },
-          orderBy: [{ rawValue: 'asc' as const }],
+          orderBy: [{ createdAt: 'asc' as const }],
         },
         previousEdition: {
           select: {
@@ -460,7 +458,7 @@ export class EditionsService {
           select: {
             id: true, rawValue: true, isManual: true, categories: true,
           },
-          orderBy: [{ rawValue: 'asc' as const }],
+          orderBy: [{ createdAt: 'asc' as const }],
         },
         artists: {
           select: {
