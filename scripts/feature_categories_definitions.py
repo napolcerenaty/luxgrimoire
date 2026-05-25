@@ -254,10 +254,11 @@ CATEGORIES = [
             r"\bexclusive case design\b",
             r"\bexclusive\s+cover\s+design\b",
             r"\boverall design\b",
+            r"\bhardcover case\b",
         ],
-        # Exclude original/trade covers
+        # Exclude original/trade covers and jacket-only descriptions (→ dust_jacket)
         [r"\boriginal\b", r"\btrade cover\b", r"\bfrom the publisher\b",
-         r"\bUK trade\b"]
+         r"\bUK trade\b", r"\bjacket\b"]
     ),
     (
         "original_cover",
