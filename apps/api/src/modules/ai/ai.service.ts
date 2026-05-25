@@ -73,7 +73,7 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     "firstAccessDate": "YYYY-MM-DD",
     "earlyAccessDate": "YYYY-MM-DD",
     "generalSaleDate": "YYYY-MM-DD",
-    "features": ["sprayed edges", "ribbon bookmark", "exclusive art print", "signed bookplate"],
+    "features": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"],
     "artists": [
       { "name": "@artisthandle", "role": "full description of what they created, e.g. cover art, character illustrations, map, typography, interior artwork, endpapers design" }
     ]
@@ -121,6 +121,7 @@ ARTIST EXTRACTION RULES:
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
 
 FEATURES RULES:
+- CASING: Preserve the original capitalisation from the source text. Do NOT normalise feature names to lowercase. If the source says "Foiled end pages" keep the capital F. If it says "ribbon bookmark" in lowercase, keep it lowercase. Never change the case of words.
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
@@ -150,6 +151,11 @@ FEATURES RULES:
   Example: "Illustrated endpapers (by @nekokonut22); different front and back" →
     features: ["Illustrated endpapers; different front and back"]
     artists: [{ name: "@nekokonut22", role: "Illustrated endpapers; different front and back" }]
+  IMPORTANT: This rule applies ONLY when the original source text contains a semicolon AFTER an artist attribution parenthetical. Do NOT use semicolons to replace parentheses that are already in the feature name itself.
+  Example: "Foiled end pages (different front and back) designed by @harteus" →
+    features: [] (covered by artist entry)
+    artists: [{ name: "@harteus", role: "Foiled end pages (different front and back)" }]
+  The parenthetical "(different front and back)" is part of the feature name — keep it in parentheses, do NOT rewrite it as "Foiled end pages; different front and back".
 - MULTI-ARTIST PARENTHETICAL: When a single feature line has a parenthetical that contains multiple "role by @artist" pairs separated by semicolons, create ONE feature entry using only the base feature name (strip the entire parenthetical). Split into one artist entry per pair — each artist's role is: the feature name + " (" + their specific role portion + ")".
   Example: "Exclusive redesigned covers (art by @penglu_art; design by @chattynora)" →
     features: ["Exclusive redesigned covers"]
