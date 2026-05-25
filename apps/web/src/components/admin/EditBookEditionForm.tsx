@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -162,6 +162,12 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   })
   const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
 
+  // Artists state — initialized from existing contributions
+  const [artists, setArtists] = useState<ArtistEntry[]>(() =>
+    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
+  )
+  const [removedArtistIds, setRemovedArtistIds] = useState<string[]>([])
+
   // Companies list
   const { data: companiesData } = useQuery({
     queryKey: ['companies-list'],
@@ -180,34 +186,35 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const applyAiResult = async (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate })
     const slug = edition.slug
-    const posts: Promise<unknown>[] = []
     // Collect all artist roles to avoid creating duplicate standalone feature entries
     const artistRoles = new Set(
       (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
     )
+    const featurePosts: Promise<unknown>[] = []
     for (const feature of (r.edition?.features ?? [])) {
       const trimmed = feature.trim()
-      // Skip feature if an artist entry already covers the same rawValue
       if (trimmed && !artistRoles.has(trimmed)) {
-        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
+        featurePosts.push(authFetch(`/editions/${slug}/feature-tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rawValue: trimmed, source: 'features', categories: [] }),
         }).catch(() => null))
       }
     }
-    for (const artist of (r.edition?.artists ?? [])) {
-      if (artist.role?.trim()) {
-        posts.push(authFetch(`/editions/${slug}/feature-tags`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: artist.role.trim(), source: 'artist', categories: [], artistName: artist.name }),
-        }).catch(() => null))
-      }
-    }
-    if (posts.length > 0) {
-      await Promise.all(posts)
+    if (featurePosts.length > 0) {
+      await Promise.all(featurePosts)
       qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(slug) })
+    }
+    // Add AI-parsed artists to local state — user must link them via PersonPicker to save
+    const aiArtists = (r.edition?.artists ?? [])
+      .filter(a => a.role?.trim())
+      .map(a => ({ name: a.name ?? '', role: a.role!.trim() }))
+    if (aiArtists.length > 0) {
+      setArtists(prev => {
+        const existingRoles = new Set(prev.map(a => a.role.toLowerCase()))
+        const toAdd = aiArtists.filter(a => !existingRoles.has(a.role.toLowerCase()))
+        return [...prev, ...toAdd]
+      })
     }
   }
 
@@ -232,6 +239,22 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           isOmnibus,
         }),
       })
+      // 2. Sync artist contributions
+      await Promise.all(
+        removedArtistIds.map(artistId =>
+          authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
+        )
+      )
+      await Promise.all(
+        artists
+          .filter(a => !a.existing && a.id)
+          .map(a =>
+            authFetch(`/editions/${edition.slug}/artists`, {
+              method: 'POST',
+              body: JSON.stringify({ artistId: a.id, role: a.role, artistName: a.name }),
+            }).catch(() => null)
+          )
+      )
 
       qc.invalidateQueries({ queryKey: ['admin', 'editions'] })
       qc.invalidateQueries({ queryKey: ['artists-search'] })
@@ -277,7 +300,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}
-        hideDeprecatedInputs
+        artists={artists}
+        onArtistsChange={setArtists}
+        onRemoveExistingArtist={id => setRemovedArtistIds(prev => [...prev, id])}
         featureTags={edition.featureTags}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}

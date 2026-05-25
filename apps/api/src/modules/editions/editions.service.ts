@@ -536,6 +536,12 @@ export class EditionsService {
           },
           orderBy: [{ rawValue: 'asc' as const }],
         },
+        artists: {
+          select: {
+            role: true,
+            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+          },
+        },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true } },
         monthBooks: {

@@ -168,19 +168,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
   const features = (edition.featureTags ?? [])
     .filter((tag) => tag.source === 'features')
     .map((tag) => tag.rawValue)
-  const artistTags = (edition.featureTags ?? []).filter(
-    (tag) => tag.source === 'artist' && tag.artistId && tag.artist,
-  )
-  const artistMap = new Map<string, { artist: NonNullable<typeof artistTags[number]['artist']>; roles: string[] }>()
-  for (const tag of artistTags) {
-    if (!tag.artist || !tag.artistId) continue
-    if (!artistMap.has(tag.artistId)) {
-      artistMap.set(tag.artistId, { artist: tag.artist, roles: [] })
+  const rawArtists = (edition.artists ?? [])
+  const artistMap = new Map<string, { artist: NonNullable<typeof rawArtists[number]['artist']>; roles: string[] }>()
+  for (const contrib of rawArtists) {
+    if (!contrib.artist) continue
+    if (!artistMap.has(contrib.artist.id)) {
+      artistMap.set(contrib.artist.id, { artist: contrib.artist, roles: [] })
     }
-    const artistEntry = artistMap.get(tag.artistId)
-    if (artistEntry && !artistEntry.roles.includes(tag.rawValue)) {
-      artistEntry.roles.push(tag.rawValue)
-    }
+    artistMap.get(contrib.artist.id)!.roles.push(contrib.role)
   }
   const artistList = Array.from(artistMap.values())
   // Only show editionLabel if it's a custom name distinct from the company name

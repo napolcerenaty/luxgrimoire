@@ -119,7 +119,6 @@ export interface ApiBookEdition {
   bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
-  /** @deprecated Use featureTags (source='artist') as single source of truth. artist_contributions table will be removed. */
   artists?: Array<{ artist: ApiArtist; role: string }>;
   communityPhotoCover?: string | null;
   verifiedAt: string | null;
