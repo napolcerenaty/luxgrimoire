@@ -346,7 +346,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onRemoveExistingArtist={id => setRemovedArtistIds(prev => new Set([...prev, id]))}
         featureTags={edition.featureTags}
         pendingFeatureTags={pendingFeatureTags}
-        onRemovePendingFeatureTag={rv => setPendingFeatureTags(prev => prev.filter(t => t.rawValue !== rv))}
         featurePreviewRef={featurePreviewRef}
         isOmnibus={isOmnibus}
         onIsOmnibusChange={setIsOmnibus}

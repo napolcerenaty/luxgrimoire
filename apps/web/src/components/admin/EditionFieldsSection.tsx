@@ -331,14 +331,17 @@ export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags',
 
 export type FeaturePreviewHandle = { flushChanges: () => Promise<void> }
 
+// Synthetic ID for tags not yet in DB
+const newTagId = (rawValue: string) => `_new_${rawValue}`
+const isNewTag = (id: string) => id.startsWith('_new_')
+
 export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   editionSlug: string
   initialTags?: FeatureTag[]
   /** When true, all edits are staged locally and flushed to API via flushChanges() */
   staged?: boolean
   pendingTags?: Array<{ rawValue: string; categories: string[] }>
-  onRemovePending?: (rawValue: string) => void
-}>(function FeatureCategoryPreview({ editionSlug, initialTags, staged = false, pendingTags = [], onRemovePending }, ref) {
+}>(function FeatureCategoryPreview({ editionSlug, initialTags, staged = false, pendingTags = [] }, ref) {
   const qc = useQueryClient()
   const [adding, setAdding] = useState<Record<string, string>>({})
   const [editingRow, setEditingRow] = useState<Record<string, { rawValue: string; saving: boolean }>>({})
@@ -347,13 +350,10 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   const [newCategoryPick, setNewCategoryPick] = useState('')
   const [addingNew, setAddingNew] = useState(false)
 
-  // Staged mode state
+  // Staged mode: single unified tag list (DB tags + new/pending with synthetic IDs)
   const [localTags, setLocalTags] = useState<FeatureTag[]>(initialTags ?? [])
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
-  const [localNewTags, setLocalNewTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const [deletedDbIds, setDeletedDbIds] = useState<Set<string>>(new Set())
   const originalTagsRef = useRef<FeatureTag[]>(initialTags ?? [])
-  const pendingTagsRef = useRef(pendingTags)
-  useEffect(() => { pendingTagsRef.current = pendingTags }, [pendingTags])
 
   const startEdit = (tag: FeatureTag) =>
     setEditingRow(prev => ({ ...prev, [tag.id]: { rawValue: tag.rawValue, saving: false } }))
@@ -377,6 +377,28 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
       dbSyncedRef.current = true
     }
   }, [staged, dbTags])
+
+  // Merge incoming pendingTags into localTags — no visual distinction (same as DB tags)
+  const prevPendingRef = useRef<typeof pendingTags>([])
+  useEffect(() => {
+    if (!staged) return
+    const prev = new Set(prevPendingRef.current.map(t => t.rawValue))
+    const toAdd = pendingTags.filter(t => !prev.has(t.rawValue))
+    prevPendingRef.current = pendingTags
+    if (toAdd.length === 0) return
+    setLocalTags(cur => {
+      const existing = new Set(cur.map(t => t.rawValue))
+      const newEntries: FeatureTag[] = toAdd
+        .filter(t => !existing.has(t.rawValue))
+        .map(t => ({
+          id: newTagId(t.rawValue),
+          rawValue: t.rawValue,
+          isManual: false,
+          categories: t.categories.map(slug => ({ id: slug, slug, label: slug, group: '', sortOrder: 0 })),
+        }))
+      return [...cur, ...newEntries]
+    })
+  }, [staged, pendingTags])
 
   const tags = staged ? localTags : dbTags
 
@@ -407,7 +429,13 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
 
   const handleAddTag = async (rawValue: string, categories: string[]) => {
     if (staged) {
-      setLocalNewTags(prev => prev.some(t => t.rawValue === rawValue) ? prev : [...prev, { rawValue, categories }])
+      setLocalTags(prev => {
+        if (prev.some(t => t.rawValue === rawValue)) return prev
+        const catObjs = categories
+          .map(slug => allCategories.find(c => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+        return [...prev, { id: newTagId(rawValue), rawValue, isManual: true, categories: catObjs }]
+      })
       return
     }
     try {
@@ -472,38 +500,30 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
 
   const handleDeleteTag = async (tagId: string) => {
     if (staged) {
-      setDeletedIds(prev => new Set([...prev, tagId]))
       setLocalTags(prev => prev.filter(t => t.id !== tagId))
+      if (!isNewTag(tagId)) setDeletedDbIds(prev => new Set([...prev, tagId]))
       return
     }
     await authFetch(`/editions/${editionSlug}/feature-tags/${tagId}`, { method: 'DELETE' })
     refreshTags()
   }
 
-  // ── Flush all staged changes to API ─────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     flushChanges: async () => {
-      // 1. POST AI-parsed pending tags
-      for (const t of pendingTagsRef.current) {
+      // 1. POST new tags (synthetic IDs — AI-parsed or manually added)
+      for (const tag of localTags.filter(t => isNewTag(t.id))) {
         await authFetch(`/editions/${editionSlug}/feature-tags`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: t.rawValue, categories: t.categories }),
+          body: JSON.stringify({ rawValue: tag.rawValue, categories: tag.categories.map(c => c.slug) }),
         }).catch(() => null)
       }
-      // 2. POST manually-added new tags
-      for (const t of localNewTags) {
-        await authFetch(`/editions/${editionSlug}/feature-tags`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawValue: t.rawValue, categories: t.categories }),
-        }).catch(() => null)
-      }
-      // 3. DELETE removed tags
-      for (const id of deletedIds) {
+      // 2. DELETE removed DB tags
+      for (const id of deletedDbIds) {
         await authFetch(`/editions/${editionSlug}/feature-tags/${id}`, { method: 'DELETE' }).catch(() => null)
       }
-      // 4. PATCH modified DB tags (diff against original)
+      // 3. PATCH modified DB tags (diff against original)
       const originalById = new Map(originalTagsRef.current.map(t => [t.id, t]))
-      for (const tag of localTags) {
+      for (const tag of localTags.filter(t => !isNewTag(t.id))) {
         const orig = originalById.get(tag.id)
         if (!orig) continue
         const rawChanged = tag.rawValue !== orig.rawValue
@@ -603,7 +623,6 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   }
 
   const availableForNew = allCategories.filter(c => !newCategories.includes(c.slug))
-  const hasPending = pendingTags.length > 0 || localNewTags.length > 0
 
   return (
     <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
@@ -613,48 +632,12 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
       <p className="text-[10px] text-stone-500 mb-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
-        {staged && <><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-900/40 border border-blue-600 mr-1 ml-3" />pending save</>}
       </p>
 
       {tags.length > 0 ? (
         <div className="mb-2">{tags.map(tag => renderRow(tag))}</div>
       ) : (
         <p className="text-xs text-stone-500 italic mb-2">No features yet.</p>
-      )}
-
-      {/* Pending tags (AI-parsed or manually staged, not yet saved) */}
-      {hasPending && (
-        <div className="mb-2 border-t border-blue-900/40 pt-2">
-          {[...pendingTags.map(t => ({ ...t, _src: 'ai' as const })),
-            ...localNewTags.map(t => ({ ...t, _src: 'manual' as const }))].map(t => (
-            <div key={t.rawValue} className="py-1.5 border-b border-stone-800/60 last:border-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-blue-900/40 border border-blue-600 text-blue-300 shrink-0">pending</span>
-                  <span className="text-xs text-stone-300 break-words">{t.rawValue}</span>
-                </div>
-                <button type="button"
-                  onClick={() => {
-                    if (t._src === 'ai') onRemovePending?.(t.rawValue)
-                    else setLocalNewTags(prev => prev.filter(x => x.rawValue !== t.rawValue))
-                  }}
-                  className="text-[10px] text-stone-600 hover:text-red-400 shrink-0">×</button>
-              </div>
-              {t.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1 pl-[4px]">
-                  {t.categories.map(slug => {
-                    const cat = allCategories.find(c => c.slug === slug)
-                    return (
-                      <span key={slug} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/40 border border-blue-600 text-blue-200">
-                        {cat?.label ?? slug}
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       )}
 
       {/* Add new feature manually */}
@@ -744,9 +727,8 @@ export interface EditionFieldsSectionProps {
   editionSlug?: string
   /** Existing feature tags from DB — shown in FeatureCategoryPreview (edit form only) */
   featureTags?: FeatureTag[]
-  /** AI-parsed feature tags staged for save — shown as pending in FeatureCategoryPreview */
+  /** AI-parsed feature tags staged for save — merged into FeatureCategoryPreview as regular entries */
   pendingFeatureTags?: Array<{ rawValue: string; categories: string[] }>
-  onRemovePendingFeatureTag?: (rawValue: string) => void
   /** Ref to FeatureCategoryPreview for calling flushChanges() on save (staged mode) */
   featurePreviewRef?: Ref<FeaturePreviewHandle>
   companies: EditionCompany[]
@@ -767,7 +749,7 @@ export function EditionFieldsSection({
   artists = [], onArtistsChange, onRemoveExistingArtist,
   features = [], onFeaturesChange,
   isOmnibus, onIsOmnibusChange, editionSlug, featureTags,
-  pendingFeatureTags, onRemovePendingFeatureTag, featurePreviewRef,
+  pendingFeatureTags, featurePreviewRef,
   companies, collections,
 }: EditionFieldsSectionProps) {
   const handleRemoveArtist = (index: number) => {
@@ -926,7 +908,6 @@ export function EditionFieldsSection({
             initialTags={featureTags}
             staged={!!featurePreviewRef}
             pendingTags={pendingFeatureTags}
-            onRemovePending={onRemovePendingFeatureTag}
           />
         )}
       </div>
