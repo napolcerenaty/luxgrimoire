@@ -95,7 +95,7 @@ export default function CreateBookEditionForm({
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
   // Feature tags to POST after edition creation (filled by AI parser)
-  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string }>>([])
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])  
   // Artists to POST after edition creation (filled by AI parser / user input)
   const [artists, setArtists] = useState<ArtistEntry[]>([])
 
@@ -146,10 +146,10 @@ export default function CreateBookEditionForm({
     const artistRoles = new Set(
       (r.edition?.artists ?? []).map(a => a.role?.trim()).filter(Boolean)
     )
-    const newFeatureTags: Array<{ rawValue: string }> = []
+    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = []
     for (const feature of (r.edition?.features ?? [])) {
       const trimmed = feature.trim()
-      if (trimmed && !artistRoles.has(trimmed)) newFeatureTags.push({ rawValue: trimmed })
+      if (trimmed && !artistRoles.has(trimmed)) newFeatureTags.push({ rawValue: trimmed, categories: r.edition?.featureTags?.[trimmed] ?? [] })
     }
     if (newFeatureTags.length > 0) {
       setPendingFeatureTags(prev => {
@@ -299,7 +299,7 @@ export default function CreateBookEditionForm({
           authFetch(`/editions/${ed.slug}/feature-tags`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rawValue: t.rawValue, categories: [] }),
+            body: JSON.stringify({ rawValue: t.rawValue, categories: t.categories }),
           }).catch(() => null)
         ))
         qc.invalidateQueries({ queryKey: FEATURE_TAGS_QUERY_KEY(ed.slug) })

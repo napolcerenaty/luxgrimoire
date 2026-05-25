@@ -55,6 +55,7 @@ export interface AiParseResult {
     earlyAccessDate?: string
     generalSaleDate?: string
     features?: string[]
+    featureTags?: Record<string, string[]>
     artists?: { name: string; role: string }[]
     artistTags?: Record<string, string[]>
   }
@@ -778,7 +779,7 @@ export function EditionFieldsSection({
             {artists.map((art, i) => (
               <div key={i} className="flex gap-2 items-start">
                 <div className="flex-1">
-                  {art.name ? (
+                  {art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
@@ -788,6 +789,7 @@ export function EditionFieldsSection({
                     </div>
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
+                      initialQuery={art.name || undefined}
                       onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
                   )}
                 </div>
