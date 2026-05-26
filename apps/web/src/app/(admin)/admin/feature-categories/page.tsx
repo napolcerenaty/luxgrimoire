@@ -54,9 +54,14 @@ const EMPTY_FORM: CategoryFormState = {
  *      "UV-spot"      → \bUV[\s\-]*spot\w*\b
  */
 function phraseToRegex(phrase: string): string {
-  const words = phrase.trim().split(/[\s\-]+/).filter(Boolean)
+  const trimmed = phrase.trim()
+  const words = trimmed.split(/[\s\-]+/).filter(Boolean)
   const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return `\\b${escaped.join('[\\s\\-]*')}\\b`
+  const joined = escaped.join('[\\s\\-]*')
+  // \b only works adjacent to a word character — skip it when phrase starts/ends with non-word char like ( )
+  const startB = /^\w/.test(trimmed) ? '\\b' : ''
+  const endB = /\w$/.test(trimmed) ? '\\b' : ''
+  return `${startB}${joined}${endB}`
 }
 
 /**
