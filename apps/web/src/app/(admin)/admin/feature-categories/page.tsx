@@ -56,7 +56,7 @@ const EMPTY_FORM: CategoryFormState = {
 function phraseToRegex(phrase: string): string {
   const words = phrase.trim().split(/[\s\-]+/).filter(Boolean)
   const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return `\\b${escaped.join('[\\s\\-]*')}\\w*\\b`
+  return `\\b${escaped.join('[\\s\\-]*')}\\b`
 }
 
 /**
