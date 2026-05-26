@@ -173,6 +173,10 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
           <span>← Subscriptions</span>
         </BackButton>
+      ) : from === 'my-subscriptions' ? (
+        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+          <span>← My Subscriptions</span>
+        </BackButton>
       ) : sub.company && (
         <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
           {cloudinaryUrl(sub.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto') && (

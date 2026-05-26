@@ -281,7 +281,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   return (
     <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
       {/* Cover — clickable */}
-      <Link href={`/subscriptions/${sub.slug}`} className="block relative">
+      <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block relative">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
         {/* Status badge */}
         <div className="absolute top-2 right-2 z-10">
@@ -299,7 +299,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
 
       {/* Info + actions */}
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <Link href={`/subscriptions/${sub.slug}`} className="block">
+        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block">
           <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
           <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
         </Link>
@@ -471,7 +471,7 @@ function HistoryCard({
     const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_pad,b_auto,q_auto,f_auto') : null
     return (
       <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
-        <Link href={`/subscriptions/${sub.slug}`} className="block relative aspect-[4/3] w-full">
+        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block relative aspect-[4/3] w-full">
           {thumb ? (
             <Image src={thumb} alt={sub.name} fill className="object-contain group-hover:scale-105 transition-transform duration-300" unoptimized />
           ) : (
@@ -520,7 +520,7 @@ function HistoryCard({
 
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
-      <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
+      <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="flex flex-1 min-w-0 group">
         <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
         <div className="flex-1 min-w-0 py-3 px-4 flex flex-col justify-center">
           <div className="flex items-start justify-between gap-2">
@@ -783,7 +783,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
     <>
       <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
         {/* Main clickable area */}
-        <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
+        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="flex flex-1 min-w-0 group">
           {/* Logo — stretches full height of the row */}
           <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
 
@@ -898,3 +898,4 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
     </>
   )
 }
+
