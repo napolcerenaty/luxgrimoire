@@ -33,7 +33,7 @@ export interface GroupedEdition {
   roles: string[]
 }
 
-interface CardMonth {
+export interface CardMonth {
   id: string; year: number; month: number
   theme: string | null; coverImage: string | null; isSpoiler: boolean
   subscription: { id: string; name: string; slug: string }
