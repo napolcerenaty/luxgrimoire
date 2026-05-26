@@ -144,12 +144,14 @@ function CategoryForm({
   onCancel,
   loading,
   error,
+  knownGroups,
 }: {
   initial: CategoryFormState
   onSubmit: (data: CategoryFormState) => void
   onCancel: () => void
   loading: boolean
   error?: string
+  knownGroups: string[]
 }) {
   const [form, setForm] = useState<CategoryFormState>(initial)
   const [testValue, setTestValue] = useState('')
@@ -211,15 +213,17 @@ function CategoryForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Group *</label>
-          <select
+          <input
+            required
+            list="group-suggestions"
             className={INPUT_CLASS}
+            placeholder="e.g. cover"
             value={form.group}
-            onChange={e => set('group', e.target.value)}
-          >
-            {GROUPS.map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+            onChange={e => set('group', e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+          />
+          <datalist id="group-suggestions">
+            {knownGroups.map(g => <option key={g} value={g} />)}
+          </datalist>
         </div>
         <div>
           <label className={LABEL_CLASS}>Sort Order</label>
@@ -567,6 +571,9 @@ export default function FeatureCategoriesPage() {
     new Set([...GROUPS, ...Object.keys(grouped)])
   ).filter(g => g in grouped)
 
+  // All known groups (predefined + any custom ones already in DB) for the group picker
+  const knownGroups = Array.from(new Set([...GROUPS, ...categories.map(c => c.group)])).sort()
+
   return (
     <div>
       {/* Header */}
@@ -692,6 +699,7 @@ export default function FeatureCategoriesPage() {
           onCancel={() => setCreateOpen(false)}
           loading={createMutation.isPending}
           error={mutationError}
+          knownGroups={knownGroups}
         />
       </FormModal>
 
@@ -708,6 +716,7 @@ export default function FeatureCategoriesPage() {
             onCancel={() => setEditCategory(null)}
             loading={updateMutation.isPending}
             error={mutationError}
+            knownGroups={knownGroups}
           />
         )}
       </FormModal>
