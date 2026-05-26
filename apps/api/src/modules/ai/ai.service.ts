@@ -294,6 +294,23 @@ SHIPPING:
 For dates, use ISO 8601 format with time and Z suffix (UTC). If only a date is given without time, use 00:00:00.000Z.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
+/**
+ * Normalises specific plural forms to singular in feature/role strings.
+ * Preserves original casing of surrounding text (only replaces the matched word).
+ * Examples:
+ *   "exclusive re-designed covers"  → "exclusive re-designed cover"
+ *   "Foiled hardcases"              → "Foiled hardcase"
+ *   "ribbon bookmarks"              → "ribbon bookmark"
+ */
+function normalizePlurals(value: string): string {
+  return value
+    .replace(/\bribbon bookmarks\b/gi, m => m.slice(0, -1))   // ribbon bookmarks → ribbon bookmark
+    .replace(/\bhardcases\b/gi,        m => m.slice(0, -1))   // hardcases → hardcase
+    .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
+    .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback
+    .replace(/\bcovers\b/gi,           m => m.slice(0, -1));  // covers → cover
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -378,6 +395,22 @@ export class AiService {
 
     try {
       const result = JSON.parse(content) as AiParseResult;
+
+      // ── Plural → singular normalization ──────────────────────────────────────
+      // Applied to both standalone feature values and artist role descriptions
+      // before tagging, so the stored values are already in canonical form.
+      if (result.edition) {
+        if (result.edition.features) {
+          result.edition.features = result.edition.features.map(normalizePlurals);
+        }
+        if (result.edition.artists) {
+          result.edition.artists = result.edition.artists.map(a => ({
+            ...a,
+            role: a.role ? normalizePlurals(a.role) : a.role,
+          }));
+        }
+      }
+
       // Post-process: build unified featureTags map covering both standalone features
       // and base feature names derived from artist roles (single-artist features only
       // appear in artists[], not features[], so we must include them here).
