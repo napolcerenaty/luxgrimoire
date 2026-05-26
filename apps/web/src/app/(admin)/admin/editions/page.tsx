@@ -111,8 +111,9 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
     gcTime: 0,
   })
   if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
-  return <EditBookEditionForm edition={data} onSuccess={() => {
+  return <EditBookEditionForm key={data.id} edition={data} onSuccess={() => {
     queryClient.invalidateQueries({ queryKey: ['edition-detail', slug] })
+    queryClient.invalidateQueries({ queryKey: ['edition-detail-edit', slug] })
     onSuccess()
   }} onCancel={onCancel} />
 }
