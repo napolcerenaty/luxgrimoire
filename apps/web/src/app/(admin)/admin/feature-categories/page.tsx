@@ -258,8 +258,18 @@ function CategoryForm({
         {includeKeywords.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {includeKeywords.map((kw, i) => (
-              <span key={i} className="text-xs bg-emerald-900/40 border border-emerald-700/40 text-emerald-300 px-2 py-0.5 rounded-full">
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-emerald-900/40 border border-emerald-700/40 text-emerald-300 px-2 py-0.5 rounded-full">
                 {kw}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = linesToPatterns(form.includePatterns)
+                    lines.splice(i, 1)
+                    set('includePatterns', lines.join('\n'))
+                  }}
+                  className="ml-0.5 text-emerald-500 hover:text-red-400 transition-colors leading-none"
+                  aria-label="Remove"
+                >×</button>
               </span>
             ))}
           </div>
@@ -291,8 +301,18 @@ function CategoryForm({
         {excludeKeywords.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {excludeKeywords.map((kw, i) => (
-              <span key={i} className="text-xs bg-red-900/40 border border-red-700/40 text-red-300 px-2 py-0.5 rounded-full">
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-red-900/40 border border-red-700/40 text-red-300 px-2 py-0.5 rounded-full">
                 🚫 {kw}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = linesToPatterns(form.excludePatterns)
+                    lines.splice(i, 1)
+                    set('excludePatterns', lines.join('\n'))
+                  }}
+                  className="ml-0.5 text-red-500 hover:text-red-400 transition-colors leading-none"
+                  aria-label="Remove"
+                >×</button>
               </span>
             ))}
           </div>
