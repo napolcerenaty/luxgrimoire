@@ -30,7 +30,9 @@ function getJwtRole(token: string): string | null {
   try {
     const payload = token.split('.')[1]
     if (!payload) return null
-    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { role?: string }
+    // Use atob (available in Edge Runtime) instead of Buffer which may not support base64url
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decoded = JSON.parse(atob(base64)) as { role?: string }
     return decoded.role ?? null
   } catch {
     return null
