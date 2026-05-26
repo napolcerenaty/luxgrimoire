@@ -11,6 +11,9 @@ import { BTN_PRIMARY, INP, LBL } from '@/lib/adminFormStyles'
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 
+// Common currencies for book edition subscriptions
+const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF', 'SEK', 'DKK', 'NOK']
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
@@ -794,9 +797,14 @@ export function EditionFieldsSection({
           <div className="flex gap-2">
             <input value={price} onChange={e => onPriceChange(e.target.value)}
               placeholder="45.99" className={`${INP} flex-1`} />
-            <input value={currency} onChange={e => onCurrencyChange(e.target.value.toUpperCase())}
-              placeholder="USD" maxLength={3}
-              className="w-16 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm text-center uppercase" />
+            <select
+              value={CURRENCIES.includes(currency) ? currency : ''}
+              onChange={e => onCurrencyChange(e.target.value)}
+              className="w-24 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
+            >
+              {!CURRENCIES.includes(currency) && <option value="">{currency || 'USD'}</option>}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
       </div>
