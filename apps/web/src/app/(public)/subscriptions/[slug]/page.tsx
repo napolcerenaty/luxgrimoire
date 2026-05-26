@@ -177,8 +177,11 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
           <span>← My Subscriptions</span>
         </BackButton>
-      ) : sub.company && (
-        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+      ) : sub.company?.slug && (
+        <Link
+          href={`/companies/${sub.company.slug}`}
+          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
+        >
           {cloudinaryUrl(sub.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto') && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -188,7 +191,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             />
           )}
           <span>← {sub.company.name}</span>
-        </BackButton>
+        </Link>
       )}
 
       {/* Header */}
