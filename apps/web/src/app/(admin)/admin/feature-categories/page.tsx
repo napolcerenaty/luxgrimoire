@@ -553,12 +553,15 @@ export default function FeatureCategoriesPage() {
     },
   })
 
-  // Group categories
+  // Group categories, sort within each group by sortOrder (numeric) then label
   const grouped = categories.reduce<Record<string, FeatureCategory[]>>((acc, c) => {
     if (groupFilter && c.group !== groupFilter) return acc
     ;(acc[c.group] ??= []).push(c)
     return acc
   }, {})
+  Object.values(grouped).forEach(arr =>
+    arr.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || a.label.localeCompare(b.label))
+  )
 
   const allGroups = Array.from(
     new Set([...GROUPS, ...Object.keys(grouped)])
