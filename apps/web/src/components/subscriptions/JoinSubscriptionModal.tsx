@@ -648,9 +648,10 @@ interface Step2Props {
   onDone: () => void
   onSkip: () => void
   onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string> }) => void
+  onBeforeBackfill?: () => Promise<void>
 }
 
-function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onNextWithBilling }: Step2Props) {
+function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onNextWithBilling, onBeforeBackfill }: Step2Props) {
   const [wantBackfill, setWantBackfill] = useState<boolean | null>(null)
   // monthId → 'selected' | 'skipped'
   const [choices, setChoices] = useState<Record<string, 'selected' | 'skipped'>>(() => {
@@ -705,6 +706,8 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
           const [monthId, editionId] = key.split(':')
           return { monthId, editionId, price: parseDecimalInput(v) }
         })
+      // First do the real join (creates entry), then backfill months
+      if (onBeforeBackfill) await onBeforeBackfill()
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -944,7 +947,6 @@ function computeAutoBatches(
   priceChanges: PriceChange[],
   fallbackPrice: string,
   startDate?: string | null,
-  prepayPrice?: string | null,
 ): ComputedBatch[] {
   const selectedSet = new Set(selectedMonthIds)
   const sorted = [...eligibleMonths].sort(
@@ -977,7 +979,8 @@ function computeAutoBatches(
         const dateStr = isFirst && firstBatchDate
           ? firstBatchDate
           : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const amount = prepayPrice ?? lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice)
+        const monthlyPrice = parseDecimalInput(lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice))
+        const amount = (monthlyPrice * prepayN).toFixed(2)
         batches.push({
           billingDate: dateStr,
           monthIds: [...currentBatch],
@@ -996,7 +999,8 @@ function computeAutoBatches(
     const dateStr = isFirst && firstBatchDate
       ? firstBatchDate
       : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const amount = prepayPrice ?? lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice)
+    const monthlyPrice = parseDecimalInput(lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice))
+    const amount = (monthlyPrice * currentBatch.length).toFixed(2)
     batches.push({
       billingDate: dateStr,
       monthIds: [...currentBatch],
@@ -1019,9 +1023,10 @@ interface Step3Props {
   subscriptionPrice?: string | null
   onDone: () => void
   onBack: () => void
+  onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptionSlug, entryFees, entry, eligibleMonths, priceChanges, subscriptionPrice, onDone, onBack }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptionSlug, entryFees, entry, eligibleMonths, priceChanges, subscriptionPrice, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
@@ -1040,20 +1045,37 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
     priceChanges,
     subscriptionPrice ?? '',
     entry.startDate,
-    String(selectedPrepayOption.price),
   )
 
   // ── "Yes" path: user-provided dates ──────────────────────────────────────
-  type YesRow = { date: string; amount: string }
+  type YesFee = { name: string; amount: string; currency: string }
+  type YesRow = { date: string; amount: string; fees: YesFee[] }
   const [yesRows, setYesRows] = useState<YesRow[]>(() => {
     const expected = Math.ceil(selectedMonthIds.length / selectedPrepayOption.months)
-    return Array.from({ length: Math.max(expected, 1) }, () => ({ date: '', amount: '' }))
+    return Array.from({ length: Math.max(expected, 1) }, () => ({
+      date: '',
+      amount: '',
+      fees: entryFees.map(f => ({ ...f })),
+    }))
   })
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '' }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', fees: entryFees.map(f => ({ ...f })) }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
-  function updateRow(i: number, field: keyof YesRow, val: string) {
+  function updateRow(i: number, field: 'date' | 'amount', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
+  }
+  function updateRowFee(rowIdx: number, feeIdx: number, field: keyof YesFee, val: string) {
+    setYesRows(prev => prev.map((r, j) => {
+      if (j !== rowIdx) return r
+      const fees = r.fees.map((f, k) => k === feeIdx ? { ...f, [field]: val } : f)
+      return { ...r, fees }
+    }))
+  }
+  function addRowFee(rowIdx: number) {
+    setYesRows(prev => prev.map((r, j) => j === rowIdx ? { ...r, fees: [...r.fees, { name: '', amount: '', currency }] } : r))
+  }
+  function removeRowFee(rowIdx: number, feeIdx: number) {
+    setYesRows(prev => prev.map((r, j) => j === rowIdx ? { ...r, fees: r.fees.filter((_, k) => k !== feeIdx) } : r))
   }
 
   // Preview: assign selected months to yes-path rows based on date order
@@ -1105,6 +1127,8 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
           })),
         }),
       }))
+      if (onBeforeBackfill) await onBeforeBackfill()
+      if (onBeforeBackfill) await onBeforeBackfill()
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1131,19 +1155,21 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
         .map(b => {
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
           const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption.price))
+          const rowFees = b.row.fees.filter(f => f.name && f.amount)
           return {
             billedAt: b.row.date,
             baseAmount,
             monthsCovered: b.months.length,
             currency,
             monthIds: b.months.map(m => m.id),
-            ...(entryFees.length > 0 && {
-              fees: entryFees.filter(f => f.amount).map(f => ({
+            ...(rowFees.length > 0 && {
+              fees: rowFees.map(f => ({
                 name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency,
               })),
             }),
           }
         })
+      if (onBeforeBackfill) await onBeforeBackfill()
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1210,7 +1236,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
         </div>
         <p className="text-xs text-stone-400">
           Based on your start date, prepay period, and skipped months, we calculated the following billing batches.
-          You can edit individual periods later from your collection.
+          You can edit individual prices later from your collection.
         </p>
         <div className="space-y-2">
           {autoBatches.map((b, i) => {
@@ -1269,7 +1295,6 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
           const autoAmount = row.date
             ? parseFloat(prepayPriceStr).toFixed(2)
             : null
-          const feesDisplay = entryFees.filter(f => f.amount)
           return (
             <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
@@ -1298,11 +1323,38 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
                 </p>
               )}
-              {feesDisplay.length > 0 && (
-                <p className="text-[10px] text-stone-500 pl-18">
-                  + fees: {feesDisplay.map(f => `${f.name} ${parseFloat(f.amount).toFixed(2)} ${f.currency}`).join(', ')}
-                </p>
-              )}
+              {/* Editable fees per payment */}
+              <div className="pl-2 space-y-1">
+                {row.fees.map((fee, fi) => (
+                  <div key={fi} className="flex items-center gap-1">
+                    <span className="text-[10px] text-stone-500 w-10 shrink-0">Fee</span>
+                    <input
+                      type="text"
+                      value={fee.name}
+                      onChange={e => updateRowFee(i, fi, 'name', e.target.value)}
+                      placeholder="name"
+                      className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={fee.amount}
+                      onChange={e => updateRowFee(i, fi, 'amount', e.target.value)}
+                      placeholder="0.00"
+                      className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                    />
+                    <input
+                      type="text"
+                      value={fee.currency}
+                      onChange={e => updateRowFee(i, fi, 'currency', e.target.value)}
+                      placeholder="USD"
+                      className="w-14 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                    />
+                    <button onClick={() => removeRowFee(i, fi)} className="text-red-400 hover:text-red-300 text-[10px] px-1">✕</button>
+                  </div>
+                ))}
+                <button onClick={() => addRowFee(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
+              </div>
             </div>
           )
         })}
@@ -1342,6 +1394,7 @@ export default function JoinSubscriptionModal({
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
   const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
+  const [step1JoinPayload, setStep1JoinPayload] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
@@ -1362,41 +1415,33 @@ export default function JoinSubscriptionModal({
     setError(null)
     setJoining(true)
     try {
+      const joinPayload = {
+        startDate: data.startDate,
+        costCurrency: data.costCurrency,
+        basePrice: data.basePrice || undefined,
+        shippingCost: data.shippingCost || undefined,
+        renewalDay: data.renewalDay,
+        linkedFeeTemplates: data.linkedFeeTemplates.map(f => ({
+          templateId: f.templateId,
+          customAmount: f.customAmount,
+          customCurrency: f.customCurrency,
+        })),
+        ...(data.alreadyCancelled && {
+          alreadyCancelled: true,
+          cancellationDate: data.cancellationDate,
+          cancellationReason: data.cancellationReason,
+        }),
+        ...(data.selectedPrepayOptionId ? { _selectedPrepayOptionId: data.selectedPrepayOptionId } : {}),
+      }
+
+      // Dry run: preview eligible months WITHOUT creating the subscription entry
       const result = await authFetch<JoinResult>(`/subscriptions/${subscriptionSlug}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: data.startDate,
-          costCurrency: data.costCurrency,
-          basePrice: data.basePrice || undefined,
-          shippingCost: data.shippingCost || undefined,
-          renewalDay: data.renewalDay,
-          linkedFeeTemplates: data.linkedFeeTemplates.map(f => ({
-              templateId: f.templateId,
-              customAmount: f.customAmount,
-              customCurrency: f.customCurrency,
-            })),
-          ...(data.alreadyCancelled && {
-            alreadyCancelled: true,
-            cancellationDate: data.cancellationDate,
-            cancellationReason: data.cancellationReason,
-          }),
-        }),
+        body: JSON.stringify({ ...joinPayload, dryRun: true }),
       })
 
-      // Set billing mode if user selected a prepay option
-      if (data.selectedPrepayOptionId) {
-        try {
-          await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scheduledPrepayOptionId: data.selectedPrepayOptionId }),
-          })
-        } catch {
-          // Non-fatal — join succeeded, billing mode can be changed later
-        }
-      }
-
+      setStep1JoinPayload(joinPayload)
       setJoinResult(result)
       setStep1Fees(data.resolvedFees ?? [])
       setStep1PriceChanges(data.priceChanges ?? [])
@@ -1410,6 +1455,8 @@ export default function JoinSubscriptionModal({
       if (result.eligibleMonths.length > 0) {
         setStep(2)
       } else {
+        // No past months: do the real join immediately and finish
+        await performRealJoin(joinPayload, data.selectedPrepayOptionId ?? null)
         setStep('done')
         onJoined()
       }
@@ -1419,6 +1466,30 @@ export default function JoinSubscriptionModal({
       setJoining(false)
     }
   }, [subscriptionSlug, onJoined])
+
+  /** Executes the real join (creates subscription entry + sets billing mode) */
+  const performRealJoin = useCallback(async (
+    payload: Record<string, unknown>,
+    selectedPrepayOptionId: string | null,
+  ) => {
+    const { _selectedPrepayOptionId: _, ...cleanPayload } = payload as Record<string, unknown> & { _selectedPrepayOptionId?: string }
+    await authFetch(`/subscriptions/${subscriptionSlug}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cleanPayload),
+    })
+    if (selectedPrepayOptionId) {
+      try {
+        await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledPrepayOptionId: selectedPrepayOptionId }),
+        })
+      } catch {
+        // Non-fatal — join succeeded, billing mode can be changed later
+      }
+    }
+  }, [subscriptionSlug])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1465,9 +1536,19 @@ export default function JoinSubscriptionModal({
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
             onDone={() => { setStep('done'); onJoined() }}
-            onSkip={() => { setStep('done'); onJoined() }}
+            onSkip={async () => {
+              if (step1JoinPayload) {
+                try { await performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null) } catch { /* ignore */ }
+              }
+              setStep('done')
+              onJoined()
+            }}
             onNextWithBilling={step1SelectedPrepayOption
               ? (data) => { setStep2Data(data); setStep(3) }
+              : undefined
+            }
+            onBeforeBackfill={step1JoinPayload
+              ? () => performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
               : undefined
             }
           />
@@ -1486,6 +1567,10 @@ export default function JoinSubscriptionModal({
             subscriptionPrice={subscriptionPrice}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
+            onBeforeBackfill={step1JoinPayload
+              ? () => performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
+              : undefined
+            }
           />
         )}
 

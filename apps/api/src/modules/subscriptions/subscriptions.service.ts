@@ -1461,7 +1461,31 @@ export class SubscriptionsService {
       ?? dto.renewalDay
       ?? 1;
 
-    const entry = await this.prisma.userSubscriptionEntry.upsert({
+    // ── DryRun: compute eligible months without persisting anything ──────────
+    if (dto.dryRun) {
+      const isCombo = (sub as any).isCombo as boolean;
+      const componentIds = (sub as any).componentIds as string[];
+      const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
+      const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
+      const variantDbStartDate = (sub as any).startDate as Date | null;
+      let effectiveStartDateObj = startDateObj;
+      if (variantDbStartDate && (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj)) {
+        effectiveStartDateObj = variantDbStartDate;
+      }
+      const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
+      const eligibleMonths = isCombo
+        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, signupIncludesCurrentMonth)
+        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, signupIncludesCurrentMonth);
+      const mockEntry = {
+        id: '__preview__',
+        startDate: startDateStr,
+        renewalDay,
+        costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
+        cancellationDate: dto.alreadyCancelled ? (dto.cancellationDate ?? null) : null,
+        active: !dto.alreadyCancelled,
+      };
+      return { entry: mockEntry as any, eligibleMonths };
+    }
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
       create: {
         userId,

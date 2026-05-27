@@ -619,6 +619,11 @@ export class JoinSubscriptionDto {
   @IsOptional()
   @IsString()
   cancellationReason?: string;
+
+  /** If true, compute eligible months without persisting the subscription entry (preview/dry run) */
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
 }
 
 export class BookPriceOverrideDto {
