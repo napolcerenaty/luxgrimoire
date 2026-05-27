@@ -184,6 +184,22 @@ export class SubscriptionsService {
       await this.upsertSentinelPrice(subscription.id, dto.price, currency);
     }
 
+    // Auto-create sentinel settings history snapshot so resolveEffectiveSettings
+    // always has a match, even for archival subscriptions backfilled before DB creation.
+    await this.prisma.subscriptionSettingsHistory.create({
+      data: {
+        subscriptionId: subscription.id,
+        effectiveFrom: new Date(0), // epoch = "was always like this"
+        renewalDay: subscription.renewalDay ?? null,
+        renewalDayUserSet: (subscription as any).renewalDayUserSet ?? false,
+        paymentOnStartup: (subscription as any).paymentOnStartup ?? false,
+        signupIncludesCurrentMonth: (subscription as any).signupIncludesCurrentMonth ?? false,
+        renewalMonthOffset: (subscription as any).renewalMonthOffset ?? 0,
+        changedBy: null,
+        notes: 'Initial snapshot',
+      },
+    });
+
     // Set combo components
     if (dto.componentIds?.length) {
       await this.prisma.subscriptionComboComponent.createMany({
@@ -508,6 +524,27 @@ export class SubscriptionsService {
       f => dto[f as keyof UpdateSubscriptionDto] !== undefined && (dto as any)[f] !== (existing as any)[f],
     );
     if (anySettingsChanged) {
+      // If no history exists yet (subscription predates sentinel creation), insert
+      // an epoch sentinel of the OLD settings first, so months before this change
+      // resolve correctly instead of falling back to the new (post-change) settings.
+      const existingHistory = await this.prisma.subscriptionSettingsHistory.count({
+        where: { subscriptionId: updated.id },
+      });
+      if (existingHistory === 0) {
+        await this.prisma.subscriptionSettingsHistory.create({
+          data: {
+            subscriptionId: updated.id,
+            effectiveFrom: new Date(0),
+            renewalDay: (existing as any).renewalDay ?? null,
+            renewalDayUserSet: (existing as any).renewalDayUserSet ?? false,
+            paymentOnStartup: (existing as any).paymentOnStartup ?? false,
+            signupIncludesCurrentMonth: (existing as any).signupIncludesCurrentMonth ?? true,
+            renewalMonthOffset: (existing as any).renewalMonthOffset ?? 0,
+            changedBy: null,
+            notes: 'Initial snapshot (auto-created on first settings change)',
+          },
+        });
+      }
       await this.prisma.subscriptionSettingsHistory.create({
         data: {
           subscriptionId: updated.id,
