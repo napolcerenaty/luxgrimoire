@@ -1484,6 +1484,7 @@ export class SubscriptionsService {
         startDate: startDateStr,
         renewalDay,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
+        shippingCost: dto.shippingCost ?? null,
         cancellationDate: dto.alreadyCancelled ? (dto.cancellationDate ?? null) : null,
         active: !dto.alreadyCancelled,
       };
