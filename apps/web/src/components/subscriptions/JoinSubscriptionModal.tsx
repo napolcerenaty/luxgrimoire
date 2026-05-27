@@ -108,6 +108,7 @@ interface Step1Props {
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     resolvedFees: { name: string; amount: string; currency: string }[]
+    priceChanges: PriceChange[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
     alreadyCancelled?: boolean
@@ -266,6 +267,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           currency: f.customCurrency || t?.defaultCurrency || (costCurrency || currency),
         }
       }),
+      priceChanges,
       ...(subscriptionRenewalDay == null && { renewalDay: parts[2] ?? new Date(firstOrderDate + 'T00:00:00').getDate() }),
       selectedPrepayOptionId,
       ...(alreadyCancelled && {
@@ -884,121 +886,151 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
   )
 }
 
-// ── Step 3: Billing batches ───────────────────────────────────────────────────
+// ── Step 3: Billing batches (prepay) ─────────────────────────────────────────
+
+// Helpers
+
+function lookupPriceAt(
+  dateStr: string,
+  priceChanges: PriceChange[],
+  currency: string,
+  fallback: string,
+): string {
+  if (!dateStr) return fallback
+  const [y, m] = dateStr.split('-').map(Number)
+  const matching = priceChanges
+    .filter(pc => pc.currency === currency)
+    .filter(pc => pc.effectiveYear < y || (pc.effectiveYear === y && pc.effectiveMonth <= m))
+    .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
+  return matching.length > 0 ? matching[0].newBasePrice : fallback
+}
+
+interface ComputedBatch {
+  billingDate: string   // ISO date yyyy-mm-dd
+  monthIds: string[]    // selected months in this batch
+  amount: string        // base price
+  currency: string
+}
+
+/** Group selected months into prepay batches.
+ *  Skipped months extend the current batch (don't count toward N). */
+function computeAutoBatches(
+  eligibleMonths: SubscriptionMonth[],
+  selectedMonthIds: string[],
+  prepayN: number,
+  renewalDay: number | null,
+  currency: string,
+  priceChanges: PriceChange[],
+  fallbackPrice: string,
+): ComputedBatch[] {
+  const selectedSet = new Set(selectedMonthIds)
+  const sorted = [...eligibleMonths].sort(
+    (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
+  )
+
+  const batches: ComputedBatch[] = []
+  let batchStart: { year: number; month: number } | null = null
+  let currentBatch: string[] = []
+
+  for (const m of sorted) {
+    if (batchStart === null) batchStart = { year: m.year, month: m.month }
+    if (selectedSet.has(m.id)) {
+      currentBatch.push(m.id)
+      if (currentBatch.length === prepayN) {
+        const day = renewalDay ?? 1
+        const dateStr = `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        batches.push({
+          billingDate: dateStr,
+          monthIds: [...currentBatch],
+          amount: lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice),
+          currency,
+        })
+        batchStart = null
+        currentBatch = []
+      }
+    }
+  }
+  // Partial last batch
+  if (currentBatch.length > 0 && batchStart) {
+    const day = renewalDay ?? 1
+    const dateStr = `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    batches.push({
+      billingDate: dateStr,
+      monthIds: [...currentBatch],
+      amount: lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice),
+      currency,
+    })
+  }
+  return batches
+}
 
 interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
-  prepayOptions: { id: string; months: number; price: number | string; label: string | null }[]
+  selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null }
   subscriptionSlug: string
   entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']
   eligibleMonths: SubscriptionMonth[]
+  priceChanges: PriceChange[]
+  subscriptionPrice?: string | null
   onDone: () => void
   onBack: () => void
 }
 
-function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, onDone, onBack }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptionSlug, entryFees, entry, eligibleMonths, priceChanges, subscriptionPrice, onDone, onBack }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
+  const renewalDay = entry.renewalDay
 
-  type BatchMode = 'all-monthly' | 'custom'
-  const [batchMode, setBatchMode] = useState<BatchMode>('all-monthly')
-
-  type BatchFeeRow = { name: string; amount: string; currency: string }
-  type BatchDiscountRow = { name: string; amount: string; currency: string }
-  type Batch = { billedAt: string; baseAmount: string; shippingAmount: string; monthIds: string[]; fees: BatchFeeRow[]; discounts: BatchDiscountRow[] }
-
-  function makeDefaultFees(): BatchFeeRow[] {
-    return entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency }))
-  }
-
-  const [batches, setBatches] = useState<Batch[]>(() =>
-    [{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees(), discounts: [] }]
-  )
+  // did the user change periods during their subscription?
+  const [didChange, setDidChange] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function switchMode(mode: BatchMode) {
-    setBatchMode(mode)
-    if (mode === 'custom' && batches.length === 0) {
-      setBatches([{ billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [...selectedMonthIds], fees: makeDefaultFees(), discounts: [] }])
+  // ── "No" path: auto-computed batches ─────────────────────────────────────
+  const autoBatches = computeAutoBatches(
+    eligibleMonths,
+    selectedMonthIds,
+    selectedPrepayOption.months,
+    renewalDay,
+    currency,
+    priceChanges,
+    subscriptionPrice ?? '',
+  )
+
+  // ── "Yes" path: user-provided dates ──────────────────────────────────────
+  type YesRow = { date: string; amount: string }
+  const [yesRows, setYesRows] = useState<YesRow[]>(() => {
+    const expected = Math.ceil(selectedMonthIds.length / selectedPrepayOption.months)
+    return Array.from({ length: Math.max(expected, 1) }, () => ({ date: '', amount: '' }))
+  })
+
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '' }]) }
+  function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
+  function updateRow(i: number, field: keyof YesRow, val: string) {
+    setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
+  }
+
+  // Preview: assign selected months to yes-path rows based on date order
+  const sortedSelectedMonths = [...eligibleMonths]
+    .filter(m => selectedMonthIds.includes(m.id))
+    .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+
+  const yesBatches: { row: YesRow; months: SubscriptionMonth[] }[] = (() => {
+    const sortedRows = [...yesRows].map((r, i) => ({ ...r, origIdx: i })).filter(r => r.date)
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
+    if (sortedRows.length === 0) return []
+    const result: { row: YesRow; months: SubscriptionMonth[] }[] = sortedRows.map(r => ({ row: r, months: [] }))
+    let batchIdx = 0
+    for (const m of sortedSelectedMonths) {
+      const mDate = `${m.year}-${String(m.month).padStart(2, '0')}-01`
+      while (batchIdx + 1 < result.length && result[batchIdx + 1].row.date <= mDate) {
+        batchIdx++
+      }
+      result[batchIdx].months.push(m)
     }
-  }
-
-  function addBatch() {
-    setBatches(prev => [...prev, { billedAt: '', baseAmount: '', shippingAmount: '', monthIds: [], fees: makeDefaultFees(), discounts: [] }])
-  }
-
-  function removeBatch(idx: number) {
-    setBatches(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  function updateBatch(idx: number, field: string, value: string) {
-    setBatches(prev => prev.map((b, i) => i === idx ? { ...b, [field]: value } : b))
-  }
-
-  function toggleMonth(batchIdx: number, monthId: string) {
-    setBatches(prev => prev.map((b, i) => {
-      if (i !== batchIdx) return b
-      const has = b.monthIds.includes(monthId)
-      return { ...b, monthIds: has ? b.monthIds.filter(id => id !== monthId) : [...b.monthIds, monthId] }
-    }))
-  }
-
-  function updateFee(batchIdx: number, feeIdx: number, field: keyof BatchFeeRow, value: string) {
-    setBatches(prev => prev.map((b, i) => {
-      if (i !== batchIdx) return b
-      const fees = b.fees.map((f, j) => j === feeIdx ? { ...f, [field]: value } : f)
-      return { ...b, fees }
-    }))
-  }
-
-  function addFee(batchIdx: number) {
-    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, fees: [...b.fees, { name: '', amount: '', currency }] }))
-  }
-
-  function removeFee(batchIdx: number, feeIdx: number) {
-    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, fees: b.fees.filter((_, j) => j !== feeIdx) }))
-  }
-
-  function updateDiscount(batchIdx: number, discIdx: number, field: keyof BatchDiscountRow, value: string) {
-    setBatches(prev => prev.map((b, i) => {
-      if (i !== batchIdx) return b
-      const discounts = b.discounts.map((d, j) => j === discIdx ? { ...d, [field]: value } : d)
-      return { ...b, discounts }
-    }))
-  }
-
-  function addDiscount(batchIdx: number) {
-    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, discounts: [...b.discounts, { name: '', amount: '', currency }] }))
-  }
-
-  function removeDiscount(batchIdx: number, discIdx: number) {
-    setBatches(prev => prev.map((b, i) => i !== batchIdx ? b : { ...b, discounts: b.discounts.filter((_, j) => j !== discIdx) }))
-  }
-
-  async function submitSkip() {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
-      const bookPricesPayload = buildBookPricesPayload()
-      await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          selectedMonthIds,
-          skippedMonthIds,
-          ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
-        }),
-      })
-      onDone()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+    return result
+  })()
 
   function buildBookPricesPayload() {
     return Object.entries(bookPrices)
@@ -1009,34 +1041,25 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
       })
   }
 
-  async function submitCustom() {
-    setSubmitting(true)
-    setError(null)
+  async function submitAuto() {
+    setSubmitting(true); setError(null)
     try {
       const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
       const bookPricesPayload = buildBookPricesPayload()
-
-      const billingBatches = batches
-        .filter(b => b.monthIds.length > 0 && b.billedAt)
-        .map(b => ({
-          billedAt: b.billedAt,
-          baseAmount: parseDecimalInput(b.baseAmount) || 0,
-          monthsCovered: b.monthIds.length,
-          currency,
-          shippingAmount: b.shippingAmount ? parseDecimalInput(b.shippingAmount) : undefined,
-          monthIds: b.monthIds,
-          ...(b.fees.filter(f => f.name && f.amount).length > 0 && {
-            fees: b.fees
-              .filter(f => f.name && f.amount)
-              .map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency || currency })),
-          }),
-          ...(b.discounts.filter(d => d.name && d.amount).length > 0 && {
-            discounts: b.discounts
-              .filter(d => d.name && d.amount)
-              .map(d => ({ name: d.name, amount: parseDecimalInput(d.amount), currency: d.currency || currency })),
-          }),
-        }))
-
+      const billingBatches = autoBatches.map(b => ({
+        billedAt: b.billingDate,
+        baseAmount: parseDecimalInput(b.amount) * b.monthIds.length,
+        monthsCovered: b.monthIds.length,
+        currency: b.currency,
+        monthIds: b.monthIds,
+        ...(entryFees.length > 0 && {
+          fees: entryFees.filter(f => f.amount).map(f => ({
+            name: f.name,
+            amount: parseDecimalInput(f.amount),
+            currency: f.currency,
+          })),
+        }),
+      }))
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1049,258 +1072,199 @@ function Step3({ selectedMonthIds, bookPrices, prepayOptions, subscriptionSlug, 
       })
       onDone()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to submit')
-    } finally {
-      setSubmitting(false)
-    }
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally { setSubmitting(false) }
+  }
+
+  async function submitYes() {
+    setSubmitting(true); setError(null)
+    try {
+      const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
+      const bookPricesPayload = buildBookPricesPayload()
+      const billingBatches = yesBatches
+        .filter(b => b.row.date && b.months.length > 0)
+        .map(b => {
+          const autoAmount = parseDecimalInput(
+            lookupPriceAt(b.row.date, priceChanges, currency, subscriptionPrice ?? '')
+          )
+          const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
+          const baseAmount = providedAmount !== null ? providedAmount : autoAmount * b.months.length
+          return {
+            billedAt: b.row.date,
+            baseAmount,
+            monthsCovered: b.months.length,
+            currency,
+            monthIds: b.months.map(m => m.id),
+            ...(entryFees.length > 0 && {
+              fees: entryFees.filter(f => f.amount).map(f => ({
+                name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency,
+              })),
+            }),
+          }
+        })
+      await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedMonthIds,
+          skippedMonthIds,
+          ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
+          ...(billingBatches.length > 0 && { billingBatches }),
+        }),
+      })
+      onDone()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally { setSubmitting(false) }
   }
 
   const monthMap = new Map(eligibleMonths.map(m => [m.id, m]))
-  const assignedMonthIds = new Set(batches.flatMap(b => b.monthIds))
 
+  // ── Question screen ───────────────────────────────────────────────────────
+  if (didChange === null) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing periods</h3>
+          <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+        </div>
+        <div className="rounded-lg border border-stone-700/60 bg-stone-800/40 p-4 text-sm text-stone-300">
+          <p className="font-medium text-stone-100 mb-1">
+            {selectedPrepayOption.label ?? `${selectedPrepayOption.months}-month prepay`}
+          </p>
+          <p className="text-xs text-stone-500">
+            {selectedMonthIds.length} received box{selectedMonthIds.length !== 1 ? 'es' : ''} →{' '}
+            {autoBatches.length} billing period{autoBatches.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <p className="text-sm text-stone-300">Did your prepaid periods change during your subscription (e.g. renewal dates shifted, you paused differently than expected)?</p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setDidChange(false)}
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+          >
+            <span className="font-medium text-stone-100">No, periods were regular</span>
+            <span className="block text-xs text-stone-500 mt-0.5">We&apos;ll auto-calculate billing dates from your start date and skips</span>
+          </button>
+          <button
+            onClick={() => setDidChange(true)}
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+          >
+            <span className="font-medium text-stone-100">Yes, provide payment dates</span>
+            <span className="block text-xs text-stone-500 mt-0.5">Enter actual payment dates; we&apos;ll look up amounts from price history</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── "No" — auto-computed preview ─────────────────────────────────────────
+  if (!didChange) {
+    return (
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-serif text-stone-100 font-semibold">Calculated billing</h3>
+          <button onClick={() => setDidChange(null)} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+        </div>
+        <p className="text-xs text-stone-400">
+          Based on your start date, prepay period, and skipped months, we calculated the following billing batches.
+          You can edit individual periods later from your collection.
+        </p>
+        <div className="space-y-2">
+          {autoBatches.map((b, i) => {
+            const months = b.monthIds.map(id => monthMap.get(id)).filter(Boolean) as SubscriptionMonth[]
+            return (
+              <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-amber-400">Billing period {i + 1}</span>
+                  <span className="text-xs text-stone-400">{b.billingDate}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-stone-300">
+                  <span>{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}</span>
+                  <span className="text-stone-400 ml-2 shrink-0">
+                    {parseFloat(b.amount || '0').toFixed(2)} {b.currency} × {months.length} = <span className="text-stone-200">{(parseDecimalInput(b.amount) * months.length).toFixed(2)} {b.currency}</span>
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+          {autoBatches.length === 0 && (
+            <p className="text-xs text-stone-500">No billing batches to calculate.</p>
+          )}
+        </div>
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <button
+          onClick={submitAuto}
+          disabled={submitting}
+          className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          {submitting ? 'Saving…' : 'Confirm'}
+        </button>
+      </div>
+    )
+  }
+
+  // ── "Yes" — user provides dates ───────────────────────────────────────────
   return (
-    <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing batches</h3>
-        <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+        <h3 className="text-lg font-serif text-stone-100 font-semibold">Payment dates</h3>
+        <button onClick={() => setDidChange(null)} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
       </div>
       <p className="text-xs text-stone-400">
-        Group months you paid for together into billing batches. Each batch represents one payment.
+        Enter your actual payment dates. We&apos;ll assign months based on the dates and look up amounts from price history if you leave them blank.
       </p>
-
-      {/* Mode toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => switchMode('all-monthly')}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            batchMode === 'all-monthly'
-              ? 'bg-amber-700/40 border-amber-600 text-amber-300'
-              : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
-          }`}
-        >
-          All monthly
-          <span className="block text-[10px] font-normal opacity-70">1 payment per month</span>
-        </button>
-        <button
-          onClick={() => switchMode('custom')}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            batchMode === 'custom'
-              ? 'bg-amber-700/40 border-amber-600 text-amber-300'
-              : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
-          }`}
-        >
-          Custom
-          <span className="block text-[10px] font-normal opacity-70">group months freely</span>
-        </button>
-      </div>
-
-      {/* All-monthly: simple info, no batch cards */}
-      {batchMode === 'all-monthly' && (
-        <div className="rounded-lg border border-stone-700 bg-stone-800/50 p-4 text-xs text-stone-400 space-y-1">
-          <p className="text-stone-300 font-medium">Each month will be recorded as a separate monthly payment.</p>
-          <p>Prices will be taken from your subscription entry settings. You can add custom fees and exact payment dates later by editing each billing period.</p>
-        </div>
-      )}
-
-      {/* Custom batches */}
-      {batchMode === 'custom' && batches.map((batch, idx) => (
-        <div key={idx} className="border border-stone-700 rounded-lg p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-stone-400 font-medium">Batch {idx + 1}</span>
-            {batches.length > 1 && (
-              <button onClick={() => removeBatch(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Payment date</label>
-              <input
-                type="date"
-                value={batch.billedAt}
-                onChange={e => updateBatch(idx, 'billedAt', e.target.value)}
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Total paid ({currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                value={batch.baseAmount}
-                onChange={e => updateBatch(idx, 'baseAmount', e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-stone-500 block mb-1">Shipping ({currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                value={batch.shippingAmount}
-                onChange={e => updateBatch(idx, 'shippingAmount', e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Months */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs text-stone-500">Months in this batch:</p>
-              <div className="flex items-center gap-2.5 text-[10px] text-stone-500">
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-700 border border-amber-600" />in this</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-stone-800 border border-stone-500 border-dashed" />available</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-stone-800 border border-stone-700 opacity-40" />other batch</span>
+      <div className="space-y-2">
+        {yesRows.map((row, i) => {
+          const batchMonths = yesBatches.find(b => b.row === row)?.months
+            ?? yesBatches[i]?.months
+            ?? []
+          const autoAmount = row.date
+            ? (parseDecimalInput(lookupPriceAt(row.date, priceChanges, currency, subscriptionPrice ?? '')) * (batchMonths.length || selectedPrepayOption.months)).toFixed(2)
+            : null
+          return (
+            <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-stone-500 w-16 shrink-0">Payment {i + 1}</span>
+                <input
+                  type="date"
+                  value={row.date}
+                  onChange={e => updateRow(i, 'date', e.target.value)}
+                  className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={row.amount}
+                  onChange={e => updateRow(i, 'amount', e.target.value)}
+                  placeholder={autoAmount ?? 'auto'}
+                  className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+                <span className="text-xs text-stone-500">{currency}</span>
+                {yesRows.length > 1 && (
+                  <button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
+                )}
               </div>
+              {batchMonths.length > 0 && (
+                <p className="text-[10px] text-stone-500 pl-18">
+                  Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
+                </p>
+              )}
             </div>
-            <div className="flex flex-wrap gap-1">
-              {selectedMonthIds.map(mid => {
-                const m = monthMap.get(mid)
-                if (!m) return null
-                const inThis = batch.monthIds.includes(mid)
-                const inOther = !inThis && assignedMonthIds.has(mid)
-                return (
-                  <button
-                    key={mid}
-                    onClick={() => toggleMonth(idx, mid)}
-                    disabled={inOther}
-                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-                      inThis
-                        ? 'bg-amber-700 border-amber-600 text-stone-100'
-                        : inOther
-                        ? 'bg-stone-800 border-stone-700 text-stone-600 opacity-40 cursor-not-allowed'
-                        : 'bg-stone-800 border-dashed border-stone-500 text-stone-300 hover:border-amber-500 hover:text-amber-300'
-                    }`}
-                  >
-                    {MONTH_NAMES[m.month - 1]} {m.year}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Fees */}
-          <div>
-            <p className="text-xs text-stone-500 mb-1">Additional fees / taxes:</p>
-            <div className="space-y-1">
-              {batch.fees.map((fee, feeIdx) => (
-                <div key={feeIdx} className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value={fee.name}
-                    onChange={e => updateFee(idx, feeIdx, 'name', e.target.value)}
-                    placeholder="Name"
-                    className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={fee.amount}
-                    onChange={e => updateFee(idx, feeIdx, 'amount', e.target.value)}
-                    placeholder="0.00"
-                    className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                  />
-                  <input
-                    type="text"
-                    value={fee.currency}
-                    onChange={e => updateFee(idx, feeIdx, 'currency', e.target.value.toUpperCase())}
-                    maxLength={3}
-                    className="w-12 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs uppercase"
-                  />
-                  <button onClick={() => removeFee(idx, feeIdx)} className="text-xs text-red-400 hover:text-red-300 px-1">✕</button>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => addFee(idx)} className="mt-1 text-xs text-amber-500 hover:text-amber-400 transition-colors">
-              + Add fee
-            </button>
-          </div>
-
-          {/* Discounts */}
-          <div>
-            <p className="text-xs text-stone-500 mb-1">Discounts / promo codes:</p>
-            <div className="space-y-1">
-              {batch.discounts.map((disc, discIdx) => (
-                <div key={discIdx} className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value={disc.name}
-                    onChange={e => updateDiscount(idx, discIdx, 'name', e.target.value)}
-                    placeholder="Name"
-                    className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={disc.amount}
-                    onChange={e => updateDiscount(idx, discIdx, 'amount', e.target.value)}
-                    placeholder="0.00"
-                    className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                  />
-                  <input
-                    type="text"
-                    value={disc.currency}
-                    onChange={e => updateDiscount(idx, discIdx, 'currency', e.target.value.toUpperCase())}
-                    maxLength={3}
-                    className="w-12 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs uppercase"
-                  />
-                  <button onClick={() => removeDiscount(idx, discIdx)} className="text-xs text-red-400 hover:text-red-300 px-1">✕</button>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => addDiscount(idx)} className="mt-1 text-xs text-emerald-500 hover:text-emerald-400 transition-colors">
-              + Add discount
-            </button>
-          </div>
-        </div>
-      ))}
-
-      {batchMode === 'custom' && (
-        <button
-          onClick={addBatch}
-          className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
-        >
-          + Add another batch
-        </button>
-      )}
-
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <p className="text-xs text-stone-500">
-        If you skip this step, all selected months will be recorded as individual monthly payments using the subscription price.
-      </p>
-
-      <div className="flex gap-3 pt-2">
-        {batchMode === 'all-monthly' ? (
-          <button
-            onClick={submitSkip}
-            disabled={submitting}
-            className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {submitting ? 'Saving…' : 'Save as all monthly'}
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={submitCustom}
-              disabled={submitting}
-              className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Saving…' : 'Save batches'}
-            </button>
-            <button
-              onClick={submitSkip}
-              disabled={submitting}
-              className="py-2 px-4 rounded-lg border border-stone-600 text-stone-400 text-sm hover:text-stone-300 transition-colors disabled:opacity-50"
-            >
-              Skip batches
-            </button>
-          </>
-        )}
+          )
+        })}
       </div>
+      <button onClick={addRow} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+        + Add payment
+      </button>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      <button
+        onClick={submitYes}
+        disabled={submitting || yesRows.every(r => !r.date)}
+        className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+      >
+        {submitting ? 'Saving…' : 'Save billing'}
+      </button>
     </div>
   )
 }
@@ -1323,6 +1287,8 @@ export default function JoinSubscriptionModal({
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
   const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string> } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
+  const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
+  const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
@@ -1333,6 +1299,7 @@ export default function JoinSubscriptionModal({
     shippingCost: string
     linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
     resolvedFees: { name: string; amount: string; currency: string }[]
+    priceChanges: PriceChange[]
     renewalDay?: number
     selectedPrepayOptionId?: string | null
     alreadyCancelled?: boolean
@@ -1379,6 +1346,13 @@ export default function JoinSubscriptionModal({
 
       setJoinResult(result)
       setStep1Fees(data.resolvedFees ?? [])
+      setStep1PriceChanges(data.priceChanges ?? [])
+      if (data.selectedPrepayOptionId) {
+        const opt = prepayOptions?.find(o => o.id === data.selectedPrepayOptionId) ?? null
+        setStep1SelectedPrepayOption(opt ? { id: opt.id, months: opt.months, price: opt.price, label: opt.label } : null)
+      } else {
+        setStep1SelectedPrepayOption(null)
+      }
 
       if (result.eligibleMonths.length > 0) {
         setStep(2)
@@ -1439,22 +1413,24 @@ export default function JoinSubscriptionModal({
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
             onDone={() => { setStep('done'); onJoined() }}
             onSkip={() => { setStep('done'); onJoined() }}
-            onNextWithBilling={(prepayOptions?.length ?? 0) > 0
+            onNextWithBilling={step1SelectedPrepayOption
               ? (data) => { setStep2Data(data); setStep(3) }
               : undefined
             }
           />
         )}
 
-        {!joining && step === 3 && joinResult && step2Data && (prepayOptions?.length ?? 0) > 0 && (
+        {!joining && step === 3 && joinResult && step2Data && step1SelectedPrepayOption && (
           <Step3
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
-            prepayOptions={prepayOptions!}
+            selectedPrepayOption={step1SelectedPrepayOption}
             subscriptionSlug={subscriptionSlug}
             entryFees={step1Fees}
             entry={joinResult.entry}
             eligibleMonths={joinResult.eligibleMonths}
+            priceChanges={step1PriceChanges}
+            subscriptionPrice={subscriptionPrice}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
           />
