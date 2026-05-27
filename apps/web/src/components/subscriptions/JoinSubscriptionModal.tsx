@@ -48,6 +48,7 @@ interface JoinResult {
     costCurrency: string | null
     shippingCost: string | null
     renewalDay: number | null
+    basePrice: string | null
   }
   eligibleMonths: SubscriptionMonth[]
 }
@@ -1369,7 +1370,11 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
         .filter(b => b.row.date && b.months.length > 0)
         .map(b => {
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
-          const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption?.price ?? 0))
+          // Fallback: prepay option price → entry base price → 0
+          const fallbackBase = selectedPrepayOption
+            ? parseDecimalInput(String(selectedPrepayOption.price ?? 0))
+            : parseFloat(String(entry.basePrice ?? 0))
+          const baseAmount = providedAmount !== null ? providedAmount : fallbackBase
           const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
           const rowDiscounts = b.row.discounts.filter(d => d.name && d.amount)

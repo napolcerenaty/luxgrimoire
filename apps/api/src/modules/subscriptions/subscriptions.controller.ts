@@ -418,7 +418,7 @@ export class SubscriptionsController {
     @Body() dto: UpdateSettingsHistoryEffectiveFromDto,
     @CurrentUser() user: CurrentUserType,
   ) {
-    const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto.effectiveFrom);
+    const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SETTINGS_HISTORY_EFFECTIVE_FROM', entityType: 'subscription', entityId: slug });
     return result;
   }

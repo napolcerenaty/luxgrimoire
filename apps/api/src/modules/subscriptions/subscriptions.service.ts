@@ -29,6 +29,7 @@ import {
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
+  UpdateSettingsHistoryEffectiveFromDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -508,17 +509,19 @@ export class SubscriptionsService {
     });
   }
 
-  async updateSettingsHistoryEffectiveFrom(slug: string, recordId: string, effectiveFrom: string) {
+  async updateSettingsHistoryEffectiveFrom(slug: string, recordId: string, dto: UpdateSettingsHistoryEffectiveFromDto) {
     const sub = await this.findBySlug(slug);
     const record = await this.prisma.subscriptionSettingsHistory.findFirst({
       where: { id: recordId, subscriptionId: sub.id },
     });
     if (!record) throw new NotFoundException('Settings history record not found');
-    const newDate = new Date(effectiveFrom);
+    const newDate = new Date(dto.effectiveFrom);
     if (isNaN(newDate.getTime())) throw new BadRequestException('Invalid effectiveFrom date');
+    const updateData: Record<string, unknown> = { effectiveFrom: newDate };
+    if (dto.notes !== undefined) updateData.notes = dto.notes;
     return this.prisma.subscriptionSettingsHistory.update({
       where: { id: recordId },
-      data: { effectiveFrom: newDate },
+      data: updateData,
     });
   }
 

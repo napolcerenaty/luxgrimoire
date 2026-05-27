@@ -714,6 +714,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDate, setEditDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
   const { data: records = [], isLoading } = useQuery<SettingsHistoryRecord[]>({
@@ -728,7 +729,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
       await authFetch(`/subscriptions/${slug}/settings-history/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ effectiveFrom: editDate }),
+        body: JSON.stringify({ effectiveFrom: editDate, notes: editNotes || undefined }),
       })
       await queryClient.invalidateQueries({ queryKey: ['settings-history', slug] })
       setEditingId(null)
@@ -791,7 +792,19 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                       <td className="py-1 pr-3">{r.paymentOnStartup ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.signupIncludesCurrentMonth ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.renewalMonthOffset}</td>
-                      <td className="py-1 pr-3 text-stone-500">{r.notes ?? ''}</td>
+                      <td className="py-1 pr-3 text-stone-500">
+                        {editingId === r.id ? (
+                          <input
+                            type="text"
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Notes…"
+                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs w-36"
+                          />
+                        ) : (
+                          r.notes ?? ''
+                        )}
+                      </td>
                       <td className="py-1">
                         {editingId === r.id ? (
                           <span className="flex gap-1">
@@ -817,6 +830,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             onClick={() => {
                               setEditingId(r.id)
                               setEditDate(r.effectiveFrom.slice(0, 10))
+                              setEditNotes(r.notes ?? '')
                             }}
                             className="text-stone-500 hover:text-amber-400 transition-colors"
                             title="Edit effective from date"

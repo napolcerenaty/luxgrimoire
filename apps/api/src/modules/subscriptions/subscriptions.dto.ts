@@ -818,6 +818,11 @@ export class UpdateSettingsHistoryEffectiveFromDto {
   /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value */
   @IsString()
   effectiveFrom!: string;
+
+  /** Optional notes for the settings history record */
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class MigrateMonthsDto {
