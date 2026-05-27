@@ -620,6 +620,11 @@ export class JoinSubscriptionDto {
   @IsString()
   cancellationReason?: string;
 
+  /** Prepay option to apply immediately — avoids a separate /billing-mode call */
+  @IsOptional()
+  @IsString()
+  scheduledPrepayOptionId?: string | null;
+
   /** If true, compute eligible months without persisting the subscription entry (preview/dry run) */
   @IsOptional()
   @IsBoolean()

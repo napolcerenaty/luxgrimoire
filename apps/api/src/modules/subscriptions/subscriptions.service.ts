@@ -1503,6 +1503,14 @@ export class SubscriptionsService {
       return { entry: mockEntry as any, eligibleMonths };
     }
 
+    // Validate prepay option if provided
+    if (dto.scheduledPrepayOptionId) {
+      const option = await this.prisma.subscriptionPrepayOption.findFirst({
+        where: { id: dto.scheduledPrepayOptionId, subscriptionId: sub.id },
+      });
+      if (!option) throw new BadRequestException('Invalid prepay option');
+    }
+
     const entry = await this.prisma.userSubscriptionEntry.upsert({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
       create: {
@@ -1514,6 +1522,7 @@ export class SubscriptionsService {
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
+        scheduledPrepayOptionId: dto.scheduledPrepayOptionId ?? null,
         ...(dto.alreadyCancelled && {
           cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
           cancellationReason: dto.cancellationReason ?? null,
@@ -1530,6 +1539,7 @@ export class SubscriptionsService {
         shippingCost: dto.shippingCost !== undefined ? (dto.shippingCost === '' ? null : parseFloat(dto.shippingCost)) : undefined,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
+        ...(dto.scheduledPrepayOptionId !== undefined && { scheduledPrepayOptionId: dto.scheduledPrepayOptionId }),
       },
     });
 
