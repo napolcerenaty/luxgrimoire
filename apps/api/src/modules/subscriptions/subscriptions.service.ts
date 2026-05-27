@@ -1340,13 +1340,22 @@ export class SubscriptionsService {
       where: { userId, subscriptionId: sub.id },
     });
 
+    // Membership history FK is SetNull (not Cascade), so it must be deleted explicitly.
+    // When removing only the current period (removeCurrentOnly), the history records were already
+    // detached (entryId=null) above and should survive as orphaned history.
+    // In all other cases (full remove / removeAllPeriods), wipe history for this subscription.
+    if (!opts.removeCurrentOnly) {
+      await this.prisma.userSubscriptionMembershipHistory.deleteMany({
+        where: { userId, subscriptionId: sub.id },
+      });
+    }
+
     // Decrement subscriber count if the entry was still active when removed
     if (entry.active) {
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     }
 
     // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags)
-    // History records that were detached (entryId=null) will survive
     await this.prisma.userSubscriptionEntry.delete({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
     });

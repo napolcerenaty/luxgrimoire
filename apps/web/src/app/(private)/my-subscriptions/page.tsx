@@ -672,7 +672,14 @@ function EntryRemoveDialog({
   onClose: () => void
 }) {
   const history = entry.membershipHistory ?? []
-  const hasHistory = history.length > 0
+  // Filter out history records that represent the same period as the current entry.
+  // When a subscription is cancelled, a history record is auto-created for that period,
+  // which would show as a duplicate alongside the entry's own row.
+  // Only show history records that ended before the current entry's start date (true prior periods).
+  const distinctHistory = entry.startDate
+    ? history.filter(h => h.endDate != null && h.endDate < entry.startDate!)
+    : history
+  const hasHistory = distinctHistory.length > 0
   const canSubmit = !hasHistory || removeAllPeriods || !!selectedHistoryId
 
   return (
@@ -702,7 +709,7 @@ function EntryRemoveDialog({
                 <span className="block text-[10px] text-stone-600 mt-0.5">History records will be kept</span>
               </span>
             </label>
-            {history.map(h => (
+            {distinctHistory.map(h => (
               <label key={h.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
                 <input type="radio" name={`period-entry-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === h.id}
                   onChange={() => { setSelectedHistoryId(h.id); setRemoveAllPeriods(false) }}

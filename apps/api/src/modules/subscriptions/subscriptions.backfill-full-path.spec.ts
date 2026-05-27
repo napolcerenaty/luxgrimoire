@@ -835,4 +835,133 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       expect(result.booksAdded).toBe(2);
     });
   });
+
+  // ── Multi-book months ─────────────────────────────────────────────────────
+
+  describe('months with multiple books', () => {
+    it('creates ONE purchase group per month even when month has multiple books', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      // Month with 2 books
+      const multiBookMonth = {
+        id: 'mb-1',
+        year: 2026,
+        month: 3,
+        signatureType: null,
+        books: [
+          { editionId: 'ed-mb-1a', bookId: 'bk-mb-1a', signatureType: null },
+          { editionId: 'ed-mb-1b', bookId: 'bk-mb-1b', signatureType: null },
+        ],
+      };
+
+      setupBackfill(prisma, skipMock, {
+        months: [multiBookMonth],
+        purchaseGroupIds: ['pg-multi-1'],
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['mb-1'],
+      } as any);
+
+      // ONE purchase group for the month (not one per book)
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledTimes(1);
+      // Both books linked to the same purchase group
+      expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(2);
+      const pgId = 'pg-multi-1';
+      expect(prisma.userBookEntry.create).toHaveBeenNthCalledWith(1,
+        expect.objectContaining({ data: expect.objectContaining({ purchaseGroupId: pgId }) }),
+      );
+      expect(prisma.userBookEntry.create).toHaveBeenNthCalledWith(2,
+        expect.objectContaining({ data: expect.objectContaining({ purchaseGroupId: pgId }) }),
+      );
+    });
+
+    it('counts all books across multi-book months in booksAdded', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      // Month 1: 1 book; Month 2: 3 books
+      const months = [
+        makeMonth('m-1', 2026, 1),
+        {
+          id: 'm-2',
+          year: 2026,
+          month: 2,
+          signatureType: null,
+          books: [
+            { editionId: 'ed-2a', bookId: 'bk-2a', signatureType: null },
+            { editionId: 'ed-2b', bookId: 'bk-2b', signatureType: null },
+            { editionId: 'ed-2c', bookId: 'bk-2c', signatureType: null },
+          ],
+        },
+      ];
+
+      setupBackfill(prisma, skipMock, {
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2'],
+      });
+
+      const result = await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1', 'm-2'],
+      } as any);
+
+      // 1 + 3 = 4 books total
+      expect(result.booksAdded).toBe(4);
+      // 2 purchase groups (one per month, regardless of book count)
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('creates ONE purchase group per month for multi-book months in a prepaid batch', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      // Two months in a 2-month batch, each with 2 books
+      const months = [
+        {
+          id: 'mb-1',
+          year: 2026,
+          month: 1,
+          signatureType: null,
+          books: [
+            { editionId: 'ed-1a', bookId: 'bk-1a', signatureType: null },
+            { editionId: 'ed-1b', bookId: 'bk-1b', signatureType: null },
+          ],
+        },
+        {
+          id: 'mb-2',
+          year: 2026,
+          month: 2,
+          signatureType: null,
+          books: [
+            { editionId: 'ed-2a', bookId: 'bk-2a', signatureType: null },
+            { editionId: 'ed-2b', bookId: 'bk-2b', signatureType: null },
+          ],
+        },
+      ];
+
+      setupBackfill(prisma, skipMock, {
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2'],
+        billingPeriodId: 'bp-1',
+      });
+
+      const result = await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['mb-1', 'mb-2'],
+        billingBatches: [{
+          monthIds: ['mb-1', 'mb-2'],
+          baseAmount: 59.98,
+          monthsCovered: 2,
+          shippingAmount: 19.98,
+          currency: 'USD',
+          billedAt: '2026-01-01T00:00:00.000Z',
+        }],
+      } as any);
+
+      // ONE purchase group per month (2 months) — NOT one per book (4 books)
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledTimes(2);
+      // All 4 books added
+      expect(result.booksAdded).toBe(4);
+    });
+  });
 });

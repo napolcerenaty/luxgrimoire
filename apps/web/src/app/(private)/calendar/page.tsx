@@ -465,7 +465,7 @@ export default function CalendarPage() {
                           <RefreshCw size={9} className="shrink-0" />
                           <span className="truncate">{r.label}</span>
                         </span>
-                        {r.companyName && (
+                        {r.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{r.companyName}</span>
                         )}
                       </Link>
@@ -495,7 +495,7 @@ export default function CalendarPage() {
                           <Bell size={9} className="shrink-0" />
                           <span className="truncate">{s.label}</span>
                         </span>
-                        {s.companyName && (
+                        {s.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
                         )}
                       </Link>
