@@ -41,6 +41,7 @@ export interface CreateBookEditionFormProps {
   /** Bundle prefill defaults */
   defaultPublisher?: string
   defaultCollectionId?: string
+  defaultFeatureTags?: Array<{ rawValue: string; categories: string[] }>
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
@@ -56,7 +57,7 @@ export default function CreateBookEditionForm({
   defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
-  defaultPublisher, defaultCollectionId,
+  defaultPublisher, defaultCollectionId, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -94,8 +95,8 @@ export default function CreateBookEditionForm({
   })
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
-  // Feature tags to POST after edition creation (filled by AI parser)
-  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  // Feature tags to POST after edition creation (filled by AI parser or bundle defaults)
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>(defaultFeatureTags ?? [])
   const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
   // Artists to POST after edition creation (filled by AI parser / user input)
   const [artists, setArtists] = useState<ArtistEntry[]>([])

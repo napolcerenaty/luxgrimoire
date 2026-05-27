@@ -311,8 +311,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   const [bdCompanyId, setBdCompanyId] = useState(defaultCompanyId ?? '')
   const [bdCollectionId, setBdCollectionId] = useState('')
   const [bdParsing, setBdParsing] = useState(false)
-  // bundle AI text parse (kept for UI compatibility — features/artists now managed in CreateBookEditionForm)
   const [bdArtistsText, setBdArtistsText] = useState('')
+  const [bdFeatureTags, setBdFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
 
   const perBookPrice = isBundle && bundleBasePrice != null && bdBookCount && Number(bdBookCount) > 0
     ? Math.round(bundleBasePrice / Number(bdBookCount) * 100) / 100
@@ -338,8 +338,22 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     if (!bdArtistsText.trim()) return
     setBdParsing(true)
     try {
-      await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
-      // Note: features/artists are now handled directly in CreateBookEditionForm's AI parser
+      const r = await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
+      const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
+      const artistBaseFeatures = (r.edition?.artists ?? [])
+        .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
+        .filter(Boolean)
+      const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+      const newTags = allFeatureRaws.map(rawValue => ({
+        rawValue,
+        categories: r.edition?.featureTags?.[rawValue] ?? [],
+      }))
+      if (newTags.length > 0) {
+        setBdFeatureTags(prev => {
+          const existing = new Set(prev.map(p => p.rawValue))
+          return [...prev, ...newTags.filter(t => !existing.has(t.rawValue))]
+        })
+      }
     } catch { /* ignore */ }
     setBdParsing(false)
   }
@@ -414,6 +428,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultLanguage={isBundle ? bdLanguage : undefined}
           defaultPublisher={isBundle ? bdPublisher : undefined}
           defaultCollectionId={isBundle ? bdCollectionId : undefined}
+          defaultFeatureTags={isBundle && bdFeatureTags.length > 0 ? bdFeatureTags : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -510,8 +525,20 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
             </button>
-            {bdParsing && (
-              <div className="mt-2 text-xs text-stone-400">Parsing…</div>
+            {bdFeatureTags.length > 0 && (
+              <div className="mt-2">
+                <div className="text-xs text-stone-500 mb-1">Parsed features (applied to each edition):</div>
+                <div className="flex flex-wrap gap-1">
+                  {bdFeatureTags.map(t => (
+                    <span key={t.rawValue} className="inline-flex items-center gap-1 text-xs bg-violet-500/15 text-violet-300 border border-violet-500/25 rounded px-2 py-0.5">
+                      {t.rawValue}
+                      {t.categories.length > 0 && <span className="text-violet-500">({t.categories.join(', ')})</span>}
+                      <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter(x => x.rawValue !== t.rawValue))} className="text-violet-500 hover:text-red-400 ml-0.5">×</button>
+                    </span>
+                  ))}
+                  <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear all</button>
+                </div>
+              </div>
             )}
           </div>
         </div>
