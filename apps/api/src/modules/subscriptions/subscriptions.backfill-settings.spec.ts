@@ -244,6 +244,104 @@ describe('SubscriptionsService — backfill with settings history', () => {
     });
   });
 
+  // ── Epoch sentinel: retroactive/archival subscriptions ────────────────────
+  //
+  // create() inserts a sentinel record with effectiveFrom = new Date(0) (epoch).
+  // This ensures months far in the past always find an applicable history record
+  // instead of falling back to the current settings.
+
+  describe('settings history — epoch sentinel enables retroactive backfill', () => {
+    it('uses epoch sentinel settings for months far in the past (archival subscription)', async () => {
+      // Scenario: sub active since 2015, added to DB in 2026.
+      // create() inserts sentinel with effectiveFrom=epoch and renewalDay=15.
+      // Backfilling 2015-06 must find the sentinel, NOT fall back to current settings.
+      const sub = makeSub({ renewalDay: 15 });
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const history = makeSettingsHistory([
+        { effectiveFrom: new Date(0), renewalDay: 15 }, // epoch sentinel
+      ]);
+      const month = makeMonthRecord({ id: 'm-1', year: 2015, month: 6 });
+      setupNonComboBackfill(prisma, skipPolicyEngineMock, {
+        entry: makeEntry({ renewalDay: null, startDate: '2015-01-01' }),
+        monthRecord: month,
+        settingsHistory: history,
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            purchasedAt: new Date(Date.UTC(2015, 5, 15)), // epoch sentinel day=15 applied
+          }),
+        }),
+      );
+    });
+
+    it('epoch sentinel is used for months before the first explicit change', async () => {
+      // Sentinel: renewalDay=15; change in 2020: renewalDay=25.
+      // Backfilling 2018-06 (before 2020 change) → epoch sentinel wins (day 15).
+      const sub = makeSub({ renewalDay: 25 }); // current = post-change
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const history = makeSettingsHistory([
+        { effectiveFrom: new Date(0), renewalDay: 15 },
+        { effectiveFrom: new Date('2020-03-01T00:00:00Z'), renewalDay: 25 },
+      ]);
+      const month = makeMonthRecord({ id: 'm-1', year: 2018, month: 6 });
+      setupNonComboBackfill(prisma, skipPolicyEngineMock, {
+        entry: makeEntry({ renewalDay: null, startDate: '2015-01-01' }),
+        monthRecord: month,
+        settingsHistory: history,
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            purchasedAt: new Date(Date.UTC(2018, 5, 15)), // sentinel day=15
+          }),
+        }),
+      );
+    });
+
+    it('epoch sentinel is superseded by a later change for months after the change', async () => {
+      // Sentinel: renewalDay=15; change in 2020: renewalDay=25.
+      // Backfilling 2022-06 → 2020 record is the most recent before cutoff → day 25.
+      const sub = makeSub({ renewalDay: 25 });
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const history = makeSettingsHistory([
+        { effectiveFrom: new Date(0), renewalDay: 15 },
+        { effectiveFrom: new Date('2020-03-01T00:00:00Z'), renewalDay: 25 },
+      ]);
+      const month = makeMonthRecord({ id: 'm-1', year: 2022, month: 6 });
+      setupNonComboBackfill(prisma, skipPolicyEngineMock, {
+        entry: makeEntry({ renewalDay: null }),
+        monthRecord: month,
+        settingsHistory: history,
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            purchasedAt: new Date(Date.UTC(2022, 5, 25)), // 2020 change wins
+          }),
+        }),
+      );
+    });
+  });
+
   // ── Settings history renewalDay resolution ────────────────────────────────
 
   describe('settings history — renewalDay per-month resolution', () => {
