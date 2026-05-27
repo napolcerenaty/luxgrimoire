@@ -1016,8 +1016,7 @@ function computeAutoBatches(
   prepayN: number,
   renewalDay: number | null,
   currency: string,
-  priceChanges: PriceChange[],
-  fallbackPrice: string,
+  prepayPrice: string,
   startDate?: string | null,
 ): ComputedBatch[] {
   const selectedSet = new Set(selectedMonthIds)
@@ -1037,6 +1036,7 @@ function computeAutoBatches(
     }
   }
 
+  const prepayAmount = parseDecimalInput(prepayPrice).toFixed(2)
   const batches: ComputedBatch[] = []
   let batchStart: { year: number; month: number } | null = null
   let currentBatch: string[] = []
@@ -1051,12 +1051,10 @@ function computeAutoBatches(
         const dateStr = isFirst && firstBatchDate
           ? firstBatchDate
           : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const monthlyPrice = parseDecimalInput(lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice))
-        const amount = (monthlyPrice * prepayN).toFixed(2)
         batches.push({
           billingDate: dateStr,
           monthIds: [...currentBatch],
-          amount,
+          amount: prepayAmount,
           currency,
         })
         batchStart = null
@@ -1064,19 +1062,17 @@ function computeAutoBatches(
       }
     }
   }
-  // Partial last batch
+  // Partial last batch — always use full period price (user didn't get a discount for partial)
   if (currentBatch.length > 0 && batchStart) {
     const day = renewalDay ?? 1
     const isFirst = batches.length === 0
     const dateStr = isFirst && firstBatchDate
       ? firstBatchDate
       : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const monthlyPrice = parseDecimalInput(lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice))
-    const amount = (monthlyPrice * currentBatch.length).toFixed(2)
     batches.push({
       billingDate: dateStr,
       monthIds: [...currentBatch],
-      amount,
+      amount: prepayAmount,
       currency,
     })
   }
@@ -1091,14 +1087,12 @@ interface Step3Props {
   entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']
   eligibleMonths: SubscriptionMonth[]
-  priceChanges: PriceChange[]
-  subscriptionPrice?: string | null
   onDone: () => void
   onBack: () => void
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptionSlug, entryFees, entry, eligibleMonths, priceChanges, subscriptionPrice, onDone, onBack, onBeforeBackfill }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptionSlug, entryFees, entry, eligibleMonths, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
@@ -1114,26 +1108,53 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
     selectedPrepayOption.months,
     renewalDay,
     currency,
-    priceChanges,
-    subscriptionPrice ?? '',
+    String(selectedPrepayOption.price),
     entry.startDate,
   )
 
+  // Per-batch editable overrides for the "No" path (amount, shipping, fees)
+  type AutoBatchOverride = { amount: string; shipping: string; fees: { name: string; amount: string; currency: string }[] }
+  const [autoBatchOverrides, setAutoBatchOverrides] = useState<AutoBatchOverride[]>(() =>
+    autoBatches.map(b => ({
+      amount: b.amount,
+      shipping: entry.shippingCost ? String(entry.shippingCost) : '',
+      fees: entryFees.map(f => ({ ...f })),
+    })),
+  )
+
+  function updateAutoOverride(i: number, field: 'amount' | 'shipping', val: string) {
+    setAutoBatchOverrides(prev => prev.map((o, j) => j === i ? { ...o, [field]: val } : o))
+  }
+  function updateAutoOverrideFee(batchIdx: number, feeIdx: number, field: 'amount' | 'currency', val: string) {
+    setAutoBatchOverrides(prev => prev.map((o, j) => {
+      if (j !== batchIdx) return o
+      const fees = o.fees.map((f, k) => k === feeIdx ? { ...f, [field]: val } : f)
+      return { ...o, fees }
+    }))
+  }
+  function addAutoOverrideFee(batchIdx: number) {
+    setAutoBatchOverrides(prev => prev.map((o, j) => j === batchIdx ? { ...o, fees: [...o.fees, { name: '', amount: '', currency }] } : o))
+  }
+  function removeAutoOverrideFee(batchIdx: number, feeIdx: number) {
+    setAutoBatchOverrides(prev => prev.map((o, j) => j === batchIdx ? { ...o, fees: o.fees.filter((_, k) => k !== feeIdx) } : o))
+  }
+
   // ── "Yes" path: user-provided dates ──────────────────────────────────────
   type YesFee = { name: string; amount: string; currency: string }
-  type YesRow = { date: string; amount: string; fees: YesFee[] }
+  type YesRow = { date: string; amount: string; shipping: string; fees: YesFee[] }
   const [yesRows, setYesRows] = useState<YesRow[]>(() => {
     const expected = Math.ceil(selectedMonthIds.length / selectedPrepayOption.months)
     return Array.from({ length: Math.max(expected, 1) }, () => ({
       date: '',
       amount: '',
+      shipping: entry.shippingCost ? String(entry.shippingCost) : '',
       fees: entryFees.map(f => ({ ...f })),
     }))
   })
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', fees: entryFees.map(f => ({ ...f })) }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: entry.shippingCost ? String(entry.shippingCost) : '', fees: entryFees.map(f => ({ ...f })) }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
-  function updateRow(i: number, field: 'date' | 'amount', val: string) {
+  function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
   }
   function updateRowFee(rowIdx: number, feeIdx: number, field: keyof YesFee, val: string) {
@@ -1185,21 +1206,23 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
     try {
       const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)
       const bookPricesPayload = buildBookPricesPayload()
-      const billingBatches = autoBatches.map(b => ({
-        billedAt: b.billingDate,
-        baseAmount: parseDecimalInput(b.amount),
-        monthsCovered: b.monthIds.length,
-        currency: b.currency,
-        monthIds: b.monthIds,
-        ...(entryFees.length > 0 && {
-          fees: entryFees.filter(f => f.amount).map(f => ({
-            name: f.name,
-            amount: parseDecimalInput(f.amount),
-            currency: f.currency,
-          })),
-        }),
-      }))
-      if (onBeforeBackfill) await onBeforeBackfill()
+      const billingBatches = autoBatches.map((b, i) => {
+        const override = autoBatchOverrides[i]
+        const baseAmount = parseDecimalInput(override?.amount || b.amount)
+        const shippingAmt = override?.shipping ? parseDecimalInput(override.shipping) : null
+        const batchFees = (override?.fees ?? []).filter(f => f.name && f.amount)
+        return {
+          billedAt: b.billingDate,
+          baseAmount,
+          monthsCovered: b.monthIds.length,
+          currency: b.currency,
+          monthIds: b.monthIds,
+          ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
+          ...(batchFees.length > 0 && {
+            fees: batchFees.map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency })),
+          }),
+        }
+      })
       if (onBeforeBackfill) await onBeforeBackfill()
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
@@ -1227,6 +1250,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
         .map(b => {
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
           const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption.price))
+          const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
           return {
             billedAt: b.row.date,
@@ -1234,6 +1258,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
             monthsCovered: b.months.length,
             currency,
             monthIds: b.months.map(m => m.id),
+            ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
             ...(rowFees.length > 0 && {
               fees: rowFees.map(f => ({
                 name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency,
@@ -1308,26 +1333,66 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
         </div>
         <p className="text-xs text-stone-400">
           Based on your start date, prepay period, and skipped months, we calculated the following billing batches.
-          You can edit individual prices later from your collection.
+          Amounts are preset from your prepay option — adjust shipping and fees as needed.
         </p>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {autoBatches.map((b, i) => {
             const months = b.monthIds.map(id => monthMap.get(id)).filter(Boolean) as SubscriptionMonth[]
+            const override = autoBatchOverrides[i] ?? { amount: b.amount, shipping: '', fees: [] }
             return (
-              <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-1.5">
+              <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-amber-400">Billing period {i + 1}</span>
                   <span className="text-xs text-stone-400">{b.billingDate}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs text-stone-300">
-                  <span>{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}</span>
-                  <span className="text-stone-400 ml-2 shrink-0">
-                    <span className="text-stone-200">{parseFloat(b.amount || '0').toFixed(2)} {b.currency}</span>
-                    {months.length < selectedPrepayOption.months && (
-                      <span className="text-stone-500"> ({months.length}/{selectedPrepayOption.months} boxes)</span>
-                    )}
-                  </span>
+                <p className="text-xs text-stone-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
+                  {months.length < selectedPrepayOption.months && (
+                    <span className="text-stone-500"> ({months.length}/{selectedPrepayOption.months} boxes)</span>
+                  )}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] text-stone-500 w-14 shrink-0">Amount</span>
+                  <input
+                    type="number" step="0.01"
+                    value={override.amount}
+                    onChange={e => updateAutoOverride(i, 'amount', e.target.value)}
+                    className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <span className="text-xs text-stone-500 w-14 shrink-0">Shipping</span>
+                  <input
+                    type="number" step="0.01"
+                    value={override.shipping}
+                    onChange={e => updateAutoOverride(i, 'shipping', e.target.value)}
+                    placeholder="0.00"
+                    className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  />
+                  <span className="text-xs text-stone-500">{currency}</span>
                 </div>
+                {override.fees.length > 0 && (
+                  <div className="space-y-1 pl-2">
+                    {override.fees.map((fee, fi) => (
+                      <div key={fi} className="flex items-center gap-1">
+                        <span className="text-[10px] text-stone-400 flex-1 px-2">{fee.name || 'Fee'}</span>
+                        <input
+                          type="number" step="0.01"
+                          value={fee.amount}
+                          onChange={e => updateAutoOverrideFee(i, fi, 'amount', e.target.value)}
+                          placeholder="0.00"
+                          className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                        />
+                        <input
+                          type="text"
+                          value={fee.currency}
+                          onChange={e => updateAutoOverrideFee(i, fi, 'currency', e.target.value)}
+                          placeholder="USD"
+                          className="w-14 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                        />
+                        <button onClick={() => removeAutoOverrideFee(i, fi)} className="text-red-400 hover:text-red-300 text-[10px] px-1">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => addAutoOverrideFee(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
               </div>
             )
           })}
@@ -1369,7 +1434,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
             : null
           return (
             <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-stone-500 w-16 shrink-0">Payment {i + 1}</span>
                 <input
                   type="date"
@@ -1390,23 +1455,29 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
                   <button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-stone-500 w-16 shrink-0">Shipping</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={row.shipping}
+                  onChange={e => updateRow(i, 'shipping', e.target.value)}
+                  placeholder="0.00"
+                  className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                />
+                <span className="text-xs text-stone-500">{currency}</span>
+              </div>
               {batchMonths.length > 0 && (
                 <p className="text-[10px] text-stone-500 pl-18">
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
                 </p>
               )}
-              {/* Editable fees per payment */}
+              {/* Editable fees per payment — name is display-only, only amount/currency are editable */}
               <div className="pl-2 space-y-1">
                 {row.fees.map((fee, fi) => (
                   <div key={fi} className="flex items-center gap-1">
                     <span className="text-[10px] text-stone-500 w-10 shrink-0">Fee</span>
-                    <input
-                      type="text"
-                      value={fee.name}
-                      onChange={e => updateRowFee(i, fi, 'name', e.target.value)}
-                      placeholder="name"
-                      className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
-                    />
+                    <span className="flex-1 text-stone-300 text-[10px] px-2">{fee.name || '—'}</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1639,8 +1710,6 @@ export default function JoinSubscriptionModal({
             entryFees={step1Fees}
             entry={joinResult.entry}
             eligibleMonths={joinResult.eligibleMonths}
-            priceChanges={step1PriceChanges}
-            subscriptionPrice={subscriptionPrice}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
             onBeforeBackfill={step1JoinPayload
