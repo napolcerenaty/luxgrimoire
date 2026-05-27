@@ -60,7 +60,7 @@ interface Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   onJoined: () => void
   onClose: () => void
 }
@@ -100,7 +100,7 @@ interface Step1Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   onNext: (data: {
     startDate: string
     costCurrency: string
@@ -120,6 +120,14 @@ interface Step1Props {
 function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
+
+  // Filter to active prepay options only
+  const activePrepayOptions = prepayOptions?.filter(o => {
+    const now = new Date()
+    if (o.validFrom && new Date(o.validFrom) > now) return false
+    if (o.validUntil && new Date(o.validUntil) <= now) return false
+    return true
+  })
 
   const [firstOrderDate, setFirstOrderDate] = useState(todayStr)
   const [costCurrency, setCostCurrency] = useState(currency)
@@ -284,8 +292,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (only shown if prepay options exist for the selected currency) */}
-      {prepayOptions && prepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
+      {/* Billing period (only shown if active prepay options exist for the selected currency) */}
+      {activePrepayOptions && activePrepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -304,7 +312,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {prepayOptions.filter(o => o.currency === costCurrency).map(opt => (
+            {activePrepayOptions.filter(o => o.currency === costCurrency).map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -393,6 +401,18 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {(() => {
+          // When prepay is selected, show prepay option info instead of monthly price history
+          if (selectedPrepayOptionId !== null) {
+            const opt = activePrepayOptions?.find(o => o.id === selectedPrepayOptionId)
+            if (!opt) return null
+            return (
+              <p>
+                Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
+                <span className="text-stone-300">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span> per batch ({opt.months} months).
+                Each billing period covers {opt.months} received boxes.
+              </p>
+            )
+          }
           const currencyPriceChanges = priceChanges.filter(pc => pc.currency === costCurrency)
           if (currencyPriceChanges.length === 0 && priceChanges.length > 0) {
             return (
@@ -913,7 +933,8 @@ interface ComputedBatch {
 }
 
 /** Group selected months into prepay batches.
- *  Skipped months extend the current batch (don't count toward N). */
+ *  Skipped months extend the current batch (don't count toward N).
+ *  For the first batch, billing date is based on startDate (subscription entry start). */
 function computeAutoBatches(
   eligibleMonths: SubscriptionMonth[],
   selectedMonthIds: string[],
@@ -922,11 +943,25 @@ function computeAutoBatches(
   currency: string,
   priceChanges: PriceChange[],
   fallbackPrice: string,
+  startDate?: string | null,
+  prepayPrice?: string | null,
 ): ComputedBatch[] {
   const selectedSet = new Set(selectedMonthIds)
   const sorted = [...eligibleMonths].sort(
     (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
   )
+
+  // Parse the subscription start date for first batch billing date
+  let firstBatchDate: string | null = null
+  if (startDate) {
+    // startDate is YYYY-MM or YYYY-MM-DD
+    if (startDate.length === 7) {
+      const day = renewalDay ?? 1
+      firstBatchDate = `${startDate}-${String(day).padStart(2, '0')}`
+    } else {
+      firstBatchDate = startDate
+    }
+  }
 
   const batches: ComputedBatch[] = []
   let batchStart: { year: number; month: number } | null = null
@@ -938,11 +973,15 @@ function computeAutoBatches(
       currentBatch.push(m.id)
       if (currentBatch.length === prepayN) {
         const day = renewalDay ?? 1
-        const dateStr = `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        const isFirst = batches.length === 0
+        const dateStr = isFirst && firstBatchDate
+          ? firstBatchDate
+          : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        const amount = prepayPrice ?? lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice)
         batches.push({
           billingDate: dateStr,
           monthIds: [...currentBatch],
-          amount: lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice),
+          amount,
           currency,
         })
         batchStart = null
@@ -953,11 +992,15 @@ function computeAutoBatches(
   // Partial last batch
   if (currentBatch.length > 0 && batchStart) {
     const day = renewalDay ?? 1
-    const dateStr = `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const isFirst = batches.length === 0
+    const dateStr = isFirst && firstBatchDate
+      ? firstBatchDate
+      : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const amount = prepayPrice ?? lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice)
     batches.push({
       billingDate: dateStr,
       monthIds: [...currentBatch],
-      amount: lookupPriceAt(dateStr, priceChanges, currency, fallbackPrice),
+      amount,
       currency,
     })
   }
@@ -996,6 +1039,8 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
     currency,
     priceChanges,
     subscriptionPrice ?? '',
+    entry.startDate,
+    String(selectedPrepayOption.price),
   )
 
   // ── "Yes" path: user-provided dates ──────────────────────────────────────
@@ -1048,7 +1093,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
       const bookPricesPayload = buildBookPricesPayload()
       const billingBatches = autoBatches.map(b => ({
         billedAt: b.billingDate,
-        baseAmount: parseDecimalInput(b.amount) * b.monthIds.length,
+        baseAmount: parseDecimalInput(b.amount),
         monthsCovered: b.monthIds.length,
         currency: b.currency,
         monthIds: b.monthIds,
@@ -1084,11 +1129,8 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
       const billingBatches = yesBatches
         .filter(b => b.row.date && b.months.length > 0)
         .map(b => {
-          const autoAmount = parseDecimalInput(
-            lookupPriceAt(b.row.date, priceChanges, currency, subscriptionPrice ?? '')
-          )
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
-          const baseAmount = providedAmount !== null ? providedAmount : autoAmount * b.months.length
+          const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption.price))
           return {
             billedAt: b.row.date,
             baseAmount,
@@ -1137,13 +1179,13 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
             {autoBatches.length} billing period{autoBatches.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <p className="text-sm text-stone-300">Did your prepaid periods change during your subscription (e.g. renewal dates shifted, you paused differently than expected)?</p>
+        <p className="text-sm text-stone-300">Did your prepaid periods change during your subscription?</p>
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setDidChange(false)}
             className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
           >
-            <span className="font-medium text-stone-100">No, periods were regular</span>
+            <span className="font-medium text-stone-100">No, all payments were {selectedPrepayOption.label ?? `${selectedPrepayOption.months}-month prepay`}</span>
             <span className="block text-xs text-stone-500 mt-0.5">We&apos;ll auto-calculate billing dates from your start date and skips</span>
           </button>
           <button
@@ -1182,7 +1224,10 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
                 <div className="flex items-center justify-between text-xs text-stone-300">
                   <span>{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}</span>
                   <span className="text-stone-400 ml-2 shrink-0">
-                    {parseFloat(b.amount || '0').toFixed(2)} {b.currency} × {months.length} = <span className="text-stone-200">{(parseDecimalInput(b.amount) * months.length).toFixed(2)} {b.currency}</span>
+                    <span className="text-stone-200">{parseFloat(b.amount || '0').toFixed(2)} {b.currency}</span>
+                    {months.length < selectedPrepayOption.months && (
+                      <span className="text-stone-500"> ({months.length}/{selectedPrepayOption.months} boxes)</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -1219,9 +1264,12 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
           const batchMonths = yesBatches.find(b => b.row === row)?.months
             ?? yesBatches[i]?.months
             ?? []
+          // For yes-path, use prepay option price as auto amount (not monthly × N)
+          const prepayPriceStr = String(selectedPrepayOption.price)
           const autoAmount = row.date
-            ? (parseDecimalInput(lookupPriceAt(row.date, priceChanges, currency, subscriptionPrice ?? '')) * (batchMonths.length || selectedPrepayOption.months)).toFixed(2)
+            ? parseFloat(prepayPriceStr).toFixed(2)
             : null
+          const feesDisplay = entryFees.filter(f => f.amount)
           return (
             <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
@@ -1237,7 +1285,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
                   step="0.01"
                   value={row.amount}
                   onChange={e => updateRow(i, 'amount', e.target.value)}
-                  placeholder={autoAmount ?? 'auto'}
+                  placeholder={autoAmount ?? `e.g. ${parseFloat(prepayPriceStr).toFixed(2)}`}
                   className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
                 />
                 <span className="text-xs text-stone-500">{currency}</span>
@@ -1248,6 +1296,11 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, subscriptio
               {batchMonths.length > 0 && (
                 <p className="text-[10px] text-stone-500 pl-18">
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
+                </p>
+              )}
+              {feesDisplay.length > 0 && (
+                <p className="text-[10px] text-stone-500 pl-18">
+                  + fees: {feesDisplay.map(f => `${f.name} ${parseFloat(f.amount).toFixed(2)} ${f.currency}`).join(', ')}
                 </p>
               )}
             </div>

@@ -26,7 +26,7 @@ interface Props {
   country: string | null
   renewalDay?: number | null
   months: ApiSubscriptionMonth[]
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
 }
 
 type FeeTemplateLink = {
