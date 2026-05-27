@@ -1844,14 +1844,18 @@ export default function JoinSubscriptionModal({
           cancellationDate: data.cancellationDate,
           cancellationReason: data.cancellationReason,
         }),
-        scheduledPrepayOptionId: data.selectedPrepayOptionId ?? null,
+        // _selectedPrepayOptionId is frontend-only, stripped before sending to API
+        ...(data.selectedPrepayOptionId ? { _selectedPrepayOptionId: data.selectedPrepayOptionId } : {}),
       }
+
+      // Build API payload without frontend-only fields
+      const { _selectedPrepayOptionId: _sid, ...apiPayload } = joinPayload as typeof joinPayload & { _selectedPrepayOptionId?: string }
 
       // Dry run: preview eligible months WITHOUT creating the subscription entry
       const result = await authFetch<JoinResult>(`/subscriptions/${subscriptionSlug}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...joinPayload, dryRun: true }),
+        body: JSON.stringify({ ...apiPayload, dryRun: true }),
       })
 
       setStep1JoinPayload(joinPayload)
@@ -1869,7 +1873,7 @@ export default function JoinSubscriptionModal({
         setStep(2)
       } else {
         // No past months: do the real join immediately and finish
-        await performRealJoin(joinPayload)
+        await performRealJoin(joinPayload, data.selectedPrepayOptionId ?? null)
         setStep('done')
         onJoined()
       }
@@ -1880,16 +1884,28 @@ export default function JoinSubscriptionModal({
     }
   }, [subscriptionSlug, onJoined])
 
-  /** Executes the real join (creates subscription entry with billing mode already included) */
+  /** Executes the real join (creates subscription entry + sets billing mode) */
   const performRealJoin = useCallback(async (
     payload: Record<string, unknown>,
-    _selectedPrepayOptionId?: string | null,
+    selectedPrepayOptionId: string | null,
   ) => {
+    const { _selectedPrepayOptionId: _, ...cleanPayload } = payload as Record<string, unknown> & { _selectedPrepayOptionId?: string }
     await authFetch(`/subscriptions/${subscriptionSlug}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(cleanPayload),
     })
+    if (selectedPrepayOptionId) {
+      try {
+        await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledPrepayOptionId: selectedPrepayOptionId }),
+        })
+      } catch {
+        // Non-fatal — join succeeded, billing mode can be changed later
+      }
+    }
   }, [subscriptionSlug])
 
   return (
@@ -1939,7 +1955,7 @@ export default function JoinSubscriptionModal({
             onDone={() => { setStep('done'); onJoined() }}
             onSkip={async () => {
               if (step1JoinPayload) {
-                try { await performRealJoin(step1JoinPayload) } catch { /* ignore */ }
+                try { await performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null) } catch { /* ignore */ }
               }
               setStep('done')
               onJoined()
@@ -1954,7 +1970,7 @@ export default function JoinSubscriptionModal({
                       .map(m => m.id)
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
-                        await performRealJoin(step1JoinPayload)
+                        await performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
                       }
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
@@ -1972,7 +1988,7 @@ export default function JoinSubscriptionModal({
               : undefined
             }
             onBeforeBackfill={step1JoinPayload
-              ? () => performRealJoin(step1JoinPayload)
+              ? () => performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
               : undefined
             }
           />
@@ -1991,7 +2007,7 @@ export default function JoinSubscriptionModal({
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
             onBeforeBackfill={step1JoinPayload
-              ? () => performRealJoin(step1JoinPayload)
+              ? () => performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
               : undefined
             }
           />
