@@ -841,6 +841,7 @@ export class SubscriptionsService {
       ).catch(() => {});
     }
 
+    void this.invalidateMonthsCache(subscriptionSlug);
     return newBook;
   }
 
@@ -853,9 +854,11 @@ export class SubscriptionsService {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
-    return this.prisma.subscriptionMonthBook.delete({
+    const result = await this.prisma.subscriptionMonthBook.delete({
       where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
     });
+    void this.invalidateMonthsCache(subscriptionSlug);
+    return result;
   }
 
   async updateMonthBook(
@@ -868,10 +871,12 @@ export class SubscriptionsService {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
-    return this.prisma.subscriptionMonthBook.update({
+    const result = await this.prisma.subscriptionMonthBook.update({
       where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
       data: { signatureType: dto.signatureType ?? null },
     });
+    void this.invalidateMonthsCache(subscriptionSlug);
+    return result;
   }
 
   async getMySubscriptionEntry(userId: string, slug: string) {
