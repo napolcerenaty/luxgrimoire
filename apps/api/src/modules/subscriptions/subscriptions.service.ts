@@ -2238,12 +2238,15 @@ export class SubscriptionsService {
 
       // Determine amounts
       const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency);
+      // For no-batch backfill with multiple months (e.g. partial prepay), split shipping/fees
+      // evenly across all selected months so the total matches one billing period's cost.
+      const noBatchMonthCount = dto.selectedMonthIds.length;
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
       const shippingAmt = batch
         ? (batch.shippingAmount != null ? batch.shippingAmount / batch.monthsCovered : null)
-        : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null);
+        : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) / noBatchMonthCount : null);
       const purchasedAtDate = batch ? new Date(batch.billedAt) : renewalDate;
 
       // Create ONE purchase group per month
@@ -2360,7 +2363,8 @@ export class SubscriptionsService {
             userId,
             feeTemplateId: template.id,
             name: template.name,
-            amount: parseFloat(amount.toString()),
+            // Divide by noBatchMonthCount so a single billing period's fee is spread across months
+            amount: parseFloat(amount.toString()) / noBatchMonthCount,
             currency: link.customCurrency ?? template.defaultCurrency,
             date: purchasedAtDate,
             category: template.category,
@@ -2476,8 +2480,11 @@ export class SubscriptionsService {
       },
     });
 
-    // Refresh renewal date now that prepay option changed
-    await refreshNextRenewalDate(this.prisma, entry.id);
+    // NOTE: do NOT call refreshNextRenewalDate here.
+    // If the user is in an open prepaid period, the current nextRenewalDate is the upcoming payment
+    // date (already paid for / correctly scheduled). Changing the scheduled option only affects the
+    // NEXT period — the cron will call refreshNextRenewalDate after the renewal triggers, at which
+    // point it will use the new scheduledPrepayOptionId to compute the correct future date.
 
     return { ok: true };
   }
