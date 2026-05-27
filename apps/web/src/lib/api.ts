@@ -6,15 +6,10 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const url = `${API_URL}${path}`;
-  const isServer = typeof window === 'undefined'
   const res = await fetch(url, {
     credentials: 'include',
     cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(isServer ? { 'User-Agent': 'LuxGrimoire-SSR/1.0' } : {}),
-      ...options?.headers,
-    },
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
 
