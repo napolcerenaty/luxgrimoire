@@ -2241,15 +2241,14 @@ export class SubscriptionsService {
 
       // Determine amounts
       const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency);
-      // For no-batch backfill with multiple months (e.g. partial prepay), split shipping/fees
-      // evenly across all selected months so the total matches one billing period's cost.
-      const noBatchMonthCount = dto.selectedMonthIds.length;
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
+      // For batch path: split shipping over batch.monthsCovered (one shipment per billing period).
+      // For no-batch (monthly): each month is its own billing event — full shipping per month.
       const shippingAmt = batch
         ? (batch.shippingAmount != null ? batch.shippingAmount / batch.monthsCovered : null)
-        : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) / noBatchMonthCount : null);
+        : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null);
       const purchasedAtDate = batch ? new Date(batch.billedAt) : renewalDate;
 
       // Create ONE purchase group per month
@@ -2366,8 +2365,8 @@ export class SubscriptionsService {
             userId,
             feeTemplateId: template.id,
             name: template.name,
-            // Divide by noBatchMonthCount so a single billing period's fee is spread across months
-            amount: parseFloat(amount.toString()) / noBatchMonthCount,
+            // Full fee per month — monthly users pay fees once per billing event.
+            amount: parseFloat(amount.toString()),
             currency: link.customCurrency ?? template.defaultCurrency,
             date: purchasedAtDate,
             category: template.category,
