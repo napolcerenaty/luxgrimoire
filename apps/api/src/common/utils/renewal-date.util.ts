@@ -124,6 +124,71 @@ export function computeNextRenewalDate(
 }
 
 /**
+ * For prepaid subscriptions: computes the next renewal date by tracking
+ * how many non-skipped billing months have been used in the current period.
+ * Each prepay period covers exactly `prepayMonths` non-skipped months.
+ * A skip extends the current period by one month.
+ *
+ * @param skippedMonths - months in renewal-month space (after applying renewalMonthOffset)
+ */
+export function computeNextRenewalDatePrepaid(
+  renewalDay: number,
+  prepayMonths: number,
+  startDate: Date,
+  paymentOnStartup: boolean,
+  paidUpFrontDate: Date | null,
+  skippedMonths: { year: number; month: number }[],
+): Date | null {
+  const skipped = new Set(skippedMonths.map((s) => `${s.year}-${s.month}`));
+  const now = new Date();
+
+  // Determine the first billing year/month
+  let billingYear: number;
+  let billingMonth: number;
+
+  if (paymentOnStartup && paidUpFrontDate) {
+    billingYear = paidUpFrontDate.getUTCFullYear();
+    billingMonth = paidUpFrontDate.getUTCMonth() + 1;
+  } else {
+    // First renewal day strictly after the start date
+    billingYear = startDate.getUTCFullYear();
+    billingMonth = startDate.getUTCMonth() + 1;
+    const startDay = startDate.getUTCDate();
+    if (startDay >= renewalDay) {
+      [billingYear, billingMonth] = incrementMonth(billingYear, billingMonth);
+    }
+  }
+
+  // Walk through prepay periods: each period covers `prepayMonths` non-skipped months
+  for (let iter = 0; iter < 200; iter++) {
+    let year = billingYear;
+    let month = billingMonth;
+    let boxCount = 0;
+
+    while (boxCount < prepayMonths) {
+      if (!skipped.has(`${year}-${month}`)) {
+        boxCount++;
+      }
+      if (boxCount < prepayMonths) {
+        [year, month] = incrementMonth(year, month);
+      }
+    }
+
+    // Next period starts the month after the last box month of this period
+    [year, month] = incrementMonth(year, month);
+    const nextRenewal = new Date(Date.UTC(year, month - 1, renewalDay));
+
+    if (nextRenewal > now) return nextRenewal;
+
+    // This period's renewal already passed — advance to the next period
+    billingYear = year;
+    billingMonth = month;
+  }
+
+  return null;
+}
+
+/**
  * Recomputes and persists nextRenewalDate for a given entry.
  * Call this after: join, skip, unskip, cancel.
  */
@@ -138,6 +203,8 @@ export async function refreshNextRenewalDate(
       active: true,
       startDate: true,
       renewalDay: true,
+      scheduledPrepayOptionId: true,
+      scheduledPrepayOption: { select: { months: true } },
       skipRecords: {
         where: { undoneAt: null },
         include: { month: { select: { year: true, month: true } } },
@@ -208,14 +275,30 @@ export async function refreshNextRenewalDate(
     paidUpFrontDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
   }
 
-  const nextDate = computeNextRenewalDate(
-    renewalDay,
-    sub.intervalMonths ?? 1,
-    sub.startingMonth ?? null,
-    entry.startDate ?? null,
-    skippedMonths,
-    paidUpFrontDate,
-  );
+  const prepayOption = (entry as any).scheduledPrepayOption as { months: number } | null;
+
+  let nextDate: Date | null;
+  if (prepayOption && entry.startDate) {
+    const parts = entry.startDate.split('-').map(Number);
+    const startDateParsed = new Date(Date.UTC(parts[0], (parts[1] ?? 1) - 1, parts[2] ?? 1));
+    nextDate = computeNextRenewalDatePrepaid(
+      renewalDay,
+      prepayOption.months,
+      startDateParsed,
+      sub.paymentOnStartup ?? false,
+      paidUpFrontDate,
+      skippedMonths,
+    );
+  } else {
+    nextDate = computeNextRenewalDate(
+      renewalDay,
+      sub.intervalMonths ?? 1,
+      sub.startingMonth ?? null,
+      entry.startDate ?? null,
+      skippedMonths,
+      paidUpFrontDate,
+    );
+  }
 
   await prisma.userSubscriptionEntry.update({
     where: { id: entryId },

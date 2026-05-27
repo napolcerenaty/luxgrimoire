@@ -1938,7 +1938,22 @@ export default function JoinSubscriptionModal({
               onJoined()
             }}
             onNextWithBilling={step1SelectedPrepayOption
-              ? (data) => { setStep2Data(data); setStep(3) }
+              ? (data) => {
+                  setStep2Data(data)
+                  // If the user selected fewer months than one full prepay period, skip step 3
+                  if (data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
+                    if (step1JoinPayload) {
+                      performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
+                        .then(() => { setStep('done'); onJoined() })
+                        .catch(() => { setStep('done'); onJoined() })
+                    } else {
+                      setStep('done')
+                      onJoined()
+                    }
+                  } else {
+                    setStep(3)
+                  }
+                }
               : undefined
             }
             onBeforeBackfill={step1JoinPayload
