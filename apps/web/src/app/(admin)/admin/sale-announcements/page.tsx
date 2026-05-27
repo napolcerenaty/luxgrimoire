@@ -23,6 +23,7 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+import { Pagination } from '@/components/admin/Pagination'
 import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
 import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { uploadImage } from '@/lib/cloudinary'
@@ -1882,19 +1883,7 @@ export default function AdminSaleAnnouncementsPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center gap-2 mt-4">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">
-            ← Prev
-          </button>
-          <span className="text-stone-500 text-sm">Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">
-            Next →
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
       <ConfirmDialog
         open={deleteItem !== null}

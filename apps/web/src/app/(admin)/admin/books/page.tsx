@@ -9,6 +9,7 @@ import type { ApiBook, PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { Pagination } from '@/components/admin/Pagination'
 import { type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { BookForm, type BookFormState } from '@/components/admin/BookForm'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
@@ -204,15 +205,7 @@ export default function AdminBooksPage() {
           <DataTable columns={columns} data={books}
             onEdit={row => setEditBookSlug(row.slug)}
             onDelete={isManager ? undefined : row => setDeleteBook(row)} />
-          {(data?.totalPages ?? 1) > 1 && (
-            <div className="flex items-center gap-2 mt-4">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
-              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} />
         </>
       )}
 

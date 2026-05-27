@@ -8,6 +8,7 @@ import type { ApiBookBoxCollection, ApiBookBoxCompany, PaginatedResponse } from 
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { Pagination } from '@/components/admin/Pagination'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -206,27 +207,7 @@ export default function AdminBookBoxCollectionsPage() {
       ) : (
         <>
           <DataTable columns={columns} data={collections} onEdit={(row) => setEditItem(row)} onDelete={(row) => setDeleteItem(row)} />
-          {(data?.totalPages ?? 1) > 1 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
-              <span>Page {page} of {data?.totalPages ?? 1} ({data?.total ?? 0} total)</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  ← Prev
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
-                  disabled={page >= (data?.totalPages ?? 1)}
-                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} total={data?.total} />
         </>
       )}
 

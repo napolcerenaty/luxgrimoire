@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bug, Trash2, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
+import { Pagination } from '@/components/admin/Pagination'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved', 'wontfix']
 
@@ -161,26 +162,7 @@ export default function AdminBugReportsPage() {
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 pt-4">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 rounded-xl border border-stone-700 text-sm text-stone-400 disabled:opacity-40 hover:bg-stone-800 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="px-4 py-2 text-sm text-stone-500">{page} / {totalPages}</span>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 rounded-xl border border-stone-700 text-sm text-stone-400 disabled:opacity-40 hover:bg-stone-800 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }
