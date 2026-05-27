@@ -2470,6 +2470,9 @@ export class SubscriptionsService {
       data: { scheduledPrepayOptionId: dto.scheduledPrepayOptionId },
     });
 
+    // Refresh renewal date now that prepay option changed
+    await refreshNextRenewalDate(this.prisma, entry.id);
+
     return { ok: true };
   }
 
