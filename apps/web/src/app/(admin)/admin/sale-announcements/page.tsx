@@ -308,6 +308,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   const [bdBookCount, setBdBookCount] = useState('')
   const [bdLanguage, setBdLanguage] = useState('English')
   const [bdPublisher, setBdPublisher] = useState('')
+  const [bdPhotoCredit, setBdPhotoCredit] = useState('')
   const [bdCompanyId, setBdCompanyId] = useState(defaultCompanyId ?? '')
   const [bdCollectionId, setBdCollectionId] = useState('')
   const [bdParsing, setBdParsing] = useState(false)
@@ -428,6 +429,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultLanguage={isBundle ? bdLanguage : undefined}
           defaultPublisher={isBundle ? bdPublisher : undefined}
           defaultCollectionId={isBundle ? bdCollectionId : undefined}
+          defaultPhotoCredit={isBundle && bdPhotoCredit ? bdPhotoCredit : undefined}
           defaultFeatureTags={isBundle && bdFeatureTags.length > 0 ? bdFeatureTags : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
@@ -477,9 +479,15 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
             <input className={inputCls} value={bdLanguage} onChange={e => setBdLanguage(e.target.value)} placeholder="English" />
           </div>
 
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Publisher</label>
-            <PublisherPicker value={bdPublisher} onChange={setBdPublisher} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Publisher</label>
+              <PublisherPicker value={bdPublisher} onChange={setBdPublisher} />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Photo Credit</label>
+              <input className={inputCls} value={bdPhotoCredit} onChange={e => setBdPhotoCredit(e.target.value)} placeholder="e.g. John Smith" />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

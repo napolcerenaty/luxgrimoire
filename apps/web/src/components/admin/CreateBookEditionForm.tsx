@@ -41,6 +41,7 @@ export interface CreateBookEditionFormProps {
   /** Bundle prefill defaults */
   defaultPublisher?: string
   defaultCollectionId?: string
+  defaultPhotoCredit?: string
   defaultFeatureTags?: Array<{ rawValue: string; categories: string[] }>
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
@@ -57,7 +58,7 @@ export default function CreateBookEditionForm({
   defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
-  defaultPublisher, defaultCollectionId, defaultFeatureTags,
+  defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -83,7 +84,7 @@ export default function CreateBookEditionForm({
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState(defaultPublisher ?? '')
-  const [photoCredit, setPhotoCredit] = useState('')
+  const [photoCredit, setPhotoCredit] = useState(defaultPhotoCredit ?? '')
   const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
