@@ -909,53 +909,20 @@ export class SubscriptionsService {
     });
     if (!entry) return null;
 
-    const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-    const intervalMonths = (sub as any).intervalMonths as number ?? 1;
-    const startingMonth = (sub as any).startingMonth as number | null;
-    const userStartDate = entry.startDate ?? null;
-    const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
-    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
-    const skippedMonths = entry.skipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-
-    // For paymentOnStartup: find the ACTUAL first subscription month that was paid at signup.
-    let paidUpFrontDate: Date | null = null;
-    if (paymentOnStartup && userStartDate) {
-      const joinDate = new Date(userStartDate);
-      const joinYear = joinDate.getUTCFullYear();
-      const joinMonth = joinDate.getUTCMonth() + 1;
-      const joinDay = joinDate.getUTCDate();
-      // If signupIncludesCurrentMonth: signup month is always the first paid month,
-      // regardless of whether renewalDay has already passed.
-      const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
-      let firstEligibleYear = joinYear;
-      let firstEligibleMonth = joinMonth;
-      if (renewalPassedThisMonth) {
-        [firstEligibleYear, firstEligibleMonth] = this.incrementMonth(joinYear, joinMonth);
-      }
-      // Look up the actual first subscription month (same logic as recordFirstMonthAsPreorder)
-      const firstSubMonth = await this.prisma.subscriptionMonth.findFirst({
-        where: {
-          subscriptionId: sub.id,
-          OR: [
-            { year: { gt: firstEligibleYear } },
-            { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
-          ],
-        },
-        orderBy: [{ year: 'asc' }, { month: 'asc' }],
-        select: { year: true, month: true },
+    // Use stored nextRenewalDate (computed by refreshNextRenewalDate which handles monthly + prepaid).
+    // Lazy-backfill if not yet set.
+    let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
+    if (!storedRenewalDate && entry.active) {
+      await refreshNextRenewalDate(this.prisma, entry.id);
+      const fresh = await this.prisma.userSubscriptionEntry.findUnique({
+        where: { id: entry.id },
+        select: { nextRenewalDate: true },
       });
-      const paidYear = firstSubMonth?.year ?? firstEligibleYear;
-      const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
-      paidUpFrontDate = new Date(Date.UTC(paidYear, paidMonth - 1, renewalDay));
+      storedRenewalDate = fresh?.nextRenewalDate ?? null;
     }
 
-    const nextRenewalDate = this.computeNextRenewalDate(
-      renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths,
-      paidUpFrontDate,
-    );
-
     const { skipRecords: _sr, ...entryWithoutSkips } = entry;
-    return { ...entryWithoutSkips, nextRenewalDate: nextRenewalDate ? nextRenewalDate.toISOString() : null };
+    return { ...entryWithoutSkips, nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null };
   }
 
   private computeNextRenewalDate(
