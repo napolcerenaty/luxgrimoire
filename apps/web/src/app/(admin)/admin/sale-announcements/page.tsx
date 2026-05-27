@@ -314,6 +314,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
   const [bdParsing, setBdParsing] = useState(false)
   const [bdArtistsText, setBdArtistsText] = useState('')
   const [bdFeatureTags, setBdFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  const [bdArtists, setBdArtists] = useState<Array<{ name: string; role: string }>>([])
 
   const perBookPrice = isBundle && bundleBasePrice != null && bdBookCount && Number(bdBookCount) > 0
     ? Math.round(bundleBasePrice / Number(bdBookCount) * 100) / 100
@@ -340,8 +341,17 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
     setBdParsing(true)
     try {
       const r = await authFetch<AiParseResult>('/ai/parse', { method: 'POST', body: JSON.stringify({ text: bdArtistsText }) })
+      // Store artists
+      const newArtists = (r.edition?.artists ?? []).filter(a => a.name?.trim())
+      if (newArtists.length > 0) {
+        setBdArtists(prev => {
+          const existing = new Set(prev.map(a => `${a.name}|${a.role}`))
+          return [...prev, ...newArtists.filter(a => !existing.has(`${a.name}|${a.role}`))]
+        })
+      }
+      // Store feature tags (standalone + artist role base names)
       const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
-      const artistBaseFeatures = (r.edition?.artists ?? [])
+      const artistBaseFeatures = newArtists
         .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
         .filter(Boolean)
       const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
@@ -430,6 +440,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultPublisher={isBundle ? bdPublisher : undefined}
           defaultCollectionId={isBundle ? bdCollectionId : undefined}
           defaultPhotoCredit={isBundle && bdPhotoCredit ? bdPhotoCredit : undefined}
+          defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
           defaultFeatureTags={isBundle && bdFeatureTags.length > 0 ? bdFeatureTags : undefined}
           onSuccess={(editionId) => {
             if (editionId) {
@@ -533,19 +544,37 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
             </button>
-            {bdFeatureTags.length > 0 && (
-              <div className="mt-2">
-                <div className="text-xs text-stone-500 mb-1">Parsed features (applied to each edition):</div>
-                <div className="flex flex-wrap gap-1">
-                  {bdFeatureTags.map(t => (
-                    <span key={t.rawValue} className="inline-flex items-center gap-1 text-xs bg-violet-500/15 text-violet-300 border border-violet-500/25 rounded px-2 py-0.5">
-                      {t.rawValue}
-                      {t.categories.length > 0 && <span className="text-violet-500">({t.categories.join(', ')})</span>}
-                      <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter(x => x.rawValue !== t.rawValue))} className="text-violet-500 hover:text-red-400 ml-0.5">×</button>
-                    </span>
-                  ))}
-                  <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear all</button>
-                </div>
+            {(bdArtists.length > 0 || bdFeatureTags.length > 0) && (
+              <div className="mt-2 space-y-1.5">
+                {bdArtists.length > 0 && (
+                  <div>
+                    <div className="text-xs text-stone-500 mb-1">Artists (applied to each edition):</div>
+                    <div className="flex flex-wrap gap-1">
+                      {bdArtists.map((a, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 border border-amber-500/25 rounded px-2 py-0.5">
+                          {a.name} <span className="text-amber-500">({a.role})</span>
+                          <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))} className="text-amber-500 hover:text-red-400 ml-0.5">×</button>
+                        </span>
+                      ))}
+                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear</button>
+                    </div>
+                  </div>
+                )}
+                {bdFeatureTags.length > 0 && (
+                  <div>
+                    <div className="text-xs text-stone-500 mb-1">Features (applied to each edition):</div>
+                    <div className="flex flex-wrap gap-1">
+                      {bdFeatureTags.map(t => (
+                        <span key={t.rawValue} className="inline-flex items-center gap-1 text-xs bg-violet-500/15 text-violet-300 border border-violet-500/25 rounded px-2 py-0.5">
+                          {t.rawValue}
+                          {t.categories.length > 0 && <span className="text-violet-500">({t.categories.join(', ')})</span>}
+                          <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter(x => x.rawValue !== t.rawValue))} className="text-violet-500 hover:text-red-400 ml-0.5">×</button>
+                        </span>
+                      ))}
+                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

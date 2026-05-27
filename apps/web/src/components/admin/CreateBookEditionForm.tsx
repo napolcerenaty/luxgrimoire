@@ -42,6 +42,7 @@ export interface CreateBookEditionFormProps {
   defaultPublisher?: string
   defaultCollectionId?: string
   defaultPhotoCredit?: string
+  defaultArtists?: Array<{ name: string; role: string }>
   defaultFeatureTags?: Array<{ rawValue: string; categories: string[] }>
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
@@ -58,7 +59,7 @@ export default function CreateBookEditionForm({
   defaultPrice, renewalDay, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
-  defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultFeatureTags,
+  defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -99,8 +100,8 @@ export default function CreateBookEditionForm({
   // Feature tags to POST after edition creation (filled by AI parser or bundle defaults)
   const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>(defaultFeatureTags ?? [])
   const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
-  // Artists to POST after edition creation (filled by AI parser / user input)
-  const [artists, setArtists] = useState<ArtistEntry[]>([])
+  // Artists to POST after edition creation (filled by AI parser / user input / bundle defaults)
+  const [artists, setArtists] = useState<ArtistEntry[]>(defaultArtists ?? [])
   const [isOmnibus, setIsOmnibus] = useState(false)
 
   // Duplicate detection
