@@ -620,6 +620,11 @@ export class JoinSubscriptionDto {
   @IsString()
   cancellationReason?: string;
 
+  /** Selected prepay option ID — used to set prepaidMonths and scheduledPrepayOptionId atomically at join time */
+  @IsOptional()
+  @IsString()
+  selectedPrepayOptionId?: string | null;
+
   /** If true, compute eligible months without persisting the subscription entry (preview/dry run) */
   @IsOptional()
   @IsBoolean()

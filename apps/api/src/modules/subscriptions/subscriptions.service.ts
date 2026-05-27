@@ -1517,6 +1517,18 @@ export class SubscriptionsService {
       return { entry: mockEntry as any, eligibleMonths };
     }
 
+    // Resolve prepay option (if provided) — sets prepaidMonths and scheduledPrepayOptionId atomically at join time
+    let resolvedPrepayMonths: number | null = null;
+    let resolvedPrepayOptionId: string | null = null;
+    if (dto.selectedPrepayOptionId) {
+      const option = await this.prisma.subscriptionPrepayOption.findFirst({
+        where: { id: dto.selectedPrepayOptionId, subscriptionId: sub.id },
+      });
+      if (!option) throw new BadRequestException('Invalid prepay option');
+      resolvedPrepayMonths = option.months;
+      resolvedPrepayOptionId = option.id;
+    }
+
     const entry = await this.prisma.userSubscriptionEntry.upsert({
       where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
       create: {
@@ -1528,6 +1540,10 @@ export class SubscriptionsService {
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
+        ...(resolvedPrepayOptionId !== null && {
+          scheduledPrepayOptionId: resolvedPrepayOptionId,
+          prepaidMonths: resolvedPrepayMonths!,
+        }),
         ...(dto.alreadyCancelled && {
           cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
           cancellationReason: dto.cancellationReason ?? null,
@@ -1544,6 +1560,10 @@ export class SubscriptionsService {
         shippingCost: dto.shippingCost !== undefined ? (dto.shippingCost === '' ? null : parseFloat(dto.shippingCost)) : undefined,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
+        ...(resolvedPrepayOptionId !== null && {
+          scheduledPrepayOptionId: resolvedPrepayOptionId,
+          prepaidMonths: resolvedPrepayMonths!,
+        }),
       },
     });
 
@@ -2472,16 +2492,21 @@ export class SubscriptionsService {
     });
     if (!entry) throw new NotFoundException('Subscription entry not found');
 
+    let prepaidMonths = 1;
     if (dto.scheduledPrepayOptionId) {
       const option = await this.prisma.subscriptionPrepayOption.findFirst({
         where: { id: dto.scheduledPrepayOptionId, subscriptionId: sub.id },
       });
       if (!option) throw new BadRequestException('Invalid prepay option');
+      prepaidMonths = option.months;
     }
 
     await this.prisma.userSubscriptionEntry.update({
       where: { id: entry.id },
-      data: { scheduledPrepayOptionId: dto.scheduledPrepayOptionId },
+      data: {
+        scheduledPrepayOptionId: dto.scheduledPrepayOptionId,
+        prepaidMonths,
+      },
     });
 
     // Refresh renewal date now that prepay option changed

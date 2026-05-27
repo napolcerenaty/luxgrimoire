@@ -203,6 +203,7 @@ export async function refreshNextRenewalDate(
       active: true,
       startDate: true,
       renewalDay: true,
+      prepaidMonths: true,
       scheduledPrepayOptionId: true,
       scheduledPrepayOption: { select: { months: true } },
       skipRecords: {
@@ -276,14 +277,16 @@ export async function refreshNextRenewalDate(
   }
 
   const prepayOption = (entry as any).scheduledPrepayOption as { months: number } | null;
+  // Use scheduledPrepayOption.months if available; fall back to prepaidMonths field for resilience
+  const effectivePrepayMonths: number | null = prepayOption?.months ?? ((entry as any).prepaidMonths > 1 ? (entry as any).prepaidMonths : null);
 
   let nextDate: Date | null;
-  if (prepayOption && entry.startDate) {
+  if (effectivePrepayMonths && entry.startDate) {
     const parts = entry.startDate.split('-').map(Number);
     const startDateParsed = new Date(Date.UTC(parts[0], (parts[1] ?? 1) - 1, parts[2] ?? 1));
     nextDate = computeNextRenewalDatePrepaid(
       renewalDay,
-      prepayOption.months,
+      effectivePrepayMonths,
       startDateParsed,
       sub.paymentOnStartup ?? false,
       paidUpFrontDate,
