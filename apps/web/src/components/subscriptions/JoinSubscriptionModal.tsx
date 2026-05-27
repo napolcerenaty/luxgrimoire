@@ -401,16 +401,88 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {(() => {
-          // When prepay is selected, show prepay option info instead of monthly price history
+          // When prepay is selected, show price history × prepayN like monthly view
           if (selectedPrepayOptionId !== null) {
             const opt = activePrepayOptions?.find(o => o.id === selectedPrepayOptionId)
             if (!opt) return null
+            const prepayN = opt.months
+            const currencyPriceChanges = priceChanges.filter(pc => pc.currency === costCurrency)
+            // If no history, show simple info
+            if (currencyPriceChanges.length === 0) {
+              return (
+                <p>
+                  Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
+                  <span className="text-stone-300">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span> per batch ({opt.months} months).
+                  Each billing period covers {opt.months} received boxes.
+                </p>
+              )
+            }
+            const sorted = [...currencyPriceChanges].sort(
+              (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
+            )
+            const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
+            const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
+            const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
+            const originalFallback = subscriptionOriginalBasePrice ?? subscriptionPrice ?? basePrice
+            const effectivePriceAtStart = startY && startM ? (() => {
+              const applicable = sorted.filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
+              return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
+            })() : originalFallback
+            type Period = { label: string; months: number | null; price: string; cur: string }
+            const periods: Period[] = []
+            if (startY && startM) {
+              const futureChanges = sorted.filter(
+                pc => pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
+              )
+              const first = futureChanges[0]
+              if (first) {
+                const n = monthsBetween(startY, startM, first.effectiveYear, first.effectiveMonth)
+                periods.push({ label: `${MONTH_NAMES[startM - 1]} ${startY} – ${MONTH_NAMES[first.effectiveMonth - 2 < 0 ? 11 : first.effectiveMonth - 2]} ${first.effectiveMonth === 1 ? first.effectiveYear - 1 : first.effectiveYear}`, months: n, price: String(effectivePriceAtStart), cur: costCurrency })
+              }
+              for (let i = 0; i < futureChanges.length; i++) {
+                const pc = futureChanges[i]
+                const next = futureChanges[i + 1]
+                if (next) {
+                  const n = monthsBetween(pc.effectiveYear, pc.effectiveMonth, next.effectiveYear, next.effectiveMonth)
+                  periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear} – ${MONTH_NAMES[next.effectiveMonth - 2 < 0 ? 11 : next.effectiveMonth - 2]} ${next.effectiveMonth === 1 ? next.effectiveYear - 1 : next.effectiveYear}`, months: n, price: pc.newBasePrice, cur: pc.currency })
+                } else {
+                  periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear}+`, months: null, price: pc.newBasePrice, cur: pc.currency })
+                }
+              }
+            }
             return (
-              <p>
-                Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
-                <span className="text-stone-300">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span> per batch ({opt.months} months).
-                Each billing period covers {opt.months} received boxes.
-              </p>
+              <>
+                <p>
+                  Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span>.
+                  Each billing period covers {opt.months} received boxes. We know of the following price changes:{' '}
+                  {sorted.map((pc, i) => (
+                    <span key={i}>
+                      {i > 0 && ', '}
+                      <span className="text-stone-300">{(parseFloat(pc.newBasePrice) * prepayN).toFixed(2)} {pc.currency}</span>
+                      {' '}from{' '}
+                      <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                    </span>
+                  ))}
+                </p>
+                {periods.length > 0 && (
+                  <div>
+                    <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
+                    <div className="space-y-0.5 pl-2 border-l border-stone-700">
+                      {periods.map((p, i) => (
+                        <p key={i}>
+                          <span className="text-stone-400">{p.label}:</span>{' '}
+                          <span className="text-stone-300">{(parseFloat(p.price) * prepayN).toFixed(2)} {p.cur}</span>
+                          {' '}<span className="text-stone-500">per batch ({prepayN} months)</span>
+                          {p.months !== null && <span className="text-stone-500"> — {Math.ceil(p.months / prepayN)} batch{Math.ceil(p.months / prepayN) !== 1 ? 'es' : ''}</span>}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p>
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                </p>
+              </>
             )
           }
           const currencyPriceChanges = priceChanges.filter(pc => pc.currency === costCurrency)
@@ -1431,14 +1503,18 @@ export default function JoinSubscriptionModal({
           cancellationDate: data.cancellationDate,
           cancellationReason: data.cancellationReason,
         }),
+        // _selectedPrepayOptionId is frontend-only, stripped before sending to API
         ...(data.selectedPrepayOptionId ? { _selectedPrepayOptionId: data.selectedPrepayOptionId } : {}),
       }
+
+      // Build API payload without frontend-only fields
+      const { _selectedPrepayOptionId: _sid, ...apiPayload } = joinPayload as typeof joinPayload & { _selectedPrepayOptionId?: string }
 
       // Dry run: preview eligible months WITHOUT creating the subscription entry
       const result = await authFetch<JoinResult>(`/subscriptions/${subscriptionSlug}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...joinPayload, dryRun: true }),
+        body: JSON.stringify({ ...apiPayload, dryRun: true }),
       })
 
       setStep1JoinPayload(joinPayload)
