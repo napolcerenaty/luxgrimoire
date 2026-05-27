@@ -7,6 +7,12 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import {
+  computeAutoBatches,
+  resolveBackfillFallbackPrice,
+  type PriceChangeRecord,
+  type ComputedBatch,
+} from '@/lib/joinSubscription.utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,12 +93,8 @@ interface LinkedFee {
   customCurrency: string  // fee's own currency (editable)
 }
 
-interface PriceChange {
-  effectiveYear: number
-  effectiveMonth: number
-  newBasePrice: string
-  currency: string
-}
+/** @see PriceChangeRecord in joinSubscription.utils — kept as local alias for prop typing */
+type PriceChange = PriceChangeRecord
 
 interface Step1Props {
   currency: string
@@ -1010,129 +1012,6 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
 
 // ── Step 3: Billing batches (prepay) ─────────────────────────────────────────
 
-// Helpers
-
-function lookupPriceAt(
-  dateStr: string,
-  priceChanges: PriceChange[],
-  currency: string,
-  fallback: string,
-): string {
-  if (!dateStr) return fallback
-  const [y, m] = dateStr.split('-').map(Number)
-  const matching = priceChanges
-    .filter(pc => pc.currency === currency)
-    .filter(pc => pc.effectiveYear < y || (pc.effectiveYear === y && pc.effectiveMonth <= m))
-    .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
-  return matching.length > 0 ? matching[0].newBasePrice : fallback
-}
-
-/** Lookup the correct prepay option price valid at a given billing date. */
-function lookupPrepayPriceAt(
-  billingDateStr: string,
-  options: { months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[],
-  targetMonths: number,
-  targetCurrency: string,
-  fallbackPrice: string,
-): string {
-  if (!billingDateStr) return fallbackPrice
-  const matching = options
-    .filter(o => o.months === targetMonths && o.currency === targetCurrency)
-    .filter(o => {
-      const from = o.validFrom ? o.validFrom.slice(0, 10) : null
-      const until = o.validUntil ? o.validUntil.slice(0, 10) : null
-      return (!from || from <= billingDateStr) && (!until || until > billingDateStr)
-    })
-    .sort((a, b) => {
-      const af = a.validFrom ?? ''
-      const bf = b.validFrom ?? ''
-      return bf > af ? 1 : bf < af ? -1 : 0
-    })
-  return matching.length > 0 ? String(matching[0].price) : fallbackPrice
-}
-
-interface ComputedBatch {
-  billingDate: string   // ISO date yyyy-mm-dd
-  monthIds: string[]    // selected months in this batch
-  amount: string        // base price
-  currency: string
-}
-
-/** Group selected months into prepay batches.
- *  Skipped months extend the current batch (don't count toward N).
- *  For the first batch, billing date is based on startDate (subscription entry start). */
-function computeAutoBatches(
-  eligibleMonths: SubscriptionMonth[],
-  selectedMonthIds: string[],
-  prepayN: number,
-  renewalDay: number | null,
-  currency: string,
-  allPrepayOptions: { months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[],
-  fallbackPrice: string,
-  startDate?: string | null,
-): ComputedBatch[] {
-  const selectedSet = new Set(selectedMonthIds)
-  const sorted = [...eligibleMonths].sort(
-    (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
-  )
-
-  // Parse the subscription start date for first batch billing date
-  let firstBatchDate: string | null = null
-  if (startDate) {
-    // startDate is YYYY-MM or YYYY-MM-DD
-    if (startDate.length === 7) {
-      const day = renewalDay ?? 1
-      firstBatchDate = `${startDate}-${String(day).padStart(2, '0')}`
-    } else {
-      firstBatchDate = startDate
-    }
-  }
-
-  const prepayAmount = parseDecimalInput(fallbackPrice).toFixed(2)
-  const batches: ComputedBatch[] = []
-  let batchStart: { year: number; month: number } | null = null
-  let currentBatch: string[] = []
-
-  for (const m of sorted) {
-    if (batchStart === null) batchStart = { year: m.year, month: m.month }
-    if (selectedSet.has(m.id)) {
-      currentBatch.push(m.id)
-      if (currentBatch.length === prepayN) {
-        const day = renewalDay ?? 1
-        const isFirst = batches.length === 0
-        const dateStr = isFirst && firstBatchDate
-          ? firstBatchDate
-          : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice)).toFixed(2)
-        batches.push({
-          billingDate: dateStr,
-          monthIds: [...currentBatch],
-          amount: batchAmount,
-          currency,
-        })
-        batchStart = null
-        currentBatch = []
-      }
-    }
-  }
-  // Partial last batch — always use full period price (user didn't get a discount for partial)
-  if (currentBatch.length > 0 && batchStart) {
-    const day = renewalDay ?? 1
-    const isFirst = batches.length === 0
-    const dateStr = isFirst && firstBatchDate
-      ? firstBatchDate
-      : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice)).toFixed(2)
-    batches.push({
-      billingDate: dateStr,
-      monthIds: [...currentBatch],
-      amount: batchAmount,
-      currency,
-    })
-  }
-  return batches
-}
-
 interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
@@ -1168,7 +1047,8 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
 
   // ── "No" path: auto-computed batches (only when a prepay option is known) ─────
   const prepayMonths = selectedPrepayOption?.months ?? 1
-  const prepayPriceStr = String(selectedPrepayOption?.price ?? '0')
+  // Use entry.basePrice as fallback so custom-currency users get their own entered price
+  const noPathFallbackPrice = resolveBackfillFallbackPrice(entry.basePrice, selectedPrepayOption?.price)
   const autoBatches = selectedPrepayOption ? computeAutoBatches(
     eligibleMonths,
     selectedMonthIds,
@@ -1176,7 +1056,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
     renewalDay,
     currency,
     allPrepayOptions,
-    prepayPriceStr,
+    noPathFallbackPrice,
     entry.startDate,
   ) : []
 
@@ -1370,10 +1250,11 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
         .filter(b => b.row.date && b.months.length > 0)
         .map(b => {
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
-          // Fallback: prepay option price → entry base price → 0
-          const fallbackBase = selectedPrepayOption
-            ? parseDecimalInput(String(selectedPrepayOption.price ?? 0))
-            : parseFloat(String(entry.basePrice ?? 0))
+          // Always use entry.basePrice as fallback: it reflects the user's actual currency
+          // and custom price from Step 1 (whether from price history or manually entered).
+          const fallbackBase = parseDecimalInput(
+            resolveBackfillFallbackPrice(entry.basePrice, selectedPrepayOption?.price),
+          )
           const baseAmount = providedAmount !== null ? providedAmount : fallbackBase
           const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
