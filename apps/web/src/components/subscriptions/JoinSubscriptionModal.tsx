@@ -402,14 +402,20 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
       {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
         {(() => {
-          // When prepay is selected, show price history × prepayN like monthly view
+          // When prepay is selected, use prepay option history (validFrom/validUntil) for price changes
           if (selectedPrepayOptionId !== null) {
             const opt = activePrepayOptions?.find(o => o.id === selectedPrepayOptionId)
             if (!opt) return null
             const prepayN = opt.months
-            const currencyPriceChanges = priceChanges.filter(pc => pc.currency === costCurrency)
-            // If no history, show simple info
-            if (currencyPriceChanges.length === 0) {
+            // All options with same months + currency represent historical pricing for this prepay period
+            const sameOptions = (prepayOptions ?? []).filter(o => o.months === prepayN && o.currency === costCurrency)
+            const sortedOptions = [...sameOptions].sort((a, b) => {
+              const af = a.validFrom ?? '1900-01-01'
+              const bf = b.validFrom ?? '1900-01-01'
+              return af < bf ? -1 : af > bf ? 1 : 0
+            })
+            if (sortedOptions.length <= 1) {
+              // No historical price changes — just show current price
               return (
                 <p>
                   Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
@@ -418,37 +424,57 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 </p>
               )
             }
-            const sorted = [...currencyPriceChanges].sort(
-              (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
-            )
-            const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
-            const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
-            const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
-            const originalFallback = subscriptionOriginalBasePrice ?? subscriptionPrice ?? basePrice
-            const effectivePriceAtStart = startY && startM ? (() => {
-              const applicable = sorted.filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
-              return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
-            })() : originalFallback
-            type Period = { label: string; months: number | null; price: string; cur: string }
-            const periods: Period[] = []
-            if (startY && startM) {
-              const futureChanges = sorted.filter(
-                pc => pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
-              )
-              const first = futureChanges[0]
-              if (first) {
-                const n = monthsBetween(startY, startM, first.effectiveYear, first.effectiveMonth)
-                periods.push({ label: `${MONTH_NAMES[startM - 1]} ${startY} – ${MONTH_NAMES[first.effectiveMonth - 2 < 0 ? 11 : first.effectiveMonth - 2]} ${first.effectiveMonth === 1 ? first.effectiveYear - 1 : first.effectiveYear}`, months: n, price: String(effectivePriceAtStart), cur: costCurrency })
-              }
-              for (let i = 0; i < futureChanges.length; i++) {
-                const pc = futureChanges[i]
-                const next = futureChanges[i + 1]
-                if (next) {
-                  const n = monthsBetween(pc.effectiveYear, pc.effectiveMonth, next.effectiveYear, next.effectiveMonth)
-                  periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear} – ${MONTH_NAMES[next.effectiveMonth - 2 < 0 ? 11 : next.effectiveMonth - 2]} ${next.effectiveMonth === 1 ? next.effectiveYear - 1 : next.effectiveYear}`, months: n, price: pc.newBasePrice, cur: pc.currency })
-                } else {
-                  periods.push({ label: `${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear}+`, months: null, price: pc.newBasePrice, cur: pc.currency })
+            // Build period breakdown from sorted options
+            const startDateStr = firstOrderDate ?? ''
+            type PrepayPeriod = { label: string; batches: number | null; price: string; cur: string }
+            const periods: PrepayPeriod[] = []
+            if (startDateStr) {
+              // Find which option was active at start date
+              const activeAtStart = [...sortedOptions].reverse().find(o => {
+                const from = o.validFrom ? o.validFrom.slice(0, 10) : null
+                return !from || from <= startDateStr
+              }) ?? sortedOptions[0]
+              // Options that became effective after start date
+              const laterOptions = sortedOptions.filter(o => {
+                const from = o.validFrom ? o.validFrom.slice(0, 10) : null
+                return from && from > startDateStr
+              })
+              // First period: from start to first change (or open-ended)
+              if (laterOptions.length > 0) {
+                const nextFrom = laterOptions[0].validFrom!.slice(0, 7) // YYYY-MM
+                const nextY = parseInt(nextFrom.slice(0, 4))
+                const nextM = parseInt(nextFrom.slice(5, 7))
+                const startY2 = parseInt(startDateStr.slice(0, 4))
+                const startM2 = parseInt(startDateStr.slice(5, 7))
+                const nMonths = Math.max(0, (nextY - startY2) * 12 + (nextM - startM2))
+                const endLabel = `${MONTH_NAMES[nextM - 2 < 0 ? 11 : nextM - 2]} ${nextM === 1 ? nextY - 1 : nextY}`
+                periods.push({
+                  label: `${MONTH_NAMES[startM2 - 1]} ${startY2} – ${endLabel}`,
+                  batches: nMonths > 0 ? Math.ceil(nMonths / prepayN) : null,
+                  price: String(activeAtStart.price),
+                  cur: activeAtStart.currency,
+                })
+                for (let i = 0; i < laterOptions.length; i++) {
+                  const cur2 = laterOptions[i]
+                  const next2 = laterOptions[i + 1]
+                  if (next2 && next2.validFrom) {
+                    const cf = cur2.validFrom!.slice(0, 7)
+                    const nf = next2.validFrom!.slice(0, 7)
+                    const cy2 = parseInt(cf.slice(0, 4)), cm2 = parseInt(cf.slice(5, 7))
+                    const ny2 = parseInt(nf.slice(0, 4)), nm2 = parseInt(nf.slice(5, 7))
+                    const n2 = Math.max(0, (ny2 - cy2) * 12 + (nm2 - cm2))
+                    const endLabel2 = `${MONTH_NAMES[nm2 - 2 < 0 ? 11 : nm2 - 2]} ${nm2 === 1 ? ny2 - 1 : ny2}`
+                    periods.push({ label: `${MONTH_NAMES[cm2 - 1]} ${cy2} – ${endLabel2}`, batches: Math.ceil(n2 / prepayN), price: String(cur2.price), cur: cur2.currency })
+                  } else {
+                    const cf = cur2.validFrom!.slice(0, 7)
+                    const cy2 = parseInt(cf.slice(0, 4)), cm2 = parseInt(cf.slice(5, 7))
+                    periods.push({ label: `${MONTH_NAMES[cm2 - 1]} ${cy2}+`, batches: null, price: String(cur2.price), cur: cur2.currency })
+                  }
                 }
+              } else {
+                const startY2 = parseInt(startDateStr.slice(0, 4))
+                const startM2 = parseInt(startDateStr.slice(5, 7))
+                periods.push({ label: `${MONTH_NAMES[startM2 - 1]} ${startY2}+`, batches: null, price: String(activeAtStart.price), cur: activeAtStart.currency })
               }
             }
             return (
@@ -456,12 +482,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 <p>
                   Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span>.
                   Each billing period covers {opt.months} received boxes. We know of the following price changes:{' '}
-                  {sorted.map((pc, i) => (
-                    <span key={i}>
+                  {sortedOptions.map((o, i) => (
+                    <span key={o.id}>
                       {i > 0 && ', '}
-                      <span className="text-stone-300">{(parseFloat(pc.newBasePrice) * prepayN).toFixed(2)} {pc.currency}</span>
-                      {' '}from{' '}
-                      <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                      <span className="text-stone-300">{parseFloat(String(o.price)).toFixed(2)} {o.currency}</span>
+                      {o.validFrom && <>{' '}from <span className="text-stone-300">{MONTH_NAMES[parseInt(o.validFrom.slice(5, 7)) - 1]} {o.validFrom.slice(0, 4)}</span></>}
                     </span>
                   ))}
                 </p>
@@ -472,9 +497,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                       {periods.map((p, i) => (
                         <p key={i}>
                           <span className="text-stone-400">{p.label}:</span>{' '}
-                          <span className="text-stone-300">{(parseFloat(p.price) * prepayN).toFixed(2)} {p.cur}</span>
+                          <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
                           {' '}<span className="text-stone-500">per batch ({prepayN} months)</span>
-                          {p.months !== null && <span className="text-stone-500"> — {Math.ceil(p.months / prepayN)} batch{Math.ceil(p.months / prepayN) !== 1 ? 'es' : ''}</span>}
+                          {p.batches !== null && <span className="text-stone-500"> — {p.batches} batch{p.batches !== 1 ? 'es' : ''}</span>}
                         </p>
                       ))}
                     </div>
@@ -1202,13 +1227,27 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
     return Array.from({ length: Math.max(expected, 1) }, () => ({
       date: '',
       amount: '',
-      shipping: entry.shippingCost ? String(entry.shippingCost) : '',
-      fees: entryFees.map(f => ({ ...f, isCustom: false as const })),
+      shipping: '',
+      fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
   })
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: entry.shippingCost ? String(entry.shippingCost) : '', fees: entryFees.map(f => ({ ...f, isCustom: false as const })), discounts: [] }]) }
+  // Once feeTemplates load, prefill fee amounts from template defaultAmount where available
+  useEffect(() => {
+    if (feeTemplates.length === 0) return
+    setYesRows(prev => prev.map(row => ({
+      ...row,
+      fees: row.fees.map(fee => {
+        if (fee.amount !== '') return fee // already has a value, don't overwrite
+        const tmpl = feeTemplates.find(t => t.name === fee.name)
+        if (tmpl && tmpl.defaultAmount != null) return { ...fee, amount: String(tmpl.defaultAmount) }
+        return fee
+      }),
+    })))
+  }, [feeTemplates])
+
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
   function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))

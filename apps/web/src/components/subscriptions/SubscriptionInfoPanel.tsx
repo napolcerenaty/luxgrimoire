@@ -389,7 +389,12 @@ export default function SubscriptionInfoPanel({
                   }}
                 >
                   <option value="">Standard (monthly)</option>
-                  {prepayOptions?.map(o => (
+                  {prepayOptions?.filter(o => {
+                    const now = new Date()
+                    if (o.validFrom && new Date(o.validFrom) > now) return false
+                    if (o.validUntil && new Date(o.validUntil) <= now) return false
+                    return true
+                  }).map(o => (
                     <option key={o.id} value={o.id}>
                       {o.label ?? `${o.months} months`} — {o.price} {o.currency}
                     </option>
