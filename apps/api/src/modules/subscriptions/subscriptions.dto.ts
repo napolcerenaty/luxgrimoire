@@ -814,6 +814,12 @@ export class UpdateBillingModeDto {
   scheduledPrepayOptionId!: string | null;
 }
 
+export class UpdateSettingsHistoryEffectiveFromDto {
+  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value */
+  @IsString()
+  effectiveFrom!: string;
+}
+
 export class MigrateMonthsDto {
   @IsString()
   targetSubscriptionId!: string;

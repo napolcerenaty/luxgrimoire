@@ -30,6 +30,7 @@ import {
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
   MigrateMonthsDto,
+  UpdateSettingsHistoryEffectiveFromDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -406,6 +407,20 @@ export class SubscriptionsController {
   @Get(':slug/settings-history')
   listSettingsHistory(@Param('slug') slug: string) {
     return this.subscriptionsService.listSettingsHistory(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/settings-history/:id')
+  async updateSettingsHistoryEffectiveFrom(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateSettingsHistoryEffectiveFromDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto.effectiveFrom);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SETTINGS_HISTORY_EFFECTIVE_FROM', entityType: 'subscription', entityId: slug });
+    return result;
   }
 
   @Get(':slug/price-changes')

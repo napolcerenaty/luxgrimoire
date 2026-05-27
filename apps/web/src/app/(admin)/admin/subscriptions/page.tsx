@@ -710,13 +710,34 @@ interface SettingsHistoryRecord {
 }
 
 function SettingsHistoryPanel({ slug }: { slug: string }) {
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const { data: records = [], isLoading } = useQuery<SettingsHistoryRecord[]>({
     queryKey: ['settings-history', slug],
     queryFn: () => authFetch<SettingsHistoryRecord[]>(`/subscriptions/${slug}/settings-history`),
     enabled: open,
   })
+
+  const handleEditSave = async (id: string) => {
+    setSaving(true)
+    try {
+      await authFetch(`/subscriptions/${slug}/settings-history/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ effectiveFrom: editDate }),
+      })
+      await queryClient.invalidateQueries({ queryKey: ['settings-history', slug] })
+      setEditingId(null)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to update')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="border border-stone-700 rounded-lg">
@@ -746,19 +767,64 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                     <th className="text-left pb-1 pr-3">Prepaid</th>
                     <th className="text-left pb-1 pr-3">Current Month</th>
                     <th className="text-left pb-1 pr-3">Offset</th>
-                    <th className="text-left pb-1">Notes</th>
+                    <th className="text-left pb-1 pr-3">Notes</th>
+                    <th className="text-left pb-1">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {records.map(r => (
                     <tr key={r.id} className="border-b border-stone-800 last:border-0">
-                      <td className="py-1 pr-3 text-stone-400">{new Date(r.effectiveFrom).toLocaleDateString()}</td>
+                      <td className="py-1 pr-3 text-stone-400">
+                        {editingId === r.id ? (
+                          <input
+                            type="date"
+                            value={editDate}
+                            onChange={e => setEditDate(e.target.value)}
+                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs"
+                          />
+                        ) : (
+                          new Date(r.effectiveFrom).toLocaleDateString()
+                        )}
+                      </td>
                       <td className="py-1 pr-3">{r.renewalDay ?? '—'}</td>
                       <td className="py-1 pr-3">{r.renewalDayUserSet ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.paymentOnStartup ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.signupIncludesCurrentMonth ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.renewalMonthOffset}</td>
-                      <td className="py-1 text-stone-500">{r.notes ?? ''}</td>
+                      <td className="py-1 pr-3 text-stone-500">{r.notes ?? ''}</td>
+                      <td className="py-1">
+                        {editingId === r.id ? (
+                          <span className="flex gap-1">
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => handleEditSave(r.id)}
+                              className="text-amber-400 hover:text-amber-200 disabled:opacity-50"
+                            >
+                              {saving ? '…' : '✓'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="text-stone-500 hover:text-stone-300"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(r.id)
+                              setEditDate(r.effectiveFrom.slice(0, 10))
+                            }}
+                            className="text-stone-500 hover:text-amber-400 transition-colors"
+                            title="Edit effective from date"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -508,6 +508,20 @@ export class SubscriptionsService {
     });
   }
 
+  async updateSettingsHistoryEffectiveFrom(slug: string, recordId: string, effectiveFrom: string) {
+    const sub = await this.findBySlug(slug);
+    const record = await this.prisma.subscriptionSettingsHistory.findFirst({
+      where: { id: recordId, subscriptionId: sub.id },
+    });
+    if (!record) throw new NotFoundException('Settings history record not found');
+    const newDate = new Date(effectiveFrom);
+    if (isNaN(newDate.getTime())) throw new BadRequestException('Invalid effectiveFrom date');
+    return this.prisma.subscriptionSettingsHistory.update({
+      where: { id: recordId },
+      data: { effectiveFrom: newDate },
+    });
+  }
+
   async update(slug: string, dto: UpdateSubscriptionDto, changedByUserId?: string) {
     const existing = await this.findBySlug(slug);
     const { componentIds, price, ...rest } = dto;
