@@ -31,7 +31,7 @@ import {
   UpdatePrepayOptionDto,
   UpdateSettingsHistoryEffectiveFromDto,
 } from './subscriptions.dto';
-import { generateSlugFromParts } from '../../common/utils/slug.util';
+import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
@@ -141,7 +141,7 @@ export class SubscriptionsService {
     });
     if (!company) throw new NotFoundException(`Company '${dto.companyId}' not found`);
 
-    const slug = generateSlugFromParts(company.name, dto.name);
+    const slug = generateSubscriptionSlug(company.name, dto.name);
     const currency = dto.currency ?? 'EUR';
     const subscription = await this.prisma.subscription.create({
       data: {
@@ -1340,14 +1340,26 @@ export class SubscriptionsService {
       where: { userId, subscriptionId: sub.id },
     });
 
-    // Membership history FK is SetNull (not Cascade), so it must be deleted explicitly.
-    // When removing only the current period (removeCurrentOnly), the history records were already
-    // detached (entryId=null) above and should survive as orphaned history.
-    // In all other cases (full remove / removeAllPeriods), wipe history for this subscription.
+    // Membership history FK is SetNull (not Cascade), so deletion must be explicit.
+    // Scope depends on intent:
+    //   removeAllPeriods → wipe ALL history for this user+subscription
+    //   cancelled entry (no flags) → delete only the current-period history record
+    //     (auto-created on cancellation; same startDate as entry, no prior periods involved)
+    //   active entry (no flags) → don't touch history; previous-period records should survive
+    //     as orphaned history (there's no history record for the still-active current period)
+    //   removeCurrentOnly → history was already detached (entryId→null) above; leave it
     if (!opts.removeCurrentOnly) {
-      await this.prisma.userSubscriptionMembershipHistory.deleteMany({
-        where: { userId, subscriptionId: sub.id },
-      });
+      if (opts.removeAllPeriods) {
+        await this.prisma.userSubscriptionMembershipHistory.deleteMany({
+          where: { userId, subscriptionId: sub.id },
+        });
+      } else if (!entry.active && entry.startDate) {
+        // Remove only the auto-created history record for this cancelled period
+        await this.prisma.userSubscriptionMembershipHistory.deleteMany({
+          where: { userId, subscriptionId: sub.id, entryId: entry.id, startDate: entry.startDate },
+        });
+      }
+      // Active entry without removeAllPeriods: leave history untouched
     }
 
     // Decrement subscriber count if the entry was still active when removed
