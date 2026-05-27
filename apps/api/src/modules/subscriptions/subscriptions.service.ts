@@ -974,6 +974,10 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        scheduledPrepayOptionId: true,
+        scheduledPrepayOption: {
+          select: { price: true, currency: true, months: true },
+        },
         skipRecords: {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
@@ -1049,7 +1053,15 @@ export class SubscriptionsService {
       let nextBase = fallbackBase;
       let nextRenewalPriceChanged = false;
       let nextRenewalNewPrice: string | null = null;
-      if (storedRenewalDate) {
+
+      // For prepaid subscriptions, use the scheduled prepay option price as the renewal base
+      const scheduledPrepayOption = (entry as any).scheduledPrepayOption as { price: { toString(): string }; currency: string; months: number } | null;
+      if (scheduledPrepayOption) {
+        const prepayOptCurrency = scheduledPrepayOption.currency.toUpperCase();
+        if (prepayOptCurrency === subCurrency) {
+          nextBase = parseFloat(scheduledPrepayOption.price.toString());
+        }
+      } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
         // Pass targetCurrency so multi-currency records are resolved correctly.
@@ -1075,7 +1087,7 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
-      const { skipRecords: _sr, feeTemplates: _ft, membershipHistory, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; membershipHistory: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }> };
+      const { skipRecords: _sr, feeTemplates: _ft, membershipHistory, scheduledPrepayOption: _spo, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; membershipHistory: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }>; scheduledPrepayOption: unknown };
       return {
         ...entryWithoutSkips,
         subscription: { ...sub },
@@ -2336,23 +2348,26 @@ export class SubscriptionsService {
         }
       }
 
-      // Fee templates once per purchase group (not per book)
-      for (const link of (entry as any).feeTemplates ?? []) {
-        const template = link.feeTemplate;
-        const amount = link.customAmount ?? template.defaultAmount;
-        if (!amount) continue;
-        feesToCreate.push({
-          userId,
-          feeTemplateId: template.id,
-          name: template.name,
-          amount: parseFloat(amount.toString()),
-          currency: link.customCurrency ?? template.defaultCurrency,
-          date: purchasedAtDate,
-          category: template.category,
-          purchaseGroupId: group.id,
-        });
+      // Fee templates once per purchase group — only when no batch fees were specified
+      // (batch.fees already handle the fees for that period explicitly)
+      if (!batch || !batch.fees?.length) {
+        for (const link of (entry as any).feeTemplates ?? []) {
+          const template = link.feeTemplate;
+          const amount = link.customAmount ?? template.defaultAmount;
+          if (!amount) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: template.id,
+            name: template.name,
+            amount: parseFloat(amount.toString()),
+            currency: link.customCurrency ?? template.defaultCurrency,
+            date: purchasedAtDate,
+            category: template.category,
+            purchaseGroupId: group.id,
+          });
+        }
       }
-    }
+    } // end for monthId loop
 
     // Single batch insert for all fees
     if (feesToCreate.length > 0) {

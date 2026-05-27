@@ -1559,23 +1559,21 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
                 )}
                 <div className="flex gap-3">
                   {addFeePickerBatch === i ? (
-                    <select
-                      autoFocus
-                      className="text-[10px] bg-stone-800 border border-stone-600 rounded px-2 py-0.5 text-stone-200"
-                      defaultValue=""
-                      onChange={e => {
-                        const val = e.target.value
-                        if (!val) return
-                        if (val === '__custom__') addAutoOverrideFee(i, null)
-                        else { const tmpl = feeTemplates.find(t => t.id === val); if (tmpl) addAutoOverrideFee(i, tmpl) }
-                        setAddFeePickerBatch(null)
-                      }}
-                      onBlur={() => setAddFeePickerBatch(null)}
-                    >
-                      <option value="" disabled>— pick template —</option>
-                      {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      <option value="__custom__">Custom fee</option>
-                    </select>
+                  <select
+                    autoFocus
+                    className="text-[10px] bg-stone-800 border border-stone-600 rounded px-2 py-0.5 text-stone-200"
+                    defaultValue=""
+                    onChange={e => {
+                      const val = e.target.value
+                      if (!val) return
+                      const tmpl = feeTemplates.find(t => t.id === val); if (tmpl) addAutoOverrideFee(i, tmpl)
+                      setAddFeePickerBatch(null)
+                    }}
+                    onBlur={() => setAddFeePickerBatch(null)}
+                  >
+                    <option value="" disabled>— pick template —</option>
+                    {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
                   ) : (
                     <button onClick={() => setAddFeePickerBatch(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
                   )}
@@ -1733,15 +1731,13 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
                       onChange={e => {
                         const val = e.target.value
                         if (!val) return
-                        if (val === '__custom__') addRowFee(i, null)
-                        else { const tmpl = feeTemplates.find(t => t.id === val); if (tmpl) addRowFee(i, tmpl) }
+                        const tmpl = feeTemplates.find(t => t.id === val); if (tmpl) addRowFee(i, tmpl)
                         setAddFeePickerRow(null)
                       }}
                       onBlur={() => setAddFeePickerRow(null)}
                     >
                       <option value="" disabled>— pick template —</option>
                       {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      <option value="__custom__">Custom fee</option>
                     </select>
                   ) : (
                     <button onClick={() => setAddFeePickerRow(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
