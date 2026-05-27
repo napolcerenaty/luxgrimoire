@@ -2443,6 +2443,8 @@ export class SubscriptionsService {
 
     // Always recompute skip state after backfill to keep counters consistent
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
+    // Recompute next renewal date now that skips are saved
+    await refreshNextRenewalDate(this.prisma, entry.id);
     // Backfill past renewal dates for calendar (fire-and-forget)
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
 

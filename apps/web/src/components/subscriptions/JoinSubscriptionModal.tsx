@@ -1135,23 +1135,26 @@ function computeAutoBatches(
 interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
-  selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null }
+  selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null } | null
   allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[]
   subscriptionSlug: string
   entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']
   eligibleMonths: SubscriptionMonth[]
+  /** When true, skip the "Did you change billing periods?" question and go straight to manual entry */
+  initiallyChanged?: boolean
   onDone: () => void
   onBack: () => void
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, onDone, onBack, onBeforeBackfill }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
   // did the user change periods during their subscription?
-  const [didChange, setDidChange] = useState<boolean | null>(null)
+  // If initiallyChanged=true (monthly user who told us they changed), start in the "Yes" path
+  const [didChange, setDidChange] = useState<boolean | null>(initiallyChanged ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feeTemplates, setFeeTemplates] = useState<ApiFeeTemplate[]>([])
@@ -1162,17 +1165,19 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
     getFeeTemplates(true).then(ts => setFeeTemplates(Array.isArray(ts) ? ts : [])).catch(() => {})
   }, [])
 
-  // ── "No" path: auto-computed batches ─────────────────────────────────────
-  const autoBatches = computeAutoBatches(
+  // ── "No" path: auto-computed batches (only when a prepay option is known) ─────
+  const prepayMonths = selectedPrepayOption?.months ?? 1
+  const prepayPriceStr = String(selectedPrepayOption?.price ?? '0')
+  const autoBatches = selectedPrepayOption ? computeAutoBatches(
     eligibleMonths,
     selectedMonthIds,
-    selectedPrepayOption.months,
+    prepayMonths,
     renewalDay,
     currency,
     allPrepayOptions,
-    String(selectedPrepayOption.price),
+    prepayPriceStr,
     entry.startDate,
-  )
+  ) : []
 
   // Per-batch editable overrides for the "No" path (amount, shipping, fees, discounts)
   type AutoBatchFee = { name: string; amount: string; currency: string; isCustom?: boolean }
@@ -1223,7 +1228,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
   type YesFee = { name: string; amount: string; currency: string; isCustom?: boolean }
   type YesRow = { date: string; amount: string; shipping: string; fees: YesFee[]; discounts: { name: string; amount: string; currency: string }[] }
   const [yesRows, setYesRows] = useState<YesRow[]>(() => {
-    const expected = Math.ceil(selectedMonthIds.length / selectedPrepayOption.months)
+    const expected = Math.ceil(selectedMonthIds.length / (selectedPrepayOption?.months ?? 1))
     return Array.from({ length: Math.max(expected, 1) }, () => ({
       date: '',
       amount: '',
@@ -1364,7 +1369,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
         .filter(b => b.row.date && b.months.length > 0)
         .map(b => {
           const providedAmount = b.row.amount ? parseDecimalInput(b.row.amount) : null
-          const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption.price))
+          const baseAmount = providedAmount !== null ? providedAmount : parseDecimalInput(String(selectedPrepayOption?.price ?? 0))
           const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
           const rowDiscounts = b.row.discounts.filter(d => d.name && d.amount)
@@ -1408,28 +1413,33 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
 
   // ── Question screen ───────────────────────────────────────────────────────
   if (didChange === null) {
+    const periodLabel = selectedPrepayOption
+      ? (selectedPrepayOption.label ?? `${selectedPrepayOption.months}-month prepay`)
+      : 'this billing period'
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing periods</h3>
           <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
         </div>
-        <div className="rounded-lg border border-stone-700/60 bg-stone-800/40 p-4 text-sm text-stone-300">
-          <p className="font-medium text-stone-100 mb-1">
-            {selectedPrepayOption.label ?? `${selectedPrepayOption.months}-month prepay`}
-          </p>
-          <p className="text-xs text-stone-500">
-            {selectedMonthIds.length} received box{selectedMonthIds.length !== 1 ? 'es' : ''} →{' '}
-            {autoBatches.length} billing period{autoBatches.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+        {selectedPrepayOption && (
+          <div className="rounded-lg border border-stone-700/60 bg-stone-800/40 p-4 text-sm text-stone-300">
+            <p className="font-medium text-stone-100 mb-1">
+              {periodLabel}
+            </p>
+            <p className="text-xs text-stone-500">
+              {selectedMonthIds.length} received box{selectedMonthIds.length !== 1 ? 'es' : ''} →{' '}
+              {autoBatches.length} billing period{autoBatches.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
         <p className="text-sm text-stone-300">Did your prepaid periods change during your subscription?</p>
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setDidChange(false)}
             className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
           >
-            <span className="font-medium text-stone-100">No, all payments were {selectedPrepayOption.label ?? `${selectedPrepayOption.months}-month prepay`}</span>
+            <span className="font-medium text-stone-100">No, all payments were {periodLabel}</span>
             <span className="block text-xs text-stone-500 mt-0.5">We&apos;ll auto-calculate billing dates from your start date and skips</span>
           </button>
           <button
@@ -1467,8 +1477,8 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
                   <span className="text-xs text-stone-400">{b.billingDate}</span>
                 </div>
                 <p className="text-xs text-stone-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
-                  {months.length < selectedPrepayOption.months && (
-                    <span className="text-stone-500"> ({months.length}/{selectedPrepayOption.months} boxes)</span>
+                  {months.length < (selectedPrepayOption?.months ?? Infinity) && (
+                    <span className="text-stone-500"> ({months.length}/{selectedPrepayOption?.months ?? '?'} boxes)</span>
                   )}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1614,7 +1624,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
             ?? yesBatches[i]?.months
             ?? []
           // For yes-path, use prepay option price as auto amount (not monthly × N)
-          const prepayPriceStr = String(selectedPrepayOption.price)
+          const prepayPriceStr = String(selectedPrepayOption?.price ?? 0)
           const autoAmount = row.date
             ? parseFloat(prepayPriceStr).toFixed(2)
             : null
@@ -1778,13 +1788,14 @@ export default function JoinSubscriptionModal({
   onJoined,
   onClose,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 'billing-change-question' | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
   const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string> } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
   const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
   const [step1JoinPayload, setStep1JoinPayload] = useState<Record<string, unknown> | null>(null)
+  const [monthlyUserChangedBilling, setMonthlyUserChangedBilling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
@@ -1847,7 +1858,12 @@ export default function JoinSubscriptionModal({
       }
 
       if (result.eligibleMonths.length > 0) {
-        setStep(2)
+        // If monthly (no prepay option) but subscription has prepay options, ask if billing period ever changed
+        if (!data.selectedPrepayOptionId && (prepayOptions?.length ?? 0) > 0) {
+          setStep('billing-change-question')
+        } else {
+          setStep(2)
+        }
       } else {
         // No past months: do the real join immediately and finish
         await performRealJoin(joinPayload, data.selectedPrepayOptionId ?? null)
@@ -1923,6 +1939,32 @@ export default function JoinSubscriptionModal({
           </>
         )}
 
+        {!joining && step === 'billing-change-question' && (
+          <div className="space-y-5">
+            <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing history</h3>
+            <p className="text-sm text-stone-300">
+              Did you always pay monthly for this subscription, or did you use a different billing period at some point
+              (e.g. switched to a prepaid plan)?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setMonthlyUserChangedBilling(false); setStep(2) }}
+                className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+              >
+                <span className="font-medium text-stone-100">Always monthly</span>
+                <span className="block text-xs text-stone-500 mt-0.5">I always paid month-by-month</span>
+              </button>
+              <button
+                onClick={() => { setMonthlyUserChangedBilling(true); setStep(2) }}
+                className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+              >
+                <span className="font-medium text-stone-100">I used different billing periods</span>
+                <span className="block text-xs text-stone-500 mt-0.5">e.g. was on a prepaid plan for part of the time</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {!joining && step === 2 && joinResult && joinResult.eligibleMonths.length > 0 && (
           <Step2
             eligibleMonths={joinResult.eligibleMonths}
@@ -1937,20 +1979,25 @@ export default function JoinSubscriptionModal({
               setStep('done')
               onJoined()
             }}
-            onNextWithBilling={step1SelectedPrepayOption
+            onNextWithBilling={(step1SelectedPrepayOption || monthlyUserChangedBilling)
               ? (data) => {
                   setStep2Data(data)
-                  // If the user selected fewer months than one full prepay period, skip step 3
-                  if (data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
-                    if (step1JoinPayload) {
-                      performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
-                        .then(() => { setStep('done'); onJoined() })
-                        .catch(() => { setStep('done'); onJoined() })
+                  if (step1SelectedPrepayOption) {
+                    // Prepay user: skip step 3 if partial period, otherwise show it
+                    if (data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
+                      if (step1JoinPayload) {
+                        performRealJoin(step1JoinPayload, (step1JoinPayload._selectedPrepayOptionId as string | null) ?? null)
+                          .then(() => { setStep('done'); onJoined() })
+                          .catch(() => { setStep('done'); onJoined() })
+                      } else {
+                        setStep('done')
+                        onJoined()
+                      }
                     } else {
-                      setStep('done')
-                      onJoined()
+                      setStep(3)
                     }
                   } else {
+                    // Monthly user who changed billing periods: always go to step 3
                     setStep(3)
                   }
                 }
@@ -1963,7 +2010,7 @@ export default function JoinSubscriptionModal({
           />
         )}
 
-        {!joining && step === 3 && joinResult && step2Data && step1SelectedPrepayOption && (
+        {!joining && step === 3 && joinResult && step2Data && (step1SelectedPrepayOption || monthlyUserChangedBilling) && (
           <Step3
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
@@ -1973,6 +2020,7 @@ export default function JoinSubscriptionModal({
             entryFees={step1Fees}
             entry={joinResult.entry}
             eligibleMonths={joinResult.eligibleMonths}
+            initiallyChanged={monthlyUserChangedBilling && !step1SelectedPrepayOption ? true : undefined}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
             onBeforeBackfill={step1JoinPayload
