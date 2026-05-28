@@ -120,18 +120,7 @@ export class FeatureTaggerService {
       rows.push({ editionId, rawValue: rv, categories: matchCategories(rv), sortOrder: 0 });
     }
 
-    // Sort rows by minimum category sort weight so features display in category order
-    const slugToWeight = new Map(rules.map((r, i) => [r.slug, i]));
-    rows.sort((a, b) => {
-      const aMin = a.categories.length > 0
-        ? Math.min(...a.categories.map((s) => slugToWeight.get(s) ?? Infinity))
-        : Infinity;
-      const bMin = b.categories.length > 0
-        ? Math.min(...b.categories.map((s) => slugToWeight.get(s) ?? Infinity))
-        : Infinity;
-      return aMin - bMin;
-    });
-    rows.forEach((r, i) => { r.sortOrder = i; });
+    rows.forEach((r, i) => { r.sortOrder = i; })
 
     // Fetch manual tags with their categories so we can decide what to skip vs. update
     const manualTags = await this.prisma.editionFeatureTag.findMany({

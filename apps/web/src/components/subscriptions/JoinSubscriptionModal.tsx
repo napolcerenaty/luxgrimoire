@@ -174,7 +174,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       }
     }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
-    if (matching.length === 0) return
+    if (matching.length === 0) {
+      // No non-sentinel records for this currency.
+      // If it's the sub's default currency, subscriptionPrice is the sentinel-based official price.
+      if (costCurrency === currency && subscriptionPrice) {
+        setBasePrice(parseFloat(subscriptionPrice).toFixed(2))
+      }
+      return
+    }
     const now = new Date()
     const nowYear = now.getFullYear(); const nowMonth = now.getMonth() + 1
     const applicable = [...matching]
@@ -210,8 +217,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     }
   }, [priceChanges]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Whether selected currency has official price records
+  // Whether selected currency has official price records.
+  // Also treat the sub's default currency as official when subscriptionPrice exists
+  // (it may be based on a sentinel record which is excluded from listPriceChanges).
   const hasOfficialPriceForCurrency = priceChanges.some(pc => pc.currency === costCurrency)
+    || (costCurrency === currency && !!subscriptionPrice)
 
   // Fee templates
   const [templates, setTemplates] = useState<ApiFeeTemplate[]>([])
