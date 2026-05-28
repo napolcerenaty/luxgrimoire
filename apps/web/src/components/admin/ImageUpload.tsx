@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
+import { cloudinaryUrl, uploadImage, deleteImage } from '@/lib/cloudinary'
 
 interface Props {
   label: string
@@ -24,9 +24,11 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
     if (!file) return
     setUploading(true)
     setError(null)
+    const previousId = value
     try {
       const publicId = await uploadImage(file, folder)
       onChange(publicId)
+      if (previousId) void deleteImage(previousId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {

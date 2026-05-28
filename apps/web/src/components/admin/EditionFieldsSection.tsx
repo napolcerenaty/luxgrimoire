@@ -628,7 +628,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                     return ai - bi
                   }).map(([group, cats]) => (
                     <optgroup key={group} label={group}>
-                      {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                     {cats.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder)).map(c =>
                         <option key={c.slug} value={c.slug}>{c.label}</option>
                       )}
                     </optgroup>
@@ -705,7 +705,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                   return ai - bi
                 }).map(([group, cats]) => (
                   <optgroup key={group} label={group}>
-                    {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                  {cats.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder)).map(c =>
                       <option key={c.slug} value={c.slug}>{c.label}</option>
                     )}
                   </optgroup>

@@ -25,9 +25,21 @@ export function cloudinaryUrl(
 }
 
 /**
- * Reads a file as a data URI, then POSTs it to the API upload endpoint.
- * Returns the Cloudinary publicId on success.
+ * Deletes a Cloudinary image via the API. Fire-and-forget — does not throw on failure.
  */
+export async function deleteImage(publicId: string): Promise<void> {
+  if (!publicId || publicId.startsWith('http')) return
+  try {
+    await fetch(`${API_BASE}/upload/image`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ publicId }),
+    })
+  } catch {
+    // best-effort
+  }
+}
 export async function uploadImage(file: File, folder: string): Promise<string> {
   const dataUri = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()

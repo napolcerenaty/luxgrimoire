@@ -634,6 +634,7 @@ export default function FeatureCategoriesPage() {
                 <table className="w-full text-sm text-stone-200">
                   <thead>
                     <tr className="border-b border-stone-800 bg-stone-900/80">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">#</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Label</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Matches when value contains…</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Excluded if contains…</th>
@@ -649,6 +650,9 @@ export default function FeatureCategoriesPage() {
                           !cat.isActive ? 'opacity-50' : ''
                         }`}
                       >
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-stone-500 font-mono">{cat.sortOrder}</span>
+                         </td>
                         <td className="px-4 py-2.5">
                           <div className="font-medium text-stone-200">{cat.label}</div>
                           <div className="text-xs text-stone-500 font-mono mt-0.5">{cat.slug}</div>
