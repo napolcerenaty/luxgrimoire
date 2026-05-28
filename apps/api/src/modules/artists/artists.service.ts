@@ -61,6 +61,7 @@ export class ArtistsService {
           id: true,
           slug: true,
           name: true,
+          bio: true,
           photoUrl: true,
           specialty: true,
           website: true,

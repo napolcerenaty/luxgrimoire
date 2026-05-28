@@ -50,10 +50,15 @@ export class EditionsService {
   async retagBySlug(slug: string): Promise<{ tagsCount: number }> {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { slug },
-      select: { id: true, features: true },
+      select: { id: true },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
-    const features = (edition.features as string[]) ?? [];
+    const existingTags = await this.prisma.editionFeatureTag.findMany({
+      where: { editionId: edition.id },
+      select: { rawValue: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const features = existingTags.map((t) => t.rawValue);
     await this.tagger.retagEdition(edition.id, features);
     const tagsCount = await this.prisma.editionFeatureTag.count({ where: { editionId: edition.id } });
     return { tagsCount };
@@ -62,13 +67,19 @@ export class EditionsService {
   /** Retag all editions. Meant to be called once after a schema/category migration on production. */
   async retagAll(): Promise<{ total: number; done: number; failed: number }> {
     const editions = await this.prisma.bookEdition.findMany({
-      select: { id: true, features: true },
+      select: {
+        id: true,
+        featureTags: {
+          select: { rawValue: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
     let done = 0;
     let failed = 0;
     for (const edition of editions) {
       try {
-        const features = (edition.features as string[]) ?? [];
+        const features = edition.featureTags.map((t) => t.rawValue);
         await this.tagger.retagEdition(edition.id, features);
         done++;
       } catch (err) {
@@ -230,7 +241,10 @@ export class EditionsService {
     const catMap = new Map(allCategories.map((c) => [c.slug, c]));
     return featureTags.map((t) => ({
       ...t,
-      categories: (t.categories as string[]).map((slug) => catMap.get(slug)).filter(Boolean),
+      categories: (t.categories as string[])
+        .map((slug) => catMap.get(slug))
+        .filter(Boolean)
+        .sort((a, b) => (a!.sortOrder ?? 0) - (b!.sortOrder ?? 0)),
     }));
   }
 
