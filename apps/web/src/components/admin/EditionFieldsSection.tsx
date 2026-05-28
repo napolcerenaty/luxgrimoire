@@ -332,7 +332,11 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
 export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
 
-export type FeaturePreviewHandle = { flushChanges: (slugOverride?: string) => Promise<void> }
+export type FeaturePreviewHandle = {
+  flushChanges: (slugOverride?: string) => Promise<void>
+  getCurrentRawValues: () => string[]
+  applyRetagResult: (result: Array<{ rawValue: string; categories: string[] }>) => void
+}
 
 // Synthetic ID for tags not yet in DB
 const newTagId = (rawValue: string) => `_new_${rawValue}`
@@ -512,6 +516,17 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   }
 
   useImperativeHandle(ref, () => ({
+    getCurrentRawValues: () => localTags.map(t => t.rawValue),
+    applyRetagResult: (result: Array<{ rawValue: string; categories: string[] }>) => {
+      setLocalTags(prev => prev.map(tag => {
+        const entry = result.find(r => r.rawValue === tag.rawValue)
+        if (!entry) return tag
+        const resolvedCategories = entry.categories
+          .map(slug => allCategories.find(c => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+        return { ...tag, categories: resolvedCategories }
+      }))
+    },
     flushChanges: async (slugOverride?: string) => {
       const slug = slugOverride ?? editionSlug
       // 1. POST new tags (synthetic IDs — AI-parsed or manually added)

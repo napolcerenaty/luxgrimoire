@@ -2799,11 +2799,8 @@ export class SubscriptionsService {
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
-      where: {
-        subscriptionId: sub.id,
-        NOT: { effectiveYear: 1900 }, // sentinel record is internal; not shown in the list
-      },
-      orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+      where: { subscriptionId: sub.id },
+      orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
     });
   }
 

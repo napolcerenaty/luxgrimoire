@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { API_BASE } from '@/lib/authFetch'
 
 interface AuthUser {
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
@@ -64,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore network errors
     }
     setUser(null)
+    router.push('/')
   }
 
   const refreshUser = async () => {

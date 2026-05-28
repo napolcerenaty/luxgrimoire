@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
@@ -33,7 +33,6 @@ const USER_NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
@@ -53,10 +52,9 @@ export function Navbar() {
   }, [])
 
   const handleLogout = async () => {
-    await logout() // calls API, clears cookie, clears user state
+    await logout() // calls API, clears cookie, clears user state, redirects to /
     queryClient.clear()
     setDropdownOpen(false)
-    router.push('/')
   }
 
   const isActive = (href: string) =>

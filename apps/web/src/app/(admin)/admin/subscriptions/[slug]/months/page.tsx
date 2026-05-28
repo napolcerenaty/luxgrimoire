@@ -846,23 +846,33 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         <p className="text-stone-600 text-sm italic">No price changes recorded yet.</p>
       ) : (
         <div className="space-y-2">
-          {changes.map(pc => (
-            <div key={pc.id} className="flex items-center justify-between bg-stone-800 rounded-lg px-3 py-2 text-sm">
-              <div className="space-y-0.5">
-                <span className="text-stone-100 font-medium">
-                  {MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear} — {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
-                </span>
-                {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+          {changes.map(pc => {
+            const isSentinel = pc.effectiveYear === 1900
+            return (
+              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-amber-900/40' : 'bg-stone-800'}`}>
+                <div className="space-y-0.5">
+                  <span className="text-stone-100 font-medium">
+                    {isSentinel
+                      ? <span className="text-amber-400/80">⚓ Base price (sentinel)</span>
+                      : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
+                    }
+                    {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
+                  </span>
+                  {isSentinel && <p className="text-stone-500 text-xs">Initial base price. Cannot be deleted.</p>}
+                  {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+                </div>
+                {!isSentinel && (
+                  <button
+                    onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
+                    disabled={deleteMutation.isPending}
+                    className="text-red-500 hover:text-red-400 text-xs transition-colors ml-3 shrink-0"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
-              <button
-                onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
-                disabled={deleteMutation.isPending}
-                className="text-red-500 hover:text-red-400 text-xs transition-colors ml-3 shrink-0"
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

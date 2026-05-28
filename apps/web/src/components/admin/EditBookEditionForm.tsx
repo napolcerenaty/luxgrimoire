@@ -213,10 +213,18 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     setRetagging(true)
     setRetagDone(false)
     try {
-      await authFetch(`/editions/${edition.slug}/retag`, { method: 'POST' })
+      const features = featurePreviewRef.current?.getCurrentRawValues() ?? []
+      if (features.length === 0) {
+        setRetagDone(true)
+        setTimeout(() => setRetagDone(false), 3000)
+        return
+      }
+      const result = await authFetch<Array<{ rawValue: string; categories: string[] }>>(
+        '/feature-categories/tag-preview',
+        { method: 'POST', body: JSON.stringify({ features }) },
+      )
+      featurePreviewRef.current?.applyRetagResult(result)
       setRetagDone(true)
-      qc.invalidateQueries({ queryKey: ['edition-detail-edit', edition.slug] })
-      qc.invalidateQueries({ queryKey: ['edition-detail', edition.slug] })
       setTimeout(() => setRetagDone(false), 3000)
     } catch (e: unknown) {
       alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
