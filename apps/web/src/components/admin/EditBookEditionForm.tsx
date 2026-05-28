@@ -145,6 +145,8 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const qc = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [retagging, setRetagging] = useState(false)
+  const [retagDone, setRetagDone] = useState(false)
 
   // Pre-populate from existing edition
   const [companyId, setCompanyId] = useState(edition.bookBoxCompanyId ?? '')
@@ -207,6 +209,22 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
     }
   }
 
+  const handleRetag = async () => {
+    setRetagging(true)
+    setRetagDone(false)
+    try {
+      await authFetch(`/editions/${edition.slug}/retag`, { method: 'POST' })
+      setRetagDone(true)
+      qc.invalidateQueries({ queryKey: ['edition-detail-edit', edition.slug] })
+      qc.invalidateQueries({ queryKey: ['edition-detail', edition.slug] })
+      setTimeout(() => setRetagDone(false), 3000)
+    } catch (e: unknown) {
+      alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRetagging(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setBusy(true)
     try {
@@ -219,7 +237,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         body: JSON.stringify({
           bookBoxCompanyId: companyId || undefined,
           collectionId: collectionId || null,
-          publisher: publisher.trim() || undefined,
+          publisher: publisher.trim() || null,
           photoCredit: photoCredit.trim() || null,
           basePrice: price || undefined,
           currency: currency || undefined,
@@ -365,6 +383,16 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           {saved ? '✓ Saved!' : busy ? 'Saving…' : 'Save Changes'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+        <button
+          type="button"
+          disabled={retagging || busy}
+          onClick={handleRetag}
+          className={retagDone
+            ? 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-green-900/50 text-green-300 transition-colors'
+            : 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50'}
+        >
+          {retagDone ? '✓ Retagged!' : retagging ? 'Retagging…' : '↺ Retag'}
+        </button>
       </div>
     </div>
   )

@@ -181,7 +181,7 @@ FEATURES RULES:
   Example: "Exclusive gilded edges painted" → feature: "Exclusive gilded edges"
   NOTE: Do NOT strip verbs that are an integral part of the feature name (e.g. "digitally printed edges" — "printed" is part of the material description, not an attribution verb).
 - INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create ONE feature = the initial description before the first role verb, and one artist entry per person. Each artist's role = feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles.
-  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour".
+  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour", "composed/composing" → "composition".
   Artist names may or may not have an @ prefix — capture them exactly as written (with or without @).
   Example: "Exclusive redesigned dust jacket with art by 2 ghosts and designed by @lichen_and_limestone" →
     features: ["Exclusive redesigned dust jacket"]
@@ -305,6 +305,8 @@ For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 function normalizePlurals(value: string): string {
   return value
     .replace(/\bribbon bookmarks\b/gi, m => m.slice(0, -1))   // ribbon bookmarks → ribbon bookmark
+    .replace(/\bdust jackets\b/gi,     m => m.slice(0, -1))   // dust jackets → dust jacket
+    .replace(/\bjackets\b/gi,          m => m.slice(0, -1))   // jackets → jacket
     .replace(/\bhardcases\b/gi,        m => m.slice(0, -1))   // hardcases → hardcase
     .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
     .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback

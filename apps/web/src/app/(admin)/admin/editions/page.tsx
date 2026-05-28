@@ -110,6 +110,7 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
     queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}/for-edit`),
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
   })
   if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
   return <EditBookEditionForm key={data.id} edition={data} onSuccess={() => {
