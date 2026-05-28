@@ -121,17 +121,23 @@ export class SubscriptionsService {
   }
 
   /** Compute the current effective price from a subscription's price change records.
-   *  Returns the sentinel price (year=1900) as "base price", or null if no records exist. */
+   *  Returns the sentinel price (year=1900) as "base price", or null if no records exist.
+   *  When defaultCurrency is provided, only records matching that currency are considered. */
   private computeCurrentPrice(
-    priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string } }[],
+    priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string }; currency: string }[],
+    defaultCurrency?: string | null,
   ): string | null {
     if (!priceChanges.length) return null;
+    const pool = defaultCurrency
+      ? priceChanges.filter(pc => pc.currency === defaultCurrency)
+      : priceChanges;
+    if (!pool.length) return null;
     // Return the most recent explicit price change (excluding sentinel 1900-01).
     // Fall back to sentinel if no explicit change exists.
-    const explicit = priceChanges
+    const explicit = pool
       .filter(pc => pc.effectiveYear !== 1900)
       .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth);
-    const best = explicit[0] ?? priceChanges.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    const best = explicit[0] ?? pool.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
     return best ? parseFloat(best.newBasePrice.toString()).toFixed(2) : null;
   }
 
@@ -278,7 +284,7 @@ export class SubscriptionsService {
 
     const mapped = data.map(({ comboComponents, priceChanges, ...rest }) => ({
       ...rest,
-      price: this.computeCurrentPrice(priceChanges),
+      price: this.computeCurrentPrice(priceChanges, (rest as any).currency),
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
 
@@ -485,16 +491,16 @@ export class SubscriptionsService {
     }
 
     const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
-    const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
     return {
       ...rest,
-      price: this.computeCurrentPrice(priceChanges),
+      price: this.computeCurrentPrice(priceChanges, rest.currency),
       // Original price: the sentinel record's value — represents the price from the very beginning,
       // before any explicit price changes. Used by the frontend as a fallback when resolving
       // historical prices for months that predate the first explicit price change.
       originalBasePrice: sentinelRecord
         ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
-        : this.computeCurrentPrice(priceChanges),
+        : this.computeCurrentPrice(priceChanges, rest.currency),
       months,
       componentIds: comboComponents.map((c) => c.componentId),
       components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
@@ -1010,7 +1016,7 @@ export class SubscriptionsService {
 
     return Promise.all(entries.map(async (entry) => {
       const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
-      const sub = { ...subRest, price: this.computeCurrentPrice(subPriceChanges ?? []) };
+      const sub = { ...subRest, price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency) };
 
       // Use stored nextRenewalDate from DB; fall back to computing if not yet populated
       let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
