@@ -3,6 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { UploadService } from '../upload/upload.service';
 import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -20,6 +21,7 @@ export class ArtistsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly uploadService: UploadService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -61,7 +63,6 @@ export class ArtistsService {
           id: true,
           slug: true,
           name: true,
-          bio: true,
           photoUrl: true,
           specialty: true,
           website: true,
@@ -185,7 +186,10 @@ export class ArtistsService {
   }
 
   async update(slug: string, dto: UpdateArtistDto) {
-    await this.findBySlug(slug);
+    const existing = await this.findBySlug(slug);
+    if (dto.photoUrl !== undefined && dto.photoUrl !== existing.photoUrl) {
+      await this.uploadService.deleteImages([existing.photoUrl]);
+    }
     const artist = await this.prisma.artist.update({ where: { slug }, data: dto });
     await this.indexArtist(artist);
     await Promise.all([
@@ -197,6 +201,7 @@ export class ArtistsService {
 
   async delete(slug: string) {
     const artist = await this.findBySlug(slug);
+    await this.uploadService.deleteImages([artist.photoUrl]);
     await this.typesense.deleteDocument('artists', artist.id);
     await Promise.all([
       this.cache.del(artistProfileKey(slug)),

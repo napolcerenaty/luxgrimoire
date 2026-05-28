@@ -787,6 +787,13 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
+    if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
+      await this.uploadService.deleteImages([existing.coverImage]);
+    }
+    if (dto.spoilerImage !== undefined && dto.spoilerImage !== existing.spoilerImage) {
+      await this.uploadService.deleteImages([existing.spoilerImage]);
+    }
+
     const updated = await this.prisma.subscriptionMonth.update({
       where: { id: existing.id },
       data: {
@@ -807,6 +814,8 @@ export class SubscriptionsService {
       },
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
+
+    await this.uploadService.deleteImages([existing.coverImage, existing.spoilerImage]);
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
 

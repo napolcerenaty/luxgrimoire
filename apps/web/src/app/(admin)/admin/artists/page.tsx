@@ -152,6 +152,7 @@ export default function AdminArtistsPage() {
   const queryClient = useQueryClient()
   const createModal = useModalState()
   const [editArtist, setEditArtist] = useState<ApiArtist | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
   const [deleteArtist, setDeleteArtist] = useState<ApiArtist | null>(null)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -194,6 +195,16 @@ export default function AdminArtistsPage() {
     },
   })
 
+  const handleEditArtist = async (artist: ApiArtist) => {
+    setEditLoading(true)
+    try {
+      const full = await authFetch<ApiArtist>(`/artists/${artist.slug}`)
+      setEditArtist(full)
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   const columns = [
     {
       key: 'name', label: 'Name',
@@ -234,7 +245,7 @@ export default function AdminArtistsPage() {
           <DataTable
             columns={columns}
             data={artists}
-            onEdit={(row) => setEditArtist(row)}
+            onEdit={(row) => handleEditArtist(row)}
             onDelete={(row) => setDeleteArtist(row)}
           />
           <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} />
@@ -251,11 +262,13 @@ export default function AdminArtistsPage() {
       </FormModal>
 
       <FormModal
-        open={editArtist !== null}
+        open={editArtist !== null || editLoading}
         title="Edit Artist"
         onClose={() => setEditArtist(null)}
       >
-        {editArtist && (
+        {editLoading ? (
+          <div className="text-stone-400 py-8 text-center">Loading…</div>
+        ) : editArtist && (
           <ArtistForm
             initial={artistToForm(editArtist)}
             submitLabel="Save Changes"

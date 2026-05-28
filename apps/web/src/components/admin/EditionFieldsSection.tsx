@@ -33,7 +33,7 @@ const CATEGORY_GROUP_LABELS: Record<string, string> = {
   format: 'Format',
   edition_type: 'Edition Type',
 }
-const CATEGORY_GROUP_ORDER = ['edition_type', 'cover', 'binding', 'interior', 'signatures', 'extras', 'format']
+const CATEGORY_GROUP_ORDER = ['signed', 'edges', 'cover', 'binding', 'extras', 'interior', 'format']
 
 const BOOK_LANGUAGES = [
   'English', 'Polish', 'French', 'German', 'Spanish',
@@ -619,7 +619,14 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                       (acc[g] = acc[g] ?? []).push(c);
                       return acc;
                     }, {})
-                  ).map(([group, cats]) => (
+                  ).sort(([a], [b]) => {
+                    const ai = CATEGORY_GROUP_ORDER.indexOf(a)
+                    const bi = CATEGORY_GROUP_ORDER.indexOf(b)
+                    if (ai === -1 && bi === -1) return a.localeCompare(b)
+                    if (ai === -1) return 1
+                    if (bi === -1) return -1
+                    return ai - bi
+                  }).map(([group, cats]) => (
                     <optgroup key={group} label={group}>
                       {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
                         <option key={c.slug} value={c.slug}>{c.label}</option>
@@ -683,7 +690,26 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                 onChange={e => { const v = e.target.value; if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') } }}
                 className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500">
                 <option value="">+ add category…</option>
-                {availableForNew.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+                {Object.entries(
+                  availableForNew.reduce<Record<string, typeof availableForNew>>((acc, c) => {
+                    const g = c.group || 'Other'
+                    ;(acc[g] = acc[g] ?? []).push(c)
+                    return acc
+                  }, {})
+                ).sort(([a], [b]) => {
+                  const ai = CATEGORY_GROUP_ORDER.indexOf(a)
+                  const bi = CATEGORY_GROUP_ORDER.indexOf(b)
+                  if (ai === -1 && bi === -1) return a.localeCompare(b)
+                  if (ai === -1) return 1
+                  if (bi === -1) return -1
+                  return ai - bi
+                }).map(([group, cats]) => (
+                  <optgroup key={group} label={group}>
+                    {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                      <option key={c.slug} value={c.slug}>{c.label}</option>
+                    )}
+                  </optgroup>
+                ))}
               </select>
             )}
           </div>
