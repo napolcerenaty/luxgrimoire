@@ -113,6 +113,8 @@ export default function CreateBookEditionForm({
   const [showLinkStep, setShowLinkStep] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
   const [linkDone, setLinkDone] = useState(false)
+  const [retagging, setRetagging] = useState(false)
+  const [retagDone, setRetagDone] = useState(false)
 
   // ── Companies ────────────────────────────────────────────────────────────
   const { data: companiesData } = useQuery({
@@ -177,6 +179,31 @@ export default function CreateBookEditionForm({
         const toAdd = data.authors!.filter(a => !existing.has(a.name.toLowerCase()))
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
+    }
+  }
+
+  // ── Retag preview ─────────────────────────────────────────────────────────
+  const handleRetag = async () => {
+    setRetagging(true)
+    setRetagDone(false)
+    try {
+      const features = featurePreviewRef.current?.getCurrentRawValues() ?? []
+      if (features.length === 0) {
+        setRetagDone(true)
+        setTimeout(() => setRetagDone(false), 3000)
+        return
+      }
+      const result = await authFetch<Array<{ rawValue: string; categories: string[] }>>(
+        '/feature-categories/tag-preview',
+        { method: 'POST', body: JSON.stringify({ features }) },
+      )
+      featurePreviewRef.current?.applyRetagResult(result)
+      setRetagDone(true)
+      setTimeout(() => setRetagDone(false), 3000)
+    } catch (e: unknown) {
+      alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRetagging(false)
     }
   }
 
@@ -562,6 +589,16 @@ export default function CreateBookEditionForm({
           {saved ? '✓ Added!' : busy ? 'Saving…' : subscriptionSlug ? (existingBookId ? 'Create Edition & Link' : 'Create & Link to Month') : 'Create Edition'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+        <button
+          type="button"
+          disabled={retagging || busy}
+          onClick={handleRetag}
+          className={retagDone
+            ? 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-green-900/50 text-green-300 transition-colors'
+            : 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50'}
+        >
+          {retagDone ? '✓ Retagged!' : retagging ? 'Retagging…' : '↺ Retag'}
+        </button>
       </div>
 
       {duplicateEdition && !bypassDuplicate && (
