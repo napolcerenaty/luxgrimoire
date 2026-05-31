@@ -1,14 +1,11 @@
 /**
  * Unit tests for SubscriptionsService.removeMySubscription()
  *
- * Covers all deletion scenarios from the "My Subscriptions" delete feature:
- * - Active subscription, no history
- * - Cancelled subscription with single history record
- * - Cancelled subscription with multiple history records (select one, multiple, all)
- * - Active subscription with history (select one period, multiple, all, removeCurrentOnly)
- *
- * Uses jest-mock-extended to mock PrismaService. findBySlug is spied on.
- * crowdStatsService.decrementSubscriberCount is spied to avoid side-effects.
+ * After the subscription-entry-per-period refactor:
+ * - historyId/historyIds refer to INACTIVE entry IDs (not history table rows)
+ * - removeCurrentOnly deletes the active entry only (no history detach)
+ * - removeAllPeriods uses deleteMany on all entries
+ * - No userSubscriptionMembershipHistory table
  */
 
 import { NotFoundException } from '@nestjs/common';
@@ -16,62 +13,36 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from './subscriptions.service';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const SUB_ID = 'sub-delete-1';
 const SUB_SLUG = 'delete-test-sub';
 const USER_ID = 'user-delete-1';
 const ENTRY_ID = 'entry-delete-1';
-
-// ── Fixtures ──────────────────────────────────────────────────────────────────
+const INACTIVE_ID_1 = 'inactive-1';
+const INACTIVE_ID_2 = 'inactive-2';
 
 function makeSub(overrides: Record<string, unknown> = {}) {
   return {
-    id: SUB_ID,
-    slug: SUB_SLUG,
-    name: 'Delete Test Sub',
-    isCombo: false,
-    componentIds: [],
-    currency: 'GBP',
-    renewalDay: 1,
-    renewalDayUserSet: false,
-    paymentOnStartup: false,
-    signupIncludesCurrentMonth: false,
-    renewalMonthOffset: 0,
-    isContentStream: false,
-    ...overrides,
+    id: SUB_ID, slug: SUB_SLUG, name: 'Delete Test Sub', isCombo: false, componentIds: [],
+    currency: 'GBP', renewalDay: 1, renewalDayUserSet: false, paymentOnStartup: false,
+    signupIncludesCurrentMonth: false, renewalMonthOffset: 0, isContentStream: false, ...overrides,
   };
 }
 
 function makeEntry(overrides: Record<string, unknown> = {}) {
   return {
-    id: ENTRY_ID,
-    userId: USER_ID,
-    subscriptionId: SUB_ID,
-    active: true,
-    startDate: '2024-01-01',
-    cancellationDate: null,
-    basePrice: '20.00',
-    costCurrency: 'GBP',
-    billingPeriods: [],
-    ...overrides,
+    id: ENTRY_ID, userId: USER_ID, subscriptionId: SUB_ID, active: true,
+    startDate: '2024-01-01', cancellationDate: null, basePrice: '20.00', costCurrency: 'GBP',
+    billingPeriods: [], ...overrides,
   };
 }
 
-function makeHistoryRecord(id: string, startDate: string, endDate: string, overrides: Record<string, unknown> = {}) {
+function makeInactiveEntry(id: string, overrides: Record<string, unknown> = {}) {
   return {
-    id,
-    userId: USER_ID,
-    subscriptionId: SUB_ID,
-    entryId: ENTRY_ID,
-    startDate,
-    endDate,
-    cancellationReason: null,
-    ...overrides,
+    id, userId: USER_ID, subscriptionId: SUB_ID, active: false,
+    startDate: '2023-01-01', cancellationDate: '2023-12-31', basePrice: '18.00', costCurrency: 'GBP',
+    billingPeriods: [], ...overrides,
   };
 }
-
-// ── Test setup ────────────────────────────────────────────────────────────────
 
 describe('SubscriptionsService — removeMySubscription', () => {
   let service: SubscriptionsService;
@@ -81,102 +52,68 @@ describe('SubscriptionsService — removeMySubscription', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    cache = {
-      del: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue(undefined),
-    };
-    crowdStatsMock = {
-      decrementSubscriberCount: jest.fn().mockResolvedValue(undefined),
-    };
-
-    service = new SubscriptionsService(
-      prisma,
-      {} as any, // TypesenseService
-      {} as any, // SkipPolicyEngine
-      {} as any, // RenewalCronService
-      {} as any, // UploadService
-      crowdStatsMock as any,
-      cache as any,
-    );
+    cache = { del: jest.fn().mockResolvedValue(undefined), get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined) };
+    crowdStatsMock = { decrementSubscriberCount: jest.fn().mockResolvedValue(undefined) };
+    service = new SubscriptionsService(prisma, {} as any, {} as any, {} as any, {} as any, crowdStatsMock as any, cache as any);
   });
 
-  function setupBaseEntry(entryOverrides: Record<string, unknown> = {}) {
-    const sub = makeSub();
-    const entry = makeEntry(entryOverrides);
-    jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+  function setupFindMany(entries: ReturnType<typeof makeEntry>[]) {
+    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce(entries);
     (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
-    (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
-    (prisma.userSubscriptionMembershipHistory.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
     (prisma.userSubscriptionEntry.delete as jest.Mock).mockResolvedValueOnce({ id: ENTRY_ID });
-    return { sub, entry };
+    (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: entries.length });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case: Active subscription, no history
-  // ══════════════════════════════════════════════════════════════════════════
+  describe('active subscription with no historical periods', () => {
+    it('deletes the entry and decrements subscriber count', async () => {
+      const sub = makeSub();
+      const entry = makeEntry({ active: true });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      setupFindMany([entry]);
 
-  describe('active subscription with no history', () => {
-    it('removes the entry and decrements subscriber count', async () => {
-      setupBaseEntry({ active: true });
-
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: false,
-        removeSpending: false,
-      });
+      await service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: false, removeSpending: false });
 
       expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId_subscriptionId: { userId: USER_ID, subscriptionId: SUB_ID } },
-        }),
+        expect.objectContaining({ where: { id: ENTRY_ID } }),
       );
       expect(crowdStatsMock.decrementSubscriberCount).toHaveBeenCalledWith(SUB_ID);
     });
 
     it('removes books when removeBooks=true', async () => {
-      setupBaseEntry({ active: true });
+      const sub = makeSub();
+      const entry = makeEntry({ active: true });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      setupFindMany([entry]);
       (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
 
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: true,
-        removeSpending: false,
-      });
+      await service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: true, removeSpending: false });
 
       expect(prisma.userBookEntry.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ userId: USER_ID, subscriptionEntryId: ENTRY_ID }),
-        }),
+        expect.objectContaining({ where: expect.objectContaining({ userId: USER_ID, subscriptionEntryId: ENTRY_ID }) }),
       );
     });
 
     it('removes spending when removeSpending=true', async () => {
-      const entry = makeEntry({ active: true, billingPeriods: [{ id: 'bp-1', purchaseTransactionId: 'tx-1' }] });
       const sub = makeSub();
+      const entry = makeEntry({ active: true, billingPeriods: [{ id: 'bp-1', purchaseTransactionId: 'tx-1' }] });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
       (prisma.purchaseTransaction.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
       (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
       (prisma.userSubscriptionEntry.delete as jest.Mock).mockResolvedValueOnce({ id: ENTRY_ID });
 
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: false,
-        removeSpending: true,
-      });
+      await service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: false, removeSpending: true });
 
       expect(prisma.purchaseTransaction.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: { in: ['tx-1'] } },
-        }),
+        expect.objectContaining({ where: { id: { in: ['tx-1'] } } }),
       );
     });
 
-    it('throws NotFoundException when user has no subscription entry', async () => {
+    it('throws NotFoundException when user has no subscription entries', async () => {
       const sub = makeSub();
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
 
       await expect(
         service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: false, removeSpending: false }),
@@ -184,127 +121,93 @@ describe('SubscriptionsService — removeMySubscription', () => {
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case: Single historical record only (cancelled, no active)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('cancelled subscription with single history record', () => {
-    it('removes the entry (auto-created history for cancelled period is also cleaned up)', async () => {
-      setupBaseEntry({ active: false, startDate: '2023-01-01', cancellationDate: '2023-12-31' });
-
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: false,
-        removeSpending: false,
-      });
-
-      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalled();
-      // Should clean up the auto-created history record for this cancelled period
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            userId: USER_ID,
-            subscriptionId: SUB_ID,
-            startDate: '2023-01-01',
-          }),
-        }),
-      );
-    });
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 1.1 — Many history records, no active: select one period
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 1.1: multiple history records, remove single period', () => {
-    it('removes only the specified history record, does not delete the entry', async () => {
+  describe('cancelled subscription with single inactive entry', () => {
+    it('deletes the inactive entry (no history table to clean up)', async () => {
       const sub = makeSub();
       const entry = makeEntry({ active: false, cancellationDate: '2023-12-31' });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+      setupFindMany([entry]);
 
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: false,
-        removeSpending: false,
-        historyId: 'hist-1',
-      });
+      await service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: false, removeSpending: false });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'hist-1', userId: USER_ID },
-        }),
-      );
-      // Entry itself should NOT be deleted
-      expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
+      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalled();
+      expect(crowdStatsMock.decrementSubscriberCount).not.toHaveBeenCalled();
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 1.2 — Many history records, no active: select multiple (not all)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 1.2: multiple history records, remove multiple specific periods', () => {
-    it('removes all specified history records by historyIds array, does not delete the entry', async () => {
+  describe('case 1.1: multiple inactive entries, remove single period by historyId', () => {
+    it('deletes only the specified inactive entry (by id), does not touch others', async () => {
       const sub = makeSub();
-      const entry = makeEntry({ active: false });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
         removeSpending: false,
-        historyIds: ['hist-1', 'hist-2'],
+        historyId: INACTIVE_ID_1,
       });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: { in: ['hist-1', 'hist-2'] }, userId: USER_ID },
-        }),
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [INACTIVE_ID_1] }, userId: USER_ID } }),
       );
+      expect(prisma.userSubscriptionEntry.findMany).not.toHaveBeenCalled();
+      expect(prisma.userSubscriptionSkipState.deleteMany).not.toHaveBeenCalled();
       expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
+      expect(crowdStatsMock.decrementSubscriberCount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('case 1.2: multiple inactive entries, remove multiple specific periods', () => {
+    it('deletes all specified inactive entries by historyIds array', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
+
+      await service.removeMySubscription(USER_ID, SUB_SLUG, {
+        removeBooks: false,
+        removeSpending: false,
+        historyIds: [INACTIVE_ID_1, INACTIVE_ID_2],
+      });
+
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [INACTIVE_ID_1, INACTIVE_ID_2] }, userId: USER_ID } }),
+      );
     });
 
-    it('removes books for each selected period when removeBooks=true', async () => {
+    it('removes books for selected periods when removeBooks=true', async () => {
       const sub = makeSub();
-      const entry = makeEntry({ active: false });
+      const inact1 = makeInactiveEntry(INACTIVE_ID_1);
+      const inact2 = makeInactiveEntry(INACTIVE_ID_2, { startDate: '2023-06-01', cancellationDate: '2024-01-01' });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      // Book removal queries for each history period (2 periods)
-      const histRecord1 = makeHistoryRecord('hist-1', '2022-01-01', '2022-12-31');
-      const histRecord2 = makeHistoryRecord('hist-2', '2023-01-01', '2023-12-31');
-      (prisma.userSubscriptionMembershipHistory.findFirst as jest.Mock)
-        .mockResolvedValueOnce(histRecord1)
-        .mockResolvedValueOnce(histRecord2);
-      (prisma.subscriptionMonth.findMany as jest.Mock)
-        .mockResolvedValueOnce([]) // no months in range for period 1
-        .mockResolvedValueOnce([]); // no months in range for period 2
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([inact1, inact2]);
+      (prisma.userBookEntry.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: true,
         removeSpending: false,
-        historyIds: ['hist-1', 'hist-2'],
+        historyIds: [INACTIVE_ID_1, INACTIVE_ID_2],
       });
 
-      // Should look up each history record for date range
-      expect(prisma.userSubscriptionMembershipHistory.findFirst).toHaveBeenCalledTimes(2);
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: { in: ['hist-1', 'hist-2'] }, userId: USER_ID },
-        }),
+      expect(prisma.userBookEntry.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [INACTIVE_ID_1, INACTIVE_ID_2] }, userId: USER_ID } }),
       );
-      expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 1.3/1.4 — Many history records, no active: remove all (removeAllPeriods)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 1.3/1.4: multiple history records, remove all periods', () => {
-    it('removes all history records and the entry when removeAllPeriods=true', async () => {
-      setupBaseEntry({ active: false, cancellationDate: '2023-12-31' });
+  describe('case 1.3/1.4: multiple inactive entries, remove all (removeAllPeriods)', () => {
+    it('uses deleteMany for all entries when removeAllPeriods=true, does NOT decrement subscriber count', async () => {
+      const sub = makeSub();
+      const inact1 = makeInactiveEntry(INACTIVE_ID_1);
+      const inact2 = makeInactiveEntry(INACTIVE_ID_2);
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([inact1, inact2]);
+      (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
@@ -312,105 +215,82 @@ describe('SubscriptionsService — removeMySubscription', () => {
         removeAllPeriods: true,
       });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId: USER_ID, subscriptionId: SUB_ID },
-        }),
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: USER_ID, subscriptionId: SUB_ID } }),
       );
-      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalled();
+      expect(crowdStatsMock.decrementSubscriberCount).not.toHaveBeenCalled();
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 2.1 — Active subscription + history: remove single history period
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 2.1: active subscription with history, remove single history period', () => {
-    it('removes only the specified history record, active entry is untouched', async () => {
+  describe('case 2.1: active subscription with inactive entries, remove single past period', () => {
+    it('deletes only the specified inactive entry by historyId, active entry is untouched', async () => {
       const sub = makeSub();
-      const entry = makeEntry({ active: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
         removeSpending: false,
-        historyId: 'hist-old-1',
+        historyId: INACTIVE_ID_1,
       });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'hist-old-1', userId: USER_ID },
-        }),
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [INACTIVE_ID_1] }, userId: USER_ID } }),
+      );
+      expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
+      expect(crowdStatsMock.decrementSubscriberCount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('case 2.2: active subscription with inactive entries, remove multiple specific past periods', () => {
+    it('deletes specified inactive entries, active entry is untouched', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
+
+      await service.removeMySubscription(USER_ID, SUB_SLUG, {
+        removeBooks: false,
+        removeSpending: false,
+        historyIds: [INACTIVE_ID_1, INACTIVE_ID_2],
+      });
+
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [INACTIVE_ID_1, INACTIVE_ID_2] }, userId: USER_ID } }),
       );
       expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 2.2 — Active subscription + history: remove multiple specific history periods
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 2.2: active subscription with history, remove multiple specific history periods', () => {
-    it('removes specified history records by historyIds, active entry is untouched', async () => {
+  describe('case 2.3: active subscription with inactive entries, remove all past periods via historyIds', () => {
+    it('deletes all specified inactive entries, active entry is untouched', async () => {
       const sub = makeSub();
-      const entry = makeEntry({ active: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 3 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
         removeSpending: false,
-        historyIds: ['hist-old-1', 'hist-old-2'],
+        historyIds: [INACTIVE_ID_1, INACTIVE_ID_2, 'inactive-3'],
       });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: { in: ['hist-old-1', 'hist-old-2'] }, userId: USER_ID },
+          where: { id: { in: [INACTIVE_ID_1, INACTIVE_ID_2, 'inactive-3'] }, userId: USER_ID },
         }),
       );
       expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
     });
   });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 2.3 — Active subscription + history: remove all history, keep active
-  // ══════════════════════════════════════════════════════════════════════════
-
-  describe('case 2.3: active subscription with history, remove all history periods only', () => {
-    it('removes all history records without removeAllPeriods by sending historyIds for all', async () => {
-      // This is handled the same as case 1.2 — historyIds covering all history records.
-      // The entry is NOT deleted since neither removeAllPeriods nor removeCurrentOnly is set.
-      const sub = makeSub();
-      const entry = makeEntry({ active: true });
-      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
-      (prisma.userSubscriptionMembershipHistory.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 3 });
-
-      await service.removeMySubscription(USER_ID, SUB_SLUG, {
-        removeBooks: false,
-        removeSpending: false,
-        historyIds: ['hist-1', 'hist-2', 'hist-3'],
-      });
-
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: { in: ['hist-1', 'hist-2', 'hist-3'] }, userId: USER_ID },
-        }),
-      );
-      expect(prisma.userSubscriptionEntry.delete).not.toHaveBeenCalled();
-    });
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 2.4 — Active subscription + history: remove everything (removeAllPeriods)
-  // ══════════════════════════════════════════════════════════════════════════
 
   describe('case 2.4: active subscription, remove all including current (removeAllPeriods)', () => {
-    it('removes all history records and the entry, decrements subscriber count', async () => {
-      setupBaseEntry({ active: true });
+    it('deletes all entries, decrements subscriber count', async () => {
+      const sub = makeSub();
+      const activeEntry = makeEntry({ active: true });
+      const inactiveEntry = makeInactiveEntry(INACTIVE_ID_1);
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([activeEntry, inactiveEntry]);
+      (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      (prisma.userSubscriptionEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
@@ -418,23 +298,21 @@ describe('SubscriptionsService — removeMySubscription', () => {
         removeAllPeriods: true,
       });
 
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId: USER_ID, subscriptionId: SUB_ID },
-        }),
+      expect(prisma.userSubscriptionEntry.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: USER_ID, subscriptionId: SUB_ID } }),
       );
-      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalled();
       expect(crowdStatsMock.decrementSubscriberCount).toHaveBeenCalledWith(SUB_ID);
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Case 2.5 — Active subscription: remove only current period (keep history)
-  // ══════════════════════════════════════════════════════════════════════════
-
   describe('case 2.5: active subscription, remove current period only (removeCurrentOnly)', () => {
-    it('detaches history records (entryId→null) and deletes the entry, decrements count', async () => {
-      setupBaseEntry({ active: true });
+    it('deletes active entry and decrements subscriber count', async () => {
+      const sub = makeSub();
+      const activeEntry = makeEntry({ active: true });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(activeEntry);
+      (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      (prisma.userSubscriptionEntry.delete as jest.Mock).mockResolvedValueOnce({ id: ENTRY_ID });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
         removeBooks: false,
@@ -442,29 +320,21 @@ describe('SubscriptionsService — removeMySubscription', () => {
         removeCurrentOnly: true,
       });
 
-      // History records should be detached (entryId set to null), not deleted
-      expect(prisma.userSubscriptionMembershipHistory.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { entryId: ENTRY_ID, userId: USER_ID },
-          data: { entryId: null },
-        }),
+      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: ENTRY_ID } }),
       );
-      // History records should NOT be deleted
-      expect(prisma.userSubscriptionMembershipHistory.deleteMany).not.toHaveBeenCalled();
-      // Entry is deleted (but history survives as orphaned)
-      expect(prisma.userSubscriptionEntry.delete).toHaveBeenCalled();
+      expect(prisma.userSubscriptionEntry.deleteMany).not.toHaveBeenCalled();
       expect(crowdStatsMock.decrementSubscriberCount).toHaveBeenCalledWith(SUB_ID);
     });
 
     it('removes books linked to current period when removeBooks=true', async () => {
       const sub = makeSub();
-      const entry = makeEntry({ active: true });
+      const activeEntry = makeEntry({ active: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(activeEntry);
       (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
       (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
-      (prisma.userSubscriptionMembershipHistory.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
       (prisma.userSubscriptionEntry.delete as jest.Mock).mockResolvedValueOnce({ id: ENTRY_ID });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, {
@@ -478,6 +348,16 @@ describe('SubscriptionsService — removeMySubscription', () => {
           where: expect.objectContaining({ userId: USER_ID, subscriptionEntryId: ENTRY_ID }),
         }),
       );
+    });
+
+    it('throws NotFoundException when no active entry found', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: false, removeSpending: false, removeCurrentOnly: true }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

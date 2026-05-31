@@ -967,8 +967,8 @@ export class SkipPolicyEngine {
     subscriptionId: string,
     policy: { type: string; windowMonths: number | null } | null,
   ) {
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId, active: true },
     });
 
     const allRecords = await this.prisma.userSkipRecord.findMany({

@@ -913,8 +913,8 @@ export class SubscriptionsService {
 
   async getMySubscriptionEntry(userId: string, slug: string) {
     const sub = await this.findBySlug(slug);
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
       include: {
         feeTemplates: {
           include: { feeTemplate: true },
@@ -1007,10 +1007,6 @@ export class SubscriptionsService {
             company: { select: { name: true, slug: true, brandColors: true } },
           },
         },
-        membershipHistory: {
-          orderBy: { startDate: 'asc' },
-          select: { id: true, startDate: true, endDate: true, cancellationReason: true },
-        },
       },
     });
 
@@ -1086,11 +1082,10 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
-      const { skipRecords: _sr, feeTemplates: _ft, membershipHistory, scheduledPrepayOption: _spo, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; membershipHistory: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }>; scheduledPrepayOption: unknown };
+      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown };
       return {
         ...entryWithoutSkips,
         subscription: { ...sub },
-        membershipHistory: membershipHistory ?? [],
         nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null,
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
         nextRenewalCurrency: cur,
@@ -1101,13 +1096,14 @@ export class SubscriptionsService {
   }
 
   async getOrphanedMembershipHistory(userId: string) {
-    const records = await this.prisma.userSubscriptionMembershipHistory.findMany({
-      where: { userId, entryId: null },
+    // Find all inactive entries for this user
+    const inactiveEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, active: false },
       orderBy: { startDate: 'desc' },
       select: {
         id: true,
         startDate: true,
-        endDate: true,
+        cancellationDate: true,
         cancellationReason: true,
         subscriptionId: true,
         subscription: {
@@ -1125,106 +1121,144 @@ export class SubscriptionsService {
       },
     });
 
+    // Get subscriptionIds that have an active entry (user is still subscribed)
+    const activeEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, active: true },
+      select: { subscriptionId: true },
+    });
+    const activeSubIds = new Set(activeEntries.map((e) => e.subscriptionId));
+
+    // "Orphaned" in the new model = inactive entries for subs the user is no longer active in
+    const orphaned = inactiveEntries.filter((e) => !activeSubIds.has(e.subscriptionId));
+
     // Group by subscription
-    const grouped = new Map<string, { subscription: (typeof records)[0]['subscription']; records: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }> }>();
-    for (const r of records) {
+    const grouped = new Map<string, { subscription: (typeof inactiveEntries)[0]['subscription']; records: Array<{ id: string; startDate: string | null; endDate: string | null; cancellationReason: string | null }> }>();
+    for (const r of orphaned) {
       const key = r.subscriptionId;
       if (!grouped.has(key)) {
         grouped.set(key, { subscription: r.subscription, records: [] });
       }
-      grouped.get(key)!.records.push({ id: r.id, startDate: r.startDate, endDate: r.endDate, cancellationReason: r.cancellationReason });
+      grouped.get(key)!.records.push({
+        id: r.id,
+        startDate: r.startDate,
+        endDate: r.cancellationDate,
+        cancellationReason: r.cancellationReason,
+      });
     }
     return Array.from(grouped.values());
   }
 
   async removeOrphanedHistoryRecord(
     userId: string,
-    historyId: string,
+    entryId: string,
     opts: { removeBooks?: boolean; removeSpending?: boolean } = {},
   ) {
-    const record = await this.prisma.userSubscriptionMembershipHistory.findFirst({
-      where: { id: historyId, userId, entryId: null },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { id: entryId, userId, active: false },
+      include: { billingPeriods: { select: { id: true, purchaseTransactionId: true } } },
     });
-    if (!record) throw new NotFoundException('Orphaned history record not found');
+    if (!entry) throw new NotFoundException('Inactive subscription entry not found');
 
-    // Note: spending (UserSubscriptionRenewal) is cascade-deleted when the entry is removed,
-    // so there are no renewal records to clean up for orphaned history.
+    if (opts.removeSpending) {
+      const txIds = entry.billingPeriods
+        .map((p) => p.purchaseTransactionId)
+        .filter((id): id is string => id != null);
+      if (txIds.length) {
+        await this.prisma.purchaseTransaction.deleteMany({ where: { id: { in: txIds } } });
+      }
+    }
 
-    if (opts.removeBooks && (record.startDate || record.endDate)) {
-      const rangeStart = record.startDate
-        ? (() => { const p = record.startDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-        : null;
-      const rangeEnd = record.endDate
-        ? (() => { const p = record.endDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-        : null;
-
-      const monthsInRange = await this.prisma.subscriptionMonth.findMany({
-        where: {
-          subscriptionId: record.subscriptionId,
-          ...(rangeStart || rangeEnd ? {
-            AND: [
-              ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
-              ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
-            ],
-          } : {}),
-        },
-        select: { id: true },
+    if (opts.removeBooks) {
+      // Try direct link first (new model: books linked to this entry via subscriptionEntryId)
+      const linkedBooks = await this.prisma.userBookEntry.findMany({
+        where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
+        select: { purchaseGroupId: true },
       });
 
-      const monthIds = monthsInRange.map(m => m.id);
-      if (monthIds.length > 0) {
-        const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
-          where: { monthId: { in: monthIds }, editionId: { not: null } },
-          select: { editionId: true, bookId: true },
+      if (linkedBooks.length > 0) {
+        const groupIds = Array.from(new Set(linkedBooks.map((b) => b.purchaseGroupId as string)));
+        await this.prisma.userBookEntry.deleteMany({ where: { userId, subscriptionEntryId: entry.id } });
+        if (groupIds.length > 0) {
+          await this.prisma.userPurchaseGroup.deleteMany({
+            where: { id: { in: groupIds }, bookEntries: { none: {} } },
+          });
+        }
+      } else if (entry.startDate || entry.cancellationDate) {
+        // Fallback: date-range match for migrated data (books may still link to old entry)
+        const rangeStart = entry.startDate
+          ? (() => { const p = entry.startDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+          : null;
+        const rangeEnd = entry.cancellationDate
+          ? (() => { const p = entry.cancellationDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+          : null;
+
+        const monthsInRange = await this.prisma.subscriptionMonth.findMany({
+          where: {
+            subscriptionId: entry.subscriptionId,
+            ...(rangeStart || rangeEnd ? {
+              AND: [
+                ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
+                ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
+              ],
+            } : {}),
+          },
+          select: { id: true },
         });
-        const editionIds = monthBooks.map(mb => mb.editionId).filter((id): id is string => id != null);
-        const bookIds = monthBooks.map(mb => mb.bookId);
 
-        if (editionIds.length > 0 || bookIds.length > 0) {
-          const affectedEntries = await this.prisma.userBookEntry.findMany({
-            where: {
-              userId,
-              subscriptionEntryId: null,
-              OR: [
-                ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-                { bookId: { in: bookIds } },
-              ],
-              purchaseGroupId: { not: null },
-            },
-            select: { id: true, purchaseGroupId: true },
+        const monthIds = monthsInRange.map((m) => m.id);
+        if (monthIds.length > 0) {
+          const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
+            where: { monthId: { in: monthIds }, editionId: { not: null } },
+            select: { editionId: true, bookId: true },
           });
-          const groupIds = [...new Set(affectedEntries.map(e => e.purchaseGroupId as string))];
+          const editionIds = monthBooks.map((mb) => mb.editionId).filter((id): id is string => id != null);
+          const bookIds = monthBooks.map((mb) => mb.bookId);
 
-          await this.prisma.userBookEntry.deleteMany({
-            where: {
-              userId,
-              subscriptionEntryId: null,
-              OR: [
-                ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-                { bookId: { in: bookIds } },
-              ],
-            },
-          });
-
-          if (groupIds.length > 0) {
-            await this.prisma.userPurchaseGroup.deleteMany({
-              where: { id: { in: groupIds }, bookEntries: { none: {} } },
+          if (editionIds.length > 0 || bookIds.length > 0) {
+            const affectedEntries = await this.prisma.userBookEntry.findMany({
+              where: {
+                userId,
+                subscriptionEntryId: null,
+                OR: [
+                  ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+                  { bookId: { in: bookIds } },
+                ],
+                purchaseGroupId: { not: null },
+              },
+              select: { id: true, purchaseGroupId: true },
             });
+            const groupIds = Array.from(new Set(affectedEntries.map((e) => e.purchaseGroupId as string)));
+
+            await this.prisma.userBookEntry.deleteMany({
+              where: {
+                userId,
+                subscriptionEntryId: null,
+                OR: [
+                  ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+                  { bookId: { in: bookIds } },
+                ],
+              },
+            });
+
+            if (groupIds.length > 0) {
+              await this.prisma.userPurchaseGroup.deleteMany({
+                where: { id: { in: groupIds }, bookEntries: { none: {} } },
+              });
+            }
           }
         }
       }
     }
 
-    await this.prisma.userSubscriptionMembershipHistory.delete({ where: { id: historyId } });
+    await this.prisma.userSubscriptionEntry.delete({ where: { id: entry.id } });
   }
 
   async cancelMySubscription(userId: string, slug: string, dto: { cancellationDate?: string; cancellationReason?: string } = {}) {
     const sub = await this.findBySlug(slug);
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
     });
     if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
-    if (!entry.active) throw new BadRequestException('Subscription is already cancelled');
 
     // Check if current date falls within any active SERIES_ONLY series with canCancelDuring=false
     const now = new Date();
@@ -1262,7 +1296,7 @@ export class SubscriptionsService {
       );
     }
 
-    return this.prisma.userSubscriptionEntry.update({
+    const updated = await this.prisma.userSubscriptionEntry.update({
       where: { id: entry.id },
       data: {
         active: false,
@@ -1270,21 +1304,9 @@ export class SubscriptionsService {
         cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
         cancellationReason: dto.cancellationReason ?? null,
       },
-    }).then(async (updated) => {
-      this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
-      // Write membership history record for this completed period
-      await this.prisma.userSubscriptionMembershipHistory.create({
-        data: {
-          userId,
-          subscriptionId: sub.id,
-          entryId: entry.id,
-          startDate: entry.startDate ?? null,
-          endDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
-          cancellationReason: dto.cancellationReason ?? null,
-        },
-      }).catch(() => {});
-      return updated;
     });
+    this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+    return updated;
   }
 
   async removeMySubscription(
@@ -1293,16 +1315,81 @@ export class SubscriptionsService {
     opts: { removeBooks: boolean; removeSpending: boolean; historyId?: string; historyIds?: string[]; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
   ) {
     const sub = await this.findBySlug(slug);
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
-      include: {
-        billingPeriods: { select: { id: true, purchaseTransactionId: true } },
-      },
+
+    // ── CASE A: Delete specific inactive period(s) by entry ID ────────────────
+    if ((opts.historyId || (opts.historyIds && opts.historyIds.length > 0)) && !opts.removeAllPeriods) {
+      const entryIds = opts.historyIds ?? (opts.historyId ? [opts.historyId] : []);
+
+      if (opts.removeSpending || opts.removeBooks) {
+        const periodsToRemove = await this.prisma.userSubscriptionEntry.findMany({
+          where: { id: { in: entryIds }, userId },
+          include: { billingPeriods: { select: { id: true, purchaseTransactionId: true } } },
+        });
+
+        if (opts.removeSpending) {
+          const txIds = periodsToRemove
+            .flatMap((e) => e.billingPeriods)
+            .map((p) => p.purchaseTransactionId)
+            .filter((id): id is string => id != null);
+          if (txIds.length) {
+            await this.prisma.purchaseTransaction.deleteMany({ where: { id: { in: txIds } } });
+          }
+        }
+
+        if (opts.removeBooks) {
+          for (const period of periodsToRemove) {
+            await this.removeBooksForPeriodEntry(userId, period);
+          }
+        }
+      }
+
+      await this.prisma.userSubscriptionEntry.deleteMany({
+        where: { id: { in: entryIds }, userId },
+      });
+      return { success: true };
+    }
+
+    // ── CASE B: Remove only the current active period (keep historical entries) ─
+    if (opts.removeCurrentOnly) {
+      const activeEntry = await this.prisma.userSubscriptionEntry.findFirst({
+        where: { userId, subscriptionId: sub.id, active: true },
+        include: { billingPeriods: { select: { id: true, purchaseTransactionId: true } } },
+      });
+      if (!activeEntry) throw new NotFoundException('No active subscription entry found');
+
+      if (opts.removeSpending) {
+        const txIds = activeEntry.billingPeriods
+          .map((p) => p.purchaseTransactionId)
+          .filter((id): id is string => id != null);
+        if (txIds.length) {
+          await this.prisma.purchaseTransaction.deleteMany({ where: { id: { in: txIds } } });
+        }
+      }
+
+      if (opts.removeBooks) {
+        await this.removeBooksForPeriodEntry(userId, activeEntry);
+      }
+
+      await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
+      await this.prisma.userSubscriptionEntry.delete({ where: { id: activeEntry.id } });
+      this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+      return { success: true };
+    }
+
+    // ── CASE C/D: Remove all periods (removeAllPeriods) or the primary entry ───
+    const allEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, subscriptionId: sub.id },
+      include: { billingPeriods: { select: { id: true, purchaseTransactionId: true } } },
     });
-    if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
+    if (!allEntries.length) throw new NotFoundException('You are not subscribed to this subscription');
+
+    const targetEntries = opts.removeAllPeriods
+      ? allEntries
+      : [allEntries.find((e) => e.active) ?? allEntries[0]];
 
     if (opts.removeSpending) {
-      const txIds = entry.billingPeriods
+      const txIds = targetEntries
+        .flatMap((e) => e.billingPeriods)
         .map((p) => p.purchaseTransactionId)
         .filter((id): id is string => id != null);
       if (txIds.length) {
@@ -1311,169 +1398,45 @@ export class SubscriptionsService {
     }
 
     if (opts.removeBooks) {
-      // Determine which months to target based on period selection
-      let monthFilter: { year: number; month: number }[] | null = null;
-
-      // Helper: remove books for a specific membership history period
-      const removeBooksForHistoryId = async (historyId: string) => {
-        const historyRecord = await this.prisma.userSubscriptionMembershipHistory.findFirst({
-          where: { id: historyId, userId },
-        });
-        if (!(historyRecord?.startDate || historyRecord?.endDate)) return;
-
-        const rangeStart = historyRecord.startDate
-          ? (() => { const p = historyRecord.startDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-          : null;
-        const rangeEnd = historyRecord.endDate
-          ? (() => { const p = historyRecord.endDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-          : null;
-
-        const monthsInRange = await this.prisma.subscriptionMonth.findMany({
-          where: {
-            subscriptionId: sub.id,
-            ...(rangeStart || rangeEnd ? {
-              AND: [
-                ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
-                ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
-              ],
-            } : {}),
-          },
-          select: { id: true },
-        });
-
-        const monthIds = monthsInRange.map(m => m.id);
-        if (monthIds.length === 0) return;
-
-        const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
-          where: { monthId: { in: monthIds }, editionId: { not: null } },
-          select: { editionId: true, bookId: true },
-        });
-        const editionIds = monthBooks.map(mb => mb.editionId).filter((id): id is string => id != null);
-        const bookIds = monthBooks.map(mb => mb.bookId);
-
-        const affectedEntries = await this.prisma.userBookEntry.findMany({
-          where: {
-            userId,
-            subscriptionEntryId: entry.id,
-            OR: [
-              ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-              { bookId: { in: bookIds } },
-            ],
-            purchaseGroupId: { not: null },
-          },
-          select: { id: true, purchaseGroupId: true },
-        });
-        const groupIds = [...new Set(affectedEntries.map(e => e.purchaseGroupId as string))];
-
-        await this.prisma.userBookEntry.deleteMany({
-          where: {
-            userId,
-            subscriptionEntryId: entry.id,
-            OR: [
-              ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-              { bookId: { in: bookIds } },
-            ],
-          },
-        });
-
-        if (groupIds.length > 0) {
-          await this.prisma.userPurchaseGroup.deleteMany({
-            where: { id: { in: groupIds }, bookEntries: { none: {} } },
-          });
-        }
-      };
-
-      if (opts.historyIds && opts.historyIds.length > 0 && !opts.removeAllPeriods) {
-        // Remove books for each selected period
-        for (const hid of opts.historyIds) {
-          await removeBooksForHistoryId(hid);
-        }
-      } else if (opts.historyId && !opts.removeAllPeriods) {
-        // Remove books only from months within the selected history period's date range
-        await removeBooksForHistoryId(opts.historyId);
-      } else {
-        // Remove ALL books linked to this subscription entry
-        const affectedEntries = await this.prisma.userBookEntry.findMany({
-          where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
-          select: { purchaseGroupId: true },
-        });
-        const groupIds = [...new Set(affectedEntries.map((e) => e.purchaseGroupId as string))];
-
-        await this.prisma.userBookEntry.deleteMany({
-          where: { userId, subscriptionEntryId: entry.id },
-        });
-
-        if (groupIds.length > 0) {
-          await this.prisma.userPurchaseGroup.deleteMany({
-            where: { id: { in: groupIds }, bookEntries: { none: {} } },
-          });
-        }
+      for (const entry of targetEntries) {
+        await this.removeBooksForPeriodEntry(userId, entry);
       }
-      void monthFilter; // suppress unused variable warning
     }
 
-    // If removing only specific history period(s) (not the whole entry), delete those records and return
-    if (opts.historyIds && opts.historyIds.length > 0 && !opts.removeAllPeriods) {
-      await this.prisma.userSubscriptionMembershipHistory.deleteMany({
-        where: { id: { in: opts.historyIds }, userId },
-      });
-      return { success: true };
+    await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
+
+    if (opts.removeAllPeriods) {
+      await this.prisma.userSubscriptionEntry.deleteMany({ where: { userId, subscriptionId: sub.id } });
+    } else {
+      const targetEntry = targetEntries[0];
+      await this.prisma.userSubscriptionEntry.delete({ where: { id: targetEntry.id } });
     }
 
-    // If removing only a specific history period (not the whole entry), just delete the history record
-    if (opts.historyId && !opts.removeAllPeriods) {
-      await this.prisma.userSubscriptionMembershipHistory.deleteMany({
-        where: { id: opts.historyId, userId },
-      });
-      return { success: true };
-    }
-
-    // If removing only the current active period (keep historical records)
-    if (opts.removeCurrentOnly) {
-      // Detach history records from the entry (set entryId = null) so they survive entry deletion
-      await this.prisma.userSubscriptionMembershipHistory.updateMany({
-        where: { entryId: entry.id, userId },
-        data: { entryId: null },
-      });
-    }
-
-    // Delete skip state for this subscription (no FK cascade, must be explicit)
-    await this.prisma.userSubscriptionSkipState.deleteMany({
-      where: { userId, subscriptionId: sub.id },
-    });
-
-    // Membership history FK is SetNull (not Cascade), so deletion must be explicit.
-    // Scope depends on intent:
-    //   removeAllPeriods → wipe ALL history for this user+subscription
-    //   cancelled entry (no flags) → delete only the current-period history record
-    //     (auto-created on cancellation; same startDate as entry, no prior periods involved)
-    //   active entry (no flags) → don't touch history; previous-period records should survive
-    //     as orphaned history (there's no history record for the still-active current period)
-    //   removeCurrentOnly → history was already detached (entryId→null) above; leave it
-    if (!opts.removeCurrentOnly) {
-      if (opts.removeAllPeriods) {
-        await this.prisma.userSubscriptionMembershipHistory.deleteMany({
-          where: { userId, subscriptionId: sub.id },
-        });
-      } else if (!entry.active && entry.startDate) {
-        // Remove only the auto-created history record for this cancelled period
-        await this.prisma.userSubscriptionMembershipHistory.deleteMany({
-          where: { userId, subscriptionId: sub.id, entryId: entry.id, startDate: entry.startDate },
-        });
-      }
-      // Active entry without removeAllPeriods: leave history untouched
-    }
-
-    // Decrement subscriber count if the entry was still active when removed
-    if (entry.active) {
+    const hadActive = targetEntries.some((e) => e.active);
+    if (hadActive) {
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     }
-
-    // Delete entry (cascades: billing periods, cost changes, fee templates, skip records, tags)
-    await this.prisma.userSubscriptionEntry.delete({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
-    });
     return { success: true };
+  }
+
+  /** Remove all books linked to a subscription period entry. */
+  private async removeBooksForPeriodEntry(
+    userId: string,
+    entry: { id: string; subscriptionId?: string; startDate?: string | null; cancellationDate?: string | null },
+  ): Promise<void> {
+    const linked = await this.prisma.userBookEntry.findMany({
+      where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
+      select: { purchaseGroupId: true },
+    });
+    const groupIds = Array.from(new Set(linked.map((b) => b.purchaseGroupId as string)));
+
+    await this.prisma.userBookEntry.deleteMany({ where: { userId, subscriptionEntryId: entry.id } });
+
+    if (groupIds.length > 0) {
+      await this.prisma.userPurchaseGroup.deleteMany({
+        where: { id: { in: groupIds }, bookEntries: { none: {} } },
+      });
+    }
   }
 
   async updateMyEntryCosts(
@@ -1482,8 +1445,8 @@ export class SubscriptionsService {
     dto: { basePrice?: string; shippingCost?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
   ) {
     const sub = await this.findBySlug(slug);
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
     });
     if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
 
@@ -1525,30 +1488,11 @@ export class SubscriptionsService {
   async joinSubscription(userId: string, slug: string, dto: JoinSubscriptionDto) {
     const sub = await this.findBySlug(slug);
 
-    const existing = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const existing = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
     });
-    if (existing?.active) {
+    if (existing) {
       throw new ConflictException('You are already subscribed to this subscription');
-    }
-
-    // If re-joining a previously cancelled entry, archive the old period (if not already in history)
-    if (existing && !existing.active) {
-      const alreadyArchived = await this.prisma.userSubscriptionMembershipHistory.findFirst({
-        where: { entryId: existing.id, endDate: existing.cancellationDate ?? undefined },
-      });
-      if (!alreadyArchived) {
-        await this.prisma.userSubscriptionMembershipHistory.create({
-          data: {
-            userId,
-            subscriptionId: sub.id,
-            entryId: existing.id,
-            startDate: existing.startDate ?? null,
-            endDate: existing.cancellationDate ?? null,
-            cancellationReason: existing.cancellationReason ?? null,
-          },
-        }).catch(() => {});
-      }
     }
 
     // Parse cancellationDate (for historical cancelled entries)
@@ -1622,9 +1566,8 @@ export class SubscriptionsService {
       resolvedPrepayOptionId = option.id;
     }
 
-    const entry = await this.prisma.userSubscriptionEntry.upsert({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
-      create: {
+    const entry = await this.prisma.userSubscriptionEntry.create({
+      data: {
         userId,
         subscriptionId: sub.id,
         active: !dto.alreadyCancelled,
@@ -1640,22 +1583,6 @@ export class SubscriptionsService {
         ...(dto.alreadyCancelled && {
           cancellationDate: dto.cancellationDate ?? new Date().toISOString().slice(0, 10),
           cancellationReason: dto.cancellationReason ?? null,
-        }),
-      },
-      update: {
-        active: !dto.alreadyCancelled,
-        cancellationDate: dto.alreadyCancelled
-          ? (dto.cancellationDate ?? new Date().toISOString().slice(0, 10))
-          : null,
-        cancellationReason: dto.alreadyCancelled ? (dto.cancellationReason ?? null) : null,
-        startDate: startDateStr ?? undefined,
-        basePrice: dto.basePrice !== undefined ? (dto.basePrice === '' ? null : parseFloat(dto.basePrice)) : undefined,
-        shippingCost: dto.shippingCost !== undefined ? (dto.shippingCost === '' ? null : parseFloat(dto.shippingCost)) : undefined,
-        costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
-        renewalDay,
-        ...(resolvedPrepayOptionId !== null && {
-          scheduledPrepayOptionId: resolvedPrepayOptionId,
-          prepaidMonths: resolvedPrepayMonths!,
         }),
       },
     });
@@ -2037,8 +1964,9 @@ export class SubscriptionsService {
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
 
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id },
+      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
       include: {
         feeTemplates: {
           include: {
@@ -2583,8 +2511,8 @@ export class SubscriptionsService {
 
   async updateMyBillingMode(userId: string, slug: string, dto: UpdateBillingModeDto) {
     const sub = await this.findBySlug(slug);
-    const entry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { userId_subscriptionId: { userId, subscriptionId: sub.id } },
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
     });
     if (!entry) throw new NotFoundException('Subscription entry not found');
 

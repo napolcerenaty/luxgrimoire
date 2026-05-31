@@ -1,13 +1,9 @@
 /**
- * Pre-refactor tests for SubscriptionsService query methods:
+ * Unit tests for SubscriptionsService query methods:
  *   - getMySubscriptions
  *   - getOrphanedMembershipHistory
  *   - getMySubscriptionEntry
  *   - updateMyEntryCosts
- *
- * These tests document the observable contract for reading subscription data.
- * After the refactor (entries replace history table), update these tests to verify
- * the new shapes: inactive entries instead of membershipHistory, no orphaned endpoint.
  */
 
 import { NotFoundException } from '@nestjs/common';
@@ -15,16 +11,12 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from './subscriptions.service';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const SUB_ID = 'sub-q-1';
 const SUB_SLUG = 'query-test-sub';
 const USER_ID = 'user-q-1';
 const ENTRY_ID = 'entry-q-1';
 const HISTORY_ID_1 = 'hist-q-1';
 const HISTORY_ID_2 = 'hist-q-2';
-
-// ── Fixtures ──────────────────────────────────────────────────────────────────
 
 function makeSub(overrides: Record<string, unknown> = {}) {
   return {
@@ -63,7 +55,6 @@ function makeEntryRow(overrides: Record<string, unknown> = {}) {
     scheduledPrepayOption: null,
     skipRecords: [],
     feeTemplates: [],
-    membershipHistory: [],
     subscription: makeSub(),
     ...overrides,
   };
@@ -74,16 +65,14 @@ function makeHistoryRecord(id: string, overrides: Record<string, unknown> = {}) 
     id,
     userId: USER_ID,
     subscriptionId: SUB_ID,
-    entryId: null, // orphaned
+    active: false,
     startDate: '2023-01-01',
-    endDate: '2023-12-31',
+    cancellationDate: '2023-12-31',
     cancellationReason: null,
     subscription: makeSub(),
     ...overrides,
   };
 }
-
-// ── Test setup ────────────────────────────────────────────────────────────────
 
 describe('SubscriptionsService — query methods', () => {
   let service: SubscriptionsService;
@@ -103,10 +92,6 @@ describe('SubscriptionsService — query methods', () => {
     );
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // getMySubscriptions
-  // ══════════════════════════════════════════════════════════════════════════
-
   describe('getMySubscriptions', () => {
     it('returns active subscriptions with subscription details', async () => {
       const entry = makeEntryRow({ active: true });
@@ -125,7 +110,6 @@ describe('SubscriptionsService — query methods', () => {
         active: false,
         cancellationDate: '2024-06-30',
         nextRenewalDate: null,
-        membershipHistory: [],
       });
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
 
@@ -150,16 +134,12 @@ describe('SubscriptionsService — query methods', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('includes membershipHistory on each entry (re-joined sub shows past periods)', async () => {
-      const historyRecords = [
-        { id: HISTORY_ID_1, startDate: '2022-01-01', endDate: '2022-12-31', cancellationReason: null },
-      ];
-      const entry = makeEntryRow({ active: true, startDate: '2024-01-01', membershipHistory: historyRecords });
+    it('does not include membershipHistory field on each entry', async () => {
+      const entry = makeEntryRow({ active: true, startDate: '2024-01-01' });
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
 
       const result = await service.getMySubscriptions(USER_ID);
-      expect(result[0].membershipHistory).toHaveLength(1);
-      expect(result[0].membershipHistory[0].id).toBe(HISTORY_ID_1);
+      expect(result[0]).not.toHaveProperty('membershipHistory');
     });
 
     it('returns empty array when user has no subscriptions', async () => {
@@ -182,58 +162,64 @@ describe('SubscriptionsService — query methods', () => {
       (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
 
       const result = await service.getMySubscriptions(USER_ID);
-      // Base 20 + shipping 5 = 25 (no fees)
       expect(parseFloat(result[0].nextRenewalAmount ?? '0')).toBe(25);
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // getOrphanedMembershipHistory
-  // ══════════════════════════════════════════════════════════════════════════
-
   describe('getOrphanedMembershipHistory', () => {
     it('returns empty array when no orphaned records', async () => {
-      (prisma.userSubscriptionMembershipHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
       const result = await service.getOrphanedMembershipHistory(USER_ID);
       expect(result).toEqual([]);
     });
 
-    it('returns orphaned records grouped by subscription', async () => {
+    it('returns orphaned inactive entries grouped by subscription', async () => {
       const SUB_ID_2 = 'sub-q-2';
       const records = [
         makeHistoryRecord(HISTORY_ID_1, { subscriptionId: SUB_ID }),
-        makeHistoryRecord(HISTORY_ID_2, { subscriptionId: SUB_ID }), // same sub → same group
+        makeHistoryRecord(HISTORY_ID_2, { subscriptionId: SUB_ID }),
         makeHistoryRecord('hist-q-3', {
           subscriptionId: SUB_ID_2,
           subscription: { ...makeSub(), id: SUB_ID_2 },
         }),
       ];
-      (prisma.userSubscriptionMembershipHistory.findMany as jest.Mock).mockResolvedValueOnce(records);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock)
+        .mockResolvedValueOnce(records)
+        .mockResolvedValueOnce([]);
 
       const result = await service.getOrphanedMembershipHistory(USER_ID);
 
-      expect(result).toHaveLength(2); // 2 distinct subscriptions
+      expect(result).toHaveLength(2);
       const group1 = result.find(g => g.subscription.id === SUB_ID);
       expect(group1?.records).toHaveLength(2);
       const group2 = result.find(g => g.subscription.id === SUB_ID_2);
       expect(group2?.records).toHaveLength(1);
     });
 
-    it('queries only records with entryId=null (truly orphaned)', async () => {
-      (prisma.userSubscriptionMembershipHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+    it('queries inactive entries for the user', async () => {
+      (prisma.userSubscriptionEntry.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
       await service.getOrphanedMembershipHistory(USER_ID);
 
-      expect(prisma.userSubscriptionMembershipHistory.findMany).toHaveBeenCalledWith(
+      expect(prisma.userSubscriptionEntry.findMany).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
-          where: expect.objectContaining({ userId: USER_ID, entryId: null }),
+          where: { userId: USER_ID, active: false },
+        }),
+      );
+      expect(prisma.userSubscriptionEntry.findMany).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { userId: USER_ID, active: true },
         }),
       );
     });
   });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // getMySubscriptionEntry
-  // ══════════════════════════════════════════════════════════════════════════
 
   describe('getMySubscriptionEntry', () => {
     it('returns entry for subscribed user', async () => {
@@ -247,7 +233,7 @@ describe('SubscriptionsService — query methods', () => {
         subscription: makeSub(),
       };
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
 
       const result = await service.getMySubscriptionEntry(USER_ID, SUB_SLUG);
 
@@ -257,21 +243,21 @@ describe('SubscriptionsService — query methods', () => {
 
     it('returns null for non-subscribed user', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       const result = await service.getMySubscriptionEntry(USER_ID, SUB_SLUG);
       expect(result).toBeNull();
     });
 
-    it('uses userId_subscriptionId composite key to find entry', async () => {
+    it('uses userId and subscriptionId with active:true to find entry', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       await service.getMySubscriptionEntry(USER_ID, SUB_SLUG);
 
-      expect(prisma.userSubscriptionEntry.findUnique).toHaveBeenCalledWith(
+      expect(prisma.userSubscriptionEntry.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId_subscriptionId: { userId: USER_ID, subscriptionId: SUB_ID } },
+          where: { userId: USER_ID, subscriptionId: SUB_ID, active: true },
         }),
       );
     });
@@ -287,26 +273,26 @@ describe('SubscriptionsService — query methods', () => {
         skipRecords: [],
       };
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
 
       const result = await service.getMySubscriptionEntry(USER_ID, SUB_SLUG);
       expect(result?.nextRenewalDate).toBe(renewalDate.toISOString());
     });
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // updateMyEntryCosts
-  // ══════════════════════════════════════════════════════════════════════════
-
   describe('updateMyEntryCosts', () => {
     function setupForUpdate(entryOverrides: Record<string, unknown> = {}) {
       const sub = makeSub();
       const entry = { id: ENTRY_ID, userId: USER_ID, subscriptionId: SUB_ID, active: true, ...entryOverrides };
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
-      // First findUnique → existing entry; second → for getMySubscriptionEntry at end
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock)
-        .mockResolvedValueOnce(entry)         // initial lookup in updateMyEntryCosts
-        .mockResolvedValueOnce({ ...entry, feeTemplates: [], skipRecords: [], nextRenewalDate: null }); // getMySubscriptionEntry
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock)
+        .mockResolvedValueOnce(entry)
+        .mockResolvedValueOnce({
+          ...entry,
+          feeTemplates: [],
+          skipRecords: [],
+          nextRenewalDate: new Date('2025-02-01'),
+        });
       (prisma.userSubscriptionEntry.update as jest.Mock).mockResolvedValueOnce(entry);
       return { sub, entry };
     }
@@ -358,7 +344,7 @@ describe('SubscriptionsService — query methods', () => {
 
     it('throws NotFoundException when user has no entry', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(
         service.updateMyEntryCosts(USER_ID, SUB_SLUG, { basePrice: '25.00' }),
