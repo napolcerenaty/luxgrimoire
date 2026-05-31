@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 2;
+  readonly version = 3;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
@@ -34,6 +34,8 @@ export class CollectionStatsComputer extends StatsComputer {
     let acqSubscription = 0;
     let acqDirect = 0;
     let acqUnknown = 0;
+    let firstHandCount = 0;
+    let secondHandCount = 0;
 
     const bySubAllMap: Record<string, { name: string; slug: string; books: number }> = {};
     const byCompanyAllMap: Record<string, { name: string; slug: string; books: number }> = {};
@@ -65,6 +67,11 @@ export class CollectionStatsComputer extends StatsComputer {
         acqDirect++;
       } else {
         acqUnknown++;
+      }
+
+      if (entry.purchaseGroup) {
+        if (entry.purchaseGroup.isSecondHand) secondHandCount++;
+        else firstHandCount++;
       }
 
       const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
@@ -119,6 +126,8 @@ export class CollectionStatsComputer extends StatsComputer {
         direct: acqDirect,
         unknown: acqUnknown,
       },
+      firstHandCount,
+      secondHandCount,
       bySubscriptionAll: Object.values(bySubAllMap).sort((a, b) => b.books - a.books),
       byCompanyAll: Object.values(byCompanyAllMap).sort((a, b) => b.books - a.books),
     };
