@@ -159,7 +159,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
   useEffect(() => {
     authFetch<PriceChange[]>(`/subscriptions/${subscriptionSlug}/price-changes`)
-      .then(data => setPriceChanges(Array.isArray(data) ? data.filter(pc => pc.effectiveYear !== 1900) : []))
+      .then(data => setPriceChanges(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [subscriptionSlug])
 
@@ -542,7 +542,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               </p>
             )
           }
-          const sorted = [...currencyPriceChanges].sort(
+          const sorted = [...currencyPriceChanges].filter(pc => pc.effectiveYear !== 1900).sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
           )
           // Parse start month from firstOrderDate
