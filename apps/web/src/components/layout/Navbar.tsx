@@ -27,7 +27,7 @@ const USER_NAV_LINKS = [
   { href: '/sold',             label: 'Sold Books',    icon: ShoppingBag },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
-  { href: '/spending',         label: 'Spending',      icon: DollarSign },
+  { href: '/spending',         label: 'Statistics',    icon: DollarSign },
   { href: '/profile',          label: 'Profile',       icon: User },
 ]
 
@@ -167,7 +167,7 @@ export function Navbar() {
                     <div className="h-px bg-stone-700 my-1" />
                     {/* Finance & Account */}
                     {[
-                      { href: '/spending', icon: DollarSign, label: 'Spending' },
+                      { href: '/spending', icon: DollarSign, label: 'Statistics' },
                       { href: '/profile',  icon: Settings,   label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
