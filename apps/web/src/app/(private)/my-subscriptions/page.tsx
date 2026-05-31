@@ -252,10 +252,11 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const qc = useQueryClient()
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
   const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([])
+  const [removeCurrentPeriod, setRemoveCurrentPeriod] = useState(false)
 
   const history = entry.membershipHistory ?? []
   const hasHistory = history.length > 0
@@ -266,9 +267,10 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
       body: JSON.stringify({
         removeBooks,
         removeSpending,
-        ...(!removeAllPeriods && selectedHistoryId && selectedHistoryId !== 'current' ? { historyId: selectedHistoryId } : {}),
-        ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-        ...(!removeAllPeriods && selectedHistoryId === 'current' ? { removeCurrentOnly: true } : {}),
+        ...(removeAllPeriods ? { removeAllPeriods: true }
+          : removeCurrentPeriod && selectedHistoryIds.length === 0 ? { removeCurrentOnly: true }
+          : selectedHistoryIds.length > 0 ? { historyIds: selectedHistoryIds }
+          : {}),
       }),
     }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
@@ -343,7 +345,8 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           entry={entry} subName={sub.name}
           removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
           removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
+          selectedHistoryIds={selectedHistoryIds} setSelectedHistoryIds={setSelectedHistoryIds}
+          removeCurrentPeriod={removeCurrentPeriod} setRemoveCurrentPeriod={setRemoveCurrentPeriod}
           removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
           isPending={removeMutation.isPending} error={removeMutation.error?.message}
           onConfirm={() => removeMutation.mutate()} onClose={() => setShowRemoveConfirm(false)}
@@ -360,13 +363,14 @@ function HistoryPeriodRow({ entry, records, viewMode = 'list' }: { entry: MySubs
   const sub = entry.subscription
   const qc = useQueryClient()
   const removeMutation = useMutation({
-    mutationFn: ({ historyId, removeAllPeriods, removeBooks, removeSpending }: HistoryRemoveArgs) =>
+    mutationFn: ({ historyId, historyIds, removeAllPeriods, removeBooks, removeSpending }: HistoryRemoveArgs) =>
       authFetch(`/subscriptions/${sub.slug}/my-entry`, {
         method: 'DELETE',
         body: JSON.stringify({
           ...(removeBooks !== undefined ? { removeBooks } : {}),
           ...(removeSpending !== undefined ? { removeSpending } : {}),
-          ...(!removeAllPeriods && historyId ? { historyId } : {}),
+          ...(!removeAllPeriods && historyIds && historyIds.length > 0 ? { historyIds } : {}),
+          ...(!removeAllPeriods && !historyIds?.length && historyId ? { historyId } : {}),
           ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
         }),
       }),
@@ -388,8 +392,8 @@ function HistoryPeriodRow({ entry, records, viewMode = 'list' }: { entry: MySubs
 function OrphanedHistoryRow({ subscription: sub, records, viewMode = 'list' }: { subscription: OrphanedHistorySub; records: MembershipHistoryRecord[]; viewMode?: 'list' | 'grid' }) {
   const qc = useQueryClient()
   const removeMutation = useMutation({
-    mutationFn: async ({ historyId, removeAllPeriods }: HistoryRemoveArgs) => {
-      const idsToRemove = removeAllPeriods ? records.map(r => r.id) : historyId ? [historyId] : []
+    mutationFn: async ({ historyId, historyIds, removeAllPeriods }: HistoryRemoveArgs) => {
+      const idsToRemove = removeAllPeriods ? records.map(r => r.id) : historyIds?.length ? historyIds : historyId ? [historyId] : []
       await Promise.all(idsToRemove.map(id => authFetch(`/subscriptions/my/orphaned-history/${id}`, { method: 'DELETE' })))
     },
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions', 'orphaned-history'] }) },
@@ -419,6 +423,7 @@ type HistoryCardSub = {
 
 type HistoryRemoveArgs = {
   historyId?: string
+  historyIds?: string[]
   removeAllPeriods?: boolean
   removeBooks?: boolean
   removeSpending?: boolean
@@ -445,15 +450,14 @@ function HistoryCard({
   const brandColors = getBrandColors(sub.company.slug) ?? sub.company.brandColors
   const imageSource = sub.logoUrl ?? sub.coverImage
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(records.length === 1 ? records[0].id : null)
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>(records.length === 1 ? [records[0].id] : [])
   const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
 
   const handleRemove = () => {
     onRemove({
-      ...(!removeAllPeriods && selectedHistoryId ? { historyId: selectedHistoryId } : {}),
-      ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
+      ...(removeAllPeriods ? { removeAllPeriods: true } : selectedHistoryIds.length > 0 ? { historyIds: selectedHistoryIds } : {}),
       ...(showBooksSpending ? { removeBooks, removeSpending } : {}),
     })
   }
@@ -508,7 +512,7 @@ function HistoryCard({
             showBooksSpending={showBooksSpending}
             removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
             removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-            selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
+            selectedHistoryIds={selectedHistoryIds} setSelectedHistoryIds={setSelectedHistoryIds}
             removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
             isPending={isPending} error={error}
             onConfirm={handleRemove} onClose={() => setShowRemoveConfirm(false)} />,
@@ -553,7 +557,7 @@ function HistoryCard({
           showBooksSpending={showBooksSpending}
           removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
           removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
+          selectedHistoryIds={selectedHistoryIds} setSelectedHistoryIds={setSelectedHistoryIds}
           removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
           isPending={isPending} error={error}
           onConfirm={handleRemove} onClose={() => setShowRemoveConfirm(false)} />,
@@ -568,7 +572,7 @@ function HistoryCard({
 function HistoryRemoveDialog({
   subName, records, showBooksSpending,
   removeBooks, setRemoveBooks, removeSpending, setRemoveSpending,
-  selectedHistoryId, setSelectedHistoryId, removeAllPeriods, setRemoveAllPeriods,
+  selectedHistoryIds, setSelectedHistoryIds, removeAllPeriods, setRemoveAllPeriods,
   isPending, error, onConfirm, onClose,
 }: {
   subName: string
@@ -576,14 +580,29 @@ function HistoryRemoveDialog({
   showBooksSpending: boolean
   removeBooks: boolean; setRemoveBooks: (v: boolean) => void
   removeSpending: boolean; setRemoveSpending: (v: boolean) => void
-  selectedHistoryId: string | null; setSelectedHistoryId: (v: string | null) => void
+  selectedHistoryIds: string[]; setSelectedHistoryIds: (v: string[]) => void
   removeAllPeriods: boolean; setRemoveAllPeriods: (v: boolean) => void
   isPending: boolean
   error?: string | null
   onConfirm: () => void
   onClose: () => void
 }) {
-  const canSubmit = removeAllPeriods || !!selectedHistoryId
+  const canSubmit = removeAllPeriods || selectedHistoryIds.length > 0
+
+  const toggleHistoryId = (id: string) => {
+    const next = selectedHistoryIds.includes(id)
+      ? selectedHistoryIds.filter(x => x !== id)
+      : [...selectedHistoryIds, id]
+    setSelectedHistoryIds(next)
+    if (next.length < records.length) setRemoveAllPeriods(false)
+    if (next.length === records.length) setRemoveAllPeriods(true)
+  }
+
+  const toggleAll = (checked: boolean) => {
+    setRemoveAllPeriods(checked)
+    setSelectedHistoryIds(checked ? records.map(r => r.id) : [])
+  }
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-sm">
@@ -594,19 +613,19 @@ function HistoryRemoveDialog({
         <div className="p-5 space-y-3">
           {records.length > 1 && (
             <div className="space-y-2">
-              <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
+              <p className="text-xs text-stone-400 font-medium">Select period(s) to remove:</p>
               {records.map(r => (
                 <label key={r.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-                  <input type="radio" name="remove-history-period" checked={!removeAllPeriods && selectedHistoryId === r.id}
-                    onChange={() => { setSelectedHistoryId(r.id); setRemoveAllPeriods(false) }}
+                  <input type="checkbox" checked={removeAllPeriods || selectedHistoryIds.includes(r.id)}
+                    onChange={() => toggleHistoryId(r.id)}
                     className="accent-amber-500" />
                   {formatDate(r.startDate) ?? '?'} – {formatDate(r.endDate) ?? '?'}
                   {r.cancellationReason ? <span className="text-stone-500 text-xs italic"> · {r.cancellationReason}</span> : null}
                 </label>
               ))}
-              <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
-                <input type="radio" name="remove-history-period" checked={removeAllPeriods}
-                  onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
+              <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer border-t border-stone-800 pt-2 mt-1">
+                <input type="checkbox" checked={removeAllPeriods}
+                  onChange={e => toggleAll(e.target.checked)}
                   className="accent-red-500" />
                 Remove all periods
               </label>
@@ -657,14 +676,16 @@ function HistoryRemoveDialog({
 function EntryRemoveDialog({
   entry, subName,
   removeBooks, setRemoveBooks, removeSpending, setRemoveSpending,
-  selectedHistoryId, setSelectedHistoryId, removeAllPeriods, setRemoveAllPeriods,
+  selectedHistoryIds, setSelectedHistoryIds, removeCurrentPeriod, setRemoveCurrentPeriod,
+  removeAllPeriods, setRemoveAllPeriods,
   isPending, error, onConfirm, onClose,
 }: {
   entry: MySubscriptionEntry
   subName: string
   removeBooks: boolean; setRemoveBooks: (v: boolean) => void
   removeSpending: boolean; setRemoveSpending: (v: boolean) => void
-  selectedHistoryId: string | null; setSelectedHistoryId: (v: string | null) => void
+  selectedHistoryIds: string[]; setSelectedHistoryIds: (v: string[]) => void
+  removeCurrentPeriod: boolean; setRemoveCurrentPeriod: (v: boolean) => void
   removeAllPeriods: boolean; setRemoveAllPeriods: (v: boolean) => void
   isPending: boolean
   error?: string | null
@@ -672,15 +693,35 @@ function EntryRemoveDialog({
   onClose: () => void
 }) {
   const history = entry.membershipHistory ?? []
-  // Filter out history records that represent the same period as the current entry.
-  // When a subscription is cancelled, a history record is auto-created for that period,
-  // which would show as a duplicate alongside the entry's own row.
-  // Only show history records that ended before the current entry's start date (true prior periods).
   const distinctHistory = entry.startDate
     ? history.filter(h => h.endDate != null && h.endDate < entry.startDate!)
     : history
   const hasHistory = distinctHistory.length > 0
-  const canSubmit = !hasHistory || removeAllPeriods || !!selectedHistoryId
+  const totalPeriods = (hasHistory ? distinctHistory.length : 0) + 1 // +1 for current/only period
+  const canSubmit = !hasHistory || removeAllPeriods || removeCurrentPeriod || selectedHistoryIds.length > 0
+
+  const toggleHistoryId = (id: string) => {
+    const next = selectedHistoryIds.includes(id)
+      ? selectedHistoryIds.filter(x => x !== id)
+      : [...selectedHistoryIds, id]
+    setSelectedHistoryIds(next)
+    const allSelected = next.length === distinctHistory.length && removeCurrentPeriod
+    if (!allSelected) setRemoveAllPeriods(false)
+    if (allSelected) setRemoveAllPeriods(true)
+  }
+
+  const toggleCurrent = (checked: boolean) => {
+    setRemoveCurrentPeriod(checked)
+    const allSelected = checked && selectedHistoryIds.length === distinctHistory.length
+    if (!allSelected) setRemoveAllPeriods(false)
+    if (allSelected) setRemoveAllPeriods(true)
+  }
+
+  const toggleAll = (checked: boolean) => {
+    setRemoveAllPeriods(checked)
+    setRemoveCurrentPeriod(checked)
+    setSelectedHistoryIds(checked ? distinctHistory.map(h => h.id) : [])
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -691,11 +732,11 @@ function EntryRemoveDialog({
         </p>
         {hasHistory && (
           <div className="space-y-2">
-            <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
-            {/* Current or cancelled period */}
+            <p className="text-xs text-stone-400 font-medium">Select period(s) to remove:</p>
+            {/* Current period */}
             <label className="flex items-start gap-2 text-sm cursor-pointer group">
-              <input type="radio" name={`period-entry-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === 'current'}
-                onChange={() => { setSelectedHistoryId('current'); setRemoveAllPeriods(false) }}
+              <input type="checkbox" checked={removeAllPeriods || removeCurrentPeriod}
+                onChange={e => toggleCurrent(e.target.checked)}
                 className={`mt-0.5 ${entry.active ? 'accent-emerald-500' : 'accent-amber-500'}`} />
               <span>
                 {entry.active ? (
@@ -711,19 +752,21 @@ function EntryRemoveDialog({
             </label>
             {distinctHistory.map(h => (
               <label key={h.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-                <input type="radio" name={`period-entry-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === h.id}
-                  onChange={() => { setSelectedHistoryId(h.id); setRemoveAllPeriods(false) }}
+                <input type="checkbox" checked={removeAllPeriods || selectedHistoryIds.includes(h.id)}
+                  onChange={() => toggleHistoryId(h.id)}
                   className="accent-amber-500" />
                 {formatDate(h.startDate) ?? '?'} – {formatDate(h.endDate) ?? '?'}
                 {h.cancellationReason ? <span className="text-stone-500 text-xs"> · {h.cancellationReason}</span> : null}
               </label>
             ))}
-            <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
-              <input type="radio" name={`period-entry-${entry.id}`} checked={removeAllPeriods}
-                onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
-                className="accent-red-500" />
-              Remove everything (current + all history)
-            </label>
+            {totalPeriods > 1 && (
+              <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer border-t border-stone-800 pt-2 mt-1">
+                <input type="checkbox" checked={removeAllPeriods}
+                  onChange={e => toggleAll(e.target.checked)}
+                  className="accent-red-500" />
+                Remove everything (current + all history)
+              </label>
+            )}
           </div>
         )}
         <div className="space-y-2">
@@ -761,10 +804,11 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const qc = useQueryClient()
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
   const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([])
+  const [removeCurrentPeriod, setRemoveCurrentPeriod] = useState(false)
 
   const history = entry.membershipHistory ?? []
   const hasHistory = history.length > 0
@@ -775,9 +819,10 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
       body: JSON.stringify({
         removeBooks,
         removeSpending,
-        ...(!removeAllPeriods && selectedHistoryId && selectedHistoryId !== 'current' ? { historyId: selectedHistoryId } : {}),
-        ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-        ...(!removeAllPeriods && selectedHistoryId === 'current' ? { removeCurrentOnly: true } : {}),
+        ...(removeAllPeriods ? { removeAllPeriods: true }
+          : removeCurrentPeriod && selectedHistoryIds.length === 0 ? { removeCurrentOnly: true }
+          : selectedHistoryIds.length > 0 ? { historyIds: selectedHistoryIds }
+          : {}),
       }),
     }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
@@ -895,7 +940,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           entry={entry} subName={sub.name}
           removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
           removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
+          selectedHistoryIds={selectedHistoryIds} setSelectedHistoryIds={setSelectedHistoryIds}
+          removeCurrentPeriod={removeCurrentPeriod} setRemoveCurrentPeriod={setRemoveCurrentPeriod}
           removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
           isPending={removeMutation.isPending} error={removeMutation.error?.message}
           onConfirm={() => removeMutation.mutate()} onClose={() => setShowRemoveConfirm(false)}

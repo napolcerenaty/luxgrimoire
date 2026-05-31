@@ -276,6 +276,7 @@ export class SubscriptionsController {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
       historyId: dto.historyId,
+      historyIds: dto.historyIds,
       removeAllPeriods: dto.removeAllPeriods ?? false,
       removeCurrentOnly: dto.removeCurrentOnly ?? false,
     });

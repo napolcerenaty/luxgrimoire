@@ -755,6 +755,8 @@ export class RemoveMyEntryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
   /** If provided, remove only the books from this specific membership period */
   @IsOptional() @IsString() historyId?: string;
+  /** If provided, remove only the specified membership periods (multi-select) */
+  @IsOptional() @IsArray() @IsString({ each: true }) historyIds?: string[];
   /** If true, remove all membership periods and optionally their books/spending */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeAllPeriods?: boolean;
   /** If true, remove only the current active period but keep historical records */

@@ -1217,7 +1217,7 @@ export class SubscriptionsService {
   async removeMySubscription(
     userId: string,
     slug: string,
-    opts: { removeBooks: boolean; removeSpending: boolean; historyId?: string; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
+    opts: { removeBooks: boolean; removeSpending: boolean; historyId?: string; historyIds?: string[]; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
   ) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
@@ -1241,78 +1241,83 @@ export class SubscriptionsService {
       // Determine which months to target based on period selection
       let monthFilter: { year: number; month: number }[] | null = null;
 
-      if (opts.historyId && !opts.removeAllPeriods) {
-        // Remove books only from months within the selected history period's date range
+      // Helper: remove books for a specific membership history period
+      const removeBooksForHistoryId = async (historyId: string) => {
         const historyRecord = await this.prisma.userSubscriptionMembershipHistory.findFirst({
-          where: { id: opts.historyId, userId },
+          where: { id: historyId, userId },
         });
-        if (historyRecord?.startDate || historyRecord?.endDate) {
-          // Parse range
-          const rangeStart = historyRecord.startDate
-            ? (() => { const p = historyRecord.startDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-            : null;
-          const rangeEnd = historyRecord.endDate
-            ? (() => { const p = historyRecord.endDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
-            : null;
+        if (!(historyRecord?.startDate || historyRecord?.endDate)) return;
 
-          // Find subscription months in this range
-          const monthsInRange = await this.prisma.subscriptionMonth.findMany({
-            where: {
-              subscriptionId: sub.id,
-              ...(rangeStart || rangeEnd ? {
-                AND: [
-                  ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
-                  ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
-                ],
-              } : {}),
-            },
-            select: { id: true },
+        const rangeStart = historyRecord.startDate
+          ? (() => { const p = historyRecord.startDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+          : null;
+        const rangeEnd = historyRecord.endDate
+          ? (() => { const p = historyRecord.endDate.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+          : null;
+
+        const monthsInRange = await this.prisma.subscriptionMonth.findMany({
+          where: {
+            subscriptionId: sub.id,
+            ...(rangeStart || rangeEnd ? {
+              AND: [
+                ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
+                ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
+              ],
+            } : {}),
+          },
+          select: { id: true },
+        });
+
+        const monthIds = monthsInRange.map(m => m.id);
+        if (monthIds.length === 0) return;
+
+        const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
+          where: { monthId: { in: monthIds }, editionId: { not: null } },
+          select: { editionId: true, bookId: true },
+        });
+        const editionIds = monthBooks.map(mb => mb.editionId).filter((id): id is string => id != null);
+        const bookIds = monthBooks.map(mb => mb.bookId);
+
+        const affectedEntries = await this.prisma.userBookEntry.findMany({
+          where: {
+            userId,
+            subscriptionEntryId: entry.id,
+            OR: [
+              ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+              { bookId: { in: bookIds } },
+            ],
+            purchaseGroupId: { not: null },
+          },
+          select: { id: true, purchaseGroupId: true },
+        });
+        const groupIds = [...new Set(affectedEntries.map(e => e.purchaseGroupId as string))];
+
+        await this.prisma.userBookEntry.deleteMany({
+          where: {
+            userId,
+            subscriptionEntryId: entry.id,
+            OR: [
+              ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+              { bookId: { in: bookIds } },
+            ],
+          },
+        });
+
+        if (groupIds.length > 0) {
+          await this.prisma.userPurchaseGroup.deleteMany({
+            where: { id: { in: groupIds }, bookEntries: { none: {} } },
           });
-
-          // Delete book entries that came from these months (via purchaseGroup or matching month metadata)
-          // We match by the month's books' editionIds linked to UserBookEntry for this user+subscription
-          const monthIds = monthsInRange.map(m => m.id);
-          if (monthIds.length > 0) {
-            // Get editions from these months
-            const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
-              where: { monthId: { in: monthIds }, editionId: { not: null } },
-              select: { editionId: true, bookId: true },
-            });
-            const editionIds = monthBooks.map(mb => mb.editionId).filter((id): id is string => id != null);
-            const bookIds = monthBooks.map(mb => mb.bookId);
-
-            const affectedEntries = await this.prisma.userBookEntry.findMany({
-              where: {
-                userId,
-                subscriptionEntryId: entry.id,
-                OR: [
-                  ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-                  { bookId: { in: bookIds } },
-                ],
-                purchaseGroupId: { not: null },
-              },
-              select: { id: true, purchaseGroupId: true },
-            });
-            const groupIds = [...new Set(affectedEntries.map(e => e.purchaseGroupId as string))];
-
-            await this.prisma.userBookEntry.deleteMany({
-              where: {
-                userId,
-                subscriptionEntryId: entry.id,
-                OR: [
-                  ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
-                  { bookId: { in: bookIds } },
-                ],
-              },
-            });
-
-            if (groupIds.length > 0) {
-              await this.prisma.userPurchaseGroup.deleteMany({
-                where: { id: { in: groupIds }, bookEntries: { none: {} } },
-              });
-            }
-          }
         }
+      };
+
+      if (opts.historyIds && opts.historyIds.length > 0 && !opts.removeAllPeriods) {
+        // Remove books for each selected period
+        for (const hid of opts.historyIds) {
+          await removeBooksForHistoryId(hid);
+        }
+      } else if (opts.historyId && !opts.removeAllPeriods) {
+        // Remove books only from months within the selected history period's date range
+        await removeBooksForHistoryId(opts.historyId);
       } else {
         // Remove ALL books linked to this subscription entry
         const affectedEntries = await this.prisma.userBookEntry.findMany({
@@ -1331,6 +1336,15 @@ export class SubscriptionsService {
           });
         }
       }
+      void monthFilter; // suppress unused variable warning
+    }
+
+    // If removing only specific history period(s) (not the whole entry), delete those records and return
+    if (opts.historyIds && opts.historyIds.length > 0 && !opts.removeAllPeriods) {
+      await this.prisma.userSubscriptionMembershipHistory.deleteMany({
+        where: { id: { in: opts.historyIds }, userId },
+      });
+      return { success: true };
     }
 
     // If removing only a specific history period (not the whole entry), just delete the history record

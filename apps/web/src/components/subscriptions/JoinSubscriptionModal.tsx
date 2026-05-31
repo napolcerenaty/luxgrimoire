@@ -624,6 +624,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           )
         })()}
       </div>}
+      <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
           Taxes &amp; fees
         </label>
