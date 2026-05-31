@@ -5,15 +5,28 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
+import { StatsService } from '../stats/stats.service';
 import { parsePagination } from '../../common/pagination';
 
+type ReadingHistoryDelegate = {
+  create(args: unknown): Promise<unknown>;
+  findFirst(args: unknown): Promise<{ id: string } | null>;
+  update(args: unknown): Promise<unknown>;
+  findMany(args: unknown): Promise<unknown[]>;
+  delete(args: unknown): Promise<unknown>;
+};
 
 @Injectable()
 export class CollectionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crowdStatsService: CrowdStatsService,
+    private readonly statsService: StatsService,
   ) {}
+
+  private get readingHistory() {
+    return (this.prisma as PrismaService & { readingHistory: ReadingHistoryDelegate }).readingHistory;
+  }
 
   async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
@@ -244,6 +257,7 @@ export class CollectionService {
       },
     });
     recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
+    this.statsService.markStatsStale(userId);
     return entry;
   }
 
@@ -269,6 +283,7 @@ export class CollectionService {
       },
     });
     recordOwnershipHistoryAsync(this.prisma, created.id, created.ownershipStatus);
+    this.statsService.markStatsStale(userId);
     return created;
   }
 
@@ -418,6 +433,38 @@ export class CollectionService {
         effectiveOwnershipStatus === 'SOLD' ? saleDate : undefined,
       );
     }
+    // Auto-create reading history sessions on status transitions
+    if (dto.readingStatus !== undefined && dto.readingStatus !== existing.readingStatus) {
+      if (dto.readingStatus === 'READING') {
+        this.readingHistory.create({
+          data: { userBookEntryId: entryId, startedAt: new Date(), isDnf: false },
+        }).catch(() => {});
+      } else if (dto.readingStatus === 'READ' || dto.readingStatus === 'DNF') {
+        // Close any open reading session
+        this.readingHistory.findFirst({
+          where: { userBookEntryId: entryId, finishedAt: null },
+          orderBy: { startedAt: 'desc' },
+        }).then((open) => {
+          if (open) {
+            return this.readingHistory.update({
+              where: { id: open.id },
+              data: {
+                finishedAt: new Date(),
+                isDnf: dto.readingStatus === 'DNF',
+              },
+            });
+          }
+          // No open session — create a finished one
+          return this.readingHistory.create({
+            data: {
+              userBookEntryId: entryId,
+              finishedAt: new Date(),
+              isDnf: dto.readingStatus === 'DNF',
+            },
+          });
+        }).catch(() => {});
+      }
+    }
     // Sync sale crowd stats when sale info is updated
     const editionId = existing.editionId;
     if (editionId && (dto.salePrice !== undefined || dto.saleCurrency !== undefined || dto.saleDate !== undefined)) {
@@ -440,6 +487,7 @@ export class CollectionService {
         this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
       }
     }
+    this.statsService.markStatsStale(userId);
     return updated;
   }
 
@@ -469,6 +517,7 @@ export class CollectionService {
       }
     }
 
+    this.statsService.markStatsStale(userId);
     return { updatedCount: entries.length };
   }
 
@@ -523,6 +572,55 @@ export class CollectionService {
     return { success: true };
   }
 
+  private async assertEntryOwnership(userId: string, entryId: string) {
+    const entry = await this.prisma.userBookEntry.findUnique({ where: { id: entryId }, select: { userId: true } });
+    if (!entry) throw new NotFoundException('Entry not found');
+    assertOwnership(entry.userId, userId);
+  }
+
+  async getReadingHistory(userId: string, entryId: string) {
+    await this.assertEntryOwnership(userId, entryId);
+    return this.readingHistory.findMany({
+      where: { userBookEntryId: entryId },
+      orderBy: { startedAt: 'asc' },
+      select: { id: true, startedAt: true, finishedAt: true, isDnf: true, notes: true, createdAt: true },
+    });
+  }
+
+  async addReadingHistory(userId: string, entryId: string, dto: { startedAt?: string; finishedAt?: string; isDnf?: boolean; notes?: string }) {
+    await this.assertEntryOwnership(userId, entryId);
+    return this.readingHistory.create({
+      data: {
+        userBookEntryId: entryId,
+        ...(dto.startedAt && { startedAt: new Date(dto.startedAt) }),
+        ...(dto.finishedAt && { finishedAt: new Date(dto.finishedAt) }),
+        isDnf: dto.isDnf ?? false,
+        notes: dto.notes ?? null,
+      },
+      select: { id: true, startedAt: true, finishedAt: true, isDnf: true, notes: true, createdAt: true },
+    });
+  }
+
+  async updateReadingHistory(userId: string, entryId: string, historyId: string, dto: { startedAt?: string | null; finishedAt?: string | null; isDnf?: boolean; notes?: string | null }) {
+    await this.assertEntryOwnership(userId, entryId);
+    return this.readingHistory.update({
+      where: { id: historyId },
+      data: {
+        ...(dto.startedAt !== undefined && { startedAt: dto.startedAt ? new Date(dto.startedAt) : null }),
+        ...(dto.finishedAt !== undefined && { finishedAt: dto.finishedAt ? new Date(dto.finishedAt) : null }),
+        ...(dto.isDnf !== undefined && { isDnf: dto.isDnf }),
+        ...(dto.notes !== undefined && { notes: dto.notes }),
+      },
+      select: { id: true, startedAt: true, finishedAt: true, isDnf: true, notes: true, createdAt: true },
+    });
+  }
+
+  async deleteReadingHistory(userId: string, entryId: string, historyId: string) {
+    await this.assertEntryOwnership(userId, entryId);
+    await this.readingHistory.delete({ where: { id: historyId } });
+    return { success: true };
+  }
+
   async removeFromCollection(userId: string, entryId: string) {
     const existing = await this.prisma.userBookEntry.findUnique({
       where: { id: entryId },
@@ -540,6 +638,7 @@ export class CollectionService {
         await this.prisma.userPurchaseGroup.delete({ where: { id: existing.purchaseGroupId } }).catch(() => {});
       }
     }
+    this.statsService.markStatsStale(userId);
     return existing;
   }
 

@@ -7,9 +7,10 @@ import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { UploadModule } from '../upload/upload.module';
 import { CrowdStatsModule } from '../crowd-stats/crowd-stats.module';
+import { StatsModule } from '../stats/stats.module';
 
 @Module({
-  imports: [SkipPolicyModule, AnalyticsModule, UploadModule, CrowdStatsModule],
+  imports: [SkipPolicyModule, AnalyticsModule, UploadModule, CrowdStatsModule, StatsModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, RenewalCronService, CountryFeeSnapshotCronService],
 })

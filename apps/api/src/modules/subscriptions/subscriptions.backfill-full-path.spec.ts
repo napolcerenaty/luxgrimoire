@@ -159,6 +159,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       {} as any,        // RenewalCronService
       {} as any,        // UploadService
       {} as any,        // CrowdStatsService
+      {} as any,        // StatsService
       { del: jest.fn().mockResolvedValue(undefined), get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined) } as any,
     );
   });

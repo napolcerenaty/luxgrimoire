@@ -88,6 +88,7 @@ describe('SubscriptionsService — price changes', () => {
       {} as any, // RenewalCronService
       {} as any, // UploadService
       {} as any, // CrowdStatsService
+      {} as any, // StatsService
       cache as any,
     );
     // Avoid cache+DB complexity for findBySlug — tested in dedicated findBySlug tests

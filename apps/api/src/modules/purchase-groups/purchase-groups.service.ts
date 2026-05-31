@@ -2,11 +2,15 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StatsService } from '../stats/stats.service';
 import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto } from './purchase-groups.dto';
 
 @Injectable()
 export class PurchaseGroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly statsService: StatsService,
+  ) {}
 
   async getGroups(userId: string) {
     const groups = await this.prisma.userPurchaseGroup.findMany({
@@ -73,7 +77,7 @@ export class PurchaseGroupsService {
       if (!sale) throw new BadRequestException('Sale announcement not found');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Create the group
       const group = await tx.userPurchaseGroup.create({
         data: {
@@ -117,6 +121,9 @@ export class PurchaseGroupsService {
 
       return { group, bookEntries };
     });
+
+    this.statsService.markStatsStale(userId);
+    return result;
   }
 
   async updateGroup(userId: string, groupId: string, dto: UpdatePurchaseGroupDto) {
@@ -124,7 +131,7 @@ export class PurchaseGroupsService {
     if (!existing) throw new NotFoundException('Purchase group not found');
     assertOwnership(existing.userId, userId);
 
-    return this.prisma.userPurchaseGroup.update({
+    const updated = await this.prisma.userPurchaseGroup.update({
       where: { id: groupId },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -138,6 +145,9 @@ export class PurchaseGroupsService {
         ...(dto.sourcePlatform !== undefined && { sourcePlatform: dto.sourcePlatform }),
       },
     });
+
+    this.statsService.markStatsStale(userId);
+    return updated;
   }
 
   async confirmSalePurchase(userId: string, announcementId: string, dto: ConfirmSalePurchaseDto) {
@@ -160,7 +170,7 @@ export class PurchaseGroupsService {
       throw new BadRequestException('Some edition IDs are invalid');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.userPurchaseGroup.create({
         data: {
           userId,
@@ -196,6 +206,9 @@ export class PurchaseGroupsService {
 
       return { group, bookEntries };
     });
+
+    this.statsService.markStatsStale(userId);
+    return result;
   }
 
   async createGroupForEntry(userId: string, entryId: string, dto: UpdatePurchaseGroupDto & { totalAmount: number; currency: string; purchasedAt: string }) {
@@ -206,8 +219,8 @@ export class PurchaseGroupsService {
     if (!entry) throw new NotFoundException('Entry not found');
     assertOwnership(entry.userId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const group = await tx.userPurchaseGroup.create({
+    const group = await this.prisma.$transaction(async (tx) => {
+      const createdGroup = await tx.userPurchaseGroup.create({
         data: {
           userId,
           title: dto.title ?? null,
@@ -222,10 +235,13 @@ export class PurchaseGroupsService {
       });
       await tx.userBookEntry.update({
         where: { id: entryId },
-        data: { purchaseGroupId: group.id },
+        data: { purchaseGroupId: createdGroup.id },
       });
-      return group;
+      return createdGroup;
     });
+
+    this.statsService.markStatsStale(userId);
+    return group;
   }
 
   async deleteGroup(userId: string, groupId: string) {
@@ -240,6 +256,7 @@ export class PurchaseGroupsService {
     });
 
     await this.prisma.userPurchaseGroup.delete({ where: { id: groupId } });
+    this.statsService.markStatsStale(userId);
   }
 
   // ── Stats helper ─────────────────────────────────────────────────────────────
