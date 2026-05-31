@@ -584,17 +584,19 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           }
           return (
             <>
-              <p>
-                We know of the following price changes:{' '}
-                {sorted.map((pc, i) => (
-                  <span key={i}>
-                    {i > 0 && ', '}
-                    <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
-                    {' '}from{' '}
-                    <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
-                  </span>
-                ))}
-              </p>
+              {sorted.length > 0 && (
+                <p>
+                  We know of the following price changes:{' '}
+                  {sorted.map((pc, i) => (
+                    <span key={i}>
+                      {i > 0 && ', '}
+                      <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                      {' '}from{' '}
+                      <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                    </span>
+                  ))}
+                </p>
+              )}
               {periods.length > 0 && (
                 <div>
                   <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
