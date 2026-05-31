@@ -25,6 +25,7 @@ import {
   CancelMyEntryDto,
   UpdateMyEntryCostsDto,
   RemoveMyEntryDto,
+  RemoveOrphanedHistoryDto,
   CreatePriceChangeDto,
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
@@ -208,8 +209,15 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Delete('my/orphaned-history/:historyId')
-  removeOrphanedHistory(@CurrentUser() user: CurrentUserType, @Param('historyId') historyId: string) {
-    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId);
+  removeOrphanedHistory(
+    @CurrentUser() user: CurrentUserType,
+    @Param('historyId') historyId: string,
+    @Body() dto: RemoveOrphanedHistoryDto,
+  ) {
+    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId, {
+      removeBooks: dto.removeBooks,
+      removeSpending: dto.removeSpending,
+    });
   }
 
   @ApiBearerAuth()

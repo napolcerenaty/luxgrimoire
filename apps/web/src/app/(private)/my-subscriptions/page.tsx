@@ -392,9 +392,13 @@ function HistoryPeriodRow({ entry, records, viewMode = 'list' }: { entry: MySubs
 function OrphanedHistoryRow({ subscription: sub, records, viewMode = 'list' }: { subscription: OrphanedHistorySub; records: MembershipHistoryRecord[]; viewMode?: 'list' | 'grid' }) {
   const qc = useQueryClient()
   const removeMutation = useMutation({
-    mutationFn: async ({ historyId, historyIds, removeAllPeriods }: HistoryRemoveArgs) => {
+    mutationFn: async ({ historyId, historyIds, removeAllPeriods, removeBooks, removeSpending }: HistoryRemoveArgs) => {
       const idsToRemove = removeAllPeriods ? records.map(r => r.id) : historyIds?.length ? historyIds : historyId ? [historyId] : []
-      await Promise.all(idsToRemove.map(id => authFetch(`/subscriptions/my/orphaned-history/${id}`, { method: 'DELETE' })))
+      await Promise.all(idsToRemove.map(id => authFetch(`/subscriptions/my/orphaned-history/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ removeBooks, removeSpending }),
+        headers: { 'Content-Type': 'application/json' },
+      })))
     },
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions', 'orphaned-history'] }) },
   })
@@ -403,7 +407,7 @@ function OrphanedHistoryRow({ subscription: sub, records, viewMode = 'list' }: {
       sub={sub}
       records={records}
       viewMode={viewMode}
-      showBooksSpending={false}
+      showBooksSpending={true}
       onRemove={args => removeMutation.mutate(args)}
       isPending={removeMutation.isPending}
       error={removeMutation.error?.message}
@@ -730,6 +734,11 @@ function EntryRemoveDialog({
         <p className="text-sm text-stone-400">
           This will permanently remove <span className="text-stone-200">{subName}</span> from your subscriptions.
         </p>
+        {!hasHistory && (
+          <p className="text-xs text-stone-500 bg-stone-800 rounded-lg px-3 py-2">
+            This will remove your current active subscription period only. Any past cancelled periods are shown in the <span className="text-stone-300">Cancelled</span> section and can be removed from there.
+          </p>
+        )}
         {hasHistory && (
           <div className="space-y-2">
             <p className="text-xs text-stone-400 font-medium">Select period(s) to remove:</p>

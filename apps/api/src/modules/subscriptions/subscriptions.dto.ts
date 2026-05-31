@@ -763,6 +763,11 @@ export class RemoveMyEntryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeCurrentOnly?: boolean;
 }
 
+export class RemoveOrphanedHistoryDto {
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+}
+
 export class UpdateMyEntryCostsDto {
   @IsOptional()
   @IsString()

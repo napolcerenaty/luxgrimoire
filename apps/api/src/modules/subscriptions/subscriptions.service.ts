@@ -1137,11 +1137,84 @@ export class SubscriptionsService {
     return Array.from(grouped.values());
   }
 
-  async removeOrphanedHistoryRecord(userId: string, historyId: string) {
+  async removeOrphanedHistoryRecord(
+    userId: string,
+    historyId: string,
+    opts: { removeBooks?: boolean; removeSpending?: boolean } = {},
+  ) {
     const record = await this.prisma.userSubscriptionMembershipHistory.findFirst({
       where: { id: historyId, userId, entryId: null },
     });
     if (!record) throw new NotFoundException('Orphaned history record not found');
+
+    // Note: spending (UserSubscriptionRenewal) is cascade-deleted when the entry is removed,
+    // so there are no renewal records to clean up for orphaned history.
+
+    if (opts.removeBooks && (record.startDate || record.endDate)) {
+      const rangeStart = record.startDate
+        ? (() => { const p = record.startDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+        : null;
+      const rangeEnd = record.endDate
+        ? (() => { const p = record.endDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
+        : null;
+
+      const monthsInRange = await this.prisma.subscriptionMonth.findMany({
+        where: {
+          subscriptionId: record.subscriptionId,
+          ...(rangeStart || rangeEnd ? {
+            AND: [
+              ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
+              ...(rangeEnd ? [{ OR: [{ year: { lt: rangeEnd.year } }, { year: rangeEnd.year, month: { lte: rangeEnd.month } }] }] : []),
+            ],
+          } : {}),
+        },
+        select: { id: true },
+      });
+
+      const monthIds = monthsInRange.map(m => m.id);
+      if (monthIds.length > 0) {
+        const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
+          where: { monthId: { in: monthIds }, editionId: { not: null } },
+          select: { editionId: true, bookId: true },
+        });
+        const editionIds = monthBooks.map(mb => mb.editionId).filter((id): id is string => id != null);
+        const bookIds = monthBooks.map(mb => mb.bookId);
+
+        if (editionIds.length > 0 || bookIds.length > 0) {
+          const affectedEntries = await this.prisma.userBookEntry.findMany({
+            where: {
+              userId,
+              subscriptionEntryId: null,
+              OR: [
+                ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+                { bookId: { in: bookIds } },
+              ],
+              purchaseGroupId: { not: null },
+            },
+            select: { id: true, purchaseGroupId: true },
+          });
+          const groupIds = [...new Set(affectedEntries.map(e => e.purchaseGroupId as string))];
+
+          await this.prisma.userBookEntry.deleteMany({
+            where: {
+              userId,
+              subscriptionEntryId: null,
+              OR: [
+                ...(editionIds.length ? [{ editionId: { in: editionIds } }] : []),
+                { bookId: { in: bookIds } },
+              ],
+            },
+          });
+
+          if (groupIds.length > 0) {
+            await this.prisma.userPurchaseGroup.deleteMany({
+              where: { id: { in: groupIds }, bookEntries: { none: {} } },
+            });
+          }
+        }
+      }
+    }
+
     await this.prisma.userSubscriptionMembershipHistory.delete({ where: { id: historyId } });
   }
 
