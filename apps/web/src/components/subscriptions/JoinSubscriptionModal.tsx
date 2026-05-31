@@ -159,7 +159,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
   useEffect(() => {
     authFetch<PriceChange[]>(`/subscriptions/${subscriptionSlug}/price-changes`)
-      .then(data => setPriceChanges(Array.isArray(data) ? data : []))
+      .then(data => setPriceChanges(Array.isArray(data) ? data.filter(pc => pc.effectiveYear !== 1900) : []))
       .catch(() => {})
   }, [subscriptionSlug])
 

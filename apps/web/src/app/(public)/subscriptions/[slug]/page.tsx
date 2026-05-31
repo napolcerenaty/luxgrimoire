@@ -6,7 +6,6 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandTextClasses } from '@/lib/brandGradient'
 import { Badge } from '@/components/ui/Badge'
-import { BackButton } from '@/components/ui/BackButton'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
@@ -170,13 +169,19 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Back to previous page */}
       {from === 'subscriptions' ? (
-        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+        <Link
+          href="/subscriptions"
+          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
+        >
           <span>← Subscriptions</span>
-        </BackButton>
+        </Link>
       ) : from === 'my-subscriptions' ? (
-        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+        <Link
+          href="/my-subscriptions"
+          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
+        >
           <span>← My Subscriptions</span>
-        </BackButton>
+        </Link>
       ) : sub.company?.slug && (
         <Link
           href={`/companies/${sub.company.slug}`}

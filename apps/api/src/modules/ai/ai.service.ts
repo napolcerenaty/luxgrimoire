@@ -95,6 +95,9 @@ SIGNATURE RULES (read before artist rules):
   - Do NOT add the author as an artist entry
   - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
   - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
+- SIGNED PHYSICAL ITEM: If "signed" appears as an attribute of a PHYSICAL ITEM (e.g. "Custom endpapers which are signed by the author"), capture BOTH the physical item as its own separate feature AND "signed" as an additional separate feature. Never reduce a sentence describing a physical feature to just "signed" alone — the physical item must not be lost.
+  - Example: "Custom endpapers which are signed by the author" → features: ["Custom endpapers", "signed"]
+  - Example: "Custom signed bookplate" → features: ["signed bookplate"] (here the item IS a signed bookplate — keep as one entry, no need to split)
 
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
@@ -121,7 +124,8 @@ ARTIST EXTRACTION RULES:
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
 
 FEATURES RULES:
-- CASING: Preserve the original capitalisation from the source text. Do NOT normalise feature names to lowercase. If the source says "Foiled end pages" keep the capital F. If it says "ribbon bookmark" in lowercase, keep it lowercase. Never change the case of words.
+- ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
+- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase or fully lowercase an entire phrase.
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
@@ -180,7 +184,7 @@ FEATURES RULES:
   Example: "Reversible dust jacket designed" → feature: "Reversible dust jacket"
   Example: "Exclusive gilded edges painted" → feature: "Exclusive gilded edges"
   NOTE: Do NOT strip verbs that are an integral part of the feature name (e.g. "digitally printed edges" — "printed" is part of the material description, not an attribution verb).
-- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create ONE feature = the initial description before the first role verb, and one artist entry per person. Each artist's role = feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles.
+- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create EXACTLY ONE feature entry for the entire combined description (including any trailing qualifiers or parentheticals), and one artist entry per person. Each artist's role = full combined feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles. NEVER create multiple feature entries for different parts of the same inline multi-artist line.
   ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour", "composed/composing" → "composition".
   Artist names may or may not have an @ prefix — capture them exactly as written (with or without @).
   Example: "Exclusive redesigned dust jacket with art by 2 ghosts and designed by @lichen_and_limestone" →
@@ -192,6 +196,16 @@ FEATURES RULES:
   Example: "special edition endpapers painted by @artist1 with lettering by @artist2" →
     features: ["special edition endpapers"]
     artists: [{ name: "@artist1", role: "special edition endpapers (painting)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
+  Example: "Character artwork on the endpapers by @gonzalom.art with foil by @blanca.design (different front and back)" →
+    features: ["Character artwork on the endpapers with foil (different front and back)"]
+    artists: [{ name: "@gonzalom.art", role: "Character artwork on the endpapers with foil (different front and back) (artwork)" }, { name: "@blanca.design", role: "Character artwork on the endpapers with foil (different front and back) (foil)" }]
+  Example: "Printed hardcover case with foil designed by @artist1 with lettering by @artist2" →
+    features: ["Printed hardcover case with foil"]
+    artists: [{ name: "@artist1", role: "Printed hardcover case with foil (design)" }, { name: "@artist2", role: "Printed hardcover case with foil (lettering)" }]
+- SINGLE ARTIST WITH CONTINUATION ("X by @artist with Y" where Y has no artist): When a feature line attributes ONE artist and continues with "with [additional description]" that has no "by @artist" attribution, treat the additional description as part of the same feature/role — do NOT crop it. The artist's role = full combined description (minus the attribution verb). Do NOT create a separate feature entry for the additional description.
+  Example: "Digitally sprayed edge by @bluelyboo with solid sprayed top and bottom edges" →
+    features: [] (covered by artist entry)
+    artists: [{ name: "@bluelyboo", role: "Digitally sprayed edge with solid sprayed top and bottom edges" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 - EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
 - PRINT RUN / LIMITED COPIES: If the text mentions the number of copies, print run size, or limited edition quantity (e.g. "limited to 1500 copies", "strictly limited to 1500 signed and numbered copies", "print run of 500", "only 750 copies"), add it as a feature in the format: "limited to [N] copies". Extract the number and format consistently.
