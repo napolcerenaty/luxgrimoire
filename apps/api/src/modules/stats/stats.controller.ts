@@ -9,6 +9,11 @@ import { StatsService } from './stats.service';
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 
+  @Get('currencies')
+  getUserCurrencies(@CurrentUser() user: { id: string }) {
+    return this.statsService.getUserCurrencies(user.id);
+  }
+
   @Get('refresh')
   async forceRefresh(
     @CurrentUser() user: { id: string },

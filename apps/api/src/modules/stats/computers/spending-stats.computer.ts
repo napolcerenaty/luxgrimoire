@@ -171,7 +171,9 @@ export class SpendingStatsComputer extends StatsComputer {
     let totalBooksSold = 0;
     const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
     const salesByMonthMap: Record<string, number> = {};
+    const salesByMonthCountMap: Record<string, number> = {};
     const salesByYearMap: Record<number, number> = {};
+    const salesByYearCountMap: Record<number, number> = {};
     const salesByCompanyMap: Record<string, { name: string; slug: string; amount: number; count: number; primaryColor: string | null }> = {};
 
     for (const group of saleGroups) {
@@ -201,7 +203,9 @@ export class SpendingStatsComputer extends StatsComputer {
       const soldMonth = soldDate.getMonth() + 1;
       const monthKey = `${soldYear}-${String(soldMonth).padStart(2, '0')}`;
       salesByMonthMap[monthKey] = (salesByMonthMap[monthKey] ?? 0) + revenue;
+      salesByMonthCountMap[monthKey] = (salesByMonthCountMap[monthKey] ?? 0) + group.entries.length;
       salesByYearMap[soldYear] = (salesByYearMap[soldYear] ?? 0) + revenue;
+      salesByYearCountMap[soldYear] = (salesByYearCountMap[soldYear] ?? 0) + group.entries.length;
     }
 
     topExpensive.sort((a, b) => b.amount - a.amount);
@@ -215,6 +219,7 @@ export class SpendingStatsComputer extends StatsComputer {
     const byMonth = sortedMonthKeys.map((month) => ({ month, amount: r(byMonthMap[month] ?? 0) }));
     const byMonthBooks = sortedMonthKeys.map((month) => ({ month, count: byMonthBooksMap[month] ?? 0 }));
     const salesByMonth = sortedMonthKeys.map((month) => ({ month, amount: r(salesByMonthMap[month] ?? 0) }));
+    const salesByMonthCount = sortedMonthKeys.map((month) => ({ month, count: salesByMonthCountMap[month] ?? 0 }));
 
     return {
       currency: ctx.currency,
@@ -259,8 +264,12 @@ export class SpendingStatsComputer extends StatsComputer {
         .map((company) => ({ ...company, amount: r(company.amount) }))
         .sort((a, b) => b.amount - a.amount),
       salesByMonth,
+      salesByMonthCount,
       salesByYear: Object.entries(salesByYearMap)
         .map(([year, amount]) => ({ year: Number(year), amount: r(amount) }))
+        .sort((a, b) => a.year - b.year),
+      salesByYearCount: Object.entries(salesByYearCountMap)
+        .map(([year, count]) => ({ year: Number(year), count }))
         .sort((a, b) => a.year - b.year),
       plByMonth: Object.entries(plByMonthMap)
         .map(([month, pl]) => ({ month, pl: r(pl) }))

@@ -169,6 +169,8 @@ export class StatsService {
         byYear: spending.byYear ?? [],
         salesByYear: spending.salesByYear ?? [],
         salesByMonth: filterByYear(salesByMonth),
+        salesByMonthCount: spending.salesByMonthCount ?? [],
+        salesByYearCount: spending.salesByYearCount ?? [],
         salesByPlatform: spending.salesByPlatform ?? [],
         salesByCompany: spending.salesByCompany ?? [],
         topSalePrice: spending.topSalePrice ?? [],
@@ -238,6 +240,35 @@ export class StatsService {
         features: results.features ?? {},
       },
     });
+  }
+
+  async getUserCurrencies(userId: string): Promise<{ currencies: string[] }> {
+    const [purchaseGroups, saleGroups, saleEntries, user] = await Promise.all([
+      (this.prisma as PrismaService & { purchaseGroup: { findMany(a: unknown): Promise<{ currency: string }[]> } }).purchaseGroup.findMany({
+        where: { userId },
+        select: { currency: true },
+        distinct: ['currency'],
+      }),
+      (this.prisma as PrismaService & { userSaleGroup: { findMany(a: unknown): Promise<{ currency: string }[]> } }).userSaleGroup.findMany({
+        where: { userId },
+        select: { currency: true },
+        distinct: ['currency'],
+      }),
+      this.prisma.userBookEntry.findMany({
+        where: { userId, saleCurrency: { not: null } },
+        select: { saleCurrency: true },
+        distinct: ['saleCurrency'],
+      }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { preferredCurrency: true } }),
+    ]);
+
+    const seen = new Set<string>();
+    if (user?.preferredCurrency) seen.add(user.preferredCurrency.toUpperCase());
+    for (const g of purchaseGroups) seen.add(g.currency.toUpperCase());
+    for (const g of saleGroups) seen.add(g.currency.toUpperCase());
+    for (const e of saleEntries) if (e.saleCurrency) seen.add(e.saleCurrency.toUpperCase());
+
+    return { currencies: Array.from(seen).sort() };
   }
 
   private async buildContext(userId: string, currency: string): Promise<StatsContext> {

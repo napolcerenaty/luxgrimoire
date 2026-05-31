@@ -73,12 +73,14 @@ interface SpendingData {
   byYear: Array<{ year: number; amount: number }>
   byYearBooks: Array<{ year: number; count: number }>
   salesByYear: Array<{ year: number; amount: number }>
+  salesByYearCount: Array<{ year: number; count: number }>
   byMonth: Array<{ month: string; amount: number }>
   byMonthBooks: Array<{ month: string; count: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
   byCompany: Array<{ name: string; slug: string; amount: number; books: number; primaryColor?: string | null }>
   topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   salesByMonth: Array<{ month: string; amount: number }>
+  salesByMonthCount: Array<{ month: string; count: number }>
 }
 
 interface SalesData {
@@ -446,6 +448,46 @@ function DualYearBarChart({ spending, sales, currency }: {
   )
 }
 
+/** Books acquired (indigo) vs books sold (green) bars per month */
+function DualMonthBooksChart({ acquired, sold }: {
+  acquired: Array<{ month: string; count: number }>
+  sold: Array<{ month: string; count: number }>
+}) {
+  const TOTAL_H = 96
+  const LABEL_H = 18
+  const BAR_MAX = TOTAL_H - LABEL_H
+  const soldMap = new Map(sold.map(s => [s.month, s.count]))
+  const max = Math.max(...acquired.map(d => Math.max(d.count, soldMap.get(d.month) ?? 0)), 1)
+  return (
+    <div className="flex items-end gap-0.5 w-full" style={{ height: TOTAL_H }}>
+      {acquired.map((d, i) => {
+        const soldCount = soldMap.get(d.month) ?? 0
+        const acqH = d.count > 0 ? Math.max((d.count / max) * BAR_MAX, 3) : 0
+        const sldH = soldCount > 0 ? Math.max((soldCount / max) * BAR_MAX, 3) : 0
+        const monthName = new Date(d.month + '-01').toLocaleString('en', { month: 'short' })
+        return (
+          <div key={i} className="relative flex-1 group" style={{ height: TOTAL_H }}>
+            {(d.count > 0 || soldCount > 0) && (
+              <div
+                className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] whitespace-nowrap space-y-0.5"
+                style={{ bottom: LABEL_H + Math.max(acqH, sldH) + 4, left: '50%', transform: 'translateX(-50%)' }}
+              >
+                {d.count > 0 && <div className="text-indigo-400">📚 {d.count} acquired</div>}
+                {soldCount > 0 && <div className="text-green-400">💰 {soldCount} sold</div>}
+              </div>
+            )}
+            <div className="absolute rounded-t-sm bg-indigo-500/60 transition-all" style={{ bottom: LABEL_H, left: 1, right: '55%', height: acqH }} />
+            <div className="absolute rounded-t-sm bg-green-500/55 transition-all" style={{ bottom: LABEL_H, left: '55%', right: 1, height: sldH }} />
+            <span className="absolute left-0 right-0 text-center text-[9px] text-stone-500 bottom-0" style={{ height: LABEL_H, lineHeight: LABEL_H + 'px' }}>
+              {monthName}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Monthly P&L bar chart — green bars above zero, red below */
 function MonthlyPLBarChart({ data, currency }: { data: Array<{ month: string; pl: number }>; currency: string }) {
   const TOTAL_H = 120
@@ -688,6 +730,12 @@ export default function SpendingPage() {
     staleTime: 5 * 60_000,
   })
 
+  const { data: currencyData } = useQuery<{ currencies: string[] }>({
+    queryKey: ['stats-currencies'],
+    queryFn: () => authFetch('/stats/currencies'),
+    staleTime: 15 * 60_000,
+  })
+
   // ── Derived data ─────────────────────────────────────────────────────────────
   const spending = spResp?.data
   const sales = salesResp?.data
@@ -754,7 +802,7 @@ export default function SpendingPage() {
             onChange={e => { setCurrency(e.target.value) }}
             className="bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
           >
-            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {(currencyData?.currencies?.length ? currencyData.currencies : CURRENCIES).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -976,35 +1024,44 @@ export default function SpendingPage() {
                 <div className="lg:col-span-2 bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5">
                   <div className="flex items-center gap-2">
                     <BarChart2 size={14} className="text-amber-400" />
-                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending — {selectedYear}</h2>
+                    {spending.salesByMonth.some(m => m.amount > 0) ? (
+                      <>
+                        <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending vs Sales — {selectedYear}</h2>
+                        <div className="ml-auto flex items-center gap-3 text-[10px] text-stone-500">
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500/70 inline-block" /> Spending</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/70 inline-block" /> Sales</span>
+                        </div>
+                      </>
+                    ) : (
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending — {selectedYear}</h2>
+                    )}
                   </div>
                   {spending.byMonth.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data for {selectedYear}</p>
+                  ) : spending.salesByMonth.some(m => m.amount > 0) ? (
+                    <DualMonthChart spending={spending.byMonth} sales={spending.salesByMonth} currency={currency} />
                   ) : (
                     <MonthBarChart data={spending.byMonth} currency={currency} />
                   )}
                   {spending.byMonthBooks.length > 0 && (
                     <>
-                      <div className="flex items-center gap-2 pt-2 border-t border-stone-800/60">
-                        <Library size={12} className="text-indigo-400" />
-                        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Books Acquired — {selectedYear}</span>
-                      </div>
-                      <MonthBooksChart data={spending.byMonthBooks} />
-                    </>
-                  )}
-                  {spending.salesByMonth.length > 0 && (
-                    <>
                       <div className="flex items-center justify-between pt-2 border-t border-stone-800/60">
                         <div className="flex items-center gap-2">
-                          <BarChart2 size={12} className="text-green-400" />
-                          <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Spending vs Sales — {selectedYear}</span>
+                          <Library size={12} className="text-indigo-400" />
+                          <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Books — {selectedYear}</span>
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] text-stone-500">
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500/70 inline-block" /> Spending</span>
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/70 inline-block" /> Sales</span>
-                        </div>
+                        {spending.salesByMonthCount?.some(m => m.count > 0) && (
+                          <div className="flex items-center gap-3 text-[10px] text-stone-500">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-indigo-500/60 inline-block" /> Acquired</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/55 inline-block" /> Sold</span>
+                          </div>
+                        )}
                       </div>
-                      <DualMonthChart spending={spending.byMonth} sales={spending.salesByMonth} currency={currency} />
+                      {spending.salesByMonthCount?.some(m => m.count > 0) ? (
+                        <DualMonthBooksChart acquired={spending.byMonthBooks} sold={spending.salesByMonthCount} />
+                      ) : (
+                        <MonthBooksChart data={spending.byMonthBooks} />
+                      )}
                     </>
                   )}
                 </div>
@@ -1220,14 +1277,6 @@ export default function SpendingPage() {
                   </div>
                   {sales.salesByYear.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data</p>
-                  ) : sales.byYear && sales.byYear.length > 0 ? (
-                    <>
-                      <div className="flex items-center gap-3 text-[10px] text-stone-500 mb-3">
-                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-600/70" /> Spending</span>
-                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500/60" /> Sales</span>
-                      </div>
-                      <DualYearBarChart spending={sales.byYear} sales={sales.salesByYear} currency={currency} />
-                    </>
                   ) : (
                     <YearBarChart data={sales.salesByYear} currency={currency} />
                   )}
