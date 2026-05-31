@@ -15,7 +15,7 @@ export const statsEntryInclude = {
         select: {
           name: true,
           slug: true,
-          company: { select: { id: true, name: true, slug: true } },
+          company: { select: { id: true, name: true, slug: true, brandColors: true } },
         },
       },
     },
@@ -51,7 +51,7 @@ export const statsSaleGroupInclude = {
             include: {
               subscription: {
                 select: {
-                  company: { select: { id: true, name: true, slug: true } },
+                  company: { select: { id: true, name: true, slug: true, brandColors: true } },
                 },
               },
             },

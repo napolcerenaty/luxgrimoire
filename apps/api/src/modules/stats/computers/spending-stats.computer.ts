@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class SpendingStatsComputer extends StatsComputer {
   readonly key = 'spending';
-  readonly version = 3;
+  readonly version = 4;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, saleGroups, convert, now } = ctx;
@@ -38,13 +38,13 @@ export class SpendingStatsComputer extends StatsComputer {
     const byMonthMap: Record<string, number> = {};
     const byMonthBooksMap: Record<string, number> = {};
     const bySubMap: Record<string, { name: string; slug: string; amount: number; books: number }> = {};
-    const byCompanyMap: Record<string, { name: string; slug: string; amount: number; books: number }> = {};
+    const byCompanyMap: Record<string, { name: string; slug: string; amount: number; books: number; primaryColor: string | null }> = {};
     const topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
     const topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
     const topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
     const topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
     const plByMonthMap: Record<string, number> = {};
-    const plByCompanyMap: Record<string, { name: string; slug: string; pl: number; revenue: number; cost: number; count: number }> = {};
+    const plByCompanyMap: Record<string, { name: string; slug: string; pl: number; revenue: number; cost: number; count: number; primaryColor: string | null }> = {};
     const salesWithROI: Array<{ title: string; author: string; roi: number; holdDays: number; pl: number; editionSlug: string | null }> = [];
 
     for (const entry of entries) {
@@ -119,7 +119,7 @@ export class SpendingStatsComputer extends StatsComputer {
       const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
       if (company) {
         if (!byCompanyMap[company.id]) {
-          byCompanyMap[company.id] = { name: company.name, slug: company.slug, amount: 0, books: 0 };
+          byCompanyMap[company.id] = { name: company.name, slug: company.slug, amount: 0, books: 0, primaryColor: company.brandColors?.[0] ?? null };
         }
         byCompanyMap[company.id].amount += entryTotal;
         byCompanyMap[company.id].books++;
@@ -155,7 +155,7 @@ export class SpendingStatsComputer extends StatsComputer {
         const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
         if (company) {
           if (!plByCompanyMap[company.id]) {
-            plByCompanyMap[company.id] = { name: company.name, slug: company.slug, pl: 0, revenue: 0, cost: 0, count: 0 };
+            plByCompanyMap[company.id] = { name: company.name, slug: company.slug, pl: 0, revenue: 0, cost: 0, count: 0, primaryColor: company.brandColors?.[0] ?? null };
           }
           plByCompanyMap[company.id].pl += pl;
           plByCompanyMap[company.id].revenue += salePriceConverted;
@@ -172,7 +172,7 @@ export class SpendingStatsComputer extends StatsComputer {
     const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
     const salesByMonthMap: Record<string, number> = {};
     const salesByYearMap: Record<number, number> = {};
-    const salesByCompanyMap: Record<string, { name: string; slug: string; amount: number; count: number }> = {};
+    const salesByCompanyMap: Record<string, { name: string; slug: string; amount: number; count: number; primaryColor: string | null }> = {};
 
     for (const group of saleGroups) {
       const soldDate = new Date(group.soldAt);
@@ -190,7 +190,7 @@ export class SpendingStatsComputer extends StatsComputer {
         const company = userBookEntry?.edition?.bookBoxCompany ?? userBookEntry?.subscriptionEntry?.subscription?.company ?? null;
         if (company) {
           if (!salesByCompanyMap[company.id]) {
-            salesByCompanyMap[company.id] = { name: company.name, slug: company.slug, amount: 0, count: 0 };
+            salesByCompanyMap[company.id] = { name: company.name, slug: company.slug, amount: 0, count: 0, primaryColor: company.brandColors?.[0] ?? null };
           }
           salesByCompanyMap[company.id].amount += entryRevenue;
           salesByCompanyMap[company.id].count++;

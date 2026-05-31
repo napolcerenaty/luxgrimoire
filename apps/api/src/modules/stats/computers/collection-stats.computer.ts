@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 3;
+  readonly version = 4;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
@@ -38,7 +38,7 @@ export class CollectionStatsComputer extends StatsComputer {
     let secondHandCount = 0;
 
     const bySubAllMap: Record<string, { name: string; slug: string; books: number }> = {};
-    const byCompanyAllMap: Record<string, { name: string; slug: string; books: number }> = {};
+    const byCompanyAllMap: Record<string, { name: string; slug: string; books: number; primaryColor: string | null }> = {};
 
     for (const entry of entries) {
       totalBooks++;
@@ -77,7 +77,7 @@ export class CollectionStatsComputer extends StatsComputer {
       const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
       if (company) {
         if (!byCompanyAllMap[company.id]) {
-          byCompanyAllMap[company.id] = { name: company.name, slug: company.slug, books: 0 };
+          byCompanyAllMap[company.id] = { name: company.name, slug: company.slug, books: 0, primaryColor: company.brandColors?.[0] ?? null };
         }
         byCompanyAllMap[company.id].books++;
       }

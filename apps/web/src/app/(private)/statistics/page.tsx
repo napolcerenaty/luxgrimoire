@@ -44,7 +44,7 @@ interface CollectionStats {
   firstHandCount: number
   secondHandCount: number
   bySubscriptionAll: Array<{ name: string; slug: string; books: number }>
-  byCompanyAll: Array<{ name: string; slug: string; books: number }>
+  byCompanyAll: Array<{ name: string; slug: string; books: number; primaryColor?: string | null }>
 }
 
 interface FeaturesStats {
@@ -76,7 +76,7 @@ interface SpendingData {
   byMonth: Array<{ month: string; amount: number }>
   byMonthBooks: Array<{ month: string; count: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
-  byCompany: Array<{ name: string; slug: string; amount: number; books: number }>
+  byCompany: Array<{ name: string; slug: string; amount: number; books: number; primaryColor?: string | null }>
   topExpensive: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   salesByMonth: Array<{ month: string; amount: number }>
 }
@@ -85,15 +85,16 @@ interface SalesData {
   totalSalesRevenue: number
   totalSalesProfit: number | null
   totalBooksSold: number
+  byYear: Array<{ year: number; amount: number }>
   salesByYear: Array<{ year: number; amount: number }>
   salesByMonth: Array<{ month: string; amount: number }>
   salesByPlatform: Array<{ platform: string; amount: number; count: number }>
-  salesByCompany: Array<{ name: string; slug: string; amount: number; count: number }>
+  salesByCompany: Array<{ name: string; slug: string; amount: number; count: number; primaryColor?: string | null }>
   topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
   topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
   plByMonth: Array<{ month: string; pl: number }>
-  plByCompany: Array<{ name: string; slug: string; pl: number; revenue: number; cost: number; count: number }>
+  plByCompany: Array<{ name: string; slug: string; pl: number; revenue: number; cost: number; count: number; primaryColor?: string | null }>
   salesWithROI: Array<{ title: string; author: string; roi: number; holdDays: number; pl: number; editionSlug: string | null }>
 }
 
@@ -619,7 +620,7 @@ function HoldTimeScatter({ salesWithROI, currency }: {
 
 /** P&L by company horizontal bars */
 function PLByCompanyChart({ data, currency }: {
-  data: Array<{ name: string; pl: number; revenue: number; count: number }>
+  data: Array<{ name: string; pl: number; revenue: number; count: number; primaryColor?: string | null }>
   currency: string
 }) {
   const maxAbs = Math.max(...data.map(d => Math.abs(d.pl)), 1)
@@ -628,6 +629,7 @@ function PLByCompanyChart({ data, currency }: {
       {data.slice(0, 10).map((c, i) => {
         const pct = (Math.abs(c.pl) / maxAbs) * 100
         const isProfit = c.pl >= 0
+        const barColor = c.primaryColor && isProfit ? c.primaryColor + 'cc' : isProfit ? '#34d399' : '#f87171'
         return (
           <div key={i} className="space-y-0.5">
             <div className="flex justify-between text-xs">
@@ -638,7 +640,7 @@ function PLByCompanyChart({ data, currency }: {
               </span>
             </div>
             <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: isProfit ? '#34d399' : '#f87171' }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
             </div>
           </div>
         )
@@ -851,7 +853,7 @@ export default function SpendingPage() {
                               <span className="text-xs text-stone-600 shrink-0">book{c.books !== 1 ? 's' : ''}</span>
                             </div>
                             <div className="ml-7 h-1 bg-stone-800 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-indigo-500/50 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barPct}%`, background: c.primaryColor ? c.primaryColor + 'aa' : 'rgba(99,102,241,0.5)' }} />
                             </div>
                           </div>
                         )
@@ -1119,7 +1121,7 @@ export default function SpendingPage() {
                             <span className="text-[11px] text-stone-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
                           </div>
                           <div className="ml-9 h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full bg-amber-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barPct}%`, background: c.primaryColor ? c.primaryColor + 'aa' : 'rgba(245,158,11,0.6)' }} />
                           </div>
                         </div>
                       )
@@ -1214,10 +1216,18 @@ export default function SpendingPage() {
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Calendar size={14} className="text-green-400" />
-                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Sales by Year</h2>
+                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">By Year</h2>
                   </div>
                   {sales.salesByYear.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data</p>
+                  ) : sales.byYear && sales.byYear.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-3 text-[10px] text-stone-500 mb-3">
+                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-600/70" /> Spending</span>
+                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500/60" /> Sales</span>
+                      </div>
+                      <DualYearBarChart spending={sales.byYear} sales={sales.salesByYear} currency={currency} />
+                    </>
                   ) : (
                     <YearBarChart data={sales.salesByYear} currency={currency} />
                   )}
@@ -1276,7 +1286,7 @@ export default function SpendingPage() {
                               <span className="text-[11px] text-stone-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
                             </div>
                             <div className="ml-9 h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-green-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barPct}%`, background: c.primaryColor ? c.primaryColor + 'aa' : 'rgba(34,197,94,0.6)' }} />
                             </div>
                           </div>
                         )

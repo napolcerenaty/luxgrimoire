@@ -166,6 +166,7 @@ export class StatsService {
         totalSalesRevenue: spending.totalSalesRevenue ?? 0,
         totalSalesProfit: spending.totalSalesProfit ?? null,
         totalBooksSold: spending.totalBooksSold ?? 0,
+        byYear: spending.byYear ?? [],
         salesByYear: spending.salesByYear ?? [],
         salesByMonth: filterByYear(salesByMonth),
         salesByPlatform: spending.salesByPlatform ?? [],
