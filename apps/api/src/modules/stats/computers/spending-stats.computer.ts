@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class SpendingStatsComputer extends StatsComputer {
   readonly key = 'spending';
-  readonly version = 2;
+  readonly version = 3;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, saleGroups, convert, now } = ctx;
@@ -31,6 +31,8 @@ export class SpendingStatsComputer extends StatsComputer {
     let totalShipping = 0;
     let totalTax = 0;
 
+    const r = (v: number) => Math.round(v * 100) / 100;
+
     const byYearMap: Record<number, number> = {};
     const byYearBooksMap: Record<number, number> = {};
     const byMonthMap: Record<string, number> = {};
@@ -41,6 +43,9 @@ export class SpendingStatsComputer extends StatsComputer {
     const topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }> = [];
     const topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
     const topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }> = [];
+    const plByMonthMap: Record<string, number> = {};
+    const plByCompanyMap: Record<string, { name: string; slug: string; pl: number; revenue: number; cost: number; count: number }> = {};
+    const salesWithROI: Array<{ title: string; author: string; roi: number; holdDays: number; pl: number; editionSlug: string | null }> = [];
 
     for (const entry of entries) {
       const group = entry.purchaseGroup;
@@ -133,12 +138,32 @@ export class SpendingStatsComputer extends StatsComputer {
         const saleCur = entry.saleCurrency ?? purchaseCurrency;
         const salePriceConverted = await convert(salePriceNum, saleCur, saleDate);
         const pl = salePriceConverted - entryTotal;
-        topSalePrice.push({ title: bookTitle, author: bookAuthor, amount: salePriceConverted, currency: ctx.currency, date: dateStr, editionSlug });
+        const roi = entryTotal > 0 ? (pl / entryTotal) * 100 : 0;
+        const holdDays = Math.round((saleDate.getTime() - date.getTime()) / 86_400_000);
+        const saleDateStr = saleDate.toISOString().slice(0, 10);
+        const saleMonthKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`;
+
+        topSalePrice.push({ title: bookTitle, author: bookAuthor, amount: salePriceConverted, currency: ctx.currency, date: saleDateStr, editionSlug });
         if (pl >= 0) {
-          topProfit.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: ctx.currency, cost: entryTotal, date: dateStr, editionSlug });
+          topProfit.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: ctx.currency, cost: entryTotal, date: saleDateStr, editionSlug });
         } else {
-          topLoss.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: ctx.currency, cost: entryTotal, date: dateStr, editionSlug });
+          topLoss.push({ title: bookTitle, author: bookAuthor, amount: pl, currency: ctx.currency, cost: entryTotal, date: saleDateStr, editionSlug });
         }
+
+        plByMonthMap[saleMonthKey] = (plByMonthMap[saleMonthKey] ?? 0) + pl;
+
+        const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
+        if (company) {
+          if (!plByCompanyMap[company.id]) {
+            plByCompanyMap[company.id] = { name: company.name, slug: company.slug, pl: 0, revenue: 0, cost: 0, count: 0 };
+          }
+          plByCompanyMap[company.id].pl += pl;
+          plByCompanyMap[company.id].revenue += salePriceConverted;
+          plByCompanyMap[company.id].cost += entryTotal;
+          plByCompanyMap[company.id].count++;
+        }
+
+        salesWithROI.push({ title: bookTitle, author: bookAuthor, roi: Math.round(roi * 10) / 10, holdDays: Math.max(holdDays, 0), pl: r(pl), editionSlug });
       }
     }
 
@@ -184,7 +209,6 @@ export class SpendingStatsComputer extends StatsComputer {
     topProfit.sort((a, b) => b.amount - a.amount);
     topLoss.sort((a, b) => a.amount - b.amount);
 
-    const r = (v: number) => Math.round(v * 100) / 100;
     const allMonthKeys = new Set([...Object.keys(byMonthMap), ...Object.keys(byMonthBooksMap), ...Object.keys(salesByMonthMap)]);
     const sortedMonthKeys = Array.from(allMonthKeys).sort();
 
@@ -238,6 +262,13 @@ export class SpendingStatsComputer extends StatsComputer {
       salesByYear: Object.entries(salesByYearMap)
         .map(([year, amount]) => ({ year: Number(year), amount: r(amount) }))
         .sort((a, b) => a.year - b.year),
+      plByMonth: Object.entries(plByMonthMap)
+        .map(([month, pl]) => ({ month, pl: r(pl) }))
+        .sort((a, b) => a.month.localeCompare(b.month)),
+      plByCompany: Object.values(plByCompanyMap)
+        .map((c) => ({ ...c, pl: r(c.pl), revenue: r(c.revenue), cost: r(c.cost) }))
+        .sort((a, b) => b.pl - a.pl),
+      salesWithROI,
     };
   }
 }

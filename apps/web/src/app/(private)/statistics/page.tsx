@@ -72,6 +72,7 @@ interface SpendingData {
   totalRefunds: number
   byYear: Array<{ year: number; amount: number }>
   byYearBooks: Array<{ year: number; count: number }>
+  salesByYear: Array<{ year: number; amount: number }>
   byMonth: Array<{ month: string; amount: number }>
   byMonthBooks: Array<{ month: string; count: number }>
   bySubscription: Array<{ name: string; slug: string; amount: number; books: number }>
@@ -91,6 +92,9 @@ interface SalesData {
   topSalePrice: Array<{ title: string; author: string; amount: number; currency: string; date: string; editionSlug: string | null }>
   topProfit: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
   topLoss: Array<{ title: string; author: string; amount: number; currency: string; cost: number; date: string; editionSlug: string | null }>
+  plByMonth: Array<{ month: string; pl: number }>
+  plByCompany: Array<{ name: string; slug: string; pl: number; revenue: number; cost: number; count: number }>
+  salesWithROI: Array<{ title: string; author: string; roi: number; holdDays: number; pl: number; editionSlug: string | null }>
 }
 
 interface ModuleResponse<T> {
@@ -397,6 +401,248 @@ function YearSwitcher({ years, selected, onChange }: { years: number[]; selected
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Spending (amber) vs Sales revenue (green) bars per year */
+function DualYearBarChart({ spending, sales, currency }: {
+  spending: Array<{ year: number; amount: number }>
+  sales: Array<{ year: number; amount: number }>
+  currency: string
+}) {
+  const TOTAL_H = 96
+  const LABEL_H = 18
+  const BAR_MAX = TOTAL_H - LABEL_H
+  const salesMap = new Map(sales.map(s => [s.year, s.amount]))
+  const allYears = Array.from(new Set([...spending.map(d => d.year), ...sales.map(d => d.year)])).sort()
+  const max = Math.max(...allYears.map(y => Math.max(spending.find(d => d.year === y)?.amount ?? 0, salesMap.get(y) ?? 0)), 1)
+  return (
+    <div className="flex items-end gap-2 w-full" style={{ height: TOTAL_H }}>
+      {allYears.map((year) => {
+        const spAmt = spending.find(d => d.year === year)?.amount ?? 0
+        const salAmt = salesMap.get(year) ?? 0
+        const spH = spAmt > 0 ? Math.max((spAmt / max) * BAR_MAX, 4) : 0
+        const salH = salAmt > 0 ? Math.max((salAmt / max) * BAR_MAX, 4) : 0
+        return (
+          <div key={year} className="relative flex-1 group" style={{ height: TOTAL_H }}>
+            <div
+              className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] whitespace-nowrap space-y-0.5"
+              style={{ bottom: LABEL_H + Math.max(spH, salH) + 4, left: '50%', transform: 'translateX(-50%)' }}
+            >
+              {spAmt > 0 && <div className="text-amber-400">Spent: {fmt(spAmt, currency)}</div>}
+              {salAmt > 0 && <div className="text-green-400">Sales: {fmt(salAmt, currency)}</div>}
+            </div>
+            <div className="absolute rounded-t-sm bg-amber-600/70 transition-all" style={{ bottom: LABEL_H, left: 1, right: '55%', height: spH }} />
+            <div className="absolute rounded-t-sm bg-green-500/60 transition-all" style={{ bottom: LABEL_H, left: '55%', right: 1, height: salH }} />
+            <span className="absolute left-0 right-0 text-center text-[9px] text-stone-500 bottom-0" style={{ height: LABEL_H, lineHeight: LABEL_H + 'px' }}>
+              {year}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Monthly P&L bar chart — green bars above zero, red below */
+function MonthlyPLBarChart({ data, currency }: { data: Array<{ month: string; pl: number }>; currency: string }) {
+  const TOTAL_H = 120
+  const LABEL_H = 18
+  const ZERO_Y = TOTAL_H / 2 - LABEL_H / 2
+  const HALF = ZERO_Y
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.pl)), 1)
+  return (
+    <div className="relative w-full" style={{ height: TOTAL_H + 4 }}>
+      {/* zero line */}
+      <div className="absolute left-0 right-0 border-t border-stone-700/60" style={{ top: ZERO_Y }} />
+      <div className="flex items-stretch gap-0.5 w-full h-full">
+        {data.map((d, i) => {
+          const barH = d.pl !== 0 ? Math.max((Math.abs(d.pl) / maxAbs) * HALF, 3) : 0
+          const monthName = new Date(d.month + '-01').toLocaleString('en', { month: 'short' })
+          const isProfit = d.pl >= 0
+          return (
+            <div key={i} className="relative flex-1 group" style={{ height: TOTAL_H }}>
+              {d.pl !== 0 && (
+                <div
+                  className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] text-stone-200 whitespace-nowrap"
+                  style={{ [isProfit ? 'bottom' : 'top']: ZERO_Y + barH + 4, left: '50%', transform: 'translateX(-50%)' }}
+                >
+                  <span className={isProfit ? 'text-emerald-400' : 'text-red-400'}>{isProfit ? '+' : ''}{fmt(d.pl, currency)}</span>
+                </div>
+              )}
+              <div
+                className="absolute left-0.5 right-0.5 rounded-sm transition-all"
+                style={{
+                  height: barH,
+                  background: isProfit ? 'rgba(52,211,153,0.75)' : 'rgba(248,113,113,0.75)',
+                  ...(isProfit ? { bottom: ZERO_Y } : { top: ZERO_Y }),
+                }}
+              />
+              <span className="absolute left-0 right-0 text-center text-[9px] text-stone-600 bottom-0" style={{ height: LABEL_H, lineHeight: LABEL_H + 'px' }}>
+                {monthName}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Cumulative P&L SVG line chart */
+function CumulativePLChart({ plByMonth, currency }: { plByMonth: Array<{ month: string; pl: number }>; currency: string }) {
+  const W = 600; const H = 140; const PAD = { t: 12, r: 8, b: 24, l: 8 }
+  const iW = W - PAD.l - PAD.r; const iH = H - PAD.t - PAD.b
+  if (plByMonth.length === 0) return null
+  const cumulative = plByMonth.reduce<Array<{ month: string; cumPL: number }>>((acc, d) => {
+    const prev = acc[acc.length - 1]?.cumPL ?? 0
+    acc.push({ month: d.month, cumPL: prev + d.pl })
+    return acc
+  }, [])
+  const values = cumulative.map(d => d.cumPL)
+  const minV = Math.min(...values, 0); const maxV = Math.max(...values, 0)
+  const range = maxV - minV || 1
+  const toX = (i: number) => PAD.l + (i / Math.max(cumulative.length - 1, 1)) * iW
+  const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * iH
+  const zeroY = toY(0)
+  const points = cumulative.map((d, i) => `${toX(i)},${toY(d.cumPL)}`).join(' ')
+  const last = cumulative[cumulative.length - 1]
+  const isPositive = (last?.cumPL ?? 0) >= 0
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY} stroke="#44403c" strokeWidth="1" strokeDasharray="4 3" />
+      <polyline points={points} fill="none" stroke={isPositive ? '#34d399' : '#f87171'} strokeWidth="2" strokeLinejoin="round" />
+      {cumulative.map((d, i) => (
+        <g key={i} className="group">
+          <circle cx={toX(i)} cy={toY(d.cumPL)} r="3" fill={d.cumPL >= 0 ? '#34d399' : '#f87171'} />
+          <title>{d.month}: {d.cumPL >= 0 ? '+' : ''}{fmt(d.cumPL, currency)}</title>
+        </g>
+      ))}
+      {cumulative.filter((_, i) => i % Math.max(1, Math.floor(cumulative.length / 8)) === 0 || i === cumulative.length - 1).map((d, i, arr) => (
+        <text key={i} x={toX(cumulative.indexOf(d))} y={H - 4} textAnchor="middle" fill="#78716c" fontSize="9">
+          {d.month.slice(0, 7)}
+        </text>
+      ))}
+    </svg>
+  )
+}
+
+/** ROI distribution histogram */
+function ROIHistogram({ salesWithROI }: { salesWithROI: Array<{ roi: number; holdDays: number; pl: number }> }) {
+  const BUCKETS = [
+    { label: '<-50%', min: -Infinity, max: -50, color: '#ef4444' },
+    { label: '-50–-25%', min: -50, max: -25, color: '#f97316' },
+    { label: '-25–0%', min: -25, max: 0, color: '#fbbf24' },
+    { label: '0–25%', min: 0, max: 25, color: '#a3e635' },
+    { label: '25–50%', min: 25, max: 50, color: '#34d399' },
+    { label: '50–100%', min: 50, max: 100, color: '#2dd4bf' },
+    { label: '>100%', min: 100, max: Infinity, color: '#818cf8' },
+  ]
+  const counts = BUCKETS.map(b => salesWithROI.filter(s => s.roi >= b.min && s.roi < b.max).length)
+  const maxCount = Math.max(...counts, 1)
+  const BAR_MAX_H = 80
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end gap-1 w-full" style={{ height: BAR_MAX_H + 20 }}>
+        {BUCKETS.map((b, i) => {
+          const h = counts[i] > 0 ? Math.max((counts[i] / maxCount) * BAR_MAX_H, 4) : 0
+          return (
+            <div key={i} className="relative flex-1 group" style={{ height: BAR_MAX_H + 20 }}>
+              {counts[i] > 0 && (
+                <div
+                  className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] text-stone-200 whitespace-nowrap transition-opacity"
+                  style={{ bottom: 20 + h + 4, left: '50%', transform: 'translateX(-50%)' }}
+                >
+                  {counts[i]} sale{counts[i] !== 1 ? 's' : ''}
+                </div>
+              )}
+              {counts[i] > 0 && (
+                <div className="absolute w-full text-center text-[9px] text-stone-300 font-medium" style={{ bottom: 20 + h + 2, fontSize: 8 }}>
+                  {counts[i]}
+                </div>
+              )}
+              <div className="absolute left-0.5 right-0.5 rounded-t-sm" style={{ bottom: 20, height: h, background: b.color + 'bb' }} />
+              <span className="absolute left-0 right-0 text-center text-[8px] text-stone-500 bottom-0 leading-tight" style={{ height: 18 }}>
+                {b.label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Hold time vs ROI scatter plot */
+function HoldTimeScatter({ salesWithROI, currency }: {
+  salesWithROI: Array<{ title: string; roi: number; holdDays: number; pl: number }>
+  currency: string
+}) {
+  const W = 600; const H = 160; const PAD = { t: 8, r: 8, b: 28, l: 32 }
+  const iW = W - PAD.l - PAD.r; const iH = H - PAD.t - PAD.b
+  if (salesWithROI.length === 0) return null
+  const maxDays = Math.max(...salesWithROI.map(s => s.holdDays), 30)
+  const minROI = Math.min(...salesWithROI.map(s => s.roi), -10)
+  const maxROI = Math.max(...salesWithROI.map(s => s.roi), 10)
+  const roiRange = maxROI - minROI || 1
+  const toX = (d: number) => PAD.l + (d / maxDays) * iW
+  const toY = (roi: number) => PAD.t + (1 - (roi - minROI) / roiRange) * iH
+  const zeroY = toY(0)
+  // X axis labels
+  const xLabels = [0, Math.round(maxDays / 4), Math.round(maxDays / 2), Math.round(maxDays * 3 / 4), maxDays]
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      {/* axes */}
+      <line x1={PAD.l} y1={PAD.t} x2={PAD.l} y2={H - PAD.b} stroke="#44403c" strokeWidth="1" />
+      <line x1={PAD.l} y1={H - PAD.b} x2={W - PAD.r} y2={H - PAD.b} stroke="#44403c" strokeWidth="1" />
+      {/* zero line */}
+      {minROI < 0 && maxROI > 0 && (
+        <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY} stroke="#78716c" strokeWidth="1" strokeDasharray="4 3" />
+      )}
+      {/* x labels */}
+      {xLabels.map(d => (
+        <text key={d} x={toX(d)} y={H - 4} textAnchor="middle" fill="#78716c" fontSize="9">{d}d</text>
+      ))}
+      {/* y label */}
+      <text x={4} y={PAD.t + iH / 2} textAnchor="middle" fill="#78716c" fontSize="9" transform={`rotate(-90, 6, ${PAD.t + iH / 2})`}>ROI%</text>
+      {/* dots */}
+      {salesWithROI.map((s, i) => (
+        <g key={i}>
+          <circle cx={toX(s.holdDays)} cy={toY(s.roi)} r="4" fill={s.roi >= 0 ? '#34d39988' : '#f8717188'} stroke={s.roi >= 0 ? '#34d399' : '#f87171'} strokeWidth="0.8" />
+          <title>{s.title}{'\n'}ROI: {s.roi >= 0 ? '+' : ''}{s.roi}% | {s.holdDays} days | P&L: {s.pl >= 0 ? '+' : ''}{fmt(s.pl, currency)}</title>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+/** P&L by company horizontal bars */
+function PLByCompanyChart({ data, currency }: {
+  data: Array<{ name: string; pl: number; revenue: number; count: number }>
+  currency: string
+}) {
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.pl)), 1)
+  return (
+    <div className="space-y-2">
+      {data.slice(0, 10).map((c, i) => {
+        const pct = (Math.abs(c.pl) / maxAbs) * 100
+        const isProfit = c.pl >= 0
+        return (
+          <div key={i} className="space-y-0.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-stone-400 truncate max-w-[55%]">{c.name}</span>
+              <span className={`font-medium ml-2 shrink-0 ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                {isProfit ? '+' : ''}{fmt(c.pl, currency)}
+                <span className="text-stone-600 ml-1">({c.count} sold)</span>
+              </span>
+            </div>
+            <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: isProfit ? '#34d399' : '#f87171' }} />
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -761,7 +1007,7 @@ export default function SpendingPage() {
                   )}
                 </div>
 
-                {/* By Year — spending + books */}
+                {/* By Year — spending + sales + books */}
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5">
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-amber-400" />
@@ -769,6 +1015,14 @@ export default function SpendingPage() {
                   </div>
                   {spending.byYear.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data</p>
+                  ) : spending.salesByYear && spending.salesByYear.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-3 text-[10px] text-stone-500">
+                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-600/70" /> Spending</span>
+                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500/60" /> Sales</span>
+                      </div>
+                      <DualYearBarChart spending={spending.byYear} sales={spending.salesByYear} currency={currency} />
+                    </>
                   ) : (
                     <YearBarChart data={spending.byYear} currency={currency} />
                   )}
@@ -1070,25 +1324,88 @@ export default function SpendingPage() {
             <div className="text-center py-20 text-stone-500">No sales data yet — sell some books to see P&L analysis.</div>
           ) : (
             <>
-              {/* P&L summary */}
-              {sales.totalSalesProfit != null && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className={`rounded-2xl p-5 border flex flex-col gap-2 ${sales.totalSalesProfit >= 0 ? 'bg-emerald-950/20 border-emerald-700/30' : 'bg-red-950/20 border-red-700/30'}`}>
-                    <div className="flex items-center gap-2">
-                      <Scale size={14} className={sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'} />
-                      <span className="text-xs uppercase tracking-wider text-stone-500">Overall P&amp;L</span>
+              {/* Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {sales.plByMonth && sales.plByMonth.length > 0 && (() => {
+                  const totalPL = sales.plByMonth.reduce((s, d) => s + d.pl, 0)
+                  return (
+                    <div className={`rounded-2xl p-5 border flex flex-col gap-2 ${totalPL >= 0 ? 'bg-emerald-950/20 border-emerald-700/30' : 'bg-red-950/20 border-red-700/30'}`}>
+                      <div className="flex items-center gap-2">
+                        <Scale size={14} className={totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'} />
+                        <span className="text-xs uppercase tracking-wider text-stone-500">Overall P&amp;L</span>
+                      </div>
+                      <p className={`text-2xl font-serif font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {totalPL >= 0 ? '+' : ''}{fmt(totalPL, currency)}
+                      </p>
+                      <p className="text-xs text-stone-500">revenue − purchase cost</p>
                     </div>
-                    <p className={`text-2xl font-serif font-bold ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {sales.totalSalesProfit >= 0 ? '+' : ''}{fmt(sales.totalSalesProfit, currency)}
-                    </p>
-                    <p className="text-xs text-stone-500">revenue − purchase cost</p>
+                  )
+                })()}
+                <StatCard label="Total Revenue" value={fmt(sales.totalSalesRevenue, currency)} sub={`${sales.totalBooksSold} book${sales.totalBooksSold !== 1 ? 's' : ''} sold`} icon={ShoppingBag} />
+                {sales.salesWithROI && sales.salesWithROI.length > 0 && (() => {
+                  const avgROI = sales.salesWithROI.reduce((s, d) => s + d.roi, 0) / sales.salesWithROI.length
+                  return (
+                    <StatCard
+                      label="Avg ROI"
+                      value={`${avgROI >= 0 ? '+' : ''}${avgROI.toFixed(1)}%`}
+                      sub={`${sales.salesWithROI.length} sales tracked`}
+                      icon={TrendingUp}
+                      color={avgROI >= 0 ? 'text-emerald-400' : 'text-red-400'}
+                    />
+                  )
+                })()}
+              </div>
+
+              {/* Cumulative P&L + Monthly P&L trend */}
+              {sales.plByMonth && sales.plByMonth.length > 1 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp size={14} className="text-emerald-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Cumulative P&amp;L</h2>
+                    </div>
+                    <CumulativePLChart plByMonth={sales.plByMonth} currency={currency} />
                   </div>
-                  <StatCard
-                    label="Total Revenue"
-                    value={fmt(sales.totalSalesRevenue, currency)}
-                    sub={`${sales.totalBooksSold} book${sales.totalBooksSold !== 1 ? 's' : ''} sold`}
-                    icon={ShoppingBag}
-                  />
+                  <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <BarChart2 size={14} className="text-teal-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Monthly P&amp;L</h2>
+                    </div>
+                    <MonthlyPLBarChart data={sales.plByMonth} currency={currency} />
+                  </div>
+                </div>
+              )}
+
+              {/* ROI distribution + Hold time vs ROI */}
+              {sales.salesWithROI && sales.salesWithROI.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Layers size={14} className="text-indigo-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">ROI Distribution</h2>
+                      <span className="ml-auto text-[10px] text-stone-600">{sales.salesWithROI.length} sales</span>
+                    </div>
+                    <ROIHistogram salesWithROI={sales.salesWithROI} />
+                  </div>
+                  <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Award size={14} className="text-amber-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Hold Time vs ROI</h2>
+                      <span className="ml-auto text-[10px] text-stone-600">days held → profit %</span>
+                    </div>
+                    <HoldTimeScatter salesWithROI={sales.salesWithROI} currency={currency} />
+                  </div>
+                </div>
+              )}
+
+              {/* P&L by publisher */}
+              {sales.plByCompany && sales.plByCompany.length > 0 && (
+                <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Tag size={14} className="text-amber-400" />
+                    <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">P&amp;L by Publisher</h2>
+                  </div>
+                  <PLByCompanyChart data={sales.plByCompany} currency={currency} />
                 </div>
               )}
 

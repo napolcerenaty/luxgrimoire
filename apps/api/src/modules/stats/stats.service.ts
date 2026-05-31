@@ -173,6 +173,9 @@ export class StatsService {
         topSalePrice: spending.topSalePrice ?? [],
         topProfit: spending.topProfit ?? [],
         topLoss: spending.topLoss ?? [],
+        plByMonth: spending.plByMonth ?? [],
+        plByCompany: spending.plByCompany ?? [],
+        salesWithROI: spending.salesWithROI ?? [],
       };
     }
 
@@ -181,6 +184,7 @@ export class StatsService {
       byMonth: filterByYear(byMonth),
       byMonthBooks: filterByYear(byMonthBooks),
       salesByMonth: filterByYear(salesByMonth),
+      salesByYear: spending.salesByYear ?? [],
     };
 
     if (module === 'spending') {
@@ -202,14 +206,16 @@ export class StatsService {
     const moduleVersions = this.getCurrentVersions();
     const results: Record<string, SnapshotData> = {};
 
-    for (const computer of this.computers) {
-      try {
-        results[computer.key] = this.asRecord(await computer.compute(ctx));
-      } catch (err: unknown) {
-        this.logger.error(`Stats computer '${computer.key}' failed: ${String(err)}`);
-        results[computer.key] = {};
-      }
-    }
+    await Promise.all(
+      this.computers.map(async (computer) => {
+        try {
+          results[computer.key] = this.asRecord(await computer.compute(ctx));
+        } catch (err: unknown) {
+          this.logger.error(`Stats computer '${computer.key}' failed: ${String(err)}`);
+          results[computer.key] = {};
+        }
+      }),
+    );
 
     return this.snapshots.upsert({
       where: { userId_currency: { userId, currency } },
