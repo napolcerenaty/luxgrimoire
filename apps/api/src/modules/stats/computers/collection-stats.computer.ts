@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 1;
+  readonly version = 2;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
@@ -52,7 +52,7 @@ export class CollectionStatsComputer extends StatsComputer {
       if (entry.signatureType) signedCount++;
 
       const readingStatus = entry.readingStatus;
-      if (readingStatus === 'UNREAD') unreadCount++;
+      if (status === 'OWNED' && readingStatus === 'UNREAD') unreadCount++;
       else if (readingStatus === 'READ') readCount++;
       else if (readingStatus === 'READING') readingCount++;
 
@@ -110,7 +110,7 @@ export class CollectionStatsComputer extends StatsComputer {
       unreadCount,
       readCount,
       readingCount,
-      unreadPercent: ownedCount + shippingCount > 0 ? Math.round((unreadCount / (ownedCount + shippingCount)) * 1000) / 10 : 0,
+      unreadPercent: ownedCount > 0 ? Math.round((unreadCount / ownedCount) * 1000) / 10 : 0,
       unreadShelfValue: r(unreadShelfValue),
       preorderValue: r(preorderValue),
       shippingValue: r(shippingValue),

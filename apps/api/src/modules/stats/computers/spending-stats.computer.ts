@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class SpendingStatsComputer extends StatsComputer {
   readonly key = 'spending';
-  readonly version = 1;
+  readonly version = 2;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, saleGroups, convert, now } = ctx;
@@ -146,6 +146,7 @@ export class SpendingStatsComputer extends StatsComputer {
     let totalBooksSold = 0;
     const salesByPlatformMap: Record<string, { platform: string; amount: number; count: number }> = {};
     const salesByMonthMap: Record<string, number> = {};
+    const salesByYearMap: Record<number, number> = {};
     const salesByCompanyMap: Record<string, { name: string; slug: string; amount: number; count: number }> = {};
 
     for (const group of saleGroups) {
@@ -175,6 +176,7 @@ export class SpendingStatsComputer extends StatsComputer {
       const soldMonth = soldDate.getMonth() + 1;
       const monthKey = `${soldYear}-${String(soldMonth).padStart(2, '0')}`;
       salesByMonthMap[monthKey] = (salesByMonthMap[monthKey] ?? 0) + revenue;
+      salesByYearMap[soldYear] = (salesByYearMap[soldYear] ?? 0) + revenue;
     }
 
     topExpensive.sort((a, b) => b.amount - a.amount);
@@ -233,6 +235,9 @@ export class SpendingStatsComputer extends StatsComputer {
         .map((company) => ({ ...company, amount: r(company.amount) }))
         .sort((a, b) => b.amount - a.amount),
       salesByMonth,
+      salesByYear: Object.entries(salesByYearMap)
+        .map(([year, amount]) => ({ year: Number(year), amount: r(amount) }))
+        .sort((a, b) => a.year - b.year),
     };
   }
 }

@@ -23,7 +23,8 @@ export class StatsController {
     @CurrentUser() user: { id: string },
     @Query('currency') currency?: string,
     @Query('year') year?: string,
+    @Query('module') module?: string,
   ) {
-    return this.statsService.getStats(user.id, currency ?? 'EUR', year ? Number(year) : undefined);
+    return this.statsService.getStats(user.id, currency ?? 'EUR', year ? Number(year) : undefined, module);
   }
 }

@@ -89,6 +89,7 @@ export class StatsService {
     userId: string,
     currency: string,
     year?: number,
+    module?: string,
   ): Promise<{
     data: Record<string, unknown>;
     currency: string;
@@ -102,7 +103,7 @@ export class StatsService {
 
     if (snapshot && !snapshot.isStale && this.hasCurrentVersions(snapshot)) {
       return {
-        data: this.buildResponseFromSnapshot(snapshot, year),
+        data: this.buildResponseFromSnapshot(snapshot, year, module),
         currency: normalizedCurrency,
         computedAt: snapshot.computedAt,
         isStale: false,
@@ -116,7 +117,7 @@ export class StatsService {
         );
       });
       return {
-        data: this.buildResponseFromSnapshot(snapshot, year),
+        data: this.buildResponseFromSnapshot(snapshot, year, module),
         currency: normalizedCurrency,
         computedAt: snapshot.computedAt,
         isStale: true,
@@ -125,7 +126,7 @@ export class StatsService {
 
     const fresh = await this.recomputeSnapshot(userId, normalizedCurrency);
     return {
-      data: this.buildResponseFromSnapshot(fresh, year),
+      data: this.buildResponseFromSnapshot(fresh, year, module),
       currency: normalizedCurrency,
       computedAt: fresh.computedAt,
       isStale: false,
@@ -135,30 +136,58 @@ export class StatsService {
   private buildResponseFromSnapshot(
     snapshot: Pick<UserStatsSnapshotRecord, 'spending' | 'collection' | 'features'>,
     year?: number,
+    module?: string,
   ): Record<string, unknown> {
     const spending = this.asRecord(snapshot.spending);
     const collection = this.asRecord(snapshot.collection);
     const features = this.asRecord(snapshot.features);
 
-    let filteredSpending: SnapshotData = spending;
-    if (year) {
-      const yearStr = String(year);
-      const byMonth = Array.isArray(spending.byMonth) ? spending.byMonth : [];
-      const byMonthBooks = Array.isArray(spending.byMonthBooks) ? spending.byMonthBooks : [];
+    if (module === 'collection') {
+      return { collection };
+    }
 
-      filteredSpending = {
-        ...spending,
-        byMonth: byMonth.filter(
-          (item): item is { month: string; amount: number } =>
-            typeof item === 'object' && item !== null && 'month' in item && String(item.month).startsWith(yearStr),
-        ),
-        byMonthBooks: byMonthBooks.filter(
-          (item): item is { month: string; count: number } =>
-            typeof item === 'object' && item !== null && 'month' in item && String(item.month).startsWith(yearStr),
-        ),
+    if (module === 'features') {
+      return { features };
+    }
+
+    const yearStr = year ? String(year) : null;
+
+    const filterByYear = <T extends { month: string }>(arr: T[]): T[] => {
+      if (!yearStr) return arr;
+      return arr.filter((item) => String(item.month).startsWith(yearStr));
+    };
+
+    const byMonth = Array.isArray(spending.byMonth) ? (spending.byMonth as { month: string; amount: number }[]) : [];
+    const byMonthBooks = Array.isArray(spending.byMonthBooks) ? (spending.byMonthBooks as { month: string; count: number }[]) : [];
+    const salesByMonth = Array.isArray(spending.salesByMonth) ? (spending.salesByMonth as { month: string; amount: number }[]) : [];
+
+    if (module === 'sales') {
+      return {
+        totalSalesRevenue: spending.totalSalesRevenue ?? 0,
+        totalSalesProfit: spending.totalSalesProfit ?? null,
+        totalBooksSold: spending.totalBooksSold ?? 0,
+        salesByYear: spending.salesByYear ?? [],
+        salesByMonth: filterByYear(salesByMonth),
+        salesByPlatform: spending.salesByPlatform ?? [],
+        salesByCompany: spending.salesByCompany ?? [],
+        topSalePrice: spending.topSalePrice ?? [],
+        topProfit: spending.topProfit ?? [],
+        topLoss: spending.topLoss ?? [],
       };
     }
 
+    const filteredSpending: SnapshotData = {
+      ...spending,
+      byMonth: filterByYear(byMonth),
+      byMonthBooks: filterByYear(byMonthBooks),
+      salesByMonth: filterByYear(salesByMonth),
+    };
+
+    if (module === 'spending') {
+      return filteredSpending;
+    }
+
+    // Default: return everything (backwards-compatible)
     return {
       ...filteredSpending,
       collection,
