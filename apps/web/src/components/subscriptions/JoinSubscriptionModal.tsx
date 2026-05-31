@@ -611,14 +611,19 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   </div>
                 </div>
               )}
-              <p>
-                Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-              </p>
+              {sorted.length > 0 ? (
+                <p>
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                </p>
+              ) : (
+                <p>
+                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                </p>
+              )}
             </>
           )
         })()}
       </div>}
-      <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
           Taxes &amp; fees
         </label>
