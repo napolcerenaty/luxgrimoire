@@ -43,7 +43,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'Can I import my reading history from Goodreads or StoryGraph?',
-    a: <>Yes — if you already have books in your collection, you can do a one-time import of your reading history from a Goodreads or StoryGraph CSV export. Go to <strong>Settings → Import</strong> to upload your file. The import matches books by the <em>title + author</em> pair and sets the reading status (Read / Currently Reading / Did Not Finish) along with finish and — for StoryGraph exports — start dates. A few things to be aware of before importing: books that are not in your LuxGrimoire collection will be skipped; if you have multiple editions of the same book, all editions will receive the same reading data; and importing the same file more than once will create duplicate history entries, so please import each file only once.</>,
+    a: <>Yes — if you already have books in your collection, you can do a one-time import of your reading history from a Goodreads or StoryGraph CSV export. Go to <strong>Settings → Import</strong> to upload your file. The import matches books by the <em>title + author</em> pair and sets the reading status (Read / Currently Reading / Did Not Finish) along with finish and — for StoryGraph exports — start dates. A few things to be aware of before importing: books that are not in your LuxGrimoire collection will be skipped; if you have multiple editions of the same book, all editions will receive the same reading data; and importing the same data more than once will create duplicate history entries — note that Goodreads and StoryGraph exports can overlap, so please import data only once.</>,
   },
   {
     q: 'How do I change the start date of my subscription?',

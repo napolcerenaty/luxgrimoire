@@ -49,6 +49,8 @@ export interface AiParseResult {
     generalSaleDate?: string;
     features?: string[];
     artists?: { name: string; role: string }[];
+    /** All feature raw values (standalone + artist-attributed) in the exact order they appear in the source text */
+    featureOrder?: string[];
     /** Normalized category slugs per raw feature value (post-processing) */
     featureTags?: Record<string, string[]>;
     artistTags?: Record<string, string[]>;
@@ -76,7 +78,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     "features": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"],
     "artists": [
       { "name": "@artisthandle", "role": "full description of what they created, e.g. cover art, character illustrations, map, typography, interior artwork, endpapers design" }
-    ]
+    ],
+    "featureOrder": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"]
   }
 }
 
@@ -125,6 +128,8 @@ ARTIST EXTRACTION RULES:
 
 FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
+- FEATURE ORDER FIELD: Always populate "featureOrder" — a flat list of ALL feature raw values (both standalone features[] values AND the base feature names from artist roles) in the exact order they appear in the source text. This is the authoritative display order. Standalone features that have no artist appear in features[]; artist-attributed features appear only in artists[]; featureOrder combines both in source-text sequence.
+  Example: if source mentions "cover art by @artist, ribbon bookmark, sprayed edges by @artist2, signed" → featureOrder: ["Cover art", "Ribbon bookmark", "Sprayed edges", "signed"]
 - CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase or fully lowercase an entire phrase.
 - Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
 - Also include: signed, numbered, exclusive content notes
@@ -430,12 +435,18 @@ export class AiService {
       // Post-process: build unified featureTags map covering both standalone features
       // and base feature names derived from artist roles (single-artist features only
       // appear in artists[], not features[], so we must include them here).
+      // featureOrder (from AI) gives the authoritative display order; fall back to
+      // standalones-first if the AI didn't emit it.
       try {
         const standaloneFeatures = result.edition?.features ?? [];
         const artistBaseFeatures = (result.edition?.artists ?? [])
           .map(a => (a.role ?? '').replace(/\s*\(\w+\)$/, '').trim())
           .filter(Boolean);
-        const allRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        const allRaws = result.edition?.featureOrder?.length
+          ? Array.from(new Set(result.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+          : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        // Always store the resolved order so the frontend can rely on it
+        if (result.edition) result.edition.featureOrder = allRaws;
         if (allRaws.length > 0) {
           const featureTags = await this.featureTagger.categorizeMany(allRaws);
           if (result.edition) result.edition.featureTags = featureTags;

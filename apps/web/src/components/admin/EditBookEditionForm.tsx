@@ -191,12 +191,15 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
   const applyAiResult = (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
-    // Collect all feature raw values: standalone features[] + base names from artist roles
+    // Collect all feature raw values in source-text order using featureOrder if available;
+    // fall back to standalones-first for older responses.
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
     const artistBaseFeatures = (r.edition?.artists ?? [])
       .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
       .filter(Boolean)
-    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const allFeatureRaws: string[] = r.edition?.featureOrder?.length
+      ? Array.from(new Set(r.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+      : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
     const newPending = allFeatureRaws.map(rawValue => ({
       rawValue,
       categories: r.edition?.featureTags?.[rawValue] ?? [],

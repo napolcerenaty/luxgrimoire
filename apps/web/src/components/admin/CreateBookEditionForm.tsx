@@ -150,13 +150,16 @@ export default function CreateBookEditionForm({
     }
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
     // Stage features for POST after edition creation:
-    // includes standalone features[] + base names from artist roles
+    // Use featureOrder (AI-emitted) for correct source-text ordering; fall back to
+    // standalones-first if the field is absent (older responses / edge cases).
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
     const artistBaseFeatures = (r.edition?.artists ?? [])
       .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
       .filter(Boolean)
-    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
-    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = allFeatureRaws
+    const orderedRaws: string[] = r.edition?.featureOrder?.length
+      ? Array.from(new Set(r.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+      : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = orderedRaws
       .map(rawValue => ({ rawValue, categories: r.edition?.featureTags?.[rawValue] ?? [] }))
     if (newFeatureTags.length > 0) {
       setPendingFeatureTags(prev => {
