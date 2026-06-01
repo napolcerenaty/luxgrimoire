@@ -52,6 +52,12 @@ export class StatsService {
   private readonly logger = new Logger(StatsService.name);
   private readonly computers: StatsComputer[];
 
+  /** Prevents duplicate concurrent recomputes for the same user+currency key. */
+  private readonly inFlight = new Map<string, Promise<UserStatsSnapshotRecord>>();
+
+  /** Debounce handles: batches rapid markStatsStale calls into a single DB write per user. */
+  private readonly staleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
@@ -80,9 +86,16 @@ export class StatsService {
   }
 
   markStatsStale(userId: string): void {
-    this.snapshots
-      .updateMany({ where: { userId }, data: { isStale: true } })
-      .catch((err: unknown) => this.logger.warn(`Failed to mark stats stale: ${String(err)}`));
+    // Debounce: coalesce rapid calls (e.g. bulk import, cron adding N books) into one DB write.
+    const existing = this.staleDebounceTimers.get(userId);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      this.staleDebounceTimers.delete(userId);
+      this.snapshots
+        .updateMany({ where: { userId }, data: { isStale: true } })
+        .catch((err: unknown) => this.logger.warn(`Failed to mark stats stale for ${userId}: ${String(err)}`));
+    }, 2000);
+    this.staleDebounceTimers.set(userId, timer);
   }
 
   async getStats(
@@ -112,9 +125,7 @@ export class StatsService {
 
     if (snapshot) {
       setImmediate(() => {
-        this.recomputeSnapshot(userId, normalizedCurrency).catch((err: unknown) =>
-          this.logger.error(`Background recompute failed: ${String(err)}`),
-        );
+        this.triggerRecompute(userId, normalizedCurrency);
       });
       return {
         data: this.buildResponseFromSnapshot(snapshot, year, module),
@@ -124,7 +135,7 @@ export class StatsService {
       };
     }
 
-    const fresh = await this.recomputeSnapshot(userId, normalizedCurrency);
+    const fresh = await this.triggerRecompute(userId, normalizedCurrency);
     return {
       data: this.buildResponseFromSnapshot(fresh, year, module),
       currency: normalizedCurrency,
@@ -200,6 +211,23 @@ export class StatsService {
       collection,
       features,
     };
+  }
+
+  /** Deduplicates concurrent recomputes: if one is already in progress for this key, reuses it. */
+  private triggerRecompute(userId: string, currency: string): Promise<UserStatsSnapshotRecord> {
+    const key = `${userId}:${currency}`;
+    const existing = this.inFlight.get(key);
+    if (existing) return existing;
+
+    const promise = this.recomputeSnapshot(userId, currency).catch((err: unknown) => {
+      this.logger.error(`Recompute failed for ${key}: ${String(err)}`);
+      throw err;
+    }).finally(() => {
+      this.inFlight.delete(key);
+    });
+
+    this.inFlight.set(key, promise);
+    return promise;
   }
 
   async recomputeSnapshot(userId: string, currency: string): Promise<UserStatsSnapshotRecord> {
@@ -312,10 +340,14 @@ export class StatsService {
 
     await this.currencyService.warmCacheBatch(warmEntries, targetCurrency);
 
+    // After warmCacheBatch all required rates are in the in-memory cache.
+    // Use sync lookup first to avoid async microtask overhead in tight per-entry loops.
     const convert = async (amount: number, fromCurrency: string, date: Date): Promise<number> => {
       if (!fromCurrency || amount === 0) return 0;
       if (fromCurrency.toUpperCase() === targetCurrency) return amount;
       try {
+        const synced = this.currencyService.convertSyncFromCache(amount, fromCurrency, targetCurrency, date);
+        if (synced !== null) return synced;
         return await this.currencyService.convert(amount, fromCurrency, targetCurrency, date);
       } catch {
         return amount;

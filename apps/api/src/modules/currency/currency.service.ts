@@ -117,6 +117,24 @@ export class CurrencyService {
     return Math.round(amount * rate * 100) / 100;
   }
 
+  /**
+   * Synchronous convert using only the in-memory cache (populated by warmCacheBatch).
+   * Returns null if the rate is not already cached — caller must fall back to async convert().
+   * Use this in tight loops after warmCacheBatch to avoid microtask overhead.
+   */
+  convertSyncFromCache(amount: number, fromCurrency: string, toCurrency: string, date: Date): number | null {
+    const from = fromCurrency.toUpperCase();
+    const to = toCurrency.toUpperCase();
+    if (from === to) return amount;
+
+    const today = new Date();
+    const effectiveDate = date > today ? today : date;
+    const dateStr = effectiveDate.toISOString().slice(0, 10);
+    const entry = this.rateCache.get(`${from}:${to}:${dateStr}`);
+    if (!entry || Date.now() >= entry.expiresAt) return null;
+    return Math.round(amount * entry.rate * 100) / 100;
+  }
+
   /** Get the latest available rate (uses today's date). */
   async getCurrentRate(fromCurrency: string, toCurrency: string): Promise<number> {
     return this.getRateForDate(fromCurrency, toCurrency, new Date());

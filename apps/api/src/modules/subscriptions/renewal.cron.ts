@@ -4,12 +4,16 @@ import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 import { resolveEffectiveBasePrice } from './price-change.util';
+import { StatsService } from '../stats/stats.service';
 
 @Injectable()
 export class RenewalCronService {
   private readonly logger = new Logger(RenewalCronService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly statsService: StatsService,
+  ) {}
 
   /**
    * Daily at 00:01 UTC — finds all active subscription entries whose
@@ -103,6 +107,9 @@ export class RenewalCronService {
       } else {
         await this.addBooksForSubscriptionMonth(entry, year, month, renewalDate);
       }
+
+      // Books were added — invalidate stats cache for this user so the next read triggers a recompute.
+      this.statsService.markStatsStale(entry.userId);
     }
 
     // Always advance nextRenewalDate (safe if already advanced)
