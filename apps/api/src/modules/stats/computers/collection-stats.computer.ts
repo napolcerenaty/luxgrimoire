@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { StatsComputer, StatsComputeResult } from '../stats.computer';
-import type { StatsContext } from '../stats.context';
+import type { LightStatsContext, StatsContext } from '../stats.context';
 
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
   readonly version = 4;
 
-  async compute(ctx: StatsContext): Promise<StatsComputeResult> {
+  async compute(ctx: StatsContext | LightStatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
 
     const toNum = (v: { toNumber: () => number } | number | null | undefined): number => {

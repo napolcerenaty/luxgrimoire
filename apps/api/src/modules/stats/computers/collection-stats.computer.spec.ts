@@ -9,7 +9,7 @@ function makeCtx(overrides: Partial<StatsContext> = {}): StatsContext {
   return {
     userId: 'user-1',
     currency: 'EUR',
-    year: null,
+    year: 0,
     now: new Date('2024-03-15T12:00:00Z'),
     entries: [],
     saleGroups: [],

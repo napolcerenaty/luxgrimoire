@@ -1377,15 +1377,16 @@ model UserStatsSnapshot {
   id             String   @id @default(uuid())
   userId         String
   currency       String   @db.VarChar(3)
+  year           Int      @default(0)  // 0 = all-time; positive integer = per-year spending snapshot
   computedAt     DateTime @default(now())
   isStale        Boolean  @default(false)
   moduleVersions Json     @default("{}") // { spending: 1, collection: 1, features: 1 }
   spending       Json?    // SpendingStats data
-  collection     Json?    // CollectionStats data
-  features       Json?    // FeaturesStats data
+  collection     Json?    // CollectionStats data (populated in year=0 snapshots only)
+  features       Json?    // FeaturesStats data (populated in year=0 snapshots only)
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, currency])
+  @@unique([userId, currency, year])
   @@index([userId])
   @@index([isStale])
   @@map("user_stats_snapshots")

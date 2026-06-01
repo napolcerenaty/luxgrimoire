@@ -122,7 +122,7 @@ export class PurchaseGroupsService {
       return { group, bookEntries };
     });
 
-    this.statsService.markStatsStale(userId);
+    this.statsService.markStatsStale(userId, [new Date(dto.purchasedAt).getFullYear()]);
     return result;
   }
 
@@ -207,7 +207,7 @@ export class PurchaseGroupsService {
       return { group, bookEntries };
     });
 
-    this.statsService.markStatsStale(userId);
+    this.statsService.markStatsStale(userId, [new Date(dto.purchasedAt).getFullYear()]);
     return result;
   }
 

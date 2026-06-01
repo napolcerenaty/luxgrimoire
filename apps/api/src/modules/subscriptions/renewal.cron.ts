@@ -109,7 +109,7 @@ export class RenewalCronService {
       }
 
       // Books were added — invalidate stats cache for this user so the next read triggers a recompute.
-      this.statsService.markStatsStale(entry.userId);
+      this.statsService.markStatsStale(entry.userId, [new Date().getFullYear()]);
     }
 
     // Always advance nextRenewalDate (safe if already advanced)
