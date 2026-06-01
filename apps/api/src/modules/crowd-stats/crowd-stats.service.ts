@@ -46,8 +46,9 @@ export class CrowdStatsService {
       WHERE id = (
         SELECT id FROM edition_sale_stats
         WHERE "editionId" = ${editionId}
-          AND "valueEur" = ${valueEur}
+          AND ABS("valueEur" - ${valueEur}) < 0.02
           AND "soldAt" = ${soldAtNormalized}
+        ORDER BY ABS("valueEur" - ${valueEur}) ASC
         LIMIT 1
       )
     `;
