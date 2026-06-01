@@ -197,17 +197,149 @@ export default function MySubscriptionsPage() {
           </div>
         ) : cancelledEntries.length === 0 ? (
           <div className="text-center py-16 text-stone-500">No cancelled subscriptions.</div>
-        ) : (
-          <div className={`opacity-75 ${viewMode === 'list' ? 'space-y-3' : 'grid grid-cols-2 sm:grid-cols-3 gap-4'}`}>
-            {cancelledEntries.map(entry => (
-              viewMode === 'list'
-                ? <SubscriptionCard key={entry.id} entry={entry} />
-                : <SubscriptionTile key={entry.id} entry={entry} />
-            ))}
-          </div>
-        )
+        ) : (() => {
+          // Group by subscription slug
+          const groups = cancelledEntries.reduce<Record<string, { sub: MySubscriptionEntry['subscription']; entries: MySubscriptionEntry[] }>>((acc, e) => {
+            const slug = e.subscription.slug
+            if (!acc[slug]) acc[slug] = { sub: e.subscription, entries: [] }
+            acc[slug].entries.push(e)
+            return acc
+          }, {})
+          const groupList = Object.values(groups)
+          return (
+            <div className="opacity-75 space-y-4">
+              {groupList.map(({ sub, entries }) => (
+                <CancelledSubscriptionGroup key={sub.slug} sub={sub} entries={entries} viewMode={viewMode} />
+              ))}
+            </div>
+          )
+        })()
       )}
     </div>
+  )
+}
+
+function CancelledSubscriptionGroup({
+  sub,
+  entries,
+  viewMode,
+}: {
+  sub: MySubscriptionEntry['subscription']
+  entries: MySubscriptionEntry[]
+  viewMode: 'list' | 'grid'
+}) {
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(sub.company.slug) ?? sub.company.brandColors
+  const sortedEntries = [...entries].sort((a, b) => {
+    const aDate = a.cancellationDate ?? a.startDate ?? ''
+    const bDate = b.cancellationDate ?? b.startDate ?? ''
+    return bDate.localeCompare(aDate)
+  })
+
+  if (viewMode === 'grid') {
+    return (
+      <div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {sortedEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
+      {/* Header row with subscription info */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
+        <div className="h-12 w-16 rounded overflow-hidden shrink-0">
+          <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
+          <p className="font-semibold text-stone-200 truncate">{sub.name}</p>
+        </div>
+        {sub.isDiscontinued && (
+          <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5 shrink-0">Discontinued</span>
+        )}
+        <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full shrink-0">
+          {sortedEntries.length} period{sortedEntries.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      {/* Periods list */}
+      <div className="divide-y divide-stone-800/50">
+        {sortedEntries.map(entry => (
+          <CancelledPeriodRow key={entry.id} entry={entry} subSlug={sub.slug} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; subSlug: string }) {
+  const qc = useQueryClient()
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
+
+  const removeMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${subSlug}/my-entry`, {
+      method: 'DELETE',
+      body: JSON.stringify({ removeBooks, removeSpending, historyId: entry.id }),
+    }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+      void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      setShowRemoveConfirm(false)
+    },
+  })
+
+  return (
+    <>
+      <div className="flex items-center gap-4 px-4 py-3 hover:bg-stone-800/20 transition-colors">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 flex-1 min-w-0">
+          {entry.startDate && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
+              <p className="text-sm text-stone-300">{formatDate(entry.startDate)}</p>
+            </div>
+          )}
+          {entry.cancellationDate && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+              <p className="text-sm text-stone-400">{formatDate(entry.cancellationDate)}</p>
+            </div>
+          )}
+          {entry.cancellationReason && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Reason</p>
+              <p className="text-sm text-stone-500 italic">{entry.cancellationReason}</p>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          title="Remove this period"
+          onClick={() => setShowRemoveConfirm(true)}
+          className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors shrink-0"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
+        <EntryRemoveDialog
+          entry={entry}
+          subName={entry.subscription.name}
+          removeBooks={removeBooks}
+          setRemoveBooks={setRemoveBooks}
+          removeSpending={removeSpending}
+          setRemoveSpending={setRemoveSpending}
+          isPending={removeMutation.isPending}
+          error={removeMutation.error?.message}
+          onConfirm={() => removeMutation.mutate()}
+          onClose={() => setShowRemoveConfirm(false)}
+        />,
+        document.body,
+      )}
+    </>
   )
 }
 
