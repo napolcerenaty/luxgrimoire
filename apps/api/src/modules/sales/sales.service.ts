@@ -84,11 +84,17 @@ export class SalesService {
     };
   }
 
-  async getSaleGroups(userId: string, page = 1, pageSize = 20) {
+  async getSaleGroups(userId: string, page = 1, pageSize = 20, search?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
-    const where = { userId };
+    const where: any = { userId };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { entries: { some: { userBookEntry: { edition: { book: { title: { contains: search, mode: 'insensitive' } } } } } } },
+      ];
+    }
     const [groups, total] = await Promise.all([
       this.prisma.userSaleGroup.findMany({
         where,

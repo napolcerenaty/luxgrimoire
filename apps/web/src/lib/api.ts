@@ -544,8 +544,10 @@ export interface PaginatedSaleGroups {
   totalPages: number;
 }
 
-export async function getSaleGroupsPaginated(page = 1, pageSize = 20): Promise<PaginatedSaleGroups> {
-  const res = await fetch(`${API_URL}/sales?page=${page}&pageSize=${pageSize}`, {
+export async function getSaleGroupsPaginated(page = 1, pageSize = 20, search?: string): Promise<PaginatedSaleGroups> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+  if (search) params.set('search', search)
+  const res = await fetch(`${API_URL}/sales?${params}`, {
     credentials: 'include',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);

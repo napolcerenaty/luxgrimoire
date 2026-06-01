@@ -496,13 +496,24 @@ export default function SoldPage() {
   // ── Records tab state ────────────────────────────────────────────────────────
   const [recordsPage, setRecordsPage] = useState(1)
   const RECORDS_PAGE_SIZE = 20
+  const [recordsSearchInput, setRecordsSearchInput] = useState('')
+  const [recordsSearch, setRecordsSearch] = useState('')
   const addSaleModal = useModalState()
   const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
 
+  // Debounce records search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setRecordsSearch(recordsSearchInput)
+      setRecordsPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [recordsSearchInput])
+
   const recordsQuery = useQuery({
-    queryKey: ['sale-groups-page', recordsPage],
-    queryFn: () => getSaleGroupsPaginated(recordsPage, RECORDS_PAGE_SIZE),
+    queryKey: ['sale-groups-page', recordsPage, recordsSearch],
+    queryFn: () => getSaleGroupsPaginated(recordsPage, RECORDS_PAGE_SIZE, recordsSearch || undefined),
     enabled: recordsActivated.current || activeTab === 'records',
     staleTime: 30_000,
     placeholderData: (prev) => prev,
@@ -680,7 +691,7 @@ export default function SoldPage() {
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                         coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
                         title={entry.edition.book.title}
-                        authors={entry.edition.book.authors}
+                        authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                         companyName={entry.edition.bookBoxCompany?.name}
                         companySlug={entry.edition.bookBoxCompany?.slug}
                         companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
@@ -692,6 +703,9 @@ export default function SoldPage() {
                             {entry.salePrice && entry.saleCurrency && (
                               <span className="text-[10px] text-amber-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
                             )}
+                            {entry.tags?.map(tag => (
+                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-400">{tag}</span>
+                            ))}
                           </div>
                         }
                       />
@@ -711,13 +725,20 @@ export default function SoldPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{entry.edition.book.title}</p>
-                          <p className="text-xs text-stone-400 truncate">{entry.edition.book.authors.map(a => a.name).join(', ')}</p>
+                          <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
                           {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
                             <p className="text-[10px] text-stone-500 truncate">
                               {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumber != null ? ` #${entry.edition.book.volumeNumber}` : ''}</span>}
                               {entry.edition.book.seriesName && entry.edition.bookBoxCompany && <span className="mx-1">·</span>}
                               {entry.edition.bookBoxCompany && <span>{entry.edition.bookBoxCompany.name}</span>}
                             </p>
+                          )}
+                          {entry.tags?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {entry.tags.map(tag => (
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-400">{tag}</span>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <div className="flex-shrink-0 text-right flex flex-col items-end gap-1">
@@ -746,13 +767,27 @@ export default function SoldPage() {
         <section>
           {recordsQuery.isLoading ? (
             <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
-          ) : recordsTotal === 0 ? (
+          ) : recordsTotal === 0 && !recordsSearch ? (
             <div className="flex flex-col items-center justify-center py-12 text-stone-500">
               <ShoppingBag size={36} className="mb-3 opacity-30" />
               <p className="text-sm">No recorded sales yet</p>
             </div>
           ) : (
             <>
+              {/* Search */}
+              <div className="mb-5">
+                <input
+                  type="text"
+                  value={recordsSearchInput}
+                  onChange={e => setRecordsSearchInput(e.target.value)}
+                  placeholder="Search by sale title or book title…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors w-full max-w-sm"
+                />
+              </div>
+              {recordsTotal === 0 ? (
+                <p className="text-stone-500 text-sm py-8 text-center">No sales match your search.</p>
+              ) : (
+                <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {saleGroups.map(sg => (
                   <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
@@ -807,6 +842,8 @@ export default function SoldPage() {
                 ))}
               </div>
               <Pagination page={recordsPage} totalPages={recordsTotalPages} onPage={setRecordsPage} />
+                </>
+              )}
             </>
           )}
         </section>
