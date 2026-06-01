@@ -7,18 +7,16 @@ interface ParsedRow {
   title: string;
   authors: string[];
   readingStatus: ReadingStatus;
-  startedAt: Date | null;
-  finishedAt: Date | null;
-  isDnf: boolean;
+  /** One entry per read-through; multiple = re-reads */
+  readPeriods: { startedAt: Date | null; finishedAt: Date | null; isDnf: boolean }[];
 }
 
 export interface MatchedBook {
   title: string;
   authors: string[];
   readingStatus: ReadingStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  isDnf: boolean;
+  /** One entry per read-through (re-reads produce multiple) */
+  readPeriods: { startedAt: string | null; finishedAt: string | null; isDnf: boolean }[];
   entryIds: string[];
   editionSlugs: string[];
 }
@@ -119,20 +117,45 @@ function parseStoryGraph(rows: Record<string, string>[]): ParsedRow[] {
         isDnf = true;
       }
 
-      const finishedAt = parseDate(row['Last Date Read'] ?? '');
-
-      // Extract start date from first date range in "Dates Read": "YYYY/MM/DD-YYYY/MM/DD|..."
-      let startedAt: Date | null = null;
+      // Parse all date ranges from "Dates Read" — each range = one read-through (re-reads)
+      // StoryGraph separates ranges with "| " or ", "
       const datesRead = row['Dates Read']?.trim();
+      let readPeriods: { startedAt: Date | null; finishedAt: Date | null; isDnf: boolean }[] = [];
+
       if (datesRead) {
-        const firstRange = datesRead.split('|')[0]?.trim();
-        if (firstRange) {
-          const rangeMatch = firstRange.match(/^(\d{4}\/\d{2}\/\d{2})-/);
-          if (rangeMatch) startedAt = parseDate(rangeMatch[1]);
-        }
+        const rawRanges = datesRead.split(/[|,]/).map((s) => s.trim()).filter(Boolean);
+        readPeriods = rawRanges.map((range, idx) => {
+          const rangeMatch = range.match(/^(\d{4}\/\d{2}\/\d{2})-(\d{4}\/\d{2}\/\d{2})$/);
+          if (rangeMatch) {
+            return {
+              startedAt: parseDate(rangeMatch[1]),
+              finishedAt: parseDate(rangeMatch[2]),
+              // Only mark the most-recent (first in list) period as DNF
+              isDnf: isDnf && idx === 0,
+            };
+          }
+          // Single date — treat as finish date only
+          const singleDate = parseDate(range);
+          return {
+            startedAt: null,
+            finishedAt: singleDate,
+            isDnf: isDnf && idx === 0,
+          };
+        });
       }
 
-      return { title, authors, readingStatus, startedAt, finishedAt, isDnf };
+      // Fallback: if no Dates Read but there is a Last Date Read
+      if (readPeriods.length === 0 && readingStatus !== 'UNREAD') {
+        const finishedAt = parseDate(row['Last Date Read'] ?? '');
+        readPeriods = [{ startedAt: null, finishedAt, isDnf }];
+      }
+
+      // For READING status, ensure at least one open period exists
+      if (readingStatus === 'READING' && readPeriods.length === 0) {
+        readPeriods = [{ startedAt: null, finishedAt: null, isDnf: false }];
+      }
+
+      return { title, authors, readingStatus, readPeriods };
     })
     .filter((r): r is ParsedRow => r !== null);
 }
@@ -157,7 +180,11 @@ function parseGoodreads(rows: Record<string, string>[]): ParsedRow[] {
       }
 
       const finishedAt = parseDate(row['Date Read'] ?? '');
-      return { title, authors, readingStatus, startedAt: null, finishedAt, isDnf };
+      // Goodreads does not provide start date
+      const readPeriods = readingStatus !== 'UNREAD'
+        ? [{ startedAt: null, finishedAt, isDnf }]
+        : [];
+      return { title, authors, readingStatus, readPeriods };
     })
     .filter((r): r is ParsedRow => r !== null);
 }
@@ -246,9 +273,11 @@ export class ReadingImportService {
         title: candidates[0].bookTitle,
         authors: candidates[0].authorNames,
         readingStatus: row.readingStatus,
-        startedAt: row.startedAt?.toISOString() ?? null,
-        finishedAt: row.finishedAt?.toISOString() ?? null,
-        isDnf: row.isDnf,
+        readPeriods: row.readPeriods.map((p) => ({
+          startedAt: p.startedAt?.toISOString() ?? null,
+          finishedAt: p.finishedAt?.toISOString() ?? null,
+          isDnf: p.isDnf,
+        })),
         entryIds: candidates.map((c) => c.id),
         editionSlugs: candidates.map((c) => c.editionSlug).filter(Boolean),
       });
@@ -284,14 +313,17 @@ export class ReadingImportService {
             where: { id: entryId },
             data: { readingStatus: book.readingStatus },
           });
-          await this.prisma.readingHistory.create({
-            data: {
-              userBookEntryId: entryId,
-              startedAt: book.startedAt ? new Date(book.startedAt) : null,
-              finishedAt: book.finishedAt ? new Date(book.finishedAt) : null,
-              isDnf: book.isDnf,
-            },
-          });
+          // Create one ReadingHistory entry per read-through (re-reads = multiple periods)
+          for (const period of book.readPeriods) {
+            await this.prisma.readingHistory.create({
+              data: {
+                userBookEntryId: entryId,
+                startedAt: period.startedAt ? new Date(period.startedAt) : null,
+                finishedAt: period.finishedAt ? new Date(period.finishedAt) : null,
+                isDnf: period.isDnf,
+              },
+            });
+          }
           imported++;
         } catch {
           skipped++;

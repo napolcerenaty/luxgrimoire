@@ -636,9 +636,7 @@ interface MatchedBook {
   title: string
   authors: string[]
   readingStatus: 'READ' | 'READING' | 'DNF'
-  startedAt: string | null
-  finishedAt: string | null
-  isDnf: boolean
+  readPeriods: { startedAt: string | null; finishedAt: string | null; isDnf: boolean }[]
   entryIds: string[]
   editionSlugs: string[]
 }
@@ -816,6 +814,9 @@ function ReadingHistoryImport() {
                         <span className={`text-xs font-medium ${STATUS_COLOR[b.readingStatus] ?? ''}`}>
                           {STATUS_LABEL[b.readingStatus] ?? b.readingStatus}
                         </span>
+                        {b.readPeriods.length > 1 && (
+                          <span className="text-[10px] text-sky-400/80">{b.readPeriods.length}× read</span>
+                        )}
                         {b.entryIds.length > 1 && (
                           <span className="text-[10px] text-amber-500/80">{b.entryIds.length} editions</span>
                         )}
