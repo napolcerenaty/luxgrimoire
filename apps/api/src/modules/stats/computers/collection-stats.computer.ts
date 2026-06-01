@@ -5,7 +5,7 @@ import type { LightStatsContext, StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 4;
+  readonly version = 5;
 
   async compute(ctx: StatsContext | LightStatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
@@ -26,6 +26,10 @@ export class CollectionStatsComputer extends StatsComputer {
     let unreadCount = 0;
     let readCount = 0;
     let readingCount = 0;
+    let dnfCount = 0;
+
+    const readingBySubMap: Record<string, { name: string; slug: string; read: number; reading: number; unread: number; dnf: number }> = {};
+    const readingByCompanyMap: Record<string, { name: string; slug: string; read: number; reading: number; unread: number; dnf: number; primaryColor: string | null }> = {};
 
     let unreadShelfValue = 0;
     let preorderValue = 0;
@@ -57,10 +61,19 @@ export class CollectionStatsComputer extends StatsComputer {
       if (status === 'OWNED' && readingStatus === 'UNREAD') unreadCount++;
       else if (readingStatus === 'READ') readCount++;
       else if (readingStatus === 'READING') readingCount++;
+      else if (readingStatus === 'DNF') dnfCount++;
 
-      if (entry.subscriptionEntry?.subscription) {
+      const sub = entry.subscriptionEntry?.subscription ?? null;
+      const company = entry.edition?.bookBoxCompany ?? sub?.company ?? null;
+
+      if (sub) {
+        if (!readingBySubMap[sub.slug]) readingBySubMap[sub.slug] = { name: sub.name, slug: sub.slug, read: 0, reading: 0, unread: 0, dnf: 0 };
+        if (readingStatus === 'READ') readingBySubMap[sub.slug].read++;
+        else if (readingStatus === 'READING') readingBySubMap[sub.slug].reading++;
+        else if (readingStatus === 'DNF') readingBySubMap[sub.slug].dnf++;
+        else readingBySubMap[sub.slug].unread++;
+
         acqSubscription++;
-        const sub = entry.subscriptionEntry.subscription;
         if (!bySubAllMap[sub.slug]) bySubAllMap[sub.slug] = { name: sub.name, slug: sub.slug, books: 0 };
         bySubAllMap[sub.slug].books++;
       } else if (entry.purchaseGroup) {
@@ -68,22 +81,22 @@ export class CollectionStatsComputer extends StatsComputer {
       } else {
         acqUnknown++;
       }
-
-      if (entry.purchaseGroup) {
-        if (entry.purchaseGroup.isSecondHand) secondHandCount++;
-        else firstHandCount++;
-      }
-
-      const company = entry.edition?.bookBoxCompany ?? entry.subscriptionEntry?.subscription?.company ?? null;
       if (company) {
-        if (!byCompanyAllMap[company.id]) {
-          byCompanyAllMap[company.id] = { name: company.name, slug: company.slug, books: 0, primaryColor: company.brandColors?.[0] ?? null };
-        }
+        if (!readingByCompanyMap[company.id]) readingByCompanyMap[company.id] = { name: company.name, slug: company.slug, read: 0, reading: 0, unread: 0, dnf: 0, primaryColor: company.brandColors?.[0] ?? null };
+        if (readingStatus === 'READ') readingByCompanyMap[company.id].read++;
+        else if (readingStatus === 'READING') readingByCompanyMap[company.id].reading++;
+        else if (readingStatus === 'DNF') readingByCompanyMap[company.id].dnf++;
+        else readingByCompanyMap[company.id].unread++;
+
+        if (!byCompanyAllMap[company.id]) byCompanyAllMap[company.id] = { name: company.name, slug: company.slug, books: 0, primaryColor: company.brandColors?.[0] ?? null };
         byCompanyAllMap[company.id].books++;
       }
 
       const group = entry.purchaseGroup;
       if (group) {
+        if (group.isSecondHand) secondHandCount++;
+        else firstHandCount++;
+
         const date = new Date(group.purchasedAt);
         const entryCount = group.bookEntries.length || 1;
         const basePerEntry = toNum(group.totalAmount) / entryCount;
@@ -117,6 +130,7 @@ export class CollectionStatsComputer extends StatsComputer {
       unreadCount,
       readCount,
       readingCount,
+      dnfCount,
       unreadPercent: ownedCount > 0 ? Math.round((unreadCount / ownedCount) * 1000) / 10 : 0,
       unreadShelfValue: r(unreadShelfValue),
       preorderValue: r(preorderValue),
@@ -130,6 +144,8 @@ export class CollectionStatsComputer extends StatsComputer {
       secondHandCount,
       bySubscriptionAll: Object.values(bySubAllMap).sort((a, b) => b.books - a.books),
       byCompanyAll: Object.values(byCompanyAllMap).sort((a, b) => b.books - a.books),
+      readingBySubscription: Object.values(readingBySubMap).sort((a, b) => (b.read + b.reading) - (a.read + a.reading)),
+      readingByCompany: Object.values(readingByCompanyMap).sort((a, b) => (b.read + b.reading) - (a.read + a.reading)),
     };
   }
 }

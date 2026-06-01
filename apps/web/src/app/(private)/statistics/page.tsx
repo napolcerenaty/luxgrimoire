@@ -12,13 +12,14 @@ import {
 import { CURRENCIES } from '@/lib/currencies'
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
-type TabId = 'collection' | 'spending' | 'sales' | 'pl' | 'features'
+type TabId = 'collection' | 'spending' | 'sales' | 'pl' | 'features' | 'reading'
 const TABS: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
   { id: 'collection', label: 'Collection', icon: Library },
   { id: 'spending',   label: 'Spending',   icon: DollarSign },
   { id: 'sales',      label: 'Sales',      icon: ShoppingBag },
   { id: 'pl',         label: 'P&L',        icon: Scale },
   { id: 'features',   label: 'Features',   icon: Sparkles },
+  { id: 'reading',    label: 'Reading',    icon: BookOpen },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ interface CollectionStats {
   unreadCount: number
   readCount: number
   readingCount: number
+  dnfCount: number
   unreadPercent: number
   unreadShelfValue: number
   preorderValue: number
@@ -45,6 +47,8 @@ interface CollectionStats {
   secondHandCount: number
   bySubscriptionAll: Array<{ name: string; slug: string; books: number }>
   byCompanyAll: Array<{ name: string; slug: string; books: number; primaryColor?: string | null }>
+  readingBySubscription: Array<{ name: string; slug: string; read: number; reading: number; unread: number; dnf: number }>
+  readingByCompany: Array<{ name: string; slug: string; read: number; reading: number; unread: number; dnf: number; primaryColor?: string | null }>
 }
 
 interface FeaturesStats {
@@ -705,7 +709,7 @@ export default function SpendingPage() {
   const { data: collResp, isLoading: collLoading } = useQuery<ModuleResponse<{ collection: CollectionStats }>>({
     queryKey: ['stats-collection', currency],
     queryFn: () => authFetch(`/stats?currency=${currency}&module=collection`),
-    enabled: loadedTabs.has('collection'),
+    enabled: loadedTabs.has('collection') || loadedTabs.has('reading'),
     staleTime: 5 * 60_000,
   })
 
@@ -729,6 +733,9 @@ export default function SpendingPage() {
     enabled: loadedTabs.has('features'),
     staleTime: 5 * 60_000,
   })
+
+  // Reading tab reuses collection data (same snapshot)
+  const readingCollection = collResp?.data?.collection
 
   const { data: currencyData } = useQuery<{ currencies: string[] }>({
     queryKey: ['stats-currencies'],
@@ -1565,6 +1572,121 @@ export default function SpendingPage() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Reading Tab ─────────────────────────────────────────────────────── */}
+      {loadedTabs.has('reading') && (
+        <div className={activeTab !== 'reading' ? 'hidden' : 'space-y-6'}>
+          {collLoading ? <TabLoading /> : !readingCollection ? (
+            <div className="text-center py-20 text-stone-500">No data yet.</div>
+          ) : (() => {
+            const rc = readingCollection
+            const total = rc.readCount + rc.readingCount + rc.unreadCount + rc.dnfCount
+            return (
+              <>
+                {/* Overview cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatCard label="Read" value={String(rc.readCount)} sub={total > 0 ? `${((rc.readCount / total) * 100).toFixed(1)}% of all` : undefined} icon={BookOpen} accent />
+                  <StatCard label="Currently Reading" value={String(rc.readingCount)} icon={BookOpen} color="text-sky-400" />
+                  <StatCard label="Unread" value={String(rc.unreadCount)} sub={`${rc.unreadPercent}% of owned`} icon={BookOpen} color="text-stone-400" />
+                  <StatCard label="DNF" value={String(rc.dnfCount)} sub="did not finish" icon={BookOpen} color="text-orange-400" />
+                </div>
+
+                {/* Overall progress bar */}
+                {total > 0 && (
+                  <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <BookOpen size={14} className="text-amber-400" />
+                      <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading Progress</h2>
+                    </div>
+                    <div className="h-3 bg-stone-800 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-emerald-500/80 transition-all" style={{ width: `${(rc.readCount / total) * 100}%` }} title={`Read: ${rc.readCount}`} />
+                      <div className="h-full bg-sky-500/70 transition-all" style={{ width: `${(rc.readingCount / total) * 100}%` }} title={`Reading: ${rc.readingCount}`} />
+                      <div className="h-full bg-orange-500/60 transition-all" style={{ width: `${(rc.dnfCount / total) * 100}%` }} title={`DNF: ${rc.dnfCount}`} />
+                    </div>
+                    <div className="flex gap-4 text-[11px] text-stone-500 flex-wrap">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/80 inline-block" />Read</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-sky-500/70 inline-block" />Reading</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-stone-600 inline-block" />Unread</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500/60 inline-block" />DNF</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* By Subscription */}
+                  {rc.readingBySubscription?.length > 0 && (
+                    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+                      <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
+                        <Tag size={14} className="text-amber-400" />
+                        <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading by Subscription</h2>
+                      </div>
+                      <div className="divide-y divide-stone-800/50">
+                        {rc.readingBySubscription.map((s) => {
+                          const t = s.read + s.reading + s.unread + s.dnf
+                          return (
+                            <div key={s.slug} className="px-5 py-3.5 hover:bg-stone-800/30 transition-colors space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-stone-200 truncate">{s.name}</span>
+                                <span className="text-xs text-stone-500 ml-2 shrink-0">{t} books</span>
+                              </div>
+                              <div className="h-2 bg-stone-800 rounded-full overflow-hidden flex">
+                                <div className="h-full bg-emerald-500/80" style={{ width: `${t > 0 ? (s.read / t) * 100 : 0}%` }} title={`Read: ${s.read}`} />
+                                <div className="h-full bg-sky-500/70" style={{ width: `${t > 0 ? (s.reading / t) * 100 : 0}%` }} title={`Reading: ${s.reading}`} />
+                                <div className="h-full bg-orange-500/60" style={{ width: `${t > 0 ? (s.dnf / t) * 100 : 0}%` }} title={`DNF: ${s.dnf}`} />
+                              </div>
+                              <div className="flex gap-3 text-[10px] text-stone-500">
+                                <span className="text-emerald-400">{s.read} read</span>
+                                {s.reading > 0 && <span className="text-sky-400">{s.reading} reading</span>}
+                                <span>{s.unread} unread</span>
+                                {s.dnf > 0 && <span className="text-orange-400">{s.dnf} DNF</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* By Company */}
+                  {rc.readingByCompany?.length > 0 && (
+                    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+                      <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
+                        <Layers size={14} className="text-amber-400" />
+                        <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading by Company</h2>
+                      </div>
+                      <div className="divide-y divide-stone-800/50">
+                        {rc.readingByCompany.slice(0, 10).map((c) => {
+                          const t = c.read + c.reading + c.unread + c.dnf
+                          const barColor = c.primaryColor ? c.primaryColor + 'cc' : 'rgba(52,211,153,0.6)'
+                          return (
+                            <div key={c.slug} className="px-5 py-3.5 hover:bg-stone-800/30 transition-colors space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-stone-200 truncate">{c.name}</span>
+                                <span className="text-xs text-stone-500 ml-2 shrink-0">{t} books</span>
+                              </div>
+                              <div className="h-2 bg-stone-800 rounded-full overflow-hidden flex">
+                                <div className="h-full transition-all" style={{ width: `${t > 0 ? (c.read / t) * 100 : 0}%`, background: barColor }} title={`Read: ${c.read}`} />
+                                <div className="h-full bg-sky-500/70" style={{ width: `${t > 0 ? (c.reading / t) * 100 : 0}%` }} title={`Reading: ${c.reading}`} />
+                                <div className="h-full bg-orange-500/60" style={{ width: `${t > 0 ? (c.dnf / t) * 100 : 0}%` }} title={`DNF: ${c.dnf}`} />
+                              </div>
+                              <div className="flex gap-3 text-[10px] text-stone-500">
+                                <span className="text-emerald-400">{c.read} read</span>
+                                {c.reading > 0 && <span className="text-sky-400">{c.reading} reading</span>}
+                                <span>{c.unread} unread</span>
+                                {c.dnf > 0 && <span className="text-orange-400">{c.dnf} DNF</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+          })()}
         </div>
       )}
     </div>
