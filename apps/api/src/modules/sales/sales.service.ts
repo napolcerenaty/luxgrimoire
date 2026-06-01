@@ -218,7 +218,13 @@ export class SalesService {
   async updateSaleGroup(userId: string, groupId: string, dto: UpdateSaleGroupDto) {
     const existing = await this.prisma.userSaleGroup.findUnique({
       where: { id: groupId },
-      include: { entries: true },
+      include: {
+        entries: {
+          include: {
+            userBookEntry: { include: { edition: { select: { id: true } } } },
+          },
+        },
+      },
     });
     if (!existing) throw new NotFoundException("Sale group not found");
     assertOwnership(existing.userId, userId);
@@ -302,6 +308,27 @@ export class SalesService {
     });
 
     this.statsService.markStatsStale(userId);
+
+    // Sync community sale stats for each entry (non-fatal)
+    const oldCurrency = existing.currency;
+    const oldDate = existing.soldAt;
+    const newCurrency = dto.currency ?? existing.currency;
+    const newDate = dto.soldAt ? new Date(dto.soldAt) : existing.soldAt;
+
+    for (const oldEntry of existing.entries) {
+      const editionId = oldEntry.userBookEntry?.edition?.id;
+      if (!editionId) continue;
+
+      const newEntry = result.entries.find((e: any) => e.id === oldEntry.id);
+      const oldAlloc = toNum(oldEntry.allocatedAmount as any);
+      const newAlloc = newEntry ? toNum(newEntry.allocatedAmount as any) : oldAlloc;
+
+      const oldSale = oldDate ? { price: oldAlloc, currency: oldCurrency, date: oldDate } : null;
+      const newSale = newDate ? { price: newAlloc, currency: newCurrency, date: newDate } : null;
+
+      this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
+    }
+
     return result;
   }
 
