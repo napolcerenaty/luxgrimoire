@@ -658,6 +658,7 @@ const STATUS_COLOR: Record<string, string> = { READ: 'text-emerald-400', READING
 
 function ReadingHistoryImport() {
   const fileRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
   const [csvContent, setCsvContent] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
@@ -681,7 +682,10 @@ function ReadingHistoryImport() {
         method: 'POST',
         body: JSON.stringify({ csv }),
       }),
-    onSuccess: (data) => { setResult(data); setPreview(null); setError(null) },
+    onSuccess: (data) => {
+      setResult(data); setPreview(null); setError(null)
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -724,12 +728,12 @@ function ReadingHistoryImport() {
           <strong className="text-stone-200">StoryGraph</strong>. The format is detected automatically.
           StoryGraph exports also include reading start dates, while Goodreads provides only finish dates.
         </p>
-        <div className="bg-amber-950/30 border border-amber-700/40 rounded-xl p-4 space-y-1.5 text-sm text-amber-200/80">
-          <p className="font-semibold text-amber-300">⚠️ Before you import — please read</p>
-          <ul className="list-disc list-inside space-y-1 text-amber-200/70">
-            <li>Import matches books by the <strong className="text-amber-200">title + author pair</strong>. Only books already in your collection will be updated.</li>
-            <li>If you have <strong className="text-amber-200">multiple editions</strong> of the same book, <strong className="text-amber-200">all of them</strong> will receive the same reading data.</li>
-            <li><strong className="text-amber-200">Repeated imports create duplicates</strong> in reading history — do not import the same file more than once.</li>
+        <div className="bg-amber-950/60 border border-amber-700 rounded-xl p-4 space-y-1.5 text-sm text-amber-400">
+          <p className="font-semibold text-amber-500">⚠️ Before you import — please read</p>
+          <ul className="list-disc list-inside space-y-1 text-amber-400/90">
+            <li>Import matches books by the <strong className="text-amber-500">title + author pair</strong>. Only books already in your collection will be updated.</li>
+            <li>If you have <strong className="text-amber-500">multiple editions</strong> of the same book, <strong className="text-amber-500">all of them</strong> will receive the same reading data.</li>
+            <li><strong className="text-amber-500">Repeated imports create duplicates</strong> in reading history — import data only once.</li>
           </ul>
         </div>
       </div>

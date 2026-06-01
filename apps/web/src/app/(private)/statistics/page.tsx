@@ -1608,7 +1608,7 @@ export default function SpendingPage() {
                     <div className="flex gap-4 text-[11px] text-stone-500 flex-wrap">
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/80 inline-block" />Read</span>
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-sky-500/70 inline-block" />Reading</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-stone-600 inline-block" />Unread</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-stone-800 ring-1 ring-stone-600 inline-block" />Unread</span>
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500/60 inline-block" />DNF</span>
                     </div>
                   </div>

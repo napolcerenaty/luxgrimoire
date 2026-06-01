@@ -669,7 +669,7 @@ export default function SoldPage() {
                   <select
                     value={tagFilter}
                     onChange={e => setTagFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
                   >
                     <option value="ALL">Tag: Any</option>
                     {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
@@ -708,7 +708,7 @@ export default function SoldPage() {
                             {entry.tags?.length > 0 && (
                               <div className="flex flex-wrap gap-1">
                                 {entry.tags.map(tag => (
-                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{tag}</span>
+                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
                                 ))}
                               </div>
                             )}
@@ -742,7 +742,7 @@ export default function SoldPage() {
                           {entry.tags?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {entry.tags.map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{tag}</span>
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
                               ))}
                             </div>
                           )}
