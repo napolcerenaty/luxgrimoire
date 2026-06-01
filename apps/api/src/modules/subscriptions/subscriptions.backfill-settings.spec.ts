@@ -105,7 +105,7 @@ function setupNonComboBackfill(
   } = {},
 ) {
   // Entry with feeTemplates
-  (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+  (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
 
   // Settings history
   (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce(settingsHistory);
@@ -564,7 +564,7 @@ describe('SubscriptionsService — backfill with settings history', () => {
     it('throws NotFoundException when entry does not exist', async () => {
       const sub = makeSub();
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(
         service.backfillSubscription(USER_ID, SUB_SLUG, { selectedMonthIds: [] } as any),

@@ -99,7 +99,7 @@ function setupBackfill(
     purchaseGroupUpdateResult,
   } = options;
 
-  (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+  (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
   (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
   (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
   (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce(months);
@@ -543,7 +543,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       ];
 
       // Set up mocks: 6 purchase groups + 4 billing periods (one per batch) + book entries
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(makeEntry());
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(makeEntry());
       (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce(months);
@@ -710,7 +710,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
 
       const selectedMonth = makeMonth('m-1', 2026, 1);
 
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(makeEntry());
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(makeEntry());
       (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([selectedMonth]);
@@ -963,6 +963,85 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       expect(prisma.userPurchaseGroup.create).toHaveBeenCalledTimes(2);
       // All 4 books added
       expect(result.booksAdded).toBe(4);
+    });
+  });
+
+  // ── backfillOwnershipStatus ───────────────────────────────────────────────
+
+  describe('backfillOwnershipStatus', () => {
+    it('defaults to OWNED when backfillOwnershipStatus is not provided', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      setupBackfill(prisma, skipMock, { months: [makeMonth('m-1', 2026, 1)], purchaseGroupIds: ['pg-1'] });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ownershipStatus: 'OWNED' }) }),
+      );
+    });
+
+    it('uses PREORDER when backfillOwnershipStatus=PREORDER is provided', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      setupBackfill(prisma, skipMock, { months: [makeMonth('m-1', 2026, 1)], purchaseGroupIds: ['pg-1'] });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+        backfillOwnershipStatus: 'PREORDER',
+      } as any);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ownershipStatus: 'PREORDER' }) }),
+      );
+    });
+
+    it('uses OWNED when backfillOwnershipStatus=OWNED is explicitly provided', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      setupBackfill(prisma, skipMock, { months: [makeMonth('m-1', 2026, 1)], purchaseGroupIds: ['pg-1'] });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+        backfillOwnershipStatus: 'OWNED',
+      } as any);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ownershipStatus: 'OWNED' }) }),
+      );
+    });
+
+    it('applies same ownershipStatus to all books in a multi-book month', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const multiBookMonth = {
+        id: 'mb-1', year: 2026, month: 3, signatureType: null,
+        books: [
+          { editionId: 'ed-1a', bookId: 'bk-1a', signatureType: null },
+          { editionId: 'ed-1b', bookId: 'bk-1b', signatureType: null },
+        ],
+      };
+
+      setupBackfill(prisma, skipMock, { months: [multiBookMonth], purchaseGroupIds: ['pg-1'] });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['mb-1'],
+        backfillOwnershipStatus: 'PREORDER',
+      } as any);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(2);
+      expect(prisma.userBookEntry.create).toHaveBeenNthCalledWith(1,
+        expect.objectContaining({ data: expect.objectContaining({ ownershipStatus: 'PREORDER' }) }),
+      );
+      expect(prisma.userBookEntry.create).toHaveBeenNthCalledWith(2,
+        expect.objectContaining({ data: expect.objectContaining({ ownershipStatus: 'PREORDER' }) }),
+      );
     });
   });
 });
