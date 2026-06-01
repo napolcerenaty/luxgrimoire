@@ -88,7 +88,7 @@ describe('SubscriptionsService — query methods', () => {
       {} as any,
       {} as any,
       { incrementSubscriberCount: jest.fn(), decrementSubscriberCount: jest.fn() } as any,
-      {} as any,
+      { markStatsStale: jest.fn() } as any,
       { del: jest.fn(), get: jest.fn(), set: jest.fn() } as any,
     );
   });

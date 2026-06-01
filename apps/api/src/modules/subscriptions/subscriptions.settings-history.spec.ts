@@ -79,7 +79,7 @@ describe('SubscriptionsService — settings history', () => {
       {} as any, // RenewalCronService
       {} as any, // UploadService
       {} as any, // CrowdStatsService
-      {} as any, // StatsService
+      { markStatsStale: jest.fn() } as any, // StatsService
       cache as any,
     );
 
