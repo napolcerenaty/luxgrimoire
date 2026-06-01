@@ -272,12 +272,12 @@ export class StatsService {
 
   async getUserCurrencies(userId: string): Promise<{ currencies: string[] }> {
     const [purchaseGroups, saleGroups, saleEntries, user] = await Promise.all([
-      (this.prisma as PrismaService & { purchaseGroup: { findMany(a: unknown): Promise<{ currency: string }[]> } }).purchaseGroup.findMany({
+      this.prisma.userPurchaseGroup.findMany({
         where: { userId },
         select: { currency: true },
         distinct: ['currency'],
       }),
-      (this.prisma as PrismaService & { userSaleGroup: { findMany(a: unknown): Promise<{ currency: string }[]> } }).userSaleGroup.findMany({
+      this.prisma.userSaleGroup.findMany({
         where: { userId },
         select: { currency: true },
         distinct: ['currency'],

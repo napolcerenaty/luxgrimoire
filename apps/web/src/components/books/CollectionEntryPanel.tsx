@@ -102,6 +102,15 @@ interface HistoryEntry {
   changedAt: string
 }
 
+interface ReadingHistoryEntry {
+  id: string
+  startedAt: string | null
+  finishedAt: string | null
+  isDnf: boolean
+  notes: string | null
+  createdAt: string
+}
+
 interface SaleEditionOption {
   id: string
   isReprint: boolean
@@ -257,6 +266,54 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
   )
 }
 
+// ─── Add reading history form ─────────────────────────────────────────────────
+
+function AddReadingHistoryForm({ onSave, onCancel, saving }: {
+  onSave: (dto: { startedAt: string; finishedAt: string; isDnf: boolean; notes: string }) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [startedAt, setStartedAt] = useState('')
+  const [finishedAt, setFinishedAt] = useState('')
+  const [isDnf, setIsDnf] = useState(false)
+  const [notes, setNotes] = useState('')
+  return (
+    <div className="flex flex-col gap-1.5 mt-1 text-xs">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <label className="text-stone-500 shrink-0">Started</label>
+        <input
+          type="date"
+          value={startedAt}
+          onChange={e => setStartedAt(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        />
+        <label className="text-stone-500 shrink-0">Finished</label>
+        <input
+          type="date"
+          value={finishedAt}
+          onChange={e => setFinishedAt(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        />
+        <label className="flex items-center gap-1 text-stone-400 cursor-pointer">
+          <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-amber-400" />
+          DNF
+        </label>
+      </div>
+      <input
+        type="text"
+        placeholder="Notes (optional)"
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+      />
+      <div className="flex gap-2">
+        <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+        <button onClick={onCancel} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
@@ -356,6 +413,18 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [historyEditDate, setHistoryEditDate] = useState('')
   const [historySaving, setHistorySaving] = useState(false)
   const { isOpen: historyAddOpen, open: openHistoryAdd, close: closeHistoryAdd } = useModalState()
+
+  // Reading history
+  const { isOpen: showReadingHistory, toggle: _toggleReadingHistory } = useModalState()
+  const [readingHistory, setReadingHistory] = useState<ReadingHistoryEntry[] | null>(null)
+  const [loadingReadingHistory, setLoadingReadingHistory] = useState(false)
+  const [readingHistoryEditId, setReadingHistoryEditId] = useState<string | null>(null)
+  const [readingHistoryEditStartedAt, setReadingHistoryEditStartedAt] = useState('')
+  const [readingHistoryEditFinishedAt, setReadingHistoryEditFinishedAt] = useState('')
+  const [readingHistoryEditIsDnf, setReadingHistoryEditIsDnf] = useState(false)
+  const [readingHistoryEditNotes, setReadingHistoryEditNotes] = useState('')
+  const [readingHistorySaving, setReadingHistorySaving] = useState(false)
+  const { isOpen: readingHistoryAddOpen, open: openReadingHistoryAdd, close: closeReadingHistoryAdd } = useModalState()
 
   // Reset cached history whenever entry ID changes (e.g. copy switcher)
   // If history panel is open, re-fetch immediately for the new copy
@@ -885,6 +954,69 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       await refreshHistory()
     } finally {
       setHistorySaving(false)
+    }
+  }
+
+  // ── Reading history section ───────────────────────────────────────────────
+
+  async function toggleReadingHistory() {
+    if (!showReadingHistory) {
+      setLoadingReadingHistory(true)
+      try {
+        const data = await authFetch<ReadingHistoryEntry[]>(`/collection/entry/${entry!.id}/reading-history`)
+        setReadingHistory(data)
+      } finally {
+        setLoadingReadingHistory(false)
+      }
+    }
+    _toggleReadingHistory()
+  }
+
+  async function refreshReadingHistory() {
+    const data = await authFetch<ReadingHistoryEntry[]>(`/collection/entry/${entry!.id}/reading-history`)
+    setReadingHistory(data)
+  }
+
+  async function saveReadingHistoryEdit(id: string) {
+    setReadingHistorySaving(true)
+    try {
+      await authFetch(`/collection/entry/${entry!.id}/reading-history/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          startedAt: readingHistoryEditStartedAt || null,
+          finishedAt: readingHistoryEditFinishedAt || null,
+          isDnf: readingHistoryEditIsDnf,
+          notes: readingHistoryEditNotes || null,
+        }),
+      })
+      setReadingHistoryEditId(null)
+      await refreshReadingHistory()
+    } finally {
+      setReadingHistorySaving(false)
+    }
+  }
+
+  async function deleteReadingHistoryEntry(id: string) {
+    await authFetch(`/collection/entry/${entry!.id}/reading-history/${id}`, { method: 'DELETE' })
+    await refreshReadingHistory()
+  }
+
+  async function addReadingHistoryEntry(dto: { startedAt: string; finishedAt: string; isDnf: boolean; notes: string }) {
+    setReadingHistorySaving(true)
+    try {
+      await authFetch(`/collection/entry/${entry!.id}/reading-history`, {
+        method: 'POST',
+        body: JSON.stringify({
+          startedAt: dto.startedAt || undefined,
+          finishedAt: dto.finishedAt || undefined,
+          isDnf: dto.isDnf,
+          notes: dto.notes || undefined,
+        }),
+      })
+      closeReadingHistoryAdd()
+      await refreshReadingHistory()
+    } finally {
+      setReadingHistorySaving(false)
     }
   }
 
@@ -1933,6 +2065,123 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     style={{ color: 'var(--text-muted)' }}
                   >
                     <Plus size={10} /> Add entry
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reading history */}
+          <div className={CARD} style={cardStyle}>
+            <button
+              onClick={toggleReadingHistory}
+              className="flex items-center gap-1.5 text-xs transition-colors w-full text-left"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {showReadingHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {showReadingHistory ? 'Hide' : 'Show'} reading history
+            </button>
+            {showReadingHistory && (
+              <div className="pt-1 space-y-1">
+                {loadingReadingHistory ? (
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+                ) : !readingHistory || readingHistory.length === 0 ? (
+                  <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No reading records</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {readingHistory.map((rh) =>
+                      readingHistoryEditId === rh.id ? (
+                        <div key={rh.id} className="flex flex-col gap-1.5 text-xs">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <label className="text-stone-500 shrink-0">Started</label>
+                            <input
+                              type="date"
+                              value={readingHistoryEditStartedAt}
+                              onChange={e => setReadingHistoryEditStartedAt(e.target.value)}
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs"
+                            />
+                            <label className="text-stone-500 shrink-0">Finished</label>
+                            <input
+                              type="date"
+                              value={readingHistoryEditFinishedAt}
+                              onChange={e => setReadingHistoryEditFinishedAt(e.target.value)}
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs"
+                            />
+                            <label className="flex items-center gap-1 text-stone-400 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={readingHistoryEditIsDnf}
+                                onChange={e => setReadingHistoryEditIsDnf(e.target.checked)}
+                                className="accent-amber-400"
+                              />
+                              DNF
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Notes (optional)"
+                            value={readingHistoryEditNotes}
+                            onChange={e => setReadingHistoryEditNotes(e.target.value)}
+                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+                            <button onClick={() => setReadingHistoryEditId(null)} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={rh.id} className="group flex flex-col gap-0.5 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
+                            {rh.isDnf && (
+                              <span className="px-2 py-0.5 rounded-full font-medium badge-dnf">DNF</span>
+                            )}
+                            {rh.startedAt && (
+                              <span style={{ color: 'var(--text-dim)' }}>Started {fmtDate(rh.startedAt)}</span>
+                            )}
+                            {rh.finishedAt && (
+                              <span style={{ color: 'var(--text-dim)' }}>→ {fmtDate(rh.finishedAt)}</span>
+                            )}
+                            {!rh.startedAt && !rh.finishedAt && (
+                              <span style={{ color: 'var(--text-muted)' }}>No dates recorded</span>
+                            )}
+                            <span className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setReadingHistoryEditId(rh.id)
+                                  setReadingHistoryEditStartedAt(rh.startedAt?.slice(0, 10) ?? '')
+                                  setReadingHistoryEditFinishedAt(rh.finishedAt?.slice(0, 10) ?? '')
+                                  setReadingHistoryEditIsDnf(rh.isDnf)
+                                  setReadingHistoryEditNotes(rh.notes ?? '')
+                                }}
+                                className="text-stone-500 hover:text-amber-400 transition-colors"
+                              ><Pencil size={10} /></button>
+                              <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors"><Trash2 size={10} /></button>
+                            </span>
+                          </div>
+                          {rh.notes && (
+                            <p className="pl-5 text-xs italic" style={{ color: 'var(--text-muted)' }}>{rh.notes}</p>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Add reading record */}
+                {readingHistoryAddOpen ? (
+                  <AddReadingHistoryForm
+                    onSave={addReadingHistoryEntry}
+                    onCancel={closeReadingHistoryAdd}
+                    saving={readingHistorySaving}
+                  />
+                ) : (
+                  <button
+                    onClick={openReadingHistoryAdd}
+                    className="flex items-center gap-1 text-xs mt-1 transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <Plus size={10} /> Add record
                   </button>
                 )}
               </div>
