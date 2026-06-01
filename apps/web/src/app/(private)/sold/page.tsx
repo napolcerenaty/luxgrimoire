@@ -669,7 +669,7 @@ export default function SoldPage() {
                   <select
                     value={tagFilter}
                     onChange={e => setTagFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-teal-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-teal-400 border-teal-500/30 bg-teal-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
                   >
                     <option value="ALL">Tag: Any</option>
                     {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
@@ -698,14 +698,20 @@ export default function SoldPage() {
                         seriesName={entry.edition.book.seriesName}
                         volumeNumber={entry.edition.book.volumeNumber}
                         footer={
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            <Badge variant="default">SOLD</Badge>
-                            {entry.salePrice && entry.saleCurrency && (
-                              <span className="text-[10px] text-amber-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
+                          <div className="mt-1 flex flex-col gap-1">
+                            <div className="flex flex-wrap gap-1 items-center">
+                              <Badge variant="default">SOLD</Badge>
+                              {entry.salePrice && entry.saleCurrency && (
+                                <span className="text-[10px] text-amber-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
+                              )}
+                            </div>
+                            {entry.tags?.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {entry.tags.map(tag => (
+                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{tag}</span>
+                                ))}
+                              </div>
                             )}
-                            {entry.tags?.map(tag => (
-                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-400">{tag}</span>
-                            ))}
                           </div>
                         }
                       />
@@ -736,7 +742,7 @@ export default function SoldPage() {
                           {entry.tags?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {entry.tags.map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-400">{tag}</span>
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{tag}</span>
                               ))}
                             </div>
                           )}

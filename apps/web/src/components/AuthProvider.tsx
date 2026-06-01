@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore network errors
     }
     setUser(null)
-    router.push('/')
+    router.replace('/')
   }
 
   const refreshUser = async () => {
