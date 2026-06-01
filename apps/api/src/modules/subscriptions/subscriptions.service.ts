@@ -1995,6 +1995,7 @@ export class SubscriptionsService {
     purchaseGroupId: string;
     signatureType: $Enums.SignatureType | null;
     changedAt: Date;
+    ownershipStatus?: 'OWNED' | 'PREORDER';
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
@@ -2007,12 +2008,13 @@ export class SubscriptionsService {
       });
       return;
     }
+    const status = opts.ownershipStatus ?? 'OWNED';
     await this.prisma.userBookEntry.create({
       data: {
         userId: opts.userId,
         bookId: opts.bookId,
         editionId: opts.editionId,
-        ownershipStatus: 'PREORDER',
+        ownershipStatus: status,
         readingStatus: 'UNREAD',
         subscriptionEntryId: opts.subscriptionEntryId,
         purchaseGroupId: opts.purchaseGroupId,
@@ -2020,7 +2022,7 @@ export class SubscriptionsService {
       },
     }).then(created =>
       this.prisma.ownershipStatusHistory.create({
-        data: { userBookEntryId: created.id, status: 'PREORDER', changedAt: opts.changedAt },
+        data: { userBookEntryId: created.id, status, changedAt: opts.changedAt },
       }).catch(() => {}),
     );
   }
@@ -2185,6 +2187,7 @@ export class SubscriptionsService {
               purchaseGroupId: group.id,
               signatureType: mb.signatureType,
               changedAt: renewalDate,
+              ownershipStatus: dto.backfillOwnershipStatus ?? 'OWNED',
             });
             booksAdded++;
           } catch {
@@ -2464,6 +2467,7 @@ export class SubscriptionsService {
             purchaseGroupId: group.id,
             signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
             changedAt: renewalDate,
+            ownershipStatus: dto.backfillOwnershipStatus ?? 'OWNED',
           });
           booksAdded++;
         } catch {

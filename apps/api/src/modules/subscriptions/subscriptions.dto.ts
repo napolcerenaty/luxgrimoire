@@ -736,6 +736,11 @@ export class BackfillSubscriptionDto {
   @ValidateNested({ each: true })
   @Type(() => BackfillBillingBatchDto)
   billingBatches?: BackfillBillingBatchDto[];
+
+  /** Ownership status to assign to backfilled books. Defaults to OWNED on the backend. */
+  @IsOptional()
+  @IsIn(['OWNED', 'PREORDER'])
+  backfillOwnershipStatus?: 'OWNED' | 'PREORDER';
 }
 
 export class CancelMyEntryDto {

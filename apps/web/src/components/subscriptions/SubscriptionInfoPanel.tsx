@@ -27,6 +27,8 @@ interface Props {
   renewalDay?: number | null
   months: ApiSubscriptionMonth[]
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  isDiscontinued?: boolean
+  subscriptionEndDate?: string | null
 }
 
 type FeeTemplateLink = {
@@ -100,6 +102,8 @@ export default function SubscriptionInfoPanel({
   renewalDay,
   months,
   prepayOptions,
+  isDiscontinued,
+  subscriptionEndDate,
 }: Props) {
   const { user } = useAuth()
   const userCurrency = user?.preferredCurrency
@@ -585,6 +589,8 @@ export default function SubscriptionInfoPanel({
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
           userDefaultCurrency={user?.preferredCurrency ?? null}
           prepayOptions={prepayOptions}
+          isDiscontinued={isDiscontinued}
+          subscriptionEndDate={subscriptionEndDate}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()
