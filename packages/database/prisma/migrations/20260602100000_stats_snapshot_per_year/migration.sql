@@ -1,6 +1,9 @@
 -- Add year column to user_stats_snapshots
 -- year = 0 means all-time snapshot, positive integer means per-year spending snapshot
 
+-- Clear all existing snapshots so users get fresh per-year snapshots generated on next request
+TRUNCATE TABLE user_stats_snapshots;
+
 ALTER TABLE user_stats_snapshots ADD COLUMN IF NOT EXISTS year INTEGER NOT NULL DEFAULT 0;
 
 -- Drop old unique constraint and index (index may survive constraint drop in some PostgreSQL versions)
