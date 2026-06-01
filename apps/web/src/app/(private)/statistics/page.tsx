@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
   TrendingUp, BookOpen, DollarSign, Truck, Receipt, Tag, BarChart2, Award,
   Calendar, ShoppingBag, TrendingDown, Library, Sparkles, ChevronLeft, ChevronRight,
-  RefreshCw, Layers, Scale,
+  RefreshCw, Layers, Scale, Info,
 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
@@ -807,6 +807,12 @@ export default function SpendingPage() {
         </div>
       </div>
 
+      {/* Disclaimer */}
+      <div className="flex items-start gap-2 text-xs text-stone-600 leading-relaxed">
+        <Info size={13} className="shrink-0 mt-0.5" />
+        <span>Statistics are for reference only. Currency conversions use approximate historical exchange rates and may differ slightly from your actual bank or credit card figures.</span>
+      </div>
+
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-stone-800">
         {TABS.map(tab => (
@@ -824,11 +830,6 @@ export default function SpendingPage() {
           </button>
         ))}
       </div>
-
-      {/* Disclaimer */}
-      <p className="text-xs text-stone-600 leading-relaxed">
-        📊 Statistics are for reference only. Currency conversions use approximate historical exchange rates and may differ slightly from your actual bank or credit card figures.
-      </p>
 
       {/* ── Collection Tab ─────────────────────────────────────────────────── */}
       {loadedTabs.has('collection') && (
