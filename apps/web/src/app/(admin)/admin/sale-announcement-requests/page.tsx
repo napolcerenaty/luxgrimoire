@@ -90,7 +90,7 @@ export default function AdminSaleAnnouncementRequestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                      {r.status}
+                      {r.status.toUpperCase()}
                     </span>
                     {r.user && <span className="text-xs text-stone-500">by {r.user.username}</span>}
                     <span className="text-xs text-stone-600">{new Date(r.createdAt).toLocaleString()}</span>

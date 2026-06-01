@@ -134,16 +134,16 @@ const OWNERSHIP_STATUSES = ['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED
 const READING_STATUSES = ['UNREAD', 'READING', 'READ', 'DNF'] as const
 
 const OWNERSHIP_LABEL: Record<string, string> = {
-  OWNED: 'Own',
-  PREORDER: 'Preorder',
-  SHIPPING: 'Shipping',
-  BORROWED: 'Borrowed',
-  LENDED: 'Lended',
-  TO_SELL: 'To Sell',
-  SOLD: 'Sold',
-  GIFTED_AWAY: 'Gifted Away',
+  OWNED: 'OWN',
+  PREORDER: 'PREORDER',
+  SHIPPING: 'SHIPPING',
+  BORROWED: 'BORROWED',
+  LENDED: 'LENDED',
+  TO_SELL: 'TO SELL',
+  SOLD: 'SOLD',
+  GIFTED_AWAY: 'GIFTED AWAY',
 }
-const fmtOwnership = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
+const fmtOwnership = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ').toUpperCase()
 
 const OWNERSHIP_COLORS: Record<string, string> = {
   OWNED: 'badge-owned',
@@ -2137,10 +2137,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               <span className="px-2 py-0.5 rounded-full font-medium badge-dnf">DNF</span>
                             )}
                             {!rh.isDnf && rh.finishedAt && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/60 text-emerald-400">Read</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/60 text-emerald-400">READ</span>
                             )}
                             {!rh.isDnf && !rh.finishedAt && rh.startedAt && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-900/60 text-sky-400">Reading</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-900/60 text-sky-400">READING</span>
                             )}
                             {rh.startedAt && (
                               <span style={{ color: 'var(--text-dim)' }}>Started {fmtDate(rh.startedAt)}</span>

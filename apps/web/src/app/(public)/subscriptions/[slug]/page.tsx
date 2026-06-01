@@ -205,7 +205,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           <div className="flex items-center gap-3 flex-wrap mb-3">
             {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
             <Badge variant={sub.isDiscontinued ? 'destructive' : sub.isUpcoming ? 'outline' : 'success'}>
-              {sub.isDiscontinued ? 'Discontinued' : sub.isUpcoming ? '🔔 Upcoming' : 'Active'}
+              {sub.isDiscontinued ? 'DISCONTINUED' : sub.isUpcoming ? '🔔 UPCOMING' : 'ACTIVE'}
             </Badge>
             {sub.startDate && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-stone-600 text-stone-400">

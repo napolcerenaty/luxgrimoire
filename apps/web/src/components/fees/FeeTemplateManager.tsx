@@ -297,7 +297,7 @@ export default function FeeTemplateManager() {
                       </span>
                       {!t.isActive && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-stone-700 text-stone-400">
-                          Archived
+                          ARCHIVED
                         </span>
                       )}
                     </div>
