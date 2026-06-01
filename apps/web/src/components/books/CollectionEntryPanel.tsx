@@ -2136,6 +2136,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {rh.isDnf && (
                               <span className="px-2 py-0.5 rounded-full font-medium badge-dnf">DNF</span>
                             )}
+                            {!rh.isDnf && rh.finishedAt && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/60 text-emerald-400">Read</span>
+                            )}
+                            {!rh.isDnf && !rh.finishedAt && rh.startedAt && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-900/60 text-sky-400">Reading</span>
+                            )}
                             {rh.startedAt && (
                               <span style={{ color: 'var(--text-dim)' }}>Started {fmtDate(rh.startedAt)}</span>
                             )}

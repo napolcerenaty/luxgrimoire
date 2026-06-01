@@ -825,6 +825,11 @@ export default function SpendingPage() {
         ))}
       </div>
 
+      {/* Disclaimer */}
+      <p className="text-xs text-stone-600 leading-relaxed">
+        📊 Statistics are for reference only. Currency conversions use approximate historical exchange rates and may differ slightly from your actual bank or credit card figures.
+      </p>
+
       {/* ── Collection Tab ─────────────────────────────────────────────────── */}
       {loadedTabs.has('collection') && (
         <div className={activeTab !== 'collection' ? 'hidden' : 'space-y-6'}>
