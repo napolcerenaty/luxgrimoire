@@ -250,7 +250,7 @@ function CancelledSubscriptionGroup({
     <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
       {/* Header row with subscription info */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
-        <div className="h-12 w-16 rounded overflow-hidden shrink-0">
+        <div className="w-16 self-stretch flex rounded overflow-hidden shrink-0">
           <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
         </div>
         <div className="flex-1 min-w-0">
@@ -556,11 +556,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
-      body: JSON.stringify({
-        removeBooks,
-        removeSpending,
-        ...(entry.active ? {} : { historyId: entry.id }),
-      }),
+      body: JSON.stringify({ removeBooks, removeSpending }),
     }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
@@ -608,13 +604,10 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               {entry.active && renewalLabel && (
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
-                  <p className="text-sm font-medium text-stone-200">{renewalLabel}</p>
-                </div>
-              )}
-              {entry.active && renewalAmount && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Amount</p>
-                  <p className="text-sm font-medium text-amber-400">{renewalAmount}</p>
+                  <p className="text-sm font-medium text-stone-200">
+                    {renewalLabel}
+                    {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                  </p>
                 </div>
               )}
               {!entry.active && entry.startDate && (
