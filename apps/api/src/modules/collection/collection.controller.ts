@@ -37,6 +37,9 @@ export class CollectionController {
     @Query('isWishlist') isWishlist?: string,
     @Query('slim') slim?: string,
     @Query('ownershipStatus') ownershipStatus?: string,
+    @Query('search') search?: string,
+    @Query('companyName') companyName?: string,
+    @Query('tag') tag?: string,
   ) {
     const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
     const slimMode = slim === 'true';
@@ -47,6 +50,9 @@ export class CollectionController {
       wishlistFilter,
       slimMode,
       ownershipStatus,
+      search,
+      companyName,
+      tag,
     );
   }
 
