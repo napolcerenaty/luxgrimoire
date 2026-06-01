@@ -54,7 +54,7 @@ describe('SubscriptionsService — removeMySubscription', () => {
     prisma = mockDeep<PrismaService>();
     cache = { del: jest.fn().mockResolvedValue(undefined), get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined) };
     crowdStatsMock = { decrementSubscriberCount: jest.fn().mockResolvedValue(undefined) };
-    service = new SubscriptionsService(prisma, {} as any, {} as any, {} as any, {} as any, crowdStatsMock as any, cache as any);
+    service = new SubscriptionsService(prisma, {} as any, {} as any, {} as any, {} as any, crowdStatsMock as any, { markStatsStale: jest.fn() } as any, cache as any);
   });
 
   function setupFindMany(entries: ReturnType<typeof makeEntry>[]) {

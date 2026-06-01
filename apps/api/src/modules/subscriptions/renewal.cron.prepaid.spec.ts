@@ -87,7 +87,7 @@ describe('RenewalCronService — prepaid billing period', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new RenewalCronService(prisma);
+    service = new RenewalCronService(prisma, { markStatsStale: jest.fn() } as any);
     jest.clearAllMocks();
   });
 

@@ -30,7 +30,7 @@ describe('RenewalCronService', () => {
     jest.useFakeTimers();
     jest.setSystemTime(FIXED_NOW);
     prisma = mockDeep<PrismaService>();
-    service = new RenewalCronService(prisma);
+    service = new RenewalCronService(prisma, { markStatsStale: jest.fn() } as any);
     jest.clearAllMocks();
   });
 

@@ -19,7 +19,7 @@ const LINKS = {
   account: [
     { href: '/collection', label: 'My Collection' },
     { href: '/calendar',   label: 'My Calendar' },
-    { href: '/spending',   label: 'Spending Tracker' },
+    { href: '/statistics', label: 'Statistics' },
     { href: '/login',      label: 'Sign In' },
     { href: '/register',   label: 'Create Account' },
   ],

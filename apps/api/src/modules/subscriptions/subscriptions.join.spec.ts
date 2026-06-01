@@ -83,6 +83,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       {} as any,
       {} as any,
       crowdStatsMock as any,
+      { markStatsStale: jest.fn() } as any,
       { del: jest.fn(), get: jest.fn(), set: jest.fn() } as any,
     );
   });

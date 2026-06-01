@@ -153,7 +153,7 @@ export default function DataRequestsPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                            <Icon size={10} className="inline mr-1" />{r.status}
+                            <Icon size={10} className="inline mr-1" />{r.status.toUpperCase()}
                           </span>
                           <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">{r.type}</span>
                         </div>

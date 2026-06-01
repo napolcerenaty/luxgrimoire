@@ -30,7 +30,7 @@ const OWNERSHIP_LABEL: Record<string, string> = {
   SOLD: 'SOLD',
   GIFTED_AWAY: 'GIFTED AWAY',
 }
-const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
+const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ').toUpperCase()
 
 interface CollectionEntry {
   id: string

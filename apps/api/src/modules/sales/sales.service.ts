@@ -7,6 +7,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrencyService } from "../currency/currency.service";
 import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
+import { StatsService } from '../stats/stats.service';
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
@@ -49,6 +50,7 @@ export class SalesService {
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
     private readonly crowdStatsService: CrowdStatsService,
+    private readonly statsService: StatsService,
   ) {}
 
   private get entryInclude() {
@@ -209,6 +211,7 @@ export class SalesService {
       }
     }
 
+    this.statsService.markStatsStale(userId);
     return result;
   }
 
@@ -235,7 +238,7 @@ export class SalesService {
       (dto.totalAmount !== undefined && dto.totalAmount !== toNum(existing.totalAmount as any)) ||
       hasCustomAmounts;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.userSaleGroup.update({
         where: { id: groupId },
         data: {
@@ -297,6 +300,9 @@ export class SalesService {
 
       return updated;
     });
+
+    this.statsService.markStatsStale(userId);
+    return result;
   }
 
   async deleteSaleGroup(userId: string, groupId: string) {
@@ -345,6 +351,8 @@ export class SalesService {
         }
       }
     }
+
+    this.statsService.markStatsStale(userId);
   }
 
   private async withProfit(g: SaleGroupWithEntries) {

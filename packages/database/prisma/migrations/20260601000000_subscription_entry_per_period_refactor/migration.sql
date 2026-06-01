@@ -139,6 +139,7 @@ WHERE h."entryId" IS NULL
 
 -- ─── STEP 5 ─ Drop UserSubscriptionMembershipHistory table ──────────────────
 --
--- Only after data has been migrated to entries above.
-
-DROP TABLE IF EXISTS "user_subscription_membership_history";
+-- ⚠ DEFERRED: Drop will be done in a separate follow-up migration after
+--   confirming all data was migrated correctly. Do NOT uncomment without review.
+--
+-- DROP TABLE IF EXISTS "user_subscription_membership_history";

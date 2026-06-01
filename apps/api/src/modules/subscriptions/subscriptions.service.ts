@@ -40,6 +40,7 @@ import { RenewalCronService } from './renewal.cron';
 import { resolveEffectiveBasePrice } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
+import { StatsService } from '../stats/stats.service';
 
 function formatIntervalForTypesense(intervalMonths: number): string {
   if (intervalMonths === 1) return 'Monthly';
@@ -70,6 +71,7 @@ export class SubscriptionsService {
     private readonly renewalCron: RenewalCronService,
     private readonly uploadService: UploadService,
     private readonly crowdStatsService: CrowdStatsService,
+    private readonly statsService: StatsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -1306,6 +1308,7 @@ export class SubscriptionsService {
       },
     });
     this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+    this.statsService.markStatsStale(userId);
     return updated;
   }
 
@@ -1346,6 +1349,7 @@ export class SubscriptionsService {
       await this.prisma.userSubscriptionEntry.deleteMany({
         where: { id: { in: entryIds }, userId },
       });
+      this.statsService.markStatsStale(userId);
       return { success: true };
     }
 
@@ -1373,6 +1377,7 @@ export class SubscriptionsService {
       await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
       await this.prisma.userSubscriptionEntry.delete({ where: { id: activeEntry.id } });
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
+      this.statsService.markStatsStale(userId);
       return { success: true };
     }
 
@@ -1416,6 +1421,7 @@ export class SubscriptionsService {
     if (hadActive) {
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     }
+    this.statsService.markStatsStale(userId);
     return { success: true };
   }
 
@@ -1482,6 +1488,7 @@ export class SubscriptionsService {
       }
     }
 
+    this.statsService.markStatsStale(userId);
     return this.getMySubscriptionEntry(userId, slug);
   }
 
@@ -1649,6 +1656,7 @@ export class SubscriptionsService {
       this.crowdStatsService.incrementSubscriberCount(sub.id).catch(() => {});
     }
 
+    this.statsService.markStatsStale(userId);
     return { entry, eligibleMonths };
   }
 

@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionService } from './collection.service';
-import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddTrackingDto, UpdateTrackingDto } from './collection.dto';
+import { AddToCollectionDto, UpdateCollectionEntryDto, SetEditionTagsDto, AddToWishlistDto, UpdateEditionOwnershipDto, AddTrackingDto, UpdateTrackingDto, AddReadingHistoryDto, UpdateReadingHistoryDto } from './collection.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -230,5 +230,41 @@ export class CollectionController {
     @Body() dto: SetEditionTagsDto,
   ) {
     return this.collectionService.setEntryTags(user.id, entryId, dto.tags);
+  }
+
+  @Get('entry/:entryId/reading-history')
+  getReadingHistory(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+  ) {
+    return this.collectionService.getReadingHistory(user.id, entryId);
+  }
+
+  @Post('entry/:entryId/reading-history')
+  addReadingHistory(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Body() dto: AddReadingHistoryDto,
+  ) {
+    return this.collectionService.addReadingHistory(user.id, entryId, dto);
+  }
+
+  @Patch('entry/:entryId/reading-history/:historyId')
+  updateReadingHistory(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Param('historyId') historyId: string,
+    @Body() dto: UpdateReadingHistoryDto,
+  ) {
+    return this.collectionService.updateReadingHistory(user.id, entryId, historyId, dto);
+  }
+
+  @Delete('entry/:entryId/reading-history/:historyId')
+  deleteReadingHistory(
+    @CurrentUser() user: { id: string },
+    @Param('entryId') entryId: string,
+    @Param('historyId') historyId: string,
+  ) {
+    return this.collectionService.deleteReadingHistory(user.id, entryId, historyId);
   }
 }
