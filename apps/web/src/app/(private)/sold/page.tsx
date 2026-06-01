@@ -761,6 +761,23 @@ export default function SoldPage() {
                 {sg.soldAt && (
                   <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>
                 )}
+                {/* Book titles */}
+                {sg.entries && sg.entries.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-800 space-y-1">
+                    {sg.entries.map(e => {
+                      const title = (e.userBookEntry as any)?.edition?.book?.title ?? '—'
+                      const showAlloc = sg.entries.length > 1
+                      return (
+                        <div key={e.id} className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-stone-400 truncate">{title}</span>
+                          {showAlloc && (
+                            <span className="text-xs text-amber-400 shrink-0">{Number(e.allocatedAmount).toFixed(2)} {sg.currency}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             ))}
           </div>

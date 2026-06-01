@@ -81,6 +81,8 @@ interface CollectionEntry {
   signatureType: string | null
   subscriptionEntryId: string | null
   saleGroupId: string | null
+  saleGroupTitle: string | null
+  saleGroupEntryCount: number | null
   tags: string[]
   purchaseGroup: PurchaseGroup | null
   saleAnnouncementEditionId: string | null
@@ -1515,12 +1517,18 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             <div className="rounded-xl border p-4 mt-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sale details</p>
-                {!editingSale && (
+                {!editingSale && !(entry.saleGroupEntryCount && entry.saleGroupEntryCount > 1) && (
                   <button onClick={openSaleEdit} className="flex items-center gap-1 text-xs transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-bright)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
                     <Pencil size={11} /> Edit
                   </button>
                 )}
               </div>
+              {entry.saleGroupEntryCount && entry.saleGroupEntryCount > 1 && (
+                <div className="flex items-center gap-1.5 mb-3 text-xs px-2 py-1.5 rounded-lg" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+                  <Package size={11} />
+                  <span>Part of a set{entry.saleGroupTitle ? `: ${entry.saleGroupTitle}` : ''}</span>
+                </div>
+              )}
               {editingSale ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">

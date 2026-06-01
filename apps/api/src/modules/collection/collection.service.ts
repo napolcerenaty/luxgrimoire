@@ -357,18 +357,31 @@ export class CollectionService {
             },
           },
           saleEntries: {
-            select: { saleGroupId: true },
+            select: {
+              saleGroupId: true,
+              saleGroup: {
+                select: {
+                  title: true,
+                  _count: { select: { entries: true } },
+                },
+              },
+            },
             take: 1,
           },
         },
       });
-    return entries.map((entry) => ({
-      ...entry,
-      tags: (entry.entryTags ?? []).map((t) => t.tag),
-      entryTags: undefined,
-      saleGroupId: (entry.saleEntries as Array<{ saleGroupId: string }> | undefined)?.[0]?.saleGroupId ?? null,
-      saleEntries: undefined,
-    }));
+    return entries.map((entry) => {
+      const saleEntry = (entry.saleEntries as Array<{ saleGroupId: string; saleGroup: { title: string | null; _count: { entries: number } } | null }> | undefined)?.[0];
+      return {
+        ...entry,
+        tags: (entry.entryTags ?? []).map((t) => t.tag),
+        entryTags: undefined,
+        saleGroupId: saleEntry?.saleGroupId ?? null,
+        saleGroupTitle: saleEntry?.saleGroup?.title ?? null,
+        saleGroupEntryCount: saleEntry?.saleGroup?._count?.entries ?? null,
+        saleEntries: undefined,
+      };
+    });
   }
 
   async getEntryStatus(userId: string, editionId: string) {
