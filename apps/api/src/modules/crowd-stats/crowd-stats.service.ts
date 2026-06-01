@@ -14,44 +14,49 @@ export class CrowdStatsService {
     private readonly currencyService: CurrencyService,
   ) {}
 
-  async createSaleStat(
-    editionId: string,
-    allocatedAmount: number,
-    currency: string,
-    soldAt: Date,
-  ): Promise<void> {
-    const valueEur = Math.round(
-      (await this.currencyService.convert(allocatedAmount, currency, 'EUR', soldAt)) * 100,
-    ) / 100;
-    const soldAtNormalized = normalizeToMidnightUTC(soldAt);
-
-    await this.prisma.editionSaleStat.create({
-      data: { editionId, valueEur, soldAt: soldAtNormalized },
+  /**
+   * Rebuild all sale stats for an edition from scratch:
+   * 1. Delete all existing edition_sale_stats rows for the edition.
+   * 2. Query every active (SOLD) UserBookEntry for that edition across all users.
+   * 3. Re-insert one row per entry with EUR-converted value.
+   * 4. Refresh the snapshot.
+   *
+   * This is always correct — no fuzzy matching, no stale rows.
+   */
+  async rebuildEditionSaleStats(editionId: string): Promise<void> {
+    // Step 1: fetch all active sold entries for this edition
+    const soldEntries = await this.prisma.userSaleEntry.findMany({
+      where: {
+        userBookEntry: { editionId, ownershipStatus: 'SOLD' },
+      },
+      select: {
+        allocatedAmount: true,
+        saleGroup: { select: { currency: true, soldAt: true } },
+      },
     });
-  }
 
-  async deleteSaleStat(
-    editionId: string,
-    allocatedAmount: number,
-    currency: string,
-    soldAt: Date,
-  ): Promise<void> {
-    const valueEur = Math.round(
-      (await this.currencyService.convert(allocatedAmount, currency, 'EUR', soldAt)) * 100,
-    ) / 100;
-    const soldAtNormalized = normalizeToMidnightUTC(soldAt);
+    // Step 2: delete all existing stats for this edition
+    await this.prisma.editionSaleStat.deleteMany({ where: { editionId } });
 
-    await this.prisma.$queryRaw`
-      DELETE FROM edition_sale_stats
-      WHERE id = (
-        SELECT id FROM edition_sale_stats
-        WHERE "editionId" = ${editionId}
-          AND ABS("valueEur" - ${valueEur}) < 0.02
-          AND "soldAt" = ${soldAtNormalized}
-        ORDER BY ABS("valueEur" - ${valueEur}) ASC
-        LIMIT 1
-      )
-    `;
+    // Step 3: insert fresh rows
+    for (const entry of soldEntries) {
+      const amount = typeof entry.allocatedAmount === 'object'
+        ? (entry.allocatedAmount as any).toNumber()
+        : Number(entry.allocatedAmount);
+      const currency = entry.saleGroup.currency;
+      const soldAt = entry.saleGroup.soldAt;
+
+      const valueEur = Math.round(
+        (await this.currencyService.convert(amount, currency, 'EUR', soldAt)) * 100,
+      ) / 100;
+
+      await this.prisma.editionSaleStat.create({
+        data: { editionId, valueEur, soldAt: normalizeToMidnightUTC(soldAt) },
+      });
+    }
+
+    // Step 4: refresh snapshot
+    await this.refreshEditionSaleStats(editionId);
   }
 
   async getSalePriceStats(editionId: string): Promise<{
@@ -126,20 +131,6 @@ export class CrowdStatsService {
       SET "subscriberCount" = GREATEST(subscription_stats_snapshots."subscriberCount" - 1, 0),
           "updatedAt" = NOW()
     `;
-  }
-
-  async syncSaleStats(
-    editionId: string,
-    oldSale: { price: number; currency: string; date: Date } | null,
-    newSale: { price: number; currency: string; date: Date } | null,
-  ): Promise<void> {
-    if (oldSale) {
-      await this.deleteSaleStat(editionId, oldSale.price, oldSale.currency, oldSale.date);
-    }
-    if (newSale) {
-      await this.createSaleStat(editionId, newSale.price, newSale.currency, newSale.date);
-    }
-    await this.refreshEditionSaleStats(editionId);
   }
 
   async getSnapshotForEdition(editionId: string) {

@@ -1198,24 +1198,13 @@ export class SubscriptionsService {
           ));
 
           // Clean up community sale stats for sold books being removed (non-fatal)
-          for (const book of toDelete) {
-            if (book.ownershipStatus === 'SOLD' && book.editionId && (book as any).saleEntries?.length) {
-              for (const saleEntry of (book as any).saleEntries) {
-                try {
-                  await this.crowdStatsService.deleteSaleStat(
-                    book.editionId,
-                    typeof saleEntry.allocatedAmount === 'object'
-                      ? (saleEntry.allocatedAmount as any).toNumber()
-                      : Number(saleEntry.allocatedAmount),
-                    saleEntry.saleGroup.currency,
-                    saleEntry.saleGroup.soldAt,
-                  );
-                  await this.crowdStatsService.refreshEditionSaleStats(book.editionId);
-                } catch {
-                  // stats errors must never block the main operation
-                }
-              }
-            }
+          const soldEditionIds = [...new Set(
+            toDelete
+              .filter(b => b.ownershipStatus === 'SOLD' && b.editionId && (b as any).saleEntries?.length)
+              .map(b => b.editionId as string)
+          )];
+          for (const editionId of soldEditionIds) {
+            this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
           }
 
           await this.prisma.userBookEntry.deleteMany({ where: { id: { in: toDelete.map(b => b.id) } } });
@@ -1496,24 +1485,13 @@ export class SubscriptionsService {
     const deleteIds = toDelete.map(b => b.id);
 
     // Clean up community sale stats for sold books being removed (non-fatal)
-    for (const book of toDelete) {
-      if (book.ownershipStatus === 'SOLD' && book.editionId && (book as any).saleEntries?.length) {
-        for (const saleEntry of (book as any).saleEntries) {
-          try {
-            await this.crowdStatsService.deleteSaleStat(
-              book.editionId,
-              typeof saleEntry.allocatedAmount === 'object'
-                ? (saleEntry.allocatedAmount as any).toNumber()
-                : Number(saleEntry.allocatedAmount),
-              saleEntry.saleGroup.currency,
-              saleEntry.saleGroup.soldAt,
-            );
-            await this.crowdStatsService.refreshEditionSaleStats(book.editionId);
-          } catch {
-            // stats errors must never block the main operation
-          }
-        }
-      }
+    const soldEditionIds = [...new Set(
+      toDelete
+        .filter(b => b.ownershipStatus === 'SOLD' && b.editionId && (b as any).saleEntries?.length)
+        .map(b => b.editionId as string)
+    )];
+    for (const editionId of soldEditionIds) {
+      this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
     }
 
     await this.prisma.userBookEntry.deleteMany({ where: { id: { in: deleteIds } } });

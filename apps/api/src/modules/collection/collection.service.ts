@@ -484,7 +484,7 @@ export class CollectionService {
         : null;
 
       if (oldSale || newSale) {
-        this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
+        this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
       }
     }
     this.statsService.markStatsStale(userId);
@@ -643,21 +643,7 @@ export class CollectionService {
     await this.prisma.userBookEntry.delete({ where: { id: entryId } });
     // Clean up crowd stats for any sale entries linked to this book (non-fatal)
     if (existing.editionId && existing.saleEntries?.length) {
-      for (const saleEntry of existing.saleEntries) {
-        try {
-          await this.crowdStatsService.deleteSaleStat(
-            existing.editionId,
-            typeof saleEntry.allocatedAmount === 'object'
-              ? (saleEntry.allocatedAmount as any).toNumber()
-              : Number(saleEntry.allocatedAmount),
-            saleEntry.saleGroup.currency,
-            saleEntry.saleGroup.soldAt,
-          );
-          await this.crowdStatsService.refreshEditionSaleStats(existing.editionId);
-        } catch {
-          // stats errors must never block the main operation
-        }
-      }
+      this.crowdStatsService.rebuildEditionSaleStats(existing.editionId).catch(() => {});
     }
     // Clean up the purchase group if it's now empty
     if (existing.purchaseGroupId) {

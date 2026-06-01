@@ -192,25 +192,16 @@ export class SalesService {
       });
     });
 
-    // Record crowd stats for each entry with an edition (non-fatal)
+    // Record crowd stats for each edition (non-fatal)
     if (result) {
       const saleGroup = result as unknown as SaleGroupWithEntries;
-      for (const entry of saleGroup.entries) {
-        const editionId = (entry.userBookEntry as any)?.edition?.id as string | undefined;
-        if (editionId) {
-          try {
-            const price = typeof entry.allocatedAmount === 'object'
-              ? (entry.allocatedAmount as any).toNumber()
-              : entry.allocatedAmount;
-            await this.crowdStatsService.syncSaleStats(
-              editionId,
-              null,
-              { price, currency: dto.currency, date: new Date(dto.soldAt) },
-            );
-          } catch {
-            // stats errors must never block the main operation
-          }
-        }
+      const editionIds = [...new Set(
+        saleGroup.entries
+          .map((e) => (e.userBookEntry as any)?.edition?.id as string | undefined)
+          .filter(Boolean) as string[]
+      )];
+      for (const editionId of editionIds) {
+        this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
       }
     }
 
@@ -312,25 +303,15 @@ export class SalesService {
 
     this.statsService.markStatsStale(userId);
 
-    // Sync community sale stats for each entry (non-fatal)
-    const oldCurrency = existing.currency;
-    const oldDate = existing.soldAt;
-    const newCurrency = dto.currency ?? existing.currency;
-    const newDate = dto.soldAt ? new Date(dto.soldAt) : existing.soldAt;
-
-    for (const oldEntry of existing.entries) {
-      const editionId = oldEntry.userBookEntry?.edition?.id;
-      if (!editionId) continue;
-
-      const newEntry = result.entries.find((e: any) => e.id === oldEntry.id);
-      const oldAlloc = toNum(oldEntry.allocatedAmount as any);
-      const newAlloc = newEntry ? toNum(newEntry.allocatedAmount as any) : oldAlloc;
-
-      const oldSale = oldDate ? { price: oldAlloc, currency: oldCurrency, date: oldDate } : null;
-      const newSale = newDate ? { price: newAlloc, currency: newCurrency, date: newDate } : null;
-
-      this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch((err) => {
-        this.logger.error(`syncSaleStats failed for edition ${editionId}: ${err?.message}`);
+    // Rebuild community sale stats for each affected edition (non-fatal)
+    const editionIds = [...new Set(
+      existing.entries
+        .map((e) => e.userBookEntry?.edition?.id)
+        .filter(Boolean) as string[]
+    )];
+    for (const editionId of editionIds) {
+      this.crowdStatsService.rebuildEditionSaleStats(editionId).catch((err) => {
+        this.logger.error(`rebuildEditionSaleStats failed for edition ${editionId}: ${err?.message}`);
       });
     }
 
@@ -364,24 +345,14 @@ export class SalesService {
 
     await this.prisma.userSaleGroup.delete({ where: { id: groupId } });
 
-    // Remove crowd stats for each entry with an edition (non-fatal)
-    for (const entry of saleEntries) {
-      const editionId = (entry as any).userBookEntry?.edition?.id as string | undefined;
-      if (editionId) {
-        try {
-          await this.crowdStatsService.deleteSaleStat(
-            editionId,
-            typeof entry.allocatedAmount === 'object'
-              ? (entry.allocatedAmount as any).toNumber()
-              : Number(entry.allocatedAmount),
-            existing.currency,
-            existing.soldAt,
-          );
-          await this.crowdStatsService.refreshEditionSaleStats(editionId);
-        } catch {
-          // stats errors must never block the main operation
-        }
-      }
+    // Rebuild crowd stats for each affected edition (non-fatal)
+    const editionIds = [...new Set(
+      saleEntries
+        .map((e) => (e as any).userBookEntry?.edition?.id as string | undefined)
+        .filter(Boolean) as string[]
+    )];
+    for (const editionId of editionIds) {
+      this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
     }
 
     this.statsService.markStatsStale(userId);
