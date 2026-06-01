@@ -649,6 +649,21 @@ export default function CollectionPage() {
   const [saleCustomAmounts, setSaleCustomAmounts] = useState<Record<string, string>>({})
   const [saleBookSearch, setSaleBookSearch] = useState('')
 
+  function openRecordSale(entryId: string, currency: string) {
+    setSaleTitle('')
+    setSalePlatform('')
+    setSaleCustomPlatform('')
+    setSaleTotalAmount('')
+    setSaleCurrency(currency)
+    setSaleSoldAt('')
+    setSaleNotes('')
+    setSaleDistribution('EQUAL')
+    setSaleSelectedEntries([entryId])
+    setSaleCustomAmounts({})
+    setSaleBookSearch('')
+    setAddSaleOpen(true)
+  }
+
   const deleteSaleMut = useMutation({
     mutationFn: (id: string) => deleteSaleGroup(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sale-groups'] }),
@@ -1351,9 +1366,7 @@ export default function CollectionPage() {
                               <button
                                 onClick={(e) => {
                                   e.preventDefault(); e.stopPropagation()
-                                  setSaleSelectedEntries([entry.id])
-                                  setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP')
-                                  setAddSaleOpen(true)
+                                  openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP')
                                 }}
                                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
                                 title="Record sale"
@@ -1523,7 +1536,7 @@ export default function CollectionPage() {
                           )}
                           {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
                             <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSaleSelectedEntries([entry.id]); setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP'); setAddSaleOpen(true) }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP') }}
                               className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
                               title="Record sale"
                             >
