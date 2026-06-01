@@ -250,9 +250,7 @@ function CancelledSubscriptionGroup({
     <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
       {/* Header row with subscription info */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
-        <div className="w-16 self-stretch flex rounded overflow-hidden shrink-0">
-          <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
-        </div>
+        <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
         <div className="flex-1 min-w-0">
           <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
           <p className="font-semibold text-stone-200 truncate">{sub.name}</p>
@@ -566,7 +564,10 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   })
 
   const renewalLabel = formatDate(entry.nextRenewalDate)
-  const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
+  const renewalAmount = formatMoney(
+    entry.nextRenewalAmount ?? entry.subscription.price,
+    entry.nextRenewalCurrency ?? entry.subscription.currency,
+  )
 
   return (
     <>
