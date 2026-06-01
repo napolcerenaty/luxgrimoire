@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -46,6 +47,8 @@ type SaleGroupWithEntries = {
 
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
@@ -326,7 +329,9 @@ export class SalesService {
       const oldSale = oldDate ? { price: oldAlloc, currency: oldCurrency, date: oldDate } : null;
       const newSale = newDate ? { price: newAlloc, currency: newCurrency, date: newDate } : null;
 
-      this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch(() => {});
+      this.crowdStatsService.syncSaleStats(editionId, oldSale, newSale).catch((err) => {
+        this.logger.error(`syncSaleStats failed for edition ${editionId}: ${err?.message}`);
+      });
     }
 
     return result;
