@@ -6,7 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 import { CURRENCIES_LABELED } from '@/lib/currencies'
@@ -45,7 +45,7 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos' | 'import'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -53,6 +53,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
   { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
   { id: 'photos', label: 'My Photos', icon: Image },
+  { id: 'import', label: 'Import', icon: Upload },
 ]
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -491,6 +492,9 @@ export default function ProfilePage() {
 
       {/* My Photos tab */}
       {activeTab === 'photos' && <MyCommunityPhotos />}
+
+      {/* Import tab */}
+      {activeTab === 'import' && <ReadingHistoryImport />}
     </div>
   )
 }
@@ -624,6 +628,267 @@ function MyCommunityPhotos() {
           })}
         </div>
       </div>
+    </div>
+  )
+}
+
+interface MatchedBook {
+  title: string
+  authors: string[]
+  readingStatus: 'READ' | 'READING' | 'DNF'
+  startedAt: string | null
+  finishedAt: string | null
+  isDnf: boolean
+  entryIds: string[]
+  editionSlugs: string[]
+}
+
+interface ImportPreview {
+  format: 'storygraph' | 'goodreads'
+  total: number
+  matched: MatchedBook[]
+  unmatched: { title: string; authors: string[] }[]
+}
+
+interface ImportResult {
+  imported: number
+  skipped: number
+}
+
+const STATUS_LABEL: Record<string, string> = { READ: 'Read', READING: 'Currently reading', DNF: 'Did not finish' }
+const STATUS_COLOR: Record<string, string> = { READ: 'text-emerald-400', READING: 'text-amber-400', DNF: 'text-red-400' }
+
+function ReadingHistoryImport() {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [csvContent, setCsvContent] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const previewMutation = useMutation({
+    mutationFn: (csv: string) =>
+      authFetch<ImportPreview>('/reading-import/preview', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      }),
+    onSuccess: (data) => { setPreview(data); setError(null) },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const executeMutation = useMutation({
+    mutationFn: (csv: string) =>
+      authFetch<ImportResult>('/reading-import/execute', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      }),
+    onSuccess: (data) => { setResult(data); setPreview(null); setError(null) },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const handleFile = (file: File) => {
+    setFileName(file.name)
+    setPreview(null)
+    setResult(null)
+    setConfirmed(false)
+    setError(null)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      setCsvContent(text)
+      previewMutation.mutate(text)
+    }
+    reader.onerror = () => setError('Failed to read file')
+    reader.readAsText(file, 'utf-8')
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  const reset = () => {
+    setCsvContent(null); setFileName(null); setPreview(null); setResult(null); setConfirmed(false); setError(null)
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Info banner */}
+      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <BookMarked size={16} className="text-amber-400 shrink-0" />
+          <h2 className="font-serif font-semibold text-stone-100">Reading History Import</h2>
+        </div>
+        <p className="text-sm text-stone-400">
+          Import your reading history from <strong className="text-stone-200">Goodreads</strong> or{' '}
+          <strong className="text-stone-200">StoryGraph</strong>. The format is detected automatically.
+          StoryGraph exports also include reading start dates, while Goodreads provides only finish dates.
+        </p>
+        <div className="bg-amber-950/30 border border-amber-700/40 rounded-xl p-4 space-y-1.5 text-sm text-amber-200/80">
+          <p className="font-semibold text-amber-300">⚠️ Before you import — please read</p>
+          <ul className="list-disc list-inside space-y-1 text-amber-200/70">
+            <li>Import matches books by the <strong className="text-amber-200">title + author pair</strong>. Only books already in your collection will be updated.</li>
+            <li>If you have <strong className="text-amber-200">multiple editions</strong> of the same book, <strong className="text-amber-200">all of them</strong> will receive the same reading data.</li>
+            <li><strong className="text-amber-200">Repeated imports create duplicates</strong> in reading history — do not import the same file more than once.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Upload area */}
+      {!result && (
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed border-stone-700 hover:border-amber-500/50 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
+          >
+            <Upload size={28} className="text-stone-500" />
+            {fileName ? (
+              <div className="text-center">
+                <p className="text-sm font-medium text-stone-200">{fileName}</p>
+                <p className="text-xs text-stone-500 mt-0.5">Click to replace</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm text-stone-400">Drop your CSV here or click to browse</p>
+                <p className="text-xs text-stone-600 mt-0.5">Goodreads or StoryGraph export (.csv)</p>
+              </div>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+        </div>
+      )}
+
+      {error && (
+        <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-xl px-4 py-3">{error}</p>
+      )}
+
+      {/* Preview loading */}
+      {previewMutation.isPending && (
+        <div className="flex items-center gap-2 text-sm text-stone-400 px-1">
+          <Loader2 size={14} className="animate-spin" />
+          Analysing file…
+        </div>
+      )}
+
+      {/* Preview results */}
+      {preview && !result && (
+        <div className="space-y-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif font-semibold text-stone-100">
+                Preview — {preview.format === 'storygraph' ? 'StoryGraph' : 'Goodreads'} export
+              </h3>
+              <button onClick={reset} className="text-xs text-stone-500 hover:text-stone-300 transition-colors">
+                Upload different file
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-stone-800/60 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-stone-100">{preview.total}</p>
+                <p className="text-xs text-stone-500 mt-0.5">Books to process</p>
+              </div>
+              <div className="bg-emerald-950/40 border border-emerald-800/30 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-400">{preview.matched.length}</p>
+                <p className="text-xs text-stone-500 mt-0.5">Matched in collection</p>
+              </div>
+              <div className="bg-stone-800/60 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-stone-400">{preview.unmatched.length}</p>
+                <p className="text-xs text-stone-500 mt-0.5">Not in collection</p>
+              </div>
+            </div>
+
+            {preview.matched.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-stone-400 mb-2">Books that will be updated</p>
+                <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                  {preview.matched.map((b, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-stone-800/50 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-stone-200 truncate">{b.title}</p>
+                        <p className="text-xs text-stone-500 truncate">{b.authors.join(', ')}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0 ml-3">
+                        <span className={`text-xs font-medium ${STATUS_COLOR[b.readingStatus] ?? ''}`}>
+                          {STATUS_LABEL[b.readingStatus] ?? b.readingStatus}
+                        </span>
+                        {b.entryIds.length > 1 && (
+                          <span className="text-[10px] text-amber-500/80">{b.entryIds.length} editions</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {preview.unmatched.length > 0 && (
+              <details className="group">
+                <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors">
+                  {preview.unmatched.length} book{preview.unmatched.length > 1 ? 's' : ''} not found in your collection (click to expand)
+                </summary>
+                <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+                  {preview.unmatched.map((b, i) => (
+                    <div key={i} className="px-3 py-1.5 rounded-lg bg-stone-800/30 text-sm">
+                      <p className="text-stone-400 truncate">{b.title}</p>
+                      <p className="text-xs text-stone-600 truncate">{b.authors.join(', ')}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          {preview.matched.length > 0 && (
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                  className="accent-amber-400 mt-0.5"
+                />
+                <span className="text-sm text-stone-400">
+                  I understand that this will update reading status and add reading history entries for{' '}
+                  <strong className="text-stone-200">{preview.matched.length} book{preview.matched.length > 1 ? 's' : ''}</strong>.
+                  I have not imported this file before and will not import it again.
+                </span>
+              </label>
+              <button
+                onClick={() => { if (csvContent) executeMutation.mutate(csvContent) }}
+                disabled={!confirmed || executeMutation.isPending}
+                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {executeMutation.isPending
+                  ? <><Loader2 size={14} className="animate-spin" /> Importing…</>
+                  : <><Upload size={14} /> Import {preview.matched.length} books</>}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Success */}
+      {result && (
+        <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-2xl p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <Check size={18} className="text-emerald-400" />
+            <h3 className="font-serif font-semibold text-emerald-300">Import complete</h3>
+          </div>
+          <p className="text-sm text-stone-400">
+            <strong className="text-stone-200">{result.imported}</strong> reading history{' '}
+            {result.imported === 1 ? 'entry' : 'entries'} created.
+            {result.skipped > 0 && ` ${result.skipped} skipped due to errors.`}
+          </p>
+          <button onClick={reset} className="text-sm text-amber-400 hover:text-amber-300 transition-colors">
+            Import another file
+          </button>
+        </div>
+      )}
     </div>
   )
 }
