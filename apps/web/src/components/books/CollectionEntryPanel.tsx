@@ -6,7 +6,7 @@ import {
   Clock, Tag, Package, Wallet, Plus, Trash2, Hash,
 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
-import { createSaleGroup } from '@/lib/api'
+import { createSaleGroup, updateSaleGroup } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
@@ -814,26 +814,39 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     try {
       const entryId = entry!.id
       const alreadyHasSaleGroup = !!entry!.saleGroupId
-      await patchEntry({
-        salePrice: editSalePrice || null,
-        saleCurrency: editSaleCurrency || null,
-        saleDate: editSaleDate || null,
-        saleVenue: venueToSave,
-        saleNotes: editSaleNotes || null,
-      })
-      // Auto-create a Recorded Sale if price + date are set and no SaleGroup exists yet
-      if (!alreadyHasSaleGroup && editSalePrice && editSaleDate) {
-        await createSaleGroup({
-          totalAmount: parseFloat(editSalePrice),
-          currency: editSaleCurrency || 'USD',
-          platform: venueToSave || '',
-          soldAt: editSaleDate,
+      if (alreadyHasSaleGroup) {
+        // Update the existing SaleGroup — this also syncs back to UserBookEntry on the backend
+        await updateSaleGroup(entry!.saleGroupId!, {
+          totalAmount: editSalePrice ? parseFloat(editSalePrice) : undefined,
+          currency: editSaleCurrency || undefined,
+          soldAt: editSaleDate || undefined,
+          platform: venueToSave ?? undefined,
           notes: editSaleNotes || undefined,
-          priceDistribution: 'EQUAL',
-          entryIds: [entryId],
         })
         queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
         queryClient.invalidateQueries({ queryKey: ['collection'] })
+      } else {
+        await patchEntry({
+          salePrice: editSalePrice || null,
+          saleCurrency: editSaleCurrency || null,
+          saleDate: editSaleDate || null,
+          saleVenue: venueToSave,
+          saleNotes: editSaleNotes || null,
+        })
+        // Auto-create a Recorded Sale if price + date are set
+        if (editSalePrice && editSaleDate) {
+          await createSaleGroup({
+            totalAmount: parseFloat(editSalePrice),
+            currency: editSaleCurrency || 'USD',
+            platform: venueToSave || '',
+            soldAt: editSaleDate,
+            notes: editSaleNotes || undefined,
+            priceDistribution: 'EQUAL',
+            entryIds: [entryId],
+          })
+          queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+          queryClient.invalidateQueries({ queryKey: ['collection'] })
+        }
       }
       setEditingSale(false)
     } finally {
