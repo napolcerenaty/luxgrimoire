@@ -3,8 +3,9 @@
 
 ALTER TABLE user_stats_snapshots ADD COLUMN IF NOT EXISTS year INTEGER NOT NULL DEFAULT 0;
 
--- Drop old unique constraint and add new one that includes year
+-- Drop old unique constraint and index (index may survive constraint drop in some PostgreSQL versions)
 ALTER TABLE user_stats_snapshots DROP CONSTRAINT IF EXISTS "user_stats_snapshots_userId_currency_key";
+DROP INDEX IF EXISTS "user_stats_snapshots_userId_currency_key";
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
