@@ -1153,7 +1153,7 @@ export class SubscriptionsService {
   async removeOrphanedHistoryRecord(
     userId: string,
     entryId: string,
-    opts: { removeBooks?: boolean; removeSpending?: boolean } = {},
+    opts: { removeBooks?: boolean; removeSpending?: boolean; removeSoldBooks?: boolean } = {},
   ) {
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { id: entryId, userId, active: false },
@@ -1173,17 +1173,57 @@ export class SubscriptionsService {
     if (opts.removeBooks) {
       // Try direct link first (new model: books linked to this entry via subscriptionEntryId)
       const linkedBooks = await this.prisma.userBookEntry.findMany({
-        where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
-        select: { purchaseGroupId: true },
+        where: { userId, subscriptionEntryId: entry.id },
+        select: {
+          id: true,
+          purchaseGroupId: true,
+          ownershipStatus: true,
+          editionId: true,
+          saleEntries: {
+            select: {
+              allocatedAmount: true,
+              saleGroup: { select: { currency: true, soldAt: true } },
+            },
+          },
+        },
       });
 
       if (linkedBooks.length > 0) {
-        const groupIds = Array.from(new Set(linkedBooks.map((b) => b.purchaseGroupId as string)));
-        await this.prisma.userBookEntry.deleteMany({ where: { userId, subscriptionEntryId: entry.id } });
-        if (groupIds.length > 0) {
-          await this.prisma.userPurchaseGroup.deleteMany({
-            where: { id: { in: groupIds }, bookEntries: { none: {} } },
-          });
+        const removeSoldBooks = opts.removeSoldBooks ?? true;
+        const toDelete = removeSoldBooks ? linkedBooks : linkedBooks.filter(b => b.ownershipStatus !== 'SOLD');
+
+        if (toDelete.length > 0) {
+          const groupIds = Array.from(new Set(
+            toDelete.filter(b => b.purchaseGroupId).map(b => b.purchaseGroupId as string),
+          ));
+
+          // Clean up community sale stats for sold books being removed (non-fatal)
+          for (const book of toDelete) {
+            if (book.ownershipStatus === 'SOLD' && book.editionId && (book as any).saleEntries?.length) {
+              for (const saleEntry of (book as any).saleEntries) {
+                try {
+                  await this.crowdStatsService.deleteSaleStat(
+                    book.editionId,
+                    typeof saleEntry.allocatedAmount === 'object'
+                      ? (saleEntry.allocatedAmount as any).toNumber()
+                      : Number(saleEntry.allocatedAmount),
+                    saleEntry.saleGroup.currency,
+                    saleEntry.saleGroup.soldAt,
+                  );
+                  await this.crowdStatsService.refreshEditionSaleStats(book.editionId);
+                } catch {
+                  // stats errors must never block the main operation
+                }
+              }
+            }
+          }
+
+          await this.prisma.userBookEntry.deleteMany({ where: { id: { in: toDelete.map(b => b.id) } } });
+          if (groupIds.length > 0) {
+            await this.prisma.userPurchaseGroup.deleteMany({
+              where: { id: { in: groupIds }, bookEntries: { none: {} } },
+            });
+          }
         }
       } else if (entry.startDate || entry.cancellationDate) {
         // Fallback: date-range match for migrated data (books may still link to old entry)
@@ -1315,7 +1355,7 @@ export class SubscriptionsService {
   async removeMySubscription(
     userId: string,
     slug: string,
-    opts: { removeBooks: boolean; removeSpending: boolean; historyId?: string; historyIds?: string[]; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
+    opts: { removeBooks: boolean; removeSpending: boolean; removeSoldBooks?: boolean; historyId?: string; historyIds?: string[]; removeAllPeriods?: boolean; removeCurrentOnly?: boolean },
   ) {
     const sub = await this.findBySlug(slug);
 
@@ -1341,7 +1381,7 @@ export class SubscriptionsService {
 
         if (opts.removeBooks) {
           for (const period of periodsToRemove) {
-            await this.removeBooksForPeriodEntry(userId, period);
+            await this.removeBooksForPeriodEntry(userId, period, opts.removeSoldBooks ?? true);
           }
         }
       }
@@ -1371,7 +1411,7 @@ export class SubscriptionsService {
       }
 
       if (opts.removeBooks) {
-        await this.removeBooksForPeriodEntry(userId, activeEntry);
+        await this.removeBooksForPeriodEntry(userId, activeEntry, opts.removeSoldBooks ?? true);
       }
 
       await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
@@ -1404,7 +1444,7 @@ export class SubscriptionsService {
 
     if (opts.removeBooks) {
       for (const entry of targetEntries) {
-        await this.removeBooksForPeriodEntry(userId, entry);
+        await this.removeBooksForPeriodEntry(userId, entry, opts.removeSoldBooks ?? true);
       }
     }
 
@@ -1429,14 +1469,54 @@ export class SubscriptionsService {
   private async removeBooksForPeriodEntry(
     userId: string,
     entry: { id: string; subscriptionId?: string; startDate?: string | null; cancellationDate?: string | null },
+    removeSoldBooks = true,
   ): Promise<void> {
     const linked = await this.prisma.userBookEntry.findMany({
-      where: { userId, subscriptionEntryId: entry.id, purchaseGroupId: { not: null } },
-      select: { purchaseGroupId: true },
+      where: { userId, subscriptionEntryId: entry.id },
+      select: {
+        id: true,
+        purchaseGroupId: true,
+        ownershipStatus: true,
+        editionId: true,
+        saleEntries: {
+          select: {
+            allocatedAmount: true,
+            saleGroup: { select: { currency: true, soldAt: true } },
+          },
+        },
+      },
     });
-    const groupIds = Array.from(new Set(linked.map((b) => b.purchaseGroupId as string)));
 
-    await this.prisma.userBookEntry.deleteMany({ where: { userId, subscriptionEntryId: entry.id } });
+    const toDelete = removeSoldBooks ? linked : linked.filter(b => b.ownershipStatus !== 'SOLD');
+    if (toDelete.length === 0) return;
+
+    const groupIds = Array.from(new Set(
+      toDelete.filter(b => b.purchaseGroupId).map(b => b.purchaseGroupId as string),
+    ));
+    const deleteIds = toDelete.map(b => b.id);
+
+    // Clean up community sale stats for sold books being removed (non-fatal)
+    for (const book of toDelete) {
+      if (book.ownershipStatus === 'SOLD' && book.editionId && (book as any).saleEntries?.length) {
+        for (const saleEntry of (book as any).saleEntries) {
+          try {
+            await this.crowdStatsService.deleteSaleStat(
+              book.editionId,
+              typeof saleEntry.allocatedAmount === 'object'
+                ? (saleEntry.allocatedAmount as any).toNumber()
+                : Number(saleEntry.allocatedAmount),
+              saleEntry.saleGroup.currency,
+              saleEntry.saleGroup.soldAt,
+            );
+            await this.crowdStatsService.refreshEditionSaleStats(book.editionId);
+          } catch {
+            // stats errors must never block the main operation
+          }
+        }
+      }
+    }
+
+    await this.prisma.userBookEntry.deleteMany({ where: { id: { in: deleteIds } } });
 
     if (groupIds.length > 0) {
       await this.prisma.userPurchaseGroup.deleteMany({

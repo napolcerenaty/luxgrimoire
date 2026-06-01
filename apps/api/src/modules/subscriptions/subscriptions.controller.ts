@@ -217,6 +217,7 @@ export class SubscriptionsController {
     return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId, {
       removeBooks: dto.removeBooks,
       removeSpending: dto.removeSpending,
+      removeSoldBooks: dto.removeSoldBooks,
     });
   }
 
@@ -283,6 +284,7 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.removeMySubscription(user.id, slug, {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
+      removeSoldBooks: dto.removeSoldBooks ?? true,
       historyId: dto.historyId,
       historyIds: dto.historyIds,
       removeAllPeriods: dto.removeAllPeriods ?? false,

@@ -276,12 +276,13 @@ function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; su
   const qc = useQueryClient()
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
   const [removeSpending, setRemoveSpending] = useState(true)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${subSlug}/my-entry`, {
       method: 'DELETE',
-      body: JSON.stringify({ removeBooks, removeSpending, historyId: entry.id }),
+      body: JSON.stringify({ removeBooks, removeSoldBooks, removeSpending, historyId: entry.id }),
     }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
@@ -328,6 +329,8 @@ function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; su
           subName={entry.subscription.name}
           removeBooks={removeBooks}
           setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
           removeSpending={removeSpending}
           setRemoveSpending={setRemoveSpending}
           isPending={removeMutation.isPending}
@@ -349,6 +352,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
   const [removeSpending, setRemoveSpending] = useState(true)
 
   const removeMutation = useMutation({
@@ -356,6 +360,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
       method: 'DELETE',
       body: JSON.stringify({
         removeBooks,
+        removeSoldBooks,
         removeSpending,
         ...(entry.active ? {} : { historyId: entry.id }),
       }),
@@ -443,6 +448,8 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           subName={sub.name}
           removeBooks={removeBooks}
           setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
           removeSpending={removeSpending}
           setRemoveSpending={setRemoveSpending}
           isPending={removeMutation.isPending}
@@ -461,6 +468,8 @@ function EntryRemoveDialog({
   subName,
   removeBooks,
   setRemoveBooks,
+  removeSoldBooks,
+  setRemoveSoldBooks,
   removeSpending,
   setRemoveSpending,
   isPending,
@@ -472,6 +481,8 @@ function EntryRemoveDialog({
   subName: string
   removeBooks: boolean
   setRemoveBooks: (v: boolean) => void
+  removeSoldBooks: boolean
+  setRemoveSoldBooks: (v: boolean) => void
   removeSpending: boolean
   setRemoveSpending: (v: boolean) => void
   isPending: boolean
@@ -508,6 +519,17 @@ function EntryRemoveDialog({
             />
             Also remove books from my collection
           </label>
+          {removeBooks && (
+            <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer pl-5">
+              <input
+                type="checkbox"
+                checked={removeSoldBooks}
+                onChange={e => setRemoveSoldBooks(e.target.checked)}
+                className="rounded border-stone-600 bg-stone-800 text-amber-500"
+              />
+              Delete sold books and sale records
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
             <input
               type="checkbox"
@@ -549,12 +571,13 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
   const [removeSpending, setRemoveSpending] = useState(true)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
-      body: JSON.stringify({ removeBooks, removeSpending }),
+      body: JSON.stringify({ removeBooks, removeSoldBooks, removeSpending }),
     }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
@@ -668,6 +691,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
           subName={sub.name}
           removeBooks={removeBooks}
           setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
           removeSpending={removeSpending}
           setRemoveSpending={setRemoveSpending}
           isPending={removeMutation.isPending}

@@ -753,6 +753,7 @@ export class CancelMyEntryDto {
 export class RemoveMyEntryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
   /** If provided, remove only the books from this specific membership period */
   @IsOptional() @IsString() historyId?: string;
   /** If provided, remove only the specified membership periods (multi-select) */
@@ -766,6 +767,7 @@ export class RemoveMyEntryDto {
 export class RemoveOrphanedHistoryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
 }
 
 export class UpdateMyEntryCostsDto {
