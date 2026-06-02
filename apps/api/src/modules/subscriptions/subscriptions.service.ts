@@ -2944,7 +2944,7 @@ export class SubscriptionsService {
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: sub.id },
+      where: { subscriptionId: sub.id, NOT: { effectiveYear: 1900 } },
       orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
     });
   }

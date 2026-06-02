@@ -185,7 +185,7 @@ describe('SubscriptionsService — price changes', () => {
 
       expect(prisma.subscriptionPriceChange.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+          orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
         }),
       );
     });

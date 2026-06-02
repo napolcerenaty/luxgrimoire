@@ -100,7 +100,7 @@ describe('CollectionStatsComputer', () => {
 
   it('has key "collection" and version 4', () => {
     expect(computer.key).toBe('collection');
-    expect(computer.version).toBe(4);
+    expect(computer.version).toBe(5);
   });
 
   // ── Empty state ────────────────────────────────────────────────────────────
