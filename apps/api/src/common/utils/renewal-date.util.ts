@@ -1,4 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveEffectiveSettings } from '../../modules/subscriptions/subscription-settings.util';
 
 function incrementMonth(year: number, month: number): [number, number] {
   return month === 12 ? [year + 1, 1] : [year, month + 1];
@@ -214,11 +215,22 @@ export async function refreshNextRenewalDate(
         select: {
           id: true,
           renewalDay: true,
+          renewalDayUserSet: true,
           intervalMonths: true,
           startingMonth: true,
           paymentOnStartup: true,
           renewalMonthOffset: true,
           signupIncludesCurrentMonth: true,
+          settingsHistory: {
+            select: {
+              effectiveFrom: true,
+              renewalDay: true,
+              renewalDayUserSet: true,
+              paymentOnStartup: true,
+              signupIncludesCurrentMonth: true,
+              renewalMonthOffset: true,
+            },
+          },
         },
       },
     },
@@ -235,8 +247,31 @@ export async function refreshNextRenewalDate(
   }
 
   const sub = entry.subscription as any;
-  const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
-  const offset: number = sub.renewalMonthOffset ?? 0;
+
+  // Resolve subscription settings effective for the current calendar month.
+  // This ensures that when settings change (e.g. renewalDay or renewalDayUserSet),
+  // the next renewal date is computed from the updated settings rather than stale entry values.
+  const now = new Date();
+  const effectiveSettings = resolveEffectiveSettings(
+    (sub.settingsHistory ?? []) as Array<{ effectiveFrom: Date; renewalDay: number | null; renewalDayUserSet: boolean; paymentOnStartup: boolean; signupIncludesCurrentMonth: boolean; renewalMonthOffset: number }>,
+    now.getUTCFullYear(),
+    now.getUTCMonth() + 1,
+    {
+      renewalDay: sub.renewalDay ?? null,
+      renewalDayUserSet: sub.renewalDayUserSet ?? false,
+      paymentOnStartup: sub.paymentOnStartup ?? false,
+      signupIncludesCurrentMonth: sub.signupIncludesCurrentMonth ?? false,
+      renewalMonthOffset: sub.renewalMonthOffset ?? 0,
+    },
+  );
+
+  // If the subscription uses a fixed renewal day, use the subscription's day.
+  // If it uses each subscriber's own sign-up day (renewalDayUserSet), use the entry's day.
+  const renewalDay = effectiveSettings.renewalDayUserSet
+    ? (entry.renewalDay ?? 1)
+    : (effectiveSettings.renewalDay ?? 1);
+
+  const offset: number = effectiveSettings.renewalMonthOffset;
   // Skip records are keyed by box month; convert to renewal month for the renewal-date computation
   const skippedMonths = (entry.skipRecords as any[]).map((r) => {
     const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
@@ -245,14 +280,14 @@ export async function refreshNextRenewalDate(
 
   // For paymentOnStartup: determine which month was already paid at signup
   let paidUpFrontDate: Date | null = null;
-  if (sub.paymentOnStartup && entry.startDate) {
+  if (effectiveSettings.paymentOnStartup && entry.startDate) {
     const joinDate = new Date(entry.startDate);
     const joinDay = joinDate.getUTCDate();
     const joinYear = joinDate.getUTCFullYear();
     const joinMonth = joinDate.getUTCMonth() + 1;
     // If signupIncludesCurrentMonth: the signup month itself is always the first paid month,
     // regardless of whether the renewalDay has already passed.
-    const renewalPassedThisMonth = !sub.signupIncludesCurrentMonth && renewalDay < joinDay;
+    const renewalPassedThisMonth = !effectiveSettings.signupIncludesCurrentMonth && renewalDay < joinDay;
     let firstEligibleYear = joinYear;
     let firstEligibleMonth = joinMonth;
     if (renewalPassedThisMonth) {
@@ -288,7 +323,7 @@ export async function refreshNextRenewalDate(
       renewalDay,
       effectivePrepayMonths,
       startDateParsed,
-      sub.paymentOnStartup ?? false,
+      effectiveSettings.paymentOnStartup,
       paidUpFrontDate,
       skippedMonths,
     );
