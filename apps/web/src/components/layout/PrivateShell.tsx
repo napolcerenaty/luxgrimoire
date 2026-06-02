@@ -18,12 +18,14 @@ const NAV_LINKS = [
 ]
 
 export function PrivateShell({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, isLoggingOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!loading && !user) router.push(`/login?returnTo=${encodeURIComponent(pathname)}`)
+    if (!loading && !user && !isLoggingOut.current) {
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`)
+    }
   }, [user, loading, router, pathname])
 
   if (loading || !user) {

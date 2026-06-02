@@ -971,8 +971,11 @@ export class SkipPolicyEngine {
       where: { userId, subscriptionId, active: true },
     });
 
+    // No active entry (e.g. cancelled/historical subscription) — skip state is not applicable
+    if (!entry) return;
+
     const allRecords = await this.prisma.userSkipRecord.findMany({
-      where: { userEntryId: entry!.id, undoneAt: null },
+      where: { userEntryId: entry.id, undoneAt: null },
       include: {
         month: { select: { year: true, month: true } },
         series: { select: { skipMode: true } },
