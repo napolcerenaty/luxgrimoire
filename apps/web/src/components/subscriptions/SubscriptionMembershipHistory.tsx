@@ -45,7 +45,12 @@ export default function SubscriptionMembershipHistory({ subscriptionSlug }: { su
     setOpen(prev => !prev)
   }
 
-  if (loaded && entries.length === 0) return null
+  if (loaded && entries.length === 0) return (
+    <div className="mt-6 border border-stone-800 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-stone-500">
+      <History className="w-4 h-4 shrink-0" />
+      No recorded membership history.
+    </div>
+  )
 
   return (
     <div className="mt-6 border border-stone-800 rounded-xl overflow-hidden">
