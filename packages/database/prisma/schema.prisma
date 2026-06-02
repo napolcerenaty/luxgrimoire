@@ -680,6 +680,7 @@ model UserBookEntry {
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
   @@index([purchaseGroupId])
+  @@index([subscriptionEntryId])
   @@index([editionId])
   @@index([bookId])
   @@index([userId, createdAt])
