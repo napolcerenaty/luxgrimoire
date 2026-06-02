@@ -250,11 +250,13 @@ function CancelledSubscriptionGroup({
     <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
       {/* Header row with subscription info */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
-        <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
-          <p className="font-semibold text-stone-200 truncate">{sub.name}</p>
-        </div>
+        <Link href={`/subscriptions/${sub.slug}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+          <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
+            <p className="font-semibold text-stone-200 group-hover:text-amber-400 transition-colors truncate">{sub.name}</p>
+          </div>
+        </Link>
         {sub.isDiscontinued && (
           <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5 shrink-0">Discontinued</span>
         )}

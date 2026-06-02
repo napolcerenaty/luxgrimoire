@@ -913,6 +913,22 @@ export class SubscriptionsService {
     return result;
   }
 
+  async getMySubscriptionHistory(userId: string, slug: string) {
+    const sub = await this.findBySlug(slug);
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, subscriptionId: sub.id },
+      select: {
+        id: true,
+        active: true,
+        startDate: true,
+        cancellationDate: true,
+        cancellationReason: true,
+      },
+      orderBy: { startDate: 'asc' },
+    });
+    return entries;
+  }
+
   async getMySubscriptionEntry(userId: string, slug: string) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findFirst({

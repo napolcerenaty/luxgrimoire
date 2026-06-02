@@ -241,6 +241,12 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get(':slug/my-history')
+  getMyHistory(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    return this.subscriptionsService.getMySubscriptionHistory(user.id, slug);
+  }
+
+  @ApiBearerAuth()
   @Get(':slug/my-entry')
   getMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
     return this.subscriptionsService.getMySubscriptionEntry(user.id, slug);

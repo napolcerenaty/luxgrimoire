@@ -10,6 +10,7 @@ import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 import WaitlistButton from '@/components/subscriptions/WaitlistButton'
+import SubscriptionMembershipHistory from '@/components/subscriptions/SubscriptionMembershipHistory'
 import PreviousBoxes from '@/components/subscriptions/PreviousBoxes'
 import { SubscriberCountBadge } from '@/components/subscriptions/SubscriberCountBadge'
 import { SubscriptionSeriesSection } from './SubscriptionSeriesSection'
@@ -271,6 +272,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             </a>
           )}
           {!sub.isDiscontinued && <WaitlistButton subscriptionSlug={sub.slug} />}
+          <SubscriptionMembershipHistory subscriptionSlug={sub.slug} />
         </div>
       </div>
 
