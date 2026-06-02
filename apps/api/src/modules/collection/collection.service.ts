@@ -155,6 +155,12 @@ export class CollectionService {
           },
           salePrice: true,
           saleCurrency: true,
+          subscriptionEntryId: true,
+          subscriptionEntry: {
+            select: {
+              subscription: { select: { id: true, name: true, parentSubscriptionId: true } },
+            },
+          },
           purchaseGroup: {
             select: {
               id: true, currency: true, purchasedAt: true, totalAmount: true,

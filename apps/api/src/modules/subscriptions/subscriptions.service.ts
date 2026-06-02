@@ -2205,7 +2205,7 @@ export class SubscriptionsService {
 
         const comboSettings = resolveEffectiveSettings(settingsHistory, year, month, fallbackSettings);
         const comboOffset: number = comboSettings.renewalMonthOffset;
-        const comboRenewalDay = entry.renewalDay ?? comboSettings.renewalDay ?? 1;
+        const comboRenewalDay = comboSettings.renewalDayUserSet ? (entry.renewalDay ?? 1) : (comboSettings.renewalDay ?? 1);
         const renewalDate = (earliestComboId === comboId && entry.startDate)
           ? new Date(entry.startDate)
           : (() => {
@@ -2397,7 +2397,9 @@ export class SubscriptionsService {
 
       const monthSettings = resolveEffectiveSettings(settingsHistory, monthRecord.year, monthRecord.month, fallbackSettings);
       const nonComboOffset: number = monthSettings.renewalMonthOffset;
-      const monthRenewalDay = entry.renewalDay ?? monthSettings.renewalDay ?? 1;
+      // Mirror backfillRenewalHistory logic: use entry's own day only in user-set mode,
+      // otherwise use the subscription's historical fixed renewal day.
+      const monthRenewalDay = monthSettings.renewalDayUserSet ? (entry.renewalDay ?? 1) : (monthSettings.renewalDay ?? 1);
       const renewalDate = (earliestMonthId === monthId && entry.startDate)
         ? new Date(entry.startDate)
         : (() => {
