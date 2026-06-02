@@ -70,3 +70,17 @@ export class UpdateTrackingDto {
   @IsString() trackingNumber!: string;
   @IsOptional() @IsString() label?: string | null;
 }
+
+export class AddReadingHistoryDto {
+  @IsOptional() @IsDateString() startedAt?: string;
+  @IsOptional() @IsDateString() finishedAt?: string;
+  @IsOptional() @IsBoolean() isDnf?: boolean;
+  @IsOptional() @IsString() notes?: string;
+}
+
+export class UpdateReadingHistoryDto {
+  @IsOptional() @IsDateString() startedAt?: string | null;
+  @IsOptional() @IsDateString() finishedAt?: string | null;
+  @IsOptional() @IsBoolean() isDnf?: boolean;
+  @IsOptional() @IsString() notes?: string | null;
+}

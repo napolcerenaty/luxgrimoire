@@ -88,7 +88,7 @@ export default function AdminDataRequestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                      {r.status}
+                      {r.status.toUpperCase()}
                     </span>
                     <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">{r.type}</span>
                     {r.user && <span className="text-xs text-stone-500">by {r.user.username}</span>}

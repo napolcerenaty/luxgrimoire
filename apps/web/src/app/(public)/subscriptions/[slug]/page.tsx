@@ -6,11 +6,11 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandTextClasses } from '@/lib/brandGradient'
 import { Badge } from '@/components/ui/Badge'
-import { BackButton } from '@/components/ui/BackButton'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 import WaitlistButton from '@/components/subscriptions/WaitlistButton'
+import SubscriptionMembershipHistory from '@/components/subscriptions/SubscriptionMembershipHistory'
 import PreviousBoxes from '@/components/subscriptions/PreviousBoxes'
 import { SubscriberCountBadge } from '@/components/subscriptions/SubscriberCountBadge'
 import { SubscriptionSeriesSection } from './SubscriptionSeriesSection'
@@ -170,13 +170,19 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Back to previous page */}
       {from === 'subscriptions' ? (
-        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+        <Link
+          href="/subscriptions"
+          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
+        >
           <span>← Subscriptions</span>
-        </BackButton>
+        </Link>
       ) : from === 'my-subscriptions' ? (
-        <BackButton className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit">
+        <Link
+          href="/my-subscriptions"
+          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-amber-400 transition-colors w-fit"
+        >
           <span>← My Subscriptions</span>
-        </BackButton>
+        </Link>
       ) : sub.company?.slug && (
         <Link
           href={`/companies/${sub.company.slug}`}
@@ -200,7 +206,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           <div className="flex items-center gap-3 flex-wrap mb-3">
             {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
             <Badge variant={sub.isDiscontinued ? 'destructive' : sub.isUpcoming ? 'outline' : 'success'}>
-              {sub.isDiscontinued ? 'Discontinued' : sub.isUpcoming ? '🔔 Upcoming' : 'Active'}
+              {sub.isDiscontinued ? 'DISCONTINUED' : sub.isUpcoming ? '🔔 UPCOMING' : 'ACTIVE'}
             </Badge>
             {sub.startDate && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-stone-600 text-stone-400">
@@ -265,7 +271,8 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               Join waitlist here
             </a>
           )}
-          <WaitlistButton subscriptionSlug={sub.slug} />
+          {!sub.isDiscontinued && <WaitlistButton subscriptionSlug={sub.slug} />}
+          <SubscriptionMembershipHistory subscriptionSlug={sub.slug} />
         </div>
       </div>
 
@@ -283,6 +290,8 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           renewalDay={sub.renewalDay ?? null}
           months={sub.isCombo ? comboSkipMonths : months}
           prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null; currency: string; validFrom?: string | null; validUntil?: string | null }[] }).prepayOptions}
+          isDiscontinued={sub.isDiscontinued ?? false}
+          subscriptionEndDate={sub.endDate ?? null}
         />
       </div>
 

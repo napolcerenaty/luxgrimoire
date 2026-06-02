@@ -13,6 +13,10 @@ export class SaleGroupsQueryDto {
   @IsNumber()
   @Min(1)
   pageSize?: number;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CreateSaleGroupDto {

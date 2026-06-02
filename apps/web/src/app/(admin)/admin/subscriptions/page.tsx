@@ -72,6 +72,8 @@ interface SubFormData {
   unskipHow: string
   /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
   eligibleBillingTypes: string
+  /** Required when any tracked settings field changes (effectiveFrom for the history record) */
+  settingsEffectiveFrom: string
 }
 
 const EMPTY_FORM: SubFormData = {
@@ -120,6 +122,7 @@ const EMPTY_FORM: SubFormData = {
   unskipNotes: '',
   unskipHow: '',
   eligibleBillingTypes: 'ALL',
+  settingsEffectiveFrom: '',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
@@ -170,6 +173,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     unskipNotes: p?.unskipNotes ?? '',
     unskipHow: p?.unskipHow ?? '',
     eligibleBillingTypes: p?.eligibleBillingTypes ?? 'ALL',
+    settingsEffectiveFrom: '',
   }
 }
 
@@ -245,6 +249,7 @@ function formToUpdatePayload(form: SubFormData) {
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
+    ...(form.settingsEffectiveFrom ? { settingsEffectiveFrom: form.settingsEffectiveFrom } : {}),
   }
 }
 
@@ -286,6 +291,12 @@ function SubscriptionForm({
   const setStr = (field: keyof SubFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => setField(field, e.target.value as SubFormData[typeof field])
+
+  const TRACKED_FIELDS: (keyof SubFormData)[] = [
+    'renewalDay', 'renewalDayUserSet', 'paymentOnStartup', 'signupIncludesCurrentMonth', 'renewalMonthOffset',
+  ]
+  const isEditMode = !!initial.companyId // create form has no companyId yet
+  const trackedSettingsDirty = isEditMode && TRACKED_FIELDS.some(f => String(form[f]) !== String(initial[f]))
 
   const genreOptions = Array.from(
     new Set(allSubscriptions.flatMap((s) => s.genres ?? []).filter(Boolean)),
@@ -437,6 +448,26 @@ function SubscriptionForm({
               </div>
             )}
           </div>
+
+          {/* Settings effective from — shown only when tracked renewal settings are changed */}
+          {trackedSettingsDirty && (
+            <div className="border border-amber-600 bg-amber-950/30 rounded-lg p-3 space-y-1">
+              <label className={`${LABEL_CLASS} text-amber-400`}>
+                Settings effective from * <span className="font-normal text-amber-300">(required — renewal settings changed)</span>
+              </label>
+              <input
+                type="date"
+                required
+                className={INPUT_CLASS}
+                value={form.settingsEffectiveFrom}
+                onChange={setStr('settingsEffectiveFrom')}
+              />
+              <p className="text-xs text-amber-700">
+                New renewal settings take effect from this date. Subscribers whose next renewal is on or after this date will be updated.
+                Defaults to 1st of next month if unsure.
+              </p>
+            </div>
+          )}
 
           {/* Flags */}
           <div className="border border-stone-700 rounded-lg p-3 space-y-2">

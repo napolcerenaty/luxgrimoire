@@ -536,6 +536,24 @@ export async function getSaleGroups(): Promise<import('@luxgrimoire/shared-types
   return Array.isArray(json) ? json : (json.data ?? json);
 }
 
+export interface PaginatedSaleGroups {
+  data: import('@luxgrimoire/shared-types').ApiSaleGroup[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function getSaleGroupsPaginated(page = 1, pageSize = 20, search?: string): Promise<PaginatedSaleGroups> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+  if (search) params.set('search', search)
+  const res = await fetch(`${API_URL}/sales?${params}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function createSaleGroup(data: CreateSaleGroupData): Promise<import('@luxgrimoire/shared-types').ApiSaleGroup> {
   const res = await fetch(`${API_URL}/sales`, {
     credentials: 'include',

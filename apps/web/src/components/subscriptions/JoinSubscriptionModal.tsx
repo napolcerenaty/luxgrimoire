@@ -68,6 +68,8 @@ interface Props {
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  isDiscontinued?: boolean
+  subscriptionEndDate?: string | null
   onJoined: () => void
   onClose: () => void
 }
@@ -105,6 +107,8 @@ interface Step1Props {
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  isDiscontinued?: boolean
+  subscriptionEndDate?: string | null
   onNext: (data: {
     startDate: string
     costCurrency: string
@@ -121,7 +125,7 @@ interface Step1Props {
   }) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -140,8 +144,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
   const [selectedPrepayOptionId, setSelectedPrepayOptionId] = useState<string | null>(null)
 
   // Already cancelled fields
-  const [alreadyCancelled, setAlreadyCancelled] = useState(false)
-  const [cancellationDate, setCancellationDate] = useState('')
+  const [alreadyCancelled, setAlreadyCancelled] = useState(isDiscontinued ?? false)
+  const [cancellationDate, setCancellationDate] = useState(() => {
+    if (isDiscontinued && subscriptionEndDate) return subscriptionEndDate.slice(0, 10)
+    return ''
+  })
   const [cancellationReason, setCancellationReason] = useState('')
 
   function handleSelectPrepay(optionId: string | null) {
@@ -542,7 +549,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               </p>
             )
           }
-          const sorted = [...currencyPriceChanges].sort(
+          const sorted = [...currencyPriceChanges].filter(pc => pc.effectiveYear !== 1900).sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
           )
           // Parse start month from firstOrderDate
@@ -584,17 +591,19 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           }
           return (
             <>
-              <p>
-                We know of the following price changes:{' '}
-                {sorted.map((pc, i) => (
-                  <span key={i}>
-                    {i > 0 && ', '}
-                    <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
-                    {' '}from{' '}
-                    <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
-                  </span>
-                ))}
-              </p>
+              {sorted.length > 0 && (
+                <p>
+                  We know of the following price changes:{' '}
+                  {sorted.map((pc, i) => (
+                    <span key={i}>
+                      {i > 0 && ', '}
+                      <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                      {' '}from{' '}
+                      <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                    </span>
+                  ))}
+                </p>
+              )}
               {periods.length > 0 && (
                 <div>
                   <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
@@ -609,9 +618,15 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   </div>
                 </div>
               )}
-              <p>
-                Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
-              </p>
+              {sorted.length > 0 ? (
+                <p>
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                </p>
+              ) : (
+                <p>
+                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                </p>
+              )}
             </>
           )
         })()}
@@ -694,15 +709,21 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
       {/* Already cancelled */}
       <div className="border-t border-stone-700/50 pt-4 space-y-3">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={alreadyCancelled}
-            onChange={e => setAlreadyCancelled(e.target.checked)}
-            className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
-          />
-          <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
-        </label>
+        {isDiscontinued ? (
+          <p className="text-sm text-stone-400">
+            <span className="text-amber-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
+          </p>
+        ) : (
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={alreadyCancelled}
+              onChange={e => setAlreadyCancelled(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+            />
+            <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
+          </label>
+        )}
 
         {alreadyCancelled && (
           <div className="space-y-3 pl-6">
@@ -758,7 +779,7 @@ interface Step2Props {
   hasPrepayOptions?: boolean
   onDone: () => void
   onSkip: () => void
-  onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string> }) => void
+  onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' }) => void
   onBeforeBackfill?: () => Promise<void>
 }
 
@@ -785,6 +806,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [backfillOwnershipStatus, setBackfillOwnershipStatus] = useState<'OWNED' | 'PREORDER'>('OWNED')
 
   const allSelected = eligibleMonths.every(m => choices[m.id] === 'selected')
 
@@ -803,7 +825,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
 
     // If onNextWithBilling is provided, pass data upstream instead of calling API
     if (onNextWithBilling) {
-      onNextWithBilling({ selectedMonthIds, bookPrices })
+      onNextWithBilling({ selectedMonthIds, bookPrices, backfillOwnershipStatus })
       return
     }
 
@@ -825,6 +847,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
         body: JSON.stringify({
           selectedMonthIds,
           skippedMonthIds,
+          backfillOwnershipStatus,
           ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
         }),
       })
@@ -896,6 +919,18 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
       <p className="text-xs text-stone-500">
         Checked = received (added to collection). Unchecked = skipped.
       </p>
+
+      <div className="flex items-center gap-3">
+        <label className="text-xs text-stone-400 whitespace-nowrap">Add as:</label>
+        <select
+          value={backfillOwnershipStatus}
+          onChange={e => setBackfillOwnershipStatus(e.target.value as 'OWNED' | 'PREORDER')}
+          className="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+        >
+          <option value="OWNED">Owned</option>
+          <option value="PREORDER">Pre-order</option>
+        </select>
+      </div>
 
       <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
         {/* Series groups */}
@@ -1025,6 +1060,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
 interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
+  backfillOwnershipStatus?: 'OWNED' | 'PREORDER'
   selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null } | null
   allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[]
   subscriptionSlug: string
@@ -1038,7 +1074,7 @@ interface Step3Props {
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
@@ -1241,6 +1277,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
         body: JSON.stringify({
           selectedMonthIds,
           skippedMonthIds,
+          ...(backfillOwnershipStatus && { backfillOwnershipStatus }),
           ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
@@ -1295,6 +1332,7 @@ function Step3({ selectedMonthIds, bookPrices, selectedPrepayOption, allPrepayOp
         body: JSON.stringify({
           selectedMonthIds,
           skippedMonthIds,
+          ...(backfillOwnershipStatus && { backfillOwnershipStatus }),
           ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
@@ -1694,12 +1732,14 @@ export default function JoinSubscriptionModal({
   userDefaultTaxRate,
   userDefaultCurrency,
   prepayOptions,
+  isDiscontinued,
+  subscriptionEndDate,
   onJoined,
   onClose,
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
-  const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string> } | null>(null)
+  const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
   const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
@@ -1820,6 +1860,8 @@ export default function JoinSubscriptionModal({
               userDefaultTaxRate={userDefaultTaxRate}
               userDefaultCurrency={userDefaultCurrency}
               prepayOptions={prepayOptions}
+              isDiscontinued={isDiscontinued}
+              subscriptionEndDate={subscriptionEndDate}
               onNext={handleStep1}
             />
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
@@ -1855,7 +1897,7 @@ export default function JoinSubscriptionModal({
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds }),
+                      body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus }),
                       })
                     }
                     doJoinAndBackfill()
@@ -1878,6 +1920,7 @@ export default function JoinSubscriptionModal({
           <Step3
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
+            backfillOwnershipStatus={step2Data.backfillOwnershipStatus}
             selectedPrepayOption={step1SelectedPrepayOption}
             allPrepayOptions={prepayOptions ?? []}
             subscriptionSlug={subscriptionSlug}

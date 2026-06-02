@@ -207,7 +207,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 text-stone-400 text-xs">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? ROLE_COLORS.USER}`}>
-                        {u.role}
+                        {u.role.replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-stone-400 text-xs">

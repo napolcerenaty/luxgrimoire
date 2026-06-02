@@ -51,7 +51,8 @@ model User {
   skipRecords              UserSkipRecord[]
   subEntryTags             UserSubEntryTag[]
   subscriptionEntries      UserSubscriptionEntry[]
-  subscriptionMembershipHistory UserSubscriptionMembershipHistory[]
+  statsSnapshots           UserStatsSnapshot[]
+ 
   subscriptionRenewals     UserSubscriptionRenewal[]
   bugReports               BugReport[]
   featureRequests          FeatureRequest[]
@@ -375,7 +376,7 @@ model Subscription {
   parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
   variants             Subscription[]               @relation("SubVariants")
   userEntries          UserSubscriptionEntry[]
-  membershipHistory    UserSubscriptionMembershipHistory[]
+
   statsSnapshot        SubscriptionStatsSnapshot?
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
 
@@ -669,6 +670,7 @@ model UserBookEntry {
   saleAnnouncementEdition    SaleAnnouncementEdition? @relation(fields: [saleAnnouncementEditionId], references: [id], onDelete: SetNull)
   saleEntries                UserSaleEntry[]
   ownershipHistory           OwnershipStatusHistory[]
+  readingHistory             ReadingHistory[]
   entryTags                  UserBookEntryTag[]
   trackingNumbers            UserBookEntryTracking[]
 
@@ -678,6 +680,7 @@ model UserBookEntry {
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
   @@index([purchaseGroupId])
+  @@index([subscriptionEntryId])
   @@index([editionId])
   @@index([bookId])
   @@index([userId, createdAt])
@@ -694,6 +697,20 @@ model OwnershipStatusHistory {
 
   @@index([userBookEntryId, changedAt])
   @@map("ownership_status_history")
+}
+
+model ReadingHistory {
+  id              String        @id @default(uuid())
+  userBookEntryId String
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  isDnf           Boolean       @default(false)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  entry           UserBookEntry @relation(fields: [userBookEntryId], references: [id], onDelete: Cascade)
+
+  @@index([userBookEntryId, startedAt])
+  @@map("reading_history")
 }
 
 model UserBookEntryTracking {
@@ -743,33 +760,14 @@ model UserSubscriptionEntry {
   purchaseGroups     UserPurchaseGroup[]
   scheduledPrepayOption   SubscriptionPrepayOption? @relation("ScheduledPrepay", fields: [scheduledPrepayOptionId], references: [id])
 
-  membershipHistory  UserSubscriptionMembershipHistory[]
-
-  @@unique([userId, subscriptionId])
   @@index([userId])
   @@index([userId, active])
   @@index([active, nextRenewalDate])
   @@index([subscriptionId, shippingCountry])
+  // Partial unique index enforced in DB: only one active entry per user+sub.
+  // Full definition: CREATE UNIQUE INDEX ... WHERE "active" = true
+  @@index([userId, subscriptionId], map: "user_subscription_entries_active_unique")
   @@map("user_subscription_entries")
-}
-
-model UserSubscriptionMembershipHistory {
-  id                 String    @id @default(uuid())
-  userId             String
-  subscriptionId     String
-  entryId            String?
-  startDate          String?
-  endDate            String?
-  cancellationReason String?
-  createdAt          DateTime  @default(now())
-
-  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription       Subscription @relation(fields: [subscriptionId], references: [id])
-  entry              UserSubscriptionEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
-
-  @@index([userId, subscriptionId])
-  @@index([userId])
-  @@map("user_subscription_membership_history")
 }
 
 model UserSubBillingPeriod {
@@ -1374,6 +1372,25 @@ model SubscriptionCountryFeeSnapshot {
   @@unique([subscriptionId, country])
   @@index([subscriptionId])
   @@map("subscription_country_fee_snapshots")
+}
+
+model UserStatsSnapshot {
+  id             String   @id @default(uuid())
+  userId         String
+  currency       String   @db.VarChar(3)
+  year           Int      @default(0)  // 0 = all-time; positive integer = per-year spending snapshot
+  computedAt     DateTime @default(now())
+  isStale        Boolean  @default(false)
+  moduleVersions Json     @default("{}") // { spending: 1, collection: 1, features: 1 }
+  spending       Json?    // SpendingStats data
+  collection     Json?    // CollectionStats data (populated in year=0 snapshots only)
+  features       Json?    // FeaturesStats data (populated in year=0 snapshots only)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, currency, year])
+  @@index([userId])
+  @@index([isStale])
+  @@map("user_stats_snapshots")
 }
 
 // ─── Feature Normalisation ───────────────────────────────────────────────────

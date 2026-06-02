@@ -19,7 +19,7 @@ export class SalesController {
     @CurrentUser() user: { id: string },
     @Query() query: SaleGroupsQueryDto,
   ) {
-    return this.service.getSaleGroups(user.id, query.page, query.pageSize);
+    return this.service.getSaleGroups(user.id, query.page, query.pageSize, query.search);
   }
 
   @Get(':id')

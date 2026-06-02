@@ -30,7 +30,7 @@ const OWNERSHIP_LABEL: Record<string, string> = {
   SOLD: 'SOLD',
   GIFTED_AWAY: 'GIFTED AWAY',
 }
-const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ')
+const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ').toUpperCase()
 
 interface CollectionEntry {
   id: string
@@ -649,6 +649,21 @@ export default function CollectionPage() {
   const [saleCustomAmounts, setSaleCustomAmounts] = useState<Record<string, string>>({})
   const [saleBookSearch, setSaleBookSearch] = useState('')
 
+  function openRecordSale(entryId: string, currency: string) {
+    setSaleTitle('')
+    setSalePlatform('')
+    setSaleCustomPlatform('')
+    setSaleTotalAmount('')
+    setSaleCurrency(currency)
+    setSaleSoldAt('')
+    setSaleNotes('')
+    setSaleDistribution('EQUAL')
+    setSaleSelectedEntries([entryId])
+    setSaleCustomAmounts({})
+    setSaleBookSearch('')
+    setAddSaleOpen(true)
+  }
+
   const deleteSaleMut = useMutation({
     mutationFn: (id: string) => deleteSaleGroup(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sale-groups'] }),
@@ -745,10 +760,7 @@ export default function CollectionPage() {
     queryKey: ['collection-subscriptions'],
     queryFn: () => authFetch('/collection/subscriptions'),
   })
-  // Show child subs only (specific tiers); fall back to all if none have a parent
-  const subFilterOptions = subscriptions.some(s => s.parentSubscriptionId !== null)
-    ? subscriptions.filter(s => s.parentSubscriptionId !== null)
-    : subscriptions
+  const subFilterOptions = subscriptions
 
   const filtered = entries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
@@ -1351,9 +1363,7 @@ export default function CollectionPage() {
                               <button
                                 onClick={(e) => {
                                   e.preventDefault(); e.stopPropagation()
-                                  setSaleSelectedEntries([entry.id])
-                                  setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP')
-                                  setAddSaleOpen(true)
+                                  openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP')
                                 }}
                                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
                                 title="Record sale"
@@ -1523,7 +1533,7 @@ export default function CollectionPage() {
                           )}
                           {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
                             <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSaleSelectedEntries([entry.id]); setSaleCurrency(entry.purchaseGroup?.currency ?? 'GBP'); setAddSaleOpen(true) }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP') }}
                               className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
                               title="Record sale"
                             >

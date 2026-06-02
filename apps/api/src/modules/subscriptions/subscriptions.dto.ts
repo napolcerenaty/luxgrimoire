@@ -282,6 +282,16 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
+
+  /**
+   * Required when any tracked settings field (renewalDay, renewalDayUserSet,
+   * paymentOnStartup, signupIncludesCurrentMonth, renewalMonthOffset) is changed.
+   * Specifies the date from which the new settings take effect.
+   * This is NOT a DB column — it drives the effectiveFrom of the settings history record.
+   */
+  @IsOptional()
+  @IsDateString()
+  settingsEffectiveFrom?: string;
 }
 
 export class CreatePrepayOptionDto {
@@ -736,6 +746,11 @@ export class BackfillSubscriptionDto {
   @ValidateNested({ each: true })
   @Type(() => BackfillBillingBatchDto)
   billingBatches?: BackfillBillingBatchDto[];
+
+  /** Ownership status to assign to backfilled books. Defaults to OWNED on the backend. */
+  @IsOptional()
+  @IsIn(['OWNED', 'PREORDER'])
+  backfillOwnershipStatus?: 'OWNED' | 'PREORDER';
 }
 
 export class CancelMyEntryDto {
@@ -753,12 +768,21 @@ export class CancelMyEntryDto {
 export class RemoveMyEntryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
   /** If provided, remove only the books from this specific membership period */
   @IsOptional() @IsString() historyId?: string;
+  /** If provided, remove only the specified membership periods (multi-select) */
+  @IsOptional() @IsArray() @IsString({ each: true }) historyIds?: string[];
   /** If true, remove all membership periods and optionally their books/spending */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeAllPeriods?: boolean;
   /** If true, remove only the current active period but keep historical records */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeCurrentOnly?: boolean;
+}
+
+export class RemoveOrphanedHistoryDto {
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
 }
 
 export class UpdateMyEntryCostsDto {

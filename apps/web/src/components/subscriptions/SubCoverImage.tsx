@@ -21,7 +21,7 @@ export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspe
         </>
       ) : (
         <div className="w-full h-full flex items-center justify-center px-4" style={brandGradientStyle(brandColors)}>
-          <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{name}</span>
+          <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{name.toUpperCase()}</span>
         </div>
       )}
     </div>

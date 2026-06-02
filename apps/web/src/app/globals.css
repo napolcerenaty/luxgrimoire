@@ -220,3 +220,19 @@ input[type=number] {
 [data-theme="light"] .badge-read     { background: #dcfce7; color: #166534; border-color: #86efac; }
 [data-theme="light"] .badge-dnf      { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
 [data-theme="light"] .badge-signed   { background: #eef2ff; color: #3730a3; border-color: #a5b4fc; }
+
+/* Force dark-theme palette inside overlays that must always appear dark */
+[data-theme="light"] .modal-dark {
+  --color-stone-950: #050810;
+  --color-stone-900: #070f1c;
+  --color-stone-800: #0a1828;
+  --color-stone-700: #0d1f35;
+  --color-stone-600: #2e6080;
+  --color-stone-500: #4a88a8;
+  --color-stone-400: #7ab0cc;
+  --color-stone-300: #b0cce0;
+  --color-stone-200: #c0e4f4;
+  --color-stone-100: #e8f4ff;
+  --color-amber-400: #4ab8d8;
+  --color-amber-500: #2a9ec4;
+}

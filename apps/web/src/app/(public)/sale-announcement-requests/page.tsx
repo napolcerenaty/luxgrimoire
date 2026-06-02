@@ -102,7 +102,7 @@ export default function SaleAnnouncementRequestsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                            <Icon size={10} className="inline mr-1" />{r.status}
+                            <Icon size={10} className="inline mr-1" />{r.status.toUpperCase()}
                           </span>
                         </div>
                         <a href={r.url} target="_blank" rel="noopener noreferrer"

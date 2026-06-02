@@ -116,7 +116,7 @@ export default function AdminBugReportsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[report.status] ?? STATUS_STYLES.open}`}>
-                      {report.status.replace('_', ' ')}
+                      {report.status.replace(/_/g, ' ').toUpperCase()}
                     </span>
                     <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">
                       {report.category}

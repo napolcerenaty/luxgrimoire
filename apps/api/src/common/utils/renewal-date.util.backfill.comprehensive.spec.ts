@@ -31,6 +31,15 @@ function d(isoDate: string) {
   return new Date(isoDate);
 }
 
+type SettingsHistoryRecord = {
+  effectiveFrom: Date;
+  renewalDay: number | null;
+  renewalDayUserSet: boolean;
+  paymentOnStartup: boolean;
+  signupIncludesCurrentMonth: boolean;
+  renewalMonthOffset: number;
+};
+
 /** Build a mock entry. Merge with overrides at any depth by hand. */
 function makeEntry(overrides: {
   id?: string;
@@ -41,9 +50,11 @@ function makeEntry(overrides: {
   skipRecords?: Array<{ month: { year: number; month: number } }>;
   subscription?: {
     renewalDay?: number;
+    renewalDayUserSet?: boolean;
     intervalMonths?: number;
     startingMonth?: number | null;
     renewalMonthOffset?: number;
+    settingsHistory?: SettingsHistoryRecord[];
   };
 } = {}) {
   return {
@@ -55,9 +66,11 @@ function makeEntry(overrides: {
     skipRecords: overrides.skipRecords ?? [],
     subscription: {
       renewalDay: 1,
+      renewalDayUserSet: false,
       intervalMonths: 1,
       startingMonth: null,
       renewalMonthOffset: 0,
+      settingsHistory: [],
       ...(overrides.subscription ?? {}),
     },
   };
@@ -151,11 +164,11 @@ describe('backfillRenewalHistory', () => {
       );
     });
 
-    it('uses entry.renewalDay when set (overrides subscription.renewalDay)', async () => {
+    it('uses entry.renewalDay when renewalDayUserSet=true (user-date mode)', async () => {
       // entry.renewalDay=15; startDate=2025-01-01; now=2025-04-01
       // Jan 15 2025, Feb 15 2025, Mar 15 2025 = 3 dates
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
-        makeEntry({ startDate: '2025-01-01', renewalDay: 15 }),
+        makeEntry({ startDate: '2025-01-01', renewalDay: 15, subscription: { renewalDayUserSet: true } }),
       );
 
       await backfillRenewalHistory(prisma, 'entry-1');
@@ -703,11 +716,12 @@ describe('backfillRenewalHistory', () => {
   // ── Custom renewalDay ─────────────────────────────────────────────────────
 
   describe('custom renewalDay', () => {
-    it('generates dates on the correct day of month', async () => {
-      // renewalDay=15, startDate=2025-01-01, now=2025-04-01
+    it('generates dates on the correct day of month (subscription fixed-day mode)', async () => {
+      // renewalDay=15 on subscription, renewalDayUserSet=false → fixed for all subscribers
+      // startDate=2025-01-01, now=2025-04-01
       // Jan 15, Feb 15, Mar 15 = 3 dates
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
-        makeEntry({ startDate: '2025-01-01', renewalDay: 15 }),
+        makeEntry({ startDate: '2025-01-01', subscription: { renewalDay: 15 } }),
       );
 
       await backfillRenewalHistory(prisma, 'entry-1');
@@ -721,9 +735,9 @@ describe('backfillRenewalHistory', () => {
       expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z');
     });
 
-    it('entry.renewalDay takes precedence over subscription.renewalDay', async () => {
-      const entry = makeEntry({ startDate: '2025-01-01', renewalDay: 20 });
-      // subscription.renewalDay is 1, but entry overrides to 20
+    it('entry.renewalDay used when renewalDayUserSet=true; subscription.renewalDay ignored', async () => {
+      const entry = makeEntry({ startDate: '2025-01-01', renewalDay: 20, subscription: { renewalDayUserSet: true } });
+      // subscription.renewalDay is 1, but renewalDayUserSet=true → entry day (20) takes precedence
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
 
       await backfillRenewalHistory(prisma, 'entry-1');
@@ -733,6 +747,20 @@ describe('backfillRenewalHistory', () => {
       );
       expect(upsertedDates).toContain('2025-01-20T00:00:00.000Z');
       expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z');
+    });
+
+    it('subscription.renewalDay used for ALL entries when renewalDayUserSet=false', async () => {
+      // entry.renewalDay=20 is irrelevant when renewalDayUserSet=false → uses sub.renewalDay=1
+      const entry = makeEntry({ startDate: '2025-01-01', renewalDay: 20, subscription: { renewalDayUserSet: false } });
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+      expect(upsertedDates).toContain('2025-01-01T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2025-01-20T00:00:00.000Z');
     });
   });
 
@@ -978,6 +1006,200 @@ describe('backfillRenewalHistory', () => {
       expect(upsertedDates).not.toContain('2024-09-01T00:00:00.000Z'); // Sep excluded
       expect(upsertedDates).toContain('2024-01-01T00:00:00.000Z'); // Jan still present
       expect(upsertedDates).toContain('2025-03-01T00:00:00.000Z'); // Mar 2025 still present
+    });
+  });
+
+  // ── Settings-history-aware renewalDay resolution ──────────────────────────
+  //
+  // backfillRenewalHistory fetches settingsHistory from the subscription and
+  // uses resolveEffectiveSettings per-month to pick the correct renewalDay.
+  //
+  // Pattern: sentinel record at epoch holds the OLD settings; a newer record
+  // marks when the new settings became effective. Months before the new record
+  // use old settings; months on/after use new settings.
+
+  describe('settings-history-aware renewalDay resolution', () => {
+    function makeSettingsRecord(
+      effectiveFrom: Date,
+      overrides: Partial<SettingsHistoryRecord> = {},
+    ): SettingsHistoryRecord {
+      return {
+        effectiveFrom,
+        renewalDay: 1,
+        renewalDayUserSet: false,
+        paymentOnStartup: false,
+        signupIncludesCurrentMonth: false,
+        renewalMonthOffset: 0,
+        ...overrides,
+      };
+    }
+
+    it('uses old renewalDay before effectiveFrom and new renewalDay on/after effectiveFrom', async () => {
+      // Subscription history:
+      //   - epoch (new Date(0)):    renewalDay=1,  renewalDayUserSet=false
+      //   - 2024-01-01:             renewalDay=15, renewalDayUserSet=false
+      //
+      // Entry startDate=2023-10-01, renewalDay=null (not user-set mode)
+      // now=2025-04-01
+      //
+      // Expected dates:
+      //   Oct 1, Nov 1, Dec 1, 2023        (old settings, day=1)
+      //   Jan 15 2024 … Mar 15 2025        (new settings, day=15) = 15 months
+      //   Total: 18 dates
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2023-10-01',
+          renewalDay: null,
+          subscription: {
+            renewalDay: 15,       // current fallback (used when history is empty)
+            renewalDayUserSet: false,
+            settingsHistory: [
+              makeSettingsRecord(new Date(0), { renewalDay: 1 }),
+              makeSettingsRecord(new Date('2024-01-01'), { renewalDay: 15 }),
+            ],
+          },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+
+      expect(upsertedDates).toHaveLength(18);
+
+      // Pre-change months use day=1
+      expect(upsertedDates).toContain('2023-10-01T00:00:00.000Z');
+      expect(upsertedDates).toContain('2023-11-01T00:00:00.000Z');
+      expect(upsertedDates).toContain('2023-12-01T00:00:00.000Z');
+
+      // Pre-change months do NOT have day=15 dates
+      expect(upsertedDates).not.toContain('2023-10-15T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2023-12-15T00:00:00.000Z');
+
+      // Post-change months use day=15
+      expect(upsertedDates).toContain('2024-01-15T00:00:00.000Z');
+      expect(upsertedDates).toContain('2024-06-15T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-03-15T00:00:00.000Z');
+
+      // Post-change months do NOT have day=1 dates
+      expect(upsertedDates).not.toContain('2024-01-01T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2025-03-01T00:00:00.000Z');
+    });
+
+    it('switches from fixed-day mode to user-date mode mid-history', async () => {
+      // Subscription history:
+      //   - epoch: renewalDay=1, renewalDayUserSet=false  (subscription fixed day)
+      //   - 2024-01-01: renewalDay=null, renewalDayUserSet=true (user-date mode)
+      //
+      // Entry startDate=2023-10-01, renewalDay=10
+      //
+      // Pre-2024: uses subscription day=1 (fixed-day mode)
+      // From 2024: uses entry.renewalDay=10 (user-date mode)
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2023-10-01',
+          renewalDay: 10,
+          subscription: {
+            renewalDay: 1,
+            renewalDayUserSet: true, // current fallback (user-date mode is now active)
+            settingsHistory: [
+              makeSettingsRecord(new Date(0), { renewalDay: 1, renewalDayUserSet: false }),
+              makeSettingsRecord(new Date('2024-01-01'), { renewalDay: null, renewalDayUserSet: true }),
+            ],
+          },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+
+      expect(upsertedDates).toHaveLength(18); // same count as before
+
+      // Pre-change months: day=1 (fixed-day mode)
+      expect(upsertedDates).toContain('2023-10-01T00:00:00.000Z');
+      expect(upsertedDates).toContain('2023-11-01T00:00:00.000Z');
+      expect(upsertedDates).toContain('2023-12-01T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2023-10-10T00:00:00.000Z');
+
+      // Post-change months: day=10 (user-date mode, entry.renewalDay=10)
+      expect(upsertedDates).toContain('2024-01-10T00:00:00.000Z');
+      expect(upsertedDates).toContain('2024-06-10T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-03-10T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2024-01-01T00:00:00.000Z');
+    });
+
+    it('uses fallback settings when no history record precedes the target month', async () => {
+      // History only has a record from 2025-01-01; months before that use fallback
+      // Entry startDate=2024-11-01, renewalDay=null
+      // Fallback: renewalDay=5, renewalDayUserSet=false
+      //
+      // Nov 2024, Dec 2024: no history record precedes → use fallback (day=5)
+      // Jan 2025, Feb 2025, Mar 2025: history record effective Jan 1 2025 → day=20
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2024-11-01',
+          renewalDay: null,
+          subscription: {
+            renewalDay: 5,         // fallback
+            renewalDayUserSet: false,
+            settingsHistory: [
+              makeSettingsRecord(new Date('2025-01-01'), { renewalDay: 20, renewalDayUserSet: false }),
+            ],
+          },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+
+      expect(upsertedDates).toHaveLength(5);
+
+      // Pre-history months use fallback day=5
+      expect(upsertedDates).toContain('2024-11-05T00:00:00.000Z');
+      expect(upsertedDates).toContain('2024-12-05T00:00:00.000Z');
+
+      // Post-history months use settings day=20
+      expect(upsertedDates).toContain('2025-01-20T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-02-20T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-03-20T00:00:00.000Z');
+    });
+
+    it('user-date mode (renewalDayUserSet=true) throughout entire history uses entry.renewalDay for all months', async () => {
+      // All history records have renewalDayUserSet=true
+      // Entry renewalDay=7 → all dates should be on the 7th
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2025-01-01',
+          renewalDay: 7,
+          subscription: {
+            renewalDay: 1,
+            renewalDayUserSet: true,
+            settingsHistory: [
+              makeSettingsRecord(new Date(0), { renewalDay: null, renewalDayUserSet: true }),
+            ],
+          },
+        }),
+      );
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      const upsertedDates = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls.map(
+        (c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString(),
+      );
+
+      expect(upsertedDates).toHaveLength(3); // Jan 7, Feb 7, Mar 7 2025
+      expect(upsertedDates).toContain('2025-01-07T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-02-07T00:00:00.000Z');
+      expect(upsertedDates).toContain('2025-03-07T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z');
     });
   });
 });

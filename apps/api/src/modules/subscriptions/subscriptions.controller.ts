@@ -25,6 +25,7 @@ import {
   CancelMyEntryDto,
   UpdateMyEntryCostsDto,
   RemoveMyEntryDto,
+  RemoveOrphanedHistoryDto,
   CreatePriceChangeDto,
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
@@ -208,8 +209,16 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Delete('my/orphaned-history/:historyId')
-  removeOrphanedHistory(@CurrentUser() user: CurrentUserType, @Param('historyId') historyId: string) {
-    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId);
+  removeOrphanedHistory(
+    @CurrentUser() user: CurrentUserType,
+    @Param('historyId') historyId: string,
+    @Body() dto: RemoveOrphanedHistoryDto,
+  ) {
+    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId, {
+      removeBooks: dto.removeBooks,
+      removeSpending: dto.removeSpending,
+      removeSoldBooks: dto.removeSoldBooks,
+    });
   }
 
   @ApiBearerAuth()
@@ -229,6 +238,12 @@ export class SubscriptionsController {
   async refreshCountryFeeSnapshots() {
     await this.countryFeeSnapshotCron.recalculateAll();
     return { ok: true };
+  }
+
+  @ApiBearerAuth()
+  @Get(':slug/my-history')
+  getMyHistory(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    return this.subscriptionsService.getMySubscriptionHistory(user.id, slug);
   }
 
   @ApiBearerAuth()
@@ -275,7 +290,9 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.removeMySubscription(user.id, slug, {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
+      removeSoldBooks: dto.removeSoldBooks ?? true,
       historyId: dto.historyId,
+      historyIds: dto.historyIds,
       removeAllPeriods: dto.removeAllPeriods ?? false,
       removeCurrentOnly: dto.removeCurrentOnly ?? false,
     });

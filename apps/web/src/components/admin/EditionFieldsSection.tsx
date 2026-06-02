@@ -59,6 +59,8 @@ export interface AiParseResult {
     generalSaleDate?: string
     features?: string[]
     featureTags?: Record<string, string[]>
+    /** All feature raw values in source-text order (standalone + artist-attributed) */
+    featureOrder?: string[]
     artists?: { name: string; role: string }[]
     artistTags?: Record<string, string[]>
   }

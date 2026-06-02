@@ -57,7 +57,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
     jest.useFakeTimers();
     jest.setSystemTime(FIXED_NOW);
     prisma = mockDeep<PrismaService>();
-    service = new RenewalCronService(prisma);
+    service = new RenewalCronService(prisma, { markStatsStale: jest.fn() } as any);
     jest.clearAllMocks();
 
     // Default mocks for createPurchaseGroupAndBooks internals (shared by most tests)
