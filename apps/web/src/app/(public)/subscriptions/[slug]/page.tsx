@@ -270,7 +270,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               Join waitlist here
             </a>
           )}
-          <WaitlistButton subscriptionSlug={sub.slug} />
+          {!sub.isDiscontinued && <WaitlistButton subscriptionSlug={sub.slug} />}
         </div>
       </div>
 
