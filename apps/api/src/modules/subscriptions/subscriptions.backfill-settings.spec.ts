@@ -218,15 +218,15 @@ describe('SubscriptionsService — backfill with settings history', () => {
 
   describe('entry.renewalDay overrides settings history', () => {
     it('uses entry.renewalDay when set, ignoring sub.renewalDay and history', async () => {
-      const sub = makeSub({ renewalDay: 15 });
+      const sub = makeSub({ renewalDay: 15, renewalDayUserSet: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
       const history = makeSettingsHistory([
-        { effectiveFrom: new Date('2023-01-01'), renewalDay: 20 },
+        { effectiveFrom: new Date('2023-01-01'), renewalDay: 20, renewalDayUserSet: true },
       ]);
       const month = makeMonthRecord({ year: 2024, month: 6 });
       setupNonComboBackfill(prisma, skipPolicyEngineMock, {
-        entry: makeEntry({ renewalDay: 25 }), // entry-level day wins
+        entry: makeEntry({ renewalDay: 25 }), // entry-level day wins when renewalDayUserSet=true
         monthRecord: month,
         settingsHistory: history,
       });

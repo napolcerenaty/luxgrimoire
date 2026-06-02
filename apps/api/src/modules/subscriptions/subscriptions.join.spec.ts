@@ -96,6 +96,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(createdEntry);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
       return { sub, createdEntry };
     }
 
@@ -140,6 +141,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(createdEntry);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
       return { createdEntry };
     }
 
@@ -189,6 +191,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(historicalEntry);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
       return { historicalEntry };
     }
 
@@ -232,6 +235,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(makeSub() as any);
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
 
       const dto = makeJoinDto({ dryRun: true, startDate: '2025-01-01' });
       const result = await service.joinSubscription(USER_ID, SUB_SLUG, dto);
