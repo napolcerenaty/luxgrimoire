@@ -535,7 +535,7 @@ export class SubscriptionsService {
 
   async update(slug: string, dto: UpdateSubscriptionDto, changedByUserId?: string) {
     const existing = await this.findBySlug(slug);
-    const { componentIds, price, ...rest } = dto;
+    const { componentIds, price, settingsEffectiveFrom, ...rest } = dto;
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
@@ -549,6 +549,11 @@ export class SubscriptionsService {
       f => dto[f as keyof UpdateSubscriptionDto] !== undefined && (dto as any)[f] !== (existing as any)[f],
     );
     if (anySettingsChanged) {
+      if (!settingsEffectiveFrom) {
+        throw new BadRequestException('settingsEffectiveFrom is required when changing renewal settings');
+      }
+      const effectiveFromDate = new Date(settingsEffectiveFrom);
+
       // If no history exists yet (subscription predates sentinel creation), insert
       // an epoch sentinel of the OLD settings first, so months before this change
       // resolve correctly instead of falling back to the new (post-change) settings.
@@ -573,7 +578,7 @@ export class SubscriptionsService {
       await this.prisma.subscriptionSettingsHistory.create({
         data: {
           subscriptionId: updated.id,
-          effectiveFrom: new Date(),
+          effectiveFrom: effectiveFromDate,
           renewalDay: updated.renewalDay ?? null,
           renewalDayUserSet: (updated as any).renewalDayUserSet ?? false,
           paymentOnStartup: (updated as any).paymentOnStartup ?? false,
@@ -581,6 +586,27 @@ export class SubscriptionsService {
           renewalMonthOffset: (updated as any).renewalMonthOffset ?? 0,
           changedBy: changedByUserId ?? null,
         },
+      });
+
+      // Auto-refresh nextRenewalDate for active entries whose upcoming renewal is ON or AFTER
+      // effectiveFrom — those entries are affected by the new settings.
+      // Entries whose nextRenewalDate is before effectiveFrom will be processed by the cron
+      // before the new settings kick in, so they must be left unchanged.
+      const affectedEntries = await this.prisma.userSubscriptionEntry.findMany({
+        where: {
+          subscriptionId: updated.id,
+          active: true,
+          OR: [
+            { nextRenewalDate: { gte: effectiveFromDate } },
+            { nextRenewalDate: null },
+          ],
+        },
+        select: { id: true },
+      });
+      // Fire-and-forget; errors are logged but must not fail the settings save
+      setImmediate(() => {
+        Promise.all(affectedEntries.map(e => refreshNextRenewalDate(this.prisma, e.id)))
+          .catch(err => this.logger.error({ err }, 'Auto-refresh of nextRenewalDate after settings change failed'));
       });
     }
 

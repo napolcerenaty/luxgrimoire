@@ -282,6 +282,16 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
+
+  /**
+   * Required when any tracked settings field (renewalDay, renewalDayUserSet,
+   * paymentOnStartup, signupIncludesCurrentMonth, renewalMonthOffset) is changed.
+   * Specifies the date from which the new settings take effect.
+   * This is NOT a DB column — it drives the effectiveFrom of the settings history record.
+   */
+  @IsOptional()
+  @IsDateString()
+  settingsEffectiveFrom?: string;
 }
 
 export class CreatePrepayOptionDto {

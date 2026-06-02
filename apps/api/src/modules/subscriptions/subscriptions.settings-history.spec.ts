@@ -5,18 +5,22 @@
  *  1. listSettingsHistory — query shape, ordering, NotFoundException propagation
  *  2. update() → history recording — records on tracked field change, skips on
  *     untracked-only changes or no-op updates, passes changedByUserId and correct snapshot
+ *  3. settingsEffectiveFrom validation — required when settings change, uses as effectiveFrom
+ *  4. Auto-refresh — entries with nextRenewalDate >= effectiveFrom are refreshed; earlier entries are not
  */
 
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from './subscriptions.service';
+import * as renewalDateUtil from '../../common/utils/renewal-date.util';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const SUB_ID = 'sub-id-settings';
 const SUB_SLUG = 'test-subscription-settings';
 const USER_ID = 'user-admin-1';
+const EFFECTIVE_FROM = '2025-07-01';
 
 /** Base subscription with default settings values */
 function makeExistingSub(overrides: Record<string, unknown> = {}) {
@@ -149,7 +153,9 @@ describe('SubscriptionsService — settings history', () => {
     function setupUpdate(existingSub: Record<string, unknown>, updatedSub: Record<string, unknown>) {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(existingSub as any);
       (prisma.subscription.update as jest.Mock).mockResolvedValue(updatedSub);
+      (prisma.subscriptionSettingsHistory.count as jest.Mock).mockResolvedValue(1); // history already exists
       (prisma.subscriptionSettingsHistory.create as jest.Mock).mockResolvedValue({});
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([]);
       // indexSubscription: return null so it exits early before typesense
       (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
     }
@@ -159,7 +165,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDay: 15 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDay: 15 } as any, USER_ID);
+      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -169,7 +175,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ paymentOnStartup: true });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { paymentOnStartup: true } as any, USER_ID);
+      await service.update(SUB_SLUG, { paymentOnStartup: true, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -179,7 +185,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ signupIncludesCurrentMonth: false });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { signupIncludesCurrentMonth: false } as any, USER_ID);
+      await service.update(SUB_SLUG, { signupIncludesCurrentMonth: false, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -189,7 +195,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalMonthOffset: 1 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalMonthOffset: 1 } as any, USER_ID);
+      await service.update(SUB_SLUG, { renewalMonthOffset: 1, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -199,7 +205,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDayUserSet: true });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDayUserSet: true } as any, USER_ID);
+      await service.update(SUB_SLUG, { renewalDayUserSet: true, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -239,7 +245,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDay: 20, renewalMonthOffset: 1 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDay: 20, renewalMonthOffset: 1 } as any, USER_ID);
+      await service.update(SUB_SLUG, { renewalDay: 20, renewalMonthOffset: 1, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(1);
     });
@@ -249,7 +255,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDay: 20 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDay: 20 } as any, 'admin-user-123');
+      await service.update(SUB_SLUG, { renewalDay: 20, settingsEffectiveFrom: EFFECTIVE_FROM } as any, 'admin-user-123');
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -265,7 +271,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDay: 20 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDay: 20 } as any);
+      await service.update(SUB_SLUG, { renewalDay: 20, settingsEffectiveFrom: EFFECTIVE_FROM } as any);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -290,7 +296,8 @@ describe('SubscriptionsService — settings history', () => {
       await service.update(
         SUB_SLUG,
         { renewalDay: 20, renewalDayUserSet: true, paymentOnStartup: true,
-          signupIncludesCurrentMonth: false, renewalMonthOffset: 1 } as any,
+          signupIncludesCurrentMonth: false, renewalMonthOffset: 1,
+          settingsEffectiveFrom: EFFECTIVE_FROM } as any,
         USER_ID,
       );
 
@@ -313,7 +320,7 @@ describe('SubscriptionsService — settings history', () => {
       const updated = makeUpdatedSub({ renewalDay: 5 });
       setupUpdate(existing, updated);
 
-      await service.update(SUB_SLUG, { renewalDay: 5 } as any, USER_ID);
+      await service.update(SUB_SLUG, { renewalDay: 5, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
 
       expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -322,6 +329,130 @@ describe('SubscriptionsService — settings history', () => {
           }),
         }),
       );
+    });
+
+    // ── settingsEffectiveFrom validation ──────────────────────────────────────
+
+    it('throws BadRequestException when settings change but settingsEffectiveFrom is missing', async () => {
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 15 });
+      setupUpdate(existing, updated);
+
+      await expect(
+        service.update(SUB_SLUG, { renewalDay: 15 } as any, USER_ID),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('uses settingsEffectiveFrom as the effectiveFrom date in the history record', async () => {
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 10 });
+      setupUpdate(existing, updated);
+
+      await service.update(SUB_SLUG, { renewalDay: 10, settingsEffectiveFrom: '2025-08-01' } as any, USER_ID);
+
+      expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            effectiveFrom: new Date('2025-08-01'),
+          }),
+        }),
+      );
+    });
+
+    it('does not pass settingsEffectiveFrom as a DB column to prisma.subscription.update', async () => {
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 10 });
+      setupUpdate(existing, updated);
+
+      await service.update(SUB_SLUG, { renewalDay: 10, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
+
+      const updateCall = (prisma.subscription.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('settingsEffectiveFrom');
+    });
+
+    // ── Auto-refresh after settings save ─────────────────────────────────────
+
+    it('refreshes entries with nextRenewalDate >= effectiveFrom', async () => {
+      const refreshSpy = jest.spyOn(renewalDateUtil, 'refreshNextRenewalDate').mockResolvedValue(undefined);
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 15 });
+      setupUpdate(existing, updated);
+      const effectiveFrom = new Date('2025-07-01');
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([
+        { id: 'entry-a' }, // nextRenewalDate = Jul 1 (>= effectiveFrom)
+        { id: 'entry-b' }, // nextRenewalDate = Aug 5 (>= effectiveFrom)
+      ]);
+
+      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: '2025-07-01' } as any, USER_ID);
+      // Let setImmediate fire
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(prisma.userSubscriptionEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            subscriptionId: SUB_ID,
+            active: true,
+          }),
+        }),
+      );
+      expect(refreshSpy).toHaveBeenCalledTimes(2);
+      expect(refreshSpy).toHaveBeenCalledWith(prisma, 'entry-a');
+      expect(refreshSpy).toHaveBeenCalledWith(prisma, 'entry-b');
+      refreshSpy.mockRestore();
+    });
+
+    it('does not refresh any entries when no active entries have nextRenewalDate >= effectiveFrom', async () => {
+      const refreshSpy = jest.spyOn(renewalDateUtil, 'refreshNextRenewalDate').mockResolvedValue(undefined);
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 15 });
+      setupUpdate(existing, updated);
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([]); // no affected entries
+
+      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: '2025-07-01' } as any, USER_ID);
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(refreshSpy).not.toHaveBeenCalled();
+      refreshSpy.mockRestore();
+    });
+
+    it('filters entries correctly: only active entries with nextRenewalDate >= effectiveFrom', async () => {
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 15 });
+      setupUpdate(existing, updated);
+
+      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: '2025-07-01' } as any, USER_ID);
+
+      expect(prisma.userSubscriptionEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            subscriptionId: SUB_ID,
+            active: true,
+            OR: [
+              { nextRenewalDate: { gte: new Date('2025-07-01') } },
+              { nextRenewalDate: null },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('creates epoch sentinel if no history exists before first change', async () => {
+      const existing = makeExistingSub({ renewalDay: 1 });
+      const updated = makeUpdatedSub({ renewalDay: 15 });
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(existing as any);
+      (prisma.subscription.update as jest.Mock).mockResolvedValue(updated);
+      (prisma.subscriptionSettingsHistory.count as jest.Mock).mockResolvedValue(0); // no history yet
+      (prisma.subscriptionSettingsHistory.create as jest.Mock).mockResolvedValue({});
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
+
+      // First call = epoch sentinel (effectiveFrom = epoch)
+      const firstCreate = (prisma.subscriptionSettingsHistory.create as jest.Mock).mock.calls[0][0];
+      expect(firstCreate.data.effectiveFrom).toEqual(new Date(0));
+      // Second call = actual history record
+      expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(2);
     });
   });
 });

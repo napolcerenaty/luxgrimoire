@@ -248,22 +248,38 @@ export async function refreshNextRenewalDate(
 
   const sub = entry.subscription as any;
 
-  // Resolve subscription settings effective for the current calendar month.
-  // This ensures that when settings change (e.g. renewalDay or renewalDayUserSet),
-  // the next renewal date is computed from the updated settings rather than stale entry values.
+  type HistoryEntry = { effectiveFrom: Date; renewalDay: number | null; renewalDayUserSet: boolean; paymentOnStartup: boolean; signupIncludesCurrentMonth: boolean; renewalMonthOffset: number };
+  const history = (sub.settingsHistory ?? []) as HistoryEntry[];
+  const fallbackSettings = {
+    renewalDay: sub.renewalDay ?? null,
+    renewalDayUserSet: sub.renewalDayUserSet ?? false,
+    paymentOnStartup: sub.paymentOnStartup ?? false,
+    signupIncludesCurrentMonth: sub.signupIncludesCurrentMonth ?? false,
+    renewalMonthOffset: sub.renewalMonthOffset ?? 0,
+  };
+
+  // Two-step settings resolution:
+  // Step 1 — compute a rough candidate next renewal date using current sub settings (ignoring
+  //           history) to determine which calendar month the next renewal will fall in.
+  // Step 2 — resolve effective settings for THAT target month, then recompute the final date.
+  //
+  // This is critical: using "now"'s month would apply the wrong settings when called right after
+  // processing a renewal that fired today (e.g. cron fires June 18, next renewal is July —
+  // we need July's settings, not June's).
   const now = new Date();
-  const effectiveSettings = resolveEffectiveSettings(
-    (sub.settingsHistory ?? []) as Array<{ effectiveFrom: Date; renewalDay: number | null; renewalDayUserSet: boolean; paymentOnStartup: boolean; signupIncludesCurrentMonth: boolean; renewalMonthOffset: number }>,
-    now.getUTCFullYear(),
-    now.getUTCMonth() + 1,
-    {
-      renewalDay: sub.renewalDay ?? null,
-      renewalDayUserSet: sub.renewalDayUserSet ?? false,
-      paymentOnStartup: sub.paymentOnStartup ?? false,
-      signupIncludesCurrentMonth: sub.signupIncludesCurrentMonth ?? false,
-      renewalMonthOffset: sub.renewalMonthOffset ?? 0,
-    },
+  const baseRenewalDay = fallbackSettings.renewalDayUserSet
+    ? (entry.renewalDay ?? 1)
+    : (fallbackSettings.renewalDay ?? 1);
+  const roughCandidate = computeNextRenewalDate(
+    baseRenewalDay,
+    sub.intervalMonths ?? 1,
+    sub.startingMonth ?? null,
+    entry.startDate ?? null,
   );
+  const targetYear = roughCandidate?.getUTCFullYear() ?? now.getUTCFullYear();
+  const targetMonth = roughCandidate ? roughCandidate.getUTCMonth() + 1 : now.getUTCMonth() + 1;
+
+  const effectiveSettings = resolveEffectiveSettings(history, targetYear, targetMonth, fallbackSettings);
 
   // If the subscription uses a fixed renewal day, use the subscription's day.
   // If it uses each subscriber's own sign-up day (renewalDayUserSet), use the entry's day.
