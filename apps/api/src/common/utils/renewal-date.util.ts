@@ -28,6 +28,11 @@ export function renewalMonthFromBoxMonth(year: number, month: number, offset: nu
 /**
  * Computes all past renewal dates for a subscription entry.
  * Used to backfill UserSubscriptionRenewal records for calendar display.
+ *
+ * @param renewalDay - Default renewal day used when no per-month override is provided.
+ * @param renewalDayFn - Optional per-month override: given (year, month), returns the
+ *   effective renewal day for that month. When provided, takes precedence over `renewalDay`.
+ *   Used to apply settings-history-aware day resolution in backfillRenewalHistory.
  */
 export function computePastRenewalDates(
   renewalDay: number,
@@ -35,6 +40,7 @@ export function computePastRenewalDates(
   startingMonth: number | null,
   startDate: Date,
   skippedMonths: { year: number; month: number }[],
+  renewalDayFn?: (year: number, month: number) => number,
 ): Date[] {
   const interval = intervalMonths;
   const now = new Date();
@@ -53,7 +59,8 @@ export function computePastRenewalDates(
       }
     }
 
-    const candDate = new Date(Date.UTC(year, month - 1, renewalDay));
+    const effectiveDay = renewalDayFn ? renewalDayFn(year, month) : renewalDay;
+    const candDate = new Date(Date.UTC(year, month - 1, effectiveDay));
 
     if (candDate >= now) break;
 
@@ -382,7 +389,25 @@ export async function backfillRenewalHistory(
         include: { month: { select: { year: true, month: true } } },
       },
       subscription: {
-        select: { renewalDay: true, intervalMonths: true, startingMonth: true, renewalMonthOffset: true },
+        select: {
+          renewalDay: true,
+          renewalDayUserSet: true,
+          intervalMonths: true,
+          startingMonth: true,
+          renewalMonthOffset: true,
+          paymentOnStartup: true,
+          signupIncludesCurrentMonth: true,
+          settingsHistory: {
+            select: {
+              effectiveFrom: true,
+              renewalDay: true,
+              renewalDayUserSet: true,
+              paymentOnStartup: true,
+              signupIncludesCurrentMonth: true,
+              renewalMonthOffset: true,
+            },
+          },
+        },
       },
     },
   });
@@ -390,8 +415,25 @@ export async function backfillRenewalHistory(
   if (!entry?.startDate) return;
 
   const sub = entry.subscription as any;
-  const renewalDay: number = entry.renewalDay ?? sub.renewalDay ?? 1;
-  const offset: number = sub.renewalMonthOffset ?? 0;
+  const history = (sub.settingsHistory ?? []) as Array<{
+    effectiveFrom: Date;
+    renewalDay: number | null;
+    renewalDayUserSet: boolean;
+    paymentOnStartup: boolean;
+    signupIncludesCurrentMonth: boolean;
+    renewalMonthOffset: number;
+  }>;
+  const fallback = {
+    renewalDay: sub.renewalDay ?? null,
+    renewalDayUserSet: sub.renewalDayUserSet ?? false,
+    paymentOnStartup: sub.paymentOnStartup ?? false,
+    signupIncludesCurrentMonth: sub.signupIncludesCurrentMonth ?? false,
+    renewalMonthOffset: sub.renewalMonthOffset ?? 0,
+  };
+
+  // Use base offset for skipped-month conversion (offset is unlikely to change
+  // but we use the fallback here as a conservative baseline).
+  const offset: number = fallback.renewalMonthOffset;
   // Convert skipped box months → renewal months for computePastRenewalDates
   const skippedMonths = (entry.skipRecords as any[]).map((r) => {
     const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
@@ -402,12 +444,22 @@ export async function backfillRenewalHistory(
   const parts = entry.startDate.split('-').map(Number);
   const startDate = new Date(Date.UTC(parts[0], (parts[1] ?? 1) - 1, parts[2] ?? 1));
 
+  // Per-month renewal day resolved from settings history.
+  const renewalDayFn = (year: number, month: number): number => {
+    const s = resolveEffectiveSettings(history, year, month, fallback);
+    return s.renewalDayUserSet ? (entry.renewalDay ?? 1) : (s.renewalDay ?? 1);
+  };
+
   const dates = computePastRenewalDates(
-    renewalDay,
+    /* renewalDay (fallback, overridden per-month by fn) */ renewalDayFn(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth() + 1,
+    ),
     sub.intervalMonths ?? 1,
     sub.startingMonth ?? null,
     startDate,
     skippedMonths,
+    renewalDayFn,
   );
 
   if (dates.length === 0) return;

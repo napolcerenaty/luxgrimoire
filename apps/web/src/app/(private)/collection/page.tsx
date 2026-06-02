@@ -760,10 +760,7 @@ export default function CollectionPage() {
     queryKey: ['collection-subscriptions'],
     queryFn: () => authFetch('/collection/subscriptions'),
   })
-  // Show child subs only (specific tiers); fall back to all if none have a parent
-  const subFilterOptions = subscriptions.some(s => s.parentSubscriptionId !== null)
-    ? subscriptions.filter(s => s.parentSubscriptionId !== null)
-    : subscriptions
+  const subFilterOptions = subscriptions
 
   const filtered = entries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false

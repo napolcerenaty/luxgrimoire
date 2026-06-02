@@ -1631,17 +1631,35 @@ export class SubscriptionsService {
       ?? dto.renewalDay
       ?? 1;
 
+    // Resolve signupIncludesCurrentMonth and renewalMonthOffset from settings history
+    // so that historical backfill uses the settings that were in effect at the startDate month.
+    const fallbackSettings: SubscriptionSettings = {
+      renewalDay: (sub as any).renewalDay as number | null,
+      renewalDayUserSet: ((sub as any).renewalDayUserSet as boolean) ?? false,
+      paymentOnStartup: (sub as any).paymentOnStartup as boolean,
+      signupIncludesCurrentMonth: (sub as any).signupIncludesCurrentMonth as boolean,
+      renewalMonthOffset: ((sub as any).renewalMonthOffset as number | null) ?? 0,
+    };
+    let resolvedSignupSettings = { signupIncludesCurrentMonth: fallbackSettings.signupIncludesCurrentMonth, renewalMonthOffset: fallbackSettings.renewalMonthOffset };
+    if (startDateObj) {
+      const joinSettingsHistory = await this.prisma.subscriptionSettingsHistory.findMany({
+        where: { subscriptionId: sub.id },
+        orderBy: { effectiveFrom: 'desc' },
+      });
+      const resolved = resolveEffectiveSettings(joinSettingsHistory, startDateObj.getFullYear(), startDateObj.getMonth() + 1, fallbackSettings);
+      resolvedSignupSettings = { signupIncludesCurrentMonth: resolved.signupIncludesCurrentMonth, renewalMonthOffset: resolved.renewalMonthOffset };
+    }
+
     // ── DryRun: compute eligible months without persisting anything ──────────
     if (dto.dryRun) {
       const isCombo = (sub as any).isCombo as boolean;
       const componentIds = (sub as any).componentIds as string[];
-      const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
-      const renewalMonthOffset = ((sub as any).renewalMonthOffset as number | null) ?? 0;
+      const { signupIncludesCurrentMonth, renewalMonthOffset } = resolvedSignupSettings;
       const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
       const variantDbStartDate = (sub as any).startDate as Date | null;
       let effectiveStartDateObj = startDateObj;
       let effectiveSignupIncludes = signupIncludesCurrentMonth;
-      if (variantDbStartDate && (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj)) {
+      if (parentSubscriptionId && variantDbStartDate && (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj)) {
         effectiveStartDateObj = variantDbStartDate;
         effectiveSignupIncludes = true; // subscription's first month is always eligible for pre-launch joiners
       }
@@ -1716,19 +1734,17 @@ export class SubscriptionsService {
     // Compute eligible past months: from startDate+1 (or startDate if signupIncludesCurrentMonth) to cancellationDate month (or current month)
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
-    const signupIncludesCurrentMonth = (sub as any).signupIncludesCurrentMonth as boolean;
-    const renewalMonthOffset = ((sub as any).renewalMonthOffset as number | null) ?? 0;
+    const { signupIncludesCurrentMonth, renewalMonthOffset } = resolvedSignupSettings;
 
     // If this sub is a variant of a content stream, months live on the parent.
     // Also clamp startDate to the subscription's own startDate (earliest it could have existed).
-    // This applies to variants, combos, and regular subs alike — a user shouldn't backfill
-    // before the subscription was launched.
+    // This applies only to variants — a user may join a standalone sub before its DB startDate for historical data entry.
     const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
     const variantDbStartDate = (sub as any).startDate as Date | null;
-    // Effective user start: max(user-provided startDate, subscription's own startDate)
+    // Effective user start: max(user-provided startDate, subscription's own startDate) — only for variants
     let effectiveStartDateObj = startDateObj;
     let effectiveSignupIncludes = signupIncludesCurrentMonth;
-    if (variantDbStartDate) {
+    if (parentSubscriptionId && variantDbStartDate) {
       if (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj) {
         effectiveStartDateObj = variantDbStartDate;
         effectiveSignupIncludes = true; // subscription's first month is always eligible for pre-launch joiners
