@@ -218,6 +218,7 @@ export class SubscriptionsService {
     }
 
     await this.indexSubscription(subscription.id);
+    await this.cache.del(`companies:slug:${company.slug}`);
     return subscription;
   }
 
@@ -637,6 +638,9 @@ export class SubscriptionsService {
     }
 
     await this.indexSubscription(updated.id);
+    if (existing.company?.slug) {
+      await this.cache.del(`companies:slug:${existing.company.slug}`);
+    }
     return updated;
   }
 

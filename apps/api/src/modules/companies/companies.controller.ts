@@ -52,6 +52,7 @@ export class CompaniesController {
     @Param('slug') slug: string,
     @Query('subscriptionId') subscriptionId?: string,
     @Query('collectionId') collectionId?: string,
+    @Query('noCollection') noCollection?: string,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
   ) {
@@ -59,7 +60,7 @@ export class CompaniesController {
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 20,
     };
-    return this.companiesService.getEditions(slug, { subscriptionId, collectionId }, pagination);
+    return this.companiesService.getEditions(slug, { subscriptionId, collectionId, noCollection: noCollection === 'true' }, pagination);
   }
 
   @Public()
