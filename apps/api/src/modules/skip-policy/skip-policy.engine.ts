@@ -31,6 +31,8 @@ export interface SkipStatus {
   nextUnskipDeadline: string | null;
   /** Whether the unskip deadline for the earliest skipped month has passed */
   isUnskipPastDeadline: boolean;
+  /** The next month the user can skip, or null if none available */
+  targetMonth: { year: number; month: number } | null;
 }
 
 @Injectable()
@@ -785,6 +787,7 @@ export class SkipPolicyEngine {
       unskipNotes: policy?.unskipNotes ?? null,
       nextUnskipDeadline: unskipDeadline ? unskipDeadline.toISOString() : null,
       isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
+      targetMonth: deadlineMonth,
     };
   }
 
