@@ -149,17 +149,8 @@ export class SkipPolicyEngine {
     // Before the current month's renewalDay: the user can still skip the current month (with offset).
     // After renewalDay passes: current month is locked, target next month and warn.
     const renewalDay = entry.effectiveRenewalDay;
-    const currentMonthWindowOpen = !!renewalDay && now.getDate() < renewalDay;
-    const currentMonthSkipPassed = !!renewalDay && !currentMonthWindowOpen;
-
-    const nextCalendarMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-    const nextCalendarYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-
-    // If window is still open, the earliest skippable box month is currentMonth+offset.
-    // Once renewalDay passes, it's nextMonth+offset.
-    let candidateMonth = (currentMonthWindowOpen ? currentMonth : nextCalendarMonth) + offset;
-    let candidateYear = currentMonthWindowOpen ? currentYear : nextCalendarYear;
-    while (candidateMonth > 12) { candidateMonth -= 12; candidateYear++; }
+    const { candidateYear, candidateMonth, currentMonthSkipPassed } =
+      this.computeSkipCandidate(now, renewalDay, offset);
 
     let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
     let subscriptionStarted = true; // assume started unless proven otherwise
@@ -257,8 +248,9 @@ export class SkipPolicyEngine {
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
     if (currentMonthSkipPassed) {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-      const boxMonth = currentMonth + offset > 12 ? currentMonth + offset - 12 : currentMonth + offset;
-      const boxYear = currentMonth + offset > 12 ? currentYear + 1 : currentYear;
+      const rawBox = (now.getMonth() + 1) + offset;
+      const boxMonth = rawBox > 12 ? rawBox - 12 : rawBox;
+      const boxYear = rawBox > 12 ? now.getFullYear() + 1 : now.getFullYear();
       status.warnings.unshift(`The skip window for ${MONTHS[boxMonth - 1]} ${boxYear} has passed (renewal day: ${renewalDay}).`);
     }
     return status;
@@ -789,6 +781,36 @@ export class SkipPolicyEngine {
       isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
       targetMonth: deadlineMonth,
     };
+  }
+
+  /**
+   * Pure: given the current date, renewal day, and month offset, returns
+   * the earliest candidate box month the user can skip, plus whether the
+   * current month's skip window has already passed.
+   *
+   * Rules:
+   * - If renewalDay is set and today < renewalDay → window still open → candidate = currentMonth + offset
+   * - Otherwise → window closed (or no renewalDay) → candidate = nextMonth + offset
+   * - currentMonthSkipPassed is true only when renewalDay is set AND today >= renewalDay
+   */
+  private computeSkipCandidate(
+    now: Date,
+    renewalDay: number | null,
+    offset: number,
+  ): { candidateYear: number; candidateMonth: number; currentMonthSkipPassed: boolean } {
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const nextCalendarMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextCalendarYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+
+    const currentMonthWindowOpen = !!renewalDay && now.getDate() < renewalDay;
+    const currentMonthSkipPassed = !!renewalDay && !currentMonthWindowOpen;
+
+    let candidateMonth = (currentMonthWindowOpen ? currentMonth : nextCalendarMonth) + offset;
+    let candidateYear = currentMonthWindowOpen ? currentYear : nextCalendarYear;
+    while (candidateMonth > 12) { candidateMonth -= 12; candidateYear++; }
+
+    return { candidateYear, candidateMonth, currentMonthSkipPassed };
   }
 
   /**

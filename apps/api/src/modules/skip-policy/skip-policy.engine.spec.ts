@@ -286,6 +286,104 @@ describe('SkipPolicyEngine — pure logic', () => {
     });
   });
 
+  // ─── computeSkipCandidate ─────────────────────────────────────────────────
+  //
+  // Rules:
+  //   - No renewalDay (null)         → candidate = nextMonth+offset, no warning flag
+  //   - renewalDay set, before day   → candidate = currentMonth+offset, no warning flag
+  //   - renewalDay set, on/after day → candidate = nextMonth+offset, warning flag=true
+  //   - offset shifts the candidate month forward
+
+  describe('computeSkipCandidate', () => {
+    const call = (now: Date, renewalDay: number | null, offset: number) =>
+      (engine as any).computeSkipCandidate(now, renewalDay, offset);
+
+    // June 3 2026 — before renewalDay=4
+    const jun3 = new Date(2026, 5, 3); // month 0-indexed
+    // June 4 2026 — on renewalDay=4
+    const jun4 = new Date(2026, 5, 4);
+    // June 5 2026 — after renewalDay=4
+    const jun5 = new Date(2026, 5, 5);
+
+    it('no renewalDay → candidate = nextMonth, no skipPassed flag', () => {
+      const result = call(jun3, null, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('before renewalDay → candidate = currentMonth, no skipPassed flag', () => {
+      const result = call(jun3, 4, 0);
+      expect(result.candidateMonth).toBe(6); // June
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('on renewalDay → candidate = nextMonth, skipPassed=true', () => {
+      const result = call(jun4, 4, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('after renewalDay → candidate = nextMonth, skipPassed=true', () => {
+      const result = call(jun5, 4, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('offset=1 before renewalDay → candidate = currentMonth+1', () => {
+      const result = call(jun3, 4, 1);
+      expect(result.candidateMonth).toBe(7); // June+1 = July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('offset=1 after renewalDay → candidate = nextMonth+1', () => {
+      const result = call(jun5, 4, 1);
+      expect(result.candidateMonth).toBe(8); // July+1 = August
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('December + no renewalDay → rolls over to January next year', () => {
+      const dec15 = new Date(2026, 11, 15);
+      const result = call(dec15, null, 0);
+      expect(result.candidateMonth).toBe(1); // January
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('December + before renewalDay + offset=1 → February next year', () => {
+      const dec1 = new Date(2026, 11, 1);
+      const result = call(dec1, 10, 1); // day=1 < renewalDay=10, candidate=Dec+1=Jan27
+      expect(result.candidateMonth).toBe(1); // Jan
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('November + after renewalDay + offset=2 → January next year', () => {
+      const nov20 = new Date(2026, 10, 20);
+      const result = call(nov20, 5, 2); // day=20 >= renewalDay=5, so nextMonth=Dec, Dec+2=Feb→no, Dec+2 = month 14→month2, year+1
+      // nextMonth = Dec(12), +2 = 14 → 14-12=2 Feb, year+1
+      expect(result.candidateMonth).toBe(2);
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('day=1, renewalDay=1 → on renewal day → skipPassed=true, candidate = nextMonth', () => {
+      const jan1 = new Date(2026, 0, 1);
+      const result = call(jan1, 1, 0);
+      expect(result.currentMonthSkipPassed).toBe(true);
+      expect(result.candidateMonth).toBe(2); // February
+    });
+
+    it('renewalDay=31 with day=30 → before renewal → candidate = currentMonth', () => {
+      const mar30 = new Date(2026, 2, 30);
+      const result = call(mar30, 31, 0);
+      expect(result.candidateMonth).toBe(3); // March
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+  });
+
   // ─── computeWarnings ──────────────────────────────────────────────────────
 
   describe('computeWarnings', () => {
