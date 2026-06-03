@@ -29,6 +29,16 @@ export function CompanyEditionsSection({ companySlug, subscriptions, collections
   const contentStreams = subscriptions.filter((s) => s.isContentStream)
 
   const groups: EditionGroup[] = [
+    {
+      label: 'Exclusive Editions',
+      href: null,
+      fetchPath: `/companies/${companySlug}/editions?noCollection=true`,
+    },
+    ...collections.map((c) => ({
+      label: c.name,
+      href: `/companies/${companySlug}/collections/${c.slug}`,
+      fetchPath: `/companies/${companySlug}/editions?collectionId=${c.id}`,
+    })),
     ...individualSubs.map((s) => ({
       label: s.name,
       href: `/subscriptions/${s.slug}`,
@@ -38,11 +48,6 @@ export function CompanyEditionsSection({ companySlug, subscriptions, collections
       label: s.name,
       href: `/subscriptions/${s.slug}`,
       fetchPath: `/companies/${companySlug}/editions?subscriptionId=${s.id}`,
-    })),
-    ...collections.map((c) => ({
-      label: c.name,
-      href: `/companies/${companySlug}/collections/${c.slug}`,
-      fetchPath: `/companies/${companySlug}/editions?collectionId=${c.id}`,
     })),
   ]
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -36,6 +36,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   // Server-reported total per tab (used for hasMore)
   const [totals, setTotals] = useState<Record<number, number>>({})
   const [loadingTab, setLoadingTab] = useState<number | null>(null)
+  const didAutoSwitch = useRef(false)
 
   if (groups.length === 0) return null
 
@@ -67,6 +68,26 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
     loadPage(0, 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Auto-switch away from tab 0 ("Exclusive Editions") if it's empty
+  useEffect(() => {
+    if (
+      !didAutoSwitch.current &&
+      activeTab === 0 &&
+      totals[0] === 0 &&
+      loadedEditions[0] !== undefined &&
+      loadingTab !== 0 &&
+      groups.length > 1
+    ) {
+      didAutoSwitch.current = true
+      setActiveTab(1)
+      setSearch('')
+      if (loadedEditions[1] === undefined) {
+        loadPage(1, 0)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totals, loadedEditions, loadingTab])
 
   const activeEditions = loadedEditions[activeTab] ?? []
   const isLoading = loadingTab === activeTab && activeEditions.length === 0

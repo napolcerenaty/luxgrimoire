@@ -84,13 +84,15 @@ describe('SubscriptionsService — removeMySubscription', () => {
       const entry = makeEntry({ active: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
       setupFindMany([entry]);
-      (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
-      (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'book-1', purchaseGroupId: null, ownershipStatus: 'OWNED', editionId: null, saleEntries: [] },
+      ]);
+      (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
       await service.removeMySubscription(USER_ID, SUB_SLUG, { removeBooks: true, removeSpending: false });
 
       expect(prisma.userBookEntry.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ userId: USER_ID, subscriptionEntryId: ENTRY_ID }) }),
+        expect.objectContaining({ where: { id: { in: ['book-1'] } } }),
       );
     });
 
@@ -332,8 +334,10 @@ describe('SubscriptionsService — removeMySubscription', () => {
       const activeEntry = makeEntry({ active: true });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(activeEntry);
-      (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
-      (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'book-2', purchaseGroupId: null, ownershipStatus: 'OWNED', editionId: null, saleEntries: [] },
+      ]);
+      (prisma.userBookEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
       (prisma.userSubscriptionSkipState.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
       (prisma.userSubscriptionEntry.delete as jest.Mock).mockResolvedValueOnce({ id: ENTRY_ID });
 
@@ -344,9 +348,7 @@ describe('SubscriptionsService — removeMySubscription', () => {
       });
 
       expect(prisma.userBookEntry.deleteMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ userId: USER_ID, subscriptionEntryId: ENTRY_ID }),
-        }),
+        expect.objectContaining({ where: { id: { in: ['book-2'] } } }),
       );
     });
 

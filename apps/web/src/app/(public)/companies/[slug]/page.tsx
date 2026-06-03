@@ -247,6 +247,7 @@ export default async function CompanyPage({ params }: Props) {
                   <div className="p-3">
                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
                       {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
+                      {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                       {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     </div>
                     <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight">

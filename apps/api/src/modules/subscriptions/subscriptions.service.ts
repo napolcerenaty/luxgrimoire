@@ -218,6 +218,7 @@ export class SubscriptionsService {
     }
 
     await this.indexSubscription(subscription.id);
+    await this.cache.del(`companies:slug:${company.slug}`);
     return subscription;
   }
 
@@ -637,6 +638,9 @@ export class SubscriptionsService {
     }
 
     await this.indexSubscription(updated.id);
+    if (existing.company?.slug) {
+      await this.cache.del(`companies:slug:${existing.company.slug}`);
+    }
     return updated;
   }
 
@@ -2944,7 +2948,7 @@ export class SubscriptionsService {
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
-      where: { subscriptionId: sub.id },
+      where: { subscriptionId: sub.id, NOT: { effectiveYear: 1900 } },
       orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
     });
   }
@@ -3087,7 +3091,7 @@ export class SubscriptionsService {
     // Check for conflicting months (same year+month already exist in target)
     const sourceMonths = await this.prisma.subscriptionMonth.findMany({
       where: { subscriptionId: source.id },
-      select: { year: true, month: true },
+      select: { id: true, year: true, month: true },
     });
     const targetMonths = await this.prisma.subscriptionMonth.findMany({
       where: { subscriptionId: target.id },
@@ -3101,10 +3105,28 @@ export class SubscriptionsService {
       );
     }
 
+    const sourceMonthIds = sourceMonths.map(m => m.id);
+
     const { count } = await this.prisma.subscriptionMonth.updateMany({
       where: { subscriptionId: source.id },
       data: { subscriptionId: target.id },
     });
+
+    // Also reassign book_editions whose subscriptionId still points to source,
+    // for editions that appear in the migrated months.
+    if (sourceMonthIds.length > 0) {
+      const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
+        where: { monthId: { in: sourceMonthIds } },
+        select: { editionId: true },
+      });
+      const editionIds = [...new Set(monthBooks.map(mb => mb.editionId).filter((id): id is string => id !== null))];
+      if (editionIds.length > 0) {
+        await this.prisma.bookEdition.updateMany({
+          where: { id: { in: editionIds }, subscriptionId: source.id },
+          data: { subscriptionId: target.id },
+        });
+      }
+    }
 
     return { migratedCount: count, sourceId: source.id, targetId: target.id };
   }

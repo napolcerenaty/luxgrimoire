@@ -253,6 +253,8 @@ export interface ApiSkipStatus {
   unskipNotes: string | null;
   nextUnskipDeadline: string | null;
   isUnskipPastDeadline: boolean;
+  /** The next month the user can skip, or null if none available */
+  targetMonth: { year: number; month: number } | null;
 }
 
 export interface ApiSubscription {

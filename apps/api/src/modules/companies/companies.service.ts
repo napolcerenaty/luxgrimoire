@@ -13,10 +13,11 @@ import { findBySlugOrThrow } from '../../common/prisma.utils';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_COUNT_TTL = 2 * 60 * 60 * 1000; // 2 hours — total count cache per filter
-const companySlugKey = (slug: string) => `companies:slug:${slug}`;
+export const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}:count`;
 const companyEditionsColCountKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}:count`;
+const companyEditionsNoCollectionCountKey = (slug: string) => `companies:slug:${slug}:editions:nocol:count`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -126,7 +127,7 @@ export class CompaniesService {
       include: {
         subscriptions: {
           where: { isHidden: false },
-          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true, isCombo: true, isContentStream: true, parentSubscriptionId: true },
+          select: { id: true, slug: true, name: true, isDiscontinued: true, isUpcoming: true, upcomingNote: true, logoUrl: true, coverImage: true, genre: true, isCombo: true, isContentStream: true, parentSubscriptionId: true },
         },
         collections: {
           select: { id: true, slug: true, name: true },
@@ -139,7 +140,7 @@ export class CompaniesService {
 
   async getEditions(
     slug: string,
-    filter?: { subscriptionId?: string; collectionId?: string },
+    filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean },
     pagination: { skip: number; take: number } = { skip: 0, take: 20 },
   ) {
     const { skip, take } = pagination;
@@ -150,6 +151,8 @@ export class CompaniesService {
       countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
     } else if (filter?.collectionId) {
       countKey = companyEditionsColCountKey(slug, filter.collectionId);
+    } else if (filter?.noCollection) {
+      countKey = companyEditionsNoCollectionCountKey(slug);
     } else {
       countKey = companyEditionsAllCountKey(slug);
     }
@@ -167,7 +170,7 @@ export class CompaniesService {
     return { data, total };
   }
 
-  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }): Promise<number> {
+  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }): Promise<number> {
     const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug }, select: { id: true } });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
     return this.prisma.bookEdition.count({
@@ -175,11 +178,12 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+        ...(filter?.noCollection ? { collectionId: null } : {}),
       },
     });
   }
 
-  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }, skip = 0, take = 20) {
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }, skip = 0, take = 20) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -191,6 +195,7 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+        ...(filter?.noCollection ? { collectionId: null } : {}),
       },
       select: {
         id: true,
