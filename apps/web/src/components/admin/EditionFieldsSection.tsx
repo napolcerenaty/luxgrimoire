@@ -15,7 +15,7 @@ const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF', 'SEK', 'DKK', 'NOK']
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
+export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean; contributionId?: string }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
 export type FeatureTag = {
   id: string
@@ -931,7 +931,10 @@ export function EditionFieldsSection({
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => {
+                          if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
+                          onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
+                        }}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : art.name ? (
@@ -939,7 +942,10 @@ export function EditionFieldsSection({
                       {!art.existing && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => {
+                          if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
+                          onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
+                        }}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : (

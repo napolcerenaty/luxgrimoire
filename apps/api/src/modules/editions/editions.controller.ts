@@ -15,6 +15,7 @@ import {
   CreateEditionDto,
   UpdateEditionDto,
   AddArtistDto,
+  UpdateArtistRoleDto,
   EditionQueryDto,
   CreateComponentDto,
   UpdateComponentDto,
@@ -205,6 +206,17 @@ export class EditionsController {
   @Delete(':slug/artists/:artistId')
   removeArtist(@Param('slug') slug: string, @Param('artistId') artistId: string) {
     return this.editionsService.removeArtist(slug, artistId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @Patch(':slug/artist-contributions/:contributionId')
+  patchArtistContribution(
+    @Param('slug') slug: string,
+    @Param('contributionId') contributionId: string,
+    @Body() dto: UpdateArtistRoleDto,
+  ) {
+    return this.editionsService.patchArtistContribution(slug, contributionId, dto.newRole);
   }
 
   // Community images

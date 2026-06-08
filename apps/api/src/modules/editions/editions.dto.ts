@@ -223,6 +223,11 @@ export class CreateComponentDto {
   order?: number;
 }
 
+export class UpdateArtistRoleDto {
+  @IsString()
+  newRole!: string;
+}
+
 export class UpdateComponentDto {
   @IsOptional()
   @IsString()
