@@ -77,28 +77,28 @@ export default function MonthCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Image area */}
-      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative flex items-center justify-center">
+      {/* Image area — natural image height, no forced aspect ratio */}
+      <div className="overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative flex items-center justify-center">
         {thumbUrl ? (
           <>
-            {/* Blurred background fill */}
+            {/* Sharp image — sets the natural height of the container */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbUrl}
+              alt={`${monthName} ${year}`}
+              className={`relative z-10 w-full h-auto block transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
+            />
+            {/* Blurred background fill (absolute, behind sharp image) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={thumbUrl}
               alt=""
               aria-hidden
-              className={`absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-60 transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-60'}`}
-            />
-            {/* Sharp contained image on top */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbUrl}
-              alt={`${monthName} ${year}`}
-              className={`relative z-10 w-full h-full object-contain transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
+              className={`absolute inset-0 w-full h-full object-cover scale-110 blur-lg -z-0 transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-60'}`}
             />
           </>
         ) : (
-          <div className="w-full h-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
+          <div className="aspect-[2/3] w-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
             {/* Very subtle brand gradient overlay */}
             <div
               className="absolute inset-0 opacity-[0.18]"
@@ -125,13 +125,13 @@ export default function MonthCard({
           <img
             src={hoverImageUrl}
             alt={approvedCommunityImage ? 'Community photo' : (mainBook?.title ?? '')}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}
           />
         )}
 
         {/* Hover overlay with book title — sits above the ribbon (ribbon ~28px) */}
         {hovered && (
-          <div className="absolute inset-0 bg-stone-950/70 flex flex-col items-center justify-center pb-8 px-3 pointer-events-none">
+          <div className="absolute inset-0 z-20 bg-stone-950/70 flex flex-col items-center justify-center pb-8 px-3 pointer-events-none">
             {mainBook?.edition ? (
               <p className="text-stone-100 text-xs font-serif font-semibold text-center leading-snug line-clamp-4">
                 {mainBook.title}
@@ -144,7 +144,7 @@ export default function MonthCard({
 
         {/* Month ribbon */}
         <div
-          className="absolute bottom-0 left-0 right-0 px-2 py-2"
+          className="absolute bottom-0 left-0 right-0 z-20 px-2 py-2"
           style={{
             background: 'rgba(5,10,18,0.88)',
             borderTop: '1px solid rgba(200,180,140,0.2)',

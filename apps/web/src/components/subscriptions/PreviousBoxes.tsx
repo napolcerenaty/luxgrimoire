@@ -148,21 +148,22 @@ function PreviousBoxesList({
       : null
 
   const MonthGrid = ({ months }: { months: PastMonth[] }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-4 space-y-4">
       {months.map((m) => (
-        <MonthCard
-          key={m.id}
-          year={m.year}
-          month={m.month}
-          monthName={MONTH_NAMES[m.month - 1]}
-          theme={m.theme}
-          coverImage={m.coverImage}
-          mainBook={getMainBook(m)}
-          isSpoiler={m.isSpoiler}
-          cardArtist={m.cardArtist ?? null}
-          accentColors={accentColors}
-          editionSlug={getEditionSlug(m)}
-        />
+        <div key={m.id} className="break-inside-avoid mb-4">
+          <MonthCard
+            year={m.year}
+            month={m.month}
+            monthName={MONTH_NAMES[m.month - 1]}
+            theme={m.theme}
+            coverImage={m.coverImage}
+            mainBook={getMainBook(m)}
+            isSpoiler={m.isSpoiler}
+            cardArtist={m.cardArtist ?? null}
+            accentColors={accentColors}
+            editionSlug={getEditionSlug(m)}
+          />
+        </div>
       ))}
     </div>
   )
@@ -180,9 +181,9 @@ function PreviousBoxesList({
       </h2>
 
       {isLoading && allMonths.length === 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-xl bg-stone-800 aspect-[3/4]" />
+            <div key={i} className="animate-pulse rounded-xl bg-stone-800 aspect-[2/3] mb-4 break-inside-avoid" />
           ))}
         </div>
       ) : bundleGroups ? (
