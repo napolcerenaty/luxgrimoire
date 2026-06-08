@@ -304,7 +304,11 @@ export class SalesService {
         }
       }
 
-      return updated;
+      // Re-fetch to get fresh entry allocations after redistribution updates
+      return tx.userSaleGroup.findUniqueOrThrow({
+        where: { id: groupId },
+        include: { entries: { include: this.entryInclude } },
+      });
     });
 
     this.statsService.markStatsStale(userId);

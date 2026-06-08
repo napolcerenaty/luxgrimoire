@@ -305,20 +305,14 @@ describe('Sales API', () => {
 
       const groupId = createRes.body.id;
 
-      await request(httpServer)
+      const patchRes = await request(httpServer)
         .patch(`/api/sales/${groupId}`)
         .set('Authorization', `Bearer ${token}`)
         .send({ totalAmount: 60 })
         .expect(200);
 
-      // Fetch updated group separately to verify redistribution
-      const getRes = await request(httpServer)
-        .get(`/api/sales/${groupId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      // entries should be redistributed to 30 each
-      const entries = getRes.body.entries ?? [];
+      // entries should be redistributed to 30 each (response contains fresh data)
+      const entries = patchRes.body.entries ?? [];
       if (entries.length > 0) {
         entries.forEach((e: { allocatedAmount: string | number }) =>
           expect(Number(e.allocatedAmount)).toBe(30),
