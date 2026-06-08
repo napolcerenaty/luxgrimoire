@@ -78,7 +78,7 @@ export default function MonthCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image area */}
-      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative">
+      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative flex items-center justify-center">
         {thumbUrl ? (
           <>
             {/* Blurred background fill */}
