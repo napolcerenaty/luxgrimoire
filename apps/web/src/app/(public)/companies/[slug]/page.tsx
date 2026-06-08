@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import { CompanyEditionsSection } from './CompanyEditionsSection'
@@ -225,13 +226,7 @@ export default async function CompanyPage({ params }: Props) {
                   {/* Compact image: aspect-[2/1] */}
                   <div
                     className="relative aspect-[2/1] overflow-hidden flex items-center justify-center"
-                    style={
-                      !bgImage && company.brandColors && company.brandColors.length >= 2
-                        ? { background: `linear-gradient(135deg, ${company.brandColors[0]}, ${company.brandColors[1]})` }
-                        : !bgImage && company.brandColors && company.brandColors.length === 1
-                        ? { backgroundColor: company.brandColors[0] }
-                        : { backgroundColor: 'rgb(28 25 23)' /* stone-900 */ }
-                    }
+                    style={bgImage ? { backgroundColor: 'rgb(28 25 23)' } : brandGradientStyle(company.brandColors)}
                   >
                     {bgImage && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -250,7 +245,7 @@ export default async function CompanyPage({ params }: Props) {
                         className="relative z-10 max-w-[65%] max-h-[65%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <span className="relative z-10 text-stone-400 text-xs font-serif">{sub.name}</span>
+                      <span className={`relative z-10 text-xs font-serif ${brandTextClasses(company.brandColors).primary}`}>{sub.name}</span>
                     )}
                   </div>
                   <div className="p-3">
