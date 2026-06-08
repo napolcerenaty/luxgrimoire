@@ -293,15 +293,18 @@ REGION RULES:
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
 - If only ONE region is mentioned (e.g. the whole announcement has one price/currency/date set), do NOT create a regions array — the data will be applied to the sale announcement defaults directly
 - Each region should have: name, price, currency, and dates where available
-- For dates: convert all times to UTC using the timezone mentioned
-  - "10am BST" = BST is UTC+1 → 09:00 UTC
-  - "10am ET" = ET/EDT is UTC-4 → 14:00 UTC; EST is UTC-5 → 15:00 UTC
+- For dates: output the LOCAL time exactly as stated in the announcement — do NOT convert to UTC
+  - "10am BST" → "2025-07-15T10:00:00.000" (no Z suffix)
+  - "9am ET" → "2025-07-15T09:00:00.000" (no Z suffix)
+  - "2pm PT" → "2025-07-15T14:00:00.000" (no Z suffix)
+  - NEVER convert to UTC — the server will handle UTC conversion using the saleTimezone
   - firstAccessDate = earliest access date (e.g. previous customers/edition holders)
   - earlyAccessDate = subscriber/presale early access date
   - generalSaleDate = public/general sale date
 - If multiple time slots exist for the same region (different customer tiers), use:
   - firstAccessDate = earliest slot, earlyAccessDate = subscriber slot, generalSaleDate = general public slot
-- Extract timezone from the text and set saleTimezone (e.g. "BST", "ET", "UTC")
+- Extract timezone EXACTLY as written in the text and set saleTimezone (e.g. "BST", "ET", "PT", "UTC", "EST", "PDT")
+  - Do NOT resolve "ET" to "EDT" or "EST" — copy the abbreviation exactly as it appears
 - For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
 - If only one price/date is given for the entire announcement (no regional split), do NOT create regions array
 - If exactly one region exists (even if named), do NOT create regions array — it becomes the sale announcement default
@@ -310,16 +313,116 @@ SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
 - Include year if determinable from context (current year is 2026)
 
-For dates, use ISO 8601 format with time and Z suffix (UTC). If only a date is given without time, use 00:00:00.000Z.
+For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+/**
+ * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
+ * specific standard/daylight variant based on whether the given date falls
+ * within US DST (second Sunday of March → first Sunday of November).
+ * Returns the resolved abbreviation, or the original if already unambiguous.
+ */
+function resolveUsDst(tz: string, localDateStr: string): string {
+  const ambiguous: Record<string, [string, string]> = {
+    ET: ['EST', 'EDT'],
+    PT: ['PST', 'PDT'],
+    CT: ['CST_US', 'CDT'],
+    MT: ['MST', 'MDT'],
+  }
+  const pair = ambiguous[tz.toUpperCase()]
+  if (!pair) return tz
+
+  // Parse the local date (strip time part)
+  const dateOnly = localDateStr.split('T')[0]
+  if (!dateOnly) return tz
+  const d = new Date(dateOnly + 'T12:00:00Z') // noon UTC — just to get the year/month/day
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth() + 1 // 1-12
+  const day = d.getUTCDate()
+
+  // Second Sunday in March
+  const marchStart = new Date(Date.UTC(year, 2, 1)) // March 1
+  const marchDay1 = marchStart.getUTCDay() // 0=Sun
+  const secondSundayMarch = 1 + (marchDay1 === 0 ? 7 : (7 - marchDay1)) + 7
+
+  // First Sunday in November
+  const novStart = new Date(Date.UTC(year, 10, 1)) // Nov 1
+  const novDay1 = novStart.getUTCDay()
+  const firstSundayNov = 1 + (novDay1 === 0 ? 0 : (7 - novDay1))
+
+  const isDst =
+    (month > 3 && month < 11) ||
+    (month === 3 && day >= secondSundayMarch) ||
+    (month === 11 && day < firstSundayNov)
+
+  return isDst ? pair[1] : pair[0] // [standard, daylight]
+}
+
+/** Offsets in minutes for timezone abbreviations (mirrors frontend TZ_OFFSETS). */
+const TZ_OFFSET_MINUTES: Record<string, number> = {
+  UTC: 0, GMT: 0, WET: 0,
+  BST: 60, WEST: 60, CET: 60,
+  CEST: 120, EET: 120,
+  EEST: 180, MSK: 180, TRT: 180,
+  GST: 240, PKT: 300, IST: 330,
+  ICT: 420, SGT: 480, HKT: 480, CST: 480,
+  JST: 540, KST: 540,
+  ACST: 570, AEST: 600, ACDT: 630, AEDT: 660,
+  NZST: 720, NZDT: 780,
+  HST: -600, AKST: -540, AKDT: -480,
+  PST: -480, PDT: -420,
+  MST: -420, MDT: -360,
+  CST_US: -360, CDT: -300,
+  EST: -300, EDT: -240,
+  AST: -240, ADT: -180,
+  BRT: -180, ART: -180,
+}
+
+/**
+ * Convert a local datetime string (no Z) + timezone abbreviation to a UTC ISO string.
+ * Mirrors the frontend tzLocalToUtcIso logic.
+ */
+function localToUtcIso(localStr: string, tz: string): string {
+  if (!localStr) return localStr
+  // Normalise: ensure seconds present, no trailing Z
+  const normalized = localStr.replace(/Z$/, '').padEnd(19, ':00').slice(0, 19)
+  const resolved = resolveUsDst(tz, normalized)
+  const offsetMin = TZ_OFFSET_MINUTES[resolved] ?? 0
+  const utc = new Date(new Date(normalized + 'Z').getTime() - offsetMin * 60_000)
+  return utc.toISOString()
+}
+
+/**
+ * Post-process AI sale announcement result: convert local date strings to UTC
+ * using the saleTimezone, resolving ambiguous US abbreviations (ET→EDT/EST etc).
+ */
+function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSaleAnnouncementResult {
+  const convertRegion = (r: AiSaleRegion): AiSaleRegion => {
+    const tz = r.saleTimezone ?? 'UTC'
+    const resolved = r.firstAccessDate ? resolveUsDst(tz, r.firstAccessDate) :
+                     r.earlyAccessDate ? resolveUsDst(tz, r.earlyAccessDate) :
+                     r.generalSaleDate ? resolveUsDst(tz, r.generalSaleDate) : tz
+    return {
+      ...r,
+      saleTimezone: resolved,
+      firstAccessDate: r.firstAccessDate ? localToUtcIso(r.firstAccessDate, tz) : r.firstAccessDate,
+      earlyAccessDate: r.earlyAccessDate ? localToUtcIso(r.earlyAccessDate, tz) : r.earlyAccessDate,
+      generalSaleDate: r.generalSaleDate ? localToUtcIso(r.generalSaleDate, tz) : r.generalSaleDate,
+    }
+  }
+  return {
+    ...result,
+    regions: result.regions?.map(convertRegion),
+  }
+}
 
 /**
  * Normalises specific plural forms to singular in feature/role strings.
  * Preserves original casing of surrounding text (only replaces the matched word).
  * Examples:
- *   "exclusive re-designed covers"  → "exclusive re-designed cover"
- *   "Foiled hardcases"              → "Foiled hardcase"
- *   "ribbon bookmarks"              → "ribbon bookmark"
+ *   "exclusive re-designed covers"  -> "exclusive re-designed cover"
+ *   "Foiled hardcases"              -> "Foiled hardcase"
+ *   "ribbon bookmarks"              -> "ribbon bookmark"
  */
 function normalizePlurals(value: string): string {
   return value
@@ -596,7 +699,7 @@ export class AiService {
     });
 
     try {
-      return JSON.parse(content) as AiSaleAnnouncementResult;
+      return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
