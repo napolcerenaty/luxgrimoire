@@ -102,7 +102,6 @@ export default function CreateBookEditionForm({
   const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
   // Artists to POST after edition creation (filled by AI parser / user input / bundle defaults)
   const [artists, setArtists] = useState<ArtistEntry[]>(defaultArtists ?? [])
-  const [isOmnibus, setIsOmnibus] = useState(false)
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
@@ -315,7 +314,6 @@ export default function CreateBookEditionForm({
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
-          isOmnibus: isOmnibus || undefined,
         }),
       })
       // POST AI-parsed / staged feature tags via ref (flushChanges handles new, deleted and patched)
@@ -578,12 +576,12 @@ export default function CreateBookEditionForm({
         onArtistsChange={setArtists}
         pendingFeatureTags={pendingFeatureTags}
         featurePreviewRef={featurePreviewRef}
-        isOmnibus={isOmnibus}
-        onIsOmnibusChange={setIsOmnibus}
         editionSlug={createdEditionSlug ?? undefined}
         companies={companies}
         collections={collections}
       />
+
+      <p className="text-xs text-stone-500 italic">If this is an omnibus edition, edit it after creation to set component books.</p>
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={() => handleStep2()}
