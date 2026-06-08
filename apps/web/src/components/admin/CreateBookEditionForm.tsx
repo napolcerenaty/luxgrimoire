@@ -315,6 +315,7 @@ export default function CreateBookEditionForm({
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
+          isOmnibus: isOmnibus || undefined,
         }),
       })
       // POST AI-parsed / staged feature tags via ref (flushChanges handles new, deleted and patched)
@@ -376,6 +377,9 @@ export default function CreateBookEditionForm({
       if (shouldBypass && duplicateEdition) {
         setCreatedEditionId(ed.id)
         setShowLinkStep(true)
+      } else if (isOmnibus) {
+        // Stay open so user can link component books via OmnibusComponentsPanel
+        setCreatedEditionId(ed.id)
       } else {
         setTimeout(() => onSuccess(ed.id), 800)
       }
@@ -591,6 +595,11 @@ export default function CreateBookEditionForm({
             : BTN_PRIMARY}>
           {saved ? '✓ Added!' : busy ? 'Saving…' : subscriptionSlug ? (existingBookId ? 'Create Edition & Link' : 'Create & Link to Month') : 'Create Edition'}
         </button>
+        {isOmnibus && saved && createdEditionSlug && (
+          <button type="button" onClick={() => onSuccess(createdEditionId ?? undefined)} className={BTN_PRIMARY}>
+            Done linking books →
+          </button>
+        )}
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
         <button
           type="button"
