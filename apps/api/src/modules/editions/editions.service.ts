@@ -359,7 +359,7 @@ export class EditionsService {
               authors: { select: { author: { select: { id: true, name: true, slug: true } } } },
             },
           },
-          artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
+          artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } }, orderBy: { id: 'asc' as const } },
           bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
           communityImages: {
             where: { status: 'APPROVED' },
@@ -427,6 +427,7 @@ export class EditionsService {
             id: true, role: true,
             artist: { select: { id: true, name: true } },
           },
+          orderBy: { id: 'asc' as const },
         },
         featureTags: {
           select: {
@@ -488,6 +489,7 @@ export class EditionsService {
             role: true,
             artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
           },
+          orderBy: { id: 'asc' as const },
         },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
         collection: { select: { id: true, slug: true, name: true } },
