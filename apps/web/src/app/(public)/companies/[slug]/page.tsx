@@ -223,7 +223,16 @@ export default async function CompanyPage({ params }: Props) {
                   className="group rounded-lg overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
                 >
                   {/* Compact image: aspect-[2/1] */}
-                  <div className="relative aspect-[2/1] overflow-hidden bg-stone-800 flex items-center justify-center">
+                  <div
+                    className="relative aspect-[2/1] overflow-hidden flex items-center justify-center"
+                    style={
+                      !bgImage && company.brandColors && company.brandColors.length >= 2
+                        ? { background: `linear-gradient(135deg, ${company.brandColors[0]}, ${company.brandColors[1]})` }
+                        : !bgImage && company.brandColors && company.brandColors.length === 1
+                        ? { backgroundColor: company.brandColors[0] }
+                        : { backgroundColor: 'rgb(28 25 23)' /* stone-900 */ }
+                    }
+                  >
                     {bgImage && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
