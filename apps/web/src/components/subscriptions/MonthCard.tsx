@@ -80,12 +80,23 @@ export default function MonthCard({
       {/* Image area */}
       <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative">
         {thumbUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbUrl}
-            alt={`${monthName} ${year}`}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
-          />
+          <>
+            {/* Blurred background fill */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbUrl}
+              alt=""
+              aria-hidden
+              className={`absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-60 transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-60'}`}
+            />
+            {/* Sharp contained image on top */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbUrl}
+              alt={`${monthName} ${year}`}
+              className={`relative z-10 w-full h-full object-contain transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
+            />
+          </>
         ) : (
           <div className="w-full h-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
             {/* Very subtle brand gradient overlay */}
