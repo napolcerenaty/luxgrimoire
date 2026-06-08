@@ -993,7 +993,11 @@ export function EditionFieldsSection({
           </label>
         </div>
       )}
-      {isOmnibus && editionSlug && <OmnibusComponentsPanel editionSlug={editionSlug} />}
+      {isOmnibus && (
+        editionSlug
+          ? <OmnibusComponentsPanel editionSlug={editionSlug} />
+          : <p className="text-xs text-stone-500 italic">Save the edition first to add component books.</p>
+      )}
     </div>
   )
 }
