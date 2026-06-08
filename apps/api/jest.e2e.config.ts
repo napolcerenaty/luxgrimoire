@@ -8,6 +8,7 @@ const config: JestConfigWithTsJest = {
   testEnvironment: 'node',
   testTimeout: 30000,
   setupFiles: ['./test/e2e-setup.ts'],
+  maxWorkers: 1, // run test suites sequentially — they share the same test DB
 };
 
 export default config;

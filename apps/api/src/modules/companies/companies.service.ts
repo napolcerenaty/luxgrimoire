@@ -178,7 +178,7 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
-        ...(filter?.noCollection ? { collectionId: null } : {}),
+        ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
       },
     });
   }
@@ -195,7 +195,7 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
-        ...(filter?.noCollection ? { collectionId: null } : {}),
+        ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
       },
       select: {
         id: true,

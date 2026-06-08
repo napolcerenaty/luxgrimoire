@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -1115,16 +1115,36 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const SS_KEY = 'admin-subs-filter'
+
 export default function AdminSubscriptionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [filterCompanyId, setFilterCompanyId] = useState('')
   const PAGE_SIZE = 15
+
+  // Persist filter state in sessionStorage so navigating to months/prices and back restores it
+  const [page, setPageState] = useState<number>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').page ?? 1 } catch { return 1 }
+  })
+  const [search, setSearchState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').search ?? '' } catch { return '' }
+  })
+  const [filterCompanyId, setFilterCompanyIdState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').companyId ?? '' } catch { return '' }
+  })
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SS_KEY, JSON.stringify({ page, search, companyId: filterCompanyId }))
+    } catch { /* ignore */ }
+  }, [page, search, filterCompanyId])
+
+  const setPage = (p: number) => setPageState(p)
+  const setSearch = (s: string) => { setSearchState(s); setPageState(1) }
+  const setFilterCompanyId = (id: string) => { setFilterCompanyIdState(id); setPageState(1) }
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
@@ -1405,13 +1425,13 @@ export default function AdminSubscriptionsPage() {
               type="search"
               placeholder="Search by name…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onChange={(e) => { setSearch(e.target.value) }}
               className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
             />
             {!isManager && companies.length > 0 && (
               <select
                 value={filterCompanyId}
-                onChange={(e) => { setFilterCompanyId(e.target.value); setPage(1) }}
+                onChange={(e) => { setFilterCompanyId(e.target.value) }}
                 className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value="">All companies</option>
@@ -1422,7 +1442,7 @@ export default function AdminSubscriptionsPage() {
             )}
             {(search || filterCompanyId) && (
               <button
-                onClick={() => { setSearch(''); setFilterCompanyId(''); setPage(1) }}
+                onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setPageState(1) }}
                 className="text-xs text-stone-400 hover:text-stone-200"
               >
                 ✕ Clear

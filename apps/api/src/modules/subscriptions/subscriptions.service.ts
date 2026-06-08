@@ -2945,6 +2945,14 @@ export class SubscriptionsService {
     return { migratedCount: count };
   }
 
+  async listPriceChangesAdmin(slug: string) {
+    const sub = await this.findBySlug(slug);
+    return this.prisma.subscriptionPriceChange.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+    });
+  }
+
   async listPriceChanges(slug: string) {
     const sub = await this.findBySlug(slug);
     return this.prisma.subscriptionPriceChange.findMany({
@@ -2977,6 +2985,19 @@ export class SubscriptionsService {
         currency: dto.currency,
         notes: dto.notes ?? null,
       },
+    });
+    await this.cache.del(this.subSlugKey(slug));
+    return result;
+  }
+
+  async updatePriceChange(slug: string, id: string, dto: { newBasePrice: number; notes?: string }) {
+    const sub = await this.findBySlug(slug);
+    const change = await this.prisma.subscriptionPriceChange.findUnique({ where: { id } });
+    if (!change) throw new NotFoundException('Price change not found');
+    if (change.subscriptionId !== sub.id) throw new ForbiddenException();
+    const result = await this.prisma.subscriptionPriceChange.update({
+      where: { id },
+      data: { newBasePrice: dto.newBasePrice, notes: dto.notes ?? null },
     });
     await this.cache.del(this.subSlugKey(slug));
     return result;

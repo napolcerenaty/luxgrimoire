@@ -119,7 +119,7 @@ export interface ApiBookEdition {
   bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
   collection?: { id: string; name: string; slug: string } | null;
   collectionId?: string | null;
-  artists?: Array<{ artist: ApiArtist; role: string }>;
+  artists?: Array<{ id?: string; artist: ApiArtist; role: string }>;
   communityPhotoCover?: string | null;
   verifiedAt: string | null;
   submittedByUserId: string | null;

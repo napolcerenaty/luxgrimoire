@@ -657,6 +657,20 @@ export class EditionsService {
     return result;
   }
 
+  async patchArtistContribution(slug: string, contributionId: string, newRole: string) {
+    const edition = await this.findBySlug(slug);
+    const contribution = await this.prisma.artistContribution.findFirst({
+      where: { id: contributionId, editionId: edition.id },
+    });
+    if (!contribution) throw new NotFoundException(`Artist contribution '${contributionId}' not found`);
+    const result = await this.prisma.artistContribution.update({
+      where: { id: contributionId },
+      data: { role: newRole },
+    });
+    void this.retagEditionById(edition.id);
+    return result;
+  }
+
   async removeArtist(slug: string, artistId: string) {
     const edition = await this.findBySlug(slug);
     const result = await this.prisma.artistContribution.deleteMany({

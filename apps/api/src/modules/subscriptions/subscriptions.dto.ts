@@ -832,6 +832,16 @@ export class CreatePriceChangeDto {
   notes?: string;
 }
 
+export class UpdatePriceChangeDto {
+  @IsNumber()
+  @Min(0)
+  newBasePrice!: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
 export class UpdateBillingModeDto {
   @IsOptional()
   @IsString()
