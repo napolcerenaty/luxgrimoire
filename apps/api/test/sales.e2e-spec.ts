@@ -46,6 +46,9 @@ beforeAll(async () => {
   );
   app.setGlobalPrefix('api');
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  await (app as any).register(require('@fastify/cookie'));
+
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
@@ -68,9 +71,10 @@ async function cleanup() {
   await prisma.userSubscriptionEntry.deleteMany({});
   await prisma.subscriptionMonth.deleteMany({});
   await prisma.subscription.deleteMany({});
-  await prisma.bookCompany.deleteMany({});
-  await prisma.edition.deleteMany({});
+  await prisma.bookBoxCompany.deleteMany({});
+  await prisma.bookEdition.deleteMany({});
   await prisma.book.deleteMany({});
+  await prisma.emailVerificationToken.deleteMany({});
   await prisma.session.deleteMany({});
   await prisma.user.deleteMany({});
 }
@@ -78,19 +82,31 @@ async function cleanup() {
 // ─── Seed helpers ────────────────────────────────────────────────────────────
 
 async function registerAndGetToken(): Promise<{ token: string; userId: string }> {
-  const res = await request(httpServer)
+  const e = email();
+  await request(httpServer)
     .post('/api/auth/register')
-    .send({ email: email(), username: username(), password: 'Password1!' })
+    .send({ email: e, username: username(), password: 'Password1!', termsAccepted: true })
     .expect(201);
-  return { token: res.body.accessToken, userId: res.body.userId };
+  await prisma.user.updateMany({ where: { email: e }, data: { emailVerified: true } });
+  const res = await request(httpServer)
+    .post('/api/auth/login')
+    .send({ email: e, password: 'Password1!' })
+    .expect(201);
+  const cookieName = process.env.JWT_COOKIE_NAME ?? 'jwt';
+  const setCookie = res.headers['set-cookie'];
+  const cookieStr = Array.isArray(setCookie) ? setCookie[0] : (setCookie ?? '');
+  const match = cookieStr.split(';')[0].match(new RegExp(`^${cookieName}=(.+)$`));
+  const token = match?.[1] ?? '';
+  const { userId } = res.body as { userId: string };
+  return { token, userId };
 }
 
 async function seedBookAndEntry(userId: string): Promise<string> {
   const book = await prisma.book.create({
     data: { title: `Book ${uid()}`, slug: uid() },
   });
-  const edition = await prisma.edition.create({
-    data: { bookId: book.id, format: 'HARDCOVER', slug: uid() },
+  const edition = await prisma.bookEdition.create({
+    data: { bookId: book.id, slug: uid() },
   });
   const entry = await prisma.userBookEntry.create({
     data: {
@@ -130,12 +146,12 @@ describe('Sales API', () => {
         .expect(201);
 
       expect(res.body).toMatchObject({
-        totalAmount: 25,
+        totalAmount: '25',
         currency: 'USD',
         platform: 'eBay',
       });
       expect(res.body.entries).toHaveLength(1);
-      expect(res.body.entries[0].allocatedAmount).toBe(25);
+      expect(Number(res.body.entries[0].allocatedAmount)).toBe(25);
     });
 
     it('201 — two books: each allocatedAmount = totalAmount / 2', async () => {
@@ -158,7 +174,7 @@ describe('Sales API', () => {
         })
         .expect(201);
 
-      const amounts = res.body.entries.map((e: { allocatedAmount: number }) => e.allocatedAmount);
+      const amounts = res.body.entries.map((e: { allocatedAmount: string }) => Number(e.allocatedAmount));
       expect(amounts).toHaveLength(2);
       amounts.forEach((a: number) => expect(a).toBe(20));
     });
@@ -186,7 +202,7 @@ describe('Sales API', () => {
 
       const byEntry: Record<string, number> = {};
       for (const e of res.body.entries) {
-        byEntry[e.userBookEntryId] = e.allocatedAmount;
+        byEntry[e.userBookEntryId] = Number(e.allocatedAmount);
       }
       expect(byEntry[entryId1]).toBe(10);
       expect(byEntry[entryId2]).toBe(25);
@@ -289,17 +305,23 @@ describe('Sales API', () => {
 
       const groupId = createRes.body.id;
 
-      const patchRes = await request(httpServer)
+      await request(httpServer)
         .patch(`/api/sales/${groupId}`)
         .set('Authorization', `Bearer ${token}`)
         .send({ totalAmount: 60 })
         .expect(200);
 
+      // Fetch updated group separately to verify redistribution
+      const getRes = await request(httpServer)
+        .get(`/api/sales/${groupId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
       // entries should be redistributed to 30 each
-      const entries = patchRes.body.entries ?? [];
+      const entries = getRes.body.entries ?? [];
       if (entries.length > 0) {
-        entries.forEach((e: { allocatedAmount: number }) =>
-          expect(e.allocatedAmount).toBe(30),
+        entries.forEach((e: { allocatedAmount: string | number }) =>
+          expect(Number(e.allocatedAmount)).toBe(30),
         );
       }
     });
