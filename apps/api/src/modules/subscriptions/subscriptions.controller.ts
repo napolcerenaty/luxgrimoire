@@ -27,6 +27,7 @@ import {
   RemoveMyEntryDto,
   RemoveOrphanedHistoryDto,
   CreatePriceChangeDto,
+  UpdatePriceChangeDto,
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
@@ -440,6 +441,13 @@ export class SubscriptionsController {
     return result;
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/price-changes/admin')
+  listPriceChangesAdmin(@Param('slug') slug: string) {
+    return this.subscriptionsService.listPriceChangesAdmin(slug);
+  }
+
   @Get(':slug/price-changes')
   listPriceChanges(@Param('slug') slug: string) {
     return this.subscriptionsService.listPriceChanges(slug);
@@ -455,6 +463,20 @@ export class SubscriptionsController {
   ) {
     const result = await this.subscriptionsService.createPriceChange(slug, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/price-changes/:id')
+  async updatePriceChange(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() dto: UpdatePriceChangeDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.updatePriceChange(slug, id, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
     return result;
   }
 

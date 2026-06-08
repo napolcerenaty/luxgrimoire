@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -1121,10 +1122,28 @@ export default function AdminSubscriptionsPage() {
   const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [filterCompanyId, setFilterCompanyId] = useState('')
   const PAGE_SIZE = 15
+
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [page, setPageState] = useState(() => parseInt(searchParams.get('page') ?? '1', 10))
+  const [search, setSearchState] = useState(() => searchParams.get('search') ?? '')
+  const [filterCompanyId, setFilterCompanyIdState] = useState(() => searchParams.get('companyId') ?? '')
+
+  // Keep URL in sync with list state
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (page > 1) params.set('page', String(page))
+    if (search) params.set('search', search)
+    if (filterCompanyId) params.set('companyId', filterCompanyId)
+    const qs = params.toString()
+    router.replace(qs ? `/admin/subscriptions?${qs}` : '/admin/subscriptions', { scroll: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search, filterCompanyId])
+
+  const setPage = (p: number) => setPageState(p)
+  const setSearch = (s: string) => { setSearchState(s); setPageState(1) }
+  const setFilterCompanyId = (id: string) => { setFilterCompanyIdState(id); setPageState(1) }
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
@@ -1405,13 +1424,13 @@ export default function AdminSubscriptionsPage() {
               type="search"
               placeholder="Search by name…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onChange={(e) => { setSearch(e.target.value) }}
               className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
             />
             {!isManager && companies.length > 0 && (
               <select
                 value={filterCompanyId}
-                onChange={(e) => { setFilterCompanyId(e.target.value); setPage(1) }}
+                onChange={(e) => { setFilterCompanyId(e.target.value) }}
                 className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value="">All companies</option>
@@ -1422,7 +1441,7 @@ export default function AdminSubscriptionsPage() {
             )}
             {(search || filterCompanyId) && (
               <button
-                onClick={() => { setSearch(''); setFilterCompanyId(''); setPage(1) }}
+                onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setPageState(1) }}
                 className="text-xs text-stone-400 hover:text-stone-200"
               >
                 ✕ Clear
