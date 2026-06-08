@@ -202,14 +202,14 @@ export class EditionsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Delete(':slug/artists/:artistId')
   removeArtist(@Param('slug') slug: string, @Param('artistId') artistId: string) {
     return this.editionsService.removeArtist(slug, artistId);
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Patch(':slug/artist-contributions/:contributionId')
   patchArtistContribution(
     @Param('slug') slug: string,
