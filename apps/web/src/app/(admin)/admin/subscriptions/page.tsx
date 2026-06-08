@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -1116,6 +1115,8 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const SS_KEY = 'admin-subs-filter'
+
 export default function AdminSubscriptionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -1124,21 +1125,21 @@ export default function AdminSubscriptionsPage() {
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const PAGE_SIZE = 15
 
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [page, setPageState] = useState(() => parseInt(searchParams.get('page') ?? '1', 10))
-  const [search, setSearchState] = useState(() => searchParams.get('search') ?? '')
-  const [filterCompanyId, setFilterCompanyIdState] = useState(() => searchParams.get('companyId') ?? '')
+  // Persist filter state in sessionStorage so navigating to months/prices and back restores it
+  const [page, setPageState] = useState<number>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').page ?? 1 } catch { return 1 }
+  })
+  const [search, setSearchState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').search ?? '' } catch { return '' }
+  })
+  const [filterCompanyId, setFilterCompanyIdState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').companyId ?? '' } catch { return '' }
+  })
 
-  // Keep URL in sync with list state
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (page > 1) params.set('page', String(page))
-    if (search) params.set('search', search)
-    if (filterCompanyId) params.set('companyId', filterCompanyId)
-    const qs = params.toString()
-    router.replace(qs ? `/admin/subscriptions?${qs}` : '/admin/subscriptions', { scroll: false })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    try {
+      sessionStorage.setItem(SS_KEY, JSON.stringify({ page, search, companyId: filterCompanyId }))
+    } catch { /* ignore */ }
   }, [page, search, filterCompanyId])
 
   const setPage = (p: number) => setPageState(p)
