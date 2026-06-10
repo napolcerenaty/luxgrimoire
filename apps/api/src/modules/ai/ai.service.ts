@@ -130,9 +130,10 @@ FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
 - FEATURE ORDER FIELD: Always populate "featureOrder" — a flat list of ALL feature raw values (both standalone features[] values AND the base feature names from artist roles) in the exact order they appear in the source text. This is the authoritative display order. Standalone features that have no artist appear in features[]; artist-attributed features appear only in artists[]; featureOrder combines both in source-text sequence.
   Example: if source mentions "cover art by @artist, ribbon bookmark, sprayed edges by @artist2, signed" → featureOrder: ["Cover art", "Ribbon bookmark", "Sprayed edges", "signed"]
-- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase or fully lowercase an entire phrase.
-- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
-- Also include: signed, numbered, exclusive content notes
+- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase phrase.
+- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc AND try to keep as much of the descriptive detail as possible (e.g. "exclusive art print of [character]", "foil-stamped cover with a colourway variation of the trade cover", "ribbon bookmark in the same colour as the sprayed edges", "gilded page edges with a unique pattern", "map of [location] on the endpapers", etc.)
+- Also include: signed, numbered, exclusive content notes AND try to keep descriptive detail (e.g. "signed by the author", "numbered copy", "exclusive content: first chapter of [title]", "exclusive content: preview of Book 2", etc.)
+- If the text describes coombined features like "endpapers with author signature" keep it as one feature. Do NOT split into separate "endpapers" and "signed" features.
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
@@ -218,7 +219,7 @@ FEATURES RULES:
   Example: "limited edition of 500 copies" → features: ["limited to 500 copies"]
   Example: "print run: 2000" → features: ["limited to 2000 copies"]
 - BINDING DETAILS: Physical binding features such as "Smyth sewn binding", "head and tail bands", "rounded and backed", "French links", etc. are physical characteristics and should always be added as features.
-
+- For features try to keep as much of the original text as possible without losing important descriptive detail, even if it results in longer feature strings. Do NOT overly truncate or summarise features — the more detail the better, as long as it's not excessively verbose. The goal is to capture the richness of the edition's physical characteristics and artistic contributions.
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
@@ -235,12 +236,12 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 }
 
 RULES:
-- title: only the actual book title. Remove any "Series Name #N" prefix/suffix.
-- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
+- title: take full title as provided, keep any volume numbers that may be a part of a title AND do not remove parts after a colon (e.g. "The Name of the Wind: The Kingkiller Chronicle Book 1" → title: "The Name of the Wind: The Kingkiller Chronicle Book 1"). Do NOT remove parentheticals from the title if they are part of the original title on Goodreads.
+- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title, if series starts with THE keep it.
 - volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
 - description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
-- genres: take at most 5 genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
-- authors: list all authors found.`;
+- genres: take all provided genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
+- authors: list only book authors found, remove translators, editors, narrators, or other contributors. If multiple authors are listed, include them all in the authors array.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
@@ -432,7 +433,8 @@ function normalizePlurals(value: string): string {
     .replace(/\bhardcases\b/gi,        m => m.slice(0, -1))   // hardcases → hardcase
     .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
     .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback
-    .replace(/\bcovers\b/gi,           m => m.slice(0, -1));  // covers → cover
+    .replace(/\bcovers\b/gi,           m => m.slice(0, -1))   // covers → cover
+    .replace(/\bhardcovers\b/gi,       m => m.slice(0, -1));  // hardcovers → hardcover
 }
 
 @Injectable()

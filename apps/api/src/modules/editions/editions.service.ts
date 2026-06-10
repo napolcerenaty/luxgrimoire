@@ -653,7 +653,6 @@ export class EditionsService {
       },
       update: { artistName: dto.artistName },
     });
-    void this.retagEditionById(edition.id);
     return result;
   }
 
@@ -667,7 +666,6 @@ export class EditionsService {
       where: { id: contributionId },
       data: { role: newRole },
     });
-    void this.retagEditionById(edition.id);
     return result;
   }
 
@@ -676,7 +674,6 @@ export class EditionsService {
     const result = await this.prisma.artistContribution.deleteMany({
       where: { editionId: edition.id, artistId },
     });
-    void this.retagEditionById(edition.id);
     return result;
   }
 

@@ -426,8 +426,8 @@ function SubscriptionForm({
             </label>
             {!form.renewalDayUserSet && (
               <div>
-                <label className={LABEL_CLASS}>Fixed renewal day (1–28)</label>
-                <input type="number" min={1} max={28} className={INPUT_CLASS}
+                <label className={LABEL_CLASS}>Fixed renewal day (1–31)</label>
+                <input type="number" min={1} max={31} className={INPUT_CLASS}
                   value={form.renewalDay} onChange={setStr('renewalDay')} placeholder="e.g. 15" />
               </div>
             )}
