@@ -1,13 +1,24 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { StatsService } from './stats.service';
+import { UpdateStatsSettingsDto } from './stats.dto';
 
 @ApiTags('stats')
 @ApiBearerAuth()
 @Controller('stats')
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
+
+  @Get('settings')
+  getSettings(@CurrentUser() user: { id: string }) {
+    return this.statsService.getSettings(user.id);
+  }
+
+  @Patch('settings')
+  updateSettings(@CurrentUser() user: { id: string }, @Body() dto: UpdateStatsSettingsDto) {
+    return this.statsService.updateSettings(user.id, dto);
+  }
 
   @Get('currencies')
   getUserCurrencies(@CurrentUser() user: { id: string }) {
