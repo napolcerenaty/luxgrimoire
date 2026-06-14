@@ -60,6 +60,7 @@ model User {
   dataRequests             DataRequest[]
   saleAnnouncementRequests SaleAnnouncementRequest[]
   managedCompany           BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
+  uploadedAssets           MediaAsset[]                @relation("MediaAssetUploads")
 
   @@index([shippingCountry])
   @@map("users")
@@ -148,6 +149,7 @@ model Author {
   name        String
   bio         String?
   photoUrl    String?
+  photoAssetId String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   facebook    String?
@@ -157,6 +159,7 @@ model Author {
   twitter     String?
   website     String?
   books       BookAuthor[]
+  photoAsset  MediaAsset?          @relation("AuthorPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([nationality])
   @@index([name])
@@ -180,6 +183,7 @@ model Artist {
   name          String
   bio           String?
   photoUrl      String?
+  photoAssetId  String?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   facebook      String?
@@ -190,6 +194,7 @@ model Artist {
   website       String?
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
+  photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([specialty])
   @@index([name])
@@ -217,6 +222,7 @@ model BookEdition {
   publisher String?
   photoCredit              String?
   additionalImages         String[]
+  editionImages            BookEditionMediaAsset[]
   isSpecial                Boolean                   @default(false)
   isOmnibus                Boolean                   @default(false)
   componentCount           Int                       @default(0)
@@ -289,6 +295,7 @@ model BookBoxCompany {
   name              String
   description       String?
   logoUrl           String?
+  logoAssetId       String?
   website           String?
   country           String?
   createdAt         DateTime              @default(now())
@@ -308,6 +315,7 @@ model BookBoxCompany {
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
+  logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
   @@index([country])
   @@map("book_box_companies")
 }
@@ -334,6 +342,7 @@ model Subscription {
   name                 String
   description          String?
   coverImage           String?
+  coverImageAssetId    String?
   genre                String?
   startDate            DateTime?
   endDate              DateTime?
@@ -345,6 +354,7 @@ model Subscription {
   genres               String[]
   isCombo              Boolean                      @default(false)
   logoUrl              String?
+  logoAssetId          String?
   parentSubscriptionId String?
   renewalDay           Int?
   renewalDayUserSet    Boolean                      @default(false)
@@ -379,6 +389,8 @@ model Subscription {
 
   statsSnapshot        SubscriptionStatsSnapshot?
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
+  coverImageAsset      MediaAsset?                  @relation("SubscriptionCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  logoAsset            MediaAsset?                  @relation("SubscriptionLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([intervalMonths])
@@ -426,6 +438,7 @@ model SubscriptionSeries {
   name            String
   description     String?
   coverImage      String?
+  coverImageAssetId String?
   startMonth      Int
   startYear       Int
   endMonth        Int
@@ -438,6 +451,7 @@ model SubscriptionSeries {
   months          SubscriptionMonth[]
   subscription    Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   skipRecords     UserSkipRecord[]
+  coverImageAsset MediaAsset?         @relation("SeriesCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
 
   @@index([subscriptionId])
   @@map("subscription_series")
@@ -499,7 +513,9 @@ model SubscriptionMonth {
   month          Int
   theme          String?
   coverImage     String?
+  coverImageAssetId String?
   spoilerImage   String?
+  spoilerImageAssetId String?
   isSpoiler      Boolean                 @default(false)
   announcedAt    DateTime?
   createdAt      DateTime                @default(now())
@@ -517,6 +533,8 @@ model SubscriptionMonth {
   subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   skipRecords    UserSkipRecord[]
   userMonths     UserSubBillingPeriod[]
+  coverImageAsset  MediaAsset?           @relation("MonthCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  spoilerImageAsset MediaAsset?          @relation("MonthSpoiler", fields: [spoilerImageAssetId], references: [id], onDelete: SetNull)
 
   @@unique([subscriptionId, year, month])
   @@index([subscriptionId])
@@ -553,6 +571,7 @@ model SaleAnnouncement {
   currency             String?
   extraImagesJson      Json?
   imageUrl             String?
+  imageAssetId         String?
   saleTimezone         String?
   availableForPurchase Boolean                   @default(false)
   isBundle             Boolean                   @default(false)
@@ -567,6 +586,8 @@ model SaleAnnouncement {
   company              BookBoxCompany?           @relation(fields: [companyId], references: [id])
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
+  imageAsset           MediaAsset?               @relation("SAMainImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  extraImages          SaleAnnouncementMediaAsset[]
 
   @@index([companyId])
   @@index([generalSaleDate])
@@ -1426,4 +1447,57 @@ model EditionFeatureTag {
   @@index([editionId])
   @@index([editionId, sortOrder])
   @@map("edition_feature_tags")
+}
+
+// ─── Media Asset Library ──────────────────────────────────────────────────────
+
+model MediaAsset {
+  id           String   @id @default(uuid())
+  publicId     String   @unique
+  url          String
+  folder       String?
+  label        String?
+  createdAt    DateTime @default(now())
+  uploadedById String?
+  uploadedBy   User?    @relation("MediaAssetUploads", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  // Back-relations from all models that reference this asset
+  authorPhotos         Author[]                     @relation("AuthorPhoto")
+  artistPhotos         Artist[]                     @relation("ArtistPhoto")
+  companyLogos         BookBoxCompany[]              @relation("CompanyLogo")
+  subscriptionCovers   Subscription[]               @relation("SubscriptionCover")
+  subscriptionLogos    Subscription[]               @relation("SubscriptionLogo")
+  seriesCovers         SubscriptionSeries[]         @relation("SeriesCover")
+  monthCovers          SubscriptionMonth[]          @relation("MonthCover")
+  monthSpoilers        SubscriptionMonth[]          @relation("MonthSpoiler")
+  saMainImages         SaleAnnouncement[]           @relation("SAMainImage")
+  editionImages        BookEditionMediaAsset[]
+  saExtraImages        SaleAnnouncementMediaAsset[]
+
+  @@index([uploadedById])
+  @@map("media_assets")
+}
+
+model BookEditionMediaAsset {
+  editionId String
+  assetId   String
+  sortOrder Int         @default(0)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  asset     MediaAsset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([editionId, assetId])
+  @@index([assetId])
+  @@map("book_edition_media_assets")
+}
+
+model SaleAnnouncementMediaAsset {
+  announcementId String
+  assetId        String
+  sortOrder      Int              @default(0)
+  announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  asset          MediaAsset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, assetId])
+  @@index([assetId])
+  @@map("sale_announcement_media_assets")
 }
