@@ -364,17 +364,22 @@ export class AnnouncementsService {
       await this.syncExtraImageAssets(id, extraImages);
     }
 
-    // Clean up orphaned Cloudinary images
+    // Clean up orphaned Cloudinary images — only if no other model still references them
     const oldExtras: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
     const newExtras = extraImages ?? oldExtras;
     const removedExtras = oldExtras.filter(img => !newExtras.includes(img));
 
-    void this.deleteCloudinaryImages([
+    const toMaybeDelete: (string | null | undefined)[] = [
       // Main image replaced or removed
       ...(data.imageUrl !== undefined && data.imageUrl !== existing.imageUrl ? [existing.imageUrl] : []),
       // Extra images removed
       ...removedExtras,
-    ]);
+    ];
+    void Promise.allSettled(
+      toMaybeDelete
+        .filter((id): id is string => !!id && !id.startsWith('http'))
+        .map(id => this.mediaAssetsService.deleteIfUnused(id, this.uploadService)),
+    );
 
     if (editionIds !== undefined) {
       // Only remove editions no longer in the list (preserves variants on kept editions)

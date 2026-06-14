@@ -632,12 +632,16 @@ export class EditionsService {
     if (dto.additionalImages !== undefined) {
       await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
     }
-    // Delete removed images from Cloudinary
+    // Delete removed images from Cloudinary — only if no other model still references them
     if (dto.additionalImages !== undefined) {
       const removed = (existing.additionalImages as string[]).filter(
         (img) => !(dto.additionalImages as string[]).includes(img),
       );
-      await this.deleteCloudinaryImages(removed);
+      await Promise.allSettled(
+        removed
+          .filter(id => !!id && !id.startsWith('http'))
+          .map(id => this.mediaAssetsService.deleteIfUnused(id, this.uploadService)),
+      );
     }
     await this.indexEdition(edition.id);
     // Retag whenever features may have changed
@@ -655,12 +659,16 @@ export class EditionsService {
       throw new ConflictException(`Cannot delete edition that is in ${collectionCount} user collection(s)`);
     }
 
-    await this.deleteCloudinaryImages(edition.additionalImages as string[]);
+    const imagesToMaybeDelete = (edition.additionalImages as string[]).filter(id => !!id && !id.startsWith('http'));
     await this.typesense.deleteDocument('editions', edition.id);
     const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
     if (edition.bookBoxCompany?.slug) {
       await this.invalidateEditionCountCaches(edition.bookBoxCompany.slug, edition.subscriptionId, edition.collectionId);
     }
+    // Delete images after edition is removed so cascade clears join table first
+    void Promise.allSettled(
+      imagesToMaybeDelete.map(id => this.mediaAssetsService.deleteIfUnused(id, this.uploadService)),
+    );
     return { ...deleted, collectionsAffected: collectionCount };
   }
 

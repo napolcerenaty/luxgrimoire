@@ -745,7 +745,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     currency: f.currency || undefined,
     subscriberBasePrice: f.subscriberBasePrice ? parseDecimalInput(f.subscriberBasePrice) : null,
     imageUrl: f.allImages[0] ?? null,
-    extraImages: f.allImages.length > 1 ? f.allImages.slice(1) : undefined,
+    extraImages: f.allImages.slice(1),
     isBundle: f.isBundle,
     expectedShipping: f.expectedShipping || undefined,
     photoCredit: f.photoCredit,
