@@ -2,6 +2,10 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import { renderHook } from '@testing-library/react'
 import { AuthProvider, useAuth } from '../components/AuthProvider'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+}))
+
 describe('AuthProvider', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
