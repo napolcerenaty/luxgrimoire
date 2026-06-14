@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
-import { resolveEffectiveBasePrice } from './price-change.util';
+import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { StatsService } from '../stats/stats.service';
 
 @Injectable()
@@ -297,12 +297,21 @@ export class RenewalCronService {
         where: { subscriptionId: entry.subscriptionId },
         orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
       });
+      // Find the earliest purchase group for this entry to determine user's first billing month.
+      // Scoped to this subscription entry (current active window only).
+      const firstGroup = await this.prisma.userPurchaseGroup.findFirst({
+        where: { subscriptionEntryId: entry.id, fromSubscription: true },
+        orderBy: { title: 'asc' },
+        select: { title: true },
+      });
+      const userFirstBilledYearMonth = parseFirstBilledYearMonth(firstGroup?.title, year, month);
       const resolved = resolveEffectiveBasePrice(
         subPriceChanges,
         year,
         month,
         fallbackBase,
         entry.costCurrency,
+        userFirstBilledYearMonth,
       );
       basePrice = resolved.price ?? fallbackBase;
       shippingAmount = shippingCost;

@@ -13,7 +13,8 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 
 type PriceChange = {
   id: string; effectiveMonth: number; effectiveYear: number
-  newBasePrice: string; currency: string; notes: string | null; createdAt: string
+  newBasePrice: string; currency: string; notes: string | null
+  grandfatheredPrice: boolean; createdAt: string
 }
 
 type SubscriptionInfo = {
@@ -54,6 +55,24 @@ export default function SubscriptionPricesPage({ params }: { params: Promise<{ s
   )
 }
 
+function GrandfatheredToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-start gap-2 py-1">
+      <input
+        type="checkbox"
+        id="grandfathered-toggle"
+        checked={value}
+        onChange={e => onChange(e.target.checked)}
+        className="mt-0.5 accent-amber-400 cursor-pointer"
+      />
+      <label htmlFor="grandfathered-toggle" className="text-xs text-stone-300 cursor-pointer leading-tight">
+        <span className="font-medium text-amber-400/90">Grandfathered price</span>
+        <span className="text-stone-400"> — existing subscribers (joined before this effective month) keep their current price; new subscribers pay the new price.</span>
+      </label>
+    </div>
+  )
+}
+
 function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subscriptionCurrency?: string | null }) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'price-changes-admin']
@@ -63,11 +82,15 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
   const [price, setPrice] = useState('')
   const [currency, setCurrency] = useState(subscriptionCurrency ?? 'EUR')
   const [notes, setNotes] = useState('')
+  const [grandfatheredPrice, setGrandfatheredPrice] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  // Sentinel edit state
-  const [editSentinelId, setEditSentinelId] = useState<string | null>(null)
-  const [sentinelPrice, setSentinelPrice] = useState('')
-  const [sentinelNotes, setSentinelNotes] = useState('')
+
+  // Edit state (sentinel and regular price changes share this)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editPrice, setEditPrice] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editGrandfathered, setEditGrandfathered] = useState(false)
+  const [editIsSentinel, setEditIsSentinel] = useState(false)
 
   const { data: changes, isLoading } = useQuery<PriceChange[]>({
     queryKey: qKey,
@@ -83,24 +106,25 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         newBasePrice: parseFloat(price),
         currency,
         notes: notes || undefined,
+        grandfatheredPrice,
       }),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qKey })
-      setShowForm(false); setPrice(''); setNotes('')
+      setShowForm(false); setPrice(''); setNotes(''); setGrandfatheredPrice(false)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, newBasePrice, notes }: { id: string; newBasePrice: number; notes?: string }) =>
+    mutationFn: ({ id, newBasePrice, notes, grandfatheredPrice }: { id: string; newBasePrice: number; notes?: string; grandfatheredPrice?: boolean }) =>
       authFetch(`/subscriptions/${slug}/price-changes/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ newBasePrice, notes: notes || undefined }),
+        body: JSON.stringify({ newBasePrice, notes: notes || undefined, grandfatheredPrice }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qKey })
-      setEditSentinelId(null)
+      setEditId(null)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
@@ -111,10 +135,12 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
-  const startEditSentinel = (pc: PriceChange) => {
-    setEditSentinelId(pc.id)
-    setSentinelPrice(parseFloat(pc.newBasePrice).toFixed(2))
-    setSentinelNotes(pc.notes ?? '')
+  const startEdit = (pc: PriceChange) => {
+    setEditId(pc.id)
+    setEditPrice(parseFloat(pc.newBasePrice).toFixed(2))
+    setEditNotes(pc.notes ?? '')
+    setEditGrandfathered(pc.grandfatheredPrice)
+    setEditIsSentinel(pc.effectiveYear === 1900)
   }
 
   return (
@@ -164,6 +190,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
             <input value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Annual price increase" className={INPUT} />
           </div>
+          <GrandfatheredToggle value={grandfatheredPrice} onChange={setGrandfatheredPrice} />
           <button
             disabled={addMutation.isPending || !price || !currency}
             onClick={() => addMutation.mutate()}
@@ -182,32 +209,43 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         <div className="space-y-2">
           {changes.map(pc => {
             const isSentinel = pc.effectiveYear === 1900
-            const isEditing = editSentinelId === pc.id
+            const isEditing = editId === pc.id
             return (
               <div key={pc.id} className={`rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-amber-900/40' : 'bg-stone-800'}`}>
                 {isEditing ? (
                   <div className="space-y-2">
-                    <p className="text-amber-400/80 text-xs font-medium">⚓ Editing initial base price ({pc.currency})</p>
+                    <p className="text-amber-400/80 text-xs font-medium">
+                      {editIsSentinel ? '⚓ Editing initial base price' : `✏️ Editing price change — ${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear}`}
+                      {' '}({pc.currency})
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className={LABEL}>Price *</label>
-                        <input type="number" value={sentinelPrice} onChange={e => setSentinelPrice(e.target.value)}
+                        <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)}
                           min={0} step={0.01} className={INPUT} />
                       </div>
                       <div>
                         <label className={LABEL}>Notes</label>
-                        <input value={sentinelNotes} onChange={e => setSentinelNotes(e.target.value)} className={INPUT} />
+                        <input value={editNotes} onChange={e => setEditNotes(e.target.value)} className={INPUT} />
                       </div>
                     </div>
+                    {!editIsSentinel && (
+                      <GrandfatheredToggle value={editGrandfathered} onChange={setEditGrandfathered} />
+                    )}
                     <div className="flex gap-2">
                       <button
-                        disabled={updateMutation.isPending || !sentinelPrice}
-                        onClick={() => updateMutation.mutate({ id: pc.id, newBasePrice: parseFloat(sentinelPrice), notes: sentinelNotes || undefined })}
+                        disabled={updateMutation.isPending || !editPrice}
+                        onClick={() => updateMutation.mutate({
+                          id: pc.id,
+                          newBasePrice: parseFloat(editPrice),
+                          notes: editNotes || undefined,
+                          ...(!editIsSentinel && { grandfatheredPrice: editGrandfathered }),
+                        })}
                         className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs"
                       >
                         {updateMutation.isPending ? 'Saving…' : 'Save'}
                       </button>
-                      <button onClick={() => setEditSentinelId(null)} className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+                      <button onClick={() => setEditId(null)} className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -219,19 +257,22 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                           : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
                         }
                         {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
+                        {pc.grandfatheredPrice && (
+                          <span className="ml-2 text-xs bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 px-1.5 py-0.5 rounded-full align-middle">
+                            grandfathered
+                          </span>
+                        )}
                       </span>
                       {isSentinel && <p className="text-stone-500 text-xs">Initial known price. Edit to correct it.</p>}
                       {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
                     </div>
                     <div className="flex gap-3 ml-3 shrink-0">
-                      {isSentinel && (
-                        <button
-                          onClick={() => startEditSentinel(pc)}
-                          className="text-amber-500 hover:text-amber-400 text-xs transition-colors"
-                        >
-                          Edit
-                        </button>
-                      )}
+                      <button
+                        onClick={() => startEdit(pc)}
+                        className="text-amber-500 hover:text-amber-400 text-xs transition-colors"
+                      >
+                        Edit
+                      </button>
                       {!isSentinel && (
                         <button
                           onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
