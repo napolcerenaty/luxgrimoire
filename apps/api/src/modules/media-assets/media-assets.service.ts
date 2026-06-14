@@ -28,8 +28,8 @@ function toCloudinaryUrl(value: string): string {
 export class MediaAssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private get prismaClient(): any {
-    return this.prisma as any;
+  private get prismaClient() {
+    return this.prisma;
   }
 
   async upsert(publicId: string, url: string, folder?: string, uploadedById?: string) {
