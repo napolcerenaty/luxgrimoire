@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
 import { useRouter } from 'next/navigation'
 import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
@@ -418,68 +419,74 @@ export default function ProfilePage() {
 
       {/* Preferences tab */}
       {activeTab === 'preferences' && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
-          }}
-          className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
-        >
-          <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
-          <div>
-            <label className={LABEL}>Preferred Currency</label>
-            <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
-              {CURRENCIES_LABELED.map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
-          </div>
-          <div>
-            <label className={LABEL}>Default Shipping Country</label>
-            <select value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} className={INPUT}>
-              <option value="">— None —</option>
-              {COUNTRIES.map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
-          </div>
-          <div>
-            <label className={LABEL}>Timezone</label>
-            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={INPUT}>
-              {timezoneOptions.map(({ tz, label }) => (
-                <option key={tz} value={tz}>{label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
-          </div>
-          <div>
-            <label className={LABEL}>Time Format</label>
-            <div className="flex gap-3">
-              {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
-                <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                  timeFormat === val
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
-                    : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
-                }`}>
-                  <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
-                    onChange={() => setTimeFormat(val)} className="accent-amber-400" />
-                  <div>
-                    <div className="text-sm font-medium">{val.toUpperCase()}</div>
-                    <div className="text-xs text-stone-500">{desc}</div>
-                  </div>
-                </label>
-              ))}
+        <div className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
+            }}
+            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
+          >
+            <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
+            <div>
+              <label className={LABEL}>Preferred Currency</label>
+              <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
+                {CURRENCIES_LABELED.map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
             </div>
+            <div>
+              <label className={LABEL}>Default Shipping Country</label>
+              <select value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} className={INPUT}>
+                <option value="">— None —</option>
+                {COUNTRIES.map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
+            </div>
+            <div>
+              <label className={LABEL}>Timezone</label>
+              <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={INPUT}>
+                {timezoneOptions.map(({ tz, label }) => (
+                  <option key={tz} value={tz}>{label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+            </div>
+            <div>
+              <label className={LABEL}>Time Format</label>
+              <div className="flex gap-3">
+                {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
+                  <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    timeFormat === val
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                      : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
+                  }`}>
+                    <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
+                      onChange={() => setTimeFormat(val)} className="accent-amber-400" />
+                    <div>
+                      <div className="text-sm font-medium">{val.toUpperCase()}</div>
+                      <div className="text-xs text-stone-500">{desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {prefsError && (
+              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
+            )}
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
+            </button>
+          </form>
+
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+            <StatsSettingsPanel />
           </div>
-          {prefsError && (
-            <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
-          )}
-          <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
-            {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
-          </button>
-        </form>
+        </div>
       )}
 
       {/* Subscriptions & Fees tab */}
