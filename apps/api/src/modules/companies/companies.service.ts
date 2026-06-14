@@ -225,7 +225,7 @@ export class CompaniesService {
           },
         },
       },
-      orderBy: { generalSaleDate: 'desc' },
+      orderBy: { generalSaleDate: { sort: 'desc', nulls: 'last' } },
       skip,
       take,
     });
