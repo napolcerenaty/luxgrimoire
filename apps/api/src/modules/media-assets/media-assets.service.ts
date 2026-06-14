@@ -8,20 +8,14 @@ function normalizePublicId(value: string): string {
   normalized = normalized.replace(/^image\/upload\/(v\d+\/)?/, '');
   const uploadMatch = normalized.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z]{2,5})?$/i);
   if (uploadMatch?.[1]) return uploadMatch[1];
-  return normalized;
+  // Strip common image extensions that may remain after URL normalization
+  return normalized.replace(/\.[a-z]{2,5}$/i, '');
 }
 
 function extractFolder(publicId: string): string | undefined {
   const normalized = normalizePublicId(publicId);
   const lastSlash = normalized.lastIndexOf('/');
   return lastSlash > 0 ? normalized.slice(0, lastSlash) : undefined;
-}
-
-function toCloudinaryUrl(value: string): string {
-  if (/^https?:\/\//i.test(value)) return value;
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME ?? '';
-  const publicId = normalizePublicId(value);
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${publicId}`;
 }
 
 @Injectable()
@@ -32,20 +26,21 @@ export class MediaAssetsService {
     return this.prisma;
   }
 
-  async upsert(publicId: string, url: string, folder?: string, uploadedById?: string) {
+  // Store the bare publicId as `url` — mirrors the old imageUrl approach so that
+  // frontend cloudinaryUrl() can apply any transformation without .jpg suffix issues.
+  async upsert(publicId: string, _url: string, folder?: string, uploadedById?: string) {
     const normalizedPublicId = normalizePublicId(publicId);
-    const normalizedUrl = toCloudinaryUrl(url);
     return this.prismaClient.mediaAsset.upsert({
       where: { publicId: normalizedPublicId },
       create: {
         id: randomUUID(),
         publicId: normalizedPublicId,
-        url: normalizedUrl,
+        url: normalizedPublicId,
         folder: folder ?? extractFolder(normalizedPublicId),
         uploadedById,
       },
       update: {
-        url: normalizedUrl,
+        url: normalizedPublicId,
         ...(folder ? { folder } : {}),
         ...(uploadedById ? { uploadedById } : {}),
       },
@@ -66,7 +61,12 @@ export class MediaAssetsService {
     const skip = (page - 1) * pageSize;
     const where: any = {};
     if (opts.folder) where.folder = opts.folder;
-    if (opts.search) where.label = { contains: opts.search, mode: 'insensitive' };
+    if (opts.search) {
+      where.OR = [
+        { label: { contains: opts.search, mode: 'insensitive' } },
+        { publicId: { contains: opts.search, mode: 'insensitive' } },
+      ];
+    }
     const [data, total] = await Promise.all([
       this.prismaClient.mediaAsset.findMany({ where, skip, take: pageSize, orderBy: { createdAt: 'desc' } }),
       this.prismaClient.mediaAsset.count({ where }),

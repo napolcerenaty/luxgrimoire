@@ -27,7 +27,7 @@ export default function MediaLibraryPicker({ open, folder, onSelect, onClose }: 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [folderFilter, setFolderFilter] = useState(folder ?? '')
+  const [folderFilter, setFolderFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -35,9 +35,9 @@ export default function MediaLibraryPicker({ open, folder, onSelect, onClose }: 
     setSearch('')
     setDebouncedSearch('')
     setPage(1)
-    setFolderFilter(folder ?? '')
+    setFolderFilter('')
     setSelectedId(null)
-  }, [open, folder])
+  }, [open])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
