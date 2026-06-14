@@ -41,6 +41,7 @@ import { resolveEffectiveBasePrice } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 function formatIntervalForTypesense(intervalMonths: number): string {
   if (intervalMonths === 1) return 'Monthly';
@@ -73,7 +74,38 @@ export class SubscriptionsService {
     private readonly crowdStatsService: CrowdStatsService,
     private readonly statsService: StatsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly mediaAssetsService?: MediaAssetsService,
   ) {}
+
+  private mapCompanyAssets(company: any) {
+    if (!company) return company;
+    return {
+      ...company,
+      logoUrl: company.logoAsset?.url ?? company.logoUrl,
+    };
+  }
+
+  private mapMonthAssets(month: any) {
+    if (!month) return month;
+    return {
+      ...month,
+      coverImage: month.coverImageAsset?.url ?? month.coverImage,
+      spoilerImage: month.spoilerImageAsset?.url ?? month.spoilerImage,
+    };
+  }
+
+  private mapSubscriptionAssets(subscription: any) {
+    if (!subscription) return subscription;
+    return {
+      ...subscription,
+      coverImage: subscription.coverImageAsset?.url ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.url ?? subscription.logoUrl,
+      company: this.mapCompanyAssets(subscription.company),
+      months: Array.isArray(subscription.months)
+        ? subscription.months.map((month: any) => this.mapMonthAssets(month))
+        : subscription.months,
+    };
+  }
 
   private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
   private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
@@ -151,14 +183,18 @@ export class SubscriptionsService {
 
     const slug = generateSubscriptionSlug(company.name, dto.name);
     const currency = dto.currency ?? 'EUR';
-    const subscription = await this.prisma.subscription.create({
+    const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+    const logoAsset = dto.logoUrl ? await this.mediaAssetsService?.ensureForPublicId(dto.logoUrl) : null;
+    const subscription = await (this.prisma.subscription as any).create({
       data: {
         slug,
         companyId: dto.companyId,
         name: dto.name,
         description: dto.description,
         coverImage: dto.coverImage,
+        coverImageAssetId: coverImageAsset?.id ?? null,
         logoUrl: dto.logoUrl,
+        logoAssetId: logoAsset?.id ?? null,
         genre: dto.genres?.[0] ?? dto.genre ?? null,
         genres: dto.genres ?? (dto.genre ? [dto.genre] : []),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
@@ -219,7 +255,15 @@ export class SubscriptionsService {
 
     await this.indexSubscription(subscription.id);
     await this.cache.del(`companies:slug:${company.slug}`);
-    return subscription;
+    return this.mapSubscriptionAssets({
+      ...subscription,
+      coverImageAsset: coverImageAsset
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId, url: coverImageAsset.url }
+        : null,
+      logoAsset: logoAsset
+        ? { id: logoAsset.id, publicId: logoAsset.publicId, url: logoAsset.url }
+        : null,
+    });
   }
 
   async findGenres(search?: string): Promise<string[]> {
@@ -270,23 +314,34 @@ export class SubscriptionsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.subscription.findMany({
+      (this.prisma.subscription as any).findMany({
         where,
         skip,
         take: pageSize,
         include: {
-          company: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
+          company: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              logoUrl: true,
+              logoAsset: { select: { id: true, publicId: true, url: true } },
+              brandColors: true,
+            },
+          },
           skipPolicy: true,
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
+          coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          logoAsset: { select: { id: true, publicId: true, url: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.subscription.count({ where }),
     ]);
 
-    const mapped = data.map(({ comboComponents, priceChanges, ...rest }) => ({
-      ...rest,
+    const mapped = data.map(({ comboComponents, priceChanges, ...rest }: any) => ({
+      ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, (rest as any).currency),
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
@@ -315,7 +370,15 @@ export class SubscriptionsService {
   async findBySlugForAdmin(slug: string) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
-      select: { id: true, name: true, companyId: true },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        coverImage: true,
+        logoUrl: true,
+        coverImageAsset: { select: { id: true, publicId: true, url: true } },
+        logoAsset: { select: { id: true, publicId: true, url: true } },
+      },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
     return sub;
@@ -353,12 +416,15 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             logoUrl: true,
+            logoAsset: { select: { id: true, publicId: true, url: true } },
             country: true,
             hasOfficialImagePermission: true,
             brandColors: true,
           },
         },
         skipPolicy: true,
+        coverImageAsset: { select: { id: true, publicId: true, url: true } },
+        logoAsset: { select: { id: true, publicId: true, url: true } },
         prepayOptions: { orderBy: { months: 'asc' } },
         parent: { select: { slug: true, name: true } },
         priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
@@ -370,6 +436,7 @@ export class SubscriptionsService {
                 slug: true,
                 name: true,
                 coverImage: true,
+                coverImageAsset: { select: { id: true, publicId: true, url: true } },
                 parentSubscriptionId: true,
                 startDate: true,
                 endDate: true,
@@ -383,6 +450,8 @@ export class SubscriptionsService {
                   orderBy: [{ year: 'desc' }, { month: 'desc' }],
                   include: {
                     cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+                    coverImageAsset: { select: { id: true, publicId: true, url: true } },
+                    spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
                     books: {
                       include: {
                         book: {
@@ -419,6 +488,8 @@ export class SubscriptionsService {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
             books: {
               include: {
                 book: {
@@ -472,6 +543,8 @@ export class SubscriptionsService {
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
         include: {
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+          coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
           books: {
             include: {
               book: {
@@ -522,6 +595,8 @@ export class SubscriptionsService {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
             books: {
               include: {
                 book: {
@@ -550,7 +625,7 @@ export class SubscriptionsService {
 
     const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
     return {
-      ...rest,
+      ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, rest.currency),
       // Original price: the sentinel record's value — represents the price from the very beginning,
       // before any explicit price changes. Used by the frontend as a fallback when resolving
@@ -558,9 +633,12 @@ export class SubscriptionsService {
       originalBasePrice: sentinelRecord
         ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
         : this.computeCurrentPrice(priceChanges, rest.currency),
-      months,
+      months: months.map((month: any) => this.mapMonthAssets(month)),
       componentIds: comboComponents.map((c) => c.componentId),
-      components: processedComboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
+      components: processedComboComponents.map((c) => ({
+        componentId: c.componentId,
+        component: this.mapSubscriptionAssets(c.component),
+      })),
     };
   }
 
@@ -594,7 +672,15 @@ export class SubscriptionsService {
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
-    const updated = await this.prisma.subscription.update({ where: { slug }, data });
+    if (dto.coverImage !== undefined) {
+      const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+      data.coverImageAssetId = coverImageAsset?.id ?? null;
+    }
+    if (dto.logoUrl !== undefined) {
+      const logoAsset = dto.logoUrl ? await this.mediaAssetsService?.ensureForPublicId(dto.logoUrl) : null;
+      data.logoAssetId = logoAsset?.id ?? null;
+    }
+    const updated = await (this.prisma.subscription as any).update({ where: { slug }, data });
 
     // Record settings history if any tracked field changed
     const settingsFields: (keyof SubscriptionSettings)[] = [
@@ -695,7 +781,7 @@ export class SubscriptionsService {
     if (existing.company?.slug) {
       await this.cache.del(`companies:slug:${existing.company.slug}`);
     }
-    return updated;
+    return this.mapSubscriptionAssets(updated);
   }
 
   async delete(slug: string) {
@@ -783,7 +869,7 @@ export class SubscriptionsService {
     const skip = (page - 1) * pageSize;
 
     const [data, total] = await Promise.all([
-      this.prisma.subscriptionMonth.findMany({
+      (this.prisma.subscriptionMonth as any).findMany({
         where,
         skip,
         take: pageSize,
@@ -795,6 +881,9 @@ export class SubscriptionsService {
           theme: true,
           seriesId: true,
           coverImage: true,
+          coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          spoilerImage: true,
+          spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
           isSpoiler: true,
           signatureType: true,
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
@@ -821,7 +910,13 @@ export class SubscriptionsService {
       this.prisma.subscriptionMonth.count({ where }),
     ]);
 
-    const result = { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const result = {
+      data: data.map((month: any) => this.mapMonthAssets(month)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
     await this.cache.set(cacheKey, result, this.SUB_MONTHS_TTL);
     return result;
   }
@@ -844,12 +939,16 @@ export class SubscriptionsService {
       );
     }
 
+    const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+    const spoilerImageAsset = dto.spoilerImage ? await this.mediaAssetsService?.ensureForPublicId(dto.spoilerImage) : null;
     const monthData = {
       year: dto.year,
       month: dto.month,
       theme: dto.theme,
       coverImage: dto.coverImage,
+      coverImageAssetId: coverImageAsset?.id ?? null,
       spoilerImage: dto.spoilerImage,
+      spoilerImageAssetId: spoilerImageAsset?.id ?? null,
       isSpoiler: dto.isSpoiler ?? false,
       actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
       boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
@@ -862,7 +961,15 @@ export class SubscriptionsService {
     });
 
     void this.invalidateMonthsCache(subscriptionSlug);
-    return created;
+    return this.mapMonthAssets({
+      ...created,
+      coverImageAsset: coverImageAsset
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId, url: coverImageAsset.url }
+        : null,
+      spoilerImageAsset: spoilerImageAsset
+        ? { id: spoilerImageAsset.id, publicId: spoilerImageAsset.publicId, url: spoilerImageAsset.url }
+        : null,
+    });
   }
 
   async updateMonth(
@@ -886,16 +993,26 @@ export class SubscriptionsService {
       await this.uploadService.deleteImages([existing.spoilerImage]);
     }
 
-    const updated = await this.prisma.subscriptionMonth.update({
+    const data: Record<string, unknown> = {
+      ...dto,
+      cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
+    };
+    if (dto.coverImage !== undefined) {
+      const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+      data.coverImageAssetId = coverImageAsset?.id ?? null;
+    }
+    if (dto.spoilerImage !== undefined) {
+      const spoilerImageAsset = dto.spoilerImage ? await this.mediaAssetsService?.ensureForPublicId(dto.spoilerImage) : null;
+      data.spoilerImageAssetId = spoilerImageAsset?.id ?? null;
+    }
+
+    const updated = await (this.prisma.subscriptionMonth as any).update({
       where: { id: existing.id },
-      data: {
-        ...dto,
-        cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
-      },
+      data,
     });
 
     void this.invalidateMonthsCache(subscriptionSlug);
-    return updated;
+    return this.mapMonthAssets(updated);
   }
 
   async deleteMonth(subscriptionSlug: string, year: number, month: number) {
@@ -1099,6 +1216,8 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            logoAsset: { select: { id: true, publicId: true, url: true } },
             currency: true,
             priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
             isDiscontinued: true,
@@ -1106,7 +1225,15 @@ export class SubscriptionsService {
             renewalDay: true,
             intervalMonths: true,
             startingMonth: true,
-            company: { select: { name: true, slug: true, brandColors: true } },
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true, url: true } },
+              },
+            },
           },
         },
       },
@@ -1114,7 +1241,10 @@ export class SubscriptionsService {
 
     return Promise.all(entries.map(async (entry) => {
       const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
-      const sub = { ...subRest, price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency) };
+      const sub = {
+        ...this.mapSubscriptionAssets(subRest),
+        price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
+      };
 
       // Use stored nextRenewalDate from DB; fall back to computing if not yet populated
       let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
@@ -1215,9 +1345,19 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            logoAsset: { select: { id: true, publicId: true, url: true } },
             currency: true,
             isDiscontinued: true,
-            company: { select: { name: true, slug: true, brandColors: true } },
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true, url: true } },
+              },
+            },
           },
         },
       },
@@ -1238,7 +1378,7 @@ export class SubscriptionsService {
     for (const r of orphaned) {
       const key = r.subscriptionId;
       if (!grouped.has(key)) {
-        grouped.set(key, { subscription: r.subscription, records: [] });
+        grouped.set(key, { subscription: this.mapSubscriptionAssets(r.subscription), records: [] });
       }
       grouped.get(key)!.records.push({
         id: r.id,
@@ -2792,14 +2932,28 @@ export class SubscriptionsService {
     });
     if (existing) throw new ConflictException('Already on the waitlist for this subscription');
 
-    return this.prisma.subscriptionWaitlistEntry.create({
+    const created = await this.prisma.subscriptionWaitlistEntry.create({
       data: {
         userId,
         subscriptionId: sub.id,
         ...(joinedAt ? { joinedAt: new Date(joinedAt) } : {}),
       },
-      include: { subscription: { select: { id: true, slug: true, name: true, coverImage: true } } },
+      include: {
+        subscription: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          },
+        },
+      },
     });
+    return {
+      ...created,
+      subscription: this.mapSubscriptionAssets(created.subscription),
+    };
   }
 
   async updateWaitlistJoinDate(userId: string, subscriptionSlug: string, joinedAt: string) {
@@ -2848,8 +3002,17 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
             isDiscontinued: true,
-            company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+            company: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true, url: true } },
+              },
+            },
           },
         },
       },
@@ -2859,6 +3022,7 @@ export class SubscriptionsService {
     const now = new Date();
     return entries.map((e) => ({
       ...e,
+      subscription: this.mapSubscriptionAssets(e.subscription),
       daysOnList: e.leftAt
         ? Math.floor((new Date(e.leftAt).getTime() - new Date(e.joinedAt).getTime()) / 86400000)
         : Math.floor((now.getTime() - new Date(e.joinedAt).getTime()) / 86400000),

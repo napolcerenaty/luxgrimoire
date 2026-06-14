@@ -7,6 +7,7 @@ import {
 } from './subscription-series.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const SERIES_SELECT = {
   id: true,
@@ -14,6 +15,7 @@ const SERIES_SELECT = {
   name: true,
   description: true,
   coverImage: true,
+  coverImageAsset: { select: { id: true, publicId: true, url: true } },
   startMonth: true,
   startYear: true,
   endMonth: true,
@@ -29,44 +31,78 @@ const SERIES_SELECT = {
 
 @Injectable()
 export class SubscriptionSeriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaAssetsService: MediaAssetsService,
+  ) {}
+
+  private mapMonth(month: any) {
+    return {
+      ...month,
+      coverImage: month.coverImageAsset?.url ?? month.coverImage,
+    };
+  }
+
+  private mapSeries(series: any) {
+    return {
+      ...series,
+      coverImage: series.coverImageAsset?.url ?? series.coverImage,
+      months: Array.isArray(series.months) ? series.months.map((month: any) => this.mapMonth(month)) : series.months,
+    };
+  }
 
   async findBySubscription(subscriptionId: string) {
-    return this.prisma.subscriptionSeries.findMany({
+    const series = await (this.prisma.subscriptionSeries as any).findMany({
       where: { subscriptionId },
       select: SERIES_SELECT,
       orderBy: [{ startYear: 'asc' }, { startMonth: 'asc' }],
     });
+    return series.map((entry: any) => this.mapSeries(entry));
   }
 
   async findBySubscriptionSlug(subscriptionSlug: string) {
     const sub = await findBySlugOrThrow(this.prisma.subscription, subscriptionSlug, 'Subscription');
-    return this.prisma.subscriptionSeries.findMany({
+    const series = await (this.prisma.subscriptionSeries as any).findMany({
       where: { subscriptionId: sub.id },
       select: {
         ...SERIES_SELECT,
         months: {
-          select: { id: true, year: true, month: true, theme: true, coverImage: true },
+          select: {
+            id: true,
+            year: true,
+            month: true,
+            theme: true,
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
         },
       },
       orderBy: [{ startYear: 'asc' }, { startMonth: 'asc' }],
     });
+    return series.map((entry: any) => this.mapSeries(entry));
   }
 
   async findBySlug(slug: string) {
-    const series = await this.prisma.subscriptionSeries.findUnique({
+    const series = await (this.prisma.subscriptionSeries as any).findUnique({
       where: { slug },
       select: {
         ...SERIES_SELECT,
         months: {
-          select: { id: true, year: true, month: true, theme: true, coverImage: true },
+          select: {
+            id: true,
+            year: true,
+            month: true,
+            theme: true,
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
         },
       },
     });
     if (!series) throw new NotFoundException(`Series '${slug}' not found`);
-    return series;
+    return this.mapSeries(series);
   }
 
   async create(dto: CreateSubscriptionSeriesDto) {
@@ -77,13 +113,15 @@ export class SubscriptionSeriesService {
     this.validateDateRange(dto.startYear, dto.startMonth, dto.endYear, dto.endMonth);
 
     const slug = generateSlug(dto.name);
-    return this.prisma.subscriptionSeries.create({
+    const coverImageAsset = dto.coverImage ? await this.mediaAssetsService.ensureForPublicId(dto.coverImage) : null;
+    const created = await (this.prisma.subscriptionSeries as any).create({
       data: {
         subscriptionId: dto.subscriptionId,
         slug,
         name: dto.name,
         description: dto.description,
         coverImage: dto.coverImage,
+        coverImageAssetId: coverImageAsset?.id ?? null,
         startMonth: dto.startMonth,
         startYear: dto.startYear,
         endMonth: dto.endMonth,
@@ -94,6 +132,7 @@ export class SubscriptionSeriesService {
       },
       select: SERIES_SELECT,
     });
+    return this.mapSeries(created);
   }
 
   async update(slug: string, dto: UpdateSubscriptionSeriesDto) {
@@ -105,22 +144,29 @@ export class SubscriptionSeriesService {
     const newEndMonth = dto.endMonth ?? existing.endMonth;
     this.validateDateRange(newStartYear, newStartMonth, newEndYear, newEndMonth);
 
-    return this.prisma.subscriptionSeries.update({
+    const data: Record<string, unknown> = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.startMonth !== undefined && { startMonth: dto.startMonth }),
+      ...(dto.startYear !== undefined && { startYear: dto.startYear }),
+      ...(dto.endMonth !== undefined && { endMonth: dto.endMonth }),
+      ...(dto.endYear !== undefined && { endYear: dto.endYear }),
+      ...(dto.skipMode !== undefined && { skipMode: dto.skipMode }),
+      ...(dto.canCancelDuring !== undefined && { canCancelDuring: dto.canCancelDuring }),
+      ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+    };
+    if (dto.coverImage !== undefined) {
+      const coverImageAsset = dto.coverImage ? await this.mediaAssetsService.ensureForPublicId(dto.coverImage) : null;
+      data.coverImage = dto.coverImage;
+      data.coverImageAssetId = coverImageAsset?.id ?? null;
+    }
+
+    const updated = await (this.prisma.subscriptionSeries as any).update({
       where: { slug },
-      data: {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.coverImage !== undefined && { coverImage: dto.coverImage }),
-        ...(dto.startMonth !== undefined && { startMonth: dto.startMonth }),
-        ...(dto.startYear !== undefined && { startYear: dto.startYear }),
-        ...(dto.endMonth !== undefined && { endMonth: dto.endMonth }),
-        ...(dto.endYear !== undefined && { endYear: dto.endYear }),
-        ...(dto.skipMode !== undefined && { skipMode: dto.skipMode }),
-        ...(dto.canCancelDuring !== undefined && { canCancelDuring: dto.canCancelDuring }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-      },
+      data,
       select: SERIES_SELECT,
     });
+    return this.mapSeries(updated);
   }
 
   async delete(slug: string) {
@@ -130,7 +176,8 @@ export class SubscriptionSeriesService {
       where: { series: { slug } },
       data: { seriesId: null },
     });
-    return this.prisma.subscriptionSeries.delete({ where: { slug }, select: SERIES_SELECT });
+    const deleted = await (this.prisma.subscriptionSeries as any).delete({ where: { slug }, select: SERIES_SELECT });
+    return this.mapSeries(deleted);
   }
 
   async assignMonths(slug: string, dto: AssignMonthsToSeriesDto) {

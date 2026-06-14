@@ -4,6 +4,7 @@ import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 import { UploadService } from './upload.service';
 
 class UploadImageDto {
@@ -27,13 +28,18 @@ const ALLOWED_MIME_RE = /^data:image\/(png|jpeg|webp);base64,/;
 @ApiBearerAuth()
 @Controller('upload')
 export class UploadController {
-  constructor(private readonly uploadService: UploadService) {}
+  constructor(
+    private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
+  ) {}
 
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER', 'USER')
   @Post('image')
-  async uploadImage(@Body() dto: UploadImageDto) {
+  async uploadImage(@Body() dto: UploadImageDto, @CurrentUser() currentUser: { id: string }) {
     const folder = dto.folder ?? 'luxgrimoire/uploads';
-    return this.uploadService.uploadImageBase64(dto.data, folder);
+    const result = await this.uploadService.uploadImageBase64(dto.data, folder);
+    const asset = await this.mediaAssetsService.upsert(result.publicId, result.url, folder, currentUser.id);
+    return { ...result, mediaAssetId: asset.id };
   }
 
   @Roles('USER', 'ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
@@ -53,6 +59,6 @@ export class UploadController {
   @Delete('image')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteImage(@Body() dto: DeleteImageDto) {
-    await this.uploadService.deleteImage(dto.publicId);
+    await this.mediaAssetsService.deleteIfUnused(dto.publicId, this.uploadService);
   }
 }

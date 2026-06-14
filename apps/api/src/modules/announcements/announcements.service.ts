@@ -6,6 +6,7 @@ import { UploadService } from '../upload/upload.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 // Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
@@ -54,10 +55,36 @@ export class AnnouncementsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
   ) {}
 
   private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
     await deleteCloudinaryImages(ids, this.uploadService);
+  }
+
+  private mapAnnouncementAssets(announcement: any) {
+    if (!announcement) return announcement;
+    return {
+      ...announcement,
+      imageUrl: announcement.imageAsset?.url ?? announcement.imageUrl,
+    };
+  }
+
+  private async syncExtraImageAssets(announcementId: string, extraImages: string[]) {
+    await (this.prisma as any).saleAnnouncementMediaAsset.deleteMany({ where: { announcementId } });
+    if (!extraImages.length) return;
+
+    const rows = await Promise.all(extraImages.map(async (publicId, sortOrder) => {
+      const asset = await this.mediaAssetsService.ensureForPublicId(publicId);
+      return asset ? { announcementId, assetId: asset.id, sortOrder } : null;
+    }));
+    const data = rows.filter(Boolean);
+    if (data.length > 0) {
+      await (this.prisma as any).saleAnnouncementMediaAsset.createMany({
+        data,
+        skipDuplicates: true,
+      });
+    }
   }
 
   async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string }) {
@@ -98,7 +125,7 @@ export class AnnouncementsService {
     const where: Prisma.SaleAnnouncementWhereInput = andConditions.length === 1 ? andConditions[0] : { AND: andConditions };
 
     const [data, total] = await Promise.all([
-      this.prisma.saleAnnouncement.findMany({
+      (this.prisma.saleAnnouncement as any).findMany({
         where,
         skip,
         take: pageSize,
@@ -107,6 +134,7 @@ export class AnnouncementsService {
           id: true,
           title: true,
           imageUrl: true,
+          imageAsset: { select: { id: true, publicId: true, url: true } },
           basePrice: true,
           subscriberBasePrice: true,
           currency: true,
@@ -130,20 +158,21 @@ export class AnnouncementsService {
       this.prisma.saleAnnouncement.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return { data: data.map((item: any) => this.mapAnnouncementAssets(item)), ...buildPageMeta(total, page, pageSize) };
   }
 
   async findById(id: string) {
-    const announcement = await this.prisma.saleAnnouncement.findUnique({
+    const announcement = await (this.prisma.saleAnnouncement as any).findUnique({
       where: { id },
       include: {
+        imageAsset: { select: { id: true, publicId: true, url: true } },
         editions: editionsInclude,
         regions: regionsInclude,
         company: { select: { name: true, slug: true, brandColors: true } },
       },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
-    return announcement;
+    return this.mapAnnouncementAssets(announcement);
   }
 
   async adminFindAll(query: { page?: number; pageSize?: number; search?: string; companyId?: string }) {
@@ -159,17 +188,22 @@ export class AnnouncementsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.saleAnnouncement.findMany({
+      (this.prisma.saleAnnouncement as any).findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { editions: editionsIncludeAdmin, regions: regionsInclude, company: { select: { id: true, name: true, slug: true, logoUrl: true } } },
+        include: {
+          imageAsset: { select: { id: true, publicId: true, url: true } },
+          editions: editionsIncludeAdmin,
+          regions: regionsInclude,
+          company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+        },
       }),
       this.prisma.saleAnnouncement.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return { data: data.map((item: any) => this.mapAnnouncementAssets(item)), ...buildPageMeta(total, page, pageSize) };
   }
 
   async adminAddEdition(id: string, editionId: string) {
@@ -248,8 +282,9 @@ export class AnnouncementsService {
 
   async create(dto: CreateSaleAnnouncementDto) {
     const { editionIds, extraImages, ...data } = dto;
+    const imageAsset = data.imageUrl ? await this.mediaAssetsService.ensureForPublicId(data.imageUrl) : null;
 
-    const announcement = await this.prisma.saleAnnouncement.create({
+    const announcement = await (this.prisma.saleAnnouncement as any).create({
       data: {
         title: data.title,
         companyId: data.companyId ?? null,
@@ -261,6 +296,7 @@ export class AnnouncementsService {
         currency: data.currency ?? null,
         subscriberBasePrice: data.subscriberBasePrice ?? null,
         imageUrl: data.imageUrl ?? null,
+        imageAssetId: imageAsset?.id ?? null,
         extraImagesJson: extraImages && extraImages.length > 0 ? extraImages : Prisma.DbNull,
         isBundle: data.isBundle ?? false,
         expectedShipping: data.expectedShipping ?? null,
@@ -268,6 +304,7 @@ export class AnnouncementsService {
         sourceUrl: data.sourceUrl ?? null,
       },
     });
+    await this.syncExtraImageAssets(announcement.id, extraImages ?? []);
 
     if (editionIds && editionIds.length > 0) {
       await this.prisma.saleAnnouncementEdition.createMany({
@@ -289,35 +326,43 @@ export class AnnouncementsService {
     if (!existing) throw new NotFoundException('Sale announcement not found');
 
     const { editionIds, extraImages, ...data } = dto;
+    const updateData: Record<string, unknown> = {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.companyId !== undefined && { companyId: data.companyId }),
+      ...(data.generalSaleDate !== undefined && {
+        generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
+      }),
+      ...(data.firstAccessDate !== undefined && {
+        firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
+      }),
+      ...(data.earlyAccessDate !== undefined && {
+        earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
+      }),
+      ...(data.saleTimezone !== undefined && { saleTimezone: data.saleTimezone }),
+      ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
+      ...(data.currency !== undefined && { currency: data.currency }),
+      ...(data.subscriberBasePrice !== undefined && { subscriberBasePrice: data.subscriberBasePrice }),
+      ...(extraImages !== undefined && {
+        extraImagesJson: extraImages.length > 0 ? extraImages : Prisma.DbNull,
+      }),
+      ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
+      ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
+      ...(data.photoCredit !== undefined && { photoCredit: data.photoCredit || null }),
+      ...(data.sourceUrl !== undefined && { sourceUrl: data.sourceUrl || null }),
+    };
+    if (data.imageUrl !== undefined) {
+      const imageAsset = data.imageUrl ? await this.mediaAssetsService.ensureForPublicId(data.imageUrl) : null;
+      updateData.imageUrl = data.imageUrl;
+      updateData.imageAssetId = imageAsset?.id ?? null;
+    }
 
-    await this.prisma.saleAnnouncement.update({
+    await (this.prisma.saleAnnouncement as any).update({
       where: { id },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.companyId !== undefined && { companyId: data.companyId }),
-        ...(data.generalSaleDate !== undefined && {
-          generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
-        }),
-        ...(data.firstAccessDate !== undefined && {
-          firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
-        }),
-        ...(data.earlyAccessDate !== undefined && {
-          earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
-        }),
-        ...(data.saleTimezone !== undefined && { saleTimezone: data.saleTimezone }),
-        ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
-        ...(data.currency !== undefined && { currency: data.currency }),
-        ...(data.subscriberBasePrice !== undefined && { subscriberBasePrice: data.subscriberBasePrice }),
-        ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
-        ...(extraImages !== undefined && {
-          extraImagesJson: extraImages.length > 0 ? extraImages : Prisma.DbNull,
-        }),
-        ...(data.isBundle !== undefined && { isBundle: data.isBundle }),
-        ...(data.expectedShipping !== undefined && { expectedShipping: data.expectedShipping || null }),
-        ...(data.photoCredit !== undefined && { photoCredit: data.photoCredit || null }),
-        ...(data.sourceUrl !== undefined && { sourceUrl: data.sourceUrl || null }),
-      },
+      data: updateData,
     });
+    if (extraImages !== undefined) {
+      await this.syncExtraImageAssets(id, extraImages);
+    }
 
     // Clean up orphaned Cloudinary images
     const oldExtras: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
@@ -389,7 +434,7 @@ export class AnnouncementsService {
     });
     if (!source) throw new NotFoundException('Sale announcement not found');
 
-    const copy = await this.prisma.saleAnnouncement.create({
+    const copy = await (this.prisma.saleAnnouncement as any).create({
       data: {
         title: `${source.title} (Copy)`,
         companyId: source.companyId,
@@ -401,6 +446,7 @@ export class AnnouncementsService {
         currency: source.currency,
         subscriberBasePrice: source.subscriberBasePrice,
         imageUrl: source.imageUrl,
+        imageAssetId: source.imageAssetId,
         extraImagesJson: source.extraImagesJson ?? Prisma.DbNull,
         isBundle: source.isBundle,
         availableForPurchase: false,
@@ -409,6 +455,8 @@ export class AnnouncementsService {
         sourceUrl: source.sourceUrl,
       },
     });
+    const sourceExtraImages = Array.isArray(source.extraImagesJson) ? source.extraImagesJson as string[] : [];
+    await this.syncExtraImageAssets(copy.id, sourceExtraImages);
 
     for (const edition of source.editions) {
       const newEdition = await this.prisma.saleAnnouncementEdition.create({

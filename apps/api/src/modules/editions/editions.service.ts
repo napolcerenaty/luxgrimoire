@@ -16,6 +16,7 @@ import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
@@ -29,9 +30,28 @@ export class EditionsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly tagger: FeatureTaggerService,
   ) {}
+
+  private async syncEditionMediaAssets(editionId: string, additionalImages: string[]) {
+    await (this.prisma as any).bookEditionMediaAsset.deleteMany({ where: { editionId } });
+    if (!additionalImages.length) return;
+
+    const rows = await Promise.all(additionalImages.map(async (publicId, sortOrder) => {
+      const asset = await this.mediaAssetsService.ensureForPublicId(publicId);
+      return asset ? { editionId, assetId: asset.id, sortOrder } : null;
+    }));
+
+    const data = rows.filter(Boolean);
+    if (data.length > 0) {
+      await (this.prisma as any).bookEditionMediaAsset.createMany({
+        data,
+        skipDuplicates: true,
+      });
+    }
+  }
 
   /** Re-runs feature tag detection for an edition (features[] + artist roles). */
   private async retagEditionById(editionId: string) {
@@ -305,6 +325,7 @@ export class EditionsService {
         submittedByUserId: opts?.submittedByUserId,
       },
     });
+    await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
     await this.indexEdition(edition.id);
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     // Tag features asynchronously (artist roles not yet available at create time)
@@ -608,6 +629,9 @@ export class EditionsService {
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
+    if (dto.additionalImages !== undefined) {
+      await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
+    }
     // Delete removed images from Cloudinary
     if (dto.additionalImages !== undefined) {
       const removed = (existing.additionalImages as string[]).filter(
