@@ -377,7 +377,11 @@ export class CompaniesService {
           bookBoxCompanyId: company.id,
           OR: [{ additionalImages: { isEmpty: false } }, { photoCredit: { not: null } }],
         },
-        select: { id: true, additionalImages: true },
+        select: {
+          id: true,
+          additionalImages: true,
+          editionImages: { select: { assetId: true } },
+        },
         take: BATCH,
         skip,
       });
@@ -387,11 +391,15 @@ export class CompaniesService {
           await Promise.allSettled(
             edition.additionalImages.map((img) => this.uploadService.deleteImage(img)),
           );
+          const assetIds = edition.editionImages.map((r) => r.assetId);
+          await (this.prisma as any).bookEditionMediaAsset.deleteMany({ where: { editionId: edition.id } });
+          if (assetIds.length) {
+            await (this.prisma as any).mediaAsset.deleteMany({ where: { id: { in: assetIds } } });
+          }
           await this.prisma.bookEdition.update({
             where: { id: edition.id },
             data: { additionalImages: [], photoCredit: null },
           });
-          await (this.prisma as any).bookEditionMediaAsset.deleteMany({ where: { editionId: edition.id } });
           deletedEditionImages += edition.additionalImages.length;
         } catch (e) {
           errors.push(`Edition ${edition.id}: ${e instanceof Error ? e.message : String(e)}`);
@@ -411,7 +419,7 @@ export class CompaniesService {
       while (true) {
         const months = await this.prisma.subscriptionMonth.findMany({
           where: { subscriptionId: { in: subIds }, coverImage: { not: null } },
-          select: { id: true, coverImage: true },
+          select: { id: true, coverImage: true, coverImageAssetId: true },
           take: BATCH,
           skip,
         });
@@ -419,6 +427,9 @@ export class CompaniesService {
         for (const month of months) {
           try {
             if (month.coverImage) await this.uploadService.deleteImage(month.coverImage);
+            if (month.coverImageAssetId) {
+              await (this.prisma as any).mediaAsset.deleteMany({ where: { id: month.coverImageAssetId } });
+            }
             await this.prisma.subscriptionMonth.update({
               where: { id: month.id },
               data: { coverImage: null, coverImageAssetId: null },
@@ -440,7 +451,13 @@ export class CompaniesService {
           companyId: company.id,
           OR: [{ imageUrl: { not: null } }, { photoCredit: { not: null } }, { extraImagesJson: { not: Prisma.AnyNull } }],
         },
-        select: { id: true, imageUrl: true, extraImagesJson: true },
+        select: {
+          id: true,
+          imageUrl: true,
+          imageAssetId: true,
+          extraImagesJson: true,
+          extraImages: { select: { assetId: true } },
+        },
         take: BATCH,
         skip,
       });
@@ -449,16 +466,22 @@ export class CompaniesService {
         try {
           if (ann.imageUrl) await this.uploadService.deleteImage(ann.imageUrl);
           if (ann.extraImagesJson) {
-            const extras = ann.extraImagesJson as { url?: string }[];
-            for (const extra of Array.isArray(extras) ? extras : []) {
-              if (extra?.url) await this.uploadService.deleteImage(extra.url);
+            const extras = ann.extraImagesJson as string[];
+            for (const publicId of Array.isArray(extras) ? extras : []) {
+              if (publicId) await this.uploadService.deleteImage(publicId);
             }
+          }
+          const assetIds = (ann).extraImages?.map((r) => r.assetId) ?? [];
+          await (this.prisma as any).saleAnnouncementMediaAsset.deleteMany({ where: { announcementId: ann.id } });
+          if (ann.imageAssetId) assetIds.push(ann.imageAssetId);
+          const uniqueAssetIds = [...new Set<string>(assetIds)];
+          if (uniqueAssetIds.length) {
+            await (this.prisma as any).mediaAsset.deleteMany({ where: { id: { in: uniqueAssetIds } } });
           }
           await this.prisma.saleAnnouncement.update({
             where: { id: ann.id },
             data: { imageUrl: null, imageAssetId: null, photoCredit: null, extraImagesJson: Prisma.JsonNull },
           });
-          await (this.prisma as any).saleAnnouncementMediaAsset.deleteMany({ where: { announcementId: ann.id } });
           deletedAnnouncementImages++;
         } catch (e) {
           errors.push(`Announcement ${ann.id}: ${e instanceof Error ? e.message : String(e)}`);
