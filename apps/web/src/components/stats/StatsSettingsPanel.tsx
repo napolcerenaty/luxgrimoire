@@ -18,7 +18,6 @@ const SETTINGS_CONFIG = [
     title: 'Book spending',
     offMessage: "I'd rather not know how much I've spent on books 💸",
     onMessage: 'Show me the damage 📊',
-    description: 'Spending totals, costs breakdown, purchase history',
   },
   {
     key: 'sales' as keyof StatsSettings,
@@ -26,7 +25,6 @@ const SETTINGS_CONFIG = [
     title: 'Book sales',
     offMessage: "I don't sell my books 📦",
     onMessage: 'Track my sales & P&L 💰',
-    description: 'Sales revenue, profit & loss, ROI analysis',
   },
   {
     key: 'reading' as keyof StatsSettings,
@@ -34,7 +32,6 @@ const SETTINGS_CONFIG = [
     title: 'Reading tracker',
     offMessage: "I'm not tracking my reading journey 📖",
     onMessage: 'Track my reading progress 📚',
-    description: 'Read/unread/DNF counts, reading progress by subscription',
   },
   {
     key: 'features' as keyof StatsSettings,
@@ -42,7 +39,6 @@ const SETTINGS_CONFIG = [
     title: 'Special features',
     offMessage: "Special features aren't my thing ✨",
     onMessage: 'Show feature analytics 🔍',
-    description: 'Foil, sprayed edges, ribbons, and other special features',
   },
 ]
 
@@ -94,7 +90,7 @@ export default function StatsSettingsPanel({ onClose }: StatsSettingsPanelProps)
         )}
       </div>
       <div className="px-6 pb-6 pt-3 space-y-3">
-        {SETTINGS_CONFIG.map(({ key, icon: Icon, title, offMessage, description }) => {
+        {SETTINGS_CONFIG.map(({ key, icon: Icon, title, onMessage, offMessage }) => {
           const isOn = current[key]
           return (
             <button
@@ -118,8 +114,8 @@ export default function StatsSettingsPanel({ onClose }: StatsSettingsPanelProps)
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isOn ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
                     </div>
                   </div>
-                  <p className={`text-xs mt-1 ${isOn ? 'text-stone-500' : 'text-amber-600/70 italic'}`}>
-                    {isOn ? description : offMessage}
+                  <p className={`text-xs mt-1 italic ${isOn ? 'text-stone-400' : 'text-amber-600/70'}`}>
+                    {isOn ? onMessage : offMessage}
                   </p>
                 </div>
               </div>
