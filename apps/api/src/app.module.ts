@@ -49,6 +49,7 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
 import { FeatureCategoriesModule } from './modules/feature-categories/feature-categories.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
+import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
 
 @Module({
   imports: [
@@ -135,6 +136,7 @@ import { ReadingImportModule } from './modules/reading-import/reading-import.mod
     CollectionModule,
     SearchModule,
     UploadModule,
+    MediaAssetsModule,
     SpendingModule,
     FeesModule,
     NotificationsModule,

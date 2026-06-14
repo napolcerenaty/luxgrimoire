@@ -75,7 +75,7 @@ export class ArtistsController {
   }
 
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MODERATOR')
   @Delete(':slug')
   async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
     const result = await this.artistsService.delete(slug);

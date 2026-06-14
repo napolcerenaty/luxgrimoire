@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
+import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import SaleDateSelector from './SaleDateSelector'
 import { SaleInterestSection } from './SaleInterestSection'
 import { brandGradientStyle } from '@/lib/brandGradient'
@@ -36,19 +37,21 @@ export default async function SaleAnnouncementPage({ params }: Props) {
   const editions = sale.editions ?? []
   const allEditionIds = editions.map(e => e.editionId)
 
+  // Build full-res image URLs for carousel
+  const extraImages: string[] = Array.isArray(sale.extraImagesJson) ? sale.extraImagesJson : []
+  const carouselImages = [
+    ...(sale.imageUrl ? [cloudinaryUrl(sale.imageUrl, 'w_560,q_auto,f_auto')!] : []),
+    ...extraImages.map(img => cloudinaryUrl(img, 'w_560,q_auto,f_auto')!).filter(Boolean),
+  ]
+
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       {/* Header */}
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-10 mb-12">
-        {/* Image */}
+        {/* Image(s) */}
         <div>
-          {sale.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cloudinaryUrl(sale.imageUrl, 'w_560,q_auto,f_auto') ?? sale.imageUrl}
-              alt={sale.title}
-              className="rounded-xl shadow-2xl w-full h-auto"
-            />
+          {carouselImages.length > 0 ? (
+            <ImageCarousel images={carouselImages} alt={sale.title} />
           ) : (
             <div
               className="w-full aspect-[2/3] rounded-xl flex items-center justify-center relative overflow-hidden"

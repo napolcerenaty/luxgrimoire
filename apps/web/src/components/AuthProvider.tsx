@@ -19,6 +19,12 @@ interface AuthUser {
   shippingCountry?: string | null
   bio?: string | null
   onboardingCompletedAt?: string | null
+  statsSettings?: {
+    spending: boolean
+    sales: boolean
+    reading: boolean
+    features: boolean
+  } | null
 }
 
 interface AuthContextType {

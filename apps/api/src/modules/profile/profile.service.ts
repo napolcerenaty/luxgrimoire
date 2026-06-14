@@ -52,6 +52,7 @@ export class ProfileService {
         timeFormat: true,
         defaultTaxRate: true,
         shippingCountry: true,
+        statsSettings: true,
         createdAt: true,
         updatedAt: true,
       },

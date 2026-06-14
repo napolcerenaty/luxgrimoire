@@ -16,6 +16,7 @@ import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
@@ -29,9 +30,28 @@ export class EditionsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly tagger: FeatureTaggerService,
   ) {}
+
+  private async syncEditionMediaAssets(editionId: string, additionalImages: string[]) {
+    await (this.prisma as any).bookEditionMediaAsset.deleteMany({ where: { editionId } });
+    if (!additionalImages.length) return;
+
+    const rows = await Promise.all(additionalImages.map(async (publicId, sortOrder) => {
+      const asset = await this.mediaAssetsService.ensureForPublicId(publicId);
+      return asset ? { editionId, assetId: asset.id, sortOrder } : null;
+    }));
+
+    const data = rows.filter(Boolean);
+    if (data.length > 0) {
+      await (this.prisma as any).bookEditionMediaAsset.createMany({
+        data,
+        skipDuplicates: true,
+      });
+    }
+  }
 
   /** Re-runs feature tag detection for an edition (features[] + artist roles). */
   private async retagEditionById(editionId: string) {
@@ -305,6 +325,7 @@ export class EditionsService {
         submittedByUserId: opts?.submittedByUserId,
       },
     });
+    await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
     await this.indexEdition(edition.id);
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     // Tag features asynchronously (artist roles not yet available at create time)
@@ -608,12 +629,19 @@ export class EditionsService {
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
-    // Delete removed images from Cloudinary
+    if (dto.additionalImages !== undefined) {
+      await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
+    }
+    // Delete removed images from Cloudinary — only if no other model still references them
     if (dto.additionalImages !== undefined) {
       const removed = (existing.additionalImages as string[]).filter(
         (img) => !(dto.additionalImages as string[]).includes(img),
       );
-      await this.deleteCloudinaryImages(removed);
+      await Promise.allSettled(
+        removed
+          .filter(id => !!id && !id.startsWith('http'))
+          .map(id => this.mediaAssetsService.deleteIfUnused(id, this.uploadService)),
+      );
     }
     await this.indexEdition(edition.id);
     // Retag whenever features may have changed
@@ -631,12 +659,16 @@ export class EditionsService {
       throw new ConflictException(`Cannot delete edition that is in ${collectionCount} user collection(s)`);
     }
 
-    await this.deleteCloudinaryImages(edition.additionalImages as string[]);
+    const imagesToMaybeDelete = (edition.additionalImages as string[]).filter(id => !!id && !id.startsWith('http'));
     await this.typesense.deleteDocument('editions', edition.id);
     const deleted = await this.prisma.bookEdition.delete({ where: { slug } });
     if (edition.bookBoxCompany?.slug) {
       await this.invalidateEditionCountCaches(edition.bookBoxCompany.slug, edition.subscriptionId, edition.collectionId);
     }
+    // Delete images after edition is removed so cascade clears join table first
+    void Promise.allSettled(
+      imagesToMaybeDelete.map(id => this.mediaAssetsService.deleteIfUnused(id, this.uploadService)),
+    );
     return { ...deleted, collectionsAffected: collectionCount };
   }
 

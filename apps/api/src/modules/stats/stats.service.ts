@@ -14,6 +14,38 @@ import {
 
 type SnapshotData = Record<string, unknown>;
 
+interface ModuleMetadata {
+  version: number;
+  computedAt: string;
+}
+
+type ModuleVersionsRecord = Record<string, ModuleMetadata>;
+
+export interface StatsSettings {
+  spending: boolean;
+  sales: boolean;
+  reading: boolean;
+  features: boolean;
+}
+
+const DEFAULT_STATS_SETTINGS: StatsSettings = {
+  spending: true,
+  sales: true,
+  reading: true,
+  features: true,
+};
+
+function resolveSettings(raw: unknown): StatsSettings {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_STATS_SETTINGS;
+  const s = raw as Record<string, unknown>;
+  return {
+    spending: s.spending !== false,
+    sales: s.sales !== false,
+    reading: s.reading !== false,
+    features: s.features !== false,
+  };
+}
+
 interface UserStatsSnapshotRecord {
   year: number;
   currency: string;
@@ -40,7 +72,7 @@ interface UserStatsSnapshotDelegate {
       currency: string;
       year: number;
       isStale: boolean;
-      moduleVersions: Record<string, number>;
+      moduleVersions: ModuleVersionsRecord;
       spending: SnapshotData;
       collection: SnapshotData;
       features: SnapshotData;
@@ -48,7 +80,7 @@ interface UserStatsSnapshotDelegate {
     update: {
       isStale: boolean;
       computedAt: Date;
-      moduleVersions: Record<string, number>;
+      moduleVersions: ModuleVersionsRecord;
       spending: SnapshotData;
       collection: SnapshotData;
       features: SnapshotData;
@@ -112,17 +144,94 @@ export class StatsService {
     return (this.prisma as PrismaService & { userStatsSnapshot: UserStatsSnapshotDelegate }).userStatsSnapshot;
   }
 
-  private getCurrentVersions(): Record<string, number> {
-    return Object.fromEntries(this.computers.map((computer) => [computer.key, computer.version]));
-  }
-
-  private hasCurrentVersions(snapshot: Pick<UserStatsSnapshotRecord, 'moduleVersions'>): boolean {
-    const versions = this.asRecord(snapshot.moduleVersions);
-    return this.computers.every((computer) => versions[computer.key] === computer.version);
-  }
-
   private asRecord(value: unknown): SnapshotData {
     return value && typeof value === 'object' && !Array.isArray(value) ? (value as SnapshotData) : {};
+  }
+
+  private asModuleVersions(value: unknown): ModuleVersionsRecord {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const raw = value as Record<string, unknown>;
+    const result: ModuleVersionsRecord = {};
+    for (const [key, val] of Object.entries(raw)) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        const v = val as Record<string, unknown>;
+        if (typeof v.version === 'number') {
+          result[key] = {
+            version: v.version,
+            computedAt: typeof v.computedAt === 'string' ? v.computedAt : new Date(0).toISOString(),
+          };
+        }
+      } else if (typeof val === 'number') {
+        result[key] = { version: val, computedAt: new Date(0).toISOString() };
+      }
+    }
+    return result;
+  }
+
+  private async getEnabledModules(userId: string): Promise<Set<string>> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { statsSettings: true } });
+    const settings = resolveSettings(user?.statsSettings);
+    const enabled = new Set<string>(['collection']);
+    if (settings.spending || settings.sales) enabled.add('spending');
+    if (settings.features) enabled.add('features');
+    return enabled;
+  }
+
+  async getSettings(userId: string): Promise<StatsSettings> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { statsSettings: true } });
+    return resolveSettings(user?.statsSettings);
+  }
+
+  async updateSettings(
+    userId: string,
+    dto: { spending?: boolean; sales?: boolean; reading?: boolean; features?: boolean },
+  ): Promise<StatsSettings> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { statsSettings: true } });
+    const current = resolveSettings(user?.statsSettings);
+    const newSettings: StatsSettings = {
+      spending: dto.spending ?? current.spending,
+      sales: dto.sales ?? current.sales,
+      reading: dto.reading ?? current.reading,
+      features: dto.features ?? current.features,
+    };
+    const spendingReenabled = !(current.spending || current.sales) && (newSettings.spending || newSettings.sales);
+    const featuresReenabled = !current.features && newSettings.features;
+    await (this.prisma as PrismaService & {
+      user: {
+        update(args: { where: { id: string }; data: { statsSettings: StatsSettings } }): Promise<unknown>;
+      };
+    }).user.update({
+      where: { id: userId },
+      data: { statsSettings: newSettings },
+    });
+    if (spendingReenabled || featuresReenabled) {
+      this.markStatsStale(userId);
+    }
+    return newSettings;
+  }
+
+  private hasCurrentVersions(
+    snapshot: Pick<UserStatsSnapshotRecord, 'moduleVersions'>,
+    enabledModules: Set<string>,
+  ): boolean {
+    const versions = this.asModuleVersions(snapshot.moduleVersions);
+    return this.computers
+      .filter((computer) => enabledModules.has(computer.key))
+      .every((computer) => versions[computer.key]?.version === computer.version);
+  }
+
+  private getModuleComputedAt(
+    snapshot: Pick<UserStatsSnapshotRecord, 'computedAt' | 'moduleVersions'>,
+    module?: string,
+  ): Date {
+    const computeKey =
+      module === 'sales' || module === 'pl'
+        ? 'spending'
+        : module === 'reading'
+          ? 'collection'
+          : (module ?? 'collection');
+    const versions = this.asModuleVersions(snapshot.moduleVersions);
+    return versions[computeKey]?.computedAt ? new Date(versions[computeKey].computedAt) : snapshot.computedAt;
   }
 
   /**
@@ -187,6 +296,8 @@ export class StatsService {
           })
         : Promise.resolve(null),
     ]);
+    const enabledModules = await this.getEnabledModules(userId);
+    const yearEnabledModules = enabledModules.has('spending') ? new Set<string>(['spending']) : new Set<string>();
 
     // Cold start: no all-time snapshot at all
     if (!allTimeSnap) {
@@ -202,7 +313,7 @@ export class StatsService {
       return {
         data: this.buildResponseFromSnapshots(freshAllTime!, freshYear, requestedYear, module),
         currency: normalizedCurrency,
-        computedAt: freshAllTime!.computedAt,
+        computedAt: this.getModuleComputedAt(freshAllTime!, module),
         isStale: false,
       };
     }
@@ -214,14 +325,18 @@ export class StatsService {
     }
 
     // Trigger background recomputes for stale snapshots
-    if (allTimeSnap.isStale || !this.hasCurrentVersions(allTimeSnap)) {
+    if (allTimeSnap.isStale || !this.hasCurrentVersions(allTimeSnap, enabledModules)) {
       setImmediate(() => {
         this.triggerRecompute(userId, normalizedCurrency, 0).catch((err: unknown) =>
           this.logger.error(`Background all-time recompute failed for ${userId}: ${String(err)}`),
         );
       });
     }
-    if (resolvedYearSnap && requestedYear && (resolvedYearSnap.isStale || !this.hasCurrentVersions(resolvedYearSnap))) {
+    if (
+      resolvedYearSnap &&
+      requestedYear &&
+      (resolvedYearSnap.isStale || !this.hasCurrentVersions(resolvedYearSnap, yearEnabledModules))
+    ) {
       setImmediate(() => {
         this.triggerRecompute(userId, normalizedCurrency, requestedYear).catch((err: unknown) =>
           this.logger.error(`Background year recompute failed for ${userId}/${requestedYear}: ${String(err)}`),
@@ -232,7 +347,7 @@ export class StatsService {
     return {
       data: this.buildResponseFromSnapshots(allTimeSnap, resolvedYearSnap, requestedYear, module),
       currency: normalizedCurrency,
-      computedAt: allTimeSnap.computedAt,
+      computedAt: this.getModuleComputedAt(allTimeSnap, module),
       isStale: allTimeSnap.isStale || !!resolvedYearSnap?.isStale,
     };
   }
@@ -248,7 +363,12 @@ export class StatsService {
     const features = this.asRecord(allTimeSnap.features);
 
     if (module === 'collection') {
-      return { collection };
+      // If a specific year is requested AND the year snapshot has collection data, use it
+      const yearCollection = yearSnap ? this.asRecord(yearSnap.collection) : null;
+      const collectionData = (year && yearCollection && Object.keys(yearCollection).length > 0)
+        ? yearCollection
+        : collection;
+      return { collection: collectionData };
     }
 
     if (module === 'features') {
@@ -359,33 +479,87 @@ export class StatsService {
     year: number,
   ): Promise<UserStatsSnapshotRecord> {
     this.logger.debug(`Recomputing year=${year} snapshot for user ${userId} in ${currency}`);
+    const enabledModules = await this.getEnabledModules(userId);
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year + 1, 0, 1);
+    const existing = await this.snapshots.findUnique({
+      where: { userId_currency_year: { userId, currency, year } },
+    });
+    const existingVersions = this.asModuleVersions(existing?.moduleVersions);
+    const now = new Date().toISOString();
+    const newVersions: ModuleVersionsRecord = { ...existingVersions };
+    let spendingResult: SnapshotData = this.asRecord(existing?.spending);
 
-    const [entries, saleGroups] = await Promise.all([
-      this.prisma.userBookEntry.findMany({
-        where: { userId, purchaseGroup: { purchasedAt: { gte: startDate, lt: endDate } } },
-        include: statsEntryInclude,
-      }),
-      this.prisma.userSaleGroup.findMany({
-        where: { userId, soldAt: { gte: startDate, lt: endDate } },
-        include: statsSaleGroupInclude,
-      }),
-    ]);
+    let collectionResult: SnapshotData = this.asRecord(existing?.collection);
 
-    const ctx = await this.buildSpendingContext(userId, currency, year, entries, saleGroups);
-    let spendingResult: SnapshotData = {};
-    try {
-      spendingResult = this.asRecord(await this.spendingComputer.compute(ctx));
-    } catch (err: unknown) {
-      this.logger.error(`SpendingStatsComputer failed for year=${year}: ${String(err)}`);
+    if (enabledModules.has('spending')) {
+      const [entries, saleGroups] = await Promise.all([
+        this.prisma.userBookEntry.findMany({
+          where: { userId, purchaseGroup: { purchasedAt: { gte: startDate, lt: endDate } } },
+          include: statsEntryInclude,
+        }),
+        this.prisma.userSaleGroup.findMany({
+          where: { userId, soldAt: { gte: startDate, lt: endDate } },
+          include: statsSaleGroupInclude,
+        }),
+      ]);
+
+      const ctx = await this.buildSpendingContext(userId, currency, year, entries, saleGroups);
+      try {
+        spendingResult = this.asRecord(await this.spendingComputer.compute(ctx));
+        newVersions.spending = { version: this.spendingComputer.version, computedAt: now };
+      } catch (err: unknown) {
+        this.logger.error(`SpendingStatsComputer failed for year=${year}: ${String(err)}`);
+      }
     }
 
-    const moduleVersions = this.getCurrentVersions();
+    // Compute yearly collection: entries acquired this year (via purchase OR subscription month)
+    if (enabledModules.has('collection')) {
+      try {
+        const collEntries = await this.prisma.userBookEntry.findMany({
+          where: {
+            userId,
+            OR: [
+              { purchaseGroup: { purchasedAt: { gte: startDate, lt: endDate } } },
+              {
+                subscriptionEntryId: { not: null },
+                purchaseGroupId: null,
+                subscriptionEntry: {
+                  billingPeriods: { some: { month: { year } } },
+                },
+              },
+            ],
+          },
+          include: collectionAndFeaturesEntryInclude,
+        });
+        const lightCtx = await this.buildLightContext(userId, currency, collEntries);
+        collectionResult = this.asRecord(await this.collectionComputer.compute(lightCtx));
+        newVersions.collection = { version: this.collectionComputer.version, computedAt: now };
+      } catch (err: unknown) {
+        this.logger.error(`CollectionStatsComputer failed for year=${year}: ${String(err)}`);
+      }
+    }
+
     return this.snapshots.upsert({
       where: { userId_currency_year: { userId, currency, year } },
-      create: { userId, currency, year, isStale: false, moduleVersions, spending: spendingResult, collection: {}, features: {} },
-      update: { isStale: false, computedAt: new Date(), moduleVersions, spending: spendingResult, collection: {}, features: {} },
+      create: {
+        userId,
+        currency,
+        year,
+        isStale: false,
+        moduleVersions: newVersions,
+        spending: spendingResult,
+        collection: collectionResult,
+        features: this.asRecord(existing?.features),
+      },
+      update: {
+        isStale: false,
+        computedAt: new Date(),
+        moduleVersions: newVersions,
+        spending: spendingResult,
+        collection: collectionResult,
+        features: this.asRecord(existing?.features),
+      },
     });
   }
 
@@ -395,37 +569,87 @@ export class StatsService {
    */
   private async recomputeAllTimeSnapshot(userId: string, currency: string): Promise<UserStatsSnapshotRecord> {
     this.logger.debug(`Recomputing all-time snapshot for user ${userId} in ${currency}`);
-
-    // Load all entries with light JOINs (collection + features don't need fees/discounts/refunds/book info)
-    const entries = await this.prisma.userBookEntry.findMany({
-      where: { userId },
-      include: collectionAndFeaturesEntryInclude,
+    const enabledModules = await this.getEnabledModules(userId);
+    const existing = await this.snapshots.findUnique({
+      where: { userId_currency_year: { userId, currency, year: 0 } },
     });
+    const existingVersions = this.asModuleVersions(existing?.moduleVersions);
+    const now = new Date().toISOString();
+    const newVersions: ModuleVersionsRecord = { ...existingVersions };
+    const needsLightContext = enabledModules.has('collection') || enabledModules.has('features');
 
-    const lightCtx = await this.buildLightContext(userId, currency, entries);
+    let collectionResult: SnapshotData = this.asRecord(existing?.collection);
+    let featuresResult: SnapshotData = this.asRecord(existing?.features);
 
-    const [collectionResult, featuresResult] = await Promise.all([
-      this.collectionComputer.compute(lightCtx).then(this.asRecord.bind(this)).catch((err: unknown) => {
-        this.logger.error(`CollectionStatsComputer failed: ${String(err)}`);
-        return {} as SnapshotData;
-      }),
-      this.featuresComputer.compute(lightCtx).then(this.asRecord.bind(this)).catch((err: unknown) => {
-        this.logger.error(`FeaturesStatsComputer failed: ${String(err)}`);
-        return {} as SnapshotData;
-      }),
-    ]);
+    if (needsLightContext) {
+      const entries = await this.prisma.userBookEntry.findMany({
+        where: { userId },
+        include: collectionAndFeaturesEntryInclude,
+      });
 
-    // Merge spending from all year snapshots (no DB entry joins needed)
-    const yearSnapshots = await this.snapshots.findMany({
-      where: { userId, currency, year: { gt: 0 } },
-    });
-    const mergedSpending = this.mergeYearSpendingSnapshots(yearSnapshots, currency);
+      const lightCtx = await this.buildLightContext(userId, currency, entries);
+      const tasks: Array<Promise<void>> = [];
 
-    const moduleVersions = this.getCurrentVersions();
+      if (enabledModules.has('collection')) {
+        tasks.push(
+          this.collectionComputer
+            .compute(lightCtx)
+            .then((result) => {
+              collectionResult = this.asRecord(result);
+              newVersions.collection = { version: this.collectionComputer.version, computedAt: now };
+            })
+            .catch((err: unknown) => {
+              this.logger.error(`CollectionStatsComputer failed: ${String(err)}`);
+            }),
+        );
+      }
+
+      if (enabledModules.has('features')) {
+        tasks.push(
+          this.featuresComputer
+            .compute(lightCtx)
+            .then((result) => {
+              featuresResult = this.asRecord(result);
+              newVersions.features = { version: this.featuresComputer.version, computedAt: now };
+            })
+            .catch((err: unknown) => {
+              this.logger.error(`FeaturesStatsComputer failed: ${String(err)}`);
+            }),
+        );
+      }
+
+      await Promise.all(tasks);
+    }
+
+    let mergedSpending = this.asRecord(existing?.spending);
+    if (enabledModules.has('spending')) {
+      const yearSnapshots = await this.snapshots.findMany({
+        where: { userId, currency, year: { gt: 0 } },
+      });
+      mergedSpending = this.mergeYearSpendingSnapshots(yearSnapshots, currency);
+      newVersions.spending = { version: this.spendingComputer.version, computedAt: now };
+    }
+
     return this.snapshots.upsert({
       where: { userId_currency_year: { userId, currency, year: 0 } },
-      create: { userId, currency, year: 0, isStale: false, moduleVersions, spending: mergedSpending, collection: collectionResult, features: featuresResult },
-      update: { isStale: false, computedAt: new Date(), moduleVersions, spending: mergedSpending, collection: collectionResult, features: featuresResult },
+      create: {
+        userId,
+        currency,
+        year: 0,
+        isStale: false,
+        moduleVersions: newVersions,
+        spending: mergedSpending,
+        collection: collectionResult,
+        features: featuresResult,
+      },
+      update: {
+        isStale: false,
+        computedAt: new Date(),
+        moduleVersions: newVersions,
+        spending: mergedSpending,
+        collection: collectionResult,
+        features: featuresResult,
+      },
     });
   }
 

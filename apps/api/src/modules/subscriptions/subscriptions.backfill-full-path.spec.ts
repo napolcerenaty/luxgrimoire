@@ -1044,4 +1044,184 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       );
     });
   });
+
+  // ── Combo subscription — component is a content stream variant ───────────
+
+  describe('combo subscription — component is a content stream variant', () => {
+    const COMBO_SUB_ID = 'combo-sub-1';
+    const VARIANT_COMP_ID = 'variant-comp-id';
+    const PARENT_STREAM_ID = 'parent-stream-id';
+    const COMBO_USER_ID = 'user-combo-1';
+    const COMBO_ENTRY_ID = 'combo-entry-1';
+
+    it('fetches months from parent subscription and adds books when combo component is a content stream variant', async () => {
+      const comboSub = {
+        id: COMBO_SUB_ID,
+        slug: 'combo-test',
+        name: 'Combo Test',
+        isCombo: true,
+        componentIds: [VARIANT_COMP_ID],
+        currency: 'USD',
+        renewalDay: 1,
+        renewalDayUserSet: false,
+        paymentOnStartup: false,
+        signupIncludesCurrentMonth: false,
+        renewalMonthOffset: 0,
+        isContentStream: false,
+        parentSubscriptionId: null,
+      };
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(comboSub as any);
+
+      const entry = {
+        id: COMBO_ENTRY_ID,
+        userId: COMBO_USER_ID,
+        subscriptionId: COMBO_SUB_ID,
+        startDate: '2026-01-01',
+        cancellationDate: null,
+        renewalDay: 1,
+        basePrice: { toString: () => '29.99' },
+        costCurrency: 'USD',
+        shippingCost: null,
+        firstSkipDate: null,
+        feeTemplates: [],
+      };
+
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const parentMonth = {
+        id: 'parent-month-jan',
+        year: 2026,
+        month: 1,
+        signatureType: null,
+        books: [{ editionId: 'ed-combo-1', bookId: 'bk-combo-1', signatureType: null,
+          edition: { book: { authors: [] } } }],
+      };
+
+      // resolveEffectiveComponentIds (inside getComboEligibleMonths)
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_STREAM_ID },
+      ]);
+      // getComboEligibleMonths: month record from PARENT stream
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([parentMonth]);
+
+      // resolveEffectiveComponentIds (in backfillSubscription loop)
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_STREAM_ID },
+      ]);
+      // books lookup for COMBO_2026_1 — must use parent stream ID
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([parentMonth]);
+
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-combo-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: 'be-combo-1' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+
+      // skip policy lookup
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicy: null });
+      // skippable months (empty — no skips)
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      skipMock.recomputeSkipState.mockResolvedValueOnce(undefined);
+
+      await service.backfillSubscription(COMBO_USER_ID, 'combo-test', {
+        selectedMonthIds: ['COMBO_2026_1'],
+      } as any);
+
+      // The books-lookup subscriptionMonth.findMany call (index 1) must use PARENT_STREAM_ID, not VARIANT_COMP_ID
+      const monthFindManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const booksLookupCall = monthFindManyCalls[1];
+      expect(booksLookupCall[0].where.subscriptionId.in).toContain(PARENT_STREAM_ID);
+      expect(booksLookupCall[0].where.subscriptionId.in).not.toContain(VARIANT_COMP_ID);
+
+      // Book was added
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ editionId: 'ed-combo-1', bookId: 'bk-combo-1' }),
+        }),
+      );
+    });
+
+    it('uses variant ID directly (no redirect) when combo component is a regular subscription', async () => {
+      const REGULAR_COMP_ID = 'regular-comp-id';
+      const comboSub = {
+        id: COMBO_SUB_ID,
+        slug: 'combo-test',
+        name: 'Combo Test',
+        isCombo: true,
+        componentIds: [REGULAR_COMP_ID],
+        currency: 'USD',
+        renewalDay: 1,
+        renewalDayUserSet: false,
+        paymentOnStartup: false,
+        signupIncludesCurrentMonth: false,
+        renewalMonthOffset: 0,
+        isContentStream: false,
+        parentSubscriptionId: null,
+      };
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(comboSub as any);
+
+      const entry = {
+        id: COMBO_ENTRY_ID,
+        userId: COMBO_USER_ID,
+        subscriptionId: COMBO_SUB_ID,
+        startDate: '2026-01-01',
+        cancellationDate: null,
+        renewalDay: 1,
+        basePrice: { toString: () => '29.99' },
+        costCurrency: 'USD',
+        shippingCost: null,
+        firstSkipDate: null,
+        feeTemplates: [],
+      };
+
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const regularMonth = {
+        id: 'regular-month-jan',
+        year: 2026,
+        month: 1,
+        signatureType: null,
+        books: [{ editionId: 'ed-reg-1', bookId: 'bk-reg-1', signatureType: null,
+          edition: { book: { authors: [] } } }],
+      };
+
+      // resolveEffectiveComponentIds — no parentSubscriptionId → same ID
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+      ]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([regularMonth]);
+
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+      ]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([regularMonth]);
+
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-reg-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: 'be-reg-1' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicy: null });
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+      skipMock.recomputeSkipState.mockResolvedValueOnce(undefined);
+
+      await service.backfillSubscription(COMBO_USER_ID, 'combo-test', {
+        selectedMonthIds: ['COMBO_2026_1'],
+      } as any);
+
+      // Books-lookup call should use REGULAR_COMP_ID (no redirect)
+      const monthFindManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const booksLookupCall = monthFindManyCalls[1];
+      expect(booksLookupCall[0].where.subscriptionId.in).toContain(REGULAR_COMP_ID);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ editionId: 'ed-reg-1', bookId: 'bk-reg-1' }),
+        }),
+      );
+    });
+  });
 });
