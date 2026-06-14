@@ -1,7 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker'
 import { cloudinaryUrl, uploadImage, deleteImage } from '@/lib/cloudinary'
+import type { MediaAssetItem } from '@/lib/mediaAssets'
 
 interface Props {
   label: string
@@ -15,6 +17,7 @@ interface Props {
 export default function ImageUpload({ label, folder, value, onChange, onClear, aspectRatio = '2/3' }: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const previewUrl = cloudinaryUrl(value, 'w_160,h_160,c_fill,q_auto,f_auto')
@@ -58,14 +61,23 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
 
         {/* Controls */}
         <div className="flex-1 min-w-0">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
-          >
-            {uploading ? 'Uploading…' : value ? 'Change image' : 'Upload image'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
+            >
+              {uploading ? 'Uploading…' : value ? 'Change image' : 'Upload image'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors"
+            >
+              Pick from library
+            </button>
+          </div>
           {value && onClear && (
             <button
               type="button"
@@ -82,7 +94,15 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
         </div>
       </div>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <MediaLibraryPicker
+        open={pickerOpen}
+        folder={folder}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(asset: MediaAssetItem) => {
+          onChange(asset.publicId)
+          setPickerOpen(false)
+        }}
+      />
     </div>
   )
 }
-

@@ -23,10 +23,10 @@ import {
 import { authFetch } from '@/lib/authFetch'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+import MultiImageUpload from '@/components/admin/MultiImageUpload'
 import { Pagination } from '@/components/admin/Pagination'
 import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
 import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
-import { uploadImage } from '@/lib/cloudinary'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { Sparkles } from 'lucide-react'
@@ -753,57 +753,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   }
 }
 
-// ─── Single Image Upload ──────────────────────────────────────────────────────
-function SingleImageUpload({ imageId, folder, onChange }: {
-  imageId: string | undefined
-  folder: string
-  onChange: (id: string | undefined) => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-  const thumb = cloudinaryUrl(imageId, 'w_160,h_240,c_fill,q_auto,f_auto')
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const id = await uploadImage(file, folder)
-      onChange(id)
-    } catch { /* skip */ }
-    setUploading(false)
-    if (inputRef.current) inputRef.current.value = ''
-  }
-
-  return (
-    <div className="flex items-start gap-3">
-      {thumb ? (
-        <div className="relative group w-20 h-[120px] shrink-0 rounded-lg overflow-hidden border border-amber-500/40">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={thumb} alt="cover" className="w-full h-full object-cover" />
-          <button
-            type="button"
-            onClick={() => onChange(undefined)}
-            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          >✕</button>
-        </div>
-      ) : null}
-      <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          disabled={uploading}
-          onClick={() => inputRef.current?.click()}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 transition-colors"
-        >
-          {uploading ? 'Uploading…' : thumb ? 'Replace image' : '+ Upload image'}
-        </button>
-        <span className="text-[11px] text-stone-500">One image per announcement</span>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      </div>
-    </div>
-  )
-}
-
 // ─── Form component ───────────────────────────────────────────────────────────
 function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   initial: FormState
@@ -935,13 +884,13 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         />
       </div>
 
-      {/* Image */}
+      {/* Images */}
       <div>
-        <label className={LBL}>Image</label>
-        <SingleImageUpload
-          imageId={form.allImages[0]}
+        <label className={LBL}>Images <span className="text-stone-600 font-normal normal-case tracking-normal">(first = main cover)</span></label>
+        <MultiImageUpload
+          images={form.allImages}
           folder="luxgrimoire/announcements"
-          onChange={id => setForm(f => ({ ...f, allImages: id ? [id] : [] }))}
+          onChange={imgs => setForm(f => ({ ...f, allImages: imgs }))}
         />
       </div>
 

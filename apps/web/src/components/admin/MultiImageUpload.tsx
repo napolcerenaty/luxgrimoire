@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react'
 import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
 import { API_BASE } from '@/lib/authFetch'
+import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker'
+import type { MediaAssetItem } from '@/lib/mediaAssets'
 
 export { uploadImage }
 
@@ -32,6 +34,7 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
   const [progress, setProgress] = useState('')
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -73,6 +76,13 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
           onClick={() => inputRef.current?.click()}
           className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 transition-colors">
           {uploading ? progress : images.length === 0 ? '+ Upload images' : '+ Add more images'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors"
+        >
+          Pick from library
         </button>
         <span className="text-stone-600 text-xs">
           {images.length === 0
@@ -138,6 +148,15 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
           })}
         </div>
       )}
+      <MediaLibraryPicker
+        open={pickerOpen}
+        folder={folder}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(asset: MediaAssetItem) => {
+          onChange([...images, asset.publicId])
+          setPickerOpen(false)
+        }}
+      />
     </div>
   )
 }
