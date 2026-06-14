@@ -47,7 +47,7 @@ export class AuthorsService {
     return {
       ...author,
       photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
-      photoUrl: photoAsset?.publicId ?? ?? author.photoUrl,
+      photoUrl: photoAsset?.publicId ?? author.photoUrl,
     };
   }
 
@@ -87,7 +87,7 @@ export class AuthorsService {
     return {
       data: data.map((author: any) => ({
         ...author,
-        photoUrl: author.photoAsset?.publicId ?? ?? author.photoUrl,
+        photoUrl: author.photoAsset?.publicId ?? author.photoUrl,
       })),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -122,7 +122,7 @@ export class AuthorsService {
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
     return {
       ...author,
-      photoUrl: author.photoAsset?.publicId ?? ?? author.photoUrl,
+      photoUrl: author.photoAsset?.publicId ?? author.photoUrl,
     };
   }
 
@@ -205,7 +205,7 @@ export class AuthorsService {
     return {
       ...author,
       photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
-      photoUrl: photoAsset?.publicId ?? ?? author.photoUrl,
+      photoUrl: photoAsset?.publicId ?? author.photoUrl,
     };
   }
 

@@ -49,7 +49,7 @@ export class ArtistsService {
     return {
       ...artist,
       photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
-      photoUrl: photoAsset?.publicId ?? ?? artist.photoUrl,
+      photoUrl: photoAsset?.publicId ?? artist.photoUrl,
     };
   }
 
@@ -89,7 +89,7 @@ export class ArtistsService {
     return {
       data: data.map((artist: any) => ({
         ...artist,
-        photoUrl: artist.photoAsset?.publicId ?? ?? artist.photoUrl,
+        photoUrl: artist.photoAsset?.publicId ?? artist.photoUrl,
       })),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -124,7 +124,7 @@ export class ArtistsService {
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
     return {
       ...artist,
-      photoUrl: artist.photoAsset?.publicId ?? ?? artist.photoUrl,
+      photoUrl: artist.photoAsset?.publicId ?? artist.photoUrl,
     };
   }
 
@@ -204,7 +204,7 @@ export class ArtistsService {
     });
     return months.map((month: any) => ({
       ...month,
-      coverImage: month.coverImageAsset?.publicId ?? ?? month.coverImage,
+      coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
     }));
   }
 
@@ -230,7 +230,7 @@ export class ArtistsService {
     return {
       ...artist,
       photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
-      photoUrl: photoAsset?.publicId ?? ?? artist.photoUrl,
+      photoUrl: photoAsset?.publicId ?? artist.photoUrl,
     };
   }
 

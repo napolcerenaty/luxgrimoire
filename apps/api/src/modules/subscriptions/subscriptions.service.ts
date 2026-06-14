@@ -81,7 +81,7 @@ export class SubscriptionsService {
     if (!company) return company;
     return {
       ...company,
-      logoUrl: company.logoAsset?.publicId ?? ?? company.logoUrl,
+      logoUrl: company.logoAsset?.publicId ?? company.logoUrl,
     };
   }
 
@@ -89,8 +89,8 @@ export class SubscriptionsService {
     if (!month) return month;
     return {
       ...month,
-      coverImage: month.coverImageAsset?.publicId ?? ?? month.coverImage,
-      spoilerImage: month.spoilerImageAsset?.publicId ?? ?? month.spoilerImage,
+      coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
+      spoilerImage: month.spoilerImageAsset?.publicId ?? month.spoilerImage,
     };
   }
 
@@ -98,8 +98,8 @@ export class SubscriptionsService {
     if (!subscription) return subscription;
     return {
       ...subscription,
-      coverImage: subscription.coverImageAsset?.publicId ?? ?? subscription.coverImage,
-      logoUrl: subscription.logoAsset?.publicId ?? ?? subscription.logoUrl,
+      coverImage: subscription.coverImageAsset?.publicId ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.publicId ?? subscription.logoUrl,
       company: this.mapCompanyAssets(subscription.company),
       months: Array.isArray(subscription.months)
         ? subscription.months.map((month: any) => this.mapMonthAssets(month))
