@@ -26,21 +26,17 @@ export class MediaAssetsService {
     return this.prisma;
   }
 
-  // Store the bare publicId as `url` — mirrors the old imageUrl approach so that
-  // frontend cloudinaryUrl() can apply any transformation without .jpg suffix issues.
-  async upsert(publicId: string, _url: string, folder?: string, uploadedById?: string) {
+  async upsert(publicId: string, folder?: string, uploadedById?: string) {
     const normalizedPublicId = normalizePublicId(publicId);
     return this.prismaClient.mediaAsset.upsert({
       where: { publicId: normalizedPublicId },
       create: {
         id: randomUUID(),
         publicId: normalizedPublicId,
-        url: normalizedPublicId,
         folder: folder ?? extractFolder(normalizedPublicId),
         uploadedById,
       },
       update: {
-        url: normalizedPublicId,
         ...(folder ? { folder } : {}),
         ...(uploadedById ? { uploadedById } : {}),
       },
@@ -52,7 +48,7 @@ export class MediaAssetsService {
     const publicId = normalizePublicId(publicIdOrUrl);
     const existing = await this.findByPublicId(publicId);
     if (existing) return existing;
-    return this.upsert(publicId, publicIdOrUrl, extractFolder(publicId), uploadedById);
+    return this.upsert(publicId, extractFolder(publicId), uploadedById);
   }
 
   async findAll(opts: { search?: string; folder?: string; page?: number; pageSize?: number }) {

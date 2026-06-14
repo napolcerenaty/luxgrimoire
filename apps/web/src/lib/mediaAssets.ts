@@ -3,7 +3,6 @@ import { authFetch } from './authFetch'
 export interface MediaAssetItem {
   id: string
   publicId: string
-  url: string
   folder: string | null
   createdAt: string
 }

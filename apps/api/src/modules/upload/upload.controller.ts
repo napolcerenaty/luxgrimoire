@@ -38,7 +38,7 @@ export class UploadController {
   async uploadImage(@Body() dto: UploadImageDto, @CurrentUser() currentUser: { id: string }) {
     const folder = dto.folder ?? 'luxgrimoire/uploads';
     const result = await this.uploadService.uploadImageBase64(dto.data, folder);
-    const asset = await this.mediaAssetsService.upsert(result.publicId, result.url, folder, currentUser.id);
+    const asset = await this.mediaAssetsService.upsert(result.publicId, folder, currentUser.id);
     return { ...result, mediaAssetId: asset.id };
   }
 

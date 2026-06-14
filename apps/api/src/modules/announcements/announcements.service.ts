@@ -66,7 +66,7 @@ export class AnnouncementsService {
     if (!announcement) return announcement;
     return {
       ...announcement,
-      imageUrl: announcement.imageAsset?.url ?? announcement.imageUrl,
+      imageUrl: announcement.imageAsset?.publicId ?? announcement.imageUrl,
     };
   }
 
@@ -134,7 +134,7 @@ export class AnnouncementsService {
           id: true,
           title: true,
           imageUrl: true,
-          imageAsset: { select: { id: true, publicId: true, url: true } },
+          imageAsset: { select: { id: true, publicId: true } },
           basePrice: true,
           subscriberBasePrice: true,
           currency: true,
@@ -165,7 +165,7 @@ export class AnnouncementsService {
     const announcement = await (this.prisma.saleAnnouncement as any).findUnique({
       where: { id },
       include: {
-        imageAsset: { select: { id: true, publicId: true, url: true } },
+        imageAsset: { select: { id: true, publicId: true } },
         editions: editionsInclude,
         regions: regionsInclude,
         company: { select: { name: true, slug: true, brandColors: true } },
@@ -194,7 +194,7 @@ export class AnnouncementsService {
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
-          imageAsset: { select: { id: true, publicId: true, url: true } },
+          imageAsset: { select: { id: true, publicId: true } },
           editions: editionsIncludeAdmin,
           regions: regionsInclude,
           company: { select: { id: true, name: true, slug: true, logoUrl: true } },

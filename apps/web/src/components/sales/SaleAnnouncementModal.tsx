@@ -41,18 +41,16 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
     return () => { document.body.style.overflow = prev }
   }, [sale])
 
-  if (!sale) return null
-
-  const editions = sale.editions ?? []
-  const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale, regionId)
-  const subscriberPrice = resolveSubscriberPrice(sale, regionId)
+  const editions = sale?.editions ?? []
+  const { basePrice: resolvedPrice, currency: resolvedCurrency } = resolveSalePrice(sale ?? ({} as any), regionId)
+  const subscriberPrice = resolveSubscriberPrice(sale ?? ({} as any), regionId)
   const effectiveSelectedPrice = selectedPrice ?? (subscriberPrice ?? undefined)
   const effectiveSelectedCurrency = selectedPriceCurrency ?? (subscriberPrice != null ? resolvedCurrency : undefined)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
 
-  const extraImages: string[] = Array.isArray(sale.extraImagesJson) ? sale.extraImagesJson : []
+  const extraImages: string[] = Array.isArray(sale?.extraImagesJson) ? (sale!.extraImagesJson as string[]) : []
   const allImages = [
-    ...(sale.imageUrl ? [sale.imageUrl] : []),
+    ...(sale?.imageUrl ? [sale.imageUrl] : []),
     ...extraImages,
   ]
   const currentImgRaw = allImages[imgIndex] ?? firstEditionCover
@@ -60,6 +58,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const totalImages = allImages.length
   const prevImg = useCallback(() => setImgIndex(i => (i - 1 + totalImages) % totalImages), [totalImages])
   const nextImg = useCallback(() => setImgIndex(i => (i + 1) % totalImages), [totalImages])
+
+  if (!sale) return null
 
   return (
     <>

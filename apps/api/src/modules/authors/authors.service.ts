@@ -46,8 +46,8 @@ export class AuthorsService {
     await this.indexAuthor(author);
     return {
       ...author,
-      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId, url: photoAsset.url } : null,
-      photoUrl: photoAsset?.url ?? author.photoUrl,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? ?? author.photoUrl,
     };
   }
 
@@ -70,7 +70,7 @@ export class AuthorsService {
           slug: true,
           name: true,
           photoUrl: true,
-          photoAsset: { select: { id: true, publicId: true, url: true } },
+          photoAsset: { select: { id: true, publicId: true } },
           nationality: true,
           website: true,
           instagram: true,
@@ -87,7 +87,7 @@ export class AuthorsService {
     return {
       data: data.map((author: any) => ({
         ...author,
-        photoUrl: author.photoAsset?.url ?? author.photoUrl,
+        photoUrl: author.photoAsset?.publicId ?? ?? author.photoUrl,
       })),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -110,7 +110,7 @@ export class AuthorsService {
         name: true,
         bio: true,
         photoUrl: true,
-        photoAsset: { select: { id: true, publicId: true, url: true } },
+        photoAsset: { select: { id: true, publicId: true } },
         nationality: true,
         website: true,
         instagram: true,
@@ -122,7 +122,7 @@ export class AuthorsService {
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
     return {
       ...author,
-      photoUrl: author.photoAsset?.url ?? author.photoUrl,
+      photoUrl: author.photoAsset?.publicId ?? ?? author.photoUrl,
     };
   }
 
@@ -204,8 +204,8 @@ export class AuthorsService {
       : null;
     return {
       ...author,
-      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId, url: photoAsset.url } : null,
-      photoUrl: photoAsset?.url ?? author.photoUrl,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? ?? author.photoUrl,
     };
   }
 

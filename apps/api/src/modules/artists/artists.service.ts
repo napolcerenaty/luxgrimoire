@@ -48,8 +48,8 @@ export class ArtistsService {
     await this.indexArtist(artist);
     return {
       ...artist,
-      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId, url: photoAsset.url } : null,
-      photoUrl: photoAsset?.url ?? artist.photoUrl,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? ?? artist.photoUrl,
     };
   }
 
@@ -72,7 +72,7 @@ export class ArtistsService {
           slug: true,
           name: true,
           photoUrl: true,
-          photoAsset: { select: { id: true, publicId: true, url: true } },
+          photoAsset: { select: { id: true, publicId: true } },
           specialty: true,
           website: true,
           instagram: true,
@@ -89,7 +89,7 @@ export class ArtistsService {
     return {
       data: data.map((artist: any) => ({
         ...artist,
-        photoUrl: artist.photoAsset?.url ?? artist.photoUrl,
+        photoUrl: artist.photoAsset?.publicId ?? ?? artist.photoUrl,
       })),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -112,7 +112,7 @@ export class ArtistsService {
         name: true,
         bio: true,
         photoUrl: true,
-        photoAsset: { select: { id: true, publicId: true, url: true } },
+        photoAsset: { select: { id: true, publicId: true } },
         specialty: true,
         website: true,
         instagram: true,
@@ -124,7 +124,7 @@ export class ArtistsService {
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
     return {
       ...artist,
-      photoUrl: artist.photoAsset?.url ?? artist.photoUrl,
+      photoUrl: artist.photoAsset?.publicId ?? ?? artist.photoUrl,
     };
   }
 
@@ -195,7 +195,7 @@ export class ArtistsService {
         month: true,
         theme: true,
         coverImage: true,
-        coverImageAsset: { select: { id: true, publicId: true, url: true } },
+        coverImageAsset: { select: { id: true, publicId: true } },
         isSpoiler: true,
         subscription: {
           select: { id: true, name: true, slug: true },
@@ -204,7 +204,7 @@ export class ArtistsService {
     });
     return months.map((month: any) => ({
       ...month,
-      coverImage: month.coverImageAsset?.url ?? month.coverImage,
+      coverImage: month.coverImageAsset?.publicId ?? ?? month.coverImage,
     }));
   }
 
@@ -229,8 +229,8 @@ export class ArtistsService {
       : null;
     return {
       ...artist,
-      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId, url: photoAsset.url } : null,
-      photoUrl: photoAsset?.url ?? artist.photoUrl,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? ?? artist.photoUrl,
     };
   }
 

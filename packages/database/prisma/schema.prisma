@@ -1454,7 +1454,6 @@ model EditionFeatureTag {
 model MediaAsset {
   id           String   @id @default(uuid())
   publicId     String   @unique
-  url          String
   folder       String?
   createdAt    DateTime @default(now())
   uploadedById String?

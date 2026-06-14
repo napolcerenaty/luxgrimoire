@@ -81,7 +81,7 @@ export class SubscriptionsService {
     if (!company) return company;
     return {
       ...company,
-      logoUrl: company.logoAsset?.url ?? company.logoUrl,
+      logoUrl: company.logoAsset?.publicId ?? ?? company.logoUrl,
     };
   }
 
@@ -89,8 +89,8 @@ export class SubscriptionsService {
     if (!month) return month;
     return {
       ...month,
-      coverImage: month.coverImageAsset?.url ?? month.coverImage,
-      spoilerImage: month.spoilerImageAsset?.url ?? month.spoilerImage,
+      coverImage: month.coverImageAsset?.publicId ?? ?? month.coverImage,
+      spoilerImage: month.spoilerImageAsset?.publicId ?? ?? month.spoilerImage,
     };
   }
 
@@ -98,8 +98,8 @@ export class SubscriptionsService {
     if (!subscription) return subscription;
     return {
       ...subscription,
-      coverImage: subscription.coverImageAsset?.url ?? subscription.coverImage,
-      logoUrl: subscription.logoAsset?.url ?? subscription.logoUrl,
+      coverImage: subscription.coverImageAsset?.publicId ?? ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.publicId ?? ?? subscription.logoUrl,
       company: this.mapCompanyAssets(subscription.company),
       months: Array.isArray(subscription.months)
         ? subscription.months.map((month: any) => this.mapMonthAssets(month))
@@ -258,10 +258,10 @@ export class SubscriptionsService {
     return this.mapSubscriptionAssets({
       ...subscription,
       coverImageAsset: coverImageAsset
-        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId, url: coverImageAsset.url }
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId }
         : null,
       logoAsset: logoAsset
-        ? { id: logoAsset.id, publicId: logoAsset.publicId, url: logoAsset.url }
+        ? { id: logoAsset.id, publicId: logoAsset.publicId }
         : null,
     });
   }
@@ -325,15 +325,15 @@ export class SubscriptionsService {
               slug: true,
               name: true,
               logoUrl: true,
-              logoAsset: { select: { id: true, publicId: true, url: true } },
+              logoAsset: { select: { id: true, publicId: true } },
               brandColors: true,
             },
           },
           skipPolicy: true,
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
-          coverImageAsset: { select: { id: true, publicId: true, url: true } },
-          logoAsset: { select: { id: true, publicId: true, url: true } },
+          coverImageAsset: { select: { id: true, publicId: true } },
+          logoAsset: { select: { id: true, publicId: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -376,8 +376,8 @@ export class SubscriptionsService {
         companyId: true,
         coverImage: true,
         logoUrl: true,
-        coverImageAsset: { select: { id: true, publicId: true, url: true } },
-        logoAsset: { select: { id: true, publicId: true, url: true } },
+        coverImageAsset: { select: { id: true, publicId: true } },
+        logoAsset: { select: { id: true, publicId: true } },
       },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
@@ -416,15 +416,15 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             logoUrl: true,
-            logoAsset: { select: { id: true, publicId: true, url: true } },
+            logoAsset: { select: { id: true, publicId: true } },
             country: true,
             hasOfficialImagePermission: true,
             brandColors: true,
           },
         },
         skipPolicy: true,
-        coverImageAsset: { select: { id: true, publicId: true, url: true } },
-        logoAsset: { select: { id: true, publicId: true, url: true } },
+        coverImageAsset: { select: { id: true, publicId: true } },
+        logoAsset: { select: { id: true, publicId: true } },
         prepayOptions: { orderBy: { months: 'asc' } },
         parent: { select: { slug: true, name: true } },
         priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
@@ -436,7 +436,7 @@ export class SubscriptionsService {
                 slug: true,
                 name: true,
                 coverImage: true,
-                coverImageAsset: { select: { id: true, publicId: true, url: true } },
+                coverImageAsset: { select: { id: true, publicId: true } },
                 parentSubscriptionId: true,
                 startDate: true,
                 endDate: true,
@@ -450,8 +450,8 @@ export class SubscriptionsService {
                   orderBy: [{ year: 'desc' }, { month: 'desc' }],
                   include: {
                     cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
-                    coverImageAsset: { select: { id: true, publicId: true, url: true } },
-                    spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
+                    coverImageAsset: { select: { id: true, publicId: true } },
+                    spoilerImageAsset: { select: { id: true, publicId: true } },
                     books: {
                       include: {
                         book: {
@@ -488,8 +488,8 @@ export class SubscriptionsService {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
-            spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true } },
             books: {
               include: {
                 book: {
@@ -543,8 +543,8 @@ export class SubscriptionsService {
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
         include: {
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
-          coverImageAsset: { select: { id: true, publicId: true, url: true } },
-          spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
+          coverImageAsset: { select: { id: true, publicId: true } },
+          spoilerImageAsset: { select: { id: true, publicId: true } },
           books: {
             include: {
               book: {
@@ -595,8 +595,8 @@ export class SubscriptionsService {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
-            spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true } },
             books: {
               include: {
                 book: {
@@ -881,9 +881,9 @@ export class SubscriptionsService {
           theme: true,
           seriesId: true,
           coverImage: true,
-          coverImageAsset: { select: { id: true, publicId: true, url: true } },
+          coverImageAsset: { select: { id: true, publicId: true } },
           spoilerImage: true,
-          spoilerImageAsset: { select: { id: true, publicId: true, url: true } },
+          spoilerImageAsset: { select: { id: true, publicId: true } },
           isSpoiler: true,
           signatureType: true,
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
@@ -964,10 +964,10 @@ export class SubscriptionsService {
     return this.mapMonthAssets({
       ...created,
       coverImageAsset: coverImageAsset
-        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId, url: coverImageAsset.url }
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId }
         : null,
       spoilerImageAsset: spoilerImageAsset
-        ? { id: spoilerImageAsset.id, publicId: spoilerImageAsset.publicId, url: spoilerImageAsset.url }
+        ? { id: spoilerImageAsset.id, publicId: spoilerImageAsset.publicId }
         : null,
     });
   }
@@ -1216,8 +1216,8 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
-            logoAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
             currency: true,
             priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
             isDiscontinued: true,
@@ -1231,7 +1231,7 @@ export class SubscriptionsService {
                 slug: true,
                 brandColors: true,
                 logoUrl: true,
-                logoAsset: { select: { id: true, publicId: true, url: true } },
+                logoAsset: { select: { id: true, publicId: true } },
               },
             },
           },
@@ -1345,8 +1345,8 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
-            logoAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
             currency: true,
             isDiscontinued: true,
             company: {
@@ -1355,7 +1355,7 @@ export class SubscriptionsService {
                 slug: true,
                 brandColors: true,
                 logoUrl: true,
-                logoAsset: { select: { id: true, publicId: true, url: true } },
+                logoAsset: { select: { id: true, publicId: true } },
               },
             },
           },
@@ -2945,7 +2945,7 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             coverImage: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
           },
         },
       },
@@ -3002,7 +3002,7 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             coverImage: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
             isDiscontinued: true,
             company: {
               select: {
@@ -3010,7 +3010,7 @@ export class SubscriptionsService {
                 name: true,
                 slug: true,
                 logoUrl: true,
-                logoAsset: { select: { id: true, publicId: true, url: true } },
+                logoAsset: { select: { id: true, publicId: true } },
               },
             },
           },

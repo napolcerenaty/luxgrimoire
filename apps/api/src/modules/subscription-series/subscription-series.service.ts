@@ -15,7 +15,7 @@ const SERIES_SELECT = {
   name: true,
   description: true,
   coverImage: true,
-  coverImageAsset: { select: { id: true, publicId: true, url: true } },
+  coverImageAsset: { select: { id: true, publicId: true } },
   startMonth: true,
   startYear: true,
   endMonth: true,
@@ -39,14 +39,14 @@ export class SubscriptionSeriesService {
   private mapMonth(month: any) {
     return {
       ...month,
-      coverImage: month.coverImageAsset?.url ?? month.coverImage,
+      coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
     };
   }
 
   private mapSeries(series: any) {
     return {
       ...series,
-      coverImage: series.coverImageAsset?.url ?? series.coverImage,
+      coverImage: series.coverImageAsset?.publicId ?? series.coverImage,
       months: Array.isArray(series.months) ? series.months.map((month: any) => this.mapMonth(month)) : series.months,
     };
   }
@@ -73,7 +73,7 @@ export class SubscriptionSeriesService {
             month: true,
             theme: true,
             coverImage: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
           },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
         },
@@ -95,7 +95,7 @@ export class SubscriptionSeriesService {
             month: true,
             theme: true,
             coverImage: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
           },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
         },

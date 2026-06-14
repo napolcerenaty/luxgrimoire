@@ -43,8 +43,8 @@ export class CompaniesService {
     if (!subscription) return subscription;
     return {
       ...subscription,
-      coverImage: subscription.coverImageAsset?.url ?? subscription.coverImage,
-      logoUrl: subscription.logoAsset?.url ?? subscription.logoUrl,
+      coverImage: subscription.coverImageAsset?.publicId ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.publicId ?? subscription.logoUrl,
     };
   }
 
@@ -52,7 +52,7 @@ export class CompaniesService {
     if (!company) return company;
     return {
       ...company,
-      logoUrl: company.logoAsset?.url ?? company.logoUrl,
+      logoUrl: company.logoAsset?.publicId ?? company.logoUrl,
       subscriptions: Array.isArray(company.subscriptions)
         ? company.subscriptions.map((subscription: any) => this.mapSubscriptionAssets(subscription))
         : company.subscriptions,
@@ -89,7 +89,7 @@ export class CompaniesService {
     await this.indexCompany(company);
     return this.mapCompanyAssets({
       ...company,
-      logoAsset: logoAsset ? { id: logoAsset.id, publicId: logoAsset.publicId, url: logoAsset.url } : null,
+      logoAsset: logoAsset ? { id: logoAsset.id, publicId: logoAsset.publicId } : null,
     });
   }
 
@@ -122,7 +122,7 @@ export class CompaniesService {
         skip,
         take: pageSize,
         include: {
-          logoAsset: { select: { id: true, publicId: true, url: true } },
+          logoAsset: { select: { id: true, publicId: true } },
           subscriptions: {
             where: { isHidden: false, isContentStream: false },
             select: {
@@ -138,8 +138,8 @@ export class CompaniesService {
               isCombo: true,
               isContentStream: true,
               parentSubscriptionId: true,
-              coverImageAsset: { select: { id: true, publicId: true, url: true } },
-              logoAsset: { select: { id: true, publicId: true, url: true } },
+              coverImageAsset: { select: { id: true, publicId: true } },
+              logoAsset: { select: { id: true, publicId: true } },
             },
           },
           _count: {
@@ -174,7 +174,7 @@ export class CompaniesService {
         name: true,
         description: true,
         logoUrl: true,
-        logoAsset: { select: { id: true, publicId: true, url: true } },
+        logoAsset: { select: { id: true, publicId: true } },
         website: true,
         country: true,
         defaultCurrency: true,
@@ -204,8 +204,8 @@ export class CompaniesService {
             isCombo: true,
             isContentStream: true,
             parentSubscriptionId: true,
-            coverImageAsset: { select: { id: true, publicId: true, url: true } },
-            logoAsset: { select: { id: true, publicId: true, url: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
           },
         },
         collections: {
