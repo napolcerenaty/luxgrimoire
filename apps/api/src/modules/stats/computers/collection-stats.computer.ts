@@ -5,7 +5,7 @@ import type { LightStatsContext, StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 5;
+  readonly version = 6;
 
   async compute(ctx: StatsContext | LightStatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;

@@ -363,7 +363,12 @@ export class StatsService {
     const features = this.asRecord(allTimeSnap.features);
 
     if (module === 'collection') {
-      return { collection };
+      // If a specific year is requested AND the year snapshot has collection data, use it
+      const yearCollection = yearSnap ? this.asRecord(yearSnap.collection) : null;
+      const collectionData = (year && yearCollection && Object.keys(yearCollection).length > 0)
+        ? yearCollection
+        : collection;
+      return { collection: collectionData };
     }
 
     if (module === 'features') {
@@ -485,6 +490,8 @@ export class StatsService {
     const newVersions: ModuleVersionsRecord = { ...existingVersions };
     let spendingResult: SnapshotData = this.asRecord(existing?.spending);
 
+    let collectionResult: SnapshotData = this.asRecord(existing?.collection);
+
     if (enabledModules.has('spending')) {
       const [entries, saleGroups] = await Promise.all([
         this.prisma.userBookEntry.findMany({
@@ -506,6 +513,33 @@ export class StatsService {
       }
     }
 
+    // Compute yearly collection: entries acquired this year (via purchase OR subscription month)
+    if (enabledModules.has('collection')) {
+      try {
+        const collEntries = await this.prisma.userBookEntry.findMany({
+          where: {
+            userId,
+            OR: [
+              { purchaseGroup: { purchasedAt: { gte: startDate, lt: endDate } } },
+              {
+                subscriptionEntryId: { not: null },
+                purchaseGroupId: null,
+                subscriptionEntry: {
+                  billingPeriods: { some: { month: { year } } },
+                },
+              },
+            ],
+          },
+          include: collectionAndFeaturesEntryInclude,
+        });
+        const lightCtx = await this.buildLightContext(userId, currency, collEntries);
+        collectionResult = this.asRecord(await this.collectionComputer.compute(lightCtx));
+        newVersions.collection = { version: this.collectionComputer.version, computedAt: now };
+      } catch (err: unknown) {
+        this.logger.error(`CollectionStatsComputer failed for year=${year}: ${String(err)}`);
+      }
+    }
+
     return this.snapshots.upsert({
       where: { userId_currency_year: { userId, currency, year } },
       create: {
@@ -515,7 +549,7 @@ export class StatsService {
         isStale: false,
         moduleVersions: newVersions,
         spending: spendingResult,
-        collection: this.asRecord(existing?.collection),
+        collection: collectionResult,
         features: this.asRecord(existing?.features),
       },
       update: {
@@ -523,7 +557,7 @@ export class StatsService {
         computedAt: new Date(),
         moduleVersions: newVersions,
         spending: spendingResult,
-        collection: this.asRecord(existing?.collection),
+        collection: collectionResult,
         features: this.asRecord(existing?.features),
       },
     });
