@@ -10,6 +10,12 @@ export class MediaAssetsController {
   constructor(private readonly service: MediaAssetsService) {}
 
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get('folders')
+  findFolders() {
+    return this.service.findFolders();
+  }
+
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Get()
   findAll(
     @Query('search') search?: string,

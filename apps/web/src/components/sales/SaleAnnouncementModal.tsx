@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
@@ -25,6 +24,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const getBrandColors = useBrandColors()
   const saleOpen = sale ? isOpenForPurchase(sale, regionId) : false
   const salePast = sale ? isSalePast(sale, regionId) : false
+  const [imgIndex, setImgIndex] = useState(0)
 
   // Close on Escape
   useEffect(() => {
@@ -49,9 +49,17 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
   const effectiveSelectedPrice = selectedPrice ?? (subscriberPrice ?? undefined)
   const effectiveSelectedCurrency = selectedPriceCurrency ?? (subscriberPrice != null ? resolvedCurrency : undefined)
   const firstEditionCover = editions[0]?.edition?.additionalImages?.[0] ?? null
-  const coverImg = (sale.imageUrl ?? firstEditionCover)
-    ? cloudinaryUrl((sale.imageUrl ?? firstEditionCover) as string, 'w_300,q_auto,f_auto')
-    : null
+
+  const extraImages: string[] = Array.isArray(sale.extraImagesJson) ? sale.extraImagesJson : []
+  const allImages = [
+    ...(sale.imageUrl ? [sale.imageUrl] : []),
+    ...extraImages,
+  ]
+  const currentImgRaw = allImages[imgIndex] ?? firstEditionCover
+  const coverImg = currentImgRaw ? cloudinaryUrl(currentImgRaw, 'w_300,q_auto,f_auto') : null
+  const totalImages = allImages.length
+  const prevImg = useCallback(() => setImgIndex(i => (i - 1 + totalImages) % totalImages), [totalImages])
+  const nextImg = useCallback(() => setImgIndex(i => (i + 1) % totalImages), [totalImages])
 
   return (
     <>
@@ -92,7 +100,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           <div className="flex gap-4 mb-5">
             {/* Cover */}
             <div className="shrink-0 w-20 sm:w-28">
-              <div className="rounded-xl overflow-hidden border border-stone-700">
+              <div className="relative rounded-xl overflow-hidden border border-stone-700">
                 {coverImg ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={coverImg} alt={sale.title} className="w-full h-auto block" />
@@ -104,6 +112,21 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(getBrandColors(sale.company?.slug ?? null) ?? sale.company?.brandColors)} />
                     <span className="relative z-10 text-xs font-serif text-stone-200 text-center leading-snug line-clamp-4">{sale.title}</span>
                   </div>
+                )}
+                {totalImages > 1 && (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); prevImg() }} aria-label="Previous image"
+                      className="absolute left-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 transition-colors">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); nextImg() }} aria-label="Next image"
+                      className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 transition-colors">
+                      <ChevronRight size={14} />
+                    </button>
+                    <div className="absolute bottom-1 right-1 px-1 py-px rounded-full bg-stone-950/70 text-stone-400 text-[9px] leading-tight">
+                      {imgIndex + 1}/{totalImages}
+                    </div>
+                  </>
                 )}
               </div>
               {sale.photoCredit && (() => {
@@ -242,7 +265,8 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     >
                       {imgSrc ? (
                         <div className="relative w-full" style={{ aspectRatio: '2/3' }}>
-                          <Image src={imgSrc} alt={editionTitle} fill className="object-cover group-hover:scale-105 transition-transform" unoptimized />
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={imgSrc} alt={editionTitle} className="object-cover group-hover:scale-105 transition-transform w-full h-full" />
                         </div>
                       ) : (
                         <div

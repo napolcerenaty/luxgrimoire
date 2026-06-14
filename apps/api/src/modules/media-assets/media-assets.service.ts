@@ -62,16 +62,23 @@ export class MediaAssetsService {
     const where: any = {};
     if (opts.folder) where.folder = opts.folder;
     if (opts.search) {
-      where.OR = [
-        { label: { contains: opts.search, mode: 'insensitive' } },
-        { publicId: { contains: opts.search, mode: 'insensitive' } },
-      ];
+      where.publicId = { contains: opts.search, mode: 'insensitive' };
     }
     const [data, total] = await Promise.all([
       this.prismaClient.mediaAsset.findMany({ where, skip, take: pageSize, orderBy: { createdAt: 'desc' } }),
       this.prismaClient.mediaAsset.count({ where }),
     ]);
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async findFolders(): Promise<string[]> {
+    const rows = await this.prismaClient.mediaAsset.findMany({
+      select: { folder: true },
+      where: { folder: { not: null } },
+      distinct: ['folder'],
+      orderBy: { folder: 'asc' },
+    });
+    return rows.map((r: { folder: string | null }) => r.folder!);
   }
 
   async countUsages(publicId: string): Promise<number> {

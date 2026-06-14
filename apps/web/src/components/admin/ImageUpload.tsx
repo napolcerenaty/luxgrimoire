@@ -98,8 +98,8 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
         open={pickerOpen}
         folder={folder}
         onClose={() => setPickerOpen(false)}
-        onSelect={(asset: MediaAssetItem) => {
-          onChange(asset.publicId)
+        onSelect={(assets: MediaAssetItem[]) => {
+          if (assets[0]) onChange(assets[0].publicId)
           setPickerOpen(false)
         }}
       />

@@ -151,9 +151,11 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
       <MediaLibraryPicker
         open={pickerOpen}
         folder={folder}
+        multi
         onClose={() => setPickerOpen(false)}
-        onSelect={(asset: MediaAssetItem) => {
-          onChange([...images, asset.publicId])
+        onSelect={(assets: MediaAssetItem[]) => {
+          const newIds = assets.map(a => a.publicId).filter(id => !images.includes(id))
+          if (newIds.length > 0) onChange([...images, ...newIds])
           setPickerOpen(false)
         }}
       />

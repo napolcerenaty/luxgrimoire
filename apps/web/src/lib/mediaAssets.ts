@@ -5,7 +5,6 @@ export interface MediaAssetItem {
   publicId: string
   url: string
   folder: string | null
-  label: string | null
   createdAt: string
 }
 

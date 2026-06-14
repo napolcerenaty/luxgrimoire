@@ -1456,7 +1456,6 @@ model MediaAsset {
   publicId     String   @unique
   url          String
   folder       String?
-  label        String?
   createdAt    DateTime @default(now())
   uploadedById String?
   uploadedBy   User?    @relation("MediaAssetUploads", fields: [uploadedById], references: [id], onDelete: SetNull)
