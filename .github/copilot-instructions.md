@@ -8,9 +8,11 @@
 ## Database migrations
 - All DB changes (schema, seed data, rule updates) must be done via migration files in `packages/database/prisma/migrations/`
 - Never use `prisma db push` or `prisma migrate dev`
-- Apply locally with: `prisma migrate resolve --applied <migration_name>`
+- Apply locally with: `prisma db execute --url $DATABASE_URL --file <migration.sql>` then `prisma migrate resolve --applied <migration_name>`
 - All SQL must use `IF NOT EXISTS` / `IF EXISTS` guards for production safety
 - New migration directory naming: `YYYYMMDDHHMMSS_description`
+- **Column names in migrations must use camelCase with double-quotes** (e.g. `ALTER TABLE users ADD COLUMN "statsSettings" JSONB`) — the project uses camelCase column names throughout, never snake_case
+- Never add DROP TABLE or DROP COLUMN without explicit user confirmation
 
 ## Design & spec files
 - Before implementing any feature, read the relevant spec file from the user's Desktop (e.g. `luxgrimoire-feature-categories-v2.md`, `backfill-subskrypcji-pseudokod.md`, etc.)
