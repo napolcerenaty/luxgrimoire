@@ -307,4 +307,100 @@ describe('RenewalCronService', () => {
       expect(processOneSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // addBooksForSubscriptionMonth — combo with content stream variant component
+  // -------------------------------------------------------------------------
+
+  describe('addBooksForSubscriptionMonth — combo with content stream variant component', () => {
+    const VARIANT_ID = 'variant-comp';
+    const PARENT_ID = 'parent-stream';
+
+    beforeEach(() => {
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue({ billingPeriods: [] });
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'pg-1' });
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+    });
+
+    it('fetches books from the parent stream when a combo component is a content stream variant', async () => {
+      // The subscription itself is a combo; one of its components is a content stream variant
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        isCombo: true,
+        parentSubscriptionId: null,
+        comboComponents: [{ componentId: VARIANT_ID }],
+      });
+
+      // resolveEffectiveComponentIds: variant maps to its parent stream
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_ID, parentSubscriptionId: PARENT_ID },
+      ]);
+
+      // Months found on PARENT_ID — the content stream parent
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        { books: [{ bookId: 'bk-1', editionId: 'ed-1', signatureType: null }] },
+      ]);
+
+      await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
+
+      // subscriptionMonth.findMany must be called with PARENT_ID, not VARIANT_ID
+      const [call] = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      expect(call[0].where.subscriptionId.in).toEqual([PARENT_ID]);
+      expect(call[0].where.subscriptionId.in).not.toContain(VARIANT_ID);
+
+      // Book was added to the user's collection
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ bookId: 'bk-1', editionId: 'ed-1' }),
+        }),
+      );
+    });
+
+    it('returns early when no books exist on the parent stream for that month', async () => {
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        isCombo: true,
+        parentSubscriptionId: null,
+        comboComponents: [{ componentId: VARIANT_ID }],
+      });
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_ID, parentSubscriptionId: PARENT_ID },
+      ]);
+      // No months found on the parent stream
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
+
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+    });
+
+    it('uses component ID directly when combo component is a regular subscription (no parentSubscriptionId)', async () => {
+      const REGULAR_COMP_ID = 'regular-comp';
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        isCombo: true,
+        parentSubscriptionId: null,
+        comboComponents: [{ componentId: REGULAR_COMP_ID }],
+      });
+      // No parentSubscriptionId → effective ID = same ID
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+      ]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        { books: [{ bookId: 'bk-2', editionId: 'ed-2', signatureType: null }] },
+      ]);
+
+      await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
+
+      const [call] = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      expect(call[0].where.subscriptionId.in).toEqual([REGULAR_COMP_ID]);
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ bookId: 'bk-2', editionId: 'ed-2' }),
+        }),
+      );
+    });
+  });
 });

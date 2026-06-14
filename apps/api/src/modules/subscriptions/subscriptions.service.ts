@@ -370,6 +370,9 @@ export class SubscriptionsService {
                 slug: true,
                 name: true,
                 coverImage: true,
+                parentSubscriptionId: true,
+                startDate: true,
+                endDate: true,
                 months: {
                   where: {
                     OR: [
@@ -494,6 +497,57 @@ export class SubscriptionsService {
     }
 
     const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
+
+    // For combo subscriptions: if any component is a content stream variant,
+    // its months live on the parent subscription — replace the empty months array.
+    const processedComboComponents = await Promise.all(
+      comboComponents.map(async (cc) => {
+        const comp = cc.component as any;
+        if (!comp.parentSubscriptionId) return cc;
+        const andConds: Record<string, unknown>[] = [
+          { OR: [{ year: { gt: nowYear } }, { year: nowYear, month: { gte: nowMonth } }] },
+        ];
+        if (comp.startDate) {
+          const sy = (comp.startDate as Date).getFullYear();
+          const sm = (comp.startDate as Date).getMonth() + 1;
+          andConds.push({ OR: [{ year: { gt: sy } }, { year: sy, month: { gte: sm } }] });
+        }
+        if (comp.endDate) {
+          const ey = (comp.endDate as Date).getFullYear();
+          const em = (comp.endDate as Date).getMonth() + 1;
+          andConds.push({ OR: [{ year: { lt: ey } }, { year: ey, month: { lte: em } }] });
+        }
+        const parentMonths = await this.prisma.subscriptionMonth.findMany({
+          where: { subscriptionId: comp.parentSubscriptionId, AND: andConds },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          include: {
+            cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+            books: {
+              include: {
+                book: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    authors: { select: { author: { select: { name: true, slug: true } } } },
+                  },
+                },
+                edition: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    publisher: true,
+                    additionalImages: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        return { ...cc, component: { ...comp, months: parentMonths } };
+      }),
+    );
+
     const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
     return {
       ...rest,
@@ -506,7 +560,7 @@ export class SubscriptionsService {
         : this.computeCurrentPrice(priceChanges, rest.currency),
       months,
       componentIds: comboComponents.map((c) => c.componentId),
-      components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
+      components: processedComboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
     };
   }
 
@@ -1844,6 +1898,20 @@ export class SubscriptionsService {
    * ALL component subscriptions' months for the same year/month slot.
    * Synthetic ID format: `COMBO_${year}_${month}` (no colons to avoid key-parsing issues).
    */
+  /**
+   * For combo components that are content stream variants (parentSubscriptionId set),
+   * months live on the parent subscription — not on the variant itself.
+   * Returns the effective subscription IDs to use when querying SubscriptionMonth records.
+   */
+  private async resolveEffectiveComponentIds(componentIds: string[]): Promise<string[]> {
+    if (componentIds.length === 0) return [];
+    const subs = await this.prisma.subscription.findMany({
+      where: { id: { in: componentIds } },
+      select: { id: true, parentSubscriptionId: true },
+    });
+    return subs.map((s) => s.parentSubscriptionId ?? s.id);
+  }
+
   private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0) {
     if (!startDateObj || componentIds.length === 0) return [];
 
@@ -1864,9 +1932,10 @@ export class SubscriptionsService {
       return [];
     }
 
+    const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
     const componentMonths = await this.prisma.subscriptionMonth.findMany({
       where: {
-        subscriptionId: { in: componentIds },
+        subscriptionId: { in: effectiveComponentIds },
         AND: [
           {
             OR: [
@@ -2147,6 +2216,9 @@ export class SubscriptionsService {
       const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
 
+      // Resolve effective IDs once — for content stream variants, months live on the parent.
+      const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
+
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
 
       const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
@@ -2192,7 +2264,7 @@ export class SubscriptionsService {
 
         // Fetch books from all component months for this year/month
         const componentMonths = await this.prisma.subscriptionMonth.findMany({
-          where: { subscriptionId: { in: componentIds }, year, month },
+          where: { subscriptionId: { in: effectiveComponentIds }, year, month },
           select: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
         });
         // Deduplicate books by editionId
@@ -2306,7 +2378,7 @@ export class SubscriptionsService {
       for (const m of skippableComboMonths) {
         // Resolve the real DB month ID from any component subscription (same as recordSkip)
         const compMonth = await this.prisma.subscriptionMonth.findFirst({
-          where: { subscriptionId: { in: componentIds }, year: m.year, month: m.month },
+          where: { subscriptionId: { in: effectiveComponentIds }, year: m.year, month: m.month },
           orderBy: { subscriptionId: 'asc' },
         });
         if (!compMonth) continue;

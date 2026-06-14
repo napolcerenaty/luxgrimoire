@@ -464,6 +464,20 @@ export class RenewalCronService {
     await this.createPurchaseGroupAndBooks(entry, bundleStartYear, bundleStartMonth, renewalDate, allBooks, null, bundleTitle);
   }
 
+  /**
+   * For combo components that are content stream variants (parentSubscriptionId set),
+   * months live on the parent subscription — not on the variant itself.
+   * Returns the effective subscription IDs to use when querying SubscriptionMonth records.
+   */
+  private async resolveEffectiveComponentIds(componentIds: string[]): Promise<string[]> {
+    if (componentIds.length === 0) return [];
+    const subs = await this.prisma.subscription.findMany({
+      where: { id: { in: componentIds } },
+      select: { id: true, parentSubscriptionId: true },
+    });
+    return subs.map((s) => s.parentSubscriptionId ?? s.id);
+  }
+
   private async addBooksForComboMonth(
     entry: {
       id: string;
@@ -480,9 +494,12 @@ export class RenewalCronService {
   ) {
     if (componentIds.length === 0) return;
 
+    // Resolve effective IDs — for content stream variants, months live on the parent.
+    const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
+
     // Collect books from all component subscriptions' months
     const componentMonths = await this.prisma.subscriptionMonth.findMany({
-      where: { subscriptionId: { in: componentIds }, year, month },
+      where: { subscriptionId: { in: effectiveComponentIds }, year, month },
       include: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
     });
 
