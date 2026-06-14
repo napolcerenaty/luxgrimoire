@@ -69,13 +69,15 @@ interface BookSearchProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   monthYear: number
   monthMonth: number
   onDone: () => void
 }
 
-function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, monthYear, monthMonth, onDone }: BookSearchProps) {
+function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, monthYear, monthMonth, onDone }: BookSearchProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -124,6 +126,8 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
     defaultCompanyId,
     defaultPrice,
     renewalDay,
+    renewalDayUserSet,
+    renewalMonthOffset,
     defaultLanguage,
     monthYear,
     monthMonth,
@@ -228,11 +232,13 @@ interface MonthCardProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   onRefresh?: () => void
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, onRefresh }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
 
@@ -445,6 +451,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Add book</div>
             <BookSearch slug={slug} subscriptionId={subscriptionId} defaultCurrency={defaultCurrency}
               defaultCompanyId={defaultCompanyId} defaultPrice={defaultPrice} renewalDay={renewalDay}
+              renewalDayUserSet={renewalDayUserSet} renewalMonthOffset={renewalMonthOffset}
               defaultLanguage={defaultLanguage}
               monthYear={month.year} monthMonth={month.month}
               onDone={() => { setBooksOpen(true); refresh() }} />
@@ -1059,7 +1066,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; renewalDayUserSet?: boolean | null; renewalMonthOffset?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1253,6 +1260,8 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultCompanyId={subscription?.companyId}
                 defaultPrice={resolveEffectivePrice(priceChanges, m.year, m.month, subscription?.originalBasePrice != null ? parseFloat(subscription.originalBasePrice) : subscription?.price != null ? parseFloat(subscription.price) : null)}
                 renewalDay={subscription?.renewalDay}
+                renewalDayUserSet={subscription?.renewalDayUserSet}
+                renewalMonthOffset={subscription?.renewalMonthOffset}
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}
               />
