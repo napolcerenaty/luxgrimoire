@@ -10,6 +10,8 @@ import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import {
   computeAutoBatches,
   resolveBackfillFallbackPrice,
+  computeFirstBillingMonth,
+  isGrandfatheredExcluded,
   type PriceChangeRecord,
   type ComputedBatch,
 } from '@/lib/joinSubscription.utils'
@@ -554,16 +556,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           const sorted = [...currencyPriceChanges].filter(pc => pc.effectiveYear !== 1900).sort(
             (a, b) => a.effectiveYear !== b.effectiveYear ? a.effectiveYear - b.effectiveYear : a.effectiveMonth - b.effectiveMonth
           )
-          // Parse start month from firstOrderDate
+          // Parse join month from firstOrderDate and derive first billing month
           const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
-          // First billing month: if signupIncludesCurrentMonth=false, first box is next month after join
-          const firstBillingY = startY && startM
-            ? (signupIncludesCurrentMonth ? startY : (startM === 12 ? startY + 1 : startY))
+          const firstBilling = startY && startM
+            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true)
             : null
-          const firstBillingM = startY && startM
-            ? (signupIncludesCurrentMonth ? startM : (startM === 12 ? 1 : startM + 1))
-            : null
+          const firstBillingY = firstBilling?.year ?? null
+          const firstBillingM = firstBilling?.month ?? null
           // Effective price at start (most recent change before/at first billing month, or original base price fallback)
           const originalFallback = subscriptionOriginalBasePrice ?? subscriptionPrice ?? basePrice
           const effectivePriceAtStart = firstBillingY && firstBillingM ? (() => {
@@ -572,12 +572,10 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
           })() : originalFallback
           // Grandfathered change doesn't affect user if their first billing month is before the effective date.
-          // We compare against firstBillingM/Y (not join date) because that's the month being paid for.
-          const isGrandfatheredFutureChange = (pc: PriceChange) => {
-            if (!pc.grandfatheredPrice) return false
-            if (!firstBillingY || !firstBillingM) return false
-            return pc.effectiveYear > firstBillingY || (pc.effectiveYear === firstBillingY && pc.effectiveMonth > firstBillingM)
-          }
+          const isGrandfatheredFutureChange = (pc: PriceChange) =>
+            firstBillingY && firstBillingM
+              ? isGrandfatheredExcluded(pc, firstBillingY, firstBillingM)
+              : false
           // Months between two (year,month) pairs — inclusive start, exclusive end
           const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
           type Period = { label: string; months: number | null; price: string; cur: string }
