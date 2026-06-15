@@ -292,6 +292,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null; currency: string; validFrom?: string | null; validUntil?: string | null }[] }).prepayOptions}
           isDiscontinued={sub.isDiscontinued ?? false}
           subscriptionEndDate={sub.endDate ?? null}
+          signupIncludesCurrentMonth={sub.signupIncludesCurrentMonth}
         />
       </div>
 

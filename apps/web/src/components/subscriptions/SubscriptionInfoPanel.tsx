@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
 import type { CountryFeeHint } from '@/lib/api'
-import { authFetch } from '@/lib/authFetch'
+import { authFetch, API_BASE } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
@@ -29,6 +29,7 @@ interface Props {
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
 }
 
 type FeeTemplateLink = {
@@ -104,6 +105,7 @@ export default function SubscriptionInfoPanel({
   prepayOptions,
   isDiscontinued,
   subscriptionEndDate,
+  signupIncludesCurrentMonth,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -121,7 +123,8 @@ export default function SubscriptionInfoPanel({
   const [allPriceChanges, setAllPriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
 
   useEffect(() => {
-    authFetch<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>(`/subscriptions/${subscriptionSlug}/price-changes`)
+    fetch(`${API_BASE}/subscriptions/${subscriptionSlug}/price-changes`)
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!Array.isArray(data)) return
         setAllPriceChanges(data)
@@ -563,6 +566,7 @@ export default function SubscriptionInfoPanel({
           prepayOptions={prepayOptions}
           isDiscontinued={isDiscontinued}
           subscriptionEndDate={subscriptionEndDate}
+          signupIncludesCurrentMonth={signupIncludesCurrentMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()

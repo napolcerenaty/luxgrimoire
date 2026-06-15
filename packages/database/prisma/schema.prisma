@@ -862,15 +862,16 @@ model SubscriptionSettingsHistory {
 }
 
 model SubscriptionPriceChange {
-  id              String       @id @default(uuid())
-  subscriptionId  String
-  effectiveMonth  Int
-  effectiveYear   Int
-  newBasePrice    Decimal      @db.Decimal(10, 2)
-  currency        String       @db.VarChar(3)
-  notes           String?
-  createdAt       DateTime     @default(now())
-  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  subscriptionId     String
+  effectiveMonth     Int
+  effectiveYear      Int
+  newBasePrice       Decimal      @db.Decimal(10, 2)
+  currency           String       @db.VarChar(3)
+  notes              String?
+  grandfatheredPrice Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  subscription       Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([subscriptionId, effectiveYear, effectiveMonth, currency])
   @@index([subscriptionId])

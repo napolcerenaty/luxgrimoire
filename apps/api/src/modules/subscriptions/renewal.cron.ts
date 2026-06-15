@@ -3,7 +3,8 @@ import { Cron } from '@nestjs/schedule';
 import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
-import { resolveEffectiveBasePrice } from './price-change.util';
+import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
+import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { StatsService } from '../stats/stats.service';
 
 @Injectable()
@@ -297,12 +298,21 @@ export class RenewalCronService {
         where: { subscriptionId: entry.subscriptionId },
         orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
       });
+      // Find the earliest purchase group for this entry to determine user's first billing month.
+      // Scoped to this subscription entry (current active window only).
+      const firstGroup = await this.prisma.userPurchaseGroup.findFirst({
+        where: { subscriptionEntryId: entry.id, fromSubscription: true },
+        orderBy: { title: 'asc' },
+        select: { title: true },
+      });
+      const userFirstBilledYearMonth = parseFirstBilledYearMonth(firstGroup?.title, year, month);
       const resolved = resolveEffectiveBasePrice(
         subPriceChanges,
         year,
         month,
         fallbackBase,
         entry.costCurrency,
+        userFirstBilledYearMonth,
       );
       basePrice = resolved.price ?? fallbackBase;
       shippingAmount = shippingCost;
@@ -359,7 +369,7 @@ export class RenewalCronService {
         select: { id: true },
       });
       if (!existingEntry) {
-        await this.prisma.userBookEntry.create({
+        const newEntry = await this.prisma.userBookEntry.create({
           data: {
             userId: entry.userId,
             bookId: mb.bookId,
@@ -370,7 +380,10 @@ export class RenewalCronService {
             purchaseGroupId: group.id,
             signatureType: mb.signatureType ?? defaultSignatureType,
           },
-        }).catch(() => {});
+        }).catch(() => null);
+        if (newEntry) {
+          await recordOwnershipHistory(this.prisma, [newEntry], 'PREORDER', purchasedAt).catch(() => {});
+        }
       }
     }
 
@@ -608,7 +621,7 @@ export class RenewalCronService {
             select: { id: true },
           });
           if (!existingBookEntry) {
-            await this.prisma.userBookEntry.create({
+            const newEntry = await this.prisma.userBookEntry.create({
               data: {
                 userId: entry.userId,
                 bookId: book.bookId,
@@ -619,7 +632,10 @@ export class RenewalCronService {
                 purchaseGroupId: existingGroup?.id ?? null,
                 signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
               },
-            }).catch(() => {});
+            }).catch(() => null);
+            if (newEntry) {
+              await recordOwnershipHistory(this.prisma, [newEntry], 'PREORDER', renewalRecord.renewalDate).catch(() => {});
+            }
           }
         } else {
           // Non-bundle: original logic
@@ -644,7 +660,7 @@ export class RenewalCronService {
             select: { id: true },
           });
           if (!existingBookEntry) {
-            await this.prisma.userBookEntry.create({
+            const newEntry = await this.prisma.userBookEntry.create({
               data: {
                 userId: entry.userId,
                 bookId: book.bookId,
@@ -655,7 +671,10 @@ export class RenewalCronService {
                 purchaseGroupId: existingGroup?.id ?? null,
                 signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
               },
-            }).catch(() => {});
+            }).catch(() => null);
+            if (newEntry) {
+              await recordOwnershipHistory(this.prisma, [newEntry], 'PREORDER', renewalRecord.renewalDate).catch(() => {});
+            }
           }
         }
       }
@@ -687,7 +706,7 @@ export class RenewalCronService {
       for (const entry of comboEntries) {
         const renewalRecord = await this.prisma.userSubscriptionRenewal.findFirst({
           where: { entryId: entry.id, renewalDate: { gte: comboMonthStart, lt: comboMonthEnd } },
-          select: { id: true },
+          select: { id: true, renewalDate: true },
         });
         if (!renewalRecord) continue;
 
@@ -703,7 +722,7 @@ export class RenewalCronService {
           select: { id: true },
         });
         if (!existingBookEntry) {
-          await this.prisma.userBookEntry.create({
+          const newEntry = await this.prisma.userBookEntry.create({
             data: {
               userId: entry.userId,
               bookId: book.bookId,
@@ -714,7 +733,10 @@ export class RenewalCronService {
               purchaseGroupId: existingGroup?.id ?? null,
               signatureType: book.signatureType ?? monthRecord.signatureType ?? null,
             },
-          }).catch(() => {});
+          }).catch(() => null);
+          if (newEntry) {
+            await recordOwnershipHistory(this.prisma, [newEntry], 'PREORDER', renewalRecord.renewalDate).catch(() => {});
+          }
         }
       }
     }

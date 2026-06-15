@@ -448,6 +448,7 @@ export class SubscriptionsController {
     return this.subscriptionsService.listPriceChangesAdmin(slug);
   }
 
+  @Public()
   @Get(':slug/price-changes')
   listPriceChanges(@Param('slug') slug: string) {
     return this.subscriptionsService.listPriceChanges(slug);

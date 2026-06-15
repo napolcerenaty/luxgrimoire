@@ -86,7 +86,8 @@ describe('RenewalCronService', () => {
       (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'pg-1' });
       (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
+      (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 1 });
     });
 
     it('returns early when no subscription month record exists', async () => {
@@ -144,6 +145,36 @@ describe('RenewalCronService', () => {
       );
     });
 
+    it('records PREORDER ownership history with renewal date when book entry is created', async () => {
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'month-1',
+        signatureType: null,
+        books: [{ bookId: 'book-1', editionId: 'edition-1', signatureType: null }],
+      });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
+
+      expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledWith({
+        data: [{ userBookEntryId: 'book-entry-1', status: 'PREORDER', changedAt: renewalDate }],
+      });
+    });
+
+    it('does not record ownership history when book entry already exists', async () => {
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'month-1',
+        signatureType: null,
+        books: [{ bookId: 'book-1', editionId: 'edition-1', signatureType: null }],
+      });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existing-entry' });
+
+      await service.addBooksForSubscriptionMonth(baseEntry, 2025, 3, renewalDate);
+
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+      expect(prisma.ownershipStatusHistory.createMany).not.toHaveBeenCalled();
+    });
+
     it('skips individual books where bookId or editionId is null', async () => {
       (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'month-1',
@@ -179,6 +210,11 @@ describe('RenewalCronService', () => {
       });
       // Default: no combo links (avoids "comboLinks is not iterable")
       (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValue([]);
+      // Default book entry mocks
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
+      (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 1 });
     });
 
     it('returns early when book.editionId is null', async () => {
@@ -246,7 +282,8 @@ describe('RenewalCronService', () => {
       (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
+      (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 1 });
 
       await service.retroactivelyAddBookForSubscribers(
         'sub-1',
@@ -263,6 +300,42 @@ describe('RenewalCronService', () => {
           }),
         }),
       );
+    });
+
+    it('records PREORDER ownership history with renewal date (non-bundle)', async () => {
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'entry-1', userId: 'user-1', costCurrency: null },
+      ]);
+      (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({ renewalDate });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await service.retroactivelyAddBookForSubscribers(
+        'sub-1',
+        monthRecord,
+        { bookId: 'book-1', editionId: 'edition-1', signatureType: null },
+      );
+
+      expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledWith({
+        data: [{ userBookEntryId: 'book-entry-1', status: 'PREORDER', changedAt: renewalDate }],
+      });
+    });
+
+    it('does not record ownership history when book entry already exists (retroactive)', async () => {
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'entry-1', userId: 'user-1', costCurrency: null },
+      ]);
+      (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({ renewalDate });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existing-entry' });
+
+      await service.retroactivelyAddBookForSubscribers(
+        'sub-1',
+        monthRecord,
+        { bookId: 'book-1', editionId: 'edition-1', signatureType: null },
+      );
+
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+      expect(prisma.ownershipStatusHistory.createMany).not.toHaveBeenCalled();
     });
   });
 
@@ -323,7 +396,8 @@ describe('RenewalCronService', () => {
       (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'pg-1' });
       (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
+      (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 1 });
     });
 
     it('fetches books from the parent stream when a combo component is a content stream variant', async () => {

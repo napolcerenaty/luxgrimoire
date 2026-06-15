@@ -436,10 +436,10 @@ export class CollectionService {
         ...(dto.saleVenue !== undefined && { saleVenue: dto.saleVenue }),
         ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
         ...(dto.signatureType !== undefined && { signatureType: (dto.signatureType ?? null) as SignatureType | null }),
-        ...('saleAnnouncementEditionId' in dto && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
+        ...(dto.saleAnnouncementEditionId !== undefined && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
         // When saleAnnouncementEditionId is explicitly set/cleared, derive isOriginalPrint automatically
         // unless isOriginalPrint is explicitly provided in the DTO
-        ...('saleAnnouncementEditionId' in dto && dto.isOriginalPrint === undefined && {
+        ...(dto.saleAnnouncementEditionId !== undefined && dto.isOriginalPrint === undefined && {
           isOriginalPrint: !dto.saleAnnouncementEditionId,
         }),
         ...(dto.isOriginalPrint !== undefined && { isOriginalPrint: dto.isOriginalPrint }),

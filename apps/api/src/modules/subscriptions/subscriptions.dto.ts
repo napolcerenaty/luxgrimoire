@@ -830,6 +830,10 @@ export class CreatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdatePriceChangeDto {
@@ -840,6 +844,10 @@ export class UpdatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdateBillingModeDto {

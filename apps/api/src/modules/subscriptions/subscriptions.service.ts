@@ -37,7 +37,7 @@ import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
-import { resolveEffectiveBasePrice } from './price-change.util';
+import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
@@ -1236,6 +1236,14 @@ export class SubscriptionsService {
             },
           },
         },
+        // First purchase group ordered by title (format: "Subscription – YYYY/MM") to determine
+        // the user's first billing month in this subscription window (for grandfathered price logic).
+        purchaseGroups: {
+          where: { fromSubscription: true },
+          orderBy: { title: 'asc' },
+          take: 1,
+          select: { title: true },
+        },
       },
     });
 
@@ -1291,6 +1299,13 @@ export class SubscriptionsService {
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
+        // Determine user's first billing month in this subscription window for grandfathered price check.
+        const firstPurchaseGroup = ((entry as any).purchaseGroups as Array<{ title: string }> | undefined)?.[0];
+        const userFirstBilledYearMonth = parseFirstBilledYearMonth(
+          firstPurchaseGroup?.title,
+          renewalYear,
+          renewalMonth,
+        );
         // Pass targetCurrency so multi-currency records are resolved correctly.
         // If no records exist for the user's currency, resolveEffectiveBasePrice
         // returns fromPriceChange: false and the user's custom price is preserved.
@@ -1300,6 +1315,7 @@ export class SubscriptionsService {
           renewalMonth,
           fallbackBase,
           entry.costCurrency,
+          userFirstBilledYearMonth,
         );
         if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
           nextBase = resolved.price;
@@ -1314,9 +1330,9 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
-      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown };
+      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
       return {
-        ...entryWithoutSkips,
+        ...entryWithoutExtras,
         subscription: { ...sub },
         nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null,
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
@@ -2385,6 +2401,7 @@ export class SubscriptionsService {
       // Use fallbackSettings (subscription-level setting at backfill time — resolved per-month in loop)
       const comboPaymentOnStartup = fallbackSettings.paymentOnStartup;
       let earliestComboId: string | null = null;
+      let comboFirstBilledYearMonth: { year: number; month: number } | null = null;
       if (comboPaymentOnStartup && entry.startDate) {
         let earliestYear = Infinity; let earliestMonth = Infinity;
         for (const comboId of validComboIds) {
@@ -2393,6 +2410,15 @@ export class SubscriptionsService {
           if (y < earliestYear || (y === earliestYear && m < earliestMonth)) {
             earliestYear = y; earliestMonth = m; earliestComboId = comboId;
           }
+        }
+      }
+      // Compute first billed year/month for combo window (grandfathered price logic).
+      for (const comboId of validComboIds) {
+        const parts = comboId.split('_');
+        const y = parseInt(parts[1]); const m = parseInt(parts[2]);
+        if (!comboFirstBilledYearMonth || y < comboFirstBilledYearMonth.year ||
+            (y === comboFirstBilledYearMonth.year && m < comboFirstBilledYearMonth.month)) {
+          comboFirstBilledYearMonth = { year: y, month: m };
         }
       }
 
@@ -2435,7 +2461,7 @@ export class SubscriptionsService {
                   })();
               return new Date(Date.UTC(ry, rm - 1, comboRenewalDay));
             })();
-        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency, comboFirstBilledYearMonth);
         const basePrice = resolved.price ?? fallbackBase;
 
         const group = await this.prisma.userPurchaseGroup.create({
@@ -2597,6 +2623,16 @@ export class SubscriptionsService {
       earliestMonthId = earliest?.id ?? null;
     }
 
+    // Compute first billed year/month for this subscription window (used for grandfathered price logic).
+    // This is the minimum year/month across all selected months — represents when user started in this window.
+    let backfillFirstBilledYearMonth: { year: number; month: number } | null = null;
+    for (const m of monthRecords) {
+      if (!backfillFirstBilledYearMonth || m.year < backfillFirstBilledYearMonth.year ||
+          (m.year === backfillFirstBilledYearMonth.year && m.month < backfillFirstBilledYearMonth.month)) {
+        backfillFirstBilledYearMonth = { year: m.year, month: m.month };
+      }
+    }
+
     // Build all fee records in memory first
     const feesToCreate: {
       userId: string; feeTemplateId?: string | null; name: string; amount: number;
@@ -2636,7 +2672,7 @@ export class SubscriptionsService {
       const batchIdx = batchInfo?.batchIndex;
 
       // Determine amounts
-      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency);
+      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency, backfillFirstBilledYearMonth);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
@@ -3215,25 +3251,31 @@ export class SubscriptionsService {
         newBasePrice: dto.newBasePrice,
         currency: dto.currency,
         notes: dto.notes ?? null,
+        grandfatheredPrice: dto.grandfatheredPrice ?? false,
       },
       update: {
         newBasePrice: dto.newBasePrice,
         currency: dto.currency,
         notes: dto.notes ?? null,
+        grandfatheredPrice: dto.grandfatheredPrice ?? false,
       },
     });
     await this.cache.del(this.subSlugKey(slug));
     return result;
   }
 
-  async updatePriceChange(slug: string, id: string, dto: { newBasePrice: number; notes?: string }) {
+  async updatePriceChange(slug: string, id: string, dto: { newBasePrice: number; notes?: string; grandfatheredPrice?: boolean }) {
     const sub = await this.findBySlug(slug);
     const change = await this.prisma.subscriptionPriceChange.findUnique({ where: { id } });
     if (!change) throw new NotFoundException('Price change not found');
     if (change.subscriptionId !== sub.id) throw new ForbiddenException();
     const result = await this.prisma.subscriptionPriceChange.update({
       where: { id },
-      data: { newBasePrice: dto.newBasePrice, notes: dto.notes ?? null },
+      data: {
+        newBasePrice: dto.newBasePrice,
+        notes: dto.notes ?? null,
+        ...(dto.grandfatheredPrice !== undefined && { grandfatheredPrice: dto.grandfatheredPrice }),
+      },
     });
     await this.cache.del(this.subSlugKey(slug));
     return result;
