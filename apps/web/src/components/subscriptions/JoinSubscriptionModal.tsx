@@ -597,9 +597,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               }
             }
           }
-          // Price changes relevant to show in the summary: exclude grandfathered future changes
-          // (they don't apply to users starting before the effective date)
-          const visiblePriceChanges = sorted.filter(pc => !isGrandfatheredFutureChange(pc))
+          // Price changes to show in summary — all of them, but grandfathered future ones are annotated
+          const visiblePriceChanges = sorted
           return (
             <>
               {visiblePriceChanges.length > 0 && (
@@ -611,6 +610,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                       <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
                       {' '}from{' '}
                       <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                      {isGrandfatheredFutureChange(pc) && (
+                        <span className="text-amber-500/80"> (grandfathered — won&apos;t affect you)</span>
+                      )}
                     </span>
                   ))}
                 </p>
