@@ -29,6 +29,7 @@ interface Props {
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
 }
 
 type FeeTemplateLink = {
@@ -104,6 +105,7 @@ export default function SubscriptionInfoPanel({
   prepayOptions,
   isDiscontinued,
   subscriptionEndDate,
+  signupIncludesCurrentMonth,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -564,6 +566,7 @@ export default function SubscriptionInfoPanel({
           prepayOptions={prepayOptions}
           isDiscontinued={isDiscontinued}
           subscriptionEndDate={subscriptionEndDate}
+          signupIncludesCurrentMonth={signupIncludesCurrentMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()

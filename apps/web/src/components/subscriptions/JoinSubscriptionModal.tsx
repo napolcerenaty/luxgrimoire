@@ -70,6 +70,7 @@ interface Props {
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
   onJoined: () => void
   onClose: () => void
 }
@@ -109,6 +110,7 @@ interface Step1Props {
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
   onNext: (data: {
     startDate: string
     costCurrency: string
@@ -125,7 +127,7 @@ interface Step1Props {
   }) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -555,35 +557,41 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           // Parse start month from firstOrderDate
           const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
-          // Months between two (year,month) pairs — inclusive start, exclusive end
-          const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
-          // Effective price at start (most recent change before/at start, or original base price fallback)
+          // First billing month: if signupIncludesCurrentMonth=false, first box is next month after join
+          const firstBillingY = startY && startM
+            ? (signupIncludesCurrentMonth ? startY : (startM === 12 ? startY + 1 : startY))
+            : null
+          const firstBillingM = startY && startM
+            ? (signupIncludesCurrentMonth ? startM : (startM === 12 ? 1 : startM + 1))
+            : null
+          // Effective price at start (most recent change before/at first billing month, or original base price fallback)
           const originalFallback = subscriptionOriginalBasePrice ?? subscriptionPrice ?? basePrice
-          const effectivePriceAtStart = startY && startM ? (() => {
+          const effectivePriceAtStart = firstBillingY && firstBillingM ? (() => {
             const applicable = sorted
-              .filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
+              .filter(pc => pc.effectiveYear < firstBillingY || (pc.effectiveYear === firstBillingY && pc.effectiveMonth <= firstBillingM))
             return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
           })() : originalFallback
-          // Build periods from start date through all future changes.
-          // Grandfathered changes that are in the future relative to the user's start date
-          // do NOT affect this user — exclude them from periods and the summary list.
+          // Grandfathered change doesn't affect user if their first billing month is before the effective date.
+          // We compare against firstBillingM/Y (not join date) because that's the month being paid for.
           const isGrandfatheredFutureChange = (pc: PriceChange) => {
             if (!pc.grandfatheredPrice) return false
-            if (!startY || !startM) return false
-            return pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
+            if (!firstBillingY || !firstBillingM) return false
+            return pc.effectiveYear > firstBillingY || (pc.effectiveYear === firstBillingY && pc.effectiveMonth > firstBillingM)
           }
+          // Months between two (year,month) pairs — inclusive start, exclusive end
+          const monthsBetween = (y1: number, m1: number, y2: number, m2: number) => Math.max(0, (y2 - y1) * 12 + (m2 - m1))
           type Period = { label: string; months: number | null; price: string; cur: string }
           const periods: Period[] = []
-          if (startY && startM) {
+          if (firstBillingY && firstBillingM) {
             const futureChanges = sorted.filter(
-              pc => (pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM))
+              pc => (pc.effectiveYear > firstBillingY || (pc.effectiveYear === firstBillingY && pc.effectiveMonth > firstBillingM))
                 && !isGrandfatheredFutureChange(pc)
             )
-            // Initial period: from start to first future change (or open-ended if none)
+            // Initial period: from first billing month to first future change (or open-ended if none)
             const first = futureChanges[0]
             if (first) {
-              const n = monthsBetween(startY, startM, first.effectiveYear, first.effectiveMonth)
-              periods.push({ label: `${MONTH_NAMES[startM - 1]} ${startY} – ${MONTH_NAMES[first.effectiveMonth - 2 < 0 ? 11 : first.effectiveMonth - 2]} ${first.effectiveMonth === 1 ? first.effectiveYear - 1 : first.effectiveYear}`, months: n, price: String(effectivePriceAtStart), cur: costCurrency })
+              const n = monthsBetween(firstBillingY, firstBillingM, first.effectiveYear, first.effectiveMonth)
+              periods.push({ label: `${MONTH_NAMES[firstBillingM - 1]} ${firstBillingY} – ${MONTH_NAMES[first.effectiveMonth - 2 < 0 ? 11 : first.effectiveMonth - 2]} ${first.effectiveMonth === 1 ? first.effectiveYear - 1 : first.effectiveYear}`, months: n, price: String(effectivePriceAtStart), cur: costCurrency })
             }
             // Each future price change period
             for (let i = 0; i < futureChanges.length; i++) {
@@ -1747,6 +1755,7 @@ export default function JoinSubscriptionModal({
   prepayOptions,
   isDiscontinued,
   subscriptionEndDate,
+  signupIncludesCurrentMonth,
   onJoined,
   onClose,
 }: Props) {
@@ -1875,6 +1884,7 @@ export default function JoinSubscriptionModal({
               prepayOptions={prepayOptions}
               isDiscontinued={isDiscontinued}
               subscriptionEndDate={subscriptionEndDate}
+              signupIncludesCurrentMonth={signupIncludesCurrentMonth}
               onNext={handleStep1}
             />
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
