@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 export type SaleTier = 'FA' | 'EA' | 'GS'
 
@@ -44,6 +45,7 @@ function subscribe(id: string, fn: Listener) {
 
 export function useSaleInterest(announcementId: string | null) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [state, setState] = useState<CachedState & { loading: boolean }>({
     isInterested: false,
     tier: null,
@@ -55,6 +57,7 @@ export function useSaleInterest(announcementId: string | null) {
 
   useEffect(() => {
     if (!announcementId) return
+    if (!user) return
 
     // If we already have cached data, use it immediately (no spinner)
     const cached = cache.get(announcementId)
@@ -88,7 +91,7 @@ export function useSaleInterest(announcementId: string | null) {
     }
 
     return unsub
-  }, [announcementId])
+  }, [announcementId, user])
 
   const setInterest = useCallback(async (
     tier: SaleTier,
