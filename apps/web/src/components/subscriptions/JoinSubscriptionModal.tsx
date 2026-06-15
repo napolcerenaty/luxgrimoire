@@ -564,12 +564,20 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               .filter(pc => pc.effectiveYear < startY || (pc.effectiveYear === startY && pc.effectiveMonth <= startM))
             return applicable.length > 0 ? applicable[applicable.length - 1].newBasePrice : originalFallback
           })() : originalFallback
-          // Build periods from start date through all future changes
+          // Build periods from start date through all future changes.
+          // Grandfathered changes that are in the future relative to the user's start date
+          // do NOT affect this user — exclude them from periods and the summary list.
+          const isGrandfatheredFutureChange = (pc: PriceChange) => {
+            if (!pc.grandfatheredPrice) return false
+            if (!startY || !startM) return false
+            return pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
+          }
           type Period = { label: string; months: number | null; price: string; cur: string }
           const periods: Period[] = []
           if (startY && startM) {
             const futureChanges = sorted.filter(
-              pc => pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM)
+              pc => (pc.effectiveYear > startY || (pc.effectiveYear === startY && pc.effectiveMonth > startM))
+                && !isGrandfatheredFutureChange(pc)
             )
             // Initial period: from start to first future change (or open-ended if none)
             const first = futureChanges[0]
@@ -589,12 +597,15 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               }
             }
           }
+          // Price changes relevant to show in the summary: exclude grandfathered future changes
+          // (they don't apply to users starting before the effective date)
+          const visiblePriceChanges = sorted.filter(pc => !isGrandfatheredFutureChange(pc))
           return (
             <>
-              {sorted.length > 0 && (
+              {visiblePriceChanges.length > 0 && (
                 <p>
                   We know of the following price changes:{' '}
-                  {sorted.map((pc, i) => (
+                  {visiblePriceChanges.map((pc, i) => (
                     <span key={i}>
                       {i > 0 && ', '}
                       <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
@@ -618,7 +629,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   </div>
                 </div>
               )}
-              {sorted.length > 0 ? (
+              {visiblePriceChanges.length > 0 ? (
                 <p>
                   Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
                 </p>

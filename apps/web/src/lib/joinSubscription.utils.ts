@@ -13,6 +13,7 @@ export interface PriceChangeRecord {
   effectiveMonth: number
   newBasePrice: string
   currency: string
+  grandfatheredPrice?: boolean
 }
 
 export interface PrepayOptionRecord {
