@@ -147,6 +147,7 @@ export class AuthorsService {
                 slug: true,
                 title: true,
                 seriesName: true,
+                series: { select: { id: true, slug: true, name: true } },
                 volumeNumber: true,
                 editions: {
                   select: {

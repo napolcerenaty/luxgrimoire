@@ -50,6 +50,7 @@ import { FeatureCategoriesModule } from './modules/feature-categories/feature-ca
 import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
 import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
+import { BookSeriesModule } from './modules/book-series/book-series.module';
 
 @Module({
   imports: [
@@ -161,6 +162,7 @@ import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
     FeatureCategoriesModule,
     StatsModule,
     ReadingImportModule,
+    BookSeriesModule,
   ],
   providers: [
     ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),
