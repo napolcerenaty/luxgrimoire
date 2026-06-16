@@ -138,7 +138,18 @@ function pillStyle(
     : { background: 'transparent', color: `hsl(${hue},80%,75%)`, border: `1px solid hsla(${hue},55%,65%,0.55)` }
 }
 
-// Returns the renewal day for a given (year, month0) if this is a renewal month, else null
+/** Returns the dot color for mobile calendar dots.
+ *  In dark mode, very dark brand colors are replaced with a hue-based fallback
+ *  so they remain visible against the dark cell background.
+ */
+function visibleDotColor(brandColor: string | null | undefined, hue: number, darkMode: boolean): string {
+  const fallback = `hsl(${hue},60%,55%)`
+  if (!brandColor) return fallback
+  if (darkMode && hexLuminance(brandColor) < 0.1) return fallback
+  return brandColor
+}
+
+
 // month0 is 0-indexed (JavaScript Date convention)
 function renewalDayInMonth(entry: CalEntry, year: number, month0: number): number | null {
   const sub = entry.subscription
@@ -507,8 +518,8 @@ export default function CalendarPage() {
                 {totalEvents > 0 && cell.current && (
                   <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
                     {[
-                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)`, outline: true })),
-                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
+                      ...renewals.map(r => ({ color: visibleDotColor(r.brandColors?.[0], r.hue, !lightMode), outline: true })),
+                      ...sales.map(s => ({ color: visibleDotColor(s.brandColors?.[0], s.hue, !lightMode), outline: false })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
@@ -527,6 +538,72 @@ export default function CalendarPage() {
             )
           })}
         </div>
+      </div>
+
+      {/* Mobile agenda — shown below calendar grid, above spending, on small screens */}
+      <div className="sm:hidden">
+        {selectedDay ? (
+          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-stone-300">
+                {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
+                  weekday: 'long', day: 'numeric', month: 'long',
+                })}
+              </h3>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
+              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
+            ) : (
+              <div className="space-y-2">
+                {renewalsForDay(selectedDay).map(r => {
+                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/subscriptions/${r.slug}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      style={ps}
+                    >
+                      <span className="text-base shrink-0">🔄</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{r.label}</p>
+                        {r.companyName && <p className="text-xs opacity-70 truncate">{r.companyName}</p>}
+                      </div>
+                      <span className="text-xs opacity-50 shrink-0">Renewal</span>
+                    </Link>
+                  )
+                })}
+                {salesForDay(selectedDay).map(s => {
+                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  return (
+                    <Link
+                      key={s.id}
+                      href={s.href}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      style={ps}
+                    >
+                      <Bell size={15} className="shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{s.label}</p>
+                        <p className="text-xs opacity-70 truncate">
+                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
+                        </p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
+        )}
       </div>
 
       {/* Monthly spending estimate */}
@@ -612,72 +689,6 @@ export default function CalendarPage() {
           )}
         </div>
       )}
-
-      {/* Mobile agenda — shown below calendar grid on small screens */}
-      <div className="sm:hidden">
-        {selectedDay ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-stone-300">
-                {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
-                  weekday: 'long', day: 'numeric', month: 'long',
-                })}
-              </h3>
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
-              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
-            ) : (
-              <div className="space-y-2">
-                {renewalsForDay(selectedDay).map(r => {
-                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
-                  return (
-                    <Link
-                      key={r.id}
-                      href={`/subscriptions/${r.slug}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
-                      style={ps}
-                    >
-                      <span className="text-base shrink-0">🔄</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{r.label}</p>
-                        {r.companyName && <p className="text-xs opacity-70 truncate">{r.companyName}</p>}
-                      </div>
-                      <span className="text-xs opacity-50 shrink-0">Renewal</span>
-                    </Link>
-                  )
-                })}
-                {salesForDay(selectedDay).map(s => {
-                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
-                  return (
-                    <Link
-                      key={s.id}
-                      href={s.href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
-                      style={ps}
-                    >
-                      <Bell size={15} className="shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{s.label}</p>
-                        <p className="text-xs opacity-70 truncate">
-                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
-                        </p>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
-        )}
-      </div>
 
       {activeEntries.length === 0 && interests.length === 0 && (
         <p className="text-center text-stone-500 py-8 text-sm">
