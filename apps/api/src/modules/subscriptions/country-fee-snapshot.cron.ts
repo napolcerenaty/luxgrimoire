@@ -64,6 +64,7 @@ export class CountryFeeSnapshotCronService {
         purchasedAt: { gte: cutoff },
         subscriptionEntry: {
           subscriptionId,
+          isForwarding: false,
           OR: [
             { shippingCountry: countryUpper },
             { shippingCountry: null, user: { shippingCountry: countryUpper } },
@@ -75,6 +76,9 @@ export class CountryFeeSnapshotCronService {
         shippingAmount: true,
         currency: true,
         subscriptionEntryId: true,
+        subscriptionEntry: {
+          select: { prepaidMonths: true },
+        },
         fees: {
           select: { category: true, amount: true, currency: true },
         },
@@ -92,9 +96,10 @@ export class CountryFeeSnapshotCronService {
     let shippingMixed = false;
 
     for (const g of groups) {
+      const prepaidMonths = g.subscriptionEntry?.prepaidMonths ?? 1;
       const amt = g.shippingAmount != null ? Number(g.shippingAmount) : null;
       if (amt != null && amt > 0) {
-        shippingAmounts.push(amt);
+        shippingAmounts.push(amt / prepaidMonths);
         const cur = g.currency ?? null;
         if (shippingCurrency === null) shippingCurrency = cur;
         else if (shippingCurrency !== cur) shippingMixed = true;
@@ -110,7 +115,8 @@ export class CountryFeeSnapshotCronService {
         if (!byCategory.has(cat)) byCategory.set(cat, { entryIds: new Set(), amounts: [], currency: fee.currency });
         const agg = byCategory.get(cat)!;
         agg.entryIds.add(g.subscriptionEntryId ?? '');
-        if (fee.amount != null) agg.amounts.push(Number(fee.amount));
+        const prepaidMonths = g.subscriptionEntry?.prepaidMonths ?? 1;
+        if (fee.amount != null) agg.amounts.push(Number(fee.amount) / prepaidMonths);
         if (agg.currency !== fee.currency) agg.currency = null;
       }
     }

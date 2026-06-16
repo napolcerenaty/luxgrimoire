@@ -101,6 +101,36 @@ interface LinkedFee {
 /** @see PriceChangeRecord in joinSubscription.utils — kept as local alias for prop typing */
 type PriceChange = PriceChangeRecord
 
+interface Step1FormData {
+  startDate: string
+  costCurrency: string
+  basePrice: string
+  shippingCost: string
+  isForwarding: boolean
+  linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
+  resolvedFees: { name: string; amount: string; currency: string }[]
+  priceChanges: PriceChange[]
+  renewalDay?: number
+  selectedPrepayOptionId?: string | null
+  alreadyCancelled?: boolean
+  cancellationDate?: string
+  cancellationReason?: string
+}
+
+interface JoinSubscriptionData {
+  startDate: string
+  costCurrency: string
+  basePrice?: string
+  shippingCost?: string
+  isForwarding: boolean
+  renewalDay?: number
+  linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
+  alreadyCancelled?: boolean
+  cancellationDate?: string
+  cancellationReason?: string
+  selectedPrepayOptionId: string | null
+}
+
 interface Step1Props {
   currency: string
   subscriptionSlug: string
@@ -113,20 +143,7 @@ interface Step1Props {
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
-  onNext: (data: {
-    startDate: string
-    costCurrency: string
-    basePrice: string
-    shippingCost: string
-    linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
-    resolvedFees: { name: string; amount: string; currency: string }[]
-    priceChanges: PriceChange[]
-    renewalDay?: number
-    selectedPrepayOptionId?: string | null
-    alreadyCancelled?: boolean
-    cancellationDate?: string
-    cancellationReason?: string
-  }) => void
+  onNext: (data: Step1FormData) => void
 }
 
 function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
@@ -145,6 +162,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
   const [costCurrency, setCostCurrency] = useState(currency)
   const [basePrice, setBasePrice] = useState(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
   const [shippingCost, setShippingCost] = useState('')
+  const [isForwarding, setIsForwarding] = useState(false)
   const [selectedPrepayOptionId, setSelectedPrepayOptionId] = useState<string | null>(null)
 
   // Already cancelled fields
@@ -287,6 +305,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       costCurrency: costCurrency || currency,
       basePrice,
       shippingCost,
+      isForwarding,
       linkedFeeTemplates: linkedFees.map(f => ({
         templateId: f.templateId,
         customAmount: f.customAmount !== '' ? parseDecimalInput(f.customAmount) : undefined,
@@ -716,6 +735,16 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         ) : (
           <p className="text-xs text-stone-600 mb-2">Loading…</p>
         )}
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isForwarding}
+            onChange={e => setIsForwarding(e.target.checked)}
+            className="rounded border-stone-600 bg-stone-800 text-amber-500"
+          />
+          <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+        </label>
 
         {userDefaultTaxRate != null && userDefaultTaxRate > 0 && (
           <p className="text-xs text-stone-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
@@ -1763,32 +1792,20 @@ export default function JoinSubscriptionModal({
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
   const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
-  const [step1JoinPayload, setStep1JoinPayload] = useState<Record<string, unknown> | null>(null)
+  const [step1JoinPayload, setStep1JoinPayload] = useState<JoinSubscriptionData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
 
-  const handleStep1 = useCallback(async (data: {
-    startDate: string
-    costCurrency: string
-    basePrice: string
-    shippingCost: string
-    linkedFeeTemplates: { templateId: string; customAmount?: number; customCurrency?: string }[]
-    resolvedFees: { name: string; amount: string; currency: string }[]
-    priceChanges: PriceChange[]
-    renewalDay?: number
-    selectedPrepayOptionId?: string | null
-    alreadyCancelled?: boolean
-    cancellationDate?: string
-    cancellationReason?: string
-  }) => {
+  const handleStep1 = useCallback(async (data: Step1FormData) => {
     setError(null)
     setJoining(true)
     try {
-      const joinPayload = {
+      const joinPayload: JoinSubscriptionData = {
         startDate: data.startDate,
         costCurrency: data.costCurrency,
         basePrice: data.basePrice || undefined,
         shippingCost: data.shippingCost || undefined,
+        isForwarding: data.isForwarding,
         renewalDay: data.renewalDay,
         linkedFeeTemplates: data.linkedFeeTemplates.map(f => ({
           templateId: f.templateId,
@@ -1838,7 +1855,7 @@ export default function JoinSubscriptionModal({
 
   /** Executes the real join (creates subscription entry with prepaidMonths + scheduledPrepayOptionId set atomically) */
   const performRealJoin = useCallback(async (
-    payload: Record<string, unknown>,
+    payload: JoinSubscriptionData,
     _selectedPrepayOptionId?: string | null,
   ) => {
     await authFetch(`/subscriptions/${subscriptionSlug}/join`, {

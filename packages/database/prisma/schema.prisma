@@ -785,6 +785,7 @@ model UserSubscriptionEntry {
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?
   scheduledPrepayOptionId String?
+  isForwarding            Boolean                            @default(false)
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]

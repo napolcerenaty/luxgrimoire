@@ -602,6 +602,10 @@ export class JoinSubscriptionDto {
   shippingCost?: string;
 
   @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(31)
@@ -801,6 +805,10 @@ export class UpdateMyEntryCostsDto {
   @IsOptional()
   @IsString()
   trackingNumber?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
 
   /** Full replacement list of linked fee templates */
   @IsOptional()

@@ -49,6 +49,7 @@ type MyEntry = {
   basePrice: string | null
   costCurrency: string | null
   active: boolean
+  isForwarding: boolean
   prepaidMonths: number
   renewalDay: number | null
   nextRenewalDate: string | null
@@ -371,6 +372,12 @@ export default function SubscriptionInfoPanel({
                 </span>
               </div>
             )}
+            {myEntry?.isForwarding && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-blue-400">📦</span>
+                <span className="text-blue-300 font-medium">Forwarding packages</span>
+              </div>
+            )}
           </div>
           {(prepayOptions?.length ?? 0) > 0 && (
             <div className="pt-3 border-t border-stone-700/60">
@@ -621,6 +628,7 @@ function EditEntryCostsModal({
 }) {
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
+  const [isForwarding, setIsForwarding] = useState(entry.isForwarding)
   const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
   const [scheduledPrepayOptionId, setScheduledPrepayOptionId] = useState<string | null>(entry.scheduledPrepayOptionId ?? null)
   const savedCurrency = entry.costCurrency ?? subscriptionCurrency
@@ -662,6 +670,7 @@ function EditEntryCostsModal({
         basePrice: basePrice || undefined,
         shippingCost: shippingCost || undefined,
         costCurrency: costCurrency || undefined,
+        isForwarding,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
           customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
@@ -739,6 +748,16 @@ function EditEntryCostsModal({
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isForwarding}
+              onChange={e => setIsForwarding(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            />
+            <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+          </label>
 
           {/* Fee templates */}
           <div>

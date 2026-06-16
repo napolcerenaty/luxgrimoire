@@ -1192,6 +1192,7 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        isForwarding: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
@@ -1762,7 +1763,14 @@ export class SubscriptionsService {
   async updateMyEntryCosts(
     userId: string,
     slug: string,
-    dto: { basePrice?: string; shippingCost?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
+    dto: {
+      basePrice?: string;
+      shippingCost?: string;
+      costCurrency?: string;
+      trackingNumber?: string | null;
+      isForwarding?: boolean;
+      linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }>;
+    },
   ) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
@@ -1777,6 +1785,7 @@ export class SubscriptionsService {
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
+        ...(dto.isForwarding !== undefined && { isForwarding: dto.isForwarding }),
       },
     });
 
@@ -1913,6 +1922,7 @@ export class SubscriptionsService {
         startDate: startDateStr,
         basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
+        isForwarding: dto.isForwarding ?? false,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
         ...(resolvedPrepayOptionId !== null && {
