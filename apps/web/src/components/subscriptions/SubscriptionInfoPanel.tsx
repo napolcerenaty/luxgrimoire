@@ -152,7 +152,7 @@ export default function SubscriptionInfoPanel({
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
     queryFn: () => authFetch<{ skippedMonths: { year: number; month: number }[] }>(`/skip-policy/${subscriptionSlug}/status`),
-    enabled: !!user,
+    enabled: !!user && !!myEntry?.active,
     retry: false,
   })
 
