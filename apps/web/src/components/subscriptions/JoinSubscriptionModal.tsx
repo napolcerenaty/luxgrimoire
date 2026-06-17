@@ -736,16 +736,6 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           <p className="text-xs text-stone-600 mb-2">Loading…</p>
         )}
 
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isForwarding}
-            onChange={e => setIsForwarding(e.target.checked)}
-            className="rounded border-stone-600 bg-stone-800 text-amber-500"
-          />
-          <span className="text-sm text-stone-300">📦 Forwarding packages</span>
-        </label>
-
         {userDefaultTaxRate != null && userDefaultTaxRate > 0 && (
           <p className="text-xs text-stone-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
         )}
@@ -754,6 +744,16 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       <p className="text-xs text-stone-500">
         These values can be updated per-book from your collection view.
       </p>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isForwarding}
+          onChange={e => setIsForwarding(e.target.checked)}
+          className="rounded border-stone-600 bg-stone-800 text-amber-500"
+        />
+        <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+      </label>
 
       {/* Already cancelled */}
       <div className="border-t border-stone-700/50 pt-4 space-y-3">
