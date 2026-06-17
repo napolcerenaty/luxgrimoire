@@ -168,7 +168,6 @@ export function Navbar() {
                     {/* Finance & Account */}
                     {[
                       { href: '/statistics', icon: BarChart2, label: 'Statistics' },
-                      { href: '/settings/notifications', icon: Bell, label: 'Notification Settings' },
                       { href: '/profile',  icon: Settings,   label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
