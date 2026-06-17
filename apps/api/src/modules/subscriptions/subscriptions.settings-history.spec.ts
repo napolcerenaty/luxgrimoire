@@ -81,6 +81,7 @@ describe('SubscriptionsService — settings history', () => {
       {} as any, // TypesenseService
       {} as any, // SkipPolicyEngine
       {} as any, // RenewalCronService
+      {} as any, // CountryFeeSnapshotCronService
       {} as any, // UploadService
       {} as any, // CrowdStatsService
       { markStatsStale: jest.fn() } as any, // StatsService
