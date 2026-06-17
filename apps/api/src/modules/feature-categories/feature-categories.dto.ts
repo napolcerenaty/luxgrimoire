@@ -24,13 +24,13 @@ export class CreateFeatureCategoryDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(200)
   @IsString({ each: true })
   includePatterns?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(200)
   @IsString({ each: true })
   excludePatterns?: string[];
 }
@@ -62,13 +62,13 @@ export class UpdateFeatureCategoryDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(200)
   @IsString({ each: true })
   includePatterns?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(200)
   @IsString({ each: true })
   excludePatterns?: string[];
 }

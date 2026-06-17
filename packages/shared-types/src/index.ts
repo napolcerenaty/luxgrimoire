@@ -51,6 +51,12 @@ export interface ApiUser {
   createdAt: string;
 }
 
+export interface ApiBookSeries {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 export interface ApiBook {
   id: string;
   slug: string;
@@ -58,6 +64,7 @@ export interface ApiBook {
   description: string | null;
   language: string;
   seriesName: string | null;
+  series?: ApiBookSeries | null;
   volumeNumber: number | null;
   genres: string[];
   authors: ApiAuthor[];

@@ -120,6 +120,18 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+model BookSeries {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  books     Book[]
+
+  @@index([name])
+  @@map("book_series")
+}
+
 model Book {
   id           String                  @id @default(uuid())
   slug         String                  @unique
@@ -127,11 +139,13 @@ model Book {
   description  String?
   language     String                  @default("en")
   seriesName   String?
+  seriesId     String?
   volumeNumber Float?
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   status       String                  @default("approved")
   genres       String[]
+  series            BookSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   authors           BookAuthor[]
   editions          BookEdition[]
   monthBooks        SubscriptionMonthBook[]
@@ -140,6 +154,7 @@ model Book {
 
   @@index([language])
   @@index([seriesName])
+  @@index([seriesId])
   @@index([status])
   @@map("books")
 }
@@ -770,6 +785,7 @@ model UserSubscriptionEntry {
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?
   scheduledPrepayOptionId String?
+  isForwarding            Boolean                            @default(false)
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]

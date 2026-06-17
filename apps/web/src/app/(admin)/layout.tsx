@@ -25,6 +25,7 @@ import {
   Menu,
   X,
   Tags,
+  BookMarked,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -45,6 +46,7 @@ const COMPANY_MANAGER_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/books', label: 'Books', icon: BookOpen },
       { href: '/admin/editions', label: 'Editions', icon: Layers },
+      { href: '/admin/series', label: 'Series', icon: BookMarked },
     ],
   },
 ]
@@ -69,6 +71,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/books', label: 'Books', icon: BookOpen },
       { href: '/admin/editions', label: 'Editions', icon: Layers },
+      { href: '/admin/series', label: 'Series', icon: BookMarked },
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },

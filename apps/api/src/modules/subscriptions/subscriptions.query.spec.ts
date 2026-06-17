@@ -85,8 +85,9 @@ describe('SubscriptionsService — query methods', () => {
       prisma,
       {} as any,
       {} as any,
-      {} as any,
-      {} as any,
+      {} as any,        // RenewalCronService
+      {} as any,        // CountryFeeSnapshotCronService
+      {} as any,        // UploadService
       { incrementSubscriberCount: jest.fn(), decrementSubscriberCount: jest.fn() } as any,
       { markStatsStale: jest.fn() } as any,
       { del: jest.fn(), get: jest.fn(), set: jest.fn() } as any,

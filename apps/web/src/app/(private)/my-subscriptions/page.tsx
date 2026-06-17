@@ -36,6 +36,7 @@ function savePrefs(prefs: { viewMode: 'list' | 'grid' }) {
 interface MySubscriptionEntry {
   id: string
   active: boolean
+  isForwarding: boolean
   startDate: string | null
   cancellationDate: string | null
   cancellationReason: string | null
@@ -72,6 +73,7 @@ function formatDate(iso: string | null) {
 
 export default function MySubscriptionsPage() {
   const [{ viewMode, tab }, setPrefs] = useState(() => loadPrefs())
+  const [showForwardingOnly, setShowForwardingOnly] = useState(false)
 
   const setView = (v: 'list' | 'grid') => {
     setPrefs(p => {
@@ -103,6 +105,9 @@ export default function MySubscriptionsPage() {
   }
 
   const cancelledCount = cancelledEntries.length
+  const filteredActiveEntries = showForwardingOnly
+    ? activeEntries.filter(entry => entry.isForwarding)
+    : activeEntries
 
   if (loadingActive) {
     return (
@@ -116,23 +121,38 @@ export default function MySubscriptionsPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
-        <div className="flex rounded-lg border border-stone-700 overflow-hidden shrink-0">
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-            aria-label="List view"
-          >
-            <List size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('grid')}
-            className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-            aria-label="Grid view"
-          >
-            <LayoutGrid size={15} />
-          </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === 'active' && (
+            <button
+              type="button"
+              onClick={() => setShowForwardingOnly(prev => !prev)}
+              className={`text-xs rounded-lg border px-3 py-1.5 transition-colors ${
+                showForwardingOnly
+                  ? 'border-blue-700/60 bg-blue-500/10 text-blue-300'
+                  : 'border-stone-700 bg-stone-900 text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              📦 Forwarding
+            </button>
+          )}
+          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="List view"
+            >
+              <List size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('grid')}
+              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="Grid view"
+            >
+              <LayoutGrid size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -172,20 +192,26 @@ export default function MySubscriptionsPage() {
       </div>
 
       {tab === 'active' && (
-        activeEntries.length === 0 ? (
+        filteredActiveEntries.length === 0 ? (
           <div className="text-center py-16 text-stone-500">
-            <p className="mb-3">You haven't joined any subscriptions yet.</p>
-            <Link href="/subscriptions" className="text-amber-400 underline text-sm">
-              Browse subscriptions →
-            </Link>
+            {showForwardingOnly ? (
+              <p>No forwarding subscriptions found.</p>
+            ) : (
+              <>
+                <p className="mb-3">You haven't joined any subscriptions yet.</p>
+                <Link href="/subscriptions" className="text-amber-400 underline text-sm">
+                  Browse subscriptions →
+                </Link>
+              </>
+            )}
           </div>
         ) : viewMode === 'list' ? (
           <div className="space-y-3">
-            {activeEntries.map(entry => <SubscriptionCard key={entry.id} entry={entry} />)}
+            {filteredActiveEntries.map(entry => <SubscriptionCard key={entry.id} entry={entry} />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {activeEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+            {filteredActiveEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
           </div>
         )
       )}
@@ -206,6 +232,20 @@ export default function MySubscriptionsPage() {
             return acc
           }, {})
           const groupList = Object.values(groups)
+          if (viewMode === 'grid') {
+            const allEntries = groupList.flatMap(({ entries }) =>
+              [...entries].sort((a, b) => {
+                const aDate = a.cancellationDate ?? a.startDate ?? ''
+                const bDate = b.cancellationDate ?? b.startDate ?? ''
+                return bDate.localeCompare(aDate)
+              })
+            )
+            return (
+              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {allEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+              </div>
+            )
+          }
           return (
             <div className="opacity-75 space-y-4">
               {groupList.map(({ sub, entries }) => (
@@ -382,7 +422,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
     <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
       <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block relative">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
           {entry.active ? (
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
               <CheckCircle2 size={10} /> Active
@@ -390,6 +430,11 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           ) : (
             <span className="flex items-center gap-1 text-[10px] font-medium text-stone-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
               <XCircle size={10} /> Cancelled
+            </span>
+          )}
+          {entry.isForwarding && (
+            <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5 bg-stone-950/80">
+              📦 Forwarding
             </span>
           )}
         </div>
@@ -616,6 +661,11 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                 ) : (
                   <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
                     <XCircle size={12} /> Cancelled
+                  </span>
+                )}
+                {entry.isForwarding && (
+                  <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5">
+                    📦 Forwarding
                   </span>
                 )}
                 {sub.isDiscontinued && (

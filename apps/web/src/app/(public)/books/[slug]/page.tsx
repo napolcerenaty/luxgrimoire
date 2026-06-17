@@ -60,12 +60,12 @@ export default async function BookPage({ params }: Props) {
 
       {/* Book header — single column, no cover image */}
       <div className="mb-10">
-        {book.seriesName && (
+        {(book.series || book.seriesName) && (
           <Link
-            href={`/series/${encodeURIComponent(book.seriesName)}`}
+            href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName!)}`}
             className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
           >
-            {book.seriesName}
+            {book.series?.name ?? book.seriesName}
             {book.volumeNumber ? ` #${book.volumeNumber}` : ''}
             <span className="ml-1 text-xs text-stone-500">→ series</span>
           </Link>

@@ -3,12 +3,15 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
+import { BookSeriesService } from '../book-series/book-series.service';
 import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 const GENRES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — genres change rarely
 const SERIES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — series change rarely
+
+const SERIES_SELECT = { id: true, slug: true, name: true } as const;
 
 @Injectable()
 export class BooksService {
@@ -18,17 +21,20 @@ export class BooksService {
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly typesense: TypesenseService,
+    private readonly bookSeriesService: BookSeriesService,
   ) {}
 
   async create(dto: CreateBookDto) {
     const slug = generateSlug(dto.title);
+    const series = dto.seriesName ? await this.bookSeriesService.findOrCreate(dto.seriesName) : null;
     const book = await this.prisma.book.create({
       data: {
         slug,
         title: dto.title,
         description: dto.description,
         language: dto.language ?? 'en',
-        seriesName: dto.seriesName,
+        seriesName: dto.seriesName ?? null,
+        seriesId: series?.id ?? null,
         volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
         status: dto.status ?? 'approved',
@@ -40,13 +46,15 @@ export class BooksService {
 
   async suggest(dto: CreateBookDto, _userId: string) {
     const slug = generateSlug(dto.title);
+    const series = dto.seriesName ? await this.bookSeriesService.findOrCreate(dto.seriesName) : null;
     return this.prisma.book.create({
       data: {
         slug,
         title: dto.title,
         description: dto.description,
         language: dto.language ?? 'en',
-        seriesName: dto.seriesName,
+        seriesName: dto.seriesName ?? null,
+        seriesId: series?.id ?? null,
         volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
         status: 'pending',
@@ -67,7 +75,14 @@ export class BooksService {
       where.status = 'approved';
     }
     if (query.language) where.language = query.language;
-    if (query.seriesName) where.seriesName = { contains: query.seriesName, mode: 'insensitive' };
+    if (query.seriesSlug) {
+      const series = await this.prisma.bookSeries.findUnique({ where: { slug: query.seriesSlug }, select: { id: true } });
+      if (series) where.seriesId = series.id;
+    } else if (query.seriesName) {
+      // Backward-compat: exact-match by name (case-insensitive) via seriesId
+      const series = await this.prisma.bookSeries.findFirst({ where: { name: { equals: query.seriesName, mode: 'insensitive' } }, select: { id: true } });
+      if (series) where.seriesId = series.id;
+    }
     if (query.authorId) {
       where.authors = { some: { authorId: query.authorId } };
     }
@@ -80,6 +95,8 @@ export class BooksService {
         { authors: { some: { author: { name: { contains: query.search, mode: 'insensitive' } } } } },
       ];
     }
+
+    const isSeriesQuery = !!(query.seriesSlug || query.seriesName);
 
     const [data, total] = await Promise.all([
       this.prisma.book.findMany({
@@ -95,6 +112,7 @@ export class BooksService {
           language: true,
           volumeNumber: true,
           seriesName: true,
+          series: { select: SERIES_SELECT },
           createdAt: true,
           authors: {
             select: {
@@ -104,7 +122,7 @@ export class BooksService {
             },
           },
           // Editions only needed for series browsing
-          ...(query.seriesName
+          ...(isSeriesQuery
             ? {
                 editions: {
                   select: {
@@ -203,6 +221,7 @@ export class BooksService {
         title: true,
         description: true,
         seriesName: true,
+        series: { select: SERIES_SELECT },
         volumeNumber: true,
         genres: true,
         status: true,
@@ -226,6 +245,7 @@ export class BooksService {
         description: true,
         language: true,
         seriesName: true,
+        series: { select: SERIES_SELECT },
         volumeNumber: true,
         genres: true,
         status: true,
@@ -303,7 +323,16 @@ export class BooksService {
 
   async update(slug: string, dto: UpdateBookDto) {
     await this.findBySlug(slug);
-    const book = await this.prisma.book.update({ where: { slug }, data: dto });
+    const data: Record<string, unknown> = { ...dto };
+    if (dto.seriesName !== undefined) {
+      if (dto.seriesName === null) {
+        data.seriesId = null;
+      } else {
+        const series = await this.bookSeriesService.findOrCreate(dto.seriesName);
+        data.seriesId = series.id;
+      }
+    }
+    const book = await this.prisma.book.update({ where: { slug }, data });
     await this.indexBook(book.id);
     return book;
   }

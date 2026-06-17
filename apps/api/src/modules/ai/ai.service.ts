@@ -434,7 +434,10 @@ function normalizePlurals(value: string): string {
     .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
     .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback
     .replace(/\bcovers\b/gi,           m => m.slice(0, -1))   // covers → cover
-    .replace(/\bhardcovers\b/gi,       m => m.slice(0, -1));  // hardcovers → hardcover
+    .replace(/\bhardcovers\b/gi,       m => m.slice(0, -1))   // hardcovers → hardcover
+    .replace(/\bsheets\b/gi,          m => m.slice(0, -1))   // sheets → sheet
+    .replace(/\bbookplates\b/gi,      m => m.slice(0, -1))   // bookplates → bookplate
+    .replace(/\btip-ins\b/gi,         () => 'tip-in');        // tip-ins → tip-in
 }
 
 @Injectable()

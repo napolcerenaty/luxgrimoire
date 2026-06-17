@@ -115,6 +115,7 @@ interface EditionDetail {
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
+    series?: { id: string; slug: string; name: string } | null
     description: string | null; language: string; genres: string[]
     authors: ApiAuthor[]
   } | null
@@ -294,7 +295,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {/* Series */}
               {book?.seriesName && (
                 <Link
-                  href={`/series/${encodeURIComponent(book.seriesName)}`}
+                  href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName)}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}

@@ -711,7 +711,7 @@ export class CollectionService {
   }
 
   async getStats(userId: string) {
-    const [totalOwned, totalWishlist, groupResult] = await Promise.all([
+    const [totalOwned, totalWishlist, groupResult, aggregates] = await Promise.all([
       this.prisma.userBookEntry.count({ where: { userId, isWishlist: false } }),
       this.prisma.userBookEntry.count({ where: { userId, isWishlist: true } }),
       this.prisma.userBookEntry.groupBy({
@@ -719,11 +719,27 @@ export class CollectionService {
         where: { userId, editionId: { not: null }, isWishlist: false },
         _count: { editionId: true },
       }),
+      // Single SQL query for series + author counts across the full collection (not paged)
+      this.prisma.$queryRaw<[{ unique_series: bigint; unique_authors: bigint }]>`
+        SELECT
+          COUNT(DISTINCT b."seriesId")    FILTER (WHERE b."seriesId" IS NOT NULL AND e."ownershipStatus" != 'SOLD') AS unique_series,
+          COUNT(DISTINCT ba."authorId")   FILTER (WHERE e."ownershipStatus" != 'SOLD')                               AS unique_authors
+        FROM "user_book_entries" e
+        JOIN "book_editions" ed ON ed.id = e."editionId"
+        JOIN "books"          b  ON b.id  = ed."bookId"
+        LEFT JOIN "book_authors" ba ON ba."bookId" = b.id
+        WHERE e."userId" = ${userId}
+          AND e."isWishlist" = false
+      `,
     ]);
+
+    const { unique_series, unique_authors } = aggregates[0];
     return {
       totalOwned,
       totalWishlist,
       totalEditions: groupResult.length,
+      uniqueSeries: Number(unique_series),
+      uniqueAuthors: Number(unique_authors),
     };
   }
 }

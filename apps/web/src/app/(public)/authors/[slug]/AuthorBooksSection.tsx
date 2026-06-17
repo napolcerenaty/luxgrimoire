@@ -18,6 +18,7 @@ interface BookSnippet {
   slug: string
   title: string
   seriesName: string | null
+  series?: { id: string; slug: string; name: string } | null
   volumeNumber: number | null
   editions: EditionSnippet[]
 }
@@ -62,18 +63,20 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
   }
 
   const standalones = books
-    .filter(b => !b.seriesName)
+    .filter(b => !b.series && !b.seriesName)
     .sort((a, b) => a.title.localeCompare(b.title))
 
-  const seriesMap = new Map<string, BookSnippet[]>()
+  // key = series slug (preferred) or series name (legacy fallback)
+  const seriesMap = new Map<string, { label: string; slug: string | null; books: BookSnippet[] }>()
   for (const book of books) {
-    if (!book.seriesName) continue
-    const existing = seriesMap.get(book.seriesName)
-    if (existing) existing.push(book)
-    else seriesMap.set(book.seriesName, [book])
+    const key = book.series?.slug ?? book.seriesName
+    if (!key) continue
+    const existing = seriesMap.get(key)
+    if (existing) existing.books.push(book)
+    else seriesMap.set(key, { label: book.series?.name ?? book.seriesName!, slug: book.series?.slug ?? null, books: [book] })
   }
-  for (const [, seriesBooks] of seriesMap) {
-    seriesBooks.sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
+  for (const entry of seriesMap.values()) {
+    entry.books.sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
   }
 
   return (
@@ -94,10 +97,14 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
         </div>
       )}
 
-      {Array.from(seriesMap.entries()).map(([seriesName, seriesBooks]) => (
-        <div key={seriesName} className="mb-10">
+      {Array.from(seriesMap.entries()).map(([key, { label, slug, books: seriesBooks }]) => (
+        <div key={key} className="mb-10">
           <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
-            {seriesName}
+            {slug ? (
+              <Link href={`/series/${slug}`} className="hover:text-amber-400 transition-colors">
+                {label}
+              </Link>
+            ) : label}
           </h3>
           {seriesBooks.map(book => <BookRow key={book.id} book={book} />)}
         </div>

@@ -37,6 +37,7 @@ import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
+import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
@@ -70,6 +71,7 @@ export class SubscriptionsService {
     private readonly typesense: TypesenseService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
     private readonly renewalCron: RenewalCronService,
+    private readonly countryFeeSnapshotService: CountryFeeSnapshotCronService,
     private readonly uploadService: UploadService,
     private readonly crowdStatsService: CrowdStatsService,
     private readonly statsService: StatsService,
@@ -1192,6 +1194,7 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        isForwarding: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
@@ -1762,7 +1765,14 @@ export class SubscriptionsService {
   async updateMyEntryCosts(
     userId: string,
     slug: string,
-    dto: { basePrice?: string; shippingCost?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
+    dto: {
+      basePrice?: string;
+      shippingCost?: string;
+      costCurrency?: string;
+      trackingNumber?: string | null;
+      isForwarding?: boolean;
+      linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }>;
+    },
   ) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
@@ -1777,8 +1787,18 @@ export class SubscriptionsService {
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
+        ...(dto.isForwarding !== undefined && { isForwarding: dto.isForwarding }),
       },
     });
+
+    // isForwarding change affects country-fee snapshot — refresh fire-and-forget
+    if (dto.isForwarding !== undefined && dto.isForwarding !== entry.isForwarding) {
+      this.countryFeeSnapshotService.refreshSnapshotForEntry(entry.id).catch(() => {});
+      // Bust L1 cache for this subscription (country unknown here, clear all keys for slug)
+      for (const key of this.countryFeeCache.keys()) {
+        if (key.startsWith(`${slug}:`)) this.countryFeeCache.delete(key);
+      }
+    }
 
     // Propagate currency to book entries that are missing it
     if (dto.costCurrency) {
@@ -1913,6 +1933,7 @@ export class SubscriptionsService {
         startDate: startDateStr,
         basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
+        isForwarding: dto.isForwarding ?? false,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
         ...(resolvedPrepayOptionId !== null && {
@@ -3087,113 +3108,20 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) return [];
 
-    // Try to read from DB snapshot first (calculated by cron every 3 days)
+    // Try DB snapshot first (written by cron or isForwarding change)
     const snapshot = await this.prisma.subscriptionCountryFeeSnapshot.findUnique({
       where: { subscriptionId_country: { subscriptionId: subscription.id, country: country.toUpperCase() } },
     });
 
     if (snapshot) {
       const data = snapshot.data as unknown as CountryFeeHint[];
-      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h L1 cache
+      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 });
       return data;
     }
 
-    // Fallback: live aggregation (snapshot not yet calculated — first visit before first cron run)
-    const countryUpper = country.toUpperCase();
-
-    const entries = await this.prisma.userSubscriptionEntry.findMany({
-      where: {
-        subscriptionId: subscription.id,
-        active: true,
-        OR: [
-          { shippingCountry: countryUpper },
-          { shippingCountry: null, user: { shippingCountry: countryUpper } },
-        ],
-      },
-      select: {
-        id: true,
-        shippingCost: true,
-        costCurrency: true,
-        feeTemplates: {
-          select: {
-            customAmount: true,
-            customCurrency: true,
-            feeTemplate: {
-              select: {
-                category: true,
-                defaultAmount: true,
-                defaultCurrency: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!entries.length) return [];
-
-    // Aggregate shipping costs
-    const shippingAmounts: number[] = [];
-    let shippingCurrency: string | null = null;
-    let shippingMixed = false;
-    for (const entry of entries) {
-      if (entry.shippingCost != null) {
-        const cur = entry.costCurrency ?? null;
-        shippingAmounts.push(Number(entry.shippingCost));
-        if (shippingCurrency === null) shippingCurrency = cur;
-        else if (shippingCurrency !== cur) shippingMixed = true;
-      }
-    }
-    if (shippingMixed) shippingCurrency = null;
-
-    const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
-    for (const entry of entries) {
-      for (const link of entry.feeTemplates) {
-        const cat = link.feeTemplate.category as string;
-        const amt = link.customAmount ?? link.feeTemplate.defaultAmount;
-        const cur = link.customCurrency ?? link.feeTemplate.defaultCurrency;
-        if (!byCategory.has(cat)) byCategory.set(cat, { count: 0, amounts: [], currency: cur });
-        const agg = byCategory.get(cat)!;
-        agg.count++;
-        if (amt != null) agg.amounts.push(Number(amt));
-        if (agg.currency !== cur) agg.currency = null;
-      }
-    }
-
-    const totalEntries = entries.length;
-    const avgShipping = shippingAmounts.length > 0
-      ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
-      : null;
-
-    const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
-      category,
-      count: agg.count,
-      totalSubscribers: totalEntries,
-      avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
-      currency: agg.currency,
-      avgShipping,
-      shippingCurrency,
-      shippingCount: shippingAmounts.length,
-    }));
-
-    // Add a synthetic "shipping" entry if there's shipping data but no SHIPPING fee category
-    const hasShippingCat = data.some(d => d.category === 'SHIPPING');
-    if (!hasShippingCat && avgShipping !== null) {
-      data.push({
-        category: '__shipping__',
-        count: shippingAmounts.length,
-        totalSubscribers: totalEntries,
-        avgAmount: avgShipping,
-        currency: shippingCurrency,
-        avgShipping,
-        shippingCurrency,
-        shippingCount: shippingAmounts.length,
-      });
-    }
-
-    data.sort((a, b) => b.count - a.count);
-
-    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h TTL (fallback path)
+    // No snapshot yet — compute live (purchase groups → entry-settings fallback)
+    const data = await this.countryFeeSnapshotService.computeForSubscriptionAndCountry(subscription.id, country);
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 });
     return data;
   }
 

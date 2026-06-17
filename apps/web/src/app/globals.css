@@ -60,6 +60,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 17px;
+  overflow-x: hidden;
 }
 
 /* ── Global scrollbar styling ──────────────────────────────────────────────── */

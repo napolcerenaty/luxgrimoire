@@ -264,6 +264,7 @@ export async function getMySubscriptionEntry(slug: string): Promise<{
   basePrice: string | null;
   costCurrency: string | null;
   active: boolean;
+  isForwarding: boolean;
   prepaidMonths: number;
   renewalDay: number | null;
   nextRenewalDate: string | null;
@@ -338,6 +339,7 @@ export async function updateMyEntryCosts(
     basePrice?: string;
     shippingCost?: string;
     costCurrency?: string;
+    isForwarding?: boolean;
     linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number | null; customCurrency?: string | null }>;
   },
 ): Promise<void> {
