@@ -38,6 +38,15 @@ export function ThemeProvider({
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     setThemeCookie(theme)
+    // Update PWA theme-color meta tag dynamically
+    const color = theme === 'light' ? '#fafaf9' : '#0c0a09'
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    if (!meta) {
+      meta = document.createElement('meta')
+      meta.name = 'theme-color'
+      document.head.appendChild(meta)
+    }
+    meta.content = color
   }, [theme])
 
   return (
