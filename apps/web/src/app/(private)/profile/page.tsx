@@ -1021,8 +1021,8 @@ function NotificationsTab() {
           ) : (
             <div className={TOGGLE_ROW}>
               <div>
-                <p className={TOGGLE_LABEL}>Enable push on this device</p>
-                <p className={TOGGLE_SUBLABEL}>Requires browser permission</p>
+                <p className={TOGGLE_LABEL}>This browser / device</p>
+                <p className={TOGGLE_SUBLABEL}>Register this browser to receive push notifications. You can enable it on multiple devices independently.</p>
               </div>
               <Toggle
                 checked={isSubscribed}
@@ -1033,7 +1033,10 @@ function NotificationsTab() {
           )}
           {isSubscribed && (
             <div className={TOGGLE_ROW}>
-              <p className={TOGGLE_LABEL}>Push enabled globally</p>
+              <div>
+                <p className={TOGGLE_LABEL}>Push notifications globally</p>
+                <p className={TOGGLE_SUBLABEL}>Master switch — turn off to pause all push notifications across every device without unregistering them.</p>
+              </div>
               <Toggle checked={prefs?.pushEnabled ?? false} onChange={(v) => prefsMutation.mutate({ pushEnabled: v })} />
             </div>
           )}
