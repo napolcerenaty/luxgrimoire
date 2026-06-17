@@ -539,18 +539,18 @@ export default function CalendarPage() {
       </div>
 
       {/* Mobile agenda — shown below calendar grid, above spending, on small screens */}
-      <div className="sm:hidden">
+      <div className="sm:hidden overflow-hidden min-w-0">
         {selectedDay ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-stone-300">
+          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+              <h3 className="text-sm font-semibold text-stone-300 truncate min-w-0">
                 {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
                   weekday: 'long', day: 'numeric', month: 'long',
                 })}
               </h3>
               <button
                 onClick={() => setSelectedDay(null)}
-                className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
+                className="p-1 text-stone-500 hover:text-stone-300 transition-colors shrink-0"
               >
                 <X size={14} />
               </button>
@@ -565,7 +565,7 @@ export default function CalendarPage() {
                     <Link
                       key={r.id}
                       href={`/subscriptions/${r.slug}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0 w-full"
                       style={ps}
                     >
                       <span className="text-base shrink-0">🔄</span>
@@ -583,7 +583,7 @@ export default function CalendarPage() {
                     <Link
                       key={s.id}
                       href={s.href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0 w-full"
                       style={ps}
                     >
                       <Bell size={15} className="shrink-0" />
