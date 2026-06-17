@@ -60,7 +60,9 @@ export function OnboardingWizard() {
   // ── Step 2: Notification preferences state ───────────────────────────────
   const [notifRenewalEnabled, setNotifRenewalEnabled] = useState(false)
   const [notifRenewalDaysBefore, setNotifRenewalDaysBefore] = useState(1)
+  const [notifRenewalHour, setNotifRenewalHour] = useState<number | null>(null)
   const [notifSaleEnabled, setNotifSaleEnabled] = useState(false)
+  const [notifSaleHoursBefore, setNotifSaleHoursBefore] = useState(3)
   const [notifSaving, setNotifSaving] = useState(false)
 
   const saveNotifAndAdvance = async () => {
@@ -71,7 +73,9 @@ export function OnboardingWizard() {
         body: JSON.stringify({
           renewalEnabled: notifRenewalEnabled,
           renewalDaysBefore: notifRenewalDaysBefore,
+          renewalHour: notifRenewalHour,
           saleEnabled: notifSaleEnabled,
+          saleHoursBefore: notifSaleHoursBefore,
         }),
       })
     } catch {} finally {
@@ -308,19 +312,29 @@ export function OnboardingWizard() {
             </button>
           </div>
           {notifRenewalEnabled && (
-            <div>
-              <label className={LABEL}>Days before renewal</label>
-              <select value={notifRenewalDaysBefore} onChange={e => setNotifRenewalDaysBefore(Number(e.target.value))} className={INPUT}>
-                {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
-                  <option key={d} value={d}>{d === 0 ? 'Day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
-                ))}
-              </select>
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className={LABEL}>When to remind</label>
+                <div className="flex flex-wrap gap-2">
+                  <select value={notifRenewalDaysBefore} onChange={e => setNotifRenewalDaysBefore(Number(e.target.value))} className={INPUT}>
+                    {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
+                      <option key={d} value={d}>{d === 0 ? 'On the day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                    ))}
+                  </select>
+                  <select value={notifRenewalHour ?? ''} onChange={e => setNotifRenewalHour(e.target.value === '' ? null : Number(e.target.value))} className={INPUT}>
+                    <option value="">at 18:00 (default)</option>
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>at {String(h).padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Sale reminders */}
-        <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4">
+        <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-stone-200">Sale reminders</p>
@@ -336,6 +350,17 @@ export function OnboardingWizard() {
               <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${notifSaleEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
           </div>
+          {notifSaleEnabled && (
+            <div>
+              <label className={LABEL}>When to remind</label>
+              <select value={notifSaleHoursBefore} onChange={e => setNotifSaleHoursBefore(Number(e.target.value))} className={INPUT}>
+                <option value={0}>At sale time</option>
+                {[1, 2, 3, 6, 12, 24].map(h => (
+                  <option key={h} value={h}>{h}h before sale</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
       <p className="text-xs text-stone-500">You can adjust all notification settings any time in <strong className="text-stone-400">Profile → Notifications</strong>.</p>
