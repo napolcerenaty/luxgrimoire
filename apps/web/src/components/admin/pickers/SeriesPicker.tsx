@@ -11,6 +11,7 @@ interface ApiBookSeriesItem {
   slug: string
   name: string
   bookCount?: number
+  authors?: string[]
 }
 
 export function SeriesPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -54,6 +55,9 @@ export function SeriesPicker({ value, onChange }: { value: string; onChange: (v:
             <button key={series.id} type="button" onMouseDown={() => pick(series.name)}
               className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors">
               <div className="text-stone-100 text-sm">{series.name}</div>
+              {series.authors && series.authors.length > 0 && (
+                <div className="text-amber-400/70 text-xs">{series.authors.join(', ')}</div>
+              )}
               {series.bookCount != null && series.bookCount > 0 && (
                 <div className="text-stone-500 text-xs">{series.bookCount} book{series.bookCount !== 1 ? 's' : ''}</div>
               )}

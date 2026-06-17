@@ -26,13 +26,26 @@ export class BookSeriesService {
           slug: true,
           name: true,
           _count: { select: { books: true } },
+          books: {
+            take: 5,
+            select: {
+              authors: {
+                select: { author: { select: { name: true } } },
+              },
+            },
+          },
         },
       }),
       this.prisma.bookSeries.count({ where }),
     ]);
 
     return {
-      data: data.map(s => ({ id: s.id, slug: s.slug, name: s.name, bookCount: s._count.books })),
+      data: data.map(s => {
+        const authorNames = Array.from(
+          new Set(s.books.flatMap(b => b.authors.map(a => a.author.name)))
+        );
+        return { id: s.id, slug: s.slug, name: s.name, bookCount: s._count.books, authors: authorNames };
+      }),
       ...buildPageMeta(total, page, pageSize),
     };
   }
