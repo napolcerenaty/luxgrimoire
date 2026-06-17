@@ -241,7 +241,7 @@ export default function MySubscriptionsPage() {
               })
             )
             return (
-              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {allEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
               </div>
             )
