@@ -935,7 +935,7 @@ interface ReminderSettings {
   saleInAppEnabled: boolean
   salePushEnabled: boolean
   saleDaysBefore: number
-  saleHour: number | null
+  saleHoursBefore: number | null
   saleDigest: boolean
 }
 
@@ -1007,7 +1007,7 @@ function NotificationsTab() {
     renewalEnabled: false, renewalInAppEnabled: true, renewalPushEnabled: false,
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
-    saleDaysBefore: 0, saleHour: 3, saleDigest: false,
+    saleDaysBefore: 0, saleHoursBefore: 3, saleDigest: false,
   }
 
   return (
@@ -1136,8 +1136,8 @@ function NotificationsTab() {
             <div>
               <p className="text-xs text-stone-400 mb-2">When to remind</p>
               <select
-                value={s.saleHour ?? 3}
-                onChange={(e) => update({ saleHour: Number(e.target.value) })}
+                value={s.saleHoursBefore ?? 3}
+                onChange={(e) => update({ saleHoursBefore: Number(e.target.value) })}
                 className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value={0}>At sale time</option>

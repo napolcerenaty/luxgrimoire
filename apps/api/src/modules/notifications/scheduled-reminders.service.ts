@@ -11,7 +11,7 @@ interface UserReminderSettingsLike {
   renewalDigest: boolean;
   saleEnabled: boolean;
   saleDaysBefore: number;
-  saleHour: number | null;
+  saleHoursBefore: number | null;
   saleDigest: boolean;
 }
 
@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: UserReminderSettingsLike = {
   renewalDigest: true,
   saleEnabled: false,
   saleDaysBefore: 0,
-  saleHour: 3,  // hours before sale time; null also treated as 3h
+  saleHoursBefore: 3,  // hours before sale time; null also treated as 3h
   saleDigest: false,
 };
 
@@ -159,8 +159,8 @@ export class ScheduledRemindersService {
 
     const saleTimezone = announcement.saleTimezone ?? 'UTC';
 
-    // saleHour now means "hours before sale time" (0 = at sale time, 3 = 3h before, null = default 3h before)
-    const hoursBefore = settings.saleHour !== null ? settings.saleHour : 3;
+    // saleHoursBefore now means "hours before sale time" (0 = at sale time, 3 = 3h before, null = default 3h before)
+    const hoursBefore = settings.saleHoursBefore !== null ? settings.saleHoursBefore : 3;
 
     // Compute the anchor sale datetime in UTC: saleDate is stored as a date-only (UTC midnight for the day).
     // Convert to start-of-day in the sale's timezone, then subtract hoursBefore hours.
@@ -293,7 +293,7 @@ export class ScheduledRemindersService {
       renewalDigest: s.renewalDigest,
       saleEnabled: s.saleEnabled,
       saleDaysBefore: s.saleDaysBefore,
-      saleHour: s.saleHour,
+      saleHoursBefore: s.saleHoursBefore,
       saleDigest: s.saleDigest,
     };
   }
