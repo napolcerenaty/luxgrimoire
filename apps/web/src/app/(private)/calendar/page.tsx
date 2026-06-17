@@ -119,12 +119,16 @@ function pillStyle(
     const textColor = isLightBrand
       ? `color-mix(in srgb, ${c} 15%, #111111)` // dark text on light-brand pill
       : `color-mix(in srgb, ${c} 25%, #f0ece6)` // light text on dark-brand pill
-    const outlineText = isLightBrand
-      ? `color-mix(in srgb, ${c} 50%, #c0b8d4)`
-      : `color-mix(in srgb, ${c} 60%, #f0ece6)`
+    // Renewal (outline) colors: dark brands need a much lighter mix so they're visible on dark bg
+    const outlineColor = isLightBrand
+      ? `color-mix(in srgb, ${c} 55%, #c0b8d4)`
+      : `color-mix(in srgb, ${c} 30%, #b0cce0)` // heavily diluted toward light for dark brands
+    const outlineBorder = isLightBrand
+      ? `${c}cc`
+      : `color-mix(in srgb, ${c} 40%, #7ab0cc)` // ensure visible border for dark brands
     return isFilled
       ? { background: `${c}${bgOpacity}`, color: textColor, border: `1px solid ${c}` }
-      : { background: 'transparent', color: outlineText, border: `1px solid ${c}aa` }
+      : { background: 'transparent', color: outlineColor, border: `1px solid ${outlineBorder}` }
   }
 
   // Fallback: hue-based
@@ -506,7 +510,13 @@ export default function CalendarPage() {
                 {totalEvents > 0 && cell.current && (
                   <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
                     {[
-                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)`, outline: true })),
+                      ...renewals.map(r => {
+                        const bc = r.brandColors?.[0]
+                        const dotColor = bc && hexLuminance(bc) < 0.1
+                          ? `color-mix(in srgb, ${bc} 35%, #7ab0cc)`
+                          : (bc ?? `hsl(${r.hue},60%,55%)`)
+                        return { color: dotColor, outline: true }
+                      }),
                       ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
