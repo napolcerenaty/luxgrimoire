@@ -1055,43 +1055,41 @@ function NotificationsTab() {
 
         {s.renewalEnabled && (
           <div className="space-y-4 pt-2 border-t border-stone-800">
-            <div className="grid grid-cols-2 gap-3">
-              <div className={TOGGLE_ROW}>
-                <p className={TOGGLE_LABEL}>In-app</p>
+            {/* Delivery channels */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <Toggle checked={s.renewalInAppEnabled} onChange={(v) => update({ renewalInAppEnabled: v })} />
-              </div>
+                <span className={TOGGLE_LABEL}>In-app</span>
+              </label>
               {isSupported && isSubscribed && (
-                <div className={TOGGLE_ROW}>
-                  <p className={TOGGLE_LABEL}>Push</p>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <Toggle checked={s.renewalPushEnabled} onChange={(v) => update({ renewalPushEnabled: v })} />
-                </div>
+                  <span className={TOGGLE_LABEL}>Push</span>
+                </label>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-stone-400">Days before</label>
+            {/* Timing */}
+            <div>
+              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={s.renewalDaysBefore}
                   onChange={(e) => update({ renewalDaysBefore: Number(e.target.value) })}
                   className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
                 >
                   {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <option key={d} value={d}>{d === 0 ? 'Day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                    <option key={d} value={d}>{d === 0 ? 'On the day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
                   ))}
                 </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-stone-400">Hour (your timezone)</label>
                 <select
                   value={s.renewalHour ?? ''}
                   onChange={(e) => update({ renewalHour: e.target.value === '' ? null : Number(e.target.value) })}
                   className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
                 >
-                  <option value="">Default (18:00)</option>
+                  <option value="">at 18:00 (default)</option>
                   {HOURS.map((h) => (
-                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                    <option key={h} value={h}>at {String(h).padStart(2, '0')}:00</option>
                   ))}
                 </select>
               </div>
@@ -1120,35 +1118,33 @@ function NotificationsTab() {
 
         {s.saleEnabled && (
           <div className="space-y-4 pt-2 border-t border-stone-800">
-            <div className="grid grid-cols-2 gap-3">
-              <div className={TOGGLE_ROW}>
-                <p className={TOGGLE_LABEL}>In-app</p>
+            {/* Delivery channels */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <Toggle checked={s.saleInAppEnabled} onChange={(v) => update({ saleInAppEnabled: v })} />
-              </div>
+                <span className={TOGGLE_LABEL}>In-app</span>
+              </label>
               {isSupported && isSubscribed && (
-                <div className={TOGGLE_ROW}>
-                  <p className={TOGGLE_LABEL}>Push</p>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <Toggle checked={s.salePushEnabled} onChange={(v) => update({ salePushEnabled: v })} />
-                </div>
+                  <span className={TOGGLE_LABEL}>Push</span>
+                </label>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-stone-400">Days before sale</label>
+            {/* Timing */}
+            <div>
+              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={s.saleDaysBefore}
                   onChange={(e) => update({ saleDaysBefore: Number(e.target.value) })}
                   className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
                 >
                   {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <option key={d} value={d}>{d === 0 ? 'Day of sale' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                    <option key={d} value={d}>{d === 0 ? 'On the day of sale' : `${d} day${d > 1 ? 's' : ''} before`}</option>
                   ))}
                 </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-stone-400">Hour (your timezone)</label>
                 <select
                   value={s.saleHour ?? ''}
                   onChange={(e) => update({ saleHour: e.target.value === '' ? null : Number(e.target.value) })}
@@ -1156,7 +1152,7 @@ function NotificationsTab() {
                 >
                   <option value="">3h before sale time</option>
                   {HOURS.map((h) => (
-                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                    <option key={h} value={h}>at {String(h).padStart(2, '0')}:00</option>
                   ))}
                 </select>
               </div>
