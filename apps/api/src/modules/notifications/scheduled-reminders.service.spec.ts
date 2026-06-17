@@ -69,14 +69,7 @@ describe('ScheduledRemindersService', () => {
       expect(result.getUTCHours()).toBe(10);
     });
 
-    it('uses eventHourUtc-3 when hour is null for sale', () => {
-      // Sale at 18:00 UTC, 3h before = 15:00 UTC, day of (daysBefore=0)
-      const targetDate = new Date('2025-08-15T18:00:00Z');
-      const result = service.computeScheduledAt(targetDate, 0, null, 'UTC', 18);
-      expect(result.getUTCHours()).toBe(15);
-    });
-
-    it('uses default 18:00 when hour is null without eventHourUtc', () => {
+    it('uses default 18:00 when hour is null', () => {
       const targetDate = new Date('2025-08-15T00:00:00Z');
       const result = service.computeScheduledAt(targetDate, 1, null, 'UTC');
       expect(result.getUTCHours()).toBe(18);
@@ -149,7 +142,6 @@ describe('ScheduledRemindersService', () => {
         saleTimezone: null,
       });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(makeSettings());
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ timezone: 'UTC' });
       (prisma.$transaction as jest.Mock).mockImplementation((fn: (tx: any) => Promise<void>) =>
         fn({
           scheduledReminder: {
@@ -191,7 +183,6 @@ describe('ScheduledRemindersService', () => {
         saleTimezone: null,
       });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(makeSettings());
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ timezone: 'UTC' });
       const createMock = jest.fn().mockResolvedValue({ id: 'ea-reminder' });
       (prisma.$transaction as jest.Mock).mockImplementation((fn: (tx: any) => Promise<void>) =>
         fn({

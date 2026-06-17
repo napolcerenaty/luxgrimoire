@@ -1007,7 +1007,7 @@ function NotificationsTab() {
     renewalEnabled: false, renewalInAppEnabled: true, renewalPushEnabled: false,
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
-    saleDaysBefore: 0, saleHour: null, saleDigest: false,
+    saleDaysBefore: 0, saleHour: 3, saleDigest: false,
   }
 
   return (
@@ -1135,27 +1135,16 @@ function NotificationsTab() {
             {/* Timing */}
             <div>
               <p className="text-xs text-stone-400 mb-2">When to remind</p>
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={s.saleDaysBefore}
-                  onChange={(e) => update({ saleDaysBefore: Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
-                >
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <option key={d} value={d}>{d === 0 ? 'On the day of sale' : `${d} day${d > 1 ? 's' : ''} before`}</option>
-                  ))}
-                </select>
-                <select
-                  value={s.saleHour ?? ''}
-                  onChange={(e) => update({ saleHour: e.target.value === '' ? null : Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
-                >
-                  <option value="">3h before sale time</option>
-                  {HOURS.map((h) => (
-                    <option key={h} value={h}>at {String(h).padStart(2, '0')}:00</option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={s.saleHour ?? 3}
+                onChange={(e) => update({ saleHour: Number(e.target.value) })}
+                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+              >
+                <option value={0}>At sale time</option>
+                {[1, 2, 3, 6, 12, 24].map((h) => (
+                  <option key={h} value={h}>{h}h before sale</option>
+                ))}
+              </select>
             </div>
 
             <div className={TOGGLE_ROW}>

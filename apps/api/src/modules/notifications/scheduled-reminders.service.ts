@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: UserReminderSettingsLike = {
   renewalDigest: true,
   saleEnabled: false,
   saleDaysBefore: 0,
-  saleHour: null,
+  saleHour: 3,  // hours before sale time; null also treated as 3h
   saleDigest: false,
 };
 
@@ -157,30 +157,18 @@ export class ScheduledRemindersService {
     const settings = await this.getOrDefaultSettings(userId);
     if (!settings.saleEnabled) return;
 
-    const userRecord = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    const userTimezone = (userRecord as any)?.timezone ?? 'UTC';
     const saleTimezone = announcement.saleTimezone ?? 'UTC';
 
-    // saleDate is stored as UTC midnight for the day; use saleTimezone if we want to compute "3h before"
-    // For now, treat the event as happening at midnight in the sale's timezone
-    const saleDateLocal = toZonedTime(saleDate, saleTimezone);
-    let eventHourUtc: number | undefined;
-    // If no user hour set (null), default: "3h before" midnight in sale TZ = 21:00 previous day in sale TZ
-    if (settings.saleHour === null) {
-      // Treat event as start of day in saleTimezone
-      eventHourUtc = toZonedTime(saleDate, 'UTC').getUTCHours();
-    }
+    // saleHour now means "hours before sale time" (0 = at sale time, 3 = 3h before, null = default 3h before)
+    const hoursBefore = settings.saleHour !== null ? settings.saleHour : 3;
 
-    const scheduledAt = this.computeScheduledAt(
-      saleDate,
-      settings.saleDaysBefore,
-      settings.saleHour,
-      userTimezone,
-      eventHourUtc,
+    // Compute the anchor sale datetime in UTC: saleDate is stored as a date-only (UTC midnight for the day).
+    // Convert to start-of-day in the sale's timezone, then subtract hoursBefore hours.
+    const saleDayStart = fromZonedTime(
+      new Date(new Date(saleDate).toISOString().slice(0, 10) + 'T00:00:00'),
+      saleTimezone,
     );
+    const scheduledAt = new Date(saleDayStart.getTime() - hoursBefore * 60 * 60 * 1000);
 
     if (scheduledAt <= new Date()) return;
 
