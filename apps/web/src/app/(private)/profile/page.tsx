@@ -47,16 +47,16 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos' | 'import' | 'notifications'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'notifications' | 'photos' | 'import'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Settings },
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
   { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'photos', label: 'My Photos', icon: Image },
   { id: 'import', label: 'Import', icon: Upload },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
 ]
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -86,6 +86,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
+  const [mobileShowContent, setMobileShowContent] = useState(false)
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const DELETE_PHRASE = 'yes i want to delete my account'
@@ -238,28 +239,39 @@ export default function ProfilePage() {
   const initials = (user.displayName ?? user.username).slice(0, 2).toUpperCase()
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-serif font-bold text-stone-100">Settings</h1>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 bg-stone-900 border border-stone-800 rounded-2xl p-1 mb-6">
-        {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+      <div className="flex gap-6 items-start">
+        {/* Sidebar nav */}
+        <nav className={`w-52 shrink-0 bg-stone-900 border border-stone-800 rounded-2xl p-2 ${mobileShowContent ? 'hidden md:block' : 'block w-full md:w-52'}`}>
+          {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => { setActiveTab(id); setMobileShowContent(true) }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
+                activeTab === id
+                  ? 'bg-amber-500/10 text-amber-400'
+                  : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+              }`}
+            >
+              <Icon size={15} className="shrink-0" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Content panel */}
+        <div className={`flex-1 min-w-0 ${!mobileShowContent ? 'hidden md:block' : 'block'}`}>
+          {/* Back button — mobile only */}
           <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === id
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
-            }`}
+            onClick={() => setMobileShowContent(false)}
+            className="md:hidden flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-200 mb-4 transition-colors"
           >
-            <Icon size={14} />
-            <span className="hidden sm:inline">{label}</span>
+            ← Settings
           </button>
-        ))}
-      </div>
 
       {/* Profile tab */}
       {activeTab === 'profile' && (
@@ -507,6 +519,8 @@ export default function ProfilePage() {
 
       {/* Notifications tab */}
       {activeTab === 'notifications' && <NotificationsTab />}
+        </div>{/* end content panel */}
+      </div>{/* end flex row */}
     </div>
   )
 }
