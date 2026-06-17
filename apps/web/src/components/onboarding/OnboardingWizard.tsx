@@ -7,6 +7,7 @@ import { X, ChevronRight, ChevronLeft, BookOpen, Camera, ExternalLink, CreditCar
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch } from '@/lib/authFetch'
 import { CURRENCIES_LABELED as CURRENCIES } from '@/lib/currencies'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 // ── Preferences data ──────────────────────────────────────────────────────────
 
@@ -58,10 +59,15 @@ export function OnboardingWizard() {
   }, [])
 
   // ── Step 2: Notification preferences state ───────────────────────────────
+  const { isSupported: pushSupported, isSubscribed, isLoading: pushLoading, permission, subscribe, unsubscribe } = usePushNotifications()
   const [notifRenewalEnabled, setNotifRenewalEnabled] = useState(false)
+  const [notifRenewalInApp, setNotifRenewalInApp] = useState(true)
+  const [notifRenewalPush, setNotifRenewalPush] = useState(false)
   const [notifRenewalDaysBefore, setNotifRenewalDaysBefore] = useState(1)
   const [notifRenewalHour, setNotifRenewalHour] = useState<number | null>(null)
   const [notifSaleEnabled, setNotifSaleEnabled] = useState(false)
+  const [notifSaleInApp, setNotifSaleInApp] = useState(true)
+  const [notifSalePush, setNotifSalePush] = useState(false)
   const [notifSaleHoursBefore, setNotifSaleHoursBefore] = useState(3)
   const [notifSaving, setNotifSaving] = useState(false)
 
@@ -72,9 +78,13 @@ export function OnboardingWizard() {
         method: 'PUT',
         body: JSON.stringify({
           renewalEnabled: notifRenewalEnabled,
+          renewalInAppEnabled: notifRenewalInApp,
+          renewalPushEnabled: notifRenewalPush,
           renewalDaysBefore: notifRenewalDaysBefore,
           renewalHour: notifRenewalHour,
           saleEnabled: notifSaleEnabled,
+          saleInAppEnabled: notifSaleInApp,
+          salePushEnabled: notifSalePush,
           saleHoursBefore: notifSaleHoursBefore,
         }),
       })
@@ -294,6 +304,31 @@ export function OnboardingWizard() {
       </div>
 
       <div className="space-y-3">
+        {/* Push subscribe */}
+        {pushSupported && permission !== 'denied' && (
+          <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-stone-200">Enable push notifications</p>
+                <p className="text-xs text-stone-500">Receive reminders even when the app is closed</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isSubscribed}
+                disabled={pushLoading}
+                onClick={() => isSubscribed ? unsubscribe() : subscribe()}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-40 ${isSubscribed ? 'bg-amber-500' : 'bg-stone-700'}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${isSubscribed ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          </div>
+        )}
+        {pushSupported && permission === 'denied' && (
+          <p className="text-xs text-amber-400 px-1">Push notifications are blocked in your browser. You can enable them later in browser settings.</p>
+        )}
+
         {/* Renewal reminders */}
         <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -312,7 +347,29 @@ export function OnboardingWizard() {
             </button>
           </div>
           {notifRenewalEnabled && (
-            <div className="space-y-3 pt-1">
+            <div className="space-y-3 pt-1 border-t border-stone-700/50">
+              {/* Channels */}
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <button type="button" role="switch" aria-checked={notifRenewalInApp}
+                    onClick={() => setNotifRenewalInApp(v => !v)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifRenewalInApp ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifRenewalInApp ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                  <span className="text-xs text-stone-300">In-app</span>
+                </label>
+                {pushSupported && isSubscribed && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <button type="button" role="switch" aria-checked={notifRenewalPush}
+                      onClick={() => setNotifRenewalPush(v => !v)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifRenewalPush ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifRenewalPush ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                    <span className="text-xs text-stone-300">Push</span>
+                  </label>
+                )}
+              </div>
+              {/* Timing */}
               <div>
                 <label className={LABEL}>When to remind</label>
                 <div className="flex flex-wrap gap-2">
@@ -351,14 +408,38 @@ export function OnboardingWizard() {
             </button>
           </div>
           {notifSaleEnabled && (
-            <div>
-              <label className={LABEL}>When to remind</label>
-              <select value={notifSaleHoursBefore} onChange={e => setNotifSaleHoursBefore(Number(e.target.value))} className={INPUT}>
-                <option value={0}>At sale time</option>
-                {[1, 2, 3, 6, 12, 24].map(h => (
-                  <option key={h} value={h}>{h}h before sale</option>
-                ))}
-              </select>
+            <div className="space-y-3 pt-1 border-t border-stone-700/50">
+              {/* Channels */}
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <button type="button" role="switch" aria-checked={notifSaleInApp}
+                    onClick={() => setNotifSaleInApp(v => !v)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifSaleInApp ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifSaleInApp ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                  <span className="text-xs text-stone-300">In-app</span>
+                </label>
+                {pushSupported && isSubscribed && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <button type="button" role="switch" aria-checked={notifSalePush}
+                      onClick={() => setNotifSalePush(v => !v)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifSalePush ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifSalePush ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                    <span className="text-xs text-stone-300">Push</span>
+                  </label>
+                )}
+              </div>
+              {/* Timing */}
+              <div>
+                <label className={LABEL}>When to remind</label>
+                <select value={notifSaleHoursBefore} onChange={e => setNotifSaleHoursBefore(Number(e.target.value))} className={INPUT}>
+                  <option value={0}>At sale time</option>
+                  {[1, 2, 3, 6, 12, 24].map(h => (
+                    <option key={h} value={h}>{h}h before sale</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </div>
