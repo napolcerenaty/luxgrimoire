@@ -728,7 +728,7 @@ export class CollectionService {
         JOIN "book_editions" ed ON ed.id = e."editionId"
         JOIN "books"          b  ON b.id  = ed."bookId"
         LEFT JOIN "book_authors" ba ON ba."bookId" = b.id
-        WHERE e."userId" = ${userId}::uuid
+        WHERE e."userId" = CAST(${userId} AS uuid)
           AND e."isWishlist" = false
       `,
     ]);
