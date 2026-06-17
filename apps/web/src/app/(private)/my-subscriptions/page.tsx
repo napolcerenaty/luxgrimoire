@@ -232,6 +232,20 @@ export default function MySubscriptionsPage() {
             return acc
           }, {})
           const groupList = Object.values(groups)
+          if (viewMode === 'grid') {
+            const allEntries = groupList.flatMap(({ entries }) =>
+              [...entries].sort((a, b) => {
+                const aDate = a.cancellationDate ?? a.startDate ?? ''
+                const bDate = b.cancellationDate ?? b.startDate ?? ''
+                return bDate.localeCompare(aDate)
+              })
+            )
+            return (
+              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {allEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+              </div>
+            )
+          }
           return (
             <div className="opacity-75 space-y-4">
               {groupList.map(({ sub, entries }) => (
