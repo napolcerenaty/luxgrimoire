@@ -9,8 +9,8 @@ export class CountryFeeSnapshotCronService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Runs every 3 days at 04:00 UTC */
-  @Cron('0 4 */3 * *', { name: 'country-fee-snapshot-refresh' })
+  /** Runs every Monday at 04:00 UTC as a safety net */
+  @Cron('0 4 * * 1', { name: 'country-fee-snapshot-refresh' })
   async refreshAll(): Promise<void> {
     this.logger.log('[CountryFeeSnapshot] Starting full refresh');
     try {
@@ -22,7 +22,6 @@ export class CountryFeeSnapshotCronService {
   }
 
   async recalculateAll(): Promise<void> {
-    // Find all (subscriptionId, country) combos with at least 1 active subscriber
     const rows = await this.prisma.$queryRaw<Array<{ subscriptionId: string; country: string }>>`
       SELECT DISTINCT
         e."subscriptionId",
@@ -38,27 +37,61 @@ export class CountryFeeSnapshotCronService {
 
     for (const { subscriptionId, country } of rows) {
       try {
-        const data = await this.computeForSubscriptionAndCountry(subscriptionId, country);
-        await this.prisma.subscriptionCountryFeeSnapshot.upsert({
-          where: { subscriptionId_country: { subscriptionId, country } },
-          create: { subscriptionId, country, data: data as unknown as object[], calculatedAt: new Date() },
-          update: { data: data as unknown as object[], calculatedAt: new Date() },
-        });
+        await this.refreshSnapshot(subscriptionId, country);
       } catch (err) {
         this.logger.warn(`[CountryFeeSnapshot] Failed for ${subscriptionId}/${country}: ${err}`);
       }
     }
   }
 
+  /** Recompute and persist snapshot for a subscription+country pair. */
+  async refreshSnapshot(subscriptionId: string, country: string): Promise<void> {
+    const data = await this.computeForSubscriptionAndCountry(subscriptionId, country);
+    await this.prisma.subscriptionCountryFeeSnapshot.upsert({
+      where: { subscriptionId_country: { subscriptionId, country: country.toUpperCase() } },
+      create: { subscriptionId, country: country.toUpperCase(), data: data as unknown as object[], calculatedAt: new Date() },
+      update: { data: data as unknown as object[], calculatedAt: new Date() },
+    });
+  }
+
+  /**
+   * Refresh snapshot for a specific subscription entry (called when isForwarding changes).
+   * Looks up the country from the entry or its user, then refreshes the snapshot.
+   */
+  async refreshSnapshotForEntry(entryId: string): Promise<void> {
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entryId },
+      select: {
+        subscriptionId: true,
+        shippingCountry: true,
+        user: { select: { shippingCountry: true } },
+      },
+    });
+    if (!entry) return;
+    const country = entry.shippingCountry ?? entry.user?.shippingCountry;
+    if (!country) return;
+    await this.refreshSnapshot(entry.subscriptionId, country);
+  }
+
+  /**
+   * Single source of truth: purchase groups (last 35 days) → fallback to current entry settings.
+   */
   async computeForSubscriptionAndCountry(
+    subscriptionId: string,
+    country: string,
+  ): Promise<CountryFeeHint[]> {
+    const data = await this.computeFromPurchaseGroups(subscriptionId, country);
+    if (data.length > 0) return data;
+    return this.computeFromEntrySettings(subscriptionId, country);
+  }
+
+  private async computeFromPurchaseGroups(
     subscriptionId: string,
     country: string,
   ): Promise<CountryFeeHint[]> {
     const countryUpper = country.toUpperCase();
     const cutoff = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
 
-    // Query actual purchase groups from the last 35 days instead of current entry settings.
-    // This ensures stats reflect what subscribers actually paid, not current (potentially outdated) entry settings.
     const groups = await this.prisma.userPurchaseGroup.findMany({
       where: {
         fromSubscription: true,
@@ -77,21 +110,15 @@ export class CountryFeeSnapshotCronService {
         shippingAmount: true,
         currency: true,
         subscriptionEntryId: true,
-        subscriptionEntry: {
-          select: { prepaidMonths: true },
-        },
-        fees: {
-          select: { category: true, amount: true, currency: true },
-        },
+        subscriptionEntry: { select: { prepaidMonths: true } },
+        fees: { select: { category: true, amount: true, currency: true } },
       },
     });
 
     if (!groups.length) return [];
 
-    // Total unique subscribers who had a renewal in this period
     const totalEntries = new Set(groups.map(g => g.subscriptionEntryId)).size;
 
-    // Aggregate shipping from actual purchase groups
     const shippingAmounts: number[] = [];
     let shippingCurrency: string | null = null;
     let shippingMixed = false;
@@ -108,7 +135,6 @@ export class CountryFeeSnapshotCronService {
     }
     if (shippingMixed) shippingCurrency = null;
 
-    // Aggregate fees by category from actual purchase fees
     const byCategory = new Map<string, { entryIds: Set<string>; amounts: number[]; currency: string | null }>();
     for (const g of groups) {
       for (const fee of g.fees) {
@@ -122,24 +148,118 @@ export class CountryFeeSnapshotCronService {
       }
     }
 
-    const avgShipping =
-      shippingAmounts.length > 0
-        ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
-        : null;
+    const avgShipping = shippingAmounts.length > 0
+      ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
+      : null;
 
     const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
       category,
       count: agg.entryIds.size,
       totalSubscribers: totalEntries,
-      avgAmount:
-        agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
+      avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
       currency: agg.currency,
       avgShipping,
       shippingCurrency,
       shippingCount: shippingAmounts.length,
     }));
 
-    const hasShippingCat = data.some((d) => d.category === 'SHIPPING');
+    const hasShippingCat = data.some(d => d.category === 'SHIPPING');
+    if (!hasShippingCat && avgShipping !== null) {
+      data.push({
+        category: '__shipping__',
+        count: shippingAmounts.length,
+        totalSubscribers: totalEntries,
+        avgAmount: avgShipping,
+        currency: shippingCurrency,
+        avgShipping,
+        shippingCurrency,
+        shippingCount: shippingAmounts.length,
+      });
+    }
+
+    data.sort((a, b) => b.count - a.count);
+    return data;
+  }
+
+  /** Fallback: aggregate from current active entry settings (used when no purchase groups yet). */
+  private async computeFromEntrySettings(
+    subscriptionId: string,
+    country: string,
+  ): Promise<CountryFeeHint[]> {
+    const countryUpper = country.toUpperCase();
+
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: {
+        subscriptionId,
+        active: true,
+        isForwarding: false,
+        OR: [
+          { shippingCountry: countryUpper },
+          { shippingCountry: null, user: { shippingCountry: countryUpper } },
+        ],
+      },
+      select: {
+        id: true,
+        shippingCost: true,
+        costCurrency: true,
+        feeTemplates: {
+          select: {
+            customAmount: true,
+            customCurrency: true,
+            feeTemplate: {
+              select: { category: true, defaultAmount: true, defaultCurrency: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!entries.length) return [];
+
+    const shippingAmounts: number[] = [];
+    let shippingCurrency: string | null = null;
+    let shippingMixed = false;
+    for (const entry of entries) {
+      if (entry.shippingCost != null) {
+        const cur = entry.costCurrency ?? null;
+        shippingAmounts.push(Number(entry.shippingCost));
+        if (shippingCurrency === null) shippingCurrency = cur;
+        else if (shippingCurrency !== cur) shippingMixed = true;
+      }
+    }
+    if (shippingMixed) shippingCurrency = null;
+
+    const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
+    for (const entry of entries) {
+      for (const link of entry.feeTemplates) {
+        const cat = link.feeTemplate.category as string;
+        const amt = link.customAmount ?? link.feeTemplate.defaultAmount;
+        const cur = link.customCurrency ?? link.feeTemplate.defaultCurrency;
+        if (!byCategory.has(cat)) byCategory.set(cat, { count: 0, amounts: [], currency: cur });
+        const agg = byCategory.get(cat)!;
+        agg.count++;
+        if (amt != null) agg.amounts.push(Number(amt));
+        if (agg.currency !== cur) agg.currency = null;
+      }
+    }
+
+    const totalEntries = entries.length;
+    const avgShipping = shippingAmounts.length > 0
+      ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
+      : null;
+
+    const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
+      category,
+      count: agg.count,
+      totalSubscribers: totalEntries,
+      avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
+      currency: agg.currency,
+      avgShipping,
+      shippingCurrency,
+      shippingCount: shippingAmounts.length,
+    }));
+
+    const hasShippingCat = data.some(d => d.category === 'SHIPPING');
     if (!hasShippingCat && avgShipping !== null) {
       data.push({
         category: '__shipping__',
