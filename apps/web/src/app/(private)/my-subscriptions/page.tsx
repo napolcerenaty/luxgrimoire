@@ -639,7 +639,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   {sub.name}
                 </h3>
               </div>
-              <div className="shrink-0 flex flex-wrap items-center justify-end gap-1 max-w-[11rem]">
+              <div className="shrink-0 flex flex-col items-end gap-1">
                 {entry.active ? (
                   <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
                     <CheckCircle2 size={12} /> Active
