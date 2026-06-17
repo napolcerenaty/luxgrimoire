@@ -491,6 +491,7 @@ export class EditionsService {
           select: {
             id: true, slug: true, title: true, description: true,
             seriesName: true, volumeNumber: true, language: true,
+            series: { select: { id: true, slug: true, name: true } },
             authors: {
               select: {
                 author: { select: { id: true, name: true, slug: true, nationality: true } },
