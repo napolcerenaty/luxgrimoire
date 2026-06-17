@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -161,8 +161,13 @@ export class BookSeriesService {
   }
 
   async delete(slug: string) {
-    const series = await this.prisma.bookSeries.findUnique({ where: { slug } });
+    const series = await this.prisma.bookSeries.findUnique({
+      where: { slug },
+      include: { _count: { select: { books: true } } },
+    });
     if (!series) throw new NotFoundException(`Series '${slug}' not found`);
+    if (series._count.books > 0)
+      throw new BadRequestException(`Cannot delete series '${slug}' — it still has ${series._count.books} book(s).`);
     return this.prisma.bookSeries.delete({ where: { slug } });
   }
 
