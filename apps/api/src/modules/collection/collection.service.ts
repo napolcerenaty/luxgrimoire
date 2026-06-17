@@ -712,7 +712,7 @@ export class CollectionService {
 
   async getStats(userId: string) {
     const [totalOwned, totalWishlist, groupResult, aggregates] = await Promise.all([
-      this.prisma.userBookEntry.count({ where: { userId, isWishlist: false } }),
+      this.prisma.userBookEntry.count({ where: { userId, isWishlist: false, ownershipStatus: { not: 'SOLD' } } }),
       this.prisma.userBookEntry.count({ where: { userId, isWishlist: true } }),
       this.prisma.userBookEntry.groupBy({
         by: ['editionId'],
