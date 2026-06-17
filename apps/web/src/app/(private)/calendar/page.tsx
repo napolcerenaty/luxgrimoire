@@ -717,14 +717,14 @@ export default function CalendarPage() {
                     className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group overflow-hidden min-w-0"
                     style={bStyle}
                   >
-                    <Bell size={13} style={{ color: 'currentColor' }} className="shrink-0 opacity-80" />
+                    <Bell size={13} style={{ color: 'currentColor' }} className="shrink-0 opacity-80 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'currentColor' }}>{i.announcement.title}</p>
+                      <p className="text-sm font-medium leading-snug" style={{ color: 'currentColor' }}>{i.announcement.title}</p>
                       {i.announcement.company && (
-                        <p className="text-xs truncate opacity-70">{i.announcement.company.name}</p>
+                        <p className="text-xs opacity-70">{i.announcement.company.name}</p>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 self-start">
                       <p className="text-xs font-semibold opacity-95">{TIER_LABELS[i.tier]}</p>
                       <p className="text-xs opacity-75">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
