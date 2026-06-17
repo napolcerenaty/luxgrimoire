@@ -516,7 +516,6 @@ export default function CalendarPage() {
                           ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 2px rgba(255,255,255,0.08)` }
                           : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.15), 0 0 4px rgba(255,255,255,0.1)` }}
                       />
-                      />
                     ))}
                     {totalEvents > 3 && (
                       <span className="text-[7px] text-stone-500 leading-none self-center">+{totalEvents - 3}</span>
