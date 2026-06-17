@@ -10,7 +10,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, BarChart2,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
-  Heart, BookMarked, ShoppingBag, Library,
+  Heart, BookMarked, ShoppingBag, Library, Bell,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -168,6 +168,7 @@ export function Navbar() {
                     {/* Finance & Account */}
                     {[
                       { href: '/statistics', icon: BarChart2, label: 'Statistics' },
+                      { href: '/settings/notifications', icon: Bell, label: 'Notification Settings' },
                       { href: '/profile',  icon: Settings,   label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link

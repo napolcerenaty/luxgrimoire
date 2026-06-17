@@ -9,6 +9,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { parsePagination } from '../../common/pagination';
+import { PushService } from './push.service';
 
 const DEFAULT_TTL_KEY = 'notification.default_ttl_days';
 const DEFAULT_TTL_DAYS = 30;
@@ -19,6 +20,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly pushService: PushService,
   ) {}
 
   // ─── User-facing ────────────────────────────────────────────────────────────
@@ -230,8 +232,17 @@ export class NotificationsService {
     const link = entityType && entityId ? `${entityType}:${entityId}` : undefined;
     const ttlDays = await this.getDefaultTtlDays();
     const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
-    return this.prisma.userNotification.create({
+
+    const notification = await this.prisma.userNotification.create({
       data: { userId, type, title, body, link, expiresAt },
     });
+
+    // Fire-and-forget push if user has push enabled
+    const pref = await this.prisma.userNotificationPreference.findUnique({ where: { userId } });
+    if (pref?.pushEnabled) {
+      void this.pushService.sendToUser(userId, { title, body, link, type });
+    }
+
+    return notification;
   }
 }

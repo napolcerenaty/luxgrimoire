@@ -43,6 +43,8 @@ model User {
   bookEntryTags            UserBookEntryTag[]
   feeTemplates             UserFeeTemplate[]
   notifications            UserNotification[]
+  notificationPreference   UserNotificationPreference?
+  pushSubscriptions        PushSubscription[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
@@ -975,6 +977,34 @@ model UserNotification {
   @@index([userId])
   @@index([userId, createdAt])
   @@map("user_notifications")
+}
+
+model UserNotificationPreference {
+  id                 String  @id @default(uuid())
+  userId             String  @unique
+  renewalReminderEnabled Boolean @default(true)
+  renewalReminderDays    Int     @default(3)
+  saleReminderEnabled    Boolean @default(true)
+  saleReminderDays       Int     @default(3)
+  pushEnabled            Boolean @default(false)
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
+
+model PushSubscription {
+  id        String    @id @default(uuid())
+  userId    String
+  endpoint  String    @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime  @default(now())
+  lastError String?
+  failedAt  DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model AppSetting {
