@@ -3115,6 +3115,7 @@ export class SubscriptionsService {
       where: {
         subscriptionId: subscription.id,
         active: true,
+        isForwarding: false,
         OR: [
           { shippingCountry: countryUpper },
           { shippingCountry: null, user: { shippingCountry: countryUpper } },

@@ -30,6 +30,7 @@ export class CountryFeeSnapshotCronService {
       FROM user_subscription_entries e
       JOIN users u ON e."userId" = u.id
       WHERE e.active = true
+        AND e."isForwarding" = false
         AND COALESCE(e."shippingCountry", u."shippingCountry") IS NOT NULL
     `;
 
