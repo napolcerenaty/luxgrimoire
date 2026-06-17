@@ -4,10 +4,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 interface PreferenceDto {
-  renewalReminderEnabled?: boolean;
-  renewalReminderDays?: number;
-  saleReminderEnabled?: boolean;
-  saleReminderDays?: number;
   pushEnabled?: boolean;
 }
 
@@ -22,13 +18,7 @@ export class NotificationPreferencesController {
     const pref = await this.prisma.userNotificationPreference.findUnique({
       where: { userId: user.id },
     });
-    return pref ?? {
-      renewalReminderEnabled: true,
-      renewalReminderDays: 3,
-      saleReminderEnabled: true,
-      saleReminderDays: 3,
-      pushEnabled: false,
-    };
+    return pref ?? { pushEnabled: false };
   }
 
   @Put()
@@ -39,21 +29,9 @@ export class NotificationPreferencesController {
   ) {
     return this.prisma.userNotificationPreference.upsert({
       where: { userId: user.id },
-      create: {
-        userId: user.id,
-        renewalReminderEnabled: dto.renewalReminderEnabled ?? true,
-        renewalReminderDays: dto.renewalReminderDays ?? 3,
-        saleReminderEnabled: dto.saleReminderEnabled ?? true,
-        saleReminderDays: dto.saleReminderDays ?? 3,
-        pushEnabled: dto.pushEnabled ?? false,
-      },
-      update: {
-        ...(dto.renewalReminderEnabled !== undefined && { renewalReminderEnabled: dto.renewalReminderEnabled }),
-        ...(dto.renewalReminderDays !== undefined && { renewalReminderDays: dto.renewalReminderDays }),
-        ...(dto.saleReminderEnabled !== undefined && { saleReminderEnabled: dto.saleReminderEnabled }),
-        ...(dto.saleReminderDays !== undefined && { saleReminderDays: dto.saleReminderDays }),
-        ...(dto.pushEnabled !== undefined && { pushEnabled: dto.pushEnabled }),
-      },
+      create: { userId: user.id, pushEnabled: dto.pushEnabled ?? false },
+      update: { ...(dto.pushEnabled !== undefined && { pushEnabled: dto.pushEnabled }) },
     });
   }
 }
+

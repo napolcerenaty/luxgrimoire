@@ -45,6 +45,8 @@ model User {
   notifications            UserNotification[]
   notificationPreference   UserNotificationPreference?
   pushSubscriptions        PushSubscription[]
+  reminderSettings         UserReminderSettings?
+  scheduledReminders       ScheduledReminder[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
@@ -980,16 +982,55 @@ model UserNotification {
 }
 
 model UserNotificationPreference {
-  id                 String  @id @default(uuid())
-  userId             String  @unique
-  renewalReminderEnabled Boolean @default(true)
-  renewalReminderDays    Int     @default(3)
-  saleReminderEnabled    Boolean @default(true)
-  saleReminderDays       Int     @default(3)
-  pushEnabled            Boolean @default(false)
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  pushEnabled Boolean @default(false)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_notification_preferences")
+}
+
+model UserReminderSettings {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+
+  renewalEnabled       Boolean  @default(false)
+  renewalInAppEnabled  Boolean  @default(true)
+  renewalPushEnabled   Boolean  @default(false)
+  renewalDaysBefore    Int      @default(1)
+  renewalHour          Int?
+  renewalDigest        Boolean  @default(true)
+
+  saleEnabled          Boolean  @default(false)
+  saleInAppEnabled     Boolean  @default(true)
+  salePushEnabled      Boolean  @default(false)
+  saleDaysBefore       Int      @default(0)
+  saleHour             Int?
+  saleDigest           Boolean  @default(false)
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_reminder_settings")
+}
+
+model ScheduledReminder {
+  id             String    @id @default(uuid())
+  userId         String
+  type           String
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  cancelledAt    DateTime?
+  entryId        String?
+  announcementId String?
+  tier           String?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scheduledAt, sentAt, cancelledAt])
+  @@index([entryId])
+  @@index([userId, announcementId])
+  @@map("scheduled_reminders")
 }
 
 model PushSubscription {

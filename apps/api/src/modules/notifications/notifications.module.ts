@@ -5,10 +5,13 @@ import { PushService } from './push.service';
 import { PushController } from './push.controller';
 import { NotificationPreferencesController } from './notification-preferences.controller';
 import { NotificationRemindersCron } from './notification-reminders.cron';
+import { ScheduledRemindersService } from './scheduled-reminders.service';
+import { ReminderSettingsService } from './reminder-settings.service';
+import { ReminderSettingsController } from './reminder-settings.controller';
 
 @Module({
-  controllers: [NotificationsController, PushController, NotificationPreferencesController],
-  providers: [NotificationsService, PushService, NotificationRemindersCron],
-  exports: [NotificationsService],
+  controllers: [NotificationsController, PushController, NotificationPreferencesController, ReminderSettingsController],
+  providers: [NotificationsService, PushService, NotificationRemindersCron, ScheduledRemindersService, ReminderSettingsService],
+  exports: [NotificationsService, ScheduledRemindersService],
 })
 export class NotificationsModule {}

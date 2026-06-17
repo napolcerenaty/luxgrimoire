@@ -35,7 +35,7 @@ export function OnboardingWizard() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [step, setStep] = useState(0)
-  const TOTAL_STEPS = 5
+  const TOTAL_STEPS = 6
 
   // ── Step 0: Preferences state ────────────────────────────────────────────
   const [prefsCurrency, setPrefsCurrency] = useState(user?.preferredCurrency ?? 'EUR')
@@ -56,6 +56,29 @@ export function OnboardingWizard() {
       return [{ tz: Intl.DateTimeFormat().resolvedOptions().timeZone, label: 'Local timezone' }]
     }
   }, [])
+
+  // ── Step 2: Notification preferences state ───────────────────────────────
+  const [notifRenewalEnabled, setNotifRenewalEnabled] = useState(false)
+  const [notifRenewalDaysBefore, setNotifRenewalDaysBefore] = useState(1)
+  const [notifSaleEnabled, setNotifSaleEnabled] = useState(false)
+  const [notifSaving, setNotifSaving] = useState(false)
+
+  const saveNotifAndAdvance = async () => {
+    setNotifSaving(true)
+    try {
+      await authFetch('/reminder-settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          renewalEnabled: notifRenewalEnabled,
+          renewalDaysBefore: notifRenewalDaysBefore,
+          saleEnabled: notifSaleEnabled,
+        }),
+      })
+    } catch {} finally {
+      setNotifSaving(false)
+    }
+    setStep(s => s + 1)
+  }
 
   // ── Step 1: Fees state ────────────────────────────────────────────────────
   const { data: existingTemplates = [], isLoading: feesLoading } = useQuery<FeeTemplate[]>({
@@ -127,6 +150,7 @@ export function OnboardingWizard() {
 
   const handleNext = async () => {
     if (step === 0) { await savePrefsAndAdvance(); return }
+    if (step === 2) { await saveNotifAndAdvance(); return }
     setStep(s => s + 1)
   }
 
@@ -253,7 +277,71 @@ export function OnboardingWizard() {
       <p className="text-xs text-stone-500">You can manage templates any time in <strong className="text-stone-400">Profile → Taxes & Fees</strong>.</p>
     </div>,
 
-    // Step 2: Footer links
+    // Step 2: Notification Preferences
+    <div key="notif" className="space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+          <span className="text-amber-400 text-lg">🔔</span>
+        </div>
+        <div>
+          <h2 className="font-serif text-xl font-semibold text-stone-100">Notification Preferences</h2>
+          <p className="text-xs text-stone-500">Get reminded about renewals and sales</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {/* Renewal reminders */}
+        <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-200">Renewal reminders</p>
+              <p className="text-xs text-stone-500">Get notified before your subscriptions renew</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifRenewalEnabled}
+              onClick={() => setNotifRenewalEnabled(v => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${notifRenewalEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${notifRenewalEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+          {notifRenewalEnabled && (
+            <div>
+              <label className={LABEL}>Days before renewal</label>
+              <select value={notifRenewalDaysBefore} onChange={e => setNotifRenewalDaysBefore(Number(e.target.value))} className={INPUT}>
+                {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
+                  <option key={d} value={d}>{d === 0 ? 'Day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Sale reminders */}
+        <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-200">Sale reminders</p>
+              <p className="text-xs text-stone-500">Get reminded about sales you're interested in</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifSaleEnabled}
+              onClick={() => setNotifSaleEnabled(v => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${notifSaleEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${notifSaleEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-stone-500">You can adjust all notification settings any time in <strong className="text-stone-400">Profile → Notifications</strong>.</p>
+    </div>,
+
+    // Step 3: Footer links (was Step 2)
     <div key="footer" className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -282,7 +370,7 @@ export function OnboardingWizard() {
       </div>
     </div>,
 
-    // Step 3: Community Photos
+    // Step 4: Community Photos (was Step 3)
     <div key="photos" className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -309,7 +397,7 @@ export function OnboardingWizard() {
       </div>
     </div>,
 
-    // Step 4: Subscriptions backfill
+    // Step 5: Subscriptions backfill (was Step 4)
     <div key="subs" className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -363,7 +451,7 @@ export function OnboardingWizard() {
         <div className="flex items-center justify-between px-6 py-4 border-t border-stone-800 shrink-0">
           <button
             onClick={() => setStep(s => Math.max(0, s - 1))}
-            disabled={step === 0 || prefsSaving}
+            disabled={step === 0 || prefsSaving || notifSaving}
             className="flex items-center gap-1 text-sm text-stone-400 hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft size={16} /> Back
@@ -372,10 +460,10 @@ export function OnboardingWizard() {
           {step < TOTAL_STEPS - 1 ? (
             <button
               onClick={handleNext}
-              disabled={prefsSaving}
+              disabled={prefsSaving || notifSaving}
               className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold text-sm px-5 py-2 rounded-xl transition-colors"
             >
-              {prefsSaving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Next <ChevronRight size={16} /></>}
+              {(prefsSaving || notifSaving) ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Next <ChevronRight size={16} /></>}
             </button>
           ) : (
             <div className="flex items-center gap-2">

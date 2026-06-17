@@ -38,6 +38,35 @@ describe('RenewalCronService', () => {
     jest.useRealTimers();
   });
 
+  describe('scheduleRenewal integration after renewal', () => {
+    it('calls scheduledReminders.scheduleRenewal after processOneRenewal', async () => {
+      const scheduleRenewalMock = jest.fn().mockResolvedValue(undefined);
+      const serviceWithReminders = new RenewalCronService(
+        prisma,
+        { markStatsStale: jest.fn() } as any,
+        { scheduleRenewal: scheduleRenewalMock } as any,
+      );
+
+      (prisma.userSubscriptionRenewal.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionRenewal.create as jest.Mock).mockResolvedValueOnce({ id: 'r-sched' });
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await (serviceWithReminders as any).processOneRenewal(baseEntry);
+
+      expect(scheduleRenewalMock).toHaveBeenCalledWith('entry-1');
+    });
+
+    it('still processes renewal if scheduledReminders is not injected', async () => {
+      (prisma.userSubscriptionRenewal.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionRenewal.create as jest.Mock).mockResolvedValueOnce({ id: 'r-no-sched' });
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      // Default service has no scheduledReminders — should not throw
+      await expect((service as any).processOneRenewal(baseEntry)).resolves.not.toThrow();
+      expect(prisma.userSubscriptionRenewal.create).toHaveBeenCalled();
+    });
+  });
+
   // -------------------------------------------------------------------------
   // processOneRenewal (private — accessed via `(service as any)`)
   // -------------------------------------------------------------------------

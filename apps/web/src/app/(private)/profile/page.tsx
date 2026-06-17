@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked, Bell } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 import { CURRENCIES_LABELED } from '@/lib/currencies'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 
 
@@ -46,7 +47,7 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos' | 'import'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos' | 'import' | 'notifications'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -55,6 +56,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
   { id: 'photos', label: 'My Photos', icon: Image },
   { id: 'import', label: 'Import', icon: Upload },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
 ]
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
@@ -502,6 +504,9 @@ export default function ProfilePage() {
 
       {/* Import tab */}
       {activeTab === 'import' && <ReadingHistoryImport />}
+
+      {/* Notifications tab */}
+      {activeTab === 'notifications' && <NotificationsTab />}
     </div>
   )
 }
@@ -901,6 +906,255 @@ function ReadingHistoryImport() {
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+interface ReminderSettings {
+  renewalEnabled: boolean
+  renewalInAppEnabled: boolean
+  renewalPushEnabled: boolean
+  renewalDaysBefore: number
+  renewalHour: number | null
+  renewalDigest: boolean
+  saleEnabled: boolean
+  saleInAppEnabled: boolean
+  salePushEnabled: boolean
+  saleDaysBefore: number
+  saleHour: number | null
+  saleDigest: boolean
+}
+
+interface PushNotifPreferences {
+  pushEnabled: boolean
+}
+
+const SECTION = 'bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4'
+const TOGGLE_ROW = 'flex items-center justify-between'
+const TOGGLE_LABEL = 'text-sm text-stone-200'
+const TOGGLE_SUBLABEL = 'text-xs text-stone-500 mt-0.5'
+
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-amber-500' : 'bg-stone-700'}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+      />
+    </button>
+  )
+}
+
+function NotificationsTab() {
+  const queryClient = useQueryClient()
+  const { permission, isSubscribed, isLoading: pushLoading, isSupported, subscribe, unsubscribe } = usePushNotifications()
+
+  const { data: prefs } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => authFetch<PushNotifPreferences>('/notifications/preferences'),
+  })
+
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['reminder-settings'],
+    queryFn: () => authFetch<ReminderSettings>('/reminder-settings'),
+  })
+
+  const prefsMutation = useMutation({
+    mutationFn: (dto: Partial<PushNotifPreferences>) =>
+      authFetch('/notifications/preferences', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }),
+  })
+
+  const settingsMutation = useMutation({
+    mutationFn: (dto: Partial<ReminderSettings>) =>
+      authFetch('/reminder-settings', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reminder-settings'] }),
+  })
+
+  const update = (dto: Partial<ReminderSettings>) => settingsMutation.mutate(dto)
+  const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+  if (settingsLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
+        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
+      </div>
+    )
+  }
+
+  const s: ReminderSettings = settings ?? {
+    renewalEnabled: false, renewalInAppEnabled: true, renewalPushEnabled: false,
+    renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
+    saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
+    saleDaysBefore: 0, saleHour: null, saleDigest: false,
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Push Notifications */}
+      {isSupported && (
+        <section className={SECTION}>
+          <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Push Notifications</h3>
+          {permission === 'denied' ? (
+            <p className="text-sm text-amber-400">Push notifications are blocked in your browser. Enable them in browser settings to use this feature.</p>
+          ) : (
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Enable push on this device</p>
+                <p className={TOGGLE_SUBLABEL}>Requires browser permission</p>
+              </div>
+              <Toggle
+                checked={isSubscribed}
+                onChange={(v) => { v ? subscribe() : unsubscribe(); prefsMutation.mutate({ pushEnabled: v }) }}
+                disabled={pushLoading}
+              />
+            </div>
+          )}
+          {isSubscribed && (
+            <div className={TOGGLE_ROW}>
+              <p className={TOGGLE_LABEL}>Push enabled globally</p>
+              <Toggle checked={prefs?.pushEnabled ?? false} onChange={(v) => prefsMutation.mutate({ pushEnabled: v })} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Renewal Reminders */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Renewal Reminders</h3>
+            <p className={TOGGLE_SUBLABEL}>Get reminded before your subscriptions renew</p>
+          </div>
+          <Toggle checked={s.renewalEnabled} onChange={(v) => update({ renewalEnabled: v })} />
+        </div>
+
+        {s.renewalEnabled && (
+          <div className="space-y-4 pt-2 border-t border-stone-800">
+            <div className="grid grid-cols-2 gap-3">
+              <div className={TOGGLE_ROW}>
+                <p className={TOGGLE_LABEL}>In-app</p>
+                <Toggle checked={s.renewalInAppEnabled} onChange={(v) => update({ renewalInAppEnabled: v })} />
+              </div>
+              {isSupported && isSubscribed && (
+                <div className={TOGGLE_ROW}>
+                  <p className={TOGGLE_LABEL}>Push</p>
+                  <Toggle checked={s.renewalPushEnabled} onChange={(v) => update({ renewalPushEnabled: v })} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-stone-400">Days before</label>
+                <select
+                  value={s.renewalDaysBefore}
+                  onChange={(e) => update({ renewalDaysBefore: Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
+                    <option key={d} value={d}>{d === 0 ? 'Day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-stone-400">Hour (your timezone)</label>
+                <select
+                  value={s.renewalHour ?? ''}
+                  onChange={(e) => update({ renewalHour: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">Default (18:00)</option>
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Digest mode</p>
+                <p className={TOGGLE_SUBLABEL}>Combine multiple renewals into one notification</p>
+              </div>
+              <Toggle checked={s.renewalDigest} onChange={(v) => update({ renewalDigest: v })} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Sale Reminders */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Sale Reminders</h3>
+            <p className={TOGGLE_SUBLABEL}>Get reminded about sales you're interested in</p>
+          </div>
+          <Toggle checked={s.saleEnabled} onChange={(v) => update({ saleEnabled: v })} />
+        </div>
+
+        {s.saleEnabled && (
+          <div className="space-y-4 pt-2 border-t border-stone-800">
+            <div className="grid grid-cols-2 gap-3">
+              <div className={TOGGLE_ROW}>
+                <p className={TOGGLE_LABEL}>In-app</p>
+                <Toggle checked={s.saleInAppEnabled} onChange={(v) => update({ saleInAppEnabled: v })} />
+              </div>
+              {isSupported && isSubscribed && (
+                <div className={TOGGLE_ROW}>
+                  <p className={TOGGLE_LABEL}>Push</p>
+                  <Toggle checked={s.salePushEnabled} onChange={(v) => update({ salePushEnabled: v })} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-stone-400">Days before sale</label>
+                <select
+                  value={s.saleDaysBefore}
+                  onChange={(e) => update({ saleDaysBefore: Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
+                    <option key={d} value={d}>{d === 0 ? 'Day of sale' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-stone-400">Hour (your timezone)</label>
+                <select
+                  value={s.saleHour ?? ''}
+                  onChange={(e) => update({ saleHour: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">3h before sale time</option>
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Digest mode</p>
+                <p className={TOGGLE_SUBLABEL}>Combine multiple sales on the same day into one notification</p>
+              </div>
+              <Toggle checked={s.saleDigest} onChange={(v) => update({ saleDigest: v })} />
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

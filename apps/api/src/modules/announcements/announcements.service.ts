@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
@@ -7,6 +7,7 @@ import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announce
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 // Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
@@ -56,6 +57,7 @@ export class AnnouncementsService {
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
     private readonly mediaAssetsService: MediaAssetsService,
+    @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
   private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
@@ -360,6 +362,11 @@ export class AnnouncementsService {
       where: { id },
       data: updateData,
     });
+    // If dates changed, recalculate all pending sale reminders for this announcement
+    const dateChanged = data.generalSaleDate !== undefined || data.firstAccessDate !== undefined || data.earlyAccessDate !== undefined;
+    if (dateChanged) {
+      this.scheduledReminders?.recalculateForAnnouncement(id).catch(() => {});
+    }
     if (extraImages !== undefined) {
       await this.syncExtraImageAssets(id, extraImages);
     }
