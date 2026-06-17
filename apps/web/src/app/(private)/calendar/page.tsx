@@ -138,18 +138,6 @@ function pillStyle(
     : { background: 'transparent', color: `hsl(${hue},80%,75%)`, border: `1px solid hsla(${hue},55%,65%,0.55)` }
 }
 
-/** Returns the dot color for mobile calendar dots.
- *  In dark mode, very dark brand colors are replaced with a hue-based fallback
- *  so they remain visible against the dark cell background.
- */
-function visibleDotColor(brandColor: string | null | undefined, hue: number, darkMode: boolean): string {
-  const fallback = `hsl(${hue},60%,55%)`
-  if (!brandColor) return fallback
-  if (darkMode && hexLuminance(brandColor) < 0.1) return fallback
-  return brandColor
-}
-
-
 // month0 is 0-indexed (JavaScript Date convention)
 function renewalDayInMonth(entry: CalEntry, year: number, month0: number): number | null {
   const sub = entry.subscription
@@ -518,15 +506,16 @@ export default function CalendarPage() {
                 {totalEvents > 0 && cell.current && (
                   <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
                     {[
-                      ...renewals.map(r => ({ color: visibleDotColor(r.brandColors?.[0], r.hue, !lightMode), outline: true })),
-                      ...sales.map(s => ({ color: visibleDotColor(s.brandColors?.[0], s.hue, !lightMode), outline: false })),
+                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)`, outline: true })),
+                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
                         className="w-1.5 h-1.5 rounded-full shrink-0"
                         style={dot.outline
-                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}` }
-                          : { backgroundColor: dot.color }}
+                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 2px rgba(255,255,255,0.08)` }
+                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.15), 0 0 4px rgba(255,255,255,0.1)` }}
+                      />
                       />
                     ))}
                     {totalEvents > 3 && (
