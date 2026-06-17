@@ -155,6 +155,7 @@ describe('SubscriptionsService — backfill with settings history', () => {
       {} as any, // TypesenseService
       skipPolicyEngineMock as any,
       {} as any, // RenewalCronService
+      {} as any, // CountryFeeSnapshotCronService
       {} as any, // UploadService
       {} as any, // CrowdStatsService
       { markStatsStale: jest.fn() } as any, // StatsService
