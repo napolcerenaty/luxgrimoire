@@ -422,7 +422,7 @@ export default function CalendarPage() {
               <div
                 key={idx}
                 className={[
-                  'min-h-[48px] sm:min-h-[80px] p-1 sm:p-1.5 flex flex-col gap-0.5',
+                  'min-h-[48px] sm:min-h-[80px] p-0.5 sm:p-1.5 flex flex-col gap-0.5',
                   cell.current ? 'cursor-pointer sm:cursor-default' : '',
                   !cell.current ? 'bg-stone-950/40' : '',
                   cell.current && isToday(cell.day)
@@ -436,7 +436,7 @@ export default function CalendarPage() {
               >
                 <span
                   className={[
-                    'text-xs leading-none mb-0.5 w-5 h-5 flex items-center justify-center rounded-full shrink-0',
+                    'text-[9px] sm:text-xs leading-none mb-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full shrink-0',
                     !cell.current
                       ? 'text-stone-700'
                       : isToday(cell.day)
@@ -511,10 +511,10 @@ export default function CalendarPage() {
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        className="w-2 h-2 rounded-full shrink-0"
                         style={dot.outline
-                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 2px rgba(255,255,255,0.08)` }
-                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.15), 0 0 4px rgba(255,255,255,0.1)` }}
+                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 5px ${dot.color}88` }
+                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.2), 0 0 5px ${dot.color}` }}
                       />
                     ))}
                     {totalEvents > 3 && (

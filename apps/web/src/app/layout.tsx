@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
@@ -7,6 +7,11 @@ import { DevBanner } from '@/components/layout/DevBanner'
 import { BugReportButton } from '@/components/layout/BugReportButton'
 import { CookieBanner } from '@/components/layout/CookieBanner'
 import { Providers } from '@/components/Providers'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   title: {
