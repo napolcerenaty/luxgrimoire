@@ -570,8 +570,8 @@ export default function CalendarPage() {
                     >
                       <span className="text-base shrink-0">🔄</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{r.label}</p>
-                        {r.companyName && <p className="text-xs opacity-70 truncate">{r.companyName}</p>}
+                        <p className="text-sm font-medium leading-snug">{r.label}</p>
+                        {r.companyName && <p className="text-xs opacity-70">{r.companyName}</p>}
                       </div>
                       <span className="text-xs opacity-50 shrink-0">Renewal</span>
                     </Link>
@@ -588,8 +588,8 @@ export default function CalendarPage() {
                     >
                       <Bell size={15} className="shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{s.label}</p>
-                        <p className="text-xs opacity-70 truncate">
+                        <p className="text-sm font-medium leading-snug">{s.label}</p>
+                        <p className="text-xs opacity-70">
                           {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
                         </p>
                       </div>
