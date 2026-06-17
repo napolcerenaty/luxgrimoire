@@ -555,7 +555,7 @@ export default function CalendarPage() {
                     <Link
                       key={r.id}
                       href={`/subscriptions/${r.slug}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0"
                       style={ps}
                     >
                       <span className="text-base shrink-0">🔄</span>
@@ -573,7 +573,7 @@ export default function CalendarPage() {
                     <Link
                       key={s.id}
                       href={s.href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0"
                       style={ps}
                     >
                       <Bell size={15} className="shrink-0" />
@@ -714,7 +714,7 @@ export default function CalendarPage() {
                   <Link
                     key={`${i.announcementId}-${i.tier}`}
                     href={`/sale-announcements/${i.announcementId}`}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group overflow-hidden min-w-0"
                     style={bStyle}
                   >
                     <Bell size={13} style={{ color: 'currentColor' }} className="shrink-0 opacity-80" />
