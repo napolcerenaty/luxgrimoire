@@ -987,8 +987,8 @@ function NotificationsTab() {
 
   const settingsMutation = useMutation({
     mutationFn: (dto: Partial<ReminderSettings>) =>
-      authFetch('/reminder-settings', { method: 'PUT', body: JSON.stringify(dto) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reminder-settings'] }),
+      authFetch<ReminderSettings>('/reminder-settings', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: (data) => queryClient.setQueryData(['reminder-settings'], data),
   })
 
   const update = (dto: Partial<ReminderSettings>) => settingsMutation.mutate(dto)
