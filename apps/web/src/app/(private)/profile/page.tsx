@@ -935,7 +935,7 @@ interface ReminderSettings {
   saleInAppEnabled: boolean
   salePushEnabled: boolean
   saleDaysBefore: number
-  saleHoursBefore: number | null
+  saleMinutesBefore: number | null
   saleDigest: boolean
 }
 
@@ -1007,7 +1007,7 @@ function NotificationsTab() {
     renewalEnabled: false, renewalInAppEnabled: true, renewalPushEnabled: false,
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
-    saleDaysBefore: 0, saleHoursBefore: 3, saleDigest: false,
+    saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
   }
 
   return (
@@ -1136,13 +1136,15 @@ function NotificationsTab() {
             <div>
               <p className="text-xs text-stone-400 mb-2">When to remind</p>
               <select
-                value={s.saleHoursBefore ?? 3}
-                onChange={(e) => update({ saleHoursBefore: Number(e.target.value) })}
+                value={s.saleMinutesBefore ?? 180}
+                onChange={(e) => update({ saleMinutesBefore: Number(e.target.value) })}
                 className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value={0}>At sale time</option>
+                <option value={15}>15 min before</option>
+                <option value={30}>30 min before</option>
                 {[1, 2, 3, 6, 12, 24].map((h) => (
-                  <option key={h} value={h}>{h}h before sale</option>
+                  <option key={h} value={h * 60}>{h}h before</option>
                 ))}
               </select>
             </div>

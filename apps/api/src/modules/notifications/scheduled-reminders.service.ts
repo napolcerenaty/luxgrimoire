@@ -11,7 +11,7 @@ interface UserReminderSettingsLike {
   renewalDigest: boolean;
   saleEnabled: boolean;
   saleDaysBefore: number;
-  saleHoursBefore: number | null;
+  saleMinutesBefore: number | null;
   saleDigest: boolean;
 }
 
@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: UserReminderSettingsLike = {
   renewalDigest: true,
   saleEnabled: false,
   saleDaysBefore: 0,
-  saleHoursBefore: 3,  // hours before sale time; null also treated as 3h
+  saleMinutesBefore: 180,  // minutes before sale time; null also treated as 180min (3h)
   saleDigest: false,
 };
 
@@ -157,11 +157,11 @@ export class ScheduledRemindersService {
     const settings = await this.getOrDefaultSettings(userId);
     if (!settings.saleEnabled) return;
 
-    // saleHoursBefore means "hours before actual sale time" (0 = at sale time, 3 = 3h before)
-    const hoursBefore = settings.saleHoursBefore !== null ? settings.saleHoursBefore : 3;
+    // saleMinutesBefore means "minutes before actual sale time" (0 = at sale time, 180 = 3h before)
+    const minutesBefore = settings.saleMinutesBefore !== null ? settings.saleMinutesBefore : 180;
 
     // saleDate is a DateTime stored with the actual time component — subtract directly.
-    const scheduledAt = new Date(new Date(saleDate).getTime() - hoursBefore * 60 * 60 * 1000);
+    const scheduledAt = new Date(new Date(saleDate).getTime() - minutesBefore * 60 * 1000);
 
     if (scheduledAt <= new Date()) return;
 
@@ -281,7 +281,7 @@ export class ScheduledRemindersService {
       renewalDigest: s.renewalDigest,
       saleEnabled: s.saleEnabled,
       saleDaysBefore: s.saleDaysBefore,
-      saleHoursBefore: s.saleHoursBefore,
+      saleMinutesBefore: s.saleMinutesBefore,
       saleDigest: s.saleDigest,
     };
   }

@@ -16,7 +16,7 @@ const makeSettings = (overrides: Record<string, unknown> = {}) => ({
   renewalDigest: true,
   saleEnabled: true,
   saleDaysBefore: 0,
-  saleHoursBefore: null,
+  saleMinutesBefore: null,
   saleDigest: false,
   ...overrides,
 });

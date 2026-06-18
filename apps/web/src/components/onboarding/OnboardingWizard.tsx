@@ -68,7 +68,7 @@ export function OnboardingWizard() {
   const [notifSaleEnabled, setNotifSaleEnabled] = useState(false)
   const [notifSaleInApp, setNotifSaleInApp] = useState(true)
   const [notifSalePush, setNotifSalePush] = useState(false)
-  const [notifSaleHoursBefore, setNotifSaleHoursBefore] = useState(3)
+  const [notifsaleMinutesBefore, setNotifsaleMinutesBefore] = useState(180)
   const [notifSaving, setNotifSaving] = useState(false)
 
   const saveNotifAndAdvance = async () => {
@@ -85,7 +85,7 @@ export function OnboardingWizard() {
           saleEnabled: notifSaleEnabled,
           saleInAppEnabled: notifSaleInApp,
           salePushEnabled: notifSalePush,
-          saleHoursBefore: notifSaleHoursBefore,
+          saleMinutesBefore: notifsaleMinutesBefore,
         }),
       })
     } catch {} finally {
@@ -433,10 +433,12 @@ export function OnboardingWizard() {
               {/* Timing */}
               <div>
                 <label className={LABEL}>When to remind</label>
-                <select value={notifSaleHoursBefore} onChange={e => setNotifSaleHoursBefore(Number(e.target.value))} className={INPUT}>
+                <select value={notifsaleMinutesBefore} onChange={e => setNotifsaleMinutesBefore(Number(e.target.value))} className={INPUT}>
                   <option value={0}>At sale time</option>
+                  <option value={15}>15 min before</option>
+                  <option value={30}>30 min before</option>
                   {[1, 2, 3, 6, 12, 24].map(h => (
-                    <option key={h} value={h}>{h}h before sale</option>
+                    <option key={h} value={h * 60}>{h}h before</option>
                   ))}
                 </select>
               </div>

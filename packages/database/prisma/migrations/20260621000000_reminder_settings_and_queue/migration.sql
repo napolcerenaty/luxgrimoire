@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS "user_reminder_settings" (
   "saleInAppEnabled"    BOOLEAN NOT NULL DEFAULT true,
   "salePushEnabled"     BOOLEAN NOT NULL DEFAULT false,
   "saleDaysBefore"      INTEGER NOT NULL DEFAULT 0,
-  "saleHoursBefore"     INTEGER DEFAULT 3,
+  "saleMinutesBefore"   INTEGER DEFAULT 180,
   "saleDigest"          BOOLEAN NOT NULL DEFAULT false,
   CONSTRAINT "user_reminder_settings_pkey" PRIMARY KEY ("id")
 );

@@ -1005,7 +1005,7 @@ model UserReminderSettings {
   saleInAppEnabled     Boolean  @default(true)
   salePushEnabled      Boolean  @default(false)
   saleDaysBefore       Int      @default(0)
-  saleHoursBefore      Int?     @default(3)
+  saleMinutesBefore    Int?     @default(180)
   saleDigest           Boolean  @default(false)
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
