@@ -282,6 +282,26 @@ export class NotificationRemindersCron {
     // For now, push is triggered via createNotification's pref check.
   }
 
+  /** Runs daily at 03:00 — purges processed reminders older than 90 days */
+  @Cron('0 3 * * *')
+  async purgeOldReminders() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+
+    const { count } = await this.prisma.scheduledReminder.deleteMany({
+      where: {
+        OR: [
+          { sentAt: { lte: cutoff } },
+          { cancelledAt: { lte: cutoff } },
+        ],
+      },
+    });
+
+    if (count > 0) {
+      this.logger.log(`[RemindersCron] Purged ${count} old reminder records (>90 days)`);
+    }
+  }
+
   private async markSent(ids: string[]) {
     if (!ids.length) return;
     await this.prisma.scheduledReminder.updateMany({
