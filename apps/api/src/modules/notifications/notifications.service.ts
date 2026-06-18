@@ -43,7 +43,16 @@ export class NotificationsService {
       }),
       this.prisma.userNotification.count({ where }),
     ]);
-    return { data, total, page, pageSize };
+    // Normalise legacy "entityType:entityId" link format to "/entityType/entityId"
+    const mapped = data.map((n) => ({
+      ...n,
+      link: n.link
+        ? n.link.startsWith('/')
+          ? n.link
+          : '/' + n.link.replace(':', '/')
+        : undefined,
+    }));
+    return { data: mapped, total, page, pageSize };
   }
 
   async markAsRead(userId: string, notificationId: string) {
@@ -229,7 +238,7 @@ export class NotificationsService {
     entityType?: string,
     entityId?: string,
   ) {
-    const link = entityType && entityId ? `${entityType}:${entityId}` : undefined;
+    const link = entityType && entityId ? `/${entityType}/${entityId}` : undefined;
     const ttlDays = await this.getDefaultTtlDays();
     const expiresAt = ttlDays > 0 ? new Date(Date.now() + ttlDays * 86_400_000) : null;
 
