@@ -13,8 +13,8 @@ export class NotificationRemindersCron {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  /** Runs hourly — sends all scheduled reminders that are due */
-  @Cron('0 * * * *')
+  /** Runs every 15 minutes — sends all scheduled reminders that are due */
+  @Cron('*/15 * * * *')
   async processScheduledReminders() {
     const now = new Date();
     this.logger.log(`[RemindersCron] Running at ${now.toISOString()}`);

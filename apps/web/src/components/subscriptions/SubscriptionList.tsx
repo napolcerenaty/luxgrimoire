@@ -154,7 +154,7 @@ export default function SubscriptionList() {
       ) : filtered.length === 0 ? (
         <p className="text-stone-500">No subscriptions match your filters.</p>
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((sub: ApiSubscription) => {
             const cover = cloudinaryUrl(sub.coverImage, 'w_600,q_auto,f_auto')
             const brandColors = getBrandColors(sub.company?.slug) ?? sub.company?.brandColors
