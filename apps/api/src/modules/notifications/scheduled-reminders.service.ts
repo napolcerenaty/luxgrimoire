@@ -213,17 +213,12 @@ export class ScheduledRemindersService {
   }
 
   /**
-   * Reschedule all pending reminders for a user (timezone change or settings change).
+   * Reschedule all pending reminders for a user (settings change, timezone change, enable/disable).
+   * When renewalEnabled is turned ON, schedules reminders for ALL active subscriptions
+   * (not just those that already had a pending reminder).
    */
   async recalculateForUser(userId: string): Promise<void> {
-    // Renewal reminders
-    const pendingRenewals = await this.prisma.scheduledReminder.findMany({
-      where: { userId, type: 'renewal', sentAt: null, cancelledAt: null },
-      select: { entryId: true },
-    });
-    const entryIds = [...new Set(pendingRenewals.map((r) => r.entryId).filter(Boolean) as string[])];
-
-    // Cancel all pending, then reschedule
+    // Cancel all pending first
     await this.prisma.scheduledReminder.updateMany({
       where: { userId, sentAt: null, cancelledAt: null },
       data: { cancelledAt: new Date() },
@@ -234,22 +229,22 @@ export class ScheduledRemindersService {
     const timezone = (userRecord as any)?.timezone ?? 'UTC';
 
     if (settings.renewalEnabled) {
-      for (const entryId of entryIds) {
-        const entry = await this.prisma.userSubscriptionEntry.findUnique({
-          where: { id: entryId },
-          select: { nextRenewalDate: true, active: true },
-        });
-        if (!entry?.active || !entry.nextRenewalDate) continue;
+      // Always pull ALL active entries — handles the first-enable case where no reminders existed yet
+      const activeEntries = await this.prisma.userSubscriptionEntry.findMany({
+        where: { userId, active: true, nextRenewalDate: { not: null } },
+        select: { id: true, nextRenewalDate: true },
+      });
 
+      for (const entry of activeEntries) {
+        if (!entry.nextRenewalDate) continue;
         const scheduledAt = this.computeScheduledAt(entry.nextRenewalDate, settings.renewalDaysBefore, settings.renewalHour, timezone);
         if (scheduledAt > new Date()) {
-          await this.prisma.scheduledReminder.create({ data: { userId, type: 'renewal', scheduledAt, entryId } });
+          await this.prisma.scheduledReminder.create({ data: { userId, type: 'renewal', scheduledAt, entryId: entry.id } });
         }
       }
     }
 
     if (settings.saleEnabled) {
-      // Reschedule sale reminders for active interests
       const interests = await this.prisma.userSaleInterest.findMany({
         where: { userId },
         select: { announcementId: true, tier: true },
