@@ -43,16 +43,7 @@ export class NotificationsService {
       }),
       this.prisma.userNotification.count({ where }),
     ]);
-    // Normalise legacy "entityType:entityId" link format to "/entityType/entityId"
-    const mapped = data.map((n) => ({
-      ...n,
-      link: n.link
-        ? n.link.startsWith('/')
-          ? n.link
-          : '/' + n.link.replace(':', '/')
-        : undefined,
-    }));
-    return { data: mapped, total, page, pageSize };
+    return { data, total, page, pageSize };
   }
 
   async markAsRead(userId: string, notificationId: string) {
