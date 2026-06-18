@@ -45,10 +45,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   return (
-    <Link
-      href={`/sale-announcements/${a.id}`}
-      className="group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
-    >
+    <div className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
       {/* Image — same 2/3 portrait ratio as EditionCard */}
       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
         {imgUrl ? (
@@ -108,12 +105,21 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
             <p className="text-[10px] text-emerald-400/80">🏷 Subscriber price available</p>
           )}
         </div>
-        <div className="mt-2">
+        {/* z-10 ensures the button sits above the link overlay */}
+        <div className="mt-2 relative z-10">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <SaleInterestButton sale={a as any} />
         </div>
       </div>
-    </Link>
+
+      {/* Invisible link overlay — placed last in DOM so it sits on top of all non-interactive content.
+          The button wrapper above has z-10, so it intercepts its own clicks. */}
+      <Link
+        href={`/sale-announcements/${a.id}`}
+        className="absolute inset-0 rounded-2xl"
+        aria-label={a.title}
+      />
+    </div>
   )
 }
 
