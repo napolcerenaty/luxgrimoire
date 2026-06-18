@@ -229,17 +229,13 @@ describe('ScheduledRemindersService', () => {
 
   describe('recalculateForUser', () => {
     it('cancels all pending reminders and reschedules renewals', async () => {
-      (prisma.scheduledReminder.findMany as jest.Mock)
-        .mockResolvedValueOnce([{ entryId: ENTRY_ID }]) // pending renewals
-        .mockResolvedValue([]); // no interests (from recalculate for sale)
       (prisma.scheduledReminder.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(makeSettings({ saleEnabled: false }));
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ timezone: 'UTC' });
       const futureRenewal = new Date(Date.now() + 5 * 24 * 3600 * 1000);
-      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue({
-        nextRenewalDate: futureRenewal,
-        active: true,
-      });
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([
+        { id: ENTRY_ID, nextRenewalDate: futureRenewal },
+      ]);
       (prisma.scheduledReminder.create as jest.Mock).mockResolvedValue({ id: 'rescheduled' });
 
       await service.recalculateForUser(USER_ID);
@@ -248,6 +244,9 @@ describe('ScheduledRemindersService', () => {
         expect.objectContaining({
           where: expect.objectContaining({ userId: USER_ID, sentAt: null, cancelledAt: null }),
         }),
+      );
+      expect(prisma.scheduledReminder.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ userId: USER_ID, type: 'renewal', entryId: ENTRY_ID }) }),
       );
     });
   });

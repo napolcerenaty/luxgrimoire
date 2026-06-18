@@ -157,18 +157,11 @@ export class ScheduledRemindersService {
     const settings = await this.getOrDefaultSettings(userId);
     if (!settings.saleEnabled) return;
 
-    const saleTimezone = announcement.saleTimezone ?? 'UTC';
-
-    // saleHoursBefore now means "hours before sale time" (0 = at sale time, 3 = 3h before, null = default 3h before)
+    // saleHoursBefore means "hours before actual sale time" (0 = at sale time, 3 = 3h before)
     const hoursBefore = settings.saleHoursBefore !== null ? settings.saleHoursBefore : 3;
 
-    // Compute the anchor sale datetime in UTC: saleDate is stored as a date-only (UTC midnight for the day).
-    // Convert to start-of-day in the sale's timezone, then subtract hoursBefore hours.
-    const saleDayStart = fromZonedTime(
-      new Date(new Date(saleDate).toISOString().slice(0, 10) + 'T00:00:00'),
-      saleTimezone,
-    );
-    const scheduledAt = new Date(saleDayStart.getTime() - hoursBefore * 60 * 60 * 1000);
+    // saleDate is a DateTime stored with the actual time component — subtract directly.
+    const scheduledAt = new Date(new Date(saleDate).getTime() - hoursBefore * 60 * 60 * 1000);
 
     if (scheduledAt <= new Date()) return;
 
