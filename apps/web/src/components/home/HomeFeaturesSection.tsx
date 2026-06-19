@@ -1,9 +1,12 @@
+'use client'
+
+import { useRef } from 'react'
 import Link from 'next/link'
 import * as Icons from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ComponentType } from 'react'
-import { apiFetch } from '@/lib/api'
 
-interface HomepageFeature {
+export interface HomepageFeature {
   id: string
   title: string
   description: string
@@ -11,33 +14,6 @@ interface HomepageFeature {
   ctaLabel: string | null
   ctaHref: string | null
 }
-
-const FALLBACK_FEATURES: HomepageFeature[] = [
-  {
-    id: '1',
-    title: 'Track Your Collection',
-    description: 'Add editions, track ownership status (owned, preorder, shipping), condition and read status',
-    iconName: 'BookOpen',
-    ctaLabel: 'Get started free',
-    ctaHref: '/register',
-  },
-  {
-    id: '2',
-    title: 'Sale Alerts',
-    description: 'Get notified before FA, EA and GS sale windows close — never miss a drop',
-    iconName: 'Bell',
-    ctaLabel: 'Get started free',
-    ctaHref: '/register',
-  },
-  {
-    id: '3',
-    title: 'Spending Statistics',
-    description: 'See how much you spend per month and per year across subscriptions and purchases',
-    iconName: 'BarChart2',
-    ctaLabel: 'Get started free',
-    ctaHref: '/register',
-  },
-]
 
 function FeatureIcon({ name }: { name: string }) {
   const Icon = (Icons as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
@@ -57,10 +33,7 @@ function FeatureCard({ feature }: { feature: HomepageFeature }) {
         {feature.description}
       </p>
       {feature.ctaHref && (
-        <Link
-          href={feature.ctaHref}
-          className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400"
-        >
+        <Link href={feature.ctaHref} className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400">
           {feature.ctaLabel ?? 'Get started'} →
         </Link>
       )}
@@ -68,37 +41,42 @@ function FeatureCard({ feature }: { feature: HomepageFeature }) {
   )
 }
 
-export async function HomeFeaturesSection() {
-  let features: HomepageFeature[] = []
-
-  try {
-    features = await apiFetch<HomepageFeature[]>('/homepage-features')
-  } catch {
-    // ignore
+export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const scroll = (dir: 'left' | 'right') => {
+    scrollRef.current?.scrollBy({ left: dir === 'left' ? -320 : 320, behavior: 'smooth' })
   }
 
-  if (features.length === 0) features = FALLBACK_FEATURES
-
   return (
-    <section className="py-12">
-      <div className="container mx-auto max-w-5xl px-4">
-        <h2 className="mb-8 text-center font-serif text-2xl text-stone-100">
-          Everything you need to manage your collection
-        </h2>
-      </div>
-      <div className="container mx-auto max-w-5xl overflow-hidden px-4">
-        <div className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
+    <div className="container mx-auto max-w-5xl px-4">
+      <div className="group/carousel relative overflow-hidden">
+        {/* Left arrow */}
+        <button
+          onClick={() => scroll('left')}
+          aria-label="Scroll left"
+          className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-stone-700 bg-stone-900/90 p-2 text-stone-300 opacity-0 shadow transition-all hover:border-stone-500 hover:text-stone-100 group-hover/carousel:opacity-100"
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        {/* Scrollable track */}
+        <div
+          ref={scrollRef}
+          className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4"
+        >
           {features.map((feature) => <FeatureCard key={feature.id} feature={feature} />)}
         </div>
-      </div>
-      <div className="mt-6 flex justify-center">
-        <Link
-          href="/register"
-          className="rounded-full bg-amber-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+
+        {/* Right arrow */}
+        <button
+          onClick={() => scroll('right')}
+          aria-label="Scroll right"
+          className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-stone-700 bg-stone-900/90 p-2 text-stone-300 opacity-0 shadow transition-all hover:border-stone-500 hover:text-stone-100 group-hover/carousel:opacity-100"
         >
-          Get started free →
-        </Link>
+          <ChevronRight size={18} />
+        </button>
       </div>
-    </section>
+    </div>
   )
 }
+
