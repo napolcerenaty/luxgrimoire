@@ -22,7 +22,11 @@ function Box({ val }: { val: string }) {
   return (
     <span
       className="tabular-nums rounded px-1.5 py-0.5 text-xs font-bold"
-      style={{ background: 'rgba(42,158,196,0.15)', color: 'var(--accent-bright)' }}
+      style={{
+        background: 'var(--accent-glow)',
+        border: '1px solid var(--accent-border)',
+        color: 'var(--accent-bright)',
+      }}
     >
       {val}
     </span>
