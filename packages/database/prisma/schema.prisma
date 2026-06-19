@@ -1594,8 +1594,8 @@ model HomepageFeature {
   title       String
   description String
   iconName    String   @default("Star")
-  ctaLabel    String   @default("Get started free")
-  ctaHref     String   @default("/register")
+  ctaLabel    String?
+  ctaHref     String?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

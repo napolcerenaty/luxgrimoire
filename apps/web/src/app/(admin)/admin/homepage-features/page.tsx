@@ -12,8 +12,8 @@ interface HomepageFeature {
   title: string
   description: string
   iconName: string
-  ctaLabel: string
-  ctaHref: string
+  ctaLabel: string | null
+  ctaHref: string | null
   sortOrder: number
   isActive: boolean
 }
@@ -34,8 +34,8 @@ const EMPTY_FORM: FeatureFormState = {
   title: '',
   description: '',
   iconName: 'Star',
-  ctaLabel: 'Get started free',
-  ctaHref: '/register',
+  ctaLabel: '',
+  ctaHref: '',
   sortOrder: 0,
   isActive: true,
 }
@@ -115,20 +115,20 @@ function FeatureForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={LBL}>CTA label</label>
+          <label className={LBL}>CTA label <span className="text-stone-500">(optional)</span></label>
           <input
-            required
             className={INP}
+            placeholder="e.g. Get started free"
             value={form.ctaLabel}
             onChange={(event) => setField('ctaLabel', event.target.value)}
           />
         </div>
 
         <div>
-          <label className={LBL}>CTA href</label>
+          <label className={LBL}>CTA href <span className="text-stone-500">(optional)</span></label>
           <input
-            required
             className={INP}
+            placeholder="e.g. /register"
             value={form.ctaHref}
             onChange={(event) => setField('ctaHref', event.target.value)}
           />
@@ -180,7 +180,11 @@ export default function HomepageFeaturesAdminPage() {
   const createMutation = useMutation({
     mutationFn: (payload: FeatureFormState) => authFetch<HomepageFeature>('/homepage-features', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        ctaLabel: payload.ctaLabel.trim() || null,
+        ctaHref: payload.ctaHref.trim() || null,
+      }),
     }),
     onSuccess: async () => {
       setCreateOpen(false)
@@ -279,7 +283,7 @@ export default function HomepageFeaturesAdminPage() {
                 <h2 className="text-lg font-semibold text-stone-100">{feature.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-stone-400">{feature.description}</p>
                 <p className="mt-3 text-xs text-stone-500">
-                  CTA: {feature.ctaLabel} → {feature.ctaHref}
+                  {feature.ctaHref ? `CTA: ${feature.ctaLabel ?? '—'} → ${feature.ctaHref}` : 'No CTA link'}
                 </p>
               </div>
 
@@ -348,15 +352,19 @@ export default function HomepageFeaturesAdminPage() {
               title: editing.title,
               description: editing.description,
               iconName: editing.iconName,
-              ctaLabel: editing.ctaLabel,
-              ctaHref: editing.ctaHref,
+              ctaLabel: editing.ctaLabel ?? '',
+              ctaHref: editing.ctaHref ?? '',
               sortOrder: editing.sortOrder,
               isActive: editing.isActive,
             }}
             loading={updateMutation.isPending}
             error={formError}
             onCancel={() => setEditing(null)}
-            onSubmit={(payload) => updateMutation.mutate({ id: editing.id, payload })}
+            onSubmit={(payload) => updateMutation.mutate({ id: editing.id, payload: {
+              ...payload,
+              ctaLabel: payload.ctaLabel.trim() || null,
+              ctaHref: payload.ctaHref.trim() || null,
+            } })}
           />
         )}
       </FormModal>

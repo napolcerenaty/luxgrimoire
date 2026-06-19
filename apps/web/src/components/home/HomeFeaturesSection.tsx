@@ -8,8 +8,8 @@ interface HomepageFeature {
   title: string
   description: string
   iconName: string
-  ctaLabel: string
-  ctaHref: string
+  ctaLabel: string | null
+  ctaHref: string | null
 }
 
 const FALLBACK_FEATURES: HomepageFeature[] = [

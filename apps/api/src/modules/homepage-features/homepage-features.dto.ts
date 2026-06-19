@@ -13,10 +13,12 @@ export class CreateHomepageFeatureDto {
   iconName!: string;
 
   @IsString()
-  ctaLabel!: string;
+  @IsOptional()
+  ctaLabel?: string;
 
   @IsString()
-  ctaHref!: string;
+  @IsOptional()
+  ctaHref?: string;
 
   @IsInt()
   @IsOptional()
