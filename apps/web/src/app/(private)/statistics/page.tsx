@@ -913,7 +913,7 @@ export default function SpendingPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-stone-800 overflow-x-auto scrollbar-none">
+      <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-stone-900/60 border border-stone-800 rounded-xl">
         {visibleTabs.map(tab => {
           const tabIsStale = (
             (tab.id === 'collection' || tab.id === 'reading') ? collResp?.isStale
@@ -925,16 +925,16 @@ export default function SpendingPage() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px relative ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors rounded-lg relative ${
                 activeTab === tab.id
-                  ? 'border-amber-500 text-amber-400'
-                  : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-stone-600'
+                  ? 'bg-stone-800 text-amber-400 border border-stone-700'
+                  : 'text-stone-500 hover:text-stone-300 hover:bg-stone-800/50'
               }`}
             >
               <tab.icon size={13} />
               {tab.label}
               {tabIsStale && loadedTabs.has(tab.id) && (
-                <span className="absolute top-2 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               )}
             </button>
           )
