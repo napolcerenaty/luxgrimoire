@@ -74,7 +74,7 @@ function HeroShell({
 
         {hasSales ? (
           <div className="mx-auto mb-7 max-w-lg">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+            <p className="mb-3 text-xs uppercase tracking-widest text-stone-500">
               Your upcoming sales
             </p>
             <div className="flex flex-col gap-1.5">
@@ -84,7 +84,7 @@ function HeroShell({
                   href={`/sale-announcements/${s.announcement.id}`}
                   className="flex items-center justify-between rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
                 >
-                  <span className="truncate text-sm text-stone-200">{s.announcement.title}</span>
+                  <span className="truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
                   {s.announcement.generalSaleDate && (
                     <SaleRowCountdown dateStr={s.announcement.generalSaleDate} isFirst={i === 0} />
                   )}
