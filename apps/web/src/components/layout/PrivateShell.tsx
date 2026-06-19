@@ -4,15 +4,15 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
-import { BookOpen, Heart, BarChart2, User, BookMarked, ShoppingBag, CalendarDays } from 'lucide-react'
+import { BookOpen, Heart, BarChart2, User, RefreshCw, CalendarDays, Banknote } from 'lucide-react'
 import { clsx } from 'clsx'
 import { PushEnableBanner } from '@/components/notifications/PushEnableBanner'
 
 const NAV_LINKS = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/collection', label: 'My Collection', icon: BookOpen },
-  { href: '/sold', label: 'Sold Books', icon: ShoppingBag },
-  { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
+  { href: '/sold', label: 'Sold Books', icon: Banknote },
+  { href: '/my-subscriptions', label: 'Subscriptions', icon: RefreshCw },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/statistics', label: 'Statistics', icon: BarChart2 },
   { href: '/profile', label: 'Profile', icon: User },

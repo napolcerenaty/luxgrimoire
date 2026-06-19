@@ -913,7 +913,7 @@ export default function SpendingPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-stone-800">
+      <div className="flex gap-1 border-b border-stone-800 overflow-x-auto scrollbar-none">
         {visibleTabs.map(tab => {
           const tabIsStale = (
             (tab.id === 'collection' || tab.id === 'reading') ? collResp?.isStale
