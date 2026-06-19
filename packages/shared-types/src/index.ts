@@ -642,6 +642,33 @@ export interface ApiSaleAnnouncement {
   }>;
 }
 
+export interface ApiPlatformStats {
+  editionsCount: number;
+  companiesCount: number;
+  activeSalesCount: number;
+}
+
+export interface ApiTrendingEdition {
+  id: string;
+  slug: string;
+  additionalImages: string[];
+  book: (Pick<ApiBook, 'title' | 'seriesName' | 'volumeNumber'> & {
+    authors: ApiAuthor[];
+  }) | null;
+  bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;
+  wishlistCount: number;
+}
+
+export interface ApiTrendingSaleAnnouncement {
+  id: string;
+  title: string;
+  generalSaleDate: string | null;
+  imageUrl: string | null;
+  company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
+  editions?: ApiSaleAnnouncement['editions'];
+  interestCount: number;
+}
+
 export interface ApiFeatureRequest {
   id: string;
   title: string;

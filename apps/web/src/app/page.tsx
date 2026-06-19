@@ -1,10 +1,23 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
-import type { ApiBookEdition, ApiSaleAnnouncement, PaginatedResponse } from '@luxgrimoire/shared-types'
+import { HomeFeaturesSection } from '@/components/home/HomeFeaturesSection'
+import { HomeStatsBar } from '@/components/home/HomeStatsBar'
+import { HomeTrendingEditions } from '@/components/home/HomeTrendingEditions'
+import { HomeTrendingSales } from '@/components/home/HomeTrendingSales'
+import { SaleCountdownBanner } from '@/components/home/SaleCountdownBanner'
+import type {
+  ApiBookEdition,
+  ApiPlatformStats,
+  ApiSaleAnnouncement,
+  ApiTrendingEdition,
+  ApiTrendingSaleAnnouncement,
+  PaginatedResponse,
+} from '@luxgrimoire/shared-types'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,19 +27,38 @@ export const metadata: Metadata = {
     'Discover luxury special editions, track your book collection, and follow subscription boxes from Illumicrate, FairyLoot, and more.',
 }
 
+async function fetchCachedPublic<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    next: { revalidate: 3600 },
+  })
+
+  if (!res.ok) {
+    throw new Error(`API error ${res.status}`)
+  }
+
+  return res.json()
+}
+
 async function getHomeData() {
-  const [announcementsRes, editionsRes] = await Promise.all([
+  const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales] = await Promise.all([
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
+    fetchCachedPublic<ApiPlatformStats>('/platform/stats').catch(() => null),
+    fetchCachedPublic<ApiTrendingEdition[]>('/editions/trending?limit=8').catch(() => null),
+    fetchCachedPublic<ApiTrendingSaleAnnouncement[]>('/announcements/trending?limit=6').catch(() => null),
   ])
+
   return {
     announcements: announcementsRes?.data ?? [],
     recentEditions: editionsRes?.data ?? [],
+    platformStats,
+    trendingEditions: trendingEditions ?? [],
+    trendingSales: trendingSales ?? [],
   }
 }
 
 export default async function HomePage() {
-  const { announcements, recentEditions } = await getHomeData()
+  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales } = await getHomeData()
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -86,13 +118,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Recent Announcements carousel — clicking a card opens modal */}
+      {platformStats && <HomeStatsBar {...platformStats} />}
+
+      {announcements.length > 0 && <SaleCountdownBanner announcements={announcements} />}
+
       <HomeAnnouncementsSection
         announcements={announcements}
         viewAllHref="/sale-announcements"
       />
 
-      {/* CTA below announcements — only shown when announcements are present */}
       {announcements.length > 0 && (
         <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
           <p className="text-sm text-stone-400">
@@ -104,13 +138,17 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* Recently Added Editions carousel */}
+      <HomeFeaturesSection />
+
+      <HomeTrendingEditions editions={trendingEditions} />
+
+      <HomeTrendingSales announcements={trendingSales} />
+
       <EditionCarousel
         title="Recently Added Editions"
         cards={recentEditionCards}
         centered
       />
-
     </div>
   )
 }

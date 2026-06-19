@@ -177,6 +177,52 @@ export class AnnouncementsService {
     return this.mapAnnouncementAssets(announcement);
   }
 
+  async findTrending(limit = 6) {
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 24)) : 6;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const grouped = await this.prisma.userSaleInterest.groupBy({
+      by: ['announcementId'],
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      _count: { announcementId: true },
+      orderBy: { _count: { announcementId: 'desc' } },
+      take: safeLimit,
+    });
+
+    if (grouped.length === 0) return [];
+
+    const ids = grouped.map((item) => item.announcementId);
+    const announcements = await (this.prisma.saleAnnouncement as any).findMany({
+      where: {
+        id: { in: ids },
+        generalSaleDate: { gte: new Date() },
+      },
+      include: {
+        editions: editionsInclude,
+        company: { select: { name: true, slug: true, brandColors: true } },
+      },
+    });
+
+    const countsById = new Map(grouped.map((item, index) => [
+      item.announcementId,
+      { count: item._count.announcementId, index },
+    ]));
+
+    const result: any[] = announcements
+      .map((announcement: any) => {
+        const meta = countsById.get(announcement.id);
+        if (!meta) return null;
+        return {
+          ...announcement,
+          interestCount: meta.count,
+        };
+      })
+      .filter((announcement: any) => Boolean(announcement));
+
+    return result.sort((a, b) => countsById.get(a.id)!.index - countsById.get(b.id)!.index);
+  }
+
   async adminFindAll(query: { page?: number; pageSize?: number; search?: string; companyId?: string }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 10 });
 

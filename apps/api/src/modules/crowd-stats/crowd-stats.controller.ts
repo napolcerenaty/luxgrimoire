@@ -7,6 +7,7 @@ import { CurrencyService } from '../currency/currency.service';
 import { Public } from '../../common/decorators/auth.decorators';
 
 const COLLECTION_COUNT_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
+const PLATFORM_STATS_TTL   = 60 * 60 * 1000;      // 1 hour in ms
 
 @Controller()
 export class CrowdStatsController {
@@ -50,6 +51,28 @@ export class CrowdStatsController {
     ]);
 
     return { avg, median, min, max, count: raw.count, currency: toCurrency };
+  }
+
+  @Public()
+  @Get('platform/stats')
+  async getPlatformStats() {
+    const cacheKey = 'platform:stats';
+    const cached = await this.cache.get<{
+      editionsCount: number;
+      companiesCount: number;
+      activeSalesCount: number;
+    }>(cacheKey);
+    if (cached) return cached;
+
+    const [editionsCount, companiesCount, activeSalesCount] = await this.prisma.$transaction([
+      this.prisma.bookEdition.count({ where: { verifiedAt: { not: null } } }),
+      this.prisma.bookBoxCompany.count(),
+      this.prisma.saleAnnouncement.count({ where: { generalSaleDate: { gte: new Date() } } }),
+    ]);
+
+    const result = { editionsCount, companiesCount, activeSalesCount };
+    await this.cache.set(cacheKey, result, PLATFORM_STATS_TTL);
+    return result;
   }
 
   @Public()

@@ -1,14 +1,21 @@
-import { Controller, Get, Post, Patch, Delete, Query, Param, Body, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Query, Param, Body, UseInterceptors, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
+const TRENDING_TTL = 60 * 60 * 1000;
+
 @ApiTags('announcements')
 @Controller('announcements')
 export class AnnouncementsController {
-  constructor(private readonly announcementsService: AnnouncementsService) {}
+  constructor(
+    private readonly announcementsService: AnnouncementsService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   @Public()
   @UseInterceptors(new CacheControlInterceptor('public, max-age=30, stale-while-revalidate=60'))
@@ -152,6 +159,20 @@ export class AnnouncementsController {
   @Delete('admin/:id/regions/:regionId')
   adminDeleteRegion(@Param('id') id: string, @Param('regionId') regionId: string) {
     return this.announcementsService.adminDeleteRegion(id, regionId);
+  }
+
+  @Public()
+  @Get('trending')
+  async findTrending(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 6;
+    const safeLimit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 24)) : 6;
+    const cacheKey = `announcements:trending:${safeLimit}`;
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.announcementsService.findTrending(safeLimit);
+    await this.cache.set(cacheKey, result, TRENDING_TTL);
+    return result;
   }
 
   @Public()
