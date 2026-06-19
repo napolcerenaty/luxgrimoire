@@ -118,6 +118,8 @@ export default function WishlistPage() {
   // Sale interests filters
   const [companyFilter, setCompanyFilter] = useState('')
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const openAddModal = async (announcementId: string) => {
     setAddModalLoading(announcementId)
@@ -152,21 +154,26 @@ export default function WishlistPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [saleInterests])
 
-  const hasFilters = !!companyFilter || timeFilter !== 'all'
+  const hasFilters = !!companyFilter || timeFilter !== 'all' || !!dateFrom || !!dateTo
 
   const filteredInterests = useMemo(() => {
     const now = new Date()
     return saleInterests.filter((interest) => {
       if (companyFilter && interest.announcement.company.id !== companyFilter) return false
+      const d = getEffectiveDate(interest)
+      const saleDate = d ? new Date(d) : null
       if (timeFilter !== 'all') {
-        const d = getEffectiveDate(interest)
-        const saleDate = d ? new Date(d) : null
         if (timeFilter === 'upcoming' && (!saleDate || saleDate <= now)) return false
         if (timeFilter === 'past' && (!saleDate || saleDate > now)) return false
       }
+      if (dateFrom || dateTo) {
+        const dateStr = d ? d.slice(0, 10) : null
+        if (dateFrom && (!dateStr || dateStr < dateFrom)) return false
+        if (dateTo && (!dateStr || dateStr > dateTo)) return false
+      }
       return true
     })
-  }, [saleInterests, companyFilter, timeFilter])
+  }, [saleInterests, companyFilter, timeFilter, dateFrom, dateTo])
 
   const removeSaleInterestMutation = useMutation({
     mutationFn: (announcementId: string) => authFetch<void>(`/sale-interests/${announcementId}`, { method: 'DELETE' }),
@@ -388,9 +395,33 @@ export default function WishlistPage() {
                 ))}
               </select>
 
-              {(companyFilter || timeFilter !== 'all') && (
+              {/* Date from */}
+              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-400 focus-within:border-amber-500">
+                <span className="shrink-0 text-stone-500 text-xs">From</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  title="Sale date from"
+                  className="bg-transparent text-stone-300 focus:outline-none"
+                />
+              </label>
+
+              {/* Date to */}
+              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-400 focus-within:border-amber-500">
+                <span className="shrink-0 text-stone-500 text-xs">To</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  title="Sale date to"
+                  className="bg-transparent text-stone-300 focus:outline-none"
+                />
+              </label>
+
+              {(companyFilter || timeFilter !== 'all' || dateFrom || dateTo) && (
                 <button
-                  onClick={() => { setCompanyFilter(''); setTimeFilter('upcoming') }}
+                  onClick={() => { setCompanyFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
                   className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2 rounded-xl transition-colors"
                 >
                   <X size={12} /> Reset
@@ -402,6 +433,8 @@ export default function WishlistPage() {
             {hasFilters && (
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
+                {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
+                {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
                 <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
               </div>
             )}
