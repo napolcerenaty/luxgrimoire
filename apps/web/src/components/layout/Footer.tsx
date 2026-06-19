@@ -43,7 +43,7 @@ export function Footer() {
         {/* Main grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1 flex flex-col items-start md:items-start">
+          <div className="col-span-2 md:col-span-1 flex flex-col items-center">
             <Link href="/" aria-label="LuxGrimoire" className="inline-block mb-3">
               {/* Logo with text — light version for dark theme */}
               <Image
@@ -62,21 +62,20 @@ export function Footer() {
                 className="w-36 h-auto logo-for-light"
               />
             </Link>
-            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] w-full text-center">
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Limited books.
             </p>
-            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] w-full text-center">
+            <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Unlimited obsession.
             </p>
             <a
               href="https://www.instagram.com/luxgrimoire/"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 flex items-center gap-2 text-stone-500 hover:text-stone-200 transition-colors"
+              className="mt-4 text-stone-500 hover:text-stone-200 transition-colors"
               aria-label="LuxGrimoire on Instagram"
             >
-              <Instagram size={16} />
-              <span className="text-xs">@luxgrimoire</span>
+              <Instagram size={24} />
             </a>
           </div>
 

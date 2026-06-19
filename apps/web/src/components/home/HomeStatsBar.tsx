@@ -19,7 +19,7 @@ export function HomeStatsBar({ editionsCount, companiesCount, subscriptionsCount
     { value: editionsCount, label: 'special editions' },
     { value: companiesCount, label: 'book box companies' },
     { value: subscriptionsCount, label: 'subscriptions' },
-    { value: activeSalesCount, label: 'active sales' },
+    { value: activeSalesCount, label: 'upcoming sales' },
   ]
 
   return (
