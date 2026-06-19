@@ -36,9 +36,9 @@ function DaysBadge({ dateStr }: { dateStr: string | null | undefined }) {
     ? 'bg-green-600/90 text-white'
     : days <= 3
     ? 'bg-amber-500/90 text-stone-900'
-    : 'bg-[rgba(5,10,18,0.85)] text-stone-300 border border-stone-600'
+    : 'bg-stone-800/90 text-stone-300 border border-stone-600'
   return (
-    <span className={`absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold leading-tight ${color}`}>
+    <span className={`absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight ${color}`}>
       {label}
     </span>
   )

@@ -51,7 +51,17 @@ function FeatureCard({ feature }: { feature: HomepageFeature }) {
         <FeatureIcon name={feature.iconName} />
       </div>
       <h3 className="mb-2 font-serif text-lg text-stone-100">{feature.title}</h3>
-      <p className="text-sm leading-relaxed text-stone-400">{feature.description}</p>
+      <p className={`text-sm leading-relaxed text-stone-400 ${feature.ctaHref ? 'mb-4' : ''}`}>
+        {feature.description}
+      </p>
+      {feature.ctaHref && (
+        <Link
+          href={feature.ctaHref}
+          className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400"
+        >
+          {feature.ctaLabel ?? 'Get started'} →
+        </Link>
+      )}
     </div>
   )
 }
