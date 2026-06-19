@@ -54,9 +54,12 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
         <button
           onClick={() => scroll('left')}
           aria-label="Scroll left"
-          className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-stone-700 bg-stone-900/90 p-2 text-stone-300 opacity-0 shadow transition-all hover:border-stone-500 hover:text-stone-100 group-hover/carousel:opacity-100"
+          className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
+                     bg-gradient-to-r from-[var(--bg)] to-transparent
+                     opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
+                     text-stone-400 hover:text-amber-400"
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={24} />
         </button>
 
         {/* Scrollable track */}
@@ -71,9 +74,12 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
         <button
           onClick={() => scroll('right')}
           aria-label="Scroll right"
-          className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-stone-700 bg-stone-900/90 p-2 text-stone-300 opacity-0 shadow transition-all hover:border-stone-500 hover:text-stone-100 group-hover/carousel:opacity-100"
+          className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
+                     bg-gradient-to-l from-[var(--bg)] to-transparent
+                     opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
+                     text-stone-400 hover:text-amber-400"
         >
-          <ChevronRight size={18} />
+          <ChevronRight size={24} />
         </button>
       </div>
     </div>
