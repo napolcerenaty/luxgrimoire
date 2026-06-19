@@ -645,6 +645,7 @@ export interface ApiSaleAnnouncement {
 export interface ApiPlatformStats {
   editionsCount: number;
   companiesCount: number;
+  subscriptionsCount: number;
   activeSalesCount: number;
 }
 

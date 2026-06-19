@@ -60,17 +60,19 @@ export class CrowdStatsController {
     const cached = await this.cache.get<{
       editionsCount: number;
       companiesCount: number;
+      subscriptionsCount: number;
       activeSalesCount: number;
     }>(cacheKey);
     if (cached) return cached;
 
-    const [editionsCount, companiesCount, activeSalesCount] = await this.prisma.$transaction([
+    const [editionsCount, companiesCount, subscriptionsCount, activeSalesCount] = await this.prisma.$transaction([
       this.prisma.bookEdition.count({ where: { verifiedAt: { not: null } } }),
       this.prisma.bookBoxCompany.count(),
+      this.prisma.subscription.count(),
       this.prisma.saleAnnouncement.count({ where: { generalSaleDate: { gte: new Date() } } }),
     ]);
 
-    const result = { editionsCount, companiesCount, activeSalesCount };
+    const result = { editionsCount, companiesCount, subscriptionsCount, activeSalesCount };
     await this.cache.set(cacheKey, result, PLATFORM_STATS_TTL);
     return result;
   }

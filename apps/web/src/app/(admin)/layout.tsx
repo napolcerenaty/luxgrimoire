@@ -26,6 +26,7 @@ import {
   X,
   Tags,
   BookMarked,
+  Star,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -75,8 +76,9 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
-    { href: '/admin/feature-categories', label: 'Feature Categories', icon: Tags },
-  ],
+      { href: '/admin/homepage-features', label: 'Homepage Features', icon: Star },
+      { href: '/admin/feature-categories', label: 'Feature Categories', icon: Tags },
+    ],
   },
   {
     heading: 'Community',
@@ -272,4 +274,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   )
 }
-

@@ -1588,3 +1588,18 @@ model SaleAnnouncementMediaAsset {
   @@index([assetId])
   @@map("sale_announcement_media_assets")
 }
+
+model HomepageFeature {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  iconName    String   @default("Star")
+  ctaLabel    String   @default("Get started free")
+  ctaHref     String   @default("/register")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("homepage_features")
+}

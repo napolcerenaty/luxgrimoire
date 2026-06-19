@@ -96,4 +96,17 @@ export class SaleInterestsService {
       where: { userId_announcementId: { userId, announcementId } },
     });
   }
+
+  async getUpcomingCount(userId: string) {
+    const count = await this.prisma.userSaleInterest.count({
+      where: {
+        userId,
+        announcement: {
+          generalSaleDate: { gte: new Date() },
+        },
+      },
+    });
+
+    return { count };
+  }
 }

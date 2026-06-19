@@ -1,49 +1,87 @@
 import Link from 'next/link'
-import { BarChart2, Bell, BookOpen } from 'lucide-react'
+import * as Icons from 'lucide-react'
+import type { ComponentType } from 'react'
+import { apiFetch } from '@/lib/api'
 
-const features = [
+interface HomepageFeature {
+  id: string
+  title: string
+  description: string
+  iconName: string
+  ctaLabel: string
+  ctaHref: string
+}
+
+const FALLBACK_FEATURES: HomepageFeature[] = [
   {
+    id: '1',
     title: 'Track Your Collection',
     description: 'Add editions, track ownership status (owned, preorder, shipping), condition and read status',
-    icon: BookOpen,
+    iconName: 'BookOpen',
+    ctaLabel: 'Get started free',
+    ctaHref: '/register',
   },
   {
+    id: '2',
     title: 'Sale Alerts',
     description: 'Get notified before FA, EA and GS sale windows close — never miss a drop',
-    icon: Bell,
+    iconName: 'Bell',
+    ctaLabel: 'Get started free',
+    ctaHref: '/register',
   },
   {
+    id: '3',
     title: 'Spending Statistics',
     description: 'See how much you spend per month and per year across subscriptions and purchases',
-    icon: BarChart2,
+    iconName: 'BarChart2',
+    ctaLabel: 'Get started free',
+    ctaHref: '/register',
   },
 ]
 
-export function HomeFeaturesSection() {
+function FeatureIcon({ name }: { name: string }) {
+  const Icon = (Icons as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
+  return <Icon size={26} />
+}
+
+function FeatureCard({ feature }: { feature: HomepageFeature }) {
   return (
-    <section className="container mx-auto px-4 py-12">
-      <h2 className="mb-8 text-center font-serif text-2xl text-stone-100">
-        Everything you need to manage your collection
-      </h2>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {features.map(({ title, description, icon: Icon }) => (
-          <div
-            key={title}
-            className="rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-amber-700/40"
-          >
-            <div className="mb-4 w-fit rounded-xl bg-stone-800 p-3">
-              <Icon size={28} className="text-amber-400" />
-            </div>
-            <h3 className="mb-2 font-serif text-lg text-stone-100">{title}</h3>
-            <p className="text-sm leading-relaxed text-stone-400">{description}</p>
-            <Link
-              href="/register"
-              className="mt-4 inline-block text-sm font-serif text-amber-500 hover:text-amber-400"
-            >
-              Get started free →
-            </Link>
-          </div>
-        ))}
+    <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-amber-700/40 sm:w-80">
+      <div className="mb-4 w-fit rounded-xl bg-stone-800 p-3 text-amber-400">
+        <FeatureIcon name={feature.iconName} />
+      </div>
+      <h3 className="mb-2 font-serif text-lg text-stone-100">{feature.title}</h3>
+      <p className="mb-4 text-sm leading-relaxed text-stone-400">{feature.description}</p>
+      <Link
+        href={feature.ctaHref}
+        className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400"
+      >
+        {feature.ctaLabel} →
+      </Link>
+    </div>
+  )
+}
+
+export async function HomeFeaturesSection() {
+  let features: HomepageFeature[] = []
+
+  try {
+    features = await apiFetch<HomepageFeature[]>('/homepage-features')
+  } catch {
+    // ignore
+  }
+
+  if (features.length === 0) features = FALLBACK_FEATURES
+
+  return (
+    <section className="overflow-hidden py-12">
+      <div className="container mx-auto mb-8 px-4">
+        <h2 className="text-center font-serif text-2xl text-stone-100">
+          Everything you need to manage your collection
+        </h2>
+      </div>
+      <div className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:px-8 lg:flex-wrap lg:justify-center lg:overflow-visible">
+        {features.map((feature) => <FeatureCard key={feature.id} feature={feature} />)}
       </div>
     </section>
   )

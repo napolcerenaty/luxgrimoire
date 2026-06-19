@@ -166,7 +166,7 @@ export class AnnouncementsController {
   async findTrending(@Query('limit') limit?: string) {
     const parsedLimit = limit ? parseInt(limit, 10) : 6;
     const safeLimit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 24)) : 6;
-    const cacheKey = `announcements:trending:${safeLimit}`;
+    const cacheKey = `announcements:trending-alltime:${safeLimit}`;
     const cached = await this.cache.get(cacheKey);
     if (cached) return cached;
 

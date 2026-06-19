@@ -1,6 +1,7 @@
 interface Props {
   editionsCount: number
   companiesCount: number
+  subscriptionsCount: number
   activeSalesCount: number
 }
 
@@ -13,10 +14,11 @@ function Stat({ value, label }: { value: number; label: string }) {
   )
 }
 
-export function HomeStatsBar({ editionsCount, companiesCount, activeSalesCount }: Props) {
+export function HomeStatsBar({ editionsCount, companiesCount, subscriptionsCount, activeSalesCount }: Props) {
   const stats = [
     { value: editionsCount, label: 'special editions' },
     { value: companiesCount, label: 'book box companies' },
+    { value: subscriptionsCount, label: 'subscriptions' },
     { value: activeSalesCount, label: 'active sales' },
   ]
 

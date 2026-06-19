@@ -74,6 +74,14 @@ html {
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 ::-webkit-scrollbar-corner { background: var(--bg-surface); }
 
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Navbar logo glow effect */
 .nav-logo {
   transition: opacity 0.2s ease;

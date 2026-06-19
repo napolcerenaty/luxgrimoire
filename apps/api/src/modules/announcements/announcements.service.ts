@@ -179,12 +179,8 @@ export class AnnouncementsService {
 
   async findTrending(limit = 6) {
     const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 24)) : 6;
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const grouped = await this.prisma.userSaleInterest.groupBy({
       by: ['announcementId'],
-      where: {
-        createdAt: { gte: sevenDaysAgo },
-      },
       _count: { announcementId: true },
       orderBy: { _count: { announcementId: 'desc' } },
       take: safeLimit,

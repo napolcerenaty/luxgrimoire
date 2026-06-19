@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
@@ -10,6 +11,7 @@ import { HomeStatsBar } from '@/components/home/HomeStatsBar'
 import { HomeTrendingEditions } from '@/components/home/HomeTrendingEditions'
 import { HomeTrendingSales } from '@/components/home/HomeTrendingSales'
 import { SaleCountdownBanner } from '@/components/home/SaleCountdownBanner'
+import { PersonalizedHero } from '@/components/home/PersonalizedHero'
 import type {
   ApiBookEdition,
   ApiPlatformStats,
@@ -37,6 +39,49 @@ async function fetchCachedPublic<T>(path: string): Promise<T> {
   }
 
   return res.json()
+}
+
+function GenericHero() {
+  return (
+    <section
+      className="relative overflow-hidden px-4 py-14 text-center"
+      style={{ background: 'var(--hero-bg)' }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: 'var(--hero-glow)' }}
+      />
+      <div className="relative container mx-auto max-w-3xl">
+        <h1
+          className="mb-4 font-serif text-4xl font-bold tracking-wide text-amber-400 sm:text-6xl sm:tracking-widest lg:text-7xl"
+          style={{ textShadow: '0 0 40px rgba(0,150,200,0.35)' }}
+        >
+          LuxGrimoire
+        </h1>
+        <p className="mb-5 font-serif text-xs font-semibold uppercase tracking-[0.3em] text-[#1a4f6e] dark:text-[#4a88a8]">
+          Limited books.<br className="sm:hidden" /> Unlimited obsession.
+        </p>
+        <p className="mx-auto mb-7 max-w-xl text-sm leading-relaxed text-stone-400">
+          Track special editions, manage your collection, follow subscription boxes,
+          and keep up with your book spending — all in one place.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/companies"
+            className="rounded-full bg-amber-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+          >
+            Browse Book Boxes
+          </Link>
+          <Link
+            href="/subscriptions"
+            className="rounded-full border border-stone-600 px-6 py-3 font-serif text-sm text-stone-300 transition-colors hover:border-stone-400 hover:text-stone-100"
+          >
+            Browse Subscriptions
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 async function getHomeData() {
@@ -78,45 +123,9 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section
-        className="relative overflow-hidden py-14 px-4 text-center"
-        style={{ background: 'var(--hero-bg)' }}
-      >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'var(--hero-glow)' }}
-        />
-        <div className="relative container mx-auto max-w-3xl">
-          <h1
-            className="text-4xl sm:text-6xl lg:text-7xl font-serif font-bold text-amber-400 mb-4 tracking-wide sm:tracking-widest"
-            style={{ textShadow: '0 0 40px rgba(0,150,200,0.35)' }}
-          >
-            LuxGrimoire
-          </h1>
-          <p className="text-xs font-serif uppercase tracking-[0.3em] font-semibold text-[#1a4f6e] dark:text-[#4a88a8] mb-5">
-            Limited books.<br className="sm:hidden" /> Unlimited obsession.
-          </p>
-          <p className="text-sm text-stone-400 max-w-xl mx-auto mb-7 leading-relaxed">
-            Track special editions, manage your collection, follow subscription boxes,
-            and keep up with your book spending — all in one place.
-          </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link
-              href="/companies"
-              className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
-            >
-              Browse Book Boxes
-            </Link>
-            <Link
-              href="/subscriptions"
-              className="px-6 py-3 border border-stone-600 hover:border-stone-400 text-stone-300 hover:text-stone-100 font-serif rounded-full transition-colors text-sm"
-            >
-              Browse Subscriptions
-            </Link>
-          </div>
-        </div>
-      </section>
+      <Suspense fallback={<GenericHero />}>
+        <PersonalizedHero />
+      </Suspense>
 
       {platformStats && <HomeStatsBar {...platformStats} />}
 
