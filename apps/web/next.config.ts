@@ -77,5 +77,11 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.SENTRY_DSN,
   tunnelRoute: '/monitoring',
   sourcemaps: { disable: !process.env.SENTRY_DSN },
+  // Reduce build overhead
+  disableLogger: true,
+  autoInstrumentServerFunctions: false,
+  autoInstrumentMiddleware: false,
+  // Skip Sentry instrumentation entirely if no DSN (speeds up CI/Docker builds)
+  ...(process.env.SENTRY_DSN ? {} : { disableClientWebpackPlugin: true, disableServerWebpackPlugin: true }),
 });
 
