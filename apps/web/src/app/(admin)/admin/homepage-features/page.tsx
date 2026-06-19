@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import * as Icons from 'lucide-react'
+import type { ComponentType } from 'react'
 import { authFetch } from '@/lib/authFetch'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -28,7 +30,38 @@ interface FeatureFormState {
   isActive: boolean
 }
 
-const ICON_OPTIONS = ['BookOpen', 'Bell', 'BarChart2', 'Heart', 'Star', 'Bookmark', 'Library', 'Package', 'ShoppingBag', 'Calendar', 'Search', 'Users', 'Zap', 'Trophy', 'Gift']
+const ICON_OPTIONS = ['BookOpen', 'Bell', 'BarChart2', 'Heart', 'Star', 'Bookmark', 'Library', 'Package', 'ShoppingBag', 'Calendar', 'Search', 'Users', 'Zap', 'Trophy', 'Gift', 'Sparkles', 'Tag', 'Lock', 'Globe', 'Layers']
+
+function LucideIcon({ name, size = 18 }: { name: string; size?: number }) {
+  const Icon = (Icons as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
+  return <Icon size={size} />
+}
+
+function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className={LBL}>Icon</label>
+      <div className="grid grid-cols-5 gap-2 rounded-lg border border-stone-700 bg-stone-950 p-2">
+        {ICON_OPTIONS.map((icon) => (
+          <button
+            key={icon}
+            type="button"
+            title={icon}
+            onClick={() => onChange(icon)}
+            className={`flex flex-col items-center gap-1 rounded-lg p-2 text-center transition-colors ${
+              value === icon
+                ? 'bg-amber-600 text-stone-950'
+                : 'text-stone-400 hover:bg-stone-800 hover:text-stone-200'
+            }`}
+          >
+            <LucideIcon name={icon} />
+            <span className="text-[9px] leading-none">{icon}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 const EMPTY_FORM: FeatureFormState = {
   title: '',
@@ -89,18 +122,7 @@ function FeatureForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={LBL}>Icon</label>
-          <select
-            className={INP}
-            value={form.iconName}
-            onChange={(event) => setField('iconName', event.target.value)}
-          >
-            {ICON_OPTIONS.map((icon) => (
-              <option key={icon} value={icon}>{icon}</option>
-            ))}
-          </select>
-        </div>
+        <IconPicker value={form.iconName} onChange={(v) => setField('iconName', v)} />
 
         <div>
           <label className={LBL}>Sort order</label>
