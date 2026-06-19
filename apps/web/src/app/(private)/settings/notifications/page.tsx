@@ -199,12 +199,11 @@ export default function NotificationSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-stone-200">In-app</p>
-              <p className="text-xs text-stone-500">Show in your notification bell</p>
+              <p className="text-xs text-stone-500">Always shown in your notification bell</p>
             </div>
-            <Toggle
-              checked={reminderSettings?.appNotifInAppEnabled ?? true}
-              onChange={(v) => reminderMutation.mutate({ appNotifInAppEnabled: v })}
-            />
+            <div className="relative w-10 h-5 rounded-full bg-amber-500 opacity-60 cursor-not-allowed">
+              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-white shadow" />
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

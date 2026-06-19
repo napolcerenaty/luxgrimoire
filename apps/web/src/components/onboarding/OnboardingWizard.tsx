@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, ChevronRight, ChevronLeft, BookOpen, Camera, ExternalLink, CreditCard, Sparkles, Check, Loader2, Plus, Trash2 } from 'lucide-react'
@@ -69,9 +69,30 @@ export function OnboardingWizard() {
   const [notifSaleInApp, setNotifSaleInApp] = useState(true)
   const [notifSalePush, setNotifSalePush] = useState(false)
   const [notifsaleMinutesBefore, setNotifsaleMinutesBefore] = useState(180)
-  const [notifAppInApp, setNotifAppInApp] = useState(true)
   const [notifAppPush, setNotifAppPush] = useState(false)
   const [notifSaving, setNotifSaving] = useState(false)
+
+  // Load existing reminder settings when wizard opens (restart scenario)
+  useEffect(() => {
+    authFetch<{
+      renewalEnabled?: boolean; renewalInAppEnabled?: boolean; renewalPushEnabled?: boolean;
+      renewalDaysBefore?: number; renewalHour?: number | null;
+      saleEnabled?: boolean; saleInAppEnabled?: boolean; salePushEnabled?: boolean;
+      saleMinutesBefore?: number | null;
+      appNotifPushEnabled?: boolean;
+    }>('/reminder-settings').then(s => {
+      if (s.renewalEnabled !== undefined) setNotifRenewalEnabled(s.renewalEnabled)
+      if (s.renewalInAppEnabled !== undefined) setNotifRenewalInApp(s.renewalInAppEnabled)
+      if (s.renewalPushEnabled !== undefined) setNotifRenewalPush(s.renewalPushEnabled)
+      if (s.renewalDaysBefore !== undefined) setNotifRenewalDaysBefore(s.renewalDaysBefore)
+      if (Object.prototype.hasOwnProperty.call(s, 'renewalHour')) setNotifRenewalHour(s.renewalHour ?? null)
+      if (s.saleEnabled !== undefined) setNotifSaleEnabled(s.saleEnabled)
+      if (s.saleInAppEnabled !== undefined) setNotifSaleInApp(s.saleInAppEnabled)
+      if (s.salePushEnabled !== undefined) setNotifSalePush(s.salePushEnabled)
+      if (s.saleMinutesBefore !== undefined && s.saleMinutesBefore !== null) setNotifsaleMinutesBefore(s.saleMinutesBefore)
+      if (s.appNotifPushEnabled !== undefined) setNotifAppPush(s.appNotifPushEnabled)
+    }).catch(() => {})
+  }, [])
 
   const saveNotifAndAdvance = async () => {
     setNotifSaving(true)
@@ -88,7 +109,7 @@ export function OnboardingWizard() {
           saleInAppEnabled: notifSaleInApp,
           salePushEnabled: notifSalePush,
           saleMinutesBefore: notifsaleMinutesBefore,
-          appNotifInAppEnabled: notifAppInApp,
+          appNotifInAppEnabled: true,
           appNotifPushEnabled: notifAppPush,
         }),
       })
@@ -456,14 +477,12 @@ export function OnboardingWizard() {
             <p className="text-xs text-stone-500">Updates, bug fixes and announcements from the team</p>
           </div>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <button type="button" role="switch" aria-checked={notifAppInApp}
-                onClick={() => setNotifAppInApp(v => !v)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifAppInApp ? 'bg-amber-500' : 'bg-stone-700'}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifAppInApp ? 'translate-x-4' : 'translate-x-0'}`} />
-              </button>
-              <span className="text-xs text-stone-300">In-app</span>
-            </label>
+            <div className="flex items-center gap-2 opacity-60 select-none">
+              <div className="relative inline-flex h-5 w-9 shrink-0 rounded-full bg-amber-500 cursor-not-allowed">
+                <span className="inline-block h-4 w-4 transform rounded-full bg-white shadow translate-x-4 mt-0.5" />
+              </div>
+              <span className="text-xs text-stone-300">In-app (always on)</span>
+            </div>
             {pushSupported && isSubscribed && (
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <button type="button" role="switch" aria-checked={notifAppPush}
