@@ -61,7 +61,7 @@ export function HomeTrendingSales({ announcements }: Props) {
                   </div>
                 )}
 
-                <span className="absolute left-1.5 top-1.5 rounded bg-[rgba(5,10,18,0.85)] px-1.5 py-0.5 text-[9px] font-serif uppercase tracking-wider text-amber-400">
+                <span className="absolute left-1.5 top-1.5 rounded bg-[rgba(5,10,18,0.85)] px-1.5 py-0.5 text-[9px] font-bold leading-tight text-stone-300 border border-stone-600">
                   {sale.interestCount} follows
                 </span>
 
