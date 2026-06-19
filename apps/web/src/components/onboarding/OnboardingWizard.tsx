@@ -69,6 +69,8 @@ export function OnboardingWizard() {
   const [notifSaleInApp, setNotifSaleInApp] = useState(true)
   const [notifSalePush, setNotifSalePush] = useState(false)
   const [notifsaleMinutesBefore, setNotifsaleMinutesBefore] = useState(180)
+  const [notifAppInApp, setNotifAppInApp] = useState(true)
+  const [notifAppPush, setNotifAppPush] = useState(false)
   const [notifSaving, setNotifSaving] = useState(false)
 
   const saveNotifAndAdvance = async () => {
@@ -86,6 +88,8 @@ export function OnboardingWizard() {
           saleInAppEnabled: notifSaleInApp,
           salePushEnabled: notifSalePush,
           saleMinutesBefore: notifsaleMinutesBefore,
+          appNotifInAppEnabled: notifAppInApp,
+          appNotifPushEnabled: notifAppPush,
         }),
       })
     } catch {} finally {
@@ -444,6 +448,33 @@ export function OnboardingWizard() {
               </div>
             </div>
           )}
+        </div>
+        {/* App notifications */}
+        <div className="bg-stone-800/50 border border-stone-700 rounded-xl p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-stone-200">App notifications</p>
+            <p className="text-xs text-stone-500">Updates, bug fixes and announcements from the team</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <button type="button" role="switch" aria-checked={notifAppInApp}
+                onClick={() => setNotifAppInApp(v => !v)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifAppInApp ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifAppInApp ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+              <span className="text-xs text-stone-300">In-app</span>
+            </label>
+            {pushSupported && isSubscribed && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <button type="button" role="switch" aria-checked={notifAppPush}
+                  onClick={() => setNotifAppPush(v => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${notifAppPush ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifAppPush ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+                <span className="text-xs text-stone-300">Push</span>
+              </label>
+            )}
+          </div>
         </div>
       </div>
       <p className="text-xs text-stone-500">You can adjust all notification settings any time in <strong className="text-stone-400">Profile → Notifications</strong>.</p>
