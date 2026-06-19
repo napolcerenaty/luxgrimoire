@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Instagram } from 'lucide-react'
 
 const YEAR = new Date().getFullYear()
 
@@ -68,6 +68,16 @@ export function Footer() {
             <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Unlimited obsession.
             </p>
+            <a
+              href="https://www.instagram.com/luxgrimoire/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center gap-2 text-stone-500 hover:text-stone-200 transition-colors"
+              aria-label="LuxGrimoire on Instagram"
+            >
+              <Instagram size={16} />
+              <span className="text-xs">@luxgrimoire</span>
+            </a>
           </div>
 
           {/* Discover */}
