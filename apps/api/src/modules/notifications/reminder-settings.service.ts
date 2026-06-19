@@ -43,6 +43,7 @@ export class ReminderSettingsService {
         saleDigest: false,
         appNotifInAppEnabled: true,
         appNotifPushEnabled: false,
+      };
     }
     return s;
   }
