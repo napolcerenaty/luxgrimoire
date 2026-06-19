@@ -937,6 +937,8 @@ interface ReminderSettings {
   saleDaysBefore: number
   saleMinutesBefore: number | null
   saleDigest: boolean
+  appNotifInAppEnabled: boolean
+  appNotifPushEnabled: boolean
 }
 
 interface PushNotifPreferences {
@@ -1008,6 +1010,7 @@ function NotificationsTab() {
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
     saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
+    appNotifInAppEnabled: true, appNotifPushEnabled: false,
   }
 
   return (
@@ -1042,6 +1045,34 @@ function NotificationsTab() {
           )}
         </section>
       )}
+
+      {/* App Notifications */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">App Notifications</h3>
+            <p className={TOGGLE_SUBLABEL}>Updates, bug fixes and announcements from the LuxGrimoire team</p>
+          </div>
+        </div>
+        <div className="space-y-3 pt-1">
+          <div className={TOGGLE_ROW}>
+            <div>
+              <p className={TOGGLE_LABEL}>In-app</p>
+              <p className={TOGGLE_SUBLABEL}>Always shown in your notification bell</p>
+            </div>
+            <Toggle checked={true} onChange={() => {}} disabled={true} />
+          </div>
+          {isSubscribed && (
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Push</p>
+                <p className={TOGGLE_SUBLABEL}>Send to this device when a new announcement is posted</p>
+              </div>
+              <Toggle checked={s.appNotifPushEnabled} onChange={(v) => update({ appNotifPushEnabled: v })} />
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Renewal Reminders */}
       <section className={SECTION}>
