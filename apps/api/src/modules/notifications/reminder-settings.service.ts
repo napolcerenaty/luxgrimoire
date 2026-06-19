@@ -15,6 +15,9 @@ export interface ReminderSettingsDto {
   saleDaysBefore?: number;
   saleMinutesBefore?: number | null;
   saleDigest?: boolean;
+
+  appNotifInAppEnabled?: boolean;
+  appNotifPushEnabled?: boolean;
 }
 
 @Injectable()
@@ -38,7 +41,8 @@ export class ReminderSettingsService {
         saleMinutesBefore: null,
         // null means "use default" (180 minutes = 3h before)
         saleDigest: false,
-      };
+        appNotifInAppEnabled: true,
+        appNotifPushEnabled: false,
     }
     return s;
   }
@@ -60,6 +64,8 @@ export class ReminderSettingsService {
         saleDaysBefore: dto.saleDaysBefore ?? 0,
         saleMinutesBefore: dto.saleMinutesBefore ?? null,
         saleDigest: dto.saleDigest ?? false,
+        appNotifInAppEnabled: dto.appNotifInAppEnabled ?? true,
+        appNotifPushEnabled: dto.appNotifPushEnabled ?? false,
       },
       update: {
         ...(dto.renewalEnabled !== undefined && { renewalEnabled: dto.renewalEnabled }),
@@ -74,6 +80,8 @@ export class ReminderSettingsService {
         ...(dto.saleDaysBefore !== undefined && { saleDaysBefore: dto.saleDaysBefore }),
         ...(Object.prototype.hasOwnProperty.call(dto, 'saleMinutesBefore') && { saleMinutesBefore: dto.saleMinutesBefore }),
         ...(dto.saleDigest !== undefined && { saleDigest: dto.saleDigest }),
+        ...(dto.appNotifInAppEnabled !== undefined && { appNotifInAppEnabled: dto.appNotifInAppEnabled }),
+        ...(dto.appNotifPushEnabled !== undefined && { appNotifPushEnabled: dto.appNotifPushEnabled }),
       },
     });
   }

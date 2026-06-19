@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellOff, RefreshCw } from 'lucide-react'
+import { Bell, BellOff, RefreshCw, Megaphone } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
@@ -13,7 +13,23 @@ interface NotificationPreferences {
   pushEnabled: boolean
 }
 
+interface ReminderSettings {
+  appNotifInAppEnabled: boolean
+  appNotifPushEnabled: boolean
+}
+
 const DAYS_OPTIONS = [1, 3, 7]
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-amber-500' : 'bg-stone-700'}`}
+    >
+      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+    </button>
+  )
+}
 
 export default function NotificationSettingsPage() {
   const queryClient = useQueryClient()
@@ -28,6 +44,17 @@ export default function NotificationSettingsPage() {
     mutationFn: (dto: Partial<NotificationPreferences>) =>
       authFetch('/notifications/preferences', { method: 'PUT', body: JSON.stringify(dto) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }),
+  })
+
+  const { data: reminderSettings } = useQuery({
+    queryKey: ['reminder-settings'],
+    queryFn: () => authFetch<ReminderSettings>('/reminder-settings'),
+  })
+
+  const reminderMutation = useMutation({
+    mutationFn: (dto: Partial<ReminderSettings>) =>
+      authFetch('/reminder-settings', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reminder-settings'] }),
   })
 
   if (isLoading || !prefs) {
@@ -97,12 +124,10 @@ export default function NotificationSettingsPage() {
             <span className="text-base">🔄</span>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-300">Renewal Reminders</h2>
           </div>
-          <button
-            onClick={() => mutation.mutate({ renewalReminderEnabled: !prefs.renewalReminderEnabled })}
-            className={`relative w-10 h-5 rounded-full transition-colors ${prefs.renewalReminderEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.renewalReminderEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+          <Toggle
+            checked={prefs.renewalReminderEnabled}
+            onChange={(v) => mutation.mutate({ renewalReminderEnabled: v })}
+          />
         </div>
         {prefs.renewalReminderEnabled && (
           <div>
@@ -133,12 +158,10 @@ export default function NotificationSettingsPage() {
             <Bell size={15} className="text-stone-400" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-300">Sale Reminders</h2>
           </div>
-          <button
-            onClick={() => mutation.mutate({ saleReminderEnabled: !prefs.saleReminderEnabled })}
-            className={`relative w-10 h-5 rounded-full transition-colors ${prefs.saleReminderEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.saleReminderEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+          <Toggle
+            checked={prefs.saleReminderEnabled}
+            onChange={(v) => mutation.mutate({ saleReminderEnabled: v })}
+          />
         </div>
         {prefs.saleReminderEnabled && (
           <div>
@@ -160,6 +183,41 @@ export default function NotificationSettingsPage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* App Notifications */}
+      <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Megaphone size={16} className="text-amber-400" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-300">App Notifications</h2>
+        </div>
+        <p className="text-xs text-stone-500 -mt-2">
+          Updates, bug fixes and important announcements from the LuxGrimoire team. Delivered immediately when sent.
+        </p>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-stone-200">In-app</p>
+              <p className="text-xs text-stone-500">Show in your notification bell</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.appNotifInAppEnabled ?? true}
+              onChange={(v) => reminderMutation.mutate({ appNotifInAppEnabled: v })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-stone-200">Push</p>
+              <p className="text-xs text-stone-500">Send to this device</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.appNotifPushEnabled ?? false}
+              onChange={(v) => reminderMutation.mutate({ appNotifPushEnabled: v })}
+            />
+          </div>
+        </div>
       </section>
     </div>
   )
