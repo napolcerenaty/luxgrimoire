@@ -97,6 +97,30 @@ export class SaleInterestsService {
     });
   }
 
+  async getUpcoming(userId: string, limit = 3) {
+    const now = new Date();
+    const rows = await this.prisma.userSaleInterest.findMany({
+      where: {
+        userId,
+        announcement: { generalSaleDate: { gte: now } },
+      },
+      include: {
+        announcement: {
+          select: {
+            id: true,
+            title: true,
+            generalSaleDate: true,
+            imageUrl: true,
+            company: { select: { name: true, slug: true } },
+          },
+        },
+      },
+      orderBy: { announcement: { generalSaleDate: 'asc' } },
+      take: limit,
+    });
+    return rows;
+  }
+
   async getUpcomingCount(userId: string) {
     const count = await this.prisma.userSaleInterest.count({
       where: {
