@@ -78,13 +78,14 @@ export async function HomeFeaturesSection() {
   if (features.length === 0) features = FALLBACK_FEATURES
 
   return (
-    <section className="overflow-hidden py-12">
+    <section className="py-12">
       <div className="container mx-auto mb-8 px-4">
         <h2 className="text-center font-serif text-2xl text-stone-100">
           Everything you need to manage your collection
         </h2>
       </div>
-      <div className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:px-8 lg:flex-wrap lg:justify-center lg:overflow-visible">
+      <div className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:px-8 lg:flex-wrap lg:justify-center lg:overflow-visible"
+        style={{ WebkitOverflowScrolling: 'touch' }}>
         {features.map((feature) => <FeatureCard key={feature.id} feature={feature} />)}
       </div>
       <div className="mt-6 flex justify-center">
