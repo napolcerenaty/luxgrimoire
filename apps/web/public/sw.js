@@ -1,4 +1,8 @@
 // LuxGrimoire Service Worker — handles Web Push notifications
+
+// Minimal fetch handler required for PWA installability (Chrome 111+)
+self.addEventListener('fetch', function () {});
+
 self.addEventListener('push', function (event) {
   if (!event.data) return;
 
