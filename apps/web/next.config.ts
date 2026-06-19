@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    webpackMemoryOptimizations: true,
   },
   images: {
     remotePatterns: [
@@ -45,6 +46,13 @@ const nextConfig: NextConfig = {
         hostname: 'flagcdn.com',
       },
     ],
+  },
+  // Limit webpack parallelism to avoid saturating build servers
+  webpack(config, { isServer }) {
+    if (process.env.NEXT_WEBPACK_PARALLELISM) {
+      config.parallelism = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    }
+    return config
   },
   async headers() {
     return [
