@@ -33,8 +33,12 @@ export class ArtistsController {
 
   @Public()
   @Get(':slug/contributions')
-  findContributions(@Param('slug') slug: string) {
-    return this.artistsService.findContributions(slug);
+  findContributions(
+    @Param('slug') slug: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.artistsService.findContributions(slug, page ? Number(page) : 1, pageSize ? Number(pageSize) : 24);
   }
 
   @Public()
@@ -52,8 +56,12 @@ export class ArtistsController {
 
   @Public()
   @Get(':slug/months')
-  findMonths(@Param('slug') slug: string) {
-    return this.artistsService.findCardMonths(slug);
+  findMonths(
+    @Param('slug') slug: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.artistsService.findCardMonths(slug, page ? Number(page) : 1, pageSize ? Number(pageSize) : 24);
   }
 
   @ApiBearerAuth()

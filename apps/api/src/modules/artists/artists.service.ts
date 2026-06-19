@@ -128,24 +128,35 @@ export class ArtistsService {
     };
   }
 
-  async findContributions(slug: string) {
-    const cached = await this.cache.get(artistContributionsKey(slug));
-    if (cached) return cached as Awaited<ReturnType<typeof this._fetchArtistContributions>>;
-    await this.findBySlug(slug); // ensure artist exists
-    const contributions = await this._fetchArtistContributions(slug);
-    await this.cache.set(artistContributionsKey(slug), contributions, ARTIST_CONTRIBUTIONS_TTL);
-    return contributions;
-  }
+  async findContributions(slug: string, page = 1, pageSize = 24) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+    const cacheKey = `${artistContributionsKey(slug)}:${p}:${ps}`;
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached as any;
 
-  private async _fetchArtistContributions(slug: string) {
-    const artist = await this.prisma.artist.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
+    const artist = await this.prisma.artist.findUnique({ where: { slug }, select: { id: true } });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
+    // Count & fetch distinct editions (paginated)
+    const [grouped, editionIdRows] = await Promise.all([
+      this.prisma.artistContribution.groupBy({
+        by: ['editionId'] as any,
+        where: { artistId: artist.id },
+      }),
+      (this.prisma.artistContribution as any).findMany({
+        where: { artistId: artist.id },
+        select: { editionId: true },
+        distinct: ['editionId'],
+        skip,
+        take,
+      }),
+    ]);
+    const total = grouped.length;
+    const editionIds: string[] = editionIdRows.map((r: any) => r.editionId);
+
+    // Fetch all contributions for those editions (to collect roles)
     const contributions = await this.prisma.artistContribution.findMany({
-      where: { artistId: artist.id },
+      where: { artistId: artist.id, editionId: { in: editionIds } },
       select: {
         role: true,
         edition: {
@@ -165,47 +176,72 @@ export class ArtistsService {
       },
     });
 
-    return contributions.map((contrib) => {
-      const { communityImages, ...editionRest } = contrib.edition as typeof contrib.edition & { communityImages: Array<{ url: string }> };
-      return {
-        role: contrib.role,
-        edition: {
-          ...editionRest,
-          communityPhotoCover: (contrib.edition.additionalImages as string[]).length === 0
-            ? (communityImages?.[0]?.url ?? null)
-            : null,
-        },
-      };
-    });
+    // Group roles per edition, preserving paginated order
+    const editionMap = new Map<string, any>();
+    for (const c of contributions) {
+      const ed = c.edition as any;
+      const existing = editionMap.get(ed.id);
+      if (existing) {
+        existing.roles.push(c.role);
+      } else {
+        const { communityImages, ...editionRest } = ed;
+        editionMap.set(ed.id, {
+          roles: [c.role],
+          edition: {
+            ...editionRest,
+            communityPhotoCover:
+              (ed.additionalImages as string[]).length === 0
+                ? (communityImages?.[0]?.url ?? null)
+                : null,
+          },
+        });
+      }
+    }
+    const data = editionIds.map((id) => editionMap.get(id)).filter(Boolean);
+
+    const result = { data, ...buildPageMeta(total, p, ps) };
+    await this.cache.set(cacheKey, result, ARTIST_CONTRIBUTIONS_TTL);
+    return result;
   }
 
-  async findCardMonths(slug: string) {
+  async findCardMonths(slug: string, page = 1, pageSize = 24) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
       select: { id: true },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
-    const months = await (this.prisma.subscriptionMonth as any).findMany({
-      where: { cardArtistId: artist.id },
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      select: {
-        id: true,
-        year: true,
-        month: true,
-        theme: true,
-        coverImage: true,
-        coverImageAsset: { select: { id: true, publicId: true } },
-        isSpoiler: true,
-        subscription: {
-          select: { id: true, name: true, slug: true },
+    const [months, total] = await Promise.all([
+      (this.prisma.subscriptionMonth as any).findMany({
+        where: { cardArtistId: artist.id },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        skip,
+        take,
+        select: {
+          id: true,
+          year: true,
+          month: true,
+          theme: true,
+          coverImage: true,
+          coverImageAsset: { select: { id: true, publicId: true } },
+          isSpoiler: true,
+          subscription: {
+            select: { id: true, name: true, slug: true },
+          },
         },
-      },
-    });
-    return months.map((month: any) => ({
-      ...month,
-      coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
-    }));
+      }),
+      (this.prisma.subscriptionMonth as any).count({ where: { cardArtistId: artist.id } }),
+    ]);
+
+    return {
+      data: months.map((month: any) => ({
+        ...month,
+        coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
+      })),
+      ...buildPageMeta(total, p, ps),
+    };
   }
 
   async update(slug: string, dto: UpdateArtistDto) {

@@ -1,9 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 @Injectable()
 export class SaleInterestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
+  ) {}
 
   async upsert(
     userId: string,
@@ -13,7 +17,7 @@ export class SaleInterestsService {
     selectedPrice?: number | null,
     selectedPriceCurrency?: string | null,
   ) {
-    return this.prisma.userSaleInterest.upsert({
+    const result = await this.prisma.userSaleInterest.upsert({
       where: { userId_announcementId: { userId, announcementId } },
       create: {
         userId,
@@ -30,12 +34,18 @@ export class SaleInterestsService {
         selectedPriceCurrency: selectedPriceCurrency ?? null,
       },
     });
+    // Schedule (or reschedule) sale reminder
+    this.scheduledReminders?.cancelBySaleInterest(userId, announcementId)
+      .then(() => this.scheduledReminders?.scheduleSale(userId, announcementId, tier))
+      .catch(() => {});
+    return result;
   }
 
   async remove(userId: string, announcementId: string) {
     await this.prisma.userSaleInterest.deleteMany({
       where: { userId, announcementId },
     });
+    this.scheduledReminders?.cancelBySaleInterest(userId, announcementId).catch(() => {});
     return { ok: true };
   }
 

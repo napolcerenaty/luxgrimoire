@@ -902,7 +902,7 @@ export default function CollectionPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
-          <p className="text-2xl font-serif font-bold text-amber-400">{entries.filter(e => e.ownershipStatus !== 'SOLD').length}</p>
+          <p className="text-2xl font-serif font-bold text-amber-400">{stats?.totalOwned ?? 0}</p>
         </div>
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Series</p>

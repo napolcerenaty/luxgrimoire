@@ -42,6 +42,7 @@ import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-ch
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 function formatIntervalForTypesense(intervalMonths: number): string {
@@ -77,6 +78,7 @@ export class SubscriptionsService {
     private readonly statsService: StatsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly mediaAssetsService?: MediaAssetsService,
+    private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
   private mapCompanyAssets(company: any) {
@@ -988,12 +990,13 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
-      await this.uploadService.deleteImages([existing.coverImage]);
-    }
-    if (dto.spoilerImage !== undefined && dto.spoilerImage !== existing.spoilerImage) {
-      await this.uploadService.deleteImages([existing.spoilerImage]);
-    }
+    // Capture old publicIds before update (needed for cleanup after DB write)
+    const oldCoverImage = dto.coverImage !== undefined && dto.coverImage !== existing.coverImage
+      ? (existing.coverImage as string | null)
+      : null;
+    const oldSpoilerImage = dto.spoilerImage !== undefined && dto.spoilerImage !== existing.spoilerImage
+      ? (existing.spoilerImage as string | null)
+      : null;
 
     const data: Record<string, unknown> = {
       ...dto,
@@ -1013,6 +1016,14 @@ export class SubscriptionsService {
       data,
     });
 
+    // After DB update, old assets may be unused — delete from media library + Cloudinary if so
+    if (oldCoverImage) {
+      void this.mediaAssetsService?.deleteIfUnused(oldCoverImage, this.uploadService);
+    }
+    if (oldSpoilerImage) {
+      void this.mediaAssetsService?.deleteIfUnused(oldSpoilerImage, this.uploadService);
+    }
+
     void this.invalidateMonthsCache(subscriptionSlug);
     return this.mapMonthAssets(updated);
   }
@@ -1029,6 +1040,11 @@ export class SubscriptionsService {
     await this.uploadService.deleteImages([existing.coverImage, existing.spoilerImage]);
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+
+    // Clean up orphaned media assets after record is deleted
+    for (const publicId of [existing.coverImage, existing.spoilerImage]) {
+      if (publicId) void this.mediaAssetsService?.deleteIfUnused(publicId as string, this.uploadService);
+    }
 
     void this.invalidateMonthsCache(subscriptionSlug);
     return deleted;
@@ -1597,6 +1613,7 @@ export class SubscriptionsService {
     });
     this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     this.statsService.markStatsStale(userId);
+    this.scheduledReminders?.cancelByEntry(entry.id).catch(() => {});
     return updated;
   }
 
@@ -1637,6 +1654,7 @@ export class SubscriptionsService {
       await this.prisma.userSubscriptionEntry.deleteMany({
         where: { id: { in: entryIds }, userId },
       });
+      for (const id of entryIds) { this.scheduledReminders?.cancelByEntry(id).catch(() => {}); }
       this.statsService.markStatsStale(userId);
       return { success: true };
     }
@@ -1664,6 +1682,7 @@ export class SubscriptionsService {
 
       await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
       await this.prisma.userSubscriptionEntry.delete({ where: { id: activeEntry.id } });
+      this.scheduledReminders?.cancelByEntry(activeEntry.id).catch(() => {});
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
       this.statsService.markStatsStale(userId);
       return { success: true };
@@ -1709,6 +1728,7 @@ export class SubscriptionsService {
     if (hadActive) {
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     }
+    for (const e of targetEntries) { this.scheduledReminders?.cancelByEntry(e.id).catch(() => {}); }
     this.statsService.markStatsStale(userId);
     return { success: true };
   }
@@ -2008,6 +2028,7 @@ export class SubscriptionsService {
     }
 
     this.statsService.markStatsStale(userId);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     return { entry, eligibleMonths };
   }
 

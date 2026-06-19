@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { $Enums, FeeCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -6,6 +6,7 @@ import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/u
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { StatsService } from '../stats/stats.service';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 @Injectable()
 export class RenewalCronService {
@@ -14,6 +15,7 @@ export class RenewalCronService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly statsService: StatsService,
+    @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
   /**
@@ -115,6 +117,8 @@ export class RenewalCronService {
 
     // Always advance nextRenewalDate (safe if already advanced)
     await refreshNextRenewalDate(this.prisma, entry.id);
+    // Schedule next renewal reminder
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
   }
 
   /**

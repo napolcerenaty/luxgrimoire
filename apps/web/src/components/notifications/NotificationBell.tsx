@@ -157,8 +157,7 @@ export function NotificationBell() {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() => handleNotificationClick(n)}
-                  className={`group flex items-start gap-3 px-4 py-3 border-b border-stone-800 last:border-0 transition-colors cursor-pointer hover:bg-stone-800 ${
+                  className={`group flex items-start gap-3 px-4 py-3 border-b border-stone-800 last:border-0 transition-colors hover:bg-stone-800 ${
                     !n.readAt ? 'bg-amber-500/5' : ''
                   }`}
                 >
@@ -166,25 +165,39 @@ export function NotificationBell() {
                     <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-amber-400' : 'bg-stone-700'}`} />
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug truncate ${!n.readAt ? 'text-stone-100' : 'text-stone-400'}`}>
-                      {n.title}
-                    </p>
-                    {n.body && (
-                      <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{n.body}</p>
-                    )}
-                    <p className="text-xs text-stone-600 mt-1">
-                      {timeAgo(n.createdAt)}
-                    </p>
-                  </div>
+                  {n.link?.startsWith('/') ? (
+                    <Link
+                      href={n.link}
+                      className="flex-1 min-w-0"
+                      onClick={() => { if (!n.readAt) markRead(n.id); setOpen(false) }}
+                    >
+                      <p className={`text-sm leading-snug break-words ${!n.readAt ? 'text-stone-100' : 'text-stone-400'}`}>
+                        {n.title}
+                      </p>
+                      {n.body && (
+                        <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{n.body}</p>
+                      )}
+                      <p className="text-xs text-stone-600 mt-1">{timeAgo(n.createdAt)}</p>
+                    </Link>
+                  ) : (
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => handleNotificationClick(n)}
+                    >
+                      <p className={`text-sm leading-snug break-words ${!n.readAt ? 'text-stone-100' : 'text-stone-400'}`}>
+                        {n.title}
+                      </p>
+                      {n.body && (
+                        <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{n.body}</p>
+                      )}
+                      <p className="text-xs text-stone-600 mt-1">{timeAgo(n.createdAt)}</p>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     {!n.readAt && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          markRead(n.id)
-                        }}
+                        onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
                         className="p-1 rounded hover:text-amber-400 text-stone-500 transition-colors"
                         title="Mark as read"
                       >

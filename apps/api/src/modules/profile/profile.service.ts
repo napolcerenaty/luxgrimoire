@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto, ChangeUsernameDto } from './profile.dto';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
+  ) {}
 
   async getProfile(username: string) {
     const user = await this.prisma.user.findUnique({
@@ -28,7 +32,7 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    return this.prisma.user.update({
+    const result = await this.prisma.user.update({
       where: { id: userId },
       data: {
         ...(dto.bio !== undefined && { bio: dto.bio }),
@@ -57,6 +61,10 @@ export class ProfileService {
         updatedAt: true,
       },
     });
+    if (dto.timezone !== undefined) {
+      this.scheduledReminders?.recalculateForUser(userId).catch(() => {});
+    }
+    return result;
   }
 
   async deleteAccount(userId: string) {

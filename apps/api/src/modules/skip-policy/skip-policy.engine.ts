@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 export interface SkipStatus {
   policyType: string;
@@ -37,7 +38,10 @@ export interface SkipStatus {
 
 @Injectable()
 export class SkipPolicyEngine {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
+  ) {}
 
   // ─── Public API ────────────────────────────────────────────────────
 
@@ -379,6 +383,7 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
   }
 
@@ -434,6 +439,7 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     // Unskip deadline: earliest remaining skipped month
     const earliestSkipped = skippedMonths.length > 0
       ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)

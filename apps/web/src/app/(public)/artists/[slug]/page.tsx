@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -157,15 +156,7 @@ export default async function ArtistPage({ params }: Props) {
         <div className="flex items-center gap-3 mb-6">
           <h2 className="text-2xl font-serif font-semibold text-stone-100">Artwork &amp; Contributions</h2>
         </div>
-        <Suspense fallback={
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
-            ))}
-          </div>
-        }>
-          <ArtistContributionsSection artistSlug={artist.slug} />
-        </Suspense>
+        <ArtistContributionsSection artistSlug={artist.slug} />
       </div>
     </div>
   )
