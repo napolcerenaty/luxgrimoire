@@ -26,7 +26,7 @@ export default function ConsentPage() {
       // Refresh user info so needsConsent is cleared
       const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' }).then(r => r.json())
       auth.login(me)
-      router.replace('/calendar')
+      router.replace('/')
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
