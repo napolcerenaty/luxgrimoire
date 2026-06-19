@@ -51,13 +51,7 @@ function FeatureCard({ feature }: { feature: HomepageFeature }) {
         <FeatureIcon name={feature.iconName} />
       </div>
       <h3 className="mb-2 font-serif text-lg text-stone-100">{feature.title}</h3>
-      <p className="mb-4 text-sm leading-relaxed text-stone-400">{feature.description}</p>
-      <Link
-        href={feature.ctaHref}
-        className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400"
-      >
-        {feature.ctaLabel} →
-      </Link>
+      <p className="text-sm leading-relaxed text-stone-400">{feature.description}</p>
     </div>
   )
 }
@@ -82,6 +76,14 @@ export async function HomeFeaturesSection() {
       </div>
       <div className="scrollbar-none flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:px-8 lg:flex-wrap lg:justify-center lg:overflow-visible">
         {features.map((feature) => <FeatureCard key={feature.id} feature={feature} />)}
+      </div>
+      <div className="mt-6 flex justify-center">
+        <Link
+          href="/register"
+          className="rounded-full bg-amber-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+        >
+          Get started free →
+        </Link>
       </div>
     </section>
   )
