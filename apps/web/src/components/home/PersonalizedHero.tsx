@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { API_BASE } from '@/lib/authFetch'
+import { SaleRowCountdown } from './SaleRowCountdown'
 
 interface UpcomingSale {
   announcementId: string
@@ -39,22 +40,14 @@ async function getUpcomingSales(cookieHeader: string): Promise<UpcomingSale[]> {
   }
 }
 
-function formatSaleDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  const now = new Date()
-  const diffDays = Math.ceil((d.getTime() - now.getTime()) / 86400000)
-  if (diffDays <= 0) return 'today'
-  if (diffDays === 1) return 'tomorrow'
-  if (diffDays <= 7) return `in ${diffDays} days`
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
 function HeroShell({
   welcome,
   upcomingSales,
+  isLoggedIn = false,
 }: {
   welcome?: ReactNode
   upcomingSales?: UpcomingSale[]
+  isLoggedIn?: boolean
 }) {
   const hasSales = upcomingSales && upcomingSales.length > 0
 
@@ -81,25 +74,28 @@ function HeroShell({
 
         {hasSales ? (
           <div className="mx-auto mb-7 max-w-lg">
-            <p className="mb-3 text-xs uppercase tracking-widest text-stone-500">Your upcoming sales</p>
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Your upcoming sales
+            </p>
             <div className="flex flex-col gap-1.5">
-              {upcomingSales!.map((s) => (
+              {upcomingSales!.map((s, i) => (
                 <Link
                   key={s.announcementId}
                   href={`/sale-announcements/${s.announcement.id}`}
-                  className="flex items-center justify-between rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-amber-700/50 hover:bg-stone-800/60"
+                  className="flex items-center justify-between rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
                 >
                   <span className="truncate text-sm text-stone-200">{s.announcement.title}</span>
                   {s.announcement.generalSaleDate && (
-                    <span className="ml-3 shrink-0 text-xs font-semibold text-amber-400">
-                      {formatSaleDate(s.announcement.generalSaleDate)}
-                    </span>
+                    <SaleRowCountdown dateStr={s.announcement.generalSaleDate} isFirst={i === 0} />
                   )}
                 </Link>
               ))}
             </div>
-            <Link href="/wishlist" className="mt-2 inline-block text-xs text-stone-500 transition-colors hover:text-stone-300">
-              View all in wishlist →
+            <Link
+              href="/wishlist?tab=sales"
+              className="mt-2 inline-block text-[11px] text-stone-500 transition-colors hover:text-stone-300"
+            >
+              View all followed sales →
             </Link>
           </div>
         ) : (
@@ -109,20 +105,22 @@ function HeroShell({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/companies"
-            className="rounded-full bg-amber-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
-          >
-            Browse Book Boxes
-          </Link>
-          <Link
-            href="/subscriptions"
-            className="rounded-full border border-stone-600 px-6 py-3 font-serif text-sm text-stone-300 transition-colors hover:border-stone-400 hover:text-stone-100"
-          >
-            Browse Subscriptions
-          </Link>
-        </div>
+        {!isLoggedIn && (
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/companies"
+              className="rounded-full bg-amber-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+            >
+              Browse Book Boxes
+            </Link>
+            <Link
+              href="/subscriptions"
+              className="rounded-full border border-stone-600 px-6 py-3 font-serif text-sm text-stone-300 transition-colors hover:border-stone-400 hover:text-stone-100"
+            >
+              Browse Subscriptions
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -145,6 +143,7 @@ export async function PersonalizedHero() {
         </p>
       }
       upcomingSales={upcomingSales}
+      isLoggedIn={true}
     />
   )
 }

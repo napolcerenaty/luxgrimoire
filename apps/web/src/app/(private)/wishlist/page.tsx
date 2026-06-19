@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
@@ -109,7 +110,10 @@ const OWNERSHIP_OPTIONS = [
 export default function WishlistPage() {
   const queryClient = useQueryClient()
   const getBrandColors = useBrandColors()
-  const [activeTab, setActiveTab] = useState<'wishlist' | 'sales'>('wishlist')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'wishlist' | 'sales'>(() =>
+    searchParams.get('tab') === 'sales' ? 'sales' : 'wishlist'
+  )
   const [moveEntry, setMoveEntry] = useState<CollectionEntry | null>(null)
 
   const [addModalSale, setAddModalSale] = useState<ApiSaleAnnouncement | null>(null)

@@ -87,7 +87,7 @@ function GenericHero() {
 
 async function getHomeData() {
   const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales] = await Promise.all([
-    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=12').catch(() => null),
+    apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=20&sort=date').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
     fetchCachedPublic<ApiPlatformStats>('/platform/stats').catch(() => null),
     fetchCachedPublic<ApiTrendingEdition[]>('/editions/trending?limit=8').catch(() => null),
