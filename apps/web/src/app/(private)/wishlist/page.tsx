@@ -117,8 +117,7 @@ export default function WishlistPage() {
 
   // Sale interests filters
   const [companyFilter, setCompanyFilter] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
 
   const openAddModal = async (announcementId: string) => {
     setAddModalLoading(announcementId)
@@ -153,21 +152,21 @@ export default function WishlistPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [saleInterests])
 
-  const hasFilters = companyFilter || dateFrom || dateTo
+  const hasFilters = !!companyFilter || timeFilter !== 'all'
 
   const filteredInterests = useMemo(() => {
-    if (!hasFilters) return saleInterests
+    const now = new Date()
     return saleInterests.filter((interest) => {
       if (companyFilter && interest.announcement.company.id !== companyFilter) return false
-      if (dateFrom || dateTo) {
+      if (timeFilter !== 'all') {
         const d = getEffectiveDate(interest)
-        const dateStr = d ? d.slice(0, 10) : null
-        if (dateFrom && (!dateStr || dateStr < dateFrom)) return false
-        if (dateTo && (!dateStr || dateStr > dateTo)) return false
+        const saleDate = d ? new Date(d) : null
+        if (timeFilter === 'upcoming' && (!saleDate || saleDate <= now)) return false
+        if (timeFilter === 'past' && (!saleDate || saleDate > now)) return false
       }
       return true
     })
-  }, [saleInterests, companyFilter, dateFrom, dateTo, hasFilters])
+  }, [saleInterests, companyFilter, timeFilter])
 
   const removeSaleInterestMutation = useMutation({
     mutationFn: (announcementId: string) => authFetch<void>(`/sale-interests/${announcementId}`, { method: 'DELETE' }),
@@ -362,11 +361,26 @@ export default function WishlistPage() {
           <>
             {/* Filters */}
             <div className="flex flex-wrap gap-3 mb-4">
+              {/* Time filter */}
+              <div className="flex rounded-xl border border-stone-700 overflow-hidden text-sm">
+                {(['upcoming', 'all', 'past'] as const).map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setTimeFilter(val)}
+                    className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
+                      timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                    }`}
+                  >
+                    {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
+                  </button>
+                ))}
+              </div>
+
               {/* Company filter */}
               <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
+                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
               >
                 <option value="">All companies</option>
                 {filterCompanies.map((c) => (
@@ -374,36 +388,12 @@ export default function WishlistPage() {
                 ))}
               </select>
 
-              {/* Date from */}
-              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
-                <span className="shrink-0 text-stone-500 text-xs">From</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  title="Sale date from"
-                  className="bg-transparent text-stone-300 focus:outline-none"
-                />
-              </label>
-
-              {/* Date to */}
-              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
-                <span className="shrink-0 text-stone-500 text-xs">To</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  title="Sale date to"
-                  className="bg-transparent text-stone-300 focus:outline-none"
-                />
-              </label>
-
-              {hasFilters && (
+              {(companyFilter || timeFilter !== 'all') && (
                 <button
-                  onClick={() => { setCompanyFilter(''); setDateFrom(''); setDateTo('') }}
-                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2.5 rounded-xl transition-colors"
+                  onClick={() => { setCompanyFilter(''); setTimeFilter('upcoming') }}
+                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2 rounded-xl transition-colors"
                 >
-                  <X size={12} /> Clear
+                  <X size={12} /> Reset
                 </button>
               )}
             </div>
@@ -411,10 +401,7 @@ export default function WishlistPage() {
             {/* Active filter chips */}
             {hasFilters && (
               <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <span className="text-xs text-stone-500">Filtered:</span>
                 {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
-                {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
-                {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
                 <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
               </div>
             )}
