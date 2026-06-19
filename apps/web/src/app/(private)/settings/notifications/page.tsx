@@ -14,7 +14,6 @@ interface NotificationPreferences {
 }
 
 interface ReminderSettings {
-  appNotifInAppEnabled: boolean
   appNotifPushEnabled: boolean
 }
 

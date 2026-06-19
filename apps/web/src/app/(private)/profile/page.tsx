@@ -937,7 +937,6 @@ interface ReminderSettings {
   saleDaysBefore: number
   saleMinutesBefore: number | null
   saleDigest: boolean
-  appNotifInAppEnabled: boolean
   appNotifPushEnabled: boolean
 }
 
@@ -1010,7 +1009,7 @@ function NotificationsTab() {
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
     saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
-    appNotifInAppEnabled: true, appNotifPushEnabled: false,
+    appNotifPushEnabled: false,
   }
 
   return (

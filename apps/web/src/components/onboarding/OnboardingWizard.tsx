@@ -109,7 +109,6 @@ export function OnboardingWizard() {
           saleInAppEnabled: notifSaleInApp,
           salePushEnabled: notifSalePush,
           saleMinutesBefore: notifsaleMinutesBefore,
-          appNotifInAppEnabled: true,
           appNotifPushEnabled: notifAppPush,
         }),
       })
