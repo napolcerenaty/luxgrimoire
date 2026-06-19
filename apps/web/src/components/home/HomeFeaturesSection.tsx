@@ -47,10 +47,12 @@ function FeatureIcon({ name }: { name: string }) {
 function FeatureCard({ feature }: { feature: HomepageFeature }) {
   return (
     <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-amber-700/40 sm:w-80">
-      <div className="mb-4 w-fit rounded-xl bg-stone-800 p-3 text-amber-400">
-        <FeatureIcon name={feature.iconName} />
+      <div className="mb-3 flex items-center gap-3">
+        <div className="shrink-0 rounded-xl bg-stone-800 p-3 text-amber-400">
+          <FeatureIcon name={feature.iconName} />
+        </div>
+        <h3 className="font-serif text-lg leading-snug text-stone-100">{feature.title}</h3>
       </div>
-      <h3 className="mb-2 font-serif text-lg text-stone-100">{feature.title}</h3>
       <p className={`text-sm leading-relaxed text-stone-400 ${feature.ctaHref ? 'mb-4' : ''}`}>
         {feature.description}
       </p>
