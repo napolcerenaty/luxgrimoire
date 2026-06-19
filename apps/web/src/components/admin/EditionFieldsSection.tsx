@@ -819,9 +819,7 @@ export function EditionFieldsSection({
   return (
     <div className="space-y-4">
       {/* Company + price */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LBL}>Company (book box)</label>
+      <div className="grid sm:grid-cols-2 gap-3">
           <select value={companyId} onChange={e => {
             const id = e.target.value
             onCompanyChange(id)
@@ -879,9 +877,7 @@ export function EditionFieldsSection({
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label className={LBL}>First access</label>
+      <div className="grid sm:grid-cols-3 gap-3">
           <input type="date" value={firstAccessDate} onChange={e => onFirstAccessDateChange(e.target.value)} className={INP} />
         </div>
         <div>
@@ -924,7 +920,7 @@ export function EditionFieldsSection({
         {artists.length > 0 && (
           <div className="space-y-2">
             {artists.map((art, i) => (
-              <div key={i} className="flex gap-2 items-start">
+              <div key={i} className="flex flex-col sm:flex-row gap-2 items-start">
                 <div className="flex-1">
                   {art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">

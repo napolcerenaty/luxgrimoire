@@ -799,7 +799,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3">
         <div>
           <label className={LBL}>First Access Date &amp; Time</label>
           <input type="datetime-local" className={INP} value={form.firstAccessDate} onChange={set('firstAccessDate')} />
@@ -1114,7 +1114,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
 
             return (
               <div key={r.id} className="bg-stone-800/50 rounded-lg p-3">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-stone-200 font-medium">{r.name}</span>
@@ -1794,9 +1794,9 @@ export default function AdminSaleAnnouncementsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Sale Announcements</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-start gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-stone-100 mr-auto">Sale Announcements</h1>
+        <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setShowAiModal(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700 hover:border-stone-600 transition-colors">
             <Sparkles size={14} className="text-amber-400" />

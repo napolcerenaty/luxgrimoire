@@ -162,12 +162,12 @@ export default function AdminFeatureRequestsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex flex-wrap items-start gap-3 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-stone-100">Feature Requests</h1>
           <p className="text-stone-500 text-sm mt-0.5">Review community suggestions and manage the public voting list</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {['', 'pending', 'accepted', 'implemented', 'rejected'].map(s => (
             <button key={s}
               onClick={() => setStatusFilter(s)}
