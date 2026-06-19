@@ -56,7 +56,7 @@ export class CrowdStatsController {
   @Public()
   @Get('platform/stats')
   async getPlatformStats() {
-    const cacheKey = 'platform:stats';
+    const cacheKey = 'platform:stats:v2';
     const cached = await this.cache.get<{
       editionsCount: number;
       companiesCount: number;
