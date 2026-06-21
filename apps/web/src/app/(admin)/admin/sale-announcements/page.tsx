@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import type { ApiSaleAnnouncement, ApiBookBoxCompany } from '@luxgrimoire/shared-types'
+import type { ApiSaleAnnouncement, ApiBookBoxCompany, SaleType } from '@luxgrimoire/shared-types'
 import {
   adminGetSaleAnnouncements,
   adminCreateSaleAnnouncement,
@@ -18,6 +18,10 @@ import {
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
   adminDuplicateSaleAnnouncement,
+  adminCreateAnnouncementItem,
+  adminUpdateAnnouncementItem,
+  adminDeleteAnnouncementItem,
+  adminAssignEditionToItem,
   type SaleAnnouncementFormData,
 } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -679,6 +683,7 @@ interface FormState {
   generalSaleDate: string
   firstAccessDate: string
   earlyAccessDate: string
+  endsAt: string
   saleTimezone: string
   basePrice: string
   currency: string
@@ -688,6 +693,9 @@ interface FormState {
   expectedShipping: string
   photoCredit: string
   sourceUrl: string
+  saleType: SaleType
+  isSoldOut: boolean
+  notes: string
 }
 
 const EMPTY_FORM: FormState = {
@@ -696,6 +704,7 @@ const EMPTY_FORM: FormState = {
   generalSaleDate: '',
   firstAccessDate: '',
   earlyAccessDate: '',
+  endsAt: '',
   saleTimezone: 'UTC',
   basePrice: '',
   currency: 'USD',
@@ -705,6 +714,9 @@ const EMPTY_FORM: FormState = {
   expectedShipping: '',
   photoCredit: '',
   sourceUrl: '',
+  saleType: 'LIMITED_PREORDER',
+  isSoldOut: false,
+  notes: '',
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
@@ -720,6 +732,7 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
     firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
     earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
+    endsAt: utcIsoToTzLocal(a.endsAt, tz),
     saleTimezone: a.saleTimezone ?? 'UTC',
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? 'USD',
@@ -729,6 +742,9 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     expectedShipping: (a as any).expectedShipping ?? '',
     photoCredit: a.photoCredit ?? '',
     sourceUrl: (a as any).sourceUrl ?? '',
+    saleType: a.saleType ?? 'LIMITED_PREORDER',
+    isSoldOut: a.isSoldOut ?? false,
+    notes: a.notes ?? '',
   }
 }
 
@@ -740,6 +756,7 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : null,
     firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : null,
     earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : null,
+    endsAt: f.endsAt ? tzLocalToUtcIso(f.endsAt, tz) : null,
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
     currency: f.currency || undefined,
@@ -750,6 +767,9 @@ function formToData(f: FormState): SaleAnnouncementFormData {
     expectedShipping: f.expectedShipping || undefined,
     photoCredit: f.photoCredit,
     sourceUrl: f.sourceUrl || undefined,
+    saleType: f.saleType,
+    isSoldOut: f.isSoldOut,
+    notes: f.notes || null,
   }
 }
 
@@ -809,8 +829,12 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
         </div>
         <div>
-          <label className={LBL}>General Sale Date &amp; Time</label>
-          <input type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
+          <label className={LBL}>General Sale Date &amp; Time *</label>
+          <input required type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
+        </div>
+        <div>
+          <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
+          <input type="datetime-local" className={INP} value={form.endsAt} onChange={set('endsAt')} />
         </div>
         <div>
           <label className={LBL}>Timezone</label>
@@ -900,6 +924,31 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-amber-400" />
           <span>Is Bundle <span className="text-stone-500">— multiple editions sold together as a set</span></span>
         </label>
+        <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+          <input type="checkbox" checked={form.isSoldOut} onChange={setCheck('isSoldOut')} className="accent-red-400" />
+          <span>Sold Out</span>
+        </label>
+      </div>
+
+      {/* Sale Type */}
+      <div>
+        <label className={LBL}>Sale Type</label>
+        <select className={INP} value={form.saleType} onChange={set('saleType')}>
+          <option value="LIMITED_PREORDER">Limited Preorder</option>
+          <option value="OPEN_PREORDER">Open Preorder</option>
+          <option value="OVERSTOCK">Overstock / In Stock</option>
+        </select>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className={LBL}>Notes <span className="text-stone-600 font-normal">(optional — supports links)</span></label>
+        <textarea
+          className={`${INP} min-h-[80px] resize-y`}
+          value={form.notes}
+          onChange={set('notes')}
+          placeholder="Additional notes, links, or details…"
+        />
       </div>
 
       <button type="submit" disabled={submitting}
@@ -920,6 +969,7 @@ interface RegionFormData {
   firstAccessDate: string
   earlyAccessDate: string
   endsAt: string
+  isSoldOut: boolean
   saleTimezone: string
   basePrice: string
   currency: string
@@ -929,6 +979,7 @@ interface RegionFormData {
 const EMPTY_REGION: RegionFormData = {
   name: '', countryCodes: '', isDefault: false,
   generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
+  isSoldOut: false,
   saleTimezone: 'UTC', basePrice: '', currency: '', subscriberBasePrice: '',
 }
 
@@ -939,6 +990,7 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
     generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
     firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
     earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
+    endsAt: utcIsoToTzLocal(a.endsAt, tz),
     saleTimezone: tz,
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
     currency: a.currency ?? '',
@@ -960,6 +1012,7 @@ function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): Region
     firstAccessDate: utcIsoToTzLocal(r.firstAccessDate, tz),
     earlyAccessDate: utcIsoToTzLocal(r.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(r.endsAt, tz),
+    isSoldOut: r.isSoldOut ?? false,
     saleTimezone: tz,
     basePrice: r.basePrice != null ? String(r.basePrice) : '',
     currency: r.currency ?? '',
@@ -989,6 +1042,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         firstAccessDate: form.firstAccessDate ? tzLocalToUtcIso(form.firstAccessDate, rTz) : null,
         earlyAccessDate: form.earlyAccessDate ? tzLocalToUtcIso(form.earlyAccessDate, rTz) : null,
         endsAt: form.endsAt ? tzLocalToUtcIso(form.endsAt, rTz) : null,
+        isSoldOut: form.isSoldOut,
         saleTimezone: form.saleTimezone || null,
         basePrice: form.basePrice ? parseDecimalInput(form.basePrice) : null,
         currency: form.currency || null,
@@ -1032,6 +1086,10 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
           <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-amber-400" />
           Default region (catch-all for unmatched countries)
+        </label>
+        <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+          <input type="checkbox" checked={f.isSoldOut} onChange={e => setF(p => ({ ...p, isSoldOut: e.target.checked }))} className="accent-red-400" />
+          Sold out in this region
         </label>
         <div className="space-y-2">
           <div>
@@ -1402,6 +1460,145 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   )
 }
 
+// ─── Announcement Items Panel (for OVERSTOCK grouping) ────────────────────────
+function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [newItemName, setNewItemName] = useState('')
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+
+  const items = announcement.items ?? []
+  const editions = announcement.editions ?? []
+
+  const createMutation = useMutation({
+    mutationFn: (name: string) => adminCreateAnnouncementItem(announcement.id, { name: name || undefined }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); setNewItemName('') },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ itemId, name }: { itemId: string; name: string }) => adminUpdateAnnouncementItem(announcement.id, itemId, { name }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }); setEditingItemId(null) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (itemId: string) => adminDeleteAnnouncementItem(announcement.id, itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: ({ editionId, itemId }: { editionId: string; itemId: string | null }) => adminAssignEditionToItem(announcement.id, editionId, itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  return (
+    <div className="border-t border-stone-700 mt-0">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 text-sm text-stone-400">
+          📦 Item Groups (Overstock)
+          {items.length > 0 && (
+            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">{items.length}</span>
+          )}
+        </span>
+        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <p className="text-xs text-stone-500">Group editions into purchasable bundles within this sale. Editions not assigned to a group are sold individually.</p>
+
+          {/* Existing items */}
+          {items.map(item => {
+            const itemEditions = editions.filter(e => e.itemId === item.id)
+            const unassigned = editions.filter(e => !e.itemId)
+            return (
+              <div key={item.id} className="bg-stone-800/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  {editingItemId === item.id ? (
+                    <>
+                      <input
+                        className="flex-1 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && updateMutation.mutate({ itemId: item.id, name: editingName })}
+                      />
+                      <button type="button" onClick={() => updateMutation.mutate({ itemId: item.id, name: editingName })}
+                        className="text-xs text-amber-400 hover:text-amber-300 px-2">Save</button>
+                      <button type="button" onClick={() => setEditingItemId(null)}
+                        className="text-xs text-stone-500 hover:text-stone-300 px-1">Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-xs font-medium text-stone-200">{item.name || `Group ${item.sortOrder + 1}`}</span>
+                      <button type="button" onClick={() => { setEditingItemId(item.id); setEditingName(item.name ?? '') }}
+                        className="text-xs text-stone-400 hover:text-stone-200">Rename</button>
+                      <button type="button" onClick={() => deleteMutation.mutate(item.id)}
+                        className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                    </>
+                  )}
+                </div>
+                <div className="text-xs text-stone-500">
+                  Editions in this group: {itemEditions.length === 0 ? 'none' : itemEditions.map(e => e.edition?.book?.title ?? 'Unknown').join(', ')}
+                </div>
+                {/* Assign editions to this group */}
+                {unassigned.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-stone-600">Add to group:</div>
+                    {unassigned.map(e => (
+                      <button key={e.editionId} type="button"
+                        onClick={() => assignMutation.mutate({ editionId: e.editionId, itemId: item.id })}
+                        className="block text-xs text-sky-400 hover:text-sky-300"
+                      >
+                        + {e.edition?.book?.title ?? 'Unknown'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Remove from group */}
+                {itemEditions.length > 0 && (
+                  <div className="space-y-1">
+                    {itemEditions.map(e => (
+                      <button key={e.editionId} type="button"
+                        onClick={() => assignMutation.mutate({ editionId: e.editionId, itemId: null })}
+                        className="block text-xs text-red-400 hover:text-red-300"
+                      >
+                        − {e.edition?.book?.title ?? 'Unknown'} (remove from group)
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Add new group */}
+          <div className="flex gap-2 items-center">
+            <input
+              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+              placeholder="New group name (optional)…"
+              value={newItemName}
+              onChange={e => setNewItemName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createMutation.mutate(newItemName)}
+            />
+            <button type="button" onClick={() => createMutation.mutate(newItemName)}
+              disabled={createMutation.isPending}
+              className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-2 py-1.5 rounded-lg hover:bg-amber-500/10 transition-colors disabled:opacity-50">
+              + Add Group
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Announcement Card ────────────────────────────────────────────────────────
 function AnnouncementCard({
   announcement,
@@ -1466,6 +1663,28 @@ function AnnouncementCard({
               })()}
               {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
               {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
+              {(() => {
+                const typeLabels: Record<string, string> = {
+                  LIMITED_PREORDER: '⏳ Limited Preorder',
+                  OPEN_PREORDER: '🔓 Open Preorder',
+                  OVERSTOCK: '📦 Overstock',
+                }
+                const typeColors: Record<string, string> = {
+                  LIMITED_PREORDER: 'bg-violet-500/15 text-violet-300',
+                  OPEN_PREORDER: 'bg-sky-500/15 text-sky-300',
+                  OVERSTOCK: 'bg-emerald-500/15 text-emerald-300',
+                }
+                const type = (announcement as any).saleType
+                if (!type) return null
+                return (
+                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${typeColors[type] ?? 'bg-stone-700 text-stone-400'}`}>
+                    {typeLabels[type] ?? type}
+                  </span>
+                )
+              })()}
+              {(announcement as any).isSoldOut && (
+                <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 bg-red-500/15 text-red-400">Sold Out</span>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
@@ -1485,6 +1704,7 @@ function AnnouncementCard({
         </div>
       </div>
       <AnnouncementBooksPanel announcement={announcement} />
+      {(announcement as any).saleType === 'OVERSTOCK' && <AnnouncementItemsPanel announcement={announcement} />}
       <AnnouncementRegionsPanel announcement={announcement} />
     </div>
   )
@@ -1510,6 +1730,8 @@ interface AiSaleResult {
   companyName?: string
   subscriberBasePrice?: number
   expectedShipping?: string
+  saleType?: SaleType
+  endsAt?: string
   regions?: AiSaleRegion[]
 }
 
@@ -1607,10 +1829,22 @@ function AiSaleParseModal({ onApply, onClose }: {
                   <p className="text-stone-100 font-medium">{result.title}</p>
                 </div>
               )}
+              {result.saleType && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Sale Type</p>
+                  <p className="text-stone-300">{{ LIMITED_PREORDER: 'Limited Preorder', OPEN_PREORDER: 'Open Preorder', OVERSTOCK: 'Overstock' }[result.saleType] ?? result.saleType}</p>
+                </div>
+              )}
               {result.expectedShipping && (
                 <div>
                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Expected shipping</p>
                   <p className="text-stone-300">{result.expectedShipping}</p>
+                </div>
+              )}
+              {result.endsAt && (
+                <div>
+                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Ends At</p>
+                  <p className="text-stone-300">{new Date(result.endsAt).toLocaleString('en-GB')} UTC</p>
                 </div>
               )}
               {result.regions && result.regions.length > 0 && (
@@ -1669,6 +1903,7 @@ export default function AdminSaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
+  const [saleTypeFilter, setSaleTypeFilter] = useState<SaleType | ''>('')
 
   // AI parse state
   const { isOpen: showAiModal, setIsOpen: setShowAiModal } = useModalState()
@@ -1682,8 +1917,8 @@ export default function AdminSaleAnnouncementsPage() {
   }, [search])
 
   const { data: saData, isLoading } = useQuery({
-    queryKey: ['admin', 'sale-announcements', page, debouncedSearch, companyFilter],
-    queryFn: () => adminGetSaleAnnouncements({ page, pageSize: 10, search: debouncedSearch || undefined, companyId: companyFilter || undefined }),
+    queryKey: ['admin', 'sale-announcements', page, debouncedSearch, companyFilter, saleTypeFilter],
+    queryFn: () => adminGetSaleAnnouncements({ page, pageSize: 10, search: debouncedSearch || undefined, companyId: companyFilter || undefined, saleType: saleTypeFilter || undefined }),
     placeholderData: keepPreviousData,
   })
   const announcements = saData?.data ?? []
@@ -1778,12 +2013,16 @@ export default function AdminSaleAnnouncementsPage() {
       firstAccessDate: defaultRegion?.firstAccessDate ? utcIsoToTzLocal(defaultRegion.firstAccessDate, tz) : '',
       earlyAccessDate: defaultRegion?.earlyAccessDate ? utcIsoToTzLocal(defaultRegion.earlyAccessDate, tz) : '',
       generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
+      endsAt: result.endsAt ? utcIsoToTzLocal(result.endsAt, tz) : '',
       basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
       currency: defaultRegion?.currency ?? 'USD',
       subscriberBasePrice: (defaultRegion as any)?.subscriberBasePrice != null
         ? String((defaultRegion as any).subscriberBasePrice)
         : result.subscriberBasePrice != null ? String(result.subscriberBasePrice) : '',
       sourceUrl: sourceUrl ?? '',
+      saleType: result.saleType ?? 'LIMITED_PREORDER',
+      isSoldOut: false,
+      notes: '',
     }
     setCreateInitial(newInitial)
     setCreateFormKey(k => k + 1)
@@ -1850,8 +2089,18 @@ export default function AdminSaleAnnouncementsPage() {
           <option value="">All companies</option>
           {allCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        {(search || companyFilter) && (
-          <button onClick={() => { setSearch(''); setCompanyFilter(''); setPage(1) }}
+        <select
+          value={saleTypeFilter}
+          onChange={e => { setSaleTypeFilter(e.target.value as SaleType | ''); setPage(1) }}
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400 text-sm"
+        >
+          <option value="">All types</option>
+          <option value="LIMITED_PREORDER">Limited Preorder</option>
+          <option value="OPEN_PREORDER">Open Preorder</option>
+          <option value="OVERSTOCK">Overstock</option>
+        </select>
+        {(search || companyFilter || saleTypeFilter) && (
+          <button onClick={() => { setSearch(''); setCompanyFilter(''); setSaleTypeFilter(''); setPage(1) }}
             className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2">Clear</button>
         )}
       </div>

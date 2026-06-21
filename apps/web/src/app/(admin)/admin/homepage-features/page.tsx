@@ -217,7 +217,7 @@ export default function HomepageFeaturesAdminPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<FeatureFormState> }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<FeatureFormState> & { ctaLabel?: string | null; ctaHref?: string | null } }) =>
       authFetch<HomepageFeature>(`/homepage-features/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
@@ -384,8 +384,8 @@ export default function HomepageFeaturesAdminPage() {
             onCancel={() => setEditing(null)}
             onSubmit={(payload) => updateMutation.mutate({ id: editing.id, payload: {
               ...payload,
-              ctaLabel: payload.ctaLabel.trim() || null,
-              ctaHref: payload.ctaHref.trim() || null,
+              ctaLabel: payload.ctaLabel.trim() || null as unknown as string,
+              ctaHref: payload.ctaHref.trim() || null as unknown as string,
             } })}
           />
         )}

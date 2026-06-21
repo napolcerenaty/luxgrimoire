@@ -21,6 +21,8 @@ export interface AiSaleAnnouncementResult {
   companyName?: string;
   subscriberBasePrice?: number;
   expectedShipping?: string;
+  saleType?: 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+  endsAt?: string;
   regions?: AiSaleRegion[];
 }
 
@@ -252,6 +254,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
   "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
   "subscriberBasePrice": 22.00,
   "expectedShipping": "e.g. November/December 2025",
+  "saleType": "LIMITED_PREORDER | OPEN_PREORDER | OVERSTOCK",
+  "endsAt": "ISO 8601 local datetime when the sale closes, no Z suffix",
   "regions": [
     {
       "name": "region name, e.g. UK/INT or US/Canada",
@@ -313,6 +317,17 @@ REGION RULES:
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
 - Include year if determinable from context (current year is 2026)
+
+SALE TYPE RULES:
+- LIMITED_PREORDER: a preorder that is limited in quantity and/or time — phrases like "limited edition", "limited slots", "only X copies", "while stocks last", "preorder closes [date]", "sold out when gone"
+- OPEN_PREORDER: an open preorder with no stated quantity limit but with a set end date — phrases like "order by [date]", "preorder window closes", "open until [date]"
+- OVERSTOCK: in-stock/clearance items available to buy immediately — phrases like "available now", "ships immediately", "in stock", "overstock", "warehouse clearance", "buy now"
+- Default to LIMITED_PREORDER if a preorder but no other signals
+
+ENDS AT RULES:
+- Extract the date/time when the sale closes (e.g. "orders close on 15 July at 11pm BST", "preorder ends 31 Jan 2026")
+- Use the same LOCAL-time format as other dates (no Z suffix); the saleTimezone field in the matching region indicates the timezone
+- If no explicit close date is mentioned, omit endsAt
 
 For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
@@ -398,6 +413,8 @@ function localToUtcIso(localStr: string, tz: string): string {
  * using the saleTimezone, resolving ambiguous US abbreviations (ET→EDT/EST etc).
  */
 function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSaleAnnouncementResult {
+  // Use the timezone from the first/default region (or UTC) for top-level endsAt
+  const globalTz = result.regions?.[0]?.saleTimezone ?? 'UTC'
   const convertRegion = (r: AiSaleRegion): AiSaleRegion => {
     const tz = r.saleTimezone ?? 'UTC'
     const resolved = r.firstAccessDate ? resolveUsDst(tz, r.firstAccessDate) :
@@ -413,6 +430,7 @@ function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSal
   }
   return {
     ...result,
+    endsAt: result.endsAt ? localToUtcIso(result.endsAt, globalTz) : result.endsAt,
     regions: result.regions?.map(convertRegion),
   }
 }
