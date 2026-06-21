@@ -297,6 +297,9 @@ function EditSaleModal({
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
       setSuccess(true)
       setTimeout(() => { onClose(); setSuccess(false) }, 1000)
     } catch (err) {
@@ -528,6 +531,9 @@ export default function SoldPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sale-groups-page'] })
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
     },
   })
 
