@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    webpackMemoryOptimizations: true,
   },
   images: {
     remotePatterns: [
@@ -45,6 +46,13 @@ const nextConfig: NextConfig = {
         hostname: 'flagcdn.com',
       },
     ],
+  },
+  // Limit webpack parallelism to avoid saturating build servers
+  webpack(config, { isServer }) {
+    if (process.env.NEXT_WEBPACK_PARALLELISM) {
+      config.parallelism = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    }
+    return config
   },
   async headers() {
     return [
@@ -69,5 +77,11 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.SENTRY_DSN,
   tunnelRoute: '/monitoring',
   sourcemaps: { disable: !process.env.SENTRY_DSN },
+  // Reduce build overhead
+  disableLogger: true,
+  autoInstrumentServerFunctions: false,
+  autoInstrumentMiddleware: false,
+  // Skip Sentry instrumentation entirely if no DSN (speeds up CI/Docker builds)
+  ...(process.env.SENTRY_DSN ? {} : { disableClientWebpackPlugin: true, disableServerWebpackPlugin: true }),
 });
 

@@ -206,7 +206,7 @@ export function Navbar() {
             </div>
           ) : (
             <Link
-              href="/login"
+              href={`/login${pathname && !pathname.startsWith('/login') && !pathname.startsWith('/register') ? `?returnTo=${encodeURIComponent(pathname)}` : ''}`}
               className="px-4 py-1.5 rounded-full border border-amber-700 text-amber-400 hover:bg-amber-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
             >
               Sign in

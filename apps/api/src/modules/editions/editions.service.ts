@@ -21,6 +21,21 @@ import { MediaAssetsService } from '../media-assets/media-assets.service';
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
 const companyEditionsColCountKey = (slug: string, colId: string) => `companies:slug:${slug}:editions:col:${colId}:count`;
+const TRENDING_TTL = 60 * 60 * 1000;
+
+type TrendingEditionResult = {
+  id: string;
+  slug: string;
+  additionalImages: string[];
+  book: {
+    title: string;
+    seriesName: string | null;
+    volumeNumber: number | null;
+    authors: Array<{ id: string; name: string; slug: string }>;
+  } | null;
+  bookBoxCompany: { name: string; slug: string; brandColors: string[] } | null;
+  wishlistCount: number;
+};
 
 @Injectable()
 export class EditionsService {
@@ -411,6 +426,94 @@ export class EditionsService {
     });
 
     return { data: flatData, ...buildPageMeta(total, page, pageSize) };
+  }
+
+  async findTrending(limit = 8) {
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 24)) : 8;
+    const cacheKey = `editions:trending:${safeLimit}`;
+    const cached = await this.cache.get<TrendingEditionResult[]>(cacheKey);
+    if (cached) return cached;
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const grouped = await this.prisma.userBookEntry.groupBy({
+      by: ['editionId'],
+      where: {
+        isWishlist: true,
+        createdAt: { gte: sevenDaysAgo },
+      },
+      _count: { editionId: true },
+      orderBy: { _count: { editionId: 'desc' } },
+      take: safeLimit,
+    });
+
+    if (grouped.length === 0) {
+      await this.cache.set(cacheKey, [], TRENDING_TTL);
+      return [];
+    }
+
+    const ids = grouped.map((item) => item.editionId).filter((id): id is string => Boolean(id));
+
+    if (ids.length === 0) {
+      await this.cache.set(cacheKey, [], TRENDING_TTL);
+      return [];
+    }
+    const editions = await this.prisma.bookEdition.findMany({
+      where: {
+        id: { in: ids },
+        verifiedAt: { not: null },
+      },
+      select: {
+        id: true,
+        slug: true,
+        additionalImages: true,
+        book: {
+          select: {
+            title: true,
+            seriesName: true,
+            volumeNumber: true,
+            authors: {
+              include: {
+                author: {
+                  select: { id: true, name: true, slug: true },
+                },
+              },
+            },
+          },
+        },
+        bookBoxCompany: {
+          select: { name: true, slug: true, brandColors: true },
+        },
+      },
+    });
+
+    const countsById = new Map(grouped.map((item, index) => [
+      item.editionId,
+      { count: item._count.editionId, index },
+    ]));
+
+    const result = editions
+      .map((edition) => {
+        const meta = countsById.get(edition.id);
+        if (!meta) return null;
+        return {
+          id: edition.id,
+          slug: edition.slug,
+          additionalImages: edition.additionalImages,
+          book: edition.book
+            ? {
+                ...edition.book,
+                authors: edition.book.authors.map(({ author }: { author: { id: string; name: string; slug: string } }) => author),
+              }
+            : null,
+          bookBoxCompany: edition.bookBoxCompany,
+          wishlistCount: meta.count,
+        };
+      })
+      .filter((edition): edition is TrendingEditionResult => Boolean(edition))
+      .sort((a, b) => countsById.get(a.id)!.index - countsById.get(b.id)!.index);
+
+    await this.cache.set(cacheKey, result, TRENDING_TTL);
+    return result;
   }
 
   async findPublishers(search?: string): Promise<string[]> {

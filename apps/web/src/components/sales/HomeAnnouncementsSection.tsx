@@ -13,7 +13,7 @@ import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { resolveSaleDates } from '@/lib/saleDates'
 import { apiFetch } from '@/lib/api'
 
-const CARD_WIDTH = 160
+const CARD_WIDTH = 192
 
 interface Props {
   announcements: ApiSaleAnnouncement[]
@@ -65,7 +65,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
       tabIndex={0}
       onClick={() => onClick(sale)}
       onKeyDown={(e) => e.key === 'Enter' && onClick(sale)}
-      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left cursor-pointer"
+      className="flex-shrink-0 w-48 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left cursor-pointer"
       style={{ background: 'var(--bg-raised)' }}
     >
       {/* Cover */}
@@ -112,7 +112,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
       {/* Info */}
       <div className="px-2.5 pt-2 pb-2 flex flex-col">
         <div className="h-[2.25rem] overflow-hidden my-0.5">
-          <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+          <p className="text-sm font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
             {sale.title}
           </p>
         </div>

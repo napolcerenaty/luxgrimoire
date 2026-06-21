@@ -1008,6 +1008,8 @@ model UserReminderSettings {
   saleMinutesBefore    Int?     @default(180)
   saleDigest           Boolean  @default(false)
 
+  appNotifPushEnabled  Boolean  @default(false)
+
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_reminder_settings")
@@ -1587,4 +1589,19 @@ model SaleAnnouncementMediaAsset {
   @@id([announcementId, assetId])
   @@index([assetId])
   @@map("sale_announcement_media_assets")
+}
+
+model HomepageFeature {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  iconName    String   @default("Star")
+  ctaLabel    String?
+  ctaHref     String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("homepage_features")
 }

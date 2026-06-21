@@ -57,6 +57,12 @@ export class EditionsController {
     return this.editionsService.findPublishers(search);
   }
 
+  @Public()
+  @Get('trending')
+  findTrending(@Query('limit') limit?: string) {
+    return this.editionsService.findTrending(limit ? parseInt(limit, 10) : undefined);
+  }
+
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Get(':slug/for-edit')

@@ -20,7 +20,7 @@ export default function OAuthCallbackPage() {
         if (me.needsConsent) {
           router.replace('/consent')
         } else {
-          router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/calendar')
+          router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/')
         }
       })
       .catch(() => router.replace('/login?error=oauth_failed'))

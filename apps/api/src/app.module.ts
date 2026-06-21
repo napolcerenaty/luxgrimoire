@@ -51,6 +51,7 @@ import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
 import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
 import { BookSeriesModule } from './modules/book-series/book-series.module';
+import { HomepageFeaturesModule } from './modules/homepage-features/homepage-features.module';
 
 @Module({
   imports: [
@@ -160,6 +161,7 @@ import { BookSeriesModule } from './modules/book-series/book-series.module';
     BackupModule,
     CrowdStatsModule,
     FeatureCategoriesModule,
+    HomepageFeaturesModule,
     StatsModule,
     ReadingImportModule,
     BookSeriesModule,

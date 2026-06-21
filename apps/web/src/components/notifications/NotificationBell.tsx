@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Bell, X, Check, CheckCheck } from 'lucide-react'
@@ -36,6 +36,8 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<ApiNotification[]>([])
   const [loading, setLoading] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({ right: 0 })
 
   const fetchCount = useCallback(async () => {
     try {
@@ -77,7 +79,19 @@ export function NotificationBell() {
   }, [])
 
   const handleOpen = () => {
-    if (!open) fetchNotifications()
+    if (!open) {
+      fetchNotifications()
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        const vw = window.innerWidth
+        const dropW = Math.min(320, vw - 8)
+        // How much to shift right so left edge stays >= 4px from viewport
+        const neededShift = Math.max(0, dropW + 4 - rect.right)
+        const maxShift = Math.max(0, vw - 4 - rect.right)
+        const rightOffset = -Math.min(neededShift, maxShift)
+        setDropdownStyle({ right: rightOffset, width: dropW })
+      }
+    }
     setOpen((o) => !o)
   }
 
@@ -116,6 +130,7 @@ export function NotificationBell() {
   return (
     <div ref={dropdownRef} className="relative">
       <button
+        ref={buttonRef}
         onClick={handleOpen}
         className="relative p-1.5 rounded-lg text-stone-400 hover:text-amber-400 transition-colors"
         aria-label="Notifications"
@@ -129,7 +144,10 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-xl border border-stone-700 bg-stone-900 shadow-2xl z-[300] overflow-hidden">
+        <div
+          className="absolute mt-2 rounded-xl border border-stone-700 bg-stone-900 shadow-2xl z-[300] overflow-hidden"
+          style={dropdownStyle}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-stone-800">
             <span className="text-sm font-semibold text-stone-100">Notifications</span>
