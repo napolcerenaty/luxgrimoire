@@ -281,10 +281,9 @@ export default function AdminEditionsPage() {
       key: 'subscription',
       label: 'Subscription',
       render: (row: ApiBookEdition) => {
-        const subId = (row as any).subscriptionId
-        if (!subId) return <span className="text-stone-600 text-sm">—</span>
-        const sub = subscriptions.find((s) => s.id === subId)
-        return <span className="text-sky-400 text-sm">{sub?.name ?? subId.slice(0, 8)}</span>
+        const name = (row as any).subscriptionName
+        if (!name) return <span className="text-stone-600 text-sm">—</span>
+        return <span className="text-sky-400 text-sm">{name}</span>
       },
     },
     {

@@ -421,10 +421,22 @@ export class EditionsService {
       this.prisma.bookEdition.count({ where }),
     ]);
 
+    // Resolve subscription names (subscriptionId is a bare FK with no Prisma relation)
+    const subIds = [...new Set(data.map((e) => (e as any).subscriptionId).filter(Boolean))];
+    const subNames: Record<string, string> = {};
+    if (subIds.length > 0) {
+      const subs = await this.prisma.subscription.findMany({
+        where: { id: { in: subIds } },
+        select: { id: true, name: true },
+      });
+      for (const s of subs) subNames[s.id] = s.name;
+    }
+
     const flatData = data.map((e) => {
       const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
       return {
         ...rest,
+        subscriptionName: (e as any).subscriptionId ? (subNames[(e as any).subscriptionId] ?? null) : null,
         communityPhotoCover: (e.additionalImages as string[]).length === 0
           ? (communityImages?.[0]?.url ?? null)
           : null,
