@@ -100,19 +100,21 @@ export class SaleInterestsService {
 
   async getUpcoming(userId: string, limit = 3) {
     const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
     const rows = await this.prisma.userSaleInterest.findMany({
       where: {
         userId,
         announcement: {
           OR: [
-            // LIMITED_PREORDER / OVERSTOCK: upcoming date OR already live (started, not expired)
+            // LIMITED_PREORDER / OVERSTOCK: any date >= today (still current day) OR explicit endsAt still active
             {
               saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
               OR: [
-                { generalSaleDate: { gte: now } },
-                { earlyAccessDate: { gte: now } },
-                { firstAccessDate: { gte: now } },
-                { AND: [{ generalSaleDate: { lt: now } }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] },
+                { generalSaleDate: { gte: today } },
+                { earlyAccessDate: { gte: today } },
+                { firstAccessDate: { gte: today } },
+                { endsAt: { gt: now } },
               ],
             },
             // OPEN_PREORDER: active if not expired
@@ -141,19 +143,21 @@ export class SaleInterestsService {
 
   async getUpcomingCount(userId: string) {
     const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
     const count = await this.prisma.userSaleInterest.count({
       where: {
         userId,
         announcement: {
           OR: [
-            // LIMITED_PREORDER / OVERSTOCK: upcoming OR currently live (started, not expired)
+            // LIMITED_PREORDER / OVERSTOCK: any date >= today OR explicit endsAt still active
             {
               saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
               OR: [
-                { generalSaleDate: { gte: now } },
-                { earlyAccessDate: { gte: now } },
-                { firstAccessDate: { gte: now } },
-                { AND: [{ generalSaleDate: { lt: now } }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] },
+                { generalSaleDate: { gte: today } },
+                { earlyAccessDate: { gte: today } },
+                { firstAccessDate: { gte: today } },
+                { endsAt: { gt: now } },
               ],
             },
             // OPEN_PREORDER: active if not expired

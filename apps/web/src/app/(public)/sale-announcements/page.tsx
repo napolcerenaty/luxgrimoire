@@ -49,10 +49,18 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   const now = Date.now()
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
-  const notExpired = !a.endsAt || new Date(a.endsAt).getTime() > now
-  // "Live" = sale has started + not expired + not sold out
-  const isLive = !a.isSoldOut && saleStarted && notExpired && (a.saleType === 'OPEN_PREORDER' || a.saleType === 'OVERSTOCK' || a.availableForPurchase)
+  // For LP/OVERSTOCK: live if generalSaleDate is today + no endsAt, or endsAt still in future
+  const isLpOsLive = saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  // "Live" badge — sold out takes priority in the JSX (renders instead of Live)
+  const isLive = saleStarted && (
+    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpOsLive
+  )
 
   return (
     <div className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
@@ -146,9 +154,16 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
   const now = Date.now()
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
-  const notExpired = !a.endsAt || new Date(a.endsAt).getTime() > now
-  const isLive = !a.isSoldOut && saleStarted && notExpired && (a.saleType === 'OPEN_PREORDER' || a.saleType === 'OVERSTOCK' || a.availableForPurchase)
+  const isLpOsLive = saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  const isLive = saleStarted && (
+    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpOsLive
+  )
 
   return (
     <Link
