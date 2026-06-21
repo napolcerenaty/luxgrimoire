@@ -300,6 +300,7 @@ export class AnnouncementsService {
           imageAsset: { select: { id: true, publicId: true } },
           editions: editionsIncludeAdmin,
           regions: regionsInclude,
+          items: { orderBy: { sortOrder: 'asc' as const } },
           company: { select: { id: true, name: true, slug: true, logoUrl: true } },
         },
       }),

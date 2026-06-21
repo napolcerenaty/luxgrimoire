@@ -1636,8 +1636,7 @@ function AnnouncementCard({
                 ) : null
               })()}
               {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
-              {saleDate && <p className="text-stone-500 text-xs mt-1">📅 {saleDate}</p>}
-              {(() => {
+              {saleDate && (() => {
                 const typeLabels: Record<string, string> = {
                   LIMITED_PREORDER: '⏳ Limited Preorder',
                   OPEN_PREORDER: '🔓 Open Preorder',
@@ -1649,16 +1648,20 @@ function AnnouncementCard({
                   OVERSTOCK: 'bg-emerald-500/15 text-emerald-300',
                 }
                 const type = (announcement as any).saleType
-                if (!type) return null
                 return (
-                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${typeColors[type] ?? 'bg-stone-700 text-stone-400'}`}>
-                    {typeLabels[type] ?? type}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="text-stone-500 text-xs">📅 {saleDate}</span>
+                    {type && (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeColors[type] ?? 'bg-stone-700 text-stone-400'}`}>
+                        {typeLabels[type] ?? type}
+                      </span>
+                    )}
+                    {(announcement as any).isSoldOut && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/15 text-red-400">Sold Out</span>
+                    )}
+                  </div>
                 )
               })()}
-              {(announcement as any).isSoldOut && (
-                <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 bg-red-500/15 text-red-400">Sold Out</span>
-              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
