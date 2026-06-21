@@ -16,7 +16,7 @@ export interface HomepageFeature {
 }
 
 function FeatureIcon({ name }: { name: string }) {
-  const Icon = (Icons as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
+  const Icon = (Icons as unknown as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
   return <Icon size={26} />
 }
 

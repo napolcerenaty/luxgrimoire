@@ -33,7 +33,7 @@ interface FeatureFormState {
 const ICON_OPTIONS = ['BookOpen', 'Bell', 'BarChart2', 'Heart', 'Star', 'Bookmark', 'Library', 'Package', 'ShoppingBag', 'Calendar', 'Search', 'Users', 'Zap', 'Trophy', 'Gift', 'Sparkles', 'Tag', 'Lock', 'Globe', 'Layers']
 
 function LucideIcon({ name, size = 18 }: { name: string; size?: number }) {
-  const Icon = (Icons as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
+  const Icon = (Icons as unknown as Record<string, ComponentType<{ size?: number }>>)[name] ?? Icons.Star
   return <Icon size={size} />
 }
 
@@ -384,8 +384,8 @@ export default function HomepageFeaturesAdminPage() {
             onCancel={() => setEditing(null)}
             onSubmit={(payload) => updateMutation.mutate({ id: editing.id, payload: {
               ...payload,
-              ctaLabel: payload.ctaLabel.trim() || null,
-              ctaHref: payload.ctaHref.trim() || null,
+              ctaLabel: payload.ctaLabel.trim() || undefined,
+              ctaHref: payload.ctaHref.trim() || undefined,
             } })}
           />
         )}
