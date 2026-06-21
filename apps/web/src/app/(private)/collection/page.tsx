@@ -541,6 +541,12 @@ export default function CollectionPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
+  const [bookFilterDebounced, setBookFilterDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setBookFilterDebounced(bookFilter), 300)
+    return () => clearTimeout(t)
+  }, [bookFilter])
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE' | 'STAMPED'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
@@ -588,6 +594,18 @@ export default function CollectionPage() {
     },
   })
   const entries = allEntries
+
+  // Server-side search — activated when user types in search box
+  const { data: searchResults, isFetching: searchLoading } = useQuery({
+    queryKey: ['collection-search', bookFilterDebounced],
+    queryFn: () => {
+      const params = new URLSearchParams({ isWishlist: 'false', pageSize: '200', search: bookFilterDebounced })
+      return authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${params}`).then(r => r.data)
+    },
+    enabled: bookFilterDebounced.length > 0,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  })
 
   const loadMoreCollection = async () => {
     setLoadingMore(true)
@@ -763,9 +781,11 @@ export default function CollectionPage() {
   })
   const subFilterOptions = subscriptions
 
-  const filtered = entries.filter((e) => {
+  const baseEntries = bookFilterDebounced ? (searchResults ?? []) : entries
+
+  const filtered = baseEntries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
-    if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
+    if (e.ownershipStatus === 'GIFTED_AWAY') return false
     if (sigFilter === 'UNSIGNED' && e.signatureType) return false
     if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
     if (sigFilter === 'AUTOPEN' && e.signatureType !== 'autopen') return false
@@ -926,7 +946,7 @@ export default function CollectionPage() {
               value={bookFilter}
               onChange={e => setBookFilter(e.target.value)}
               placeholder="Search by title…"
-              className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+              className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] ${searchLoading ? 'border-amber-400/50 animate-pulse' : 'border-stone-700 focus:border-amber-400'}`}
             />
 
             {/* Group by */}
