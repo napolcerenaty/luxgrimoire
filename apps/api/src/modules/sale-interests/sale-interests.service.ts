@@ -105,8 +105,18 @@ export class SaleInterestsService {
         userId,
         announcement: {
           OR: [
-            { saleType: 'LIMITED_PREORDER', generalSaleDate: { gte: now } },
-            { saleType: { in: ['OPEN_PREORDER', 'OVERSTOCK'] }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+            // LIMITED_PREORDER / OVERSTOCK: upcoming date OR already live (started, not expired)
+            {
+              saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
+              OR: [
+                { generalSaleDate: { gte: now } },
+                { earlyAccessDate: { gte: now } },
+                { firstAccessDate: { gte: now } },
+                { AND: [{ generalSaleDate: { lt: now } }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] },
+              ],
+            },
+            // OPEN_PREORDER: active if not expired
+            { saleType: 'OPEN_PREORDER', OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
           ],
         },
       },
@@ -136,16 +146,18 @@ export class SaleInterestsService {
         userId,
         announcement: {
           OR: [
-            // LIMITED_PREORDER: generalSaleDate upcoming
+            // LIMITED_PREORDER / OVERSTOCK: upcoming OR currently live (started, not expired)
             {
-              saleType: 'LIMITED_PREORDER',
-              generalSaleDate: { gte: now },
+              saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
+              OR: [
+                { generalSaleDate: { gte: now } },
+                { earlyAccessDate: { gte: now } },
+                { firstAccessDate: { gte: now } },
+                { AND: [{ generalSaleDate: { lt: now } }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] },
+              ],
             },
-            // OPEN_PREORDER / OVERSTOCK: active as long as not expired
-            {
-              saleType: { in: ['OPEN_PREORDER', 'OVERSTOCK'] },
-              OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-            },
+            // OPEN_PREORDER: active if not expired
+            { saleType: 'OPEN_PREORDER', OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
           ],
         },
       },

@@ -124,30 +124,36 @@ export class AnnouncementsService {
       const typeFilter = query.saleType ?? null;
       const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
 
-      // Only filter out expired (endsAt passed), not sold-out — sold-out items remain visible with a badge
+      // Only filter out expired (endsAt passed) — sold-out items remain visible with a badge
       const notExpired: Prisma.SaleAnnouncementWhereInput = {
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
       };
 
+      // Date-based condition: any tier date is upcoming OR sale has already started (live)
+      const dateIsUpcomingOrLive = (extraLive?: Prisma.SaleAnnouncementWhereInput): Prisma.SaleAnnouncementWhereInput => ({
+        OR: [
+          { generalSaleDate: { gte: today } },
+          { earlyAccessDate: { gte: today } },
+          { firstAccessDate: { gte: today } },
+          { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+          // Also include currently live (date passed, not expired)
+          ...(extraLive ? [extraLive] : []),
+        ],
+      });
+
       if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
-        // Active when generalSaleDate is upcoming OR EA/FA is upcoming (already opened but GS not yet)
+        // Active when any date is upcoming or GS has just passed (still live window)
         activeSaleCondition.push({
           AND: [
             { saleType: 'LIMITED_PREORDER' },
             notExpired,
-            {
-              OR: [
-                { generalSaleDate: { gte: today } },
-                { earlyAccessDate: { gte: today } },
-                { firstAccessDate: { gte: today } },
-                { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-              ],
-            },
+            dateIsUpcomingOrLive({ generalSaleDate: { lt: today } }),
           ],
         });
       }
 
       if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
+        // Open preorder: runs indefinitely once started, no date constraint
         activeSaleCondition.push({
           AND: [
             { saleType: 'OPEN_PREORDER' },
@@ -157,10 +163,12 @@ export class AnnouncementsService {
       }
 
       if (!typeFilter || typeFilter === 'OVERSTOCK') {
+        // Overstock: like LIMITED_PREORDER — dates matter (start date + available until sold out/expired)
         activeSaleCondition.push({
           AND: [
             { saleType: 'OVERSTOCK' },
             notExpired,
+            dateIsUpcomingOrLive({ generalSaleDate: { lt: today } }),
           ],
         });
       }

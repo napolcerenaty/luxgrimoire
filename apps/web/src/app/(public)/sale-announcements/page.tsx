@@ -48,6 +48,12 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
+  const now = Date.now()
+  const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
+  const notExpired = !a.endsAt || new Date(a.endsAt).getTime() > now
+  // "Live" = sale has started + not expired + not sold out
+  const isLive = !a.isSoldOut && saleStarted && notExpired && (a.saleType === 'OPEN_PREORDER' || a.saleType === 'OVERSTOCK' || a.availableForPurchase)
+
   return (
     <div className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
       {/* Image — same 2/3 portrait ratio as EditionCard */}
@@ -92,7 +98,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
           <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">
             Sold Out
           </span>
-        ) : a.availableForPurchase && (
+        ) : isLive && (
           <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">
             Live
           </span>
@@ -139,6 +145,11 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
+  const now = Date.now()
+  const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
+  const notExpired = !a.endsAt || new Date(a.endsAt).getTime() > now
+  const isLive = !a.isSoldOut && saleStarted && notExpired && (a.saleType === 'OPEN_PREORDER' || a.saleType === 'OVERSTOCK' || a.availableForPurchase)
+
   return (
     <Link
       href={`/sale-announcements/${a.id}`}
@@ -178,7 +189,7 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
       <div className="flex flex-col items-end gap-1 shrink-0">
         {a.isSoldOut ? (
           <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">Sold Out</span>
-        ) : a.availableForPurchase && (
+        ) : isLive && (
           <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">Live</span>
         )}
         {a.isBundle && (
