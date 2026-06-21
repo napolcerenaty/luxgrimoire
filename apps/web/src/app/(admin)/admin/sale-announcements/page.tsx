@@ -916,13 +916,14 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
 
       {/* Notes */}
       <div>
-        <label className={LBL}>Notes <span className="text-stone-600 font-normal">(optional — supports links)</span></label>
+        <label className={LBL}>Notes <span className="text-stone-600 font-normal">(optional — HTML supported)</span></label>
         <textarea
-          className={`${INP} min-h-[80px] resize-y`}
+          className={`${INP} min-h-[80px] resize-y font-mono text-xs`}
           value={form.notes}
           onChange={set('notes')}
-          placeholder="Additional notes, links, or details…"
+          placeholder={'Additional notes or details…\nLink syntax: <a href="https://example.com" target="_blank">link text</a>'}
         />
+        <p className="mt-1 text-xs text-stone-600">Link: <code className="text-stone-500">{`<a href="URL" target="_blank">text</a>`}</code></p>
       </div>
 
       <button type="submit" disabled={submitting}
