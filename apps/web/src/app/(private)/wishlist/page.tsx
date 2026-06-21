@@ -152,7 +152,10 @@ export default function WishlistPage() {
   // Derive company list from loaded interests (no extra API call)
   const filterCompanies = useMemo(() => {
     const seen = new Map<string, string>()
-    saleInterests.forEach((i) => seen.set(i.announcement.company.id, i.announcement.company.name))
+    saleInterests.forEach((i) => {
+      const company = i.announcement?.company
+      if (company?.id) seen.set(company.id, company.name)
+    })
     return [...seen.entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name))
