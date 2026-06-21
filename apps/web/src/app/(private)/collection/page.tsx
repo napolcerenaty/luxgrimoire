@@ -106,7 +106,6 @@ const ADD_OWNERSHIP_OPTIONS = [
   { value: 'LENDED', label: 'Lended' },
   { value: 'TO_SELL', label: 'To Sell' },
   { value: 'SOLD', label: 'Sold' },
-  { value: 'GIFTED_AWAY', label: 'Gifted Away' },
 ] as const
 
 interface AddSaleFormProps {
@@ -542,6 +541,12 @@ export default function CollectionPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadPrefs().sortOrder)
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadPrefs().viewMode)
   const [bookFilter, setBookFilter] = useState('')
+  const [bookFilterDebounced, setBookFilterDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setBookFilterDebounced(bookFilter), 300)
+    return () => clearTimeout(t)
+  }, [bookFilter])
   const [sigFilter, setSigFilter] = useState<'ALL' | 'UNSIGNED' | 'SIGNED' | 'AUTOPEN' | 'DIGITALLY_SIGNED' | 'SIGNED_BOOKPLATE' | 'STAMPED'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [companyFilter, setCompanyFilter] = useState<string>('ALL')
@@ -589,6 +594,18 @@ export default function CollectionPage() {
     },
   })
   const entries = allEntries
+
+  // Server-side search — activated when user types in search box
+  const { data: searchResults, isFetching: searchLoading } = useQuery({
+    queryKey: ['collection-search', bookFilterDebounced],
+    queryFn: () => {
+      const params = new URLSearchParams({ isWishlist: 'false', pageSize: '200', search: bookFilterDebounced })
+      return authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${params}`).then(r => r.data)
+    },
+    enabled: bookFilterDebounced.length > 0,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  })
 
   const loadMoreCollection = async () => {
     setLoadingMore(true)
@@ -764,9 +781,11 @@ export default function CollectionPage() {
   })
   const subFilterOptions = subscriptions
 
-  const filtered = entries.filter((e) => {
+  const baseEntries = bookFilterDebounced ? (searchResults ?? []) : entries
+
+  const filtered = baseEntries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
-    if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
+    if (e.ownershipStatus === 'GIFTED_AWAY') return false
     if (sigFilter === 'UNSIGNED' && e.signatureType) return false
     if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
     if (sigFilter === 'AUTOPEN' && e.signatureType !== 'autopen') return false
@@ -927,7 +946,7 @@ export default function CollectionPage() {
               value={bookFilter}
               onChange={e => setBookFilter(e.target.value)}
               placeholder="Search by title…"
-              className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+              className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] ${searchLoading ? 'border-amber-400/50 animate-pulse' : 'border-stone-700 focus:border-amber-400'}`}
             />
 
             {/* Group by */}
@@ -982,7 +1001,7 @@ export default function CollectionPage() {
               <option value="BORROWED">Borrowed</option>
               <option value="LENDED">Lended</option>
               <option value="TO_SELL">To Sell</option>
-              <option value="GIFTED_AWAY">Gifted Away</option>
+              <option value="GIFTED_AWAY" disabled hidden>Gifted Away</option>
             </select>
 
             {/* Company */}
@@ -1146,7 +1165,7 @@ export default function CollectionPage() {
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
                                 <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
-                                  {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
+                                  {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
                                     <button
                                       key={val}
                                       type="button"
@@ -1458,7 +1477,7 @@ export default function CollectionPage() {
                             </span>
                             {openDropdown === `${entry.id}-ownership` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
-                                {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map((val) => (
+                                {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{fmtStatus(val)}</button>
@@ -1608,7 +1627,7 @@ export default function CollectionPage() {
                     onChange={e => setHistoryEditStatus(e.target.value)}
                     className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
                   >
-                    {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD','GIFTED_AWAY'].map(s => (
+                    {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD'].map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -1662,7 +1681,7 @@ export default function CollectionPage() {
                 defaultValue="OWNED"
                 className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
               >
-                {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD','GIFTED_AWAY'].map(s => (
+                {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD'].map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -1800,7 +1819,7 @@ export default function CollectionPage() {
       {/* ─── Add Sale Modal ─── */}
       <Modal open={addSaleOpen} onClose={() => setAddSaleOpen(false)} title="Record a Sale">
         <AddSaleForm
-          entries={entries.filter(e => e.ownershipStatus !== 'SOLD')}
+          entries={entries.filter(e => e.ownershipStatus !== 'SOLD' && e.ownershipStatus !== 'GIFTED_AWAY')}
           onClose={() => setAddSaleOpen(false)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['sale-groups'] })

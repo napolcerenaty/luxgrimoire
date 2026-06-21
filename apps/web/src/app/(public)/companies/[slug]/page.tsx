@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
+
 import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
+import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { CompanyEditionsSection } from './CompanyEditionsSection'
 
 // Minimal inline SVG icons for social platforms
@@ -215,48 +216,27 @@ export default async function CompanyPage({ params }: Props) {
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {displaySubscriptions.map((sub) => {
-              const bgImage = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_400,h_300,c_fill,q_auto,f_auto')
-              const logoImage = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_200,h_120,c_fit,q_auto,f_auto')
+              const cover = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
+              const subGenres = [
+                ...(Array.isArray((sub as any).genres) ? (sub as any).genres : []),
+                ...(sub.genre ? [sub.genre] : []),
+              ].filter((g: string, i: number, arr: string[]) => arr.indexOf(g) === i)
               return (
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className="group rounded-lg overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
+                  className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
                 >
-                  {/* Compact image: aspect-[2/1] */}
-                  <div
-                    className="relative aspect-[2/1] overflow-hidden flex items-center justify-center"
-                    style={bgImage ? { backgroundColor: 'rgb(28 25 23)' } : brandGradientStyle(company.brandColors)}
-                  >
-                    {bgImage && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={bgImage}
-                        alt=""
-                        aria-hidden
-                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-lg opacity-40"
-                      />
-                    )}
-                    {logoImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={logoImage}
-                        alt={sub.name}
-                        className="relative z-10 max-w-[65%] max-h-[65%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <span className={`relative z-10 text-xs font-serif ${brandTextClasses(company.brandColors).primary}`}>{sub.name}</span>
-                    )}
-                  </div>
+                  <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      {sub.genre && <Badge variant="outline">{sub.genre}</Badge>}
+                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1">
+                      {sub.name}
+                    </h3>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {subGenres.slice(0, 2).map((g: string) => <Badge key={g} variant="outline">{g}</Badge>)}
                       {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                       {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     </div>
-                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight">
-                      {sub.name}
-                    </h3>
                   </div>
                 </Link>
               )

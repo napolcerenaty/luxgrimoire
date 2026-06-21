@@ -12,15 +12,9 @@ const PAGE_SIZE = 24
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-const ROLE_COLORS: Record<string, string> = {
-  cover:        'bg-amber-700/80 text-amber-100',
-  illustration: 'bg-violet-700/80 text-violet-100',
-  map:          'bg-teal-700/80 text-teal-100',
-  typography:   'bg-sky-700/80 text-sky-100',
-  design:       'bg-pink-700/80 text-pink-100',
-}
-function roleColor(role: string) {
-  return ROLE_COLORS[role.toLowerCase()] ?? 'bg-stone-700/80 text-stone-100'
+const ROLE_COLORS: Record<string, string> = {}
+function roleColor(_role: string) {
+  return 'bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-dim)]'
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { MediaAssetsService } from '../media-assets/media-assets.service';
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
 const companyEditionsColCountKey = (slug: string, colId: string) => `companies:slug:${slug}:editions:col:${colId}:count`;
+const companyEditionsNoColCountKey = (slug: string) => `companies:slug:${slug}:editions:nocol:count`;
 const TRENDING_TTL = 60 * 60 * 1000;
 
 type TrendingEditionResult = {
@@ -299,6 +300,7 @@ export class EditionsService {
     await this.cache.del(companyEditionsAllCountKey(companySlug));
     if (subscriptionId) await this.cache.del(companyEditionsSubCountKey(companySlug, subscriptionId));
     if (collectionId) await this.cache.del(companyEditionsColCountKey(companySlug, collectionId));
+    if (!subscriptionId && !collectionId) await this.cache.del(companyEditionsNoColCountKey(companySlug));
   }
 
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {

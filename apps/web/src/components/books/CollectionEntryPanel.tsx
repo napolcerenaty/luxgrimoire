@@ -827,6 +827,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         })
         queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
         queryClient.invalidateQueries({ queryKey: ['collection'] })
+        queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+        queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+        queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
+        await refetchEntry()
       } else {
         await patchEntry({
           salePrice: editSalePrice || null,
@@ -848,6 +852,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           })
           queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
           queryClient.invalidateQueries({ queryKey: ['collection'] })
+          queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+          queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+          queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
         }
       }
       setEditingSale(false)
