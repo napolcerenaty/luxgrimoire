@@ -103,14 +103,21 @@ export class SaleInterestsService {
     const rows = await this.prisma.userSaleInterest.findMany({
       where: {
         userId,
-        announcement: { generalSaleDate: { gte: now } },
+        announcement: {
+          OR: [
+            { saleType: 'LIMITED_PREORDER', generalSaleDate: { gte: now } },
+            { saleType: { in: ['OPEN_PREORDER', 'OVERSTOCK'] }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          ],
+        },
       },
       include: {
         announcement: {
           select: {
             id: true,
             title: true,
+            saleType: true,
             generalSaleDate: true,
+            endsAt: true,
             imageUrl: true,
             company: { select: { name: true, slug: true } },
           },
@@ -123,11 +130,23 @@ export class SaleInterestsService {
   }
 
   async getUpcomingCount(userId: string) {
+    const now = new Date();
     const count = await this.prisma.userSaleInterest.count({
       where: {
         userId,
         announcement: {
-          generalSaleDate: { gte: new Date() },
+          OR: [
+            // LIMITED_PREORDER: generalSaleDate upcoming
+            {
+              saleType: 'LIMITED_PREORDER',
+              generalSaleDate: { gte: now },
+            },
+            // OPEN_PREORDER / OVERSTOCK: active as long as not expired
+            {
+              saleType: { in: ['OPEN_PREORDER', 'OVERSTOCK'] },
+              OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+            },
+          ],
         },
       },
     });
