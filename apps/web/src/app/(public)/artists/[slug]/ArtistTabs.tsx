@@ -14,7 +14,7 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 
 const ROLE_COLORS: Record<string, string> = {}
 function roleColor(_role: string) {
-  return 'bg-stone-700/80 text-stone-300'
+  return 'bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-dim)]'
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
