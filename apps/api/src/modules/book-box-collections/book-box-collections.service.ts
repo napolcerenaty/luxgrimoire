@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateBookBoxCollectionDto,
@@ -7,6 +9,8 @@ import {
 } from './book-box-collections.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+
+const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 
 const COLLECTION_SELECT = {
   id: true,
@@ -22,7 +26,10 @@ const COLLECTION_SELECT = {
 
 @Injectable()
 export class BookBoxCollectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async findAll(query: BookBoxCollectionQueryDto) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 50 });
@@ -75,27 +82,33 @@ export class BookBoxCollectionsService {
 
   async create(dto: CreateBookBoxCollectionDto) {
     const slug = generateSlug(dto.name);
-    return this.prisma.bookBoxCollection.create({
+    const result = await this.prisma.bookBoxCollection.create({
       data: {
         companyId: dto.companyId,
         name: dto.name,
         slug,
         isActive: dto.isActive ?? true,
       },
-      select: COLLECTION_SELECT,
+      select: { ...COLLECTION_SELECT, company: { select: { slug: true } } },
     });
+    if (result.company?.slug) await this.cache.del(companySlugKey(result.company.slug));
+    return result;
   }
 
   async update(slug: string, dto: UpdateBookBoxCollectionDto) {
-    await this.findBySlug(slug);
+    const existing = await this.findBySlug(slug);
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
-    return this.prisma.bookBoxCollection.update({ where: { slug }, data, select: COLLECTION_SELECT });
+    const result = await this.prisma.bookBoxCollection.update({ where: { slug }, data, select: COLLECTION_SELECT });
+    if (existing.company?.slug) await this.cache.del(companySlugKey(existing.company.slug));
+    return result;
   }
 
   async delete(slug: string) {
-    await this.findBySlug(slug);
-    return this.prisma.bookBoxCollection.delete({ where: { slug }, select: COLLECTION_SELECT });
+    const existing = await this.findBySlug(slug);
+    const result = await this.prisma.bookBoxCollection.delete({ where: { slug }, select: COLLECTION_SELECT });
+    if (existing.company?.slug) await this.cache.del(companySlugKey(existing.company.slug));
+    return result;
   }
 }
