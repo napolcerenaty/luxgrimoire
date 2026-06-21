@@ -138,6 +138,7 @@ export default function AdminEditionsPage() {
   const [unverifiedOnly, setUnverifiedOnly] = useState(false)
   const [exclusiveOnly, setExclusiveOnly] = useState(false)
   const [hasOfficialPhoto, setHasOfficialPhoto] = useState(false)
+  const [subscriptionFilter, setSubscriptionFilter] = useState('') // '' = all, 'none' = no sub, or sub id
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -148,7 +149,7 @@ export default function AdminEditionsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [companyFilter, unverifiedOnly, exclusiveOnly, hasOfficialPhoto])
+  }, [companyFilter, unverifiedOnly, exclusiveOnly, hasOfficialPhoto, subscriptionFilter])
 
   const buildParams = () => {
     const p = new URLSearchParams({ page: String(page), pageSize: '10' })
@@ -156,6 +157,8 @@ export default function AdminEditionsPage() {
     if (unverifiedOnly) p.set('needsVerification', 'true')
     if (exclusiveOnly) p.set('exclusiveOnly', 'true')
     if (hasOfficialPhoto) p.set('hasOfficialPhoto', 'true')
+    if (subscriptionFilter === 'none') p.set('noSubscription', 'true')
+    else if (subscriptionFilter) p.set('subscriptionId', subscriptionFilter)
     if (isManager && managedCompanyId) {
       p.set('companyId', managedCompanyId)
     } else if (companyFilter) {
@@ -165,7 +168,7 @@ export default function AdminEditionsPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly, exclusiveOnly, hasOfficialPhoto],
+    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly, exclusiveOnly, hasOfficialPhoto, subscriptionFilter],
     queryFn: () =>
       authFetch<PaginatedResponse<ApiBookEdition>>(
         `/editions?${buildParams()}`,
@@ -184,6 +187,14 @@ export default function AdminEditionsPage() {
   const companies = companiesData
     ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
+
+  // Subscriptions for filter dropdown
+  const { data: subscriptionsData } = useQuery({
+    queryKey: ['admin', 'subscriptions-list'],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/subscriptions?pageSize=100'),
+    enabled: !isManager,
+  })
+  const subscriptions = subscriptionsData?.data ?? []
 
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => authFetch(`/editions/${slug}`, { method: 'DELETE' }),
@@ -267,6 +278,16 @@ export default function AdminEditionsPage() {
       },
     },
     {
+      key: 'subscription',
+      label: 'Subscription',
+      render: (row: ApiBookEdition) => {
+        const subId = (row as any).subscriptionId
+        if (!subId) return <span className="text-stone-600 text-sm">—</span>
+        const sub = subscriptions.find((s) => s.id === subId)
+        return <span className="text-sky-400 text-sm">{sub?.name ?? subId.slice(0, 8)}</span>
+      },
+    },
+    {
       key: 'photo',
       label: '📷',
       render: (row: ApiBookEdition) => {
@@ -313,9 +334,22 @@ export default function AdminEditionsPage() {
             ))}
           </select>
         )}
-        {(search || companyFilter || unverifiedOnly || exclusiveOnly || hasOfficialPhoto) && (
+        {!isManager && (
+          <select
+            value={subscriptionFilter}
+            onChange={(e) => setSubscriptionFilter(e.target.value)}
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+          >
+            <option value="">All subscriptions</option>
+            <option value="none">Not a subscription</option>
+            {subscriptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
+        {(search || companyFilter || subscriptionFilter || unverifiedOnly || exclusiveOnly || hasOfficialPhoto) && (
           <button
-            onClick={() => { setSearch(''); setCompanyFilter(''); setUnverifiedOnly(false); setExclusiveOnly(false); setHasOfficialPhoto(false) }}
+            onClick={() => { setSearch(''); setCompanyFilter(''); setSubscriptionFilter(''); setUnverifiedOnly(false); setExclusiveOnly(false); setHasOfficialPhoto(false) }}
             className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
           >
             Clear

@@ -364,6 +364,7 @@ export class EditionsService {
     if (query.language) where.language = query.language;
     if (query.needsVerification === true) where.verifiedAt = null;
     if (query.exclusiveOnly === true) where.collectionId = null;
+    if (query.noSubscription === true) where.subscriptionId = null;
     if (query.hasOfficialPhoto === true) {
       where.additionalImages = { isEmpty: false };
     }
@@ -388,6 +389,7 @@ export class EditionsService {
           publisher: true,
           bookBoxCompanyCustomName: true,
           additionalImages: true,
+          subscriptionId: true,
           isSpecial: true,
           verifiedAt: true,
           createdAt: true,

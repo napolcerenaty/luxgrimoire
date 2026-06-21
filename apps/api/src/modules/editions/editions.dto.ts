@@ -209,6 +209,11 @@ export class EditionQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
+  noSubscription?: boolean; // subscriptionId IS NULL
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
   hasOfficialPhoto?: boolean; // additionalImages not empty
 }
 
