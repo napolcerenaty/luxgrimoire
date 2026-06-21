@@ -106,13 +106,8 @@ async function getHomeData() {
 async function getIsLoggedIn(): Promise<boolean> {
   try {
     const cookieStore = await cookies()
-    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ')
-    if (!cookieHeader) return false
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Cookie: cookieHeader },
-      cache: 'no-store',
-    })
-    return res.ok
+    const jwtCookieName = process.env.JWT_COOKIE_NAME ?? 'jwt'
+    return !!cookieStore.get(jwtCookieName)?.value
   } catch {
     return false
   }
