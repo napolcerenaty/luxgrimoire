@@ -820,6 +820,8 @@ export function EditionFieldsSection({
     <div className="space-y-4">
       {/* Company + price */}
       <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className={LBL}>Company</label>
           <select value={companyId} onChange={e => {
             const id = e.target.value
             onCompanyChange(id)
