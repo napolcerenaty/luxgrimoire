@@ -155,7 +155,15 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     Bundle
                   </span>
                 )}
-                {sale.availableForPurchase && (
+                {sale.saleType && (() => {
+                  const labels: Record<string, string> = { LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock' }
+                  const colors: Record<string, string> = { LIMITED_PREORDER: 'bg-violet-500/15 border-violet-500/30 text-violet-300', OPEN_PREORDER: 'bg-sky-500/15 border-sky-500/30 text-sky-300', OVERSTOCK: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' }
+                  return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${colors[sale.saleType] ?? 'bg-stone-700 border-stone-600 text-stone-300'}`}>{labels[sale.saleType] ?? sale.saleType}</span>
+                })()}
+                {sale.isSoldOut && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-red-500/15 border-red-500/30 text-red-400">Sold Out</span>
+                )}
+                {sale.availableForPurchase && !sale.isSoldOut && (
                   <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-900/40 border border-green-700 text-green-400">
                     Available Now
                   </span>
@@ -237,6 +245,25 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               <span className="text-stone-500">Expected shipping: </span>
               <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
             </p>
+          )}
+
+          {/* Ends at */}
+          {sale.endsAt && (
+            <p className="text-sm text-stone-400 mb-4">
+              <span className="text-stone-500">Sale ends: </span>
+              <span className="text-stone-300 font-medium">
+                {new Date(sale.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </p>
+          )}
+
+          {/* Notes */}
+          {sale.notes && (
+            <div className="mb-4 text-sm text-stone-300 prose prose-invert prose-sm max-w-none
+              [&_a]:text-amber-400 [&_a:hover]:text-amber-300 [&_a]:underline [&_a]:underline-offset-2
+              [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+              dangerouslySetInnerHTML={{ __html: sale.notes }}
+            />
           )}
 
           {/* Editions grid */}

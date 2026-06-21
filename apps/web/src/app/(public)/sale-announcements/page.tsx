@@ -23,6 +23,10 @@ interface ListSaleAnnouncement {
   currency: string | null
   isBundle: boolean
   availableForPurchase: boolean
+  isSoldOut: boolean
+  saleType: string | null
+  endsAt: string | null
+  notes: string | null
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
@@ -84,7 +88,11 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
             Bundle
           </span>
         )}
-        {a.availableForPurchase && (
+        {a.isSoldOut ? (
+          <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">
+            Sold Out
+          </span>
+        ) : a.availableForPurchase && (
           <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">
             Live
           </span>
@@ -168,7 +176,9 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
       </div>
       {/* Badges */}
       <div className="flex flex-col items-end gap-1 shrink-0">
-        {a.availableForPurchase && (
+        {a.isSoldOut ? (
+          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">Sold Out</span>
+        ) : a.availableForPurchase && (
           <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">Live</span>
         )}
         {a.isBundle && (

@@ -124,8 +124,8 @@ export class AnnouncementsService {
       const typeFilter = query.saleType ?? null;
       const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
 
-      const notSoldOutNotExpired: Prisma.SaleAnnouncementWhereInput = {
-        isSoldOut: false,
+      // Only filter out expired (endsAt passed), not sold-out — sold-out items remain visible with a badge
+      const notExpired: Prisma.SaleAnnouncementWhereInput = {
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
       };
 
@@ -134,7 +134,7 @@ export class AnnouncementsService {
         activeSaleCondition.push({
           AND: [
             { saleType: 'LIMITED_PREORDER' },
-            notSoldOutNotExpired,
+            notExpired,
             {
               OR: [
                 { generalSaleDate: { gte: today } },
@@ -151,7 +151,7 @@ export class AnnouncementsService {
         activeSaleCondition.push({
           AND: [
             { saleType: 'OPEN_PREORDER' },
-            notSoldOutNotExpired,
+            notExpired,
           ],
         });
       }
@@ -160,7 +160,7 @@ export class AnnouncementsService {
         activeSaleCondition.push({
           AND: [
             { saleType: 'OVERSTOCK' },
-            notSoldOutNotExpired,
+            notExpired,
           ],
         });
       }
@@ -199,6 +199,8 @@ export class AnnouncementsService {
           endsAt: true,
           saleType: true,
           isSoldOut: true,
+          isBundle: true,
+          notes: true,
           company: { select: { name: true, slug: true, brandColors: true } },
           editions: {
             take: 1,

@@ -87,7 +87,16 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             {sale.isBundle && (
               <Badge variant="default">Bundle</Badge>
             )}
-            {sale.availableForPurchase && (
+            {(sale as any).saleType && (() => {
+              const typeLabels: Record<string, string> = { LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock' }
+              const typeColors: Record<string, string> = { LIMITED_PREORDER: 'bg-violet-500/15 text-violet-300 border-violet-500/30', OPEN_PREORDER: 'bg-sky-500/15 text-sky-300 border-sky-500/30', OVERSTOCK: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' }
+              const t = (sale as any).saleType
+              return <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full border ${typeColors[t] ?? 'bg-stone-700 text-stone-300 border-stone-600'}`}>{typeLabels[t] ?? t}</span>
+            })()}
+            {(sale as any).isSoldOut && (
+              <span className="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full border bg-red-500/15 text-red-400 border-red-500/30">Sold Out</span>
+            )}
+            {sale.availableForPurchase && !(sale as any).isSoldOut && (
               <Badge variant="success">Available Now</Badge>
             )}
           </div>
@@ -119,6 +128,23 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                 View original announcement
               </a>
             </p>
+          )}
+
+          {(sale as any).endsAt && (
+            <p className="text-stone-400 text-sm mb-4">
+              <span className="text-stone-500">Sale ends: </span>
+              <span className="text-stone-300 font-medium">
+                {new Date((sale as any).endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </p>
+          )}
+
+          {(sale as any).notes && (
+            <div className="mb-6 text-sm text-stone-300 prose prose-invert prose-sm max-w-none
+              [&_a]:text-amber-400 [&_a:hover]:text-amber-300 [&_a]:underline [&_a]:underline-offset-2
+              [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+              dangerouslySetInnerHTML={{ __html: (sale as any).notes }}
+            />
           )}
 
           {/* Dates + Region Selector */}
