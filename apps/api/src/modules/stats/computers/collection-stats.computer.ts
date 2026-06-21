@@ -5,7 +5,7 @@ import type { LightStatsContext, StatsContext } from '../stats.context';
 @Injectable()
 export class CollectionStatsComputer extends StatsComputer {
   readonly key = 'collection';
-  readonly version = 6;
+  readonly version = 7;
 
   async compute(ctx: StatsContext | LightStatsContext): Promise<StatsComputeResult> {
     const { entries, convert } = ctx;
@@ -45,13 +45,19 @@ export class CollectionStatsComputer extends StatsComputer {
     const byCompanyAllMap: Record<string, { name: string; slug: string; books: number; primaryColor: string | null }> = {};
 
     for (const entry of entries) {
+      const status = entry.ownershipStatus;
+
+      // Exclude sold/gifted from collection and reading stats
+      if (status === 'SOLD' || status === 'GIFTED_AWAY') {
+        if (status === 'SOLD') soldCount++;
+        continue;
+      }
+
       totalBooks++;
 
-      const status = entry.ownershipStatus;
       if (status === 'OWNED') ownedCount++;
       else if (status === 'PREORDER') preorderCount++;
       else if (status === 'SHIPPING') shippingCount++;
-      else if (status === 'SOLD') soldCount++;
       else if (status === 'TO_SELL') toSellCount++;
       if (entry.isWishlist) wishlistCount++;
 
