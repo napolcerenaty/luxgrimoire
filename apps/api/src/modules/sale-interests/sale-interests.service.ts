@@ -65,6 +65,7 @@ export class SaleInterestsService {
             earlyAccessDate: true,
             firstAccessDate: true,
             saleTimezone: true,
+            saleType: true,
             company: {
               select: {
                 id: true,
