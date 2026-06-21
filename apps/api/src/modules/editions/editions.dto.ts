@@ -202,9 +202,13 @@ export class EditionQueryDto {
   needsVerification?: boolean;
 
   @IsOptional()
+  @IsString()
+  collectionId?: string; // filter by specific collection
+
+  @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
-  exclusiveOnly?: boolean; // collectionId IS NULL
+  exclusiveOnly?: boolean; // collectionId IS NULL AND subscriptionId IS NULL
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)

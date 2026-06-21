@@ -361,9 +361,10 @@ export class EditionsService {
     }
     if (query.companyId) where.bookBoxCompanyId = query.companyId;
     if (query.subscriptionId) where.subscriptionId = query.subscriptionId;
+    if (query.collectionId) where.collectionId = query.collectionId;
     if (query.language) where.language = query.language;
     if (query.needsVerification === true) where.verifiedAt = null;
-    if (query.exclusiveOnly === true) where.collectionId = null;
+    if (query.exclusiveOnly === true) { where.collectionId = null; where.subscriptionId = null; }
     if (query.noSubscription === true) where.subscriptionId = null;
     if (query.hasOfficialPhoto === true) {
       where.additionalImages = { isEmpty: false };
