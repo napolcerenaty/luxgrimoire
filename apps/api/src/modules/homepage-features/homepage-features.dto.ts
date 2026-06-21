@@ -45,11 +45,11 @@ export class UpdateHomepageFeatureDto {
 
   @IsString()
   @IsOptional()
-  ctaLabel?: string;
+  ctaLabel?: string | null;
 
   @IsString()
   @IsOptional()
-  ctaHref?: string;
+  ctaHref?: string | null;
 
   @IsInt()
   @IsOptional()

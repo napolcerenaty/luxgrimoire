@@ -384,8 +384,8 @@ export default function HomepageFeaturesAdminPage() {
             onCancel={() => setEditing(null)}
             onSubmit={(payload) => updateMutation.mutate({ id: editing.id, payload: {
               ...payload,
-              ctaLabel: payload.ctaLabel.trim() || undefined,
-              ctaHref: payload.ctaHref.trim() || undefined,
+              ctaLabel: payload.ctaLabel.trim() || null,
+              ctaHref: payload.ctaHref.trim() || null,
             } })}
           />
         )}
