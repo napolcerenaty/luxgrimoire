@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
     webpackMemoryOptimizations: true,
+    cpus: 1,   // limit Next.js page worker threads during build
   },
   images: {
     remotePatterns: [
