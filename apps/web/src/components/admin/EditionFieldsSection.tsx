@@ -880,6 +880,8 @@ export function EditionFieldsSection({
 
       {/* Dates */}
       <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className={LBL}>First access</label>
           <input type="date" value={firstAccessDate} onChange={e => onFirstAccessDateChange(e.target.value)} className={INP} />
         </div>
         <div>
