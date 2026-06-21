@@ -136,6 +136,8 @@ export default function AdminEditionsPage() {
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
   const [unverifiedOnly, setUnverifiedOnly] = useState(false)
+  const [exclusiveOnly, setExclusiveOnly] = useState(false)
+  const [hasOfficialPhoto, setHasOfficialPhoto] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -146,12 +148,14 @@ export default function AdminEditionsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [companyFilter, unverifiedOnly])
+  }, [companyFilter, unverifiedOnly, exclusiveOnly, hasOfficialPhoto])
 
   const buildParams = () => {
     const p = new URLSearchParams({ page: String(page), pageSize: '10' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (unverifiedOnly) p.set('needsVerification', 'true')
+    if (exclusiveOnly) p.set('exclusiveOnly', 'true')
+    if (hasOfficialPhoto) p.set('hasOfficialPhoto', 'true')
     if (isManager && managedCompanyId) {
       p.set('companyId', managedCompanyId)
     } else if (companyFilter) {
@@ -161,7 +165,7 @@ export default function AdminEditionsPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly],
+    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly, exclusiveOnly, hasOfficialPhoto],
     queryFn: () =>
       authFetch<PaginatedResponse<ApiBookEdition>>(
         `/editions?${buildParams()}`,
@@ -253,6 +257,25 @@ export default function AdminEditionsPage() {
         ? <span className="text-amber-400 text-sm">{row.bookBoxCompany.name}</span>
         : <span className="text-stone-500">—</span>,
     },
+    {
+      key: 'collection',
+      label: 'Collection',
+      render: (row: ApiBookEdition) => {
+        const col = (row as any).collection
+        if (!col) return <span className="text-xs text-violet-400 font-medium">Exclusive</span>
+        return <span className="text-stone-400 text-sm">{col.name}</span>
+      },
+    },
+    {
+      key: 'photo',
+      label: '📷',
+      render: (row: ApiBookEdition) => {
+        const hasPhoto = Array.isArray(row.additionalImages) && row.additionalImages.length > 0
+        return hasPhoto
+          ? <span className="text-green-400 text-sm" title="Has official photo">✓</span>
+          : <span className="text-stone-600 text-sm" title="No official photo">—</span>
+      },
+    },
   ]
 
   return (
@@ -290,23 +313,28 @@ export default function AdminEditionsPage() {
             ))}
           </select>
         )}
-        {(search || companyFilter || unverifiedOnly) && (
+        {(search || companyFilter || unverifiedOnly || exclusiveOnly || hasOfficialPhoto) && (
           <button
-            onClick={() => { setSearch(''); setCompanyFilter(''); setUnverifiedOnly(false) }}
+            onClick={() => { setSearch(''); setCompanyFilter(''); setUnverifiedOnly(false); setExclusiveOnly(false); setHasOfficialPhoto(false) }}
             className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
           >
             Clear
           </button>
         )}
-        <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer ml-auto">
-          <input
-            type="checkbox"
-            checked={unverifiedOnly}
-            onChange={(e) => setUnverifiedOnly(e.target.checked)}
-            className="accent-amber-400"
-          />
-          Unverified only
-        </label>
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={exclusiveOnly} onChange={(e) => setExclusiveOnly(e.target.checked)} className="accent-violet-400" />
+            Exclusive only
+          </label>
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={hasOfficialPhoto} onChange={(e) => setHasOfficialPhoto(e.target.checked)} className="accent-green-400" />
+            Has official photo
+          </label>
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-amber-400" />
+            Unverified only
+          </label>
+        </div>
       </div>
 
       {isLoading ? (

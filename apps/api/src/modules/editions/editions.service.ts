@@ -363,6 +363,10 @@ export class EditionsService {
     if (query.subscriptionId) where.subscriptionId = query.subscriptionId;
     if (query.language) where.language = query.language;
     if (query.needsVerification === true) where.verifiedAt = null;
+    if (query.exclusiveOnly === true) where.collectionId = null;
+    if (query.hasOfficialPhoto === true) {
+      where.additionalImages = { isEmpty: false };
+    }
     if (query.search) {
       const s = query.search;
       where.OR = [
@@ -399,6 +403,7 @@ export class EditionsService {
           },
           artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
           bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+          collection: { select: { id: true, name: true, slug: true } },
           communityImages: {
             where: { status: 'APPROVED' },
             orderBy: { sortOrder: 'asc' },

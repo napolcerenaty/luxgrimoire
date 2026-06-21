@@ -200,6 +200,16 @@ export class EditionQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   needsVerification?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  exclusiveOnly?: boolean; // collectionId IS NULL
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  hasOfficialPhoto?: boolean; // additionalImages not empty
 }
 
 export class CreateComponentDto {
