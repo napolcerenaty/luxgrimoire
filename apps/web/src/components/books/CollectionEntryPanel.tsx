@@ -827,6 +827,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         })
         queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
         queryClient.invalidateQueries({ queryKey: ['collection'] })
+        await refetchEntry()
       } else {
         await patchEntry({
           salePrice: editSalePrice || null,
