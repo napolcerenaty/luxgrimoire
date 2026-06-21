@@ -804,39 +804,49 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         <input required className={INP} value={form.title} onChange={set('title')} />
       </div>
 
-      {/* Company */}
-      <div>
-        <label className={LBL}>Company</label>
-        <ComboBox
-          value={form.companyId}
-          options={[{ value: '', label: '— No company —' }, ...companyOptions]}
-          placeholder="Search or select company…"
-          onChange={id => {
-            const company = allCompanies.find(c => c.id === id)
-            setForm(f => ({ ...f, companyId: id, ...(company?.defaultCurrency ? { currency: company.defaultCurrency } : {}) }))
-          }}
-        />
-      </div>
-
-      {/* Dates */}
+      {/* Company + Sale Type — 2 cols */}
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className={LBL}>First Access Date &amp; Time</label>
+          <label className={LBL}>Company</label>
+          <ComboBox
+            value={form.companyId}
+            options={[{ value: '', label: '— No company —' }, ...companyOptions]}
+            placeholder="Search or select company…"
+            onChange={id => {
+              const company = allCompanies.find(c => c.id === id)
+              setForm(f => ({ ...f, companyId: id, ...(company?.defaultCurrency ? { currency: company.defaultCurrency } : {}) }))
+            }}
+          />
+        </div>
+        <div>
+          <label className={LBL}>Sale Type</label>
+          <select className={INP} value={form.saleType} onChange={set('saleType')}>
+            <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
+            <option value="OPEN_PREORDER">🔓 Open Preorder</option>
+            <option value="OVERSTOCK">📦 Overstock / In Stock</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Dates — 3 cols on md+, 1 col on mobile */}
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div>
+          <label className={LBL}>First Access</label>
           <input type="datetime-local" className={INP} value={form.firstAccessDate} onChange={set('firstAccessDate')} />
         </div>
         <div>
-          <label className={LBL}>Early Access Date &amp; Time</label>
+          <label className={LBL}>Early Access</label>
           <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
         </div>
         <div>
-          <label className={LBL}>General Sale Date &amp; Time *</label>
+          <label className={LBL}>General Sale *</label>
           <input required type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
         </div>
         <div>
           <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
           <input type="datetime-local" className={INP} value={form.endsAt} onChange={set('endsAt')} />
         </div>
-        <div>
+        <div className="sm:col-span-2 md:col-span-2">
           <label className={LBL}>Timezone</label>
           <ComboBox
             value={form.saleTimezone}
@@ -847,8 +857,8 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
       </div>
 
-      {/* Price */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Price + Currency + Subscriber Price — 3 cols */}
+      <div className="grid sm:grid-cols-3 gap-3">
         <div>
           <label className={LBL}>Price</label>
           <input type="text" step="0.01" min="0" className={INP} value={form.basePrice} onChange={set('basePrice')} />
@@ -858,54 +868,28 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <input className={INP} list="sale-currencies" value={form.currency} onChange={set('currency')} placeholder="USD" />
           <datalist id="sale-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
         </div>
+        <div>
+          <label className={LBL}>Subscriber Price <span className="text-stone-600 font-normal">(optional)</span></label>
+          <input type="text" step="0.01" min="0" className={INP} value={form.subscriberBasePrice} onChange={set('subscriberBasePrice')} placeholder="e.g. 22.00" />
+        </div>
       </div>
 
-      {/* Subscriber Price */}
-      <div>
-        <label className={LBL}>Subscriber Price <span className="text-stone-500 font-normal">(optional — same currency)</span></label>
-        <input
-          type="text"
-          step="0.01"
-          min="0"
-          className={INP}
-          value={form.subscriberBasePrice}
-          onChange={set('subscriberBasePrice')}
-          placeholder="e.g. 22.00"
-        />
-      </div>
-
-      {/* Expected Shipping */}
-      <div>
-        <label className={LBL}>Expected Shipping</label>
-        <input
-          className={INP}
-          value={form.expectedShipping}
-          onChange={set('expectedShipping')}
-          placeholder="e.g. January/February 2026"
-        />
+      {/* Expected Shipping + Source URL — 2 cols */}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className={LBL}>Expected Shipping</label>
+          <input className={INP} value={form.expectedShipping} onChange={set('expectedShipping')} placeholder="e.g. January/February 2026" />
+        </div>
+        <div>
+          <label className={LBL}>Source URL <span className="text-stone-600 font-normal">(announcement link)</span></label>
+          <input type="url" className={INP} value={form.sourceUrl} onChange={set('sourceUrl')} placeholder="https://instagram.com/p/…" />
+        </div>
       </div>
 
       {/* Photo Credit */}
       <div>
         <label className={LBL}>Photo by (IG handler)</label>
-        <input
-          className={INP}
-          value={form.photoCredit}
-          onChange={set('photoCredit')}
-          placeholder="@photographer"
-        />
-      </div>
-
-      {/* Source URL */}
-      <div>
-        <label className={LBL}>Source URL <span className="text-stone-600 font-normal">(original announcement link)</span></label>
-        <input
-          type="url"
-          className={INP}
-          value={form.sourceUrl}
-          onChange={set('sourceUrl')}
-          placeholder="https://instagram.com/p/… or https://company.com/blog/…"
-        />
+        <input className={INP} value={form.photoCredit} onChange={set('photoCredit')} placeholder="@photographer" />
       </div>
 
       {/* Images */}
@@ -919,25 +903,15 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
       </div>
 
       {/* Flags */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-amber-400" />
-          <span>Is Bundle <span className="text-stone-500">— multiple editions sold together as a set</span></span>
+          <span>Is Bundle <span className="text-stone-500">— multiple editions as a set</span></span>
         </label>
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
           <input type="checkbox" checked={form.isSoldOut} onChange={setCheck('isSoldOut')} className="accent-red-400" />
           <span>Sold Out</span>
         </label>
-      </div>
-
-      {/* Sale Type */}
-      <div>
-        <label className={LBL}>Sale Type</label>
-        <select className={INP} value={form.saleType} onChange={set('saleType')}>
-          <option value="LIMITED_PREORDER">Limited Preorder</option>
-          <option value="OPEN_PREORDER">Open Preorder</option>
-          <option value="OVERSTOCK">Overstock / In Stock</option>
-        </select>
       </div>
 
       {/* Notes */}
