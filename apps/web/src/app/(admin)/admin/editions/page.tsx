@@ -389,7 +389,7 @@ export default function AdminEditionsPage() {
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
             <input type="checkbox" checked={hasOfficialPhoto} onChange={(e) => setHasOfficialPhoto(e.target.checked)} className="accent-green-400" />
-            Has official photo
+            Missing official photo
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
             <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-amber-400" />

@@ -367,7 +367,7 @@ export class EditionsService {
     if (query.exclusiveOnly === true) { where.collectionId = null; where.subscriptionId = null; }
     if (query.noSubscription === true) where.subscriptionId = null;
     if (query.hasOfficialPhoto === true) {
-      where.additionalImages = { isEmpty: false };
+      where.additionalImages = { isEmpty: true };
     }
     if (query.search) {
       const s = query.search;
