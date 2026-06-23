@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { brandGradientStyle } from '@/lib/brandGradient'
+import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 type SaleEdition = NonNullable<ApiSaleAnnouncement['editions']>[number]
@@ -54,8 +54,7 @@ function EditionCard({
           className="w-full relative flex items-center justify-center overflow-hidden"
           style={{ aspectRatio: '2/3', ...brandGradientStyle(colors) }}
         >
-          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(colors)} />
-          <p className={`relative z-10 font-serif text-center leading-tight px-2 line-clamp-4 text-stone-200 ${compact ? 'text-[10px]' : 'text-xs'}`}>{title}</p>
+          <p className={`relative z-10 font-serif text-center leading-tight px-2 line-clamp-4 ${brandTextClasses(colors).primary} ${compact ? 'text-[10px]' : 'text-xs'}`}>{title}</p>
         </div>
       )}
       <div className={compact ? 'px-2 py-1.5' : 'p-3'}>
