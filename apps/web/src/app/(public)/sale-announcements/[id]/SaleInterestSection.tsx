@@ -8,9 +8,10 @@ import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
   sale: ApiSaleAnnouncement
+  compact?: boolean
 }
 
-export function SaleInterestSection({ sale }: Props) {
+export function SaleInterestSection({ sale, compact = false }: Props) {
   const { isInterested, regionId, selectedPrice, selectedPriceCurrency } = useSaleInterest(sale.id)
 
   const saleOpen = isOpenForPurchase(sale, regionId)
@@ -28,7 +29,7 @@ export function SaleInterestSection({ sale }: Props) {
 
   if (salePast) {
     return (
-      <div className="mt-4">
+      <div className={compact ? '' : 'mt-4'}>
         <AddToCollectionButton
           saleAnnouncementId={sale.id}
           editions={allEditions}
@@ -36,6 +37,7 @@ export function SaleInterestSection({ sale }: Props) {
           currency={resolvedCurrency}
           selectedPrice={effectiveSelectedPrice}
           selectedPriceCurrency={effectiveSelectedCurrency}
+          compact={compact}
           defaultOwnershipStatus="PREORDER"
         />
       </div>
@@ -43,7 +45,7 @@ export function SaleInterestSection({ sale }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-2 mt-4">
+    <div className={`flex items-center gap-2 ${compact ? '' : 'mt-4'}`}>
       <SaleInterestButton
         sale={sale}
         subscriberBasePrice={sale.subscriberBasePrice ?? null}
