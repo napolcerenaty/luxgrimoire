@@ -202,12 +202,10 @@ export default function AdminEditionsPage() {
   // Collections for filter dropdown
   const { data: collectionsData } = useQuery({
     queryKey: ['admin', 'collections-list'],
-    queryFn: () => authFetch<{ data: { id: string; name: string }[] } | { id: string; name: string }[]>('/book-box-collections?pageSize=200'),
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/book-box-collections?pageSize=200'),
     enabled: !isManager,
   })
-  const collections = collectionsData
-    ? Array.isArray(collectionsData) ? collectionsData : (collectionsData as { data: { id: string; name: string }[] }).data
-    : []
+  const collections = collectionsData?.data ?? []
 
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => authFetch(`/editions/${slug}`, { method: 'DELETE' }),
