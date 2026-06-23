@@ -14,6 +14,7 @@ import {
   adminSetAnnouncementVariant,
   adminRemoveAnnouncementVariant,
   adminSetAnnouncementEditionReprint,
+  adminSetAnnouncementEditionStandalone,
   adminSetAllAnnouncementEditionsReprint,
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
@@ -1259,6 +1260,13 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const setStandaloneMutation = useMutation({
+    mutationFn: ({ editionId, isStandalone }: { editionId: string; isStandalone: boolean }) =>
+      adminSetAnnouncementEditionStandalone(announcement.id, editionId, isStandalone),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
   const setAllReprintMutation = useMutation({
     mutationFn: (isReprint: boolean) => adminSetAllAnnouncementEditionsReprint(announcement.id, isReprint),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
@@ -1326,6 +1334,17 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                       />
                       <span className="text-xs text-stone-400">🔁 Reprint</span>
                     </label>
+                    {(e as any).itemId && (
+                      <label className="flex items-center gap-1.5 mt-1 cursor-pointer" title="Also show this edition as standalone (not just within the group)">
+                        <input
+                          type="checkbox"
+                          checked={!!(e as any).isStandalone}
+                          className="accent-sky-400"
+                          onChange={ev => setStandaloneMutation.mutate({ editionId: e.editionId, isStandalone: ev.target.checked })}
+                        />
+                        <span className="text-xs text-stone-400">📦 Also standalone</span>
+                      </label>
+                    )}
                   </div>
                   <button
                     type="button"

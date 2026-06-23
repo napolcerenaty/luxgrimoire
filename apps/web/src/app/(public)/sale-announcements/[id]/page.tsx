@@ -178,59 +178,112 @@ export default async function SaleAnnouncementPage({ params }: Props) {
       </div>
 
       {/* Editions */}
-      {editions.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            Included Editions
-            <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {editions.map(({ edition, editionId }) => {
-              if (!edition) return null
-              const book = edition.book
-              const authors = book?.authors ?? []
-              const coverUrl = edition.additionalImages?.[0]
-              const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
-              const displayTitle = book?.title ?? (edition as any).bookBoxCompany?.name ?? 'Edition'
+      {editions.length > 0 && (() => {
+        const items = sale.items ?? []
+        // Build itemId → item map
+        const itemMap = new Map(items.map(it => [it.id, it]))
 
-              return (
-                <Link
-                  key={editionId}
-                  href={`/editions/${edition.slug}`}
-                  className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/30 transition-colors"
+        // Grouped editions (in an item group), keyed by itemId
+        const grouped = new Map<string, typeof editions>()
+        // Standalone: no item OR flagged isStandalone
+        const standalone: typeof editions = []
+
+        for (const ed of editions) {
+          if (ed.itemId) {
+            if (!grouped.has(ed.itemId)) grouped.set(ed.itemId, [])
+            grouped.get(ed.itemId)!.push(ed)
+            if ((ed as any).isStandalone) standalone.push(ed)
+          } else {
+            standalone.push(ed)
+          }
+        }
+
+        const renderEditionCard = (ed: typeof editions[0]) => {
+          const { edition, editionId } = ed
+          if (!edition) return null
+          const book = edition.book
+          const authors = book?.authors ?? []
+          const coverUrl = edition.additionalImages?.[0]
+          const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
+          const displayTitle = book?.title ?? (edition as any).bookBoxCompany?.name ?? 'Edition'
+          return (
+            <Link
+              key={`${editionId}-${ed.itemId ?? 'standalone'}`}
+              href={`/editions/${edition.slug}`}
+              className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/30 transition-colors"
+            >
+              {coverSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverSrc} alt={displayTitle} className="w-full aspect-[2/3] object-cover" />
+              ) : (
+                <div
+                  className="w-full aspect-[2/3] relative flex items-center justify-center overflow-hidden"
+                  style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)}
                 >
-                  {coverSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={coverSrc}
-                      alt={displayTitle}
-                      className="w-full aspect-[2/3] object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-full aspect-[2/3] relative flex items-center justify-center overflow-hidden"
-                      style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)}
-                    >
-                      <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)} />
-                      <p className="relative z-10 font-serif font-semibold text-center px-2 text-xs text-stone-200 leading-snug line-clamp-4">{displayTitle}</p>
-                    </div>
+                  <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)} />
+                  <p className="relative z-10 font-serif font-semibold text-center px-2 text-xs text-stone-200 leading-snug line-clamp-4">{displayTitle}</p>
+                </div>
+              )}
+              <div className="p-3">
+                <p className="text-stone-200 text-sm font-medium leading-tight line-clamp-2">{displayTitle}</p>
+                {authors.length > 0 && (
+                  <p className="text-stone-500 text-xs mt-1 line-clamp-1">
+                    {(authors as any[]).map((a: any) => (a.author ?? a).name).join(', ')}
+                  </p>
+                )}
+              </div>
+            </Link>
+          )
+        }
+
+        const hasGroups = grouped.size > 0
+        const totalCount = editions.length
+
+        return (
+          <section className="space-y-8">
+            <h2 className="text-2xl font-serif font-semibold text-stone-100">
+              Included Editions
+              <span className="ml-2 text-base font-sans font-normal text-stone-500">({totalCount})</span>
+            </h2>
+
+            {/* Groups */}
+            {hasGroups && [...items].sort((a, b) => a.sortOrder - b.sortOrder).map(item => {
+              const groupEditions = grouped.get(item.id) ?? []
+              if (groupEditions.length === 0) return null
+              return (
+                <div key={item.id}>
+                  {item.name && (
+                    <h3 className="text-base font-semibold text-stone-300 mb-4 flex items-center gap-2">
+                      <span className="h-px flex-1 bg-stone-800" />
+                      <span>{item.name}</span>
+                      <span className="h-px flex-1 bg-stone-800" />
+                    </h3>
                   )}
-                  <div className="p-3">
-                    <p className="text-stone-200 text-sm font-medium leading-tight line-clamp-2">
-                      {displayTitle}
-                    </p>
-                    {authors.length > 0 && (
-                      <p className="text-stone-500 text-xs mt-1 line-clamp-1">
-                        {(authors as any[]).map((a: any) => (a.author ?? a).name).join(', ')}
-                      </p>
-                    )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {groupEditions.map(renderEditionCard)}
                   </div>
-                </Link>
+                </div>
               )
             })}
-          </div>
-        </section>
-      )}
+
+            {/* Standalone / ungrouped */}
+            {standalone.length > 0 && (
+              <div>
+                {hasGroups && (
+                  <h3 className="text-base font-semibold text-stone-300 mb-4 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-stone-800" />
+                    <span>Also available standalone</span>
+                    <span className="h-px flex-1 bg-stone-800" />
+                  </h3>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {standalone.map(renderEditionCard)}
+                </div>
+              </div>
+            )}
+          </section>
+        )
+      })()}
     </div>
   )
 }

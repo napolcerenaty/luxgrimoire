@@ -110,6 +110,17 @@ export class AnnouncementsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/:editionId/standalone')
+  adminSetStandalone(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body('isStandalone') isStandalone: boolean,
+  ) {
+    return this.announcementsService.adminSetStandalone(id, editionId, isStandalone);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
   @Patch('admin/:id/editions/reprint-all')
   adminSetAllReprint(
     @Param('id') id: string,

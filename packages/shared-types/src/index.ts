@@ -631,7 +631,9 @@ export interface ApiSaleAnnouncement {
     editionId: string;
     sortOrder: number;
     isReprint: boolean;
+    isStandalone: boolean;
     itemId: string | null;
+    item?: { id: string; name: string | null } | null;
     price: number | null;
     currency: string;
     variants: Array<{

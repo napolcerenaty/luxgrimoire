@@ -703,6 +703,17 @@ export async function adminSetAnnouncementEditionReprint(id: string, editionId: 
   return res.json();
 }
 
+export async function adminSetAnnouncementEditionStandalone(id: string, editionId: string, isStandalone: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/standalone`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isStandalone }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function adminSetAllAnnouncementEditionsReprint(id: string, isReprint: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/reprint-all`, {
     credentials: 'include',

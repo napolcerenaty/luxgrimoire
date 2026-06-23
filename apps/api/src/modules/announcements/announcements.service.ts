@@ -217,7 +217,7 @@ export class AnnouncementsService {
         imageAsset: { select: { id: true, publicId: true } },
         editions: {
           ...editionsInclude,
-          include: { ...editionsInclude.include, item: { select: { id: true } } },
+          include: { ...editionsInclude.include, item: { select: { id: true, name: true } } },
         },
         items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
@@ -348,6 +348,18 @@ export class AnnouncementsService {
     await this.prisma.saleAnnouncementEdition.update({
       where: { id: link.id },
       data: { isReprint },
+    });
+    return this.findById(id);
+  }
+
+  async adminSetStandalone(id: string, editionId: string, isStandalone: boolean) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEdition.update({
+      where: { id: link.id },
+      data: { isStandalone },
     });
     return this.findById(id);
   }
