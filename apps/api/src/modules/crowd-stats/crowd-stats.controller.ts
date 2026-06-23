@@ -56,7 +56,7 @@ export class CrowdStatsController {
   @Public()
   @Get('platform/stats')
   async getPlatformStats() {
-    const cacheKey = 'platform:stats:v3';
+    const cacheKey = 'platform:stats:v4';
     const cached = await this.cache.get<{
       editionsCount: number;
       companiesCount: number;
@@ -68,7 +68,7 @@ export class CrowdStatsController {
     const [editionsCount, companiesCount, subscriptionsCount, activeSalesCount] = await this.prisma.$transaction([
       this.prisma.bookEdition.count({ where: { verifiedAt: { not: null } } }),
       this.prisma.bookBoxCompany.count(),
-      this.prisma.subscription.count({ where: { isDiscontinued: false } }),
+      this.prisma.subscription.count({ where: { isDiscontinued: false, isContentStream: false } }),
       this.prisma.saleAnnouncement.count({ where: { generalSaleDate: { gte: new Date() } } }),
     ]);
 
