@@ -361,8 +361,14 @@ export class EditionsService {
     }
     if (query.companyId) where.bookBoxCompanyId = query.companyId;
     if (query.subscriptionId) where.subscriptionId = query.subscriptionId;
+    if (query.collectionId) where.collectionId = query.collectionId;
     if (query.language) where.language = query.language;
     if (query.needsVerification === true) where.verifiedAt = null;
+    if (query.exclusiveOnly === true) { where.collectionId = null; where.subscriptionId = null; }
+    if (query.noSubscription === true) where.subscriptionId = null;
+    if (query.hasOfficialPhoto === true) {
+      where.additionalImages = { isEmpty: true };
+    }
     if (query.search) {
       const s = query.search;
       where.OR = [
@@ -384,6 +390,7 @@ export class EditionsService {
           publisher: true,
           bookBoxCompanyCustomName: true,
           additionalImages: true,
+          subscriptionId: true,
           isSpecial: true,
           verifiedAt: true,
           createdAt: true,
@@ -399,6 +406,7 @@ export class EditionsService {
           },
           artists: { select: { id: true, role: true, artistName: true, artist: { select: { id: true, name: true, slug: true } } } },
           bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+          collection: { select: { id: true, name: true, slug: true } },
           communityImages: {
             where: { status: 'APPROVED' },
             orderBy: { sortOrder: 'asc' },
@@ -414,10 +422,22 @@ export class EditionsService {
       this.prisma.bookEdition.count({ where }),
     ]);
 
+    // Resolve subscription names (subscriptionId is a bare FK with no Prisma relation)
+    const subIds = [...new Set(data.map((e) => (e as any).subscriptionId).filter(Boolean))];
+    const subNames: Record<string, string> = {};
+    if (subIds.length > 0) {
+      const subs = await this.prisma.subscription.findMany({
+        where: { id: { in: subIds } },
+        select: { id: true, name: true },
+      });
+      for (const s of subs) subNames[s.id] = s.name;
+    }
+
     const flatData = data.map((e) => {
       const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
       return {
         ...rest,
+        subscriptionName: (e as any).subscriptionId ? (subNames[(e as any).subscriptionId] ?? null) : null,
         communityPhotoCover: (e.additionalImages as string[]).length === 0
           ? (communityImages?.[0]?.url ?? null)
           : null,

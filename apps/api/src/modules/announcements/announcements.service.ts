@@ -1,9 +1,9 @@
 import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, SaleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto } from './announcements.dto';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
@@ -89,13 +89,19 @@ export class AnnouncementsService {
     }
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
 
     const andConditions: Prisma.SaleAnnouncementWhereInput[] = [{ editions: { some: {} } }];
+
+    // saleType filter
+    if (query.saleType) {
+      andConditions.push({ saleType: query.saleType });
+    }
 
     // Date range filter — any of FA, EA, GS falls in [dateFrom, dateTo]
     if (query.dateFrom || query.dateTo) {
@@ -113,7 +119,43 @@ export class AnnouncementsService {
         ],
       });
     } else if (query.upcoming) {
-      andConditions.push({ generalSaleDate: { gte: today } });
+      // "upcoming/active" logic differs per sale type.
+      // When no saleType filter: show all types that are currently active.
+      const typeFilter = query.saleType ?? null;
+      const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
+
+      // LIMITED_PREORDER / OVERSTOCK: active when any date is today or upcoming,
+      // OR when an explicit endsAt is set and still in the future.
+      // Rule: no endsAt = expires at end of generalSaleDate day (so only show if date >= today).
+      const lpOrOsActive: Prisma.SaleAnnouncementWhereInput = {
+        OR: [
+          { generalSaleDate: { gte: today } },  // upcoming or live today
+          { earlyAccessDate: { gte: today } },
+          { firstAccessDate: { gte: today } },
+          { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+          { endsAt: { gt: now } },               // explicit end date still in the future
+        ],
+      };
+
+      if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
+        activeSaleCondition.push({ AND: [{ saleType: 'LIMITED_PREORDER' }, lpOrOsActive] });
+      }
+
+      if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
+        // Open preorder: runs indefinitely once started — only expires when endsAt is set
+        activeSaleCondition.push({
+          AND: [
+            { saleType: 'OPEN_PREORDER' },
+            { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          ],
+        });
+      }
+
+      if (!typeFilter || typeFilter === 'OVERSTOCK') {
+        activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, lpOrOsActive] });
+      }
+
+      andConditions.push({ OR: activeSaleCondition });
     }
 
     if (query.search) {
@@ -144,6 +186,11 @@ export class AnnouncementsService {
           generalSaleDate: true,
           firstAccessDate: true,
           earlyAccessDate: true,
+          endsAt: true,
+          saleType: true,
+          isSoldOut: true,
+          isBundle: true,
+          notes: true,
           company: { select: { name: true, slug: true, brandColors: true } },
           editions: {
             take: 1,
@@ -153,7 +200,7 @@ export class AnnouncementsService {
             },
           },
           regions: {
-            select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true, countryCodes: true, currency: true },
+            select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true, endsAt: true, isSoldOut: true, countryCodes: true, currency: true },
           },
         },
       }),
@@ -168,7 +215,11 @@ export class AnnouncementsService {
       where: { id },
       include: {
         imageAsset: { select: { id: true, publicId: true } },
-        editions: editionsInclude,
+        editions: {
+          ...editionsInclude,
+          include: { ...editionsInclude.include, item: { select: { id: true, name: true } } },
+        },
+        items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
         company: { select: { name: true, slug: true, brandColors: true } },
       },
@@ -241,6 +292,7 @@ export class AnnouncementsService {
           imageAsset: { select: { id: true, publicId: true } },
           editions: editionsIncludeAdmin,
           regions: regionsInclude,
+          items: { orderBy: { sortOrder: 'asc' as const } },
           company: { select: { id: true, name: true, slug: true, logoUrl: true } },
         },
       }),
@@ -300,6 +352,18 @@ export class AnnouncementsService {
     return this.findById(id);
   }
 
+  async adminSetStandalone(id: string, editionId: string, isStandalone: boolean) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId: id, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEdition.update({
+      where: { id: link.id },
+      data: { isStandalone },
+    });
+    return this.findById(id);
+  }
+
   async adminSetAllReprint(id: string, isReprint: boolean) {
     const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Sale announcement not found');
@@ -335,6 +399,10 @@ export class AnnouncementsService {
         generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
         firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
         earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        saleType: data.saleType ?? 'LIMITED_PREORDER',
+        isSoldOut: data.isSoldOut ?? false,
+        notes: data.notes ?? null,
         saleTimezone: data.saleTimezone ?? null,
         basePrice: data.basePrice ?? null,
         currency: data.currency ?? null,
@@ -382,6 +450,12 @@ export class AnnouncementsService {
       ...(data.earlyAccessDate !== undefined && {
         earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
       }),
+      ...(data.endsAt !== undefined && {
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+      }),
+      ...(data.saleType !== undefined && { saleType: data.saleType }),
+      ...(data.isSoldOut !== undefined && { isSoldOut: data.isSoldOut }),
+      ...(data.notes !== undefined && { notes: data.notes ?? null }),
       ...(data.saleTimezone !== undefined && { saleTimezone: data.saleTimezone }),
       ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
       ...(data.currency !== undefined && { currency: data.currency }),
@@ -405,7 +479,7 @@ export class AnnouncementsService {
       data: updateData,
     });
     // If dates changed, recalculate all pending sale reminders for this announcement
-    const dateChanged = data.generalSaleDate !== undefined || data.firstAccessDate !== undefined || data.earlyAccessDate !== undefined;
+    const dateChanged = data.generalSaleDate !== undefined || data.firstAccessDate !== undefined || data.earlyAccessDate !== undefined || data.endsAt !== undefined;
     if (dateChanged) {
       this.scheduledReminders?.recalculateForAnnouncement(id).catch(() => {});
     }
@@ -479,11 +553,12 @@ export class AnnouncementsService {
   }
 
   async duplicate(id: string) {
-    const source = await this.prisma.saleAnnouncement.findUnique({
+    const source = await (this.prisma.saleAnnouncement as any).findUnique({
       where: { id },
       include: {
         editions: { include: { variants: true }, orderBy: { sortOrder: 'asc' } },
         regions: { orderBy: { createdAt: 'asc' } },
+        items: { orderBy: { sortOrder: 'asc' } },
       },
     });
     if (!source) throw new NotFoundException('Sale announcement not found');
@@ -495,6 +570,10 @@ export class AnnouncementsService {
         generalSaleDate: source.generalSaleDate,
         firstAccessDate: source.firstAccessDate,
         earlyAccessDate: source.earlyAccessDate,
+        endsAt: source.endsAt,
+        saleType: source.saleType,
+        isSoldOut: false,
+        notes: source.notes,
         saleTimezone: source.saleTimezone,
         basePrice: source.basePrice,
         currency: source.currency,
@@ -512,6 +591,15 @@ export class AnnouncementsService {
     const sourceExtraImages = Array.isArray(source.extraImagesJson) ? source.extraImagesJson as string[] : [];
     await this.syncExtraImageAssets(copy.id, sourceExtraImages);
 
+    // Copy items and build old→new item id map
+    const itemIdMap = new Map<string, string>();
+    for (const item of (source.items ?? [])) {
+      const newItem = await (this.prisma as any).saleAnnouncementItem.create({
+        data: { saleId: copy.id, name: item.name, sortOrder: item.sortOrder },
+      });
+      itemIdMap.set(item.id, newItem.id);
+    }
+
     for (const edition of source.editions) {
       const newEdition = await this.prisma.saleAnnouncementEdition.create({
         data: {
@@ -519,11 +607,12 @@ export class AnnouncementsService {
           editionId: edition.editionId,
           sortOrder: edition.sortOrder,
           isReprint: edition.isReprint,
+          itemId: edition.itemId ? (itemIdMap.get(edition.itemId) ?? null) : null,
         },
       });
       if (edition.variants.length > 0) {
         await this.prisma.saleAnnouncementEditionVariant.createMany({
-          data: edition.variants.map(v => ({
+          data: edition.variants.map((v: any) => ({
             saleAnnouncementEditionId: newEdition.id,
             signatureType: v.signatureType,
             price: v.price,
@@ -536,7 +625,7 @@ export class AnnouncementsService {
 
     if (source.regions.length > 0) {
       await this.prisma.saleAnnouncementRegion.createMany({
-        data: source.regions.map(r => ({
+        data: source.regions.map((r: any) => ({
           saleId: copy.id,
           name: r.name,
           countryCodes: r.countryCodes as Prisma.InputJsonValue,
@@ -545,6 +634,7 @@ export class AnnouncementsService {
           firstAccessDate: r.firstAccessDate,
           earlyAccessDate: r.earlyAccessDate,
           endsAt: r.endsAt,
+          isSoldOut: false,
           saleTimezone: r.saleTimezone,
           basePrice: r.basePrice,
           currency: r.currency,
@@ -557,6 +647,57 @@ export class AnnouncementsService {
     return this.findById(copy.id);
   }
 
+  async adminAssignEditionToItem(saleId: string, editionId: string, itemId: string | null) {
+    const link = await this.prisma.saleAnnouncementEdition.findUnique({
+      where: { saleId_editionId: { saleId, editionId } },
+    });
+    if (!link) throw new NotFoundException('Edition not linked to this announcement');
+    await this.prisma.saleAnnouncementEdition.update({
+      where: { id: link.id },
+      data: { itemId },
+    });
+    return this.findById(saleId);
+  }
+
+  async adminCreateItem(saleId: string, dto: UpsertSaleAnnouncementItemDto) {
+    const existing = await this.prisma.saleAnnouncement.findUnique({ where: { id: saleId } });
+    if (!existing) throw new NotFoundException('Sale announcement not found');
+    const maxOrder = await (this.prisma as any).saleAnnouncementItem.aggregate({
+      where: { saleId },
+      _max: { sortOrder: true },
+    });
+    return (this.prisma as any).saleAnnouncementItem.create({
+      data: {
+        saleId,
+        name: dto.name ?? null,
+        sortOrder: dto.sortOrder ?? (maxOrder._max.sortOrder ?? -1) + 1,
+      },
+    });
+  }
+
+  async adminUpdateItem(saleId: string, itemId: string, dto: UpsertSaleAnnouncementItemDto) {
+    const item = await (this.prisma as any).saleAnnouncementItem.findFirst({ where: { id: itemId, saleId } });
+    if (!item) throw new NotFoundException('Item not found');
+    return (this.prisma as any).saleAnnouncementItem.update({
+      where: { id: itemId },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name ?? null }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+      },
+    });
+  }
+
+  async adminDeleteItem(saleId: string, itemId: string) {
+    const item = await (this.prisma as any).saleAnnouncementItem.findFirst({ where: { id: itemId, saleId } });
+    if (!item) throw new NotFoundException('Item not found');
+    // Unlink editions from this item before deleting
+    await this.prisma.saleAnnouncementEdition.updateMany({
+      where: { saleId, itemId },
+      data: { itemId: null },
+    });
+    await (this.prisma as any).saleAnnouncementItem.delete({ where: { id: itemId } });
+  }
+
   async adminUpsertRegion(saleId: string, data: {
     id?: string;
     name: string;
@@ -566,6 +707,7 @@ export class AnnouncementsService {
     firstAccessDate?: string | null;
     earlyAccessDate?: string | null;
     endsAt?: string | null;
+    isSoldOut?: boolean;
     saleTimezone?: string | null;
     basePrice?: number | null;
     currency?: string | null;
@@ -581,6 +723,7 @@ export class AnnouncementsService {
       firstAccessDate: fields.firstAccessDate ? new Date(fields.firstAccessDate) : null,
       earlyAccessDate: fields.earlyAccessDate ? new Date(fields.earlyAccessDate) : null,
       endsAt: fields.endsAt ? new Date(fields.endsAt) : null,
+      isSoldOut: fields.isSoldOut ?? false,
       saleTimezone: fields.saleTimezone ?? null,
       basePrice: fields.basePrice ?? null,
       currency: fields.currency ?? null,

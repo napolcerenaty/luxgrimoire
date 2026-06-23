@@ -588,6 +588,15 @@ export interface ApiSaleGroup {
   profitLoss: number | null;
 }
 
+export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+
+export interface ApiSaleAnnouncementItem {
+  id: string;
+  name: string | null;
+  sortOrder: number;
+  editions?: Array<{ id: string; editionId: string }>;
+}
+
 export interface ApiSaleAnnouncement {
   id: string;
   slug: string;
@@ -604,6 +613,10 @@ export interface ApiSaleAnnouncement {
   extraImagesJson: string[] | null;
   imageUrl: string | null;
 
+  saleType: SaleType;
+  isSoldOut: boolean;
+  notes: string | null;
+
   isBundle: boolean;
   expectedShipping: string | null;
   photoCredit: string | null;
@@ -617,6 +630,10 @@ export interface ApiSaleAnnouncement {
     edition: (ApiBookEdition & { book: ApiBook }) | null;
     editionId: string;
     sortOrder: number;
+    isReprint: boolean;
+    isStandalone: boolean;
+    itemId: string | null;
+    item?: { id: string; name: string | null } | null;
     price: number | null;
     currency: string;
     variants: Array<{
@@ -626,6 +643,7 @@ export interface ApiSaleAnnouncement {
       currency: string | null;
     }>;
   }>;
+  items?: ApiSaleAnnouncementItem[];
   regions?: Array<{
     id: string;
     name: string;
@@ -635,6 +653,7 @@ export interface ApiSaleAnnouncement {
     firstAccessDate: string | null;
     earlyAccessDate: string | null;
     endsAt: string | null;
+    isSoldOut: boolean;
     saleTimezone: string | null;
     basePrice: number | null;
     subscriberBasePrice: number | null;

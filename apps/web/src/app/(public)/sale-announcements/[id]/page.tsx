@@ -1,14 +1,11 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
-import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
-import SaleDateSelector from './SaleDateSelector'
-import { SaleInterestSection } from './SaleInterestSection'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { SaleAnnouncementContent } from '@/components/sales/SaleAnnouncementContent'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -34,10 +31,6 @@ export default async function SaleAnnouncementPage({ params }: Props) {
     notFound()
   }
 
-  const editions = sale.editions ?? []
-  const allEditionIds = editions.map(e => e.editionId)
-
-  // Build full-res image URLs for carousel
   const extraImages: string[] = Array.isArray(sale.extraImagesJson) ? sale.extraImagesJson : []
   const carouselImages = [
     ...(sale.imageUrl ? [cloudinaryUrl(sale.imageUrl, 'w_560,q_auto,f_auto')!] : []),
@@ -46,7 +39,6 @@ export default async function SaleAnnouncementPage({ params }: Props) {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      {/* Header */}
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-10 mb-12">
         {/* Image(s) */}
         <div>
@@ -68,12 +60,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             return (
               <p className="text-xs text-stone-500 mt-2 text-center">
                 📷 photo by{' '}
-                <a
-                  href={`https://instagram.com/${handle}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-amber-400 transition-colors"
-                >
+                <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">
                   @{handle}
                 </a>
               </p>
@@ -82,129 +69,8 @@ export default async function SaleAnnouncementPage({ params }: Props) {
         </div>
 
         {/* Info */}
-        <div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {sale.isBundle && (
-              <Badge variant="default">Bundle</Badge>
-            )}
-            {sale.availableForPurchase && (
-              <Badge variant="success">Available Now</Badge>
-            )}
-          </div>
-
-          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">
-            {sale.title}
-          </h1>
-
-          {/* description removed */}
-
-          {sale.expectedShipping && (
-            <p className="text-stone-400 text-sm mb-6">
-              <span className="text-stone-500">Expected shipping: </span>
-              <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
-            </p>
-          )}
-
-          {(sale as any).sourceUrl && (
-            <p className="text-sm mb-6">
-              <a
-                href={(sale as any).sourceUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex items-center gap-1.5 text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                View original announcement
-              </a>
-            </p>
-          )}
-
-          {/* Dates + Region Selector */}
-          {sale.subscriberBasePrice != null && sale.currency && (
-            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-700/40">
-              <span className="text-emerald-400 text-sm">🏷</span>
-              <span className="text-emerald-300 text-sm">
-                Subscriber price: <strong>{sale.currency === 'GBP' ? '£' : sale.currency === 'USD' ? '$' : sale.currency === 'EUR' ? '€' : sale.currency}{sale.subscriberBasePrice}</strong>
-                <span className="text-emerald-500 text-xs ml-1">(vs {sale.currency === 'GBP' ? '£' : sale.currency === 'USD' ? '$' : sale.currency === 'EUR' ? '€' : sale.currency}{sale.basePrice} general)</span>
-              </span>
-            </div>
-          )}
-          <div className="mb-6">
-            <SaleDateSelector
-              regions={sale.regions ?? []}
-              fallback={{
-                generalSaleDate: sale.generalSaleDate,
-                firstAccessDate: sale.firstAccessDate,
-                earlyAccessDate: sale.earlyAccessDate,
-                saleTimezone: sale.saleTimezone,
-                basePrice: sale.basePrice,
-                currency: sale.currency,
-              }}
-              userCountry={null}
-            />
-          </div>
-
-          {/* Interest / preorder / add to collection */}
-          <SaleInterestSection sale={sale} />
-        </div>
+        <SaleAnnouncementContent sale={sale} showPageLink={false} />
       </div>
-
-      {/* Editions */}
-      {editions.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
-            Included Editions
-            <span className="ml-2 text-base font-sans font-normal text-stone-500">({editions.length})</span>
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {editions.map(({ edition, editionId }) => {
-              if (!edition) return null
-              const book = edition.book
-              const authors = book?.authors ?? []
-              const coverUrl = edition.additionalImages?.[0]
-              const coverSrc = coverUrl ? cloudinaryUrl(coverUrl, 'w_200,h_300,c_fill,q_auto,f_auto') : null
-              const displayTitle = book?.title ?? (edition as any).bookBoxCompany?.name ?? 'Edition'
-
-              return (
-                <Link
-                  key={editionId}
-                  href={`/editions/${edition.slug}`}
-                  className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-amber-500/30 transition-colors"
-                >
-                  {coverSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={coverSrc}
-                      alt={displayTitle}
-                      className="w-full aspect-[2/3] object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-full aspect-[2/3] relative flex items-center justify-center overflow-hidden"
-                      style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)}
-                    >
-                      <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle((edition as any).bookBoxCompany?.brandColors ?? sale.company?.brandColors)} />
-                      <p className="relative z-10 font-serif font-semibold text-center px-2 text-xs text-stone-200 leading-snug line-clamp-4">{displayTitle}</p>
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <p className="text-stone-200 text-sm font-medium leading-tight line-clamp-2">
-                      {displayTitle}
-                    </p>
-                    {authors.length > 0 && (
-                      <p className="text-stone-500 text-xs mt-1 line-clamp-1">
-                        {(authors as any[]).map((a: any) => (a.author ?? a).name).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

@@ -596,12 +596,17 @@ export interface SaleAnnouncementFormData {
   generalSaleDate?: string | null;
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
+  endsAt?: string | null;
   saleTimezone?: string;
   basePrice?: number;
   currency?: string;
   subscriberBasePrice?: number | null;
   imageUrl?: string;
   extraImages?: string[];
+
+  saleType?: import('@luxgrimoire/shared-types').SaleType;
+  isSoldOut?: boolean;
+  notes?: string | null;
 
   isBundle?: boolean;
   expectedShipping?: string;
@@ -615,12 +620,14 @@ export async function adminGetSaleAnnouncements(params?: {
   pageSize?: number;
   search?: string;
   companyId?: string;
+  saleType?: import('@luxgrimoire/shared-types').SaleType;
 }): Promise<{ data: import('@luxgrimoire/shared-types').ApiSaleAnnouncement[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
   if (params?.search) qs.set('search', params.search);
   if (params?.companyId) qs.set('companyId', params.companyId);
+  if (params?.saleType) qs.set('saleType', params.saleType);
   const res = await fetch(`${API_URL}/announcements/admin?${qs}`, {
     credentials: 'include',
     headers: {
@@ -696,6 +703,17 @@ export async function adminSetAnnouncementEditionReprint(id: string, editionId: 
   return res.json();
 }
 
+export async function adminSetAnnouncementEditionStandalone(id: string, editionId: string, isStandalone: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
+  const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/${editionId}/standalone`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isStandalone }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
 export async function adminSetAllAnnouncementEditionsReprint(id: string, isReprint: boolean): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncement> {
   const res = await fetch(`${API_URL}/announcements/admin/${id}/editions/reprint-all`, {
     credentials: 'include',
@@ -750,6 +768,7 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   endsAt?: string | null;
+  isSoldOut?: boolean;
   saleTimezone?: string | null;
   basePrice?: number | null;
   currency?: string | null;
@@ -769,6 +788,46 @@ export async function adminDeleteAnnouncementRegion(saleId: string, regionId: st
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/regions/${regionId}`, {
     credentials: 'include',
     method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
+export async function adminCreateAnnouncementItem(saleId: string, data: { name?: string }): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncementItem> {
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/items`, {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminUpdateAnnouncementItem(saleId: string, itemId: string, data: { name?: string; sortOrder?: number }): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncementItem> {
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/items/${itemId}`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminDeleteAnnouncementItem(saleId: string, itemId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/items/${itemId}`, {
+    credentials: 'include',
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
+export async function adminAssignEditionToItem(saleId: string, editionId: string, itemId: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/announcements/admin/${saleId}/editions/${editionId}/item`, {
+    credentials: 'include',
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemId }),
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }

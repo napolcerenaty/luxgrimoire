@@ -3,7 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto } from './announcements.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
@@ -29,6 +29,7 @@ export class AnnouncementsController {
     @Query('companyId') companyId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('saleType') saleType?: string,
   ) {
     return this.announcementsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
@@ -39,6 +40,7 @@ export class AnnouncementsController {
       companyId,
       dateFrom,
       dateTo,
+      saleType: saleType as any,
     });
   }
 
@@ -108,6 +110,17 @@ export class AnnouncementsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/:editionId/standalone')
+  adminSetStandalone(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body('isStandalone') isStandalone: boolean,
+  ) {
+    return this.announcementsService.adminSetStandalone(id, editionId, isStandalone);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
   @Patch('admin/:id/editions/reprint-all')
   adminSetAllReprint(
     @Param('id') id: string,
@@ -121,6 +134,17 @@ export class AnnouncementsController {
   @Delete('admin/:id/editions/:editionId')
   adminRemoveEdition(@Param('id') id: string, @Param('editionId') editionId: string) {
     return this.announcementsService.adminRemoveEdition(id, editionId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/editions/:editionId/item')
+  adminAssignEditionToItem(
+    @Param('id') id: string,
+    @Param('editionId') editionId: string,
+    @Body() dto: AssignEditionToItemDto,
+  ) {
+    return this.announcementsService.adminAssignEditionToItem(id, editionId, dto.itemId ?? null);
   }
 
   @ApiBearerAuth()
@@ -159,6 +183,33 @@ export class AnnouncementsController {
   @Delete('admin/:id/regions/:regionId')
   adminDeleteRegion(@Param('id') id: string, @Param('regionId') regionId: string) {
     return this.announcementsService.adminDeleteRegion(id, regionId);
+  }
+
+  // ── Item (bundle group) endpoints ──────────────────────────────────────────
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/items')
+  adminCreateItem(@Param('id') id: string, @Body() dto: UpsertSaleAnnouncementItemDto) {
+    return this.announcementsService.adminCreateItem(id, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch('admin/:id/items/:itemId')
+  adminUpdateItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpsertSaleAnnouncementItemDto,
+  ) {
+    return this.announcementsService.adminUpdateItem(id, itemId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/items/:itemId')
+  adminDeleteItem(@Param('id') id: string, @Param('itemId') itemId: string) {
+    return this.announcementsService.adminDeleteItem(id, itemId);
   }
 
   @Public()

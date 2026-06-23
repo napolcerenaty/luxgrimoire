@@ -71,7 +71,8 @@ interface SaleInterestItem {
     generalSaleDate: string | null
     earlyAccessDate: string | null
     firstAccessDate: string | null
-    company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null }
+    saleType: string | null
+    company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
     regions: SaleRegion[]
   }
 }
@@ -121,6 +122,7 @@ export default function WishlistPage() {
 
   // Sale interests filters
   const [companyFilter, setCompanyFilter] = useState('')
+  const [saleTypeFilter, setSaleTypeFilter] = useState('')
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -152,18 +154,22 @@ export default function WishlistPage() {
   // Derive company list from loaded interests (no extra API call)
   const filterCompanies = useMemo(() => {
     const seen = new Map<string, string>()
-    saleInterests.forEach((i) => seen.set(i.announcement.company.id, i.announcement.company.name))
+    saleInterests.forEach((i) => {
+      const company = i.announcement?.company
+      if (company?.id) seen.set(company.id, company.name)
+    })
     return [...seen.entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [saleInterests])
 
-  const hasFilters = !!companyFilter || timeFilter !== 'all' || !!dateFrom || !!dateTo
+  const hasFilters = !!companyFilter || !!saleTypeFilter || timeFilter !== 'all' || !!dateFrom || !!dateTo
 
   const filteredInterests = useMemo(() => {
     const now = new Date()
     return saleInterests.filter((interest) => {
-      if (companyFilter && interest.announcement.company.id !== companyFilter) return false
+      if (companyFilter && interest.announcement.company?.id !== companyFilter) return false
+      if (saleTypeFilter && interest.announcement.saleType !== saleTypeFilter) return false
       const d = getEffectiveDate(interest)
       const saleDate = d ? new Date(d) : null
       if (timeFilter !== 'all') {
@@ -399,6 +405,18 @@ export default function WishlistPage() {
                 ))}
               </select>
 
+              {/* Sale type filter */}
+              <select
+                value={saleTypeFilter}
+                onChange={(e) => setSaleTypeFilter(e.target.value)}
+                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
+              >
+                <option value="">All types</option>
+                <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
+                <option value="OPEN_PREORDER">🔓 Open Preorder</option>
+                <option value="OVERSTOCK">📦 Overstock</option>
+              </select>
+
               {/* Date from */}
               <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-400 focus-within:border-amber-500">
                 <span className="shrink-0 text-stone-500 text-xs">From</span>
@@ -423,9 +441,9 @@ export default function WishlistPage() {
                 />
               </label>
 
-              {(companyFilter || timeFilter !== 'all' || dateFrom || dateTo) && (
+              {(companyFilter || saleTypeFilter || timeFilter !== 'all' || dateFrom || dateTo) && (
                 <button
-                  onClick={() => { setCompanyFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
+                  onClick={() => { setCompanyFilter(''); setSaleTypeFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
                   className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2 rounded-xl transition-colors"
                 >
                   <X size={12} /> Reset
@@ -466,13 +484,13 @@ export default function WishlistPage() {
                         <img src={coverSrc} alt={sa.title} className="w-full aspect-[4/3] object-cover" />
                       ) : (
                         <div className="relative w-full aspect-[4/3] flex items-center justify-center bg-stone-900">
-                          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(getBrandColors(sa.company.slug) ?? sa.company.brandColors)} />
+                          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sa.company ? (getBrandColors(sa.company.slug) ?? sa.company.brandColors) : null)} />
                           <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{sa.title}</span>
                         </div>
                       )}
                       <div className="p-3 space-y-2">
                         <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2">{sa.title}</p>
-                        <p className="text-stone-500 text-xs">{sa.company.name}</p>
+                        <p className="text-stone-500 text-xs">{sa.company?.name}</p>
                         {dateLabel && (
                           <p className="text-xs text-stone-500 flex items-center gap-1">
                             <Tag size={10} />

@@ -40,6 +40,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
   const { postFeesAndDiscounts } = useRecordSaleGroup()
   const [open, setOpen] = useState(defaultOpen ?? false)
   const [success, setSuccess] = useState(false)
+  const [addedCount, setAddedCount] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,10 +63,14 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
       const parsedPrice = parseDecimalInput(data.totalAmount)
       const parsedShipping = parseDecimalInput(data.shippingAmount)
 
-      const editionIds = editions.map(ed => ed.editionId)
+      const activeEditions = editions.length > 1
+        ? editions.filter(ed => data.selectedEditionIds.includes(ed.editionId))
+        : editions
+
+      const editionIds = activeEditions.map(ed => ed.editionId)
       const editionSignatureTypes: Record<string, string> = {}
       const editionSaleAnnouncementEditionIds: Record<string, string> = {}
-      for (const ed of editions) {
+      for (const ed of activeEditions) {
         const chosen = data.selectedVariants[ed.editionId]
         if (chosen) editionSignatureTypes[ed.editionId] = chosen
         editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
@@ -92,6 +97,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         await postFeesAndDiscounts(purchaseGroupId, data.feeEntries, data.discountEntries, data.feeTemplates, feeDate)
       }
 
+      setAddedCount(editionIds.length)
       setSuccess(true)
       setTimeout(() => { closeModal(); setSuccess(false) }, 2000)
     } catch (err) {
@@ -139,7 +145,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
             <div className="text-center py-6">
               <div className="text-4xl mb-3">&#10003;</div>
               <p className="text-green-400 font-semibold">Added to your collection!</p>
-              <p className="text-stone-500 text-sm mt-1">{editions.length} edition{editions.length !== 1 ? 's' : ''} added</p>
+              <p className="text-stone-500 text-sm mt-1">{addedCount} edition{addedCount !== 1 ? 's' : ''} added</p>
             </div>
           </div>
         </div>

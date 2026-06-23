@@ -315,8 +315,8 @@ function SubscriptionForm({
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="space-y-6">
 
-      {/* ── 2-column main grid ── */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+      {/* ── 2-column main grid — only at xl+ so fields aren't cramped ── */}
+      <div className="grid xl:grid-cols-2 gap-x-8 gap-y-4">
 
         {/* LEFT: identity */}
         <div className="space-y-4">
@@ -355,7 +355,7 @@ function SubscriptionForm({
         {/* RIGHT: settings */}
         <div className="space-y-4">
           {/* Price / Currency / Language */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className={LABEL_CLASS}>Price</label>
               <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
@@ -379,7 +379,7 @@ function SubscriptionForm({
           </div>
 
           {/* Billing Interval / Content type */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Billing Interval</label>
               <select className={SELECT_CLASS} value={form.intervalMonths} onChange={setStr('intervalMonths')}>
@@ -404,7 +404,7 @@ function SubscriptionForm({
           </div>
 
           {/* Start / End date */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Start Date</label>
               <input type="date" className={INPUT_CLASS} value={form.startDate} onChange={setStr('startDate')} />
@@ -525,7 +525,7 @@ function SubscriptionForm({
       </div>
 
       {/* Variant of | Copy from */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid sm:grid-cols-2 gap-6">
         <div>
           <label className={LABEL_CLASS}>Variant of</label>
           <select className={SELECT_CLASS} value={form.parentSubscriptionId} onChange={setStr('parentSubscriptionId')}>
@@ -573,7 +573,7 @@ function SubscriptionForm({
       {/* Skip Policy */}
       <div className="border border-stone-700 rounded-lg p-4 space-y-4">
         <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={LABEL_CLASS}>Policy type</label>
             <select className={SELECT_CLASS} value={form.skipPolicyType} onChange={setStr('skipPolicyType')}>
@@ -623,7 +623,7 @@ function SubscriptionForm({
         </div>
 
         {form.skipPolicyType !== 'NONE' && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             {form.skipPolicyType !== 'UNLIMITED' && (
               <div>
                 <label className={LABEL_CLASS}>Max skips</label>
@@ -648,7 +648,7 @@ function SubscriptionForm({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
             <textarea rows={2} className={INPUT_CLASS} value={form.skipNotes} onChange={setStr('skipNotes')}
@@ -674,7 +674,7 @@ function SubscriptionForm({
 
           {form.allowUnskip && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div>
                     <label className={LABEL_CLASS}>Unskip deadline type</label>
@@ -700,7 +700,7 @@ function SubscriptionForm({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={LABEL_CLASS}>Unskip notes (shown to users)</label>
                   <textarea rows={2} className={INPUT_CLASS} value={form.unskipNotes} onChange={setStr('unskipNotes')}

@@ -395,6 +395,11 @@ export class StatsService {
       : this.filterByYear(spending.plByMonth as Array<{ month: string }> | undefined, year);
 
     if (module === 'sales') {
+      // plByMonth for P&L must use all-time data filtered by sale year.
+      // Year snapshots group entries by PURCHASE year, so a book bought in 2024 and sold in 2026
+      // has its P&L in the 2024 year snapshot's plByMonth["2026-XX"] entry — not in the 2026
+      // year snapshot. Filtering all-time plByMonth by year gives the correct per-sale-year view.
+      const plByMonthSales = this.filterByYear(spending.plByMonth as Array<{ month: string }> | undefined, year);
       return {
         totalSalesRevenue: spending.totalSalesRevenue ?? 0,
         totalSalesProfit: spending.totalSalesProfit ?? null,
@@ -409,7 +414,7 @@ export class StatsService {
         topSalePrice: spending.topSalePrice ?? [],
         topProfit: spending.topProfit ?? [],
         topLoss: spending.topLoss ?? [],
-        plByMonth,
+        plByMonth: plByMonthSales,
         plByCompany: spending.plByCompany ?? [],
         salesWithROI: spending.salesWithROI ?? [],
       };
@@ -626,7 +631,18 @@ export class StatsService {
       const yearSnapshots = await this.snapshots.findMany({
         where: { userId, currency, year: { gt: 0 } },
       });
-      mergedSpending = this.mergeYearSpendingSnapshots(yearSnapshots, currency);
+      // Recompute stale year snapshots first so the merge includes fresh P&L/topLoss data.
+      // A book purchased in year N and sold later lives in year N's snapshot — if that snapshot
+      // is stale the merged all-time data will be missing the sale's contribution.
+      const staleYears = yearSnapshots.filter((s) => s.isStale).map((s) => s.year);
+      let snapshotsToMerge = yearSnapshots;
+      if (staleYears.length > 0) {
+        await Promise.all(staleYears.map((y) => this.recomputeYearSnapshot(userId, currency, y)));
+        snapshotsToMerge = await this.snapshots.findMany({
+          where: { userId, currency, year: { gt: 0 } },
+        });
+      }
+      mergedSpending = this.mergeYearSpendingSnapshots(snapshotsToMerge, currency);
       newVersions.spending = { version: this.spendingComputer.version, computedAt: now };
     }
 

@@ -65,6 +65,7 @@ export class SaleInterestsService {
             earlyAccessDate: true,
             firstAccessDate: true,
             saleTimezone: true,
+            saleType: true,
             company: {
               select: {
                 id: true,
@@ -99,17 +100,36 @@ export class SaleInterestsService {
 
   async getUpcoming(userId: string, limit = 3) {
     const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
     const rows = await this.prisma.userSaleInterest.findMany({
       where: {
         userId,
-        announcement: { generalSaleDate: { gte: now } },
+        announcement: {
+          OR: [
+            // LIMITED_PREORDER / OVERSTOCK: any date >= today (still current day) OR explicit endsAt still active
+            {
+              saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
+              OR: [
+                { generalSaleDate: { gte: today } },
+                { earlyAccessDate: { gte: today } },
+                { firstAccessDate: { gte: today } },
+                { endsAt: { gt: now } },
+              ],
+            },
+            // OPEN_PREORDER: active if not expired
+            { saleType: 'OPEN_PREORDER', OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          ],
+        },
       },
       include: {
         announcement: {
           select: {
             id: true,
             title: true,
+            saleType: true,
             generalSaleDate: true,
+            endsAt: true,
             imageUrl: true,
             company: { select: { name: true, slug: true } },
           },
@@ -122,11 +142,27 @@ export class SaleInterestsService {
   }
 
   async getUpcomingCount(userId: string) {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
     const count = await this.prisma.userSaleInterest.count({
       where: {
         userId,
         announcement: {
-          generalSaleDate: { gte: new Date() },
+          OR: [
+            // LIMITED_PREORDER / OVERSTOCK: any date >= today OR explicit endsAt still active
+            {
+              saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
+              OR: [
+                { generalSaleDate: { gte: today } },
+                { earlyAccessDate: { gte: today } },
+                { firstAccessDate: { gte: today } },
+                { endsAt: { gt: now } },
+              ],
+            },
+            // OPEN_PREORDER: active if not expired
+            { saleType: 'OPEN_PREORDER', OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          ],
         },
       },
     });

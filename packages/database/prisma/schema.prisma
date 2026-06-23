@@ -601,7 +601,12 @@ model SaleAnnouncement {
   earlyAccessDate      DateTime?
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?
+  saleType             SaleType                  @default(LIMITED_PREORDER)
+  endsAt               DateTime?
+  isSoldOut            Boolean                   @default(false)
+  notes                String?
   editions             SaleAnnouncementEdition[]
+  items                SaleAnnouncementItem[]
   regions              SaleAnnouncementRegion[]
   company              BookBoxCompany?           @relation(fields: [companyId], references: [id])
   purchaseGroups       UserPurchaseGroup[]
@@ -612,6 +617,7 @@ model SaleAnnouncement {
   @@index([companyId])
   @@index([generalSaleDate])
   @@index([createdAt])
+  @@index([saleType])
   @@map("sale_announcements")
 }
 
@@ -621,13 +627,17 @@ model SaleAnnouncementEdition {
   saleId       String
   sortOrder    Int                              @default(0)
   isReprint    Boolean                          @default(false)
+  isStandalone Boolean                          @default(false)
+  itemId       String?
   edition      BookEdition                      @relation(fields: [editionId], references: [id])
   announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item         SaleAnnouncementItem?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
   variants        SaleAnnouncementEditionVariant[]
   userBookEntries UserBookEntry[]
 
   @@unique([saleId, editionId])
   @@index([editionId])
+  @@index([itemId])
   @@map("sale_announcement_editions")
 }
 
@@ -653,6 +663,7 @@ model SaleAnnouncementRegion {
   firstAccessDate DateTime?
   earlyAccessDate DateTime?
   endsAt          DateTime?
+  isSoldOut       Boolean          @default(false)
   saleTimezone    String?
   basePrice       Decimal?         @db.Decimal(10, 2)
   subscriberBasePrice Decimal?     @db.Decimal(10, 2)
@@ -662,6 +673,18 @@ model SaleAnnouncementRegion {
 
   @@index([saleId])
   @@map("sale_announcement_regions")
+}
+
+model SaleAnnouncementItem {
+  id        String                    @id @default(uuid())
+  saleId    String
+  name      String?
+  sortOrder Int                       @default(0)
+  sale      SaleAnnouncement          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  editions  SaleAnnouncementEdition[]
+
+  @@index([saleId])
+  @@map("sale_announcement_items")
 }
 
 model UserSaleInterest {
@@ -1337,6 +1360,12 @@ enum SignatureType {
   digitally_signed
   signed_bookplate
   stamped
+}
+
+enum SaleType {
+  LIMITED_PREORDER
+  OPEN_PREORDER
+  OVERSTOCK
 }
 
 enum FeeCategory {
