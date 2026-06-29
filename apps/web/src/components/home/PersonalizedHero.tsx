@@ -1,10 +1,8 @@
-import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { API_BASE } from '@/lib/authFetch'
 import { SaleRowCountdown } from './SaleRowCountdown'
 
-interface UpcomingSale {
+export interface UpcomingSale {
   announcementId: string
   announcement: {
     id: string
@@ -14,30 +12,9 @@ interface UpcomingSale {
   }
 }
 
-async function getMe(cookieHeader: string) {
-  try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Cookie: cookieHeader },
-      cache: 'no-store',
-    })
-    if (!res.ok) return null
-    return res.json()
-  } catch {
-    return null
-  }
-}
-
-async function getUpcomingSales(cookieHeader: string): Promise<UpcomingSale[]> {
-  try {
-    const res = await fetch(`${API_BASE}/sale-interests/upcoming`, {
-      headers: { Cookie: cookieHeader },
-      cache: 'no-store',
-    })
-    if (!res.ok) return []
-    return res.json()
-  } catch {
-    return []
-  }
+interface Props {
+  user: { username: string } | null
+  upcomingSales: UpcomingSale[]
 }
 
 function HeroShell({
@@ -126,14 +103,8 @@ function HeroShell({
   )
 }
 
-export async function PersonalizedHero() {
-  const cookieStore = await cookies()
-  const cookieHeader = cookieStore.getAll().map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
-
-  const user = await getMe(cookieHeader)
-  if (!user) return <HeroShell />
-
-  const upcomingSales = await getUpcomingSales(cookieHeader)
+export function PersonalizedHero({ user, upcomingSales }: Props) {
+  if (!user) return <HeroShell isLoggedIn={false} upcomingSales={[]} />
 
   return (
     <HeroShell

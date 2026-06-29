@@ -53,6 +53,12 @@ const nextConfig: NextConfig = {
     if (process.env.NEXT_WEBPACK_PARALLELISM) {
       config.parallelism = Number(process.env.NEXT_WEBPACK_PARALLELISM)
     }
+    // Suppress "Critical dependency" warnings from @opentelemetry pulled in by @sentry/node
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      { module: /@opentelemetry\/instrumentation/ },
+      { module: /require-in-the-middle/ },
+    ]
     return config
   },
   async headers() {
