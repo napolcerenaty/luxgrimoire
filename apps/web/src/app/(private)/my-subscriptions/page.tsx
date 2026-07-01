@@ -228,22 +228,23 @@ function InlineCostsEditor({
     }
   }
 
-  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 transition-colors'
+  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-2.5 py-1.5 text-stone-100 text-sm focus:outline-none focus:border-amber-400 transition-colors'
 
   return (
-    <div className="rounded-xl border border-stone-700/60 bg-stone-900/80 p-4 space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div>
-          <label className="block text-xs text-stone-400 mb-1">Base price ({costCurrency})</label>
-          <input type="number" step="0.01" min="0" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="e.g. 34.99" className={inputCls} />
+    <div className="rounded-xl border border-stone-700/60 bg-stone-900/80 p-3 space-y-3">
+      {/* Price · Shipping · Currency — one row */}
+      <div className="flex items-end gap-2">
+        <div className="flex-1 min-w-0">
+          <label className="block text-[10px] text-stone-500 mb-1 uppercase tracking-wider">Price</label>
+          <input type="number" step="0.01" min="0" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="0.00" className={inputCls} />
         </div>
-        <div>
-          <label className="block text-xs text-stone-400 mb-1">Shipping ({costCurrency})</label>
-          <input type="number" step="0.01" min="0" value={shippingCost} onChange={e => setShippingCost(e.target.value)} placeholder="e.g. 8.00" className={inputCls} />
+        <div className="flex-1 min-w-0">
+          <label className="block text-[10px] text-stone-500 mb-1 uppercase tracking-wider">Shipping</label>
+          <input type="number" step="0.01" min="0" value={shippingCost} onChange={e => setShippingCost(e.target.value)} placeholder="0.00" className={inputCls} />
         </div>
-        <div>
-          <label className="block text-xs text-stone-400 mb-1">Currency</label>
-          <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className={`${inputCls} w-24 uppercase`} />
+        <div className="shrink-0">
+          <label className="block text-[10px] text-stone-500 mb-1 uppercase tracking-wider">CCY</label>
+          <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className="w-14 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-sm uppercase text-center focus:outline-none focus:border-amber-400 transition-colors" />
         </div>
       </div>
 
