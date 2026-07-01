@@ -154,7 +154,7 @@ export async function deletePurchaseFee(id: string): Promise<void> {
 // ── Purchase Discounts ────────────────────────────────────────────────────────
 
 export interface CreatePurchaseDiscountData {
-  name: string;
+  name?: string;
   amount: number;
   currency: string;
   date: string;

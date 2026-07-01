@@ -508,7 +508,7 @@ export interface ApiPurchaseFee {
 export interface ApiPurchaseDiscount {
   id: string;
   userId: string;
-  name: string;
+  name: string | null;
   amount: number;
   currency: string;
   date: string;
