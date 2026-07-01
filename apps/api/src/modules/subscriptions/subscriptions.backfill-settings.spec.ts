@@ -125,7 +125,7 @@ function setupNonComboBackfill(
 
   // Skip derivation: subscription with no skip policy
   (prisma.subscription.findUnique as jest.Mock)
-    .mockResolvedValueOnce({ id: SUB_ID, skipPolicy: null }); // for skip policy lookup
+    .mockResolvedValueOnce({ id: SUB_ID, skipPolicies: [] }); // for skip policy lookup
   // Eligible months for auto-skip derivation: empty — avoids complex skip mocks
   (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
 

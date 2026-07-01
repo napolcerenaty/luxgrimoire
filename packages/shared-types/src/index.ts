@@ -236,8 +236,8 @@ export interface ApiSubscriptionSkipPolicy {
   unskipDeadlineDayOfMonth: number | null;
   unskipNotes: string | null;
   unskipHow: string | null;
-  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
-  eligibleBillingTypes: string;
+  /** "ALL" | "MONTHLY" | "PREPAID" */
+  billingType: string;
 }
 
 export interface ApiSkipStatus {
@@ -299,7 +299,7 @@ export interface ApiSubscription {
   renewalMonthOffset: number;
   paymentOnStartup: boolean;
   signupIncludesCurrentMonth: boolean;
-  skipPolicy?: ApiSubscriptionSkipPolicy | null;
+  skipPolicies?: ApiSubscriptionSkipPolicy[];
   company?: ApiBookBoxCompany;
   months?: ApiSubscriptionMonth[];
   components?: { componentId: string; component?: ApiSubscription }[];

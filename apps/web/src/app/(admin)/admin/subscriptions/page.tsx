@@ -126,7 +126,7 @@ const EMPTY_FORM: SubFormData = {
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
-  const p = sub.skipPolicy
+  const p = sub.skipPolicies?.find(p => p.billingType === 'ALL') ?? sub.skipPolicies?.[0]
   return {
     companyId: sub.companyId,
     name: sub.name,
@@ -172,7 +172,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     unskipDeadlineDayOfMonth: p?.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
     unskipNotes: p?.unskipNotes ?? '',
     unskipHow: p?.unskipHow ?? '',
-    eligibleBillingTypes: p?.eligibleBillingTypes ?? 'ALL',
+    eligibleBillingTypes: (p as any)?.billingType ?? p?.billingType ?? 'ALL',
     settingsEffectiveFrom: '',
   }
 }

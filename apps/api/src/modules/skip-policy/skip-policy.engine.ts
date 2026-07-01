@@ -269,9 +269,15 @@ export class SkipPolicyEngine {
   async recomputeSkipState(userId: string, subscriptionId: string) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      include: { skipPolicy: true },
+      include: { skipPolicies: true },
     });
-    return this.recomputeState(userId, subscriptionId, subscription?.skipPolicy ?? null);
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId, active: true },
+      select: { prepaidMonths: true },
+    });
+    const isPrepaid = (entry?.prepaidMonths ?? 1) > 1;
+    const policy = this.selectApplicablePolicy(subscription?.skipPolicies ?? [], isPrepaid);
+    return this.recomputeState(userId, subscriptionId, policy);
   }
 
   async recordSkip(
@@ -320,10 +326,16 @@ export class SkipPolicyEngine {
       }
     }
 
+    // PREPAID_WINDOW_SKIP: a single skip covers the ENTIRE upcoming prepaid window
+    // (all prepaidMonths months). Handled separately from per-month skips.
+    if (policy?.type === 'PREPAID_WINDOW_SKIP' && entry.prepaidMonths > 1) {
+      return this.recordPrepaidWindowSkip(
+        userId, subscription, policy, state, entry, isCombo, componentIds, monthsSubscriptionId, year, month,
+      );
+    }
+
     const windowKey = this.computeWindowKey(policy, state, entry);
     const now = new Date();
-
-    // Check if the previous month was also skipped (for consecutive counting)
     const newConsecutive = await this.computeNewConsecutive(entry.id, subscription.id, year, month, state, isCombo ? componentIds : null);
 
     // Create skip record (idempotent via upsert)
@@ -387,6 +399,105 @@ export class SkipPolicyEngine {
     return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
   }
 
+  /**
+   * Returns the list of consecutive calendar months in the prepaid window starting at
+   * (startYear, startMonth) for `count` months.
+   */
+  private prepaidWindowMonths(startYear: number, startMonth: number, count: number): Array<{ year: number; month: number }> {
+    const months: Array<{ year: number; month: number }> = [];
+    let y = startYear;
+    let m = startMonth;
+    for (let i = 0; i < count; i++) {
+      months.push({ year: y, month: m });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return months;
+  }
+
+  /**
+   * Records a PREPAID_WINDOW_SKIP: creates skip records for ALL months in the upcoming
+   * prepaid window (count = entry.prepaidMonths), advances the prepaid billing period by
+   * prepaidMonths, and counts as a single skip against maxSkips.
+   */
+  private async recordPrepaidWindowSkip(
+    userId: string,
+    subscription: { id: string; renewalMonthOffset?: number },
+    policy: any,
+    state: { windowKey: string | null } | null,
+    entry: { id: string; prepaidMonths: number; firstSkipDate: Date | null; effectiveRenewalDay: number | null; startDate: string | null },
+    isCombo: boolean,
+    componentIds: string[],
+    monthsSubscriptionId: string,
+    year: number,
+    month: number,
+  ): Promise<SkipStatus> {
+    const windowKey = this.computeWindowKey(policy, state, entry as any);
+    const now = new Date();
+    const windowMonths = this.prepaidWindowMonths(year, month, entry.prepaidMonths);
+
+    // Resolve DB subscriptionMonth records for each calendar slot; only existing months get records.
+    for (const wm of windowMonths) {
+      const subMonth = isCombo
+        ? await this.prisma.subscriptionMonth.findFirst({
+            where: { subscriptionId: { in: componentIds }, year: wm.year, month: wm.month },
+            orderBy: { subscriptionId: 'asc' },
+          })
+        : await this.prisma.subscriptionMonth.findUnique({
+            where: { subscriptionId_year_month: { subscriptionId: monthsSubscriptionId, year: wm.year, month: wm.month } },
+          });
+      if (!subMonth) continue;
+
+      await this.prisma.userSkipRecord.upsert({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: subMonth.id } },
+        create: { userId, userEntryId: entry.id, subscriptionMonthId: subMonth.id, windowKey, skippedAt: now },
+        update: { windowKey, skippedAt: now, undoneAt: null },
+      });
+    }
+
+    // One window skip = one unit against the skip allowance.
+    const newWindow = windowKey !== state?.windowKey;
+    const newState = await this.prisma.userSubscriptionSkipState.upsert({
+      where: { userId_subscriptionId: { userId, subscriptionId: subscription.id } },
+      create: {
+        userId,
+        subscriptionId: subscription.id,
+        windowKey,
+        skipsInWindow: 1,
+        consecutiveSkips: 1,
+        totalSkips: 1,
+        lastSkipAt: now,
+      },
+      update: {
+        windowKey,
+        skipsInWindow: newWindow ? 1 : { increment: 1 },
+        consecutiveSkips: { increment: 1 },
+        totalSkips: { increment: 1 },
+        lastSkipAt: now,
+      },
+    });
+
+    if (!entry.firstSkipDate) {
+      await this.prisma.userSubscriptionEntry.update({
+        where: { id: entry.id },
+        data: { firstSkipDate: now },
+      });
+    }
+
+    // Advance the prepaid billing period by the whole window.
+    await this.adjustPrepaidBillingPeriod(entry.id, entry.prepaidMonths, entry.effectiveRenewalDay ?? 1);
+
+    const deadline = this.computeDeadline(policy, entry, { year, month }, (subscription as any).renewalMonthOffset ?? 0);
+    const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
+      where: { userEntryId: entry.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
+    });
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+    return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
+  }
+
   async undoSkip(
     userId: string,
     subscriptionSlug: string,
@@ -397,6 +508,14 @@ export class SkipPolicyEngine {
 
     if (!policy?.allowUnskip) {
       throw new ForbiddenException('Unskip is not allowed for this subscription');
+    }
+
+    // PREPAID_WINDOW_SKIP: undo reverses ALL months in the prepaid window and retracts
+    // the billing period by the whole window.
+    if (policy.type === 'PREPAID_WINDOW_SKIP' && entry.prepaidMonths > 1) {
+      return this.undoPrepaidWindowSkip(
+        userId, subscription, policy, entry, isCombo, componentIds, monthsSubscriptionId, year, month,
+      );
     }
 
     // For combo subscriptions find the component month that was used when the skip was recorded.
@@ -441,6 +560,64 @@ export class SkipPolicyEngine {
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     // Unskip deadline: earliest remaining skipped month
+    const earliestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+      : null;
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
+  }
+
+  /**
+   * Undoes a PREPAID_WINDOW_SKIP: soft-deletes skip records for ALL months in the
+   * prepaid window and retracts the billing period by prepaidMonths.
+   */
+  private async undoPrepaidWindowSkip(
+    userId: string,
+    subscription: { id: string; renewalMonthOffset?: number },
+    policy: any,
+    entry: { id: string; prepaidMonths: number; effectiveRenewalDay: number | null },
+    isCombo: boolean,
+    componentIds: string[],
+    monthsSubscriptionId: string,
+    year: number,
+    month: number,
+  ): Promise<SkipStatus> {
+    const windowMonths = this.prepaidWindowMonths(year, month, entry.prepaidMonths);
+    const monthIds: string[] = [];
+    for (const wm of windowMonths) {
+      const subMonth = isCombo
+        ? await this.prisma.subscriptionMonth.findFirst({
+            where: { subscriptionId: { in: componentIds }, year: wm.year, month: wm.month },
+            orderBy: { subscriptionId: 'asc' },
+          })
+        : await this.prisma.subscriptionMonth.findUnique({
+            where: { subscriptionId_year_month: { subscriptionId: monthsSubscriptionId, year: wm.year, month: wm.month } },
+          });
+      if (subMonth) monthIds.push(subMonth.id);
+    }
+
+    const result = await this.prisma.userSkipRecord.updateMany({
+      where: { userEntryId: entry.id, subscriptionMonthId: { in: monthIds }, undoneAt: null },
+      data: { undoneAt: new Date() },
+    });
+    if (!result.count) {
+      throw new BadRequestException('No active skip found for this window');
+    }
+
+    const updatedState = await this.recomputeState(userId, subscription.id, policy);
+
+    // Retract the prepaid billing period by the whole window.
+    await this.adjustPrepaidBillingPeriod(entry.id, -entry.prepaidMonths, entry.effectiveRenewalDay ?? 1);
+
+    const offset: number = (subscription as any).renewalMonthOffset ?? 0;
+    const deadline = this.computeDeadline(policy, entry, { year, month }, offset);
+    const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
+      where: { userEntryId: entry.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
+    });
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     const earliestSkipped = skippedMonths.length > 0
       ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
       : null;
@@ -589,12 +766,28 @@ export class SkipPolicyEngine {
     };
   }
 
+  /**
+   * Selects the skip policy applicable to a user based on their billing type.
+   * Prefers the exact billing-type policy (MONTHLY or PREPAID), then falls back
+   * to the ALL policy, then null if no matching policy exists.
+   */
+  private selectApplicablePolicy<T extends { billingType: string; type: string }>(
+    policies: T[],
+    isPrepaid: boolean,
+  ): T | null {
+    const targetType = isPrepaid ? 'PREPAID' : 'MONTHLY';
+    return (
+      policies.find((p) => p.billingType === targetType) ??
+      policies.find((p) => p.billingType === 'ALL') ??
+      null
+    );
+  }
+
   private async loadContext(userId: string, subscriptionSlug: string) {
-    // Merge 4 sequential queries into 2: subscription+entry+skipRecords in one, state in parallel after
     const subscription = await this.prisma.subscription.findUnique({
       where: { slug: subscriptionSlug },
       include: {
-        skipPolicy: true,
+        skipPolicies: true,
         comboComponents: { select: { componentId: true } },
         userEntries: {
           where: { userId },
@@ -611,9 +804,12 @@ export class SkipPolicyEngine {
     });
     if (!subscription) throw new NotFoundException(`Subscription '${subscriptionSlug}' not found`);
 
-    const policy = subscription.skipPolicy;
     const entry = subscription.userEntries[0] ?? null;
     if (!entry) throw new NotFoundException('You are not subscribed to this subscription');
+
+    // Select the applicable policy for this user based on their billing type.
+    const isPrepaid = (entry.prepaidMonths ?? 1) > 1;
+    const policy = this.selectApplicablePolicy(subscription.skipPolicies ?? [], isPrepaid);
 
     // skipState keyed by (userId, subscriptionId) — fetch now that we have subscriptionId
     const state = await this.prisma.userSubscriptionSkipState.findUnique({
@@ -631,19 +827,11 @@ export class SkipPolicyEngine {
   }
 
   private evaluateCanSkip(
-    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null; eligibleBillingTypes?: string | null } | null,
+    policy: { type: string; maxSkips: number | null; maxConsecutive: number | null } | null,
     state: { skipsInWindow: number; consecutiveSkips: number } | null,
     prepaidMonths?: number,
   ): boolean {
     if (!policy || policy.type === 'NONE') return false;
-
-    // Check billing type eligibility
-    const billingType = policy.eligibleBillingTypes ?? 'ALL';
-    if (billingType !== 'ALL' && prepaidMonths !== undefined) {
-      const isPrepaid = prepaidMonths > 1;
-      if (billingType === 'MONTHLY_ONLY' && isPrepaid) return false;
-      if (billingType === 'PREPAID_ONLY' && !isPrepaid) return false;
-    }
 
     if (policy.type === 'UNLIMITED') return true;
 
@@ -654,7 +842,8 @@ export class SkipPolicyEngine {
       return policy.maxConsecutive === null || consec < policy.maxConsecutive;
     }
 
-    // Window-based policies: CALENDAR_YEAR, FROM_FIRST_SKIP, FROM_SUB_START
+    // PREPAID_WINDOW_SKIP: a single window skip counts as one unit against maxSkips.
+    // Window-based policies (CALENDAR_YEAR, FROM_FIRST_SKIP, FROM_SUB_START) share this check.
     if (policy.maxSkips !== null && skipsInWindow >= policy.maxSkips) return false;
     return true;
   }
@@ -717,7 +906,6 @@ export class SkipPolicyEngine {
       allowUnskip?: boolean;
       unskipHow?: string | null;
       unskipNotes?: string | null;
-      eligibleBillingTypes?: string | null;
     } | null,
     state: {
       totalSkips: number;
@@ -745,17 +933,6 @@ export class SkipPolicyEngine {
       ? forceCanSkip
       : (deadlineMonth !== null && this.evaluateCanSkip(policy, state, prepaidMonths));
     const warnings = this.computeWarnings(policyType, skipsInWindow, maxSkips, consecutiveSkips, maxConsecutive);
-
-    // Billing type eligibility warning
-    if (policyType !== 'NONE' && prepaidMonths !== undefined) {
-      const billingType = policy?.eligibleBillingTypes ?? 'ALL';
-      const isPrepaid = prepaidMonths > 1;
-      if (billingType === 'MONTHLY_ONLY' && isPrepaid) {
-        warnings.unshift('Skips are not available for prepaid subscriptions.');
-      } else if (billingType === 'PREPAID_ONLY' && !isPrepaid) {
-        warnings.unshift('Skips are only available for prepaid subscriptions.');
-      }
-    }
 
     if (isPastDeadline && policyType !== 'NONE') {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -913,16 +1090,19 @@ export class SkipPolicyEngine {
   }
 
   /**
-   * For prepaid subscriptions: shifts the end of the latest billing period by +1 or -1 month.
+   * For prepaid subscriptions: shifts the end of the latest billing period by `months`.
    * Also shifts nextRenewalDate on the entry accordingly.
-   * direction = 1  → skip recorded (period extends)
-   * direction = -1 → skip undone  (period retracts)
+   * months > 0 → skip recorded (period extends)
+   * months < 0 → skip undone  (period retracts)
+   * For a regular monthly skip on a prepaid entry, months = ±1.
+   * For a PREPAID_WINDOW_SKIP, months = ±entry.prepaidMonths.
    */
   private async adjustPrepaidBillingPeriod(
     entryId: string,
-    direction: 1 | -1,
+    months: number,
     renewalDay: number,
   ): Promise<void> {
+    if (months === 0) return;
     // Find the most recent billing period that has a coveredTo range
     const period = await this.prisma.userSubBillingPeriod.findFirst({
       where: { entryId, coveredToMonth: { not: null }, coveredToYear: { not: null } },
@@ -933,7 +1113,7 @@ export class SkipPolicyEngine {
 
     // Compute new end month
     const d = new Date(period.coveredToYear, period.coveredToMonth - 1);
-    d.setMonth(d.getMonth() + direction);
+    d.setMonth(d.getMonth() + months);
     const newCoveredToMonth = d.getMonth() + 1;
     const newCoveredToYear = d.getFullYear();
 
@@ -951,7 +1131,7 @@ export class SkipPolicyEngine {
     let newRenewal: Date;
     if (entry?.nextRenewalDate) {
       newRenewal = new Date(entry.nextRenewalDate);
-      newRenewal.setMonth(newRenewal.getMonth() + direction);
+      newRenewal.setMonth(newRenewal.getMonth() + months);
     } else {
       // Derive from billing period end: renewal is on renewalDay of the month after the period ends
       newRenewal = new Date(newCoveredToYear, newCoveredToMonth, renewalDay);

@@ -333,7 +333,7 @@ export class SubscriptionsService {
               brandColors: true,
             },
           },
-          skipPolicy: true,
+          skipPolicies: true,
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
           coverImageAsset: { select: { id: true, publicId: true } },
@@ -426,7 +426,7 @@ export class SubscriptionsService {
             brandColors: true,
           },
         },
-        skipPolicy: true,
+        skipPolicies: true,
         coverImageAsset: { select: { id: true, publicId: true } },
         logoAsset: { select: { id: true, publicId: true } },
         prepayOptions: { orderBy: { months: 'asc' } },
@@ -2573,9 +2573,15 @@ export class SubscriptionsService {
       // Uses the same component month ID approach as recordSkip() so skip records are consistent.
       const subWithComboPolicy = await this.prisma.subscription.findUnique({
         where: { id: sub.id },
-        include: { skipPolicy: true },
+        include: { skipPolicies: true },
       });
-      const comboPolicy = subWithComboPolicy?.skipPolicy ?? null;
+      const comboIsPrepaid = (entry.prepaidMonths ?? 1) > 1;
+      const comboTargetType = comboIsPrepaid ? 'PREPAID' : 'MONTHLY';
+      const comboPolicies = subWithComboPolicy?.skipPolicies ?? [];
+      const comboPolicy =
+        comboPolicies.find((p) => p.billingType === comboTargetType) ??
+        comboPolicies.find((p) => p.billingType === 'ALL') ??
+        null;
       const selectedComboSet = new Set(dto.selectedMonthIds);
       const skippableComboMonths = eligibleComboMonths
         .filter(m => m.books.length > 0 && !selectedComboSet.has(m.id))
@@ -2873,9 +2879,15 @@ export class SubscriptionsService {
 
     const subWithPolicy = await this.prisma.subscription.findUnique({
       where: { id: sub.id },
-      include: { skipPolicy: true },
+      include: { skipPolicies: true },
     });
-    const policy = subWithPolicy?.skipPolicy ?? null;
+    const isPrepaidBackfill = (entry.prepaidMonths ?? 1) > 1;
+    const targetBillingType = isPrepaidBackfill ? 'PREPAID' : 'MONTHLY';
+    const backfillPolicies = subWithPolicy?.skipPolicies ?? [];
+    const policy =
+      backfillPolicies.find((p) => p.billingType === targetBillingType) ??
+      backfillPolicies.find((p) => p.billingType === 'ALL') ??
+      null;
 
     const cancellationDateObj = entry.cancellationDate
       ? (() => {

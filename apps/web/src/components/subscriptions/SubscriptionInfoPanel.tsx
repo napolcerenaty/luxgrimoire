@@ -30,7 +30,7 @@ interface Props {
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
-  skipPolicy?: ApiSubscriptionSkipPolicy | null
+  skipPolicies?: ApiSubscriptionSkipPolicy[]
 }
 
 type FeeTemplateLink = {
@@ -108,7 +108,7 @@ export default function SubscriptionInfoPanel({
   isDiscontinued,
   subscriptionEndDate,
   signupIncludesCurrentMonth,
-  skipPolicy,
+  skipPolicies,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -560,8 +560,8 @@ export default function SubscriptionInfoPanel({
               + Add to my subscriptions
             </button>
           )}
-          {skipPolicy && skipPolicy.type !== 'NONE' && (
-            <SkipPolicyInfoPanel policy={skipPolicy} />
+          {skipPolicies && skipPolicies.some(p => p.type !== 'NONE') && (
+            <SkipPoliciesInfoPanel policies={skipPolicies} />
           )}
         </div>
       )}
@@ -904,15 +904,23 @@ function policyTypeLabel(type: string): string {
     CALENDAR_YEAR: 'Limited skips per calendar year',
     FROM_FIRST_SKIP: 'Limited skips per rolling window',
     FROM_SUB_START: 'Limited skips from subscription start',
+    PREPAID_WINDOW_SKIP: 'Prepaid: skips entire renewal window',
   }
   return labels[type] ?? type
 }
 
+function billingTypeLabel(billingType: string): string {
+  const labels: Record<string, string> = {
+    ALL: 'All subscribers',
+    MONTHLY: 'Monthly billing',
+    PREPAID: 'Prepaid billing',
+  }
+  return labels[billingType] ?? billingType
+}
+
 function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) {
   return (
-    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
-      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
-
+    <div className="flex flex-col gap-2">
       <p className="text-xs text-stone-400">{policyTypeLabel(policy.type)}</p>
 
       {policy.maxSkips !== null && (
@@ -928,15 +936,6 @@ function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) 
         </p>
       )}
 
-      {policy.eligibleBillingTypes && policy.eligibleBillingTypes !== 'ALL' && (
-        <p className="text-xs text-stone-400">
-          Eligible for:{' '}
-          <span className="text-stone-300 font-medium">
-            {policy.eligibleBillingTypes === 'MONTHLY_ONLY' ? 'monthly billing only' : 'prepaid only'}
-          </span>
-        </p>
-      )}
-
       {policy.skipHow && (
         <p className="text-xs text-stone-400">
           How to skip: <span className="text-stone-300">{policy.skipHow}</span>
@@ -948,7 +947,7 @@ function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) 
       )}
 
       {policy.allowUnskip && (
-        <div className="border-t border-stone-700 pt-3 flex flex-col gap-1">
+        <div className="border-t border-stone-700 pt-2 flex flex-col gap-1 mt-1">
           <p className="text-xs text-stone-400 font-medium">Unskip allowed</p>
           {policy.unskipHow && (
             <p className="text-xs text-stone-400">
@@ -959,6 +958,33 @@ function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) 
             <p className="text-xs text-stone-500 italic">{policy.unskipNotes}</p>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPolicy[] }) {
+  const activePolicies = policies.filter(p => p.type !== 'NONE')
+  if (activePolicies.length === 0) return null
+
+  const isMulti = activePolicies.length > 1
+
+  return (
+    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
+      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
+      {isMulti ? (
+        <div className="flex flex-col gap-4">
+          {activePolicies.map(policy => (
+            <div key={policy.billingType} className="flex flex-col gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">
+                {billingTypeLabel(policy.billingType ?? 'ALL')}
+              </p>
+              <SkipPolicyInfoPanel policy={policy} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <SkipPolicyInfoPanel policy={activePolicies[0]!} />
       )}
     </div>
   )

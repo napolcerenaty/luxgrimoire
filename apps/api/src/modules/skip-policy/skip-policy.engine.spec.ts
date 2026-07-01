@@ -18,8 +18,6 @@ describe('SkipPolicyEngine — pure logic', () => {
 
   describe('evaluateCanSkip', () => {
     const call = (policy: any, state: any) => (engine as any).evaluateCanSkip(policy, state);
-    const callWithPrepaid = (policy: any, state: any, prepaidMonths: number | undefined) =>
-      (engine as any).evaluateCanSkip(policy, state, prepaidMonths);
 
     it('returns false when policy is null', () => {
       expect(call(null, null)).toBe(false);
@@ -65,57 +63,40 @@ describe('SkipPolicyEngine — pure logic', () => {
       expect(call({ type: 'CALENDAR_YEAR', maxSkips: 3, maxConsecutive: null }, null)).toBe(true);
     });
 
-    // ─── eligibleBillingTypes ────────────────────────────────────────────────
+    // ─── selectApplicablePolicy (billing type routing) ───────────────────────
 
-    describe('eligibleBillingTypes', () => {
-      const unlimitedPolicy = (eligibleBillingTypes: string | null = null) => ({
-        type: 'UNLIMITED',
-        maxSkips: null,
-        maxConsecutive: null,
-        eligibleBillingTypes,
+    describe('selectApplicablePolicy', () => {
+      const select = (policies: any[], isPrepaid: boolean) =>
+        (engine as any).selectApplicablePolicy(policies, isPrepaid);
+
+      const all = { billingType: 'ALL', type: 'UNLIMITED' };
+      const monthly = { billingType: 'MONTHLY', type: 'CALENDAR_YEAR' };
+      const prepaid = { billingType: 'PREPAID', type: 'PREPAID_WINDOW_SKIP' };
+
+      it('monthly subscriber prefers MONTHLY policy over ALL', () => {
+        expect(select([all, monthly], false)).toBe(monthly);
       });
 
-      it('MONTHLY_ONLY allows monthly subscriber (prepaidMonths=1)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 1)).toBe(true);
+      it('prepaid subscriber prefers PREPAID policy over ALL', () => {
+        expect(select([all, prepaid], true)).toBe(prepaid);
       });
 
-      it('MONTHLY_ONLY blocks prepaid subscriber (prepaidMonths=6)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 6)).toBe(false);
+      it('falls back to ALL when no billing-type-specific policy exists', () => {
+        expect(select([all], true)).toBe(all);
+        expect(select([all], false)).toBe(all);
       });
 
-      it('PREPAID_ONLY allows prepaid subscriber (prepaidMonths=6)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('PREPAID_ONLY'), null, 6)).toBe(true);
+      it('returns null when no matching policy exists (MONTHLY only, prepaid subscriber)', () => {
+        expect(select([monthly], true)).toBeNull();
       });
 
-      it('PREPAID_ONLY blocks monthly subscriber (prepaidMonths=1)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('PREPAID_ONLY'), null, 1)).toBe(false);
+      it('returns null when no matching policy exists (PREPAID only, monthly subscriber)', () => {
+        expect(select([prepaid], false)).toBeNull();
       });
 
-      it('ALL allows monthly subscriber', () => {
-        expect(callWithPrepaid(unlimitedPolicy('ALL'), null, 1)).toBe(true);
-      });
-
-      it('ALL allows prepaid subscriber', () => {
-        expect(callWithPrepaid(unlimitedPolicy('ALL'), null, 6)).toBe(true);
-      });
-
-      it('null eligibleBillingTypes defaults to ALL — allows both billing types', () => {
-        expect(callWithPrepaid(unlimitedPolicy(null), null, 1)).toBe(true);
-        expect(callWithPrepaid(unlimitedPolicy(null), null, 6)).toBe(true);
-      });
-
-      it('MONTHLY_ONLY with prepaidMonths=undefined skips billing type check (no restrictions)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, undefined)).toBe(true);
-      });
-
-      it('MONTHLY_ONLY blocks prepaidMonths=2 (2-month prepay)', () => {
-        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 2)).toBe(false);
-      });
-
-      it('billing type restriction applies regardless of policy type (CALENDAR_YEAR + MONTHLY_ONLY)', () => {
-        const policy = { type: 'CALENDAR_YEAR', maxSkips: 3, maxConsecutive: null, eligibleBillingTypes: 'MONTHLY_ONLY' };
-        expect(callWithPrepaid(policy, { skipsInWindow: 0, consecutiveSkips: 0 }, 6)).toBe(false);
-        expect(callWithPrepaid(policy, { skipsInWindow: 0, consecutiveSkips: 0 }, 1)).toBe(true);
+      it('returns null for empty policy list', () => {
+        expect(select([], false)).toBeNull();
+        expect(select([], true)).toBeNull();
       });
     });
   });
@@ -240,49 +221,11 @@ describe('SkipPolicyEngine — pure logic', () => {
       expect(status.skippedMonths).toEqual(months);
     });
 
-    // ─── eligibleBillingTypes warnings ────────────────────────────────────────
-
-    describe('eligibleBillingTypes billing warnings', () => {
-      const unlimited = (eligibleBillingTypes: string) => ({
-        type: 'UNLIMITED', maxSkips: null, maxConsecutive: null,
-        notes: null, skipHow: null, eligibleBillingTypes,
-      });
-      const targetMonth = { year: 2025, month: 6 };
-
-      it('MONTHLY_ONLY + prepaid subscriber → canSkip=false and shows warning', () => {
-        // prepaidMonths=6 → isPrepaid=true → MONTHLY_ONLY blocks + shows warning
-        const status: SkipStatus = call(unlimited('MONTHLY_ONLY'), null, null, [], targetMonth, undefined, null, null, 6);
-        expect(status.canSkip).toBe(false);
-        expect(status.warnings.some((w: string) => w.toLowerCase().includes('prepaid'))).toBe(true);
-      });
-
-      it('MONTHLY_ONLY + monthly subscriber → canSkip=true and no billing warning', () => {
-        // prepaidMonths=1 → isPrepaid=false → MONTHLY_ONLY allows
-        const status: SkipStatus = call(unlimited('MONTHLY_ONLY'), null, null, [], targetMonth, undefined, null, null, 1);
-        expect(status.canSkip).toBe(true);
-        expect(status.warnings.every((w: string) => !w.toLowerCase().includes('prepaid'))).toBe(true);
-      });
-
-      it('PREPAID_ONLY + monthly subscriber → canSkip=false and shows warning', () => {
-        // prepaidMonths=1 → isPrepaid=false → PREPAID_ONLY blocks + shows warning
-        const status: SkipStatus = call(unlimited('PREPAID_ONLY'), null, null, [], targetMonth, undefined, null, null, 1);
-        expect(status.canSkip).toBe(false);
-        expect(status.warnings.some((w: string) => w.toLowerCase().includes('prepaid'))).toBe(true);
-      });
-
-      it('PREPAID_ONLY + prepaid subscriber → canSkip=true and no billing warning', () => {
-        // prepaidMonths=6 → isPrepaid=true → PREPAID_ONLY allows
-        const status: SkipStatus = call(unlimited('PREPAID_ONLY'), null, null, [], targetMonth, undefined, null, null, 6);
-        expect(status.canSkip).toBe(true);
-        expect(status.warnings.every((w: string) => !w.toLowerCase().includes('prepaid'))).toBe(true);
-      });
-
-      it('ALL → canSkip=true for both monthly and prepaid', () => {
-        const statusMonthly: SkipStatus = call(unlimited('ALL'), null, null, [], targetMonth, undefined, null, null, 1);
-        const statusPrepaid: SkipStatus = call(unlimited('ALL'), null, null, [], targetMonth, undefined, null, null, 6);
-        expect(statusMonthly.canSkip).toBe(true);
-        expect(statusPrepaid.canSkip).toBe(true);
-      });
+    it('does not emit billing-type warnings (billing routing handled by policy selection)', () => {
+      const policy = { type: 'UNLIMITED', maxSkips: null, maxConsecutive: null, notes: null, skipHow: null };
+      const status: SkipStatus = call(policy, null, null, [], { year: 2025, month: 6 }, undefined, null, null, 6);
+      expect(status.canSkip).toBe(true);
+      expect(status.warnings.every((w: string) => !w.toLowerCase().includes('prepaid'))).toBe(true);
     });
   });
 

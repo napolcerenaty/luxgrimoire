@@ -672,7 +672,7 @@ export class StatsService {
   /** Merges spending data from all per-year snapshots into a single all-time snapshot. */
   private mergeYearSpendingSnapshots(yearSnapshots: UserStatsSnapshotRecord[], targetCurrency: string): SnapshotData {
     if (yearSnapshots.length === 0) {
-      return { currency: targetCurrency, totalAllTime: 0, totalThisYear: 0, totalThisMonth: 0, avgCostPerBook: 0, booksWithCost: 0, booksThisYear: 0, booksThisMonth: 0, totalBasePrice: 0, totalShipping: 0, totalTax: 0, totalOtherFees: 0, totalDiscounts: 0, totalRefunds: 0, byYear: [], byYearBooks: [], byMonth: [], byMonthBooks: [], bySubscription: [], byCompany: [], topExpensive: [], topSalePrice: [], topProfit: [], topLoss: [], totalSalesRevenue: 0, totalSalesProfit: null, totalBooksSold: 0, salesByPlatform: [], salesByCompany: [], salesByMonth: [], salesByMonthCount: [], salesByYear: [], salesByYearCount: [], plByMonth: [], plByCompany: [], salesWithROI: [] };
+      return { currency: targetCurrency, totalAllTime: 0, totalThisYear: 0, totalThisMonth: 0, avgCostPerBook: 0, booksWithCost: 0, booksThisYear: 0, booksThisMonth: 0, totalBasePrice: 0, totalShipping: 0, totalForwarding: 0, totalTax: 0, totalOtherFees: 0, totalDiscounts: 0, totalRefunds: 0, byYear: [], byYearBooks: [], byMonth: [], byMonthBooks: [], bySubscription: [], byCompany: [], topExpensive: [], topSalePrice: [], topProfit: [], topLoss: [], totalSalesRevenue: 0, totalSalesProfit: null, totalBooksSold: 0, salesByPlatform: [], salesByCompany: [], salesByMonth: [], salesByMonthCount: [], salesByYear: [], salesByYearCount: [], plByMonth: [], plByCompany: [], salesWithROI: [] };
     }
 
     const now = new Date();
@@ -681,7 +681,7 @@ export class StatsService {
     const r = (v: number) => Math.round((v ?? 0) * 100) / 100;
     const n = (v: unknown): number => (typeof v === 'number' ? v : 0);
 
-    let totalAllTime = 0, totalBasePrice = 0, totalShipping = 0, totalTax = 0;
+    let totalAllTime = 0, totalBasePrice = 0, totalShipping = 0, totalForwarding = 0, totalTax = 0;
     let totalOtherFees = 0, totalDiscounts = 0, totalRefunds = 0;
     let booksWithCost = 0, totalSalesRevenue = 0, totalBooksSold = 0;
 
@@ -715,6 +715,7 @@ export class StatsService {
       totalAllTime += snapTotal;
       totalBasePrice += n(s.totalBasePrice);
       totalShipping += n(s.totalShipping);
+      totalForwarding += n((s as any).totalForwarding ?? 0);
       totalTax += n(s.totalTax);
       totalOtherFees += n(s.totalOtherFees);
       totalDiscounts += n(s.totalDiscounts);
@@ -829,6 +830,7 @@ export class StatsService {
       booksThisMonth,
       totalBasePrice: r(totalBasePrice),
       totalShipping: r(totalShipping),
+      totalForwarding: r(totalForwarding),
       totalTax: r(totalTax),
       totalOtherFees: r(totalOtherFees),
       totalDiscounts: r(totalDiscounts),

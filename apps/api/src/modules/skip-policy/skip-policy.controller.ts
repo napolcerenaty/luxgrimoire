@@ -82,7 +82,7 @@ export class SkipPolicyController {
 
 
 
-  /** PUT /skip-policy/:slug — upsert skip policy for a subscription */
+  /** PUT /skip-policy/:slug — upsert skip policy (backward compat, billingType=ALL) */
   @Put(':slug')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
@@ -94,17 +94,49 @@ export class SkipPolicyController {
     return this.adminService.upsertPolicy(slug, dto, req.user);
   }
 
-  /** GET /skip-policy/:slug — get policy for a subscription */
+  /** GET /skip-policy/:slug — get policy for a subscription (backward compat) */
   @Get(':slug')
   getPolicy(@Param('slug') slug: string) {
     return this.adminService.getPolicy(slug);
   }
 
-  /** DELETE /skip-policy/:slug — remove policy (resets to NONE) */
+  /** DELETE /skip-policy/:slug — remove all policies (resets to NONE) */
   @Delete(':slug')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   removePolicy(@Param('slug') slug: string) {
-    return this.adminService.removePolicy(slug);
+    return this.adminService.removePolicies(slug);
+  }
+
+  // ─── Multi-policy endpoints ────────────────────────────────────────
+
+  /** GET /skip-policy/:slug/policies — get all policies (one per billing type) */
+  @Get(':slug/policies')
+  getPolicies(@Param('slug') slug: string) {
+    return this.adminService.getPolicies(slug);
+  }
+
+  /** PUT /skip-policy/:slug/policies/:billingType — upsert policy for a billing type */
+  @Put(':slug/policies/:billingType')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  upsertPolicyForBillingType(
+    @Param('slug') slug: string,
+    @Param('billingType') billingType: string,
+    @Body() dto: UpsertSkipPolicyDto,
+    @Request() req: { user: { id: string; role: string } },
+  ) {
+    return this.adminService.upsertPolicy(slug, dto, req.user, billingType);
+  }
+
+  /** DELETE /skip-policy/:slug/policies/:billingType — remove policy for a billing type */
+  @Delete(':slug/policies/:billingType')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  removePolicyForBillingType(
+    @Param('slug') slug: string,
+    @Param('billingType') billingType: string,
+  ) {
+    return this.adminService.removePolicy(slug, billingType);
   }
 }

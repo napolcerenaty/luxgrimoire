@@ -293,7 +293,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           isDiscontinued={sub.isDiscontinued ?? false}
           subscriptionEndDate={sub.endDate ?? null}
           signupIncludesCurrentMonth={sub.signupIncludesCurrentMonth}
-          skipPolicy={sub.skipPolicy ?? null}
+          skipPolicies={sub.skipPolicies ?? []}
         />
       </div>
 

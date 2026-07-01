@@ -134,7 +134,7 @@ function setupBackfill(
   }
 
   // Skip policy lookup
-  (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicy: null });
+  (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicies: [] });
   // Eligible months for auto-skip derivation (empty — avoids complex skip mocks)
   (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
 
@@ -562,7 +562,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
         (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `be-${i}` });
         (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
       }
-      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicy: null });
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicies: [] });
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
       skipMock.recomputeSkipState.mockResolvedValueOnce(undefined);
 
@@ -724,7 +724,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       // Skip policy lookup
       (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
         id: SUB_ID,
-        skipPolicy: { windowMonths: 6, maxSkipsPerWindow: 1 },
+        skipPolicies: [{ billingType: 'ALL', windowMonths: 6, maxSkipsPerWindow: 1 }],
       });
       // Eligible months for auto-skip derivation: m-1 (selected) + m-2 (skipped)
       const skippedMonth = makeMonth('m-2', 2026, 2);
@@ -1120,7 +1120,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
 
       // skip policy lookup
-      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicy: null });
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicies: [] });
       // skippable months (empty — no skips)
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
 
@@ -1205,7 +1205,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: 'be-reg-1' });
       (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
-      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicy: null });
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicies: [] });
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
       skipMock.recomputeSkipState.mockResolvedValueOnce(undefined);
 

@@ -71,6 +71,7 @@ interface SpendingData {
   booksThisMonth: number
   totalBasePrice: number
   totalShipping: number
+  totalForwarding: number
   totalTax: number
   totalOtherFees: number
   totalDiscounts: number
@@ -842,7 +843,7 @@ export default function SpendingPage() {
 
   const totalGross = useMemo(() => {
     if (!spending) return 0
-    return spending.totalBasePrice + spending.totalShipping + spending.totalTax + spending.totalOtherFees
+    return spending.totalBasePrice + spending.totalShipping + spending.totalForwarding + spending.totalTax + spending.totalOtherFees
   }, [spending])
 
   const savings = useMemo(() => {
@@ -1260,6 +1261,9 @@ export default function SpendingPage() {
                   </div>
                   <CategoryBar label="Books (base price)" amount={spending.totalBasePrice} total={totalGross} currency={currency} color="#d97706" />
                   <CategoryBar label="Shipping" amount={spending.totalShipping} total={totalGross} currency={currency} color="#0891b2" />
+                  {spending.totalForwarding > 0 && (
+                    <CategoryBar label="Forwarding" amount={spending.totalForwarding} total={totalGross} currency={currency} color="#0d9488" />
+                  )}
                   <CategoryBar label="Taxes & Customs" amount={spending.totalTax} total={totalGross} currency={currency} color="#7c3aed" />
                   <CategoryBar label="Other Fees" amount={spending.totalOtherFees} total={totalGross} currency={currency} color="#6b7280" />
                   {savings > 0 && (
