@@ -148,7 +148,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, color }: {
         <Icon size={14} className={color ?? (accent ? 'text-amber-400' : 'text-stone-500')} />
         <span className="text-xs uppercase tracking-wider text-stone-500">{label}</span>
       </div>
-      <p className={`text-2xl font-serif font-bold ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
+      <p className={`text-xl sm:text-2xl font-serif font-bold leading-tight break-all ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
   )

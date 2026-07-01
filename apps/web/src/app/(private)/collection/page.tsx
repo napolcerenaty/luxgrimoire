@@ -1541,8 +1541,8 @@ export default function CollectionPage() {
                           })()}
                         </div>
 
-                        {/* Actions (hover) */}
-                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                         {/* Actions (hover / always visible on mobile) */}
+                        <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
                           {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                             <button
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTrackEntry({ id: entry.id, trackingNumbers: entry.trackingNumbers }); setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(entry.trackingNumbers.length === 0) }}
