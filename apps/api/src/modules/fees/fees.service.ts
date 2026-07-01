@@ -157,7 +157,7 @@ export class FeesService {
     return this.prisma.userPurchaseDiscount.create({
       data: {
         userId,
-        name: dto.name ?? null,
+        name: dto.name ?? '',
         amount: dto.amount,
         currency: dto.currency,
         date: new Date(dto.date),
