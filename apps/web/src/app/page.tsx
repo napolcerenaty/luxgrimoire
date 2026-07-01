@@ -1,17 +1,15 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
-import { HomeFeaturesSection } from '@/components/home/HomeFeaturesSectionServer'
 import { HomeStatsBar } from '@/components/home/HomeStatsBar'
 import { HomeTrendingEditions } from '@/components/home/HomeTrendingEditions'
 import { HomeTrendingSales } from '@/components/home/HomeTrendingSales'
 import { SaleCountdownBanner } from '@/components/home/SaleCountdownBanner'
-import { PersonalizedHero, type UpcomingSale } from '@/components/home/PersonalizedHero'
+import { HomeAuthSection } from '@/components/home/HomeAuthSection'
 import type {
   ApiBookEdition,
   ApiPlatformStats,
@@ -33,17 +31,12 @@ async function fetchCachedPublic<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     next: { revalidate: 3600 },
   })
-
-  if (!res.ok) {
-    throw new Error(`API error ${res.status}`)
-  }
-
+  if (!res.ok) throw new Error(`API error ${res.status}`)
   return res.json()
 }
 
 async function getHomeData() {
   const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales] = await Promise.all([
-    // sort=recent = createdAt desc (newest added first)
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=20').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
     fetchCachedPublic<ApiPlatformStats>('/platform/stats').catch(() => null),
@@ -60,38 +53,8 @@ async function getHomeData() {
   }
 }
 
-async function getUserData(): Promise<{ user: { username: string } | null; upcomingSales: UpcomingSale[] }> {
-  try {
-    const cookieStore = await cookies()
-    const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join('; ')
-
-    const meRes = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Cookie: cookieHeader },
-      cache: 'no-store',
-    })
-    if (!meRes.ok) return { user: null, upcomingSales: [] }
-
-    const user = await meRes.json()
-
-    const salesRes = await fetch(`${API_BASE}/sale-interests/upcoming`, {
-      headers: { Cookie: cookieHeader },
-      cache: 'no-store',
-    })
-    const upcomingSales: UpcomingSale[] = salesRes.ok ? await salesRes.json() : []
-
-    return { user, upcomingSales }
-  } catch {
-    return { user: null, upcomingSales: [] }
-  }
-}
-
 export default async function HomePage() {
-  const [
-    { announcements, recentEditions, platformStats, trendingEditions, trendingSales },
-    { user, upcomingSales },
-  ] = await Promise.all([getHomeData(), getUserData()])
-
-  const isLoggedIn = user !== null
+  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales } = await getHomeData()
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -111,12 +74,10 @@ export default async function HomePage() {
 
   return (
     <div>
-      <PersonalizedHero user={user} upcomingSales={upcomingSales} />
+      {/* Hero + HomeFeaturesSection — client-side auth via useAuth() */}
+      <HomeAuthSection />
 
       {platformStats && <HomeStatsBar {...platformStats} />}
-
-      {/* Features section — only for guests */}
-      {!isLoggedIn && <HomeFeaturesSection />}
 
       {announcements.length > 0 && <SaleCountdownBanner announcements={announcements} />}
 
