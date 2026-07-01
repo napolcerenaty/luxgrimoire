@@ -6,7 +6,7 @@ import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySu
 import type { CountryFeeHint } from '@/lib/api'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth, ApiSubscriptionSkipPolicy } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
 import { CancelSubscriptionModal } from './CancelSubscriptionModal'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -30,6 +30,7 @@ interface Props {
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
+  skipPolicy?: ApiSubscriptionSkipPolicy | null
 }
 
 type FeeTemplateLink = {
@@ -107,6 +108,7 @@ export default function SubscriptionInfoPanel({
   isDiscontinued,
   subscriptionEndDate,
   signupIncludesCurrentMonth,
+  skipPolicy,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -558,6 +560,9 @@ export default function SubscriptionInfoPanel({
               + Add to my subscriptions
             </button>
           )}
+          {skipPolicy && skipPolicy.type !== 'NONE' && (
+            <SkipPolicyInfoPanel policy={skipPolicy} />
+          )}
         </div>
       )}
 
@@ -889,3 +894,72 @@ function EditEntryCostsModal({
 }
 
 // ─── Cancel Subscription Modal → shared component (CancelSubscriptionModal.tsx)
+
+// ─── Read-only Skip Policy Info Panel ─────────────────────────────────────────
+
+function policyTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    UNLIMITED: 'Unlimited skips allowed',
+    UNLIMITED_MAX_CONSEC: 'Unlimited skips (max consecutive limit)',
+    CALENDAR_YEAR: 'Limited skips per calendar year',
+    FROM_FIRST_SKIP: 'Limited skips per rolling window',
+    FROM_SUB_START: 'Limited skips from subscription start',
+  }
+  return labels[type] ?? type
+}
+
+function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) {
+  return (
+    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
+      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
+
+      <p className="text-xs text-stone-400">{policyTypeLabel(policy.type)}</p>
+
+      {policy.maxSkips !== null && (
+        <p className="text-xs text-stone-400">
+          Max skips: <span className="text-stone-300 font-medium">{policy.maxSkips}</span>
+          {policy.windowMonths ? ` per ${policy.windowMonths}-month window` : ''}
+        </p>
+      )}
+
+      {policy.maxConsecutive !== null && (
+        <p className="text-xs text-stone-400">
+          Max consecutive skips: <span className="text-stone-300 font-medium">{policy.maxConsecutive}</span>
+        </p>
+      )}
+
+      {policy.eligibleBillingTypes && policy.eligibleBillingTypes !== 'ALL' && (
+        <p className="text-xs text-stone-400">
+          Eligible for:{' '}
+          <span className="text-stone-300 font-medium">
+            {policy.eligibleBillingTypes === 'MONTHLY_ONLY' ? 'monthly billing only' : 'prepaid only'}
+          </span>
+        </p>
+      )}
+
+      {policy.skipHow && (
+        <p className="text-xs text-stone-400">
+          How to skip: <span className="text-stone-300">{policy.skipHow}</span>
+        </p>
+      )}
+
+      {policy.notes && (
+        <p className="text-xs text-stone-500 italic whitespace-pre-line">{policy.notes}</p>
+      )}
+
+      {policy.allowUnskip && (
+        <div className="border-t border-stone-700 pt-3 flex flex-col gap-1">
+          <p className="text-xs text-stone-400 font-medium">Unskip allowed</p>
+          {policy.unskipHow && (
+            <p className="text-xs text-stone-400">
+              How to unskip: <span className="text-stone-300">{policy.unskipHow}</span>
+            </p>
+          )}
+          {policy.unskipNotes && (
+            <p className="text-xs text-stone-500 italic">{policy.unskipNotes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

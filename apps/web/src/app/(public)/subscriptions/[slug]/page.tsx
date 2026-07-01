@@ -293,6 +293,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           isDiscontinued={sub.isDiscontinued ?? false}
           subscriptionEndDate={sub.endDate ?? null}
           signupIncludesCurrentMonth={sub.signupIncludesCurrentMonth}
+          skipPolicy={sub.skipPolicy ?? null}
         />
       </div>
 
@@ -563,7 +564,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
           <p className={`text-stone-500 italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>Theme not announced yet</p>
         )}
 
-        {!compact && monthData.cardArtist && (
+        {monthData.cardArtist && (
           <Link
             href={`/artists/${monthData.cardArtist.slug}`}
             className="inline-block text-xs text-stone-500 hover:text-amber-400 transition-colors mb-3"
