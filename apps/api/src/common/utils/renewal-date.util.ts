@@ -283,7 +283,20 @@ export async function refreshNextRenewalDate(
     renewalMonthOffset: sub.renewalMonthOffset ?? 0,
   };
 
-  const subscriptionEarliestDate: Date | null = sub.startDate ? new Date(sub.startDate) : null;
+  const subStartDate: Date | null = sub.startDate ? new Date(sub.startDate) : null;
+
+  /**
+   * Shift sub.startDate back by renewalMonthOffset months so the floor is in
+   * renewal-month space.  Example: sub starts Nov 2026, offset=1 → earliest
+   * renewal is Oct 2026 (the month before the first box).
+   */
+  function buildSubscriptionEarliestDate(renewalOffset: number): Date | null {
+    if (!subStartDate) return null;
+    let ey = subStartDate.getUTCFullYear();
+    let em = subStartDate.getUTCMonth() + 1 - renewalOffset;
+    while (em <= 0) { em += 12; ey--; }
+    return new Date(Date.UTC(ey, em - 1, 1));
+  }
 
   // Two-step settings resolution:
   // Step 1 — compute a rough candidate next renewal date using current sub settings (ignoring
@@ -304,7 +317,7 @@ export async function refreshNextRenewalDate(
     entry.startDate ?? null,
     [],
     null,
-    subscriptionEarliestDate,
+    buildSubscriptionEarliestDate(fallbackSettings.renewalMonthOffset),
   );
   const targetYear = roughCandidate?.getUTCFullYear() ?? now.getUTCFullYear();
   const targetMonth = roughCandidate ? roughCandidate.getUTCMonth() + 1 : now.getUTCMonth() + 1;
@@ -381,7 +394,7 @@ export async function refreshNextRenewalDate(
       entry.startDate ?? null,
       skippedMonths,
       paidUpFrontDate,
-      subscriptionEarliestDate,
+      buildSubscriptionEarliestDate(offset),
     );
   }
 
