@@ -28,7 +28,7 @@ export class CollectionService {
     return (this.prisma as PrismaService & { readingHistory: ReadingHistoryDelegate }).readingHistory;
   }
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string, signatureType?: string, readingStatus?: string, subscriptionId?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
@@ -38,6 +38,13 @@ export class CollectionService {
     if (search) where.edition = { ...where.edition, book: { title: { contains: search, mode: 'insensitive' } } };
     if (companyName) where.edition = { ...where.edition, bookBoxCompany: { name: companyName } };
     if (tag) where.entryTags = { some: { tag, userId } };
+    if (signatureType === 'UNSIGNED') {
+      where.signatureType = null;
+    } else if (signatureType) {
+      where.signatureType = signatureType.toLowerCase();
+    }
+    if (readingStatus) where.readingStatus = readingStatus;
+    if (subscriptionId) where.subscriptionEntry = { subscription: { id: subscriptionId } };
 
     if (slim) {
       const [data, total] = await Promise.all([

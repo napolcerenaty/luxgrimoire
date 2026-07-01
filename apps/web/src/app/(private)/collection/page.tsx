@@ -13,7 +13,7 @@ import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List } from 'lucide-react'
+import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
@@ -555,6 +555,7 @@ export default function CollectionPage() {
   const [subFilter, setSubFilter] = useState<string>('ALL')
   const { isOpen: addModalOpen, setIsOpen: setAddModalOpen } = useModalState()
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [conversionRates, setConversionRates] = useState<Record<string, number>>({})
   // Local tag state per editionId (updated optimistically after saves)
   const [tagOverrides, setTagOverrides] = useState<Record<string, string[]>>({})
@@ -567,6 +568,10 @@ export default function CollectionPage() {
   const [collectionTotal, setCollectionTotal] = useState(0)
   const [collectionPage, setCollectionPage] = useState(1)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [filteredEntries, setFilteredEntries] = useState<CollectionEntry[]>([])
+  const [filteredTotal, setFilteredTotal] = useState(0)
+  const [filteredPage, setFilteredPage] = useState(1)
+  const [loadingMoreFiltered, setLoadingMoreFiltered] = useState(false)
   // Close dropdowns on outside click (but not when clicking inside a dropdown)
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -595,29 +600,46 @@ export default function CollectionPage() {
   })
   const entries = allEntries
 
-  // Server-side search — activated when user types in search box
-  const { data: searchResults, isFetching: searchLoading } = useQuery({
-    queryKey: ['collection-search', bookFilterDebounced],
-    queryFn: () => {
-      const params = new URLSearchParams({ isWishlist: 'false', pageSize: '200', search: bookFilterDebounced })
-      return authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${params}`).then(r => r.data)
+  // Unified server-side filtered query — activates when any filter is set
+  const hasActiveFilters = sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || bookFilterDebounced.length > 0
+
+  const buildFilterParams = useCallback((page = 1) => {
+    const params = new URLSearchParams({ isWishlist: 'false', pageSize: '50', page: String(page) })
+    if (statusFilter !== 'ALL') params.set('ownershipStatus', statusFilter)
+    if (companyFilter !== 'ALL') params.set('companyName', companyFilter)
+    if (tagFilter !== 'ALL') params.set('tag', tagFilter)
+    if (sigFilter !== 'ALL') params.set('signatureType', sigFilter)
+    if (readingFilter !== 'ALL') params.set('readingStatus', readingFilter)
+    if (subFilter !== 'ALL') params.set('subscriptionId', subFilter)
+    if (bookFilterDebounced) params.set('search', bookFilterDebounced)
+    return params
+  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced])
+
+  const { isFetching: filterLoading } = useQuery({
+    queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced],
+    queryFn: async () => {
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${buildFilterParams(1)}`)
+      setFilteredEntries(r.data)
+      setFilteredTotal(r.total)
+      setFilteredPage(1)
+      return r
     },
-    enabled: bookFilterDebounced.length > 0,
+    enabled: hasActiveFilters,
     staleTime: 30_000,
-    placeholderData: (prev) => prev,
   })
 
-  // Server-side company filter — fetches all entries for the selected company
-  const { data: companyFilterResults, isFetching: companyFilterLoading } = useQuery({
-    queryKey: ['collection-company', companyFilter],
-    queryFn: () => {
-      const params = new URLSearchParams({ isWishlist: 'false', pageSize: '500', companyName: companyFilter })
-      return authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${params}`).then(r => r.data)
-    },
-    enabled: companyFilter !== 'ALL' && bookFilterDebounced.length === 0,
-    staleTime: 60_000,
-    placeholderData: (prev) => prev,
-  })
+  const loadMoreFiltered = async () => {
+    setLoadingMoreFiltered(true)
+    try {
+      const nextPage = filteredPage + 1
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${buildFilterParams(nextPage)}`)
+      setFilteredEntries((prev) => [...prev, ...r.data])
+      setFilteredTotal(r.total)
+      setFilteredPage(nextPage)
+    } finally {
+      setLoadingMoreFiltered(false)
+    }
+  }
 
   const loadMoreCollection = async () => {
     setLoadingMore(true)
@@ -791,32 +813,12 @@ export default function CollectionPage() {
   })
   const subFilterOptions = subscriptions
 
-  const baseEntries = bookFilterDebounced
-    ? (searchResults ?? [])
-    : companyFilter !== 'ALL'
-      ? (companyFilterResults ?? entries)
-      : entries
+  const baseEntries = hasActiveFilters ? filteredEntries : allEntries
 
   const filtered = baseEntries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
     if (e.ownershipStatus === 'GIFTED_AWAY') return false
-    if (sigFilter === 'UNSIGNED' && e.signatureType) return false
-    if (sigFilter === 'SIGNED' && e.signatureType !== 'signed') return false
-    if (sigFilter === 'AUTOPEN' && e.signatureType !== 'autopen') return false
-    if (sigFilter === 'DIGITALLY_SIGNED' && e.signatureType !== 'digitally_signed') return false
-    if (sigFilter === 'SIGNED_BOOKPLATE' && e.signatureType !== 'signed_bookplate') return false
-    if (sigFilter === 'STAMPED' && e.signatureType !== 'stamped') return false
-    if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
-    // company filter applied server-side via companyFilterResults when active
-    if (tagFilter !== 'ALL') {
-      const entryTags = e.edition?.id ? (tagOverrides[e.edition.id] ?? e.tags) : e.tags
-      if (!entryTags.includes(tagFilter)) return false
-    }
-    if (readingFilter !== 'ALL' && e.readingStatus !== readingFilter) return false
-    if (subFilter !== 'ALL') {
-      const sub = e.subscriptionEntry?.subscription
-      if (!sub || sub.id !== subFilter) return false
-    }
+    // All other filters are server-side; only grouping display filters remain
     if (filter === 'SERIES') return !!e.edition.book.seriesName
     if (filter === 'YEAR') return !!(e.purchaseGroup?.purchasedAt ?? e.acquiredAt)
     return true
@@ -953,40 +955,66 @@ export default function CollectionPage() {
 
       {/* Books */}
       <>
-        {/* Search + Filters — all inline */}
-          <div className="flex gap-2 flex-wrap items-center mb-6">
-            <input
-              type="text"
-              value={bookFilter}
-              onChange={e => setBookFilter(e.target.value)}
-              placeholder="Search by title…"
-              className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] ${searchLoading ? 'border-amber-400/50 animate-pulse' : 'border-stone-700 focus:border-amber-400'}`}
-            />
+        {/* Search + Filters bar */}
+        {/* Row 1: always visible */}
+        <div className="flex gap-2 items-center mb-2 flex-wrap">
+          <input
+            type="text"
+            value={bookFilter}
+            onChange={e => setBookFilter(e.target.value)}
+            placeholder="Search by title…"
+            className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] flex-1 sm:flex-none ${filterLoading && hasActiveFilters ? 'border-amber-400/50 animate-pulse' : 'border-stone-700 focus:border-amber-400'}`}
+          />
 
-            {/* Group by */}
-            <select
-              value={filter}
-              onChange={e => setFilter(e.target.value as FilterMode)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-            >
-              <option value="ALL">Group: All</option>
-              <option value="BOOK">Group: By Book</option>
-              <option value="SERIES">Group: By Series</option>
-              <option value="YEAR">Group: By Year</option>
-              <option value="AUTHOR">Group: By Author</option>
-              <option value="COMPANY">Group: By Company</option>
-            </select>
+          {/* Group by — always visible */}
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value as FilterMode)}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+          >
+            <option value="ALL">Group: All</option>
+            <option value="BOOK">Group: By Book</option>
+            <option value="SERIES">Group: By Series</option>
+            <option value="YEAR">Group: By Year</option>
+            <option value="AUTHOR">Group: By Author</option>
+            <option value="COMPANY">Group: By Company</option>
+          </select>
 
-            {/* Sort order */}
-            <select
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value as SortOrder)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-            >
-              <option value="DATE_DESC">Sort: Newest first</option>
-              <option value="DATE_ASC">Sort: Oldest first</option>
-            </select>
+          {/* Sort — always visible */}
+          <select
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value as SortOrder)}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+          >
+            <option value="DATE_DESC">Sort: Newest first</option>
+            <option value="DATE_ASC">Sort: Oldest first</option>
+          </select>
 
+          {/* Filters toggle button — all screen sizes */}
+          {(() => {
+            const activeCount = [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter].filter(f => f !== 'ALL').length
+            return (
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
+              >
+                <SlidersHorizontal size={13} />
+                Filters
+                {activeCount > 0 && (
+                  <span className="bg-amber-500 text-stone-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>
+                )}
+              </button>
+            )
+          })()}
+
+          <span className="text-xs text-stone-600 ml-auto">
+            {hasActiveFilters ? (filteredTotal || filtered.length) : (collectionTotal || allEntries.length)}
+          </span>
+        </div>
+
+        {/* Filter selects — collapsible panel */}
+        <div className={`${filtersOpen ? 'flex' : 'hidden'} gap-2 flex-wrap items-center mb-4`}>
             {/* Signature */}
             <select
               value={sigFilter}
@@ -1023,7 +1051,7 @@ export default function CollectionPage() {
               <select
                 value={companyFilter}
                 onChange={e => setCompanyFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? `text-amber-400 border-amber-500/30 bg-amber-500/10${companyFilterLoading ? ' animate-pulse' : ''}` : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
                 <option value="ALL">Box: Any</option>
                 {companies.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1067,20 +1095,16 @@ export default function CollectionPage() {
               </select>
             )}
 
-            {/* Reset all */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || filter !== 'ALL' || bookFilter) && (
+            {/* Reset filters */}
+            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || bookFilter) && (
               <button
                 type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setSubFilter('ALL'); setFilter('ALL'); setBookFilter('') }}
+                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setSubFilter('ALL'); setBookFilter('') }}
                 className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
               >
                 ✕ Clear
               </button>
             )}
-
-            <span className="text-xs text-stone-600 ml-auto">
-              {filtered.length}/{collectionTotal || entries.length}
-            </span>
           </div>
 
           {entries.length === 0 ? (
@@ -1594,15 +1618,27 @@ export default function CollectionPage() {
           })}
         </div>
       )}
-      {/* Load more */}
-      {entries.length < collectionTotal && (
+      {/* Load more — unfiltered */}
+      {!hasActiveFilters && allEntries.length < collectionTotal && (
         <div className="text-center mt-8">
           <button
             onClick={() => void loadMoreCollection()}
             disabled={loadingMore}
             className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
           >
-            {loadingMore ? 'Loading…' : `Show more (${entries.length} / ${collectionTotal})`}
+            {loadingMore ? 'Loading…' : `Show more (${allEntries.length} / ${collectionTotal})`}
+          </button>
+        </div>
+      )}
+      {/* Load more — filtered */}
+      {hasActiveFilters && filteredEntries.length < filteredTotal && (
+        <div className="text-center mt-8">
+          <button
+            onClick={() => void loadMoreFiltered()}
+            disabled={loadingMoreFiltered}
+            className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {loadingMoreFiltered ? 'Loading…' : `Show more (${filteredEntries.length} / ${filteredTotal})`}
           </button>
         </div>
       )}
