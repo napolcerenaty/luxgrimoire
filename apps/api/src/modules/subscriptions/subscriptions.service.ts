@@ -302,6 +302,14 @@ export class SubscriptionsService {
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
     }
+    if (query.skipPolicyType) {
+      if (query.skipPolicyType === 'NONE') {
+        // "No skips" = no policy grants skips (no policy at all, or every policy is type NONE)
+        where.skipPolicies = { none: { type: { not: 'NONE' } } };
+      } else {
+        where.skipPolicies = { some: { type: query.skipPolicyType } };
+      }
+    }
     if (query.status === 'active') {
       const now = new Date();
       where.isDiscontinued = false;
@@ -1187,8 +1195,9 @@ export class SubscriptionsService {
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
     paidUpFrontDate: Date | null = null,
+    subscriptionEarliestDate: Date | null = null,
   ): Date | null {
-    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
+    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate, subscriptionEarliestDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {

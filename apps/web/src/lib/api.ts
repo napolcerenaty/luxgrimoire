@@ -205,11 +205,13 @@ export async function getSubscriptions(params?: {
   status?: 'active' | 'discontinued' | 'upcoming';
   pageSize?: number;
   companySlug?: string;
+  skipPolicyType?: string;
 }): Promise<{ data: import('@luxgrimoire/shared-types').ApiSubscription[]; total: number; totalPages: number }> {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
   if (params?.companySlug) qs.set('companySlug', params.companySlug);
+  if (params?.skipPolicyType) qs.set('skipPolicyType', params.skipPolicyType);
   const res = await fetch(`${API_URL}/subscriptions?${qs}`, { credentials: 'include' });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
   return res.json();

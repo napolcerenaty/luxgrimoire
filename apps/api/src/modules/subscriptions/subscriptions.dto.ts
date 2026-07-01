@@ -565,6 +565,11 @@ export class SubscriptionQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /** Filter by skip policy type: NONE | UNLIMITED | UNLIMITED_MAX_CONSEC | CALENDAR_YEAR | FROM_FIRST_SKIP | FROM_SUB_START | PREPAID_WINDOW_SKIP */
+  @IsOptional()
+  @IsString()
+  skipPolicyType?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()

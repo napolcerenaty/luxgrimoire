@@ -580,4 +580,55 @@ describe('SubscriptionsService — backfill with settings history', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  // ── Multi-policy selection during backfill ────────────────────────────────
+  describe('multi-policy — correct policy selected by entry.prepaidMonths', () => {
+    // Runs a backfill with MONTHLY (CALENDAR_YEAR) + PREPAID (FROM_SUB_START) policies
+    // and returns the windowKey used for the auto-derived skip record of the unselected month.
+    async function runWithPolicies(entryOverrides: Record<string, unknown>) {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const selectedMonth = { id: 'm-1', year: 2024, month: 1, signatureType: null, books: [{ editionId: 'ed-1', bookId: 'bk-1', signatureType: null }] };
+      const skippedMonth = { id: 'm-2', year: 2024, month: 2, signatureType: null, books: [{ editionId: 'ed-2', bookId: 'bk-2', signatureType: null }] };
+
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(makeEntry(entryOverrides));
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([selectedMonth]);
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
+      (prisma.userBookEntry.upsert as jest.Mock).mockResolvedValueOnce({ id: 'be-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'be-1' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValue({});
+
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: SUB_ID,
+        skipPolicies: [
+          { billingType: 'MONTHLY', type: 'CALENDAR_YEAR', windowMonths: null },
+          { billingType: 'PREPAID', type: 'FROM_SUB_START', windowMonths: null },
+        ],
+      });
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([selectedMonth, skippedMonth]);
+      (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValueOnce({ id: 'skip-1' });
+      (prisma.userSubscriptionEntry.update as jest.Mock).mockResolvedValueOnce({});
+      skipPolicyEngineMock.recomputeSkipState.mockResolvedValueOnce(undefined);
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, { selectedMonthIds: ['m-1'] } as any);
+
+      const call = (prisma.userSkipRecord.upsert as jest.Mock).mock.calls[0][0];
+      return call.create.windowKey as string | null;
+    }
+
+    it('monthly entry → uses MONTHLY policy (CALENDAR_YEAR windowKey)', async () => {
+      const windowKey = await runWithPolicies({ prepaidMonths: 1 });
+      expect(windowKey).toBe('2024');
+    });
+
+    it('prepaid entry → uses PREPAID policy (FROM_SUB_START windowKey)', async () => {
+      const windowKey = await runWithPolicies({ prepaidMonths: 6 });
+      // FROM_SUB_START derives windowKey from entry.startDate '2023-01-01'
+      expect(windowKey).toBe('2023-01-01');
+    });
+  });
 });

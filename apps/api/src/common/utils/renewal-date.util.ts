@@ -90,11 +90,24 @@ export function computeNextRenewalDate(
    * This month is skipped when searching for the next due date.
    */
   paidUpFrontDate: Date | null = null,
+  /**
+   * The subscription's own start date. Candidates before this date are excluded,
+   * which prevents returning renewal dates for months before the subscription begins.
+   * Example: user joins a subscription that starts Nov 2026 — July 2026 (aligned to
+   * a 4-month cycle) should not be returned as the next renewal.
+   */
+  subscriptionEarliestDate: Date | null = null,
 ): Date | null {
   const interval = intervalMonths;
   const now = new Date();
-  let candYear = now.getFullYear();
-  let candMonth = now.getMonth() + 1;
+  // Start iteration from the later of "now" and "subscriptionEarliestDate" so that
+  // we don't waste iterations (and exceed the loop cap) on months before the
+  // subscription opens for business.
+  const floorDate = subscriptionEarliestDate && subscriptionEarliestDate > now
+    ? subscriptionEarliestDate
+    : now;
+  let candYear = floorDate.getUTCFullYear();
+  let candMonth = floorDate.getUTCMonth() + 1;
 
   for (let i = 0; i < 24; i++) {
     if (interval > 1 && startingMonth != null) {
@@ -118,6 +131,10 @@ export function computeNextRenewalDate(
     const isSkipped = skippedMonths.some((s) => s.year === candYear && s.month === candMonth);
 
     if (!isSkipped && candDate > now) {
+      if (subscriptionEarliestDate && candDate < subscriptionEarliestDate) {
+        [candYear, candMonth] = incrementMonth(candYear, candMonth);
+        continue;
+      }
       if (userStartDate) {
         const startD = new Date(userStartDate);
         if (candDate >= startD) return candDate;
@@ -221,6 +238,7 @@ export async function refreshNextRenewalDate(
       subscription: {
         select: {
           id: true,
+          startDate: true,
           renewalDay: true,
           renewalDayUserSet: true,
           intervalMonths: true,
@@ -265,6 +283,8 @@ export async function refreshNextRenewalDate(
     renewalMonthOffset: sub.renewalMonthOffset ?? 0,
   };
 
+  const subscriptionEarliestDate: Date | null = sub.startDate ? new Date(sub.startDate) : null;
+
   // Two-step settings resolution:
   // Step 1 — compute a rough candidate next renewal date using current sub settings (ignoring
   //           history) to determine which calendar month the next renewal will fall in.
@@ -282,6 +302,9 @@ export async function refreshNextRenewalDate(
     sub.intervalMonths ?? 1,
     sub.startingMonth ?? null,
     entry.startDate ?? null,
+    [],
+    null,
+    subscriptionEarliestDate,
   );
   const targetYear = roughCandidate?.getUTCFullYear() ?? now.getUTCFullYear();
   const targetMonth = roughCandidate ? roughCandidate.getUTCMonth() + 1 : now.getUTCMonth() + 1;
@@ -358,6 +381,7 @@ export async function refreshNextRenewalDate(
       entry.startDate ?? null,
       skippedMonths,
       paidUpFrontDate,
+      subscriptionEarliestDate,
     );
   }
 

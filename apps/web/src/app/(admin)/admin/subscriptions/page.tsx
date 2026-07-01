@@ -70,8 +70,8 @@ interface SubFormData {
   unskipDeadlineDayOfMonth: string
   unskipNotes: string
   unskipHow: string
-  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
-  eligibleBillingTypes: string
+  /** Which billing type this policy applies to: "ALL" | "MONTHLY" | "PREPAID" */
+  billingType: string
   /** Required when any tracked settings field changes (effectiveFrom for the history record) */
   settingsEffectiveFrom: string
 }
@@ -121,7 +121,7 @@ const EMPTY_FORM: SubFormData = {
   unskipDeadlineDayOfMonth: '',
   unskipNotes: '',
   unskipHow: '',
-  eligibleBillingTypes: 'ALL',
+  billingType: 'ALL',
   settingsEffectiveFrom: '',
 }
 
@@ -172,7 +172,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     unskipDeadlineDayOfMonth: p?.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
     unskipNotes: p?.unskipNotes ?? '',
     unskipHow: p?.unskipHow ?? '',
-    eligibleBillingTypes: (p as any)?.billingType ?? p?.billingType ?? 'ALL',
+    billingType: p?.billingType ?? 'ALL',
     settingsEffectiveFrom: '',
   }
 }
@@ -582,16 +582,18 @@ function SubscriptionForm({
               <option value="CALENDAR_YEAR">X skips per calendar year</option>
               <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
               <option value="FROM_SUB_START">X skips from subscription start</option>
+              <option value="PREPAID_WINDOW_SKIP">Prepaid window skip (skips whole prepaid window)</option>
             </select>
           </div>
           {form.skipPolicyType !== 'NONE' && (
             <div>
-              <label className={LABEL_CLASS}>Who can skip?</label>
-              <select className={SELECT_CLASS} value={form.eligibleBillingTypes} onChange={setStr('eligibleBillingTypes')}>
+              <label className={LABEL_CLASS}>Applies to billing type</label>
+              <select className={SELECT_CLASS} value={form.billingType} onChange={setStr('billingType')}>
                 <option value="ALL">All subscribers</option>
-                <option value="MONTHLY_ONLY">Monthly subscribers only</option>
-                <option value="PREPAID_ONLY">Prepaid subscribers only</option>
+                <option value="MONTHLY">Monthly billing only</option>
+                <option value="PREPAID">Prepaid billing only</option>
               </select>
+              <p className="text-xs text-stone-500 mt-1">Saved as a separate policy per billing type</p>
             </div>
           )}
           {form.skipPolicyType !== 'NONE' && (
@@ -1198,7 +1200,7 @@ export default function AdminSubscriptionsPage() {
         body: JSON.stringify(formToCreatePayload(form)),
       })
       if (form.skipPolicyType && form.skipPolicyType !== 'NONE') {
-        await authFetch(`/skip-policy/${sub.slug}`, {
+        await authFetch(`/skip-policy/${sub.slug}/policies/${form.billingType || 'ALL'}`, {
           method: 'PUT',
           body: JSON.stringify({
             type: resolveSkipType(form),
@@ -1216,7 +1218,7 @@ export default function AdminSubscriptionsPage() {
             unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
             unskipNotes: form.unskipNotes || undefined,
             unskipHow: form.unskipHow || undefined,
-            eligibleBillingTypes: form.eligibleBillingTypes || 'ALL',
+            billingType: form.billingType || 'ALL',
           }),
         })
       }
@@ -1235,27 +1237,33 @@ export default function AdminSubscriptionsPage() {
         method: 'PATCH',
         body: JSON.stringify(formToUpdatePayload(form)),
       })
-      await authFetch(`/skip-policy/${slug}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          type: resolveSkipType(form) || 'NONE',
-          maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
-          maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
-          windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
-          skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
-          skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
-          skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
-          notes: form.skipNotes || undefined,
-          skipHow: form.skipHow || undefined,
-          allowUnskip: form.allowUnskip,
-          unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
-          unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
-          unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
-          unskipNotes: form.unskipNotes || undefined,
-          unskipHow: form.unskipHow || undefined,
-          eligibleBillingTypes: form.eligibleBillingTypes || 'ALL',
-        }),
-      })
+      const billingType = form.billingType || 'ALL'
+      if (form.skipPolicyType === 'NONE') {
+        // Remove only this billing type's policy (leaves other billing-type policies intact)
+        await authFetch(`/skip-policy/${slug}/policies/${billingType}`, { method: 'DELETE' })
+      } else {
+        await authFetch(`/skip-policy/${slug}/policies/${billingType}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            type: resolveSkipType(form) || 'NONE',
+            maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
+            maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
+            windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
+            skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
+            skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
+            skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
+            notes: form.skipNotes || undefined,
+            skipHow: form.skipHow || undefined,
+            allowUnskip: form.allowUnskip,
+            unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
+            unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
+            unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
+            unskipNotes: form.unskipNotes || undefined,
+            unskipHow: form.unskipHow || undefined,
+            billingType,
+          }),
+        })
+      }
       return sub
     },
     onSuccess: () => {
