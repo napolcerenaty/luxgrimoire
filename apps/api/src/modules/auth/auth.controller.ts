@@ -11,7 +11,7 @@ import {
   VerifyEmailDto,
   ResendVerificationDto,
 } from './auth.dto';
-import { Public } from '../../common/decorators/auth.decorators';
+import { Public, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { GoogleInitGuard, GoogleCallbackGuard } from './guards/oauth-state.guard';
@@ -93,6 +93,20 @@ export class AuthController {
   @Get('me')
   getMe(@CurrentUser() user: { id: string }) {
     return this.authService.getMe(user.id);
+  }
+
+  /** Always returns 200 — use instead of /me to avoid 401 console errors for guests */
+  @OptionalAuth()
+  @Get('status')
+  async getStatus(@Req() req: any) {
+    const userId = req.user?.id as string | undefined;
+    if (!userId) return { isLoggedIn: false };
+    try {
+      const user = await this.authService.getMe(userId);
+      return { isLoggedIn: true, user };
+    } catch {
+      return { isLoggedIn: false };
+    }
   }
 
   @Post('consent')
