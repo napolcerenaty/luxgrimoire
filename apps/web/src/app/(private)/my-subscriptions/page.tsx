@@ -660,48 +660,51 @@ export default function MySubscriptionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Header: title + view toggle */}
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-initial">
-          {tab === 'active' && (
-            <button
-              type="button"
-              onClick={() => setShowForwardingOnly(prev => !prev)}
-              className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
-                showForwardingOnly
-                  ? 'border-blue-700/60 bg-blue-500/10 text-blue-300'
-                  : 'border-stone-700 bg-stone-900 text-stone-400 hover:text-stone-200'
-              }`}
-            >
-              📦 Forwarding
-            </button>
-          )}
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            placeholder="Search subscriptions…"
-            className="w-full min-w-[190px] rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 text-sm text-stone-100 placeholder:text-stone-500 sm:w-60"
-          />
-          <div className="flex overflow-hidden rounded-lg border border-stone-700">
-            <button
-              type="button"
-              onClick={() => setView('list')}
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
-              aria-label="List view"
-            >
-              <List size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('grid')}
-              className={`border-l border-stone-700 px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
-              aria-label="Grid view"
-            >
-              <LayoutGrid size={15} />
-            </button>
-          </div>
+        <div className="flex overflow-hidden rounded-lg border border-stone-700 shrink-0">
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
+            aria-label="List view"
+          >
+            <List size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('grid')}
+            className={`border-l border-stone-700 px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
+            aria-label="Grid view"
+          >
+            <LayoutGrid size={15} />
+          </button>
         </div>
+      </div>
+
+      {/* Search + forwarding filter */}
+      <div className="flex items-center gap-2">
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={event => setSearchTerm(event.target.value)}
+          placeholder="Search subscriptions…"
+          className="flex-1 rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+        />
+        {tab === 'active' && (
+          <button
+            type="button"
+            onClick={() => setShowForwardingOnly(prev => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+              showForwardingOnly
+                ? 'border-blue-700/60 bg-blue-500/10 text-blue-300'
+                : 'border-stone-700 bg-stone-900 text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            📦
+          </button>
+        )}
       </div>
 
       <div className="flex gap-1 border-b border-stone-800">
