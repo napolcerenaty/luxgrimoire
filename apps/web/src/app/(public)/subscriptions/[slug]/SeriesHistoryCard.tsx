@@ -72,7 +72,6 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
               ))}
             </div>
           )}
-          </div>
         </div>
       </div>
     </div>

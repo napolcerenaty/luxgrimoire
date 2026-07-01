@@ -200,6 +200,25 @@ export class CollectionService {
     return { data: dataWithTags, total, page, pageSize };
   }
 
+  async getCollectionCompanies(userId: string): Promise<{ id: string; name: string; slug: string }[]> {
+    const rows = await this.prisma.userBookEntry.findMany({
+      where: { userId, isWishlist: false, edition: { bookBoxCompany: { isNot: null } } },
+      select: {
+        edition: {
+          select: {
+            bookBoxCompany: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    const seen = new Map<string, { id: string; name: string; slug: string }>();
+    for (const r of rows) {
+      const c = r.edition?.bookBoxCompany;
+      if (c && !seen.has(c.id)) seen.set(c.id, c);
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   async getCollectionSubscriptions(userId: string): Promise<{ id: string; name: string; parentSubscriptionId: string | null }[]> {
     const rows = await this.prisma.userBookEntry.findMany({
       where: { userId, isWishlist: false, subscriptionEntryId: { not: null } },

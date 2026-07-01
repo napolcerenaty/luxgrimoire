@@ -607,6 +607,18 @@ export default function CollectionPage() {
     placeholderData: (prev) => prev,
   })
 
+  // Server-side company filter — fetches all entries for the selected company
+  const { data: companyFilterResults, isFetching: companyFilterLoading } = useQuery({
+    queryKey: ['collection-company', companyFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({ isWishlist: 'false', pageSize: '500', companyName: companyFilter })
+      return authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${params}`).then(r => r.data)
+    },
+    enabled: companyFilter !== 'ALL' && bookFilterDebounced.length === 0,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  })
+
   const loadMoreCollection = async () => {
     setLoadingMore(true)
     try {
@@ -767,13 +779,11 @@ export default function CollectionPage() {
     })
   }, [entries, user?.preferredCurrency])
 
-  const companies = useMemo(() => {
-    const set = new Set<string>()
-    for (const e of entries) {
-      if (e.edition.bookBoxCompany?.name) set.add(e.edition.bookBoxCompany.name)
-    }
-    return Array.from(set).sort()
-  }, [entries])
+  const { data: companiesData = [] } = useQuery<{ id: string; name: string; slug: string }[]>({
+    queryKey: ['collection-companies'],
+    queryFn: () => authFetch('/collection/companies'),
+  })
+  const companies = companiesData.map(c => c.name)
 
   const { data: subscriptions = [] } = useQuery<{ id: string; name: string; parentSubscriptionId: string | null }[]>({
     queryKey: ['collection-subscriptions'],
@@ -781,7 +791,11 @@ export default function CollectionPage() {
   })
   const subFilterOptions = subscriptions
 
-  const baseEntries = bookFilterDebounced ? (searchResults ?? []) : entries
+  const baseEntries = bookFilterDebounced
+    ? (searchResults ?? [])
+    : companyFilter !== 'ALL'
+      ? (companyFilterResults ?? entries)
+      : entries
 
   const filtered = baseEntries.filter((e) => {
     if (e.ownershipStatus === 'SOLD') return false
@@ -793,7 +807,7 @@ export default function CollectionPage() {
     if (sigFilter === 'SIGNED_BOOKPLATE' && e.signatureType !== 'signed_bookplate') return false
     if (sigFilter === 'STAMPED' && e.signatureType !== 'stamped') return false
     if (statusFilter !== 'ALL' && e.ownershipStatus !== statusFilter) return false
-    if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
+    // company filter applied server-side via companyFilterResults when active
     if (tagFilter !== 'ALL') {
       const entryTags = e.edition?.id ? (tagOverrides[e.edition.id] ?? e.tags) : e.tags
       if (!entryTags.includes(tagFilter)) return false
@@ -1009,7 +1023,7 @@ export default function CollectionPage() {
               <select
                 value={companyFilter}
                 onChange={e => setCompanyFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? `text-amber-400 border-amber-500/30 bg-amber-500/10${companyFilterLoading ? ' animate-pulse' : ''}` : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
                 <option value="ALL">Box: Any</option>
                 {companies.map(c => <option key={c} value={c}>{c}</option>)}
