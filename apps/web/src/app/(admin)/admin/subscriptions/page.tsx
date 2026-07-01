@@ -324,7 +324,14 @@ function SubscriptionForm({
             <label className={LABEL_CLASS}>Company *</label>
             <select required disabled={isManager}
               className={`${SELECT_CLASS} disabled:opacity-60 disabled:cursor-not-allowed`}
-              value={form.companyId} onChange={setStr('companyId')}>
+              value={form.companyId} onChange={(e) => {
+                const id = e.target.value
+                setField('companyId', id)
+                if (!isEditMode && id) {
+                  const co = companies.find((c) => c.id === id)
+                  if (co?.defaultCurrency) setField('currency', co.defaultCurrency)
+                }
+              }}>
               <option value="">— Select company —</option>
               {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
