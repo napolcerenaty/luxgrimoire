@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ApiSkipStatus, ApiSubscriptionMonth, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { ApiSkipStatus, ApiSubscriptionMonth, ApiFeeTemplate, PaginatedResponse } from '@luxgrimoire/shared-types'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -170,146 +170,176 @@ function InlineCostsEditor({
   const [basePrice, setBasePrice] = useState(detail.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(detail.shippingCost ?? '')
   const [costCurrency, setCostCurrency] = useState(detail.costCurrency ?? fallbackCurrency)
-  const [feeTemplates, setFeeTemplates] = useState(
-    detail.feeTemplates.map(link => ({
-      feeTemplateId: link.feeTemplate.id,
-      name: link.feeTemplate.name,
-      customAmount: link.customAmount ?? link.feeTemplate.defaultAmount ?? '',
-      customCurrency: link.customCurrency ?? link.feeTemplate.defaultCurrency,
+  const [feeLinks, setFeeLinks] = useState(
+    detail.feeTemplates.map(f => ({
+      templateId: f.feeTemplate.id,
+      name: f.feeTemplate.name,
+      customAmount: f.customAmount ?? f.feeTemplate.defaultAmount ?? '',
+      customCurrency: f.customCurrency ?? f.feeTemplate.defaultCurrency,
     })),
   )
+  const [allTemplates, setAllTemplates] = useState<ApiFeeTemplate[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const normalizedCurrency = costCurrency.trim().toUpperCase() || fallbackCurrency
-      const feePayload = feeTemplates.map(link => ({
-        feeTemplateId: link.feeTemplateId,
-        customAmount: link.customAmount.trim() === '' ? null : parseDecimalInput(link.customAmount),
-        customCurrency: link.customCurrency.trim().toUpperCase() || normalizedCurrency,
-      }))
+  useEffect(() => {
+    import('@/lib/api').then(({ getFeeTemplates }) => {
+      getFeeTemplates(true).then(setAllTemplates).catch(() => {})
+    })
+  }, [])
 
-      await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/costs`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          basePrice: basePrice.trim() === '' ? undefined : String(parseDecimalInput(basePrice)),
-          shippingCost: shippingCost.trim() === '' ? undefined : String(parseDecimalInput(shippingCost)),
-          costCurrency: normalizedCurrency,
-          feeTemplates: feePayload,
-          linkedFeeTemplates: feePayload.map(link => ({
-            templateId: link.feeTemplateId,
-            ...(link.customAmount === null ? {} : { customAmount: link.customAmount }),
-            customCurrency: link.customCurrency,
-          })),
-        }),
+  function toggleTemplate(t: ApiFeeTemplate) {
+    if (feeLinks.find(f => f.templateId === t.id)) {
+      setFeeLinks(prev => prev.filter(f => f.templateId !== t.id))
+    } else {
+      setFeeLinks(prev => [...prev, {
+        templateId: t.id,
+        name: t.name,
+        customAmount: t.defaultAmount != null ? String(t.defaultAmount) : '',
+        customCurrency: t.defaultCurrency ?? fallbackCurrency,
+      }])
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const { updateMyEntryCosts } = await import('@/lib/api')
+      await updateMyEntryCosts(subscriptionSlug, {
+        basePrice: basePrice || undefined,
+        shippingCost: shippingCost || undefined,
+        costCurrency: costCurrency || undefined,
+        linkedFeeTemplates: feeLinks.map(f => ({
+          templateId: f.templateId,
+          customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
+          customCurrency: f.customCurrency || null,
+        })),
       })
-    },
-    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['sub-entry-detail', subscriptionSlug] }),
         queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
       ])
       onSaved()
-    },
-  })
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 transition-colors'
 
   return (
-    <div className="space-y-3 rounded-lg border border-stone-700/60 bg-stone-900/70 p-3">
+    <div className="rounded-xl border border-stone-700/60 bg-stone-900/80 p-4 space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="space-y-1">
-          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Base price</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={basePrice}
-            onChange={event => setBasePrice(event.target.value)}
-            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Shipping</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={shippingCost}
-            onChange={event => setShippingCost(event.target.value)}
-            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Currency</span>
-          <input
-            type="text"
-            value={costCurrency}
-            onChange={event => setCostCurrency(event.target.value.toUpperCase())}
-            maxLength={3}
-            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm uppercase text-stone-100"
-          />
-        </label>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Base price ({costCurrency})</label>
+          <input type="number" step="0.01" min="0" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="e.g. 34.99" className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Shipping ({costCurrency})</label>
+          <input type="number" step="0.01" min="0" value={shippingCost} onChange={e => setShippingCost(e.target.value)} placeholder="e.g. 8.00" className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Currency</label>
+          <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className={`${inputCls} w-24 uppercase`} />
+        </div>
       </div>
 
-      {feeTemplates.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-wider text-stone-500">Fee overrides</p>
-          {feeTemplates.map((fee, index) => (
-            <div key={fee.feeTemplateId} className="rounded-lg border border-stone-700/50 bg-stone-800/40 p-2">
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-stone-300">{fee.name}</span>
-                <span className="text-stone-500">{fee.customCurrency}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr,88px]">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={fee.customAmount}
-                  onChange={event => {
-                    const next = event.target.value
-                    setFeeTemplates(current => current.map((item, itemIndex) => (
-                      itemIndex === index ? { ...item, customAmount: next } : item
-                    )))
-                  }}
-                  className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
-                />
-                <input
-                  type="text"
-                  value={fee.customCurrency}
-                  onChange={event => {
-                    const next = event.target.value.toUpperCase()
-                    setFeeTemplates(current => current.map((item, itemIndex) => (
-                      itemIndex === index ? { ...item, customCurrency: next } : item
-                    )))
-                  }}
-                  maxLength={3}
-                  className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm uppercase text-stone-100"
-                />
-              </div>
+      {/* Linked fees */}
+      <div>
+        <p className="text-xs text-stone-400 mb-2">Fees</p>
+        {feeLinks.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {feeLinks.map(link => {
+              const tpl = allTemplates.find(t => t.id === link.templateId)
+              const defaultAmt = tpl?.defaultAmount != null ? String(tpl.defaultAmount) : ''
+              const defaultCur = tpl?.defaultCurrency ?? costCurrency
+              return (
+                <div key={link.templateId} className="bg-stone-800/60 rounded-lg px-3 py-2 flex gap-2 items-start">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-sm text-stone-200">{link.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFeeLinks(prev => prev.filter(f => f.templateId !== link.templateId))}
+                        className="text-stone-600 hover:text-red-400 text-xs transition-colors flex-shrink-0"
+                      >✕ Remove</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={link.customAmount}
+                        onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customAmount: e.target.value } : f))}
+                        placeholder={defaultAmt || 'amount'}
+                        className="w-28 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                      />
+                      <input
+                        type="text"
+                        value={link.customCurrency}
+                        onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customCurrency: e.target.value.toUpperCase() } : f))}
+                        placeholder={defaultCur}
+                        maxLength={3}
+                        className="w-14 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Available (unlinked) templates */}
+        {allTemplates.filter(t => !feeLinks.find(f => f.templateId === t.id)).length > 0 && (
+          <div>
+            <p className="text-xs text-stone-600 mb-1.5">Add from your templates:</p>
+            <div className="flex flex-wrap gap-2">
+              {allTemplates
+                .filter(t => !feeLinks.find(f => f.templateId === t.id))
+                .map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleTemplate(t)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-amber-600 hover:text-amber-400 transition-colors"
+                  >
+                    <span>+</span>
+                    <span>{t.name}</span>
+                    {t.defaultAmount != null && (
+                      <span className="text-stone-600">({t.defaultAmount} {t.defaultCurrency})</span>
+                    )}
+                  </button>
+                ))
+              }
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {saveMutation.error && (
-        <p className="text-xs text-red-400">{(saveMutation.error as Error).message}</p>
-      )}
+        {allTemplates.length === 0 && feeLinks.length === 0 && (
+          <p className="text-xs text-stone-600 italic">No fee templates defined in settings.</p>
+        )}
+      </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      <div className="flex flex-wrap justify-end gap-2 pt-1">
         <button
           type="button"
           onClick={onCancel}
-          disabled={saveMutation.isPending}
-          className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-300 transition-colors hover:text-stone-100 disabled:opacity-50"
+          disabled={saving}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-400 border border-stone-700 transition-colors hover:border-stone-500 hover:text-stone-200 disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="button"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
+          onClick={handleSave}
+          disabled={saving}
           className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
         >
-          {saveMutation.isPending ? 'Saving…' : 'Save costs'}
+          {saving ? 'Saving…' : 'Save costs'}
         </button>
       </div>
     </div>
