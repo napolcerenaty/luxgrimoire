@@ -9,7 +9,7 @@ import { HomeStatsBar } from '@/components/home/HomeStatsBar'
 import { HomeTrendingEditions } from '@/components/home/HomeTrendingEditions'
 import { HomeTrendingSales } from '@/components/home/HomeTrendingSales'
 import { SaleCountdownBanner } from '@/components/home/SaleCountdownBanner'
-import { HomeAuthSection } from '@/components/home/HomeAuthSection'
+import { HomeAuthSection, HomeGuestFeatures } from '@/components/home/HomeAuthSection'
 import type {
   ApiBookEdition,
   ApiPlatformStats,
@@ -78,6 +78,9 @@ export default async function HomePage() {
       <HomeAuthSection />
 
       {platformStats && <HomeStatsBar {...platformStats} />}
+
+      {/* Features section — only for guests, after stats bar */}
+      <HomeGuestFeatures />
 
       {announcements.length > 0 && <SaleCountdownBanner announcements={announcements} />}
 
