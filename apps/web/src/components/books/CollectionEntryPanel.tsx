@@ -1733,7 +1733,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
           {/* Print pill — shown only when reprints exist for this edition */}
           {saleEditions.some(se => se.isReprint) && (() => {
-            const currentPrintLabel = entry.isOriginalPrint && !entry.saleAnnouncementEditionId
+            const currentPrintLabel = (entry.isOriginalPrint && !entry.saleAnnouncementEditionId) || (entry.saleAnnouncementEdition && !entry.saleAnnouncementEdition.isReprint)
               ? '📗 Original print'
               : entry.saleAnnouncementEdition
                 ? (() => {
