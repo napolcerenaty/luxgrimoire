@@ -1253,6 +1253,7 @@ export class SubscriptionsService {
             renewalDay: true,
             intervalMonths: true,
             startingMonth: true,
+            renewalMonthOffset: true,
             company: {
               select: {
                 name: true,
@@ -1358,6 +1359,18 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
+      // Compute box month from renewal month by adding the renewalMonthOffset
+      // e.g. renewal in Oct + offset=1 → box month = Nov
+      let nextBoxMonth: { year: number; month: number } | null = null;
+      if (storedRenewalDate) {
+        const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+        let bm = storedRenewalDate.getUTCMonth() + 1 + offset; // 1-12 based
+        let by = storedRenewalDate.getUTCFullYear();
+        while (bm > 12) { bm -= 12; by += 1; }
+        while (bm < 1)  { bm += 12; by -= 1; }
+        nextBoxMonth = { year: by, month: bm };
+      }
+
       const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
       return {
         ...entryWithoutExtras,
@@ -1367,6 +1380,7 @@ export class SubscriptionsService {
         nextRenewalCurrency: cur,
         nextRenewalPriceChanged,
         nextRenewalNewPrice,
+        nextBoxMonth,
       };
     }));
   }

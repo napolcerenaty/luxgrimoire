@@ -50,6 +50,7 @@ interface MySubscriptionEntry {
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
+  nextBoxMonth: { year: number; month: number } | null
   subscription: {
     slug: string
     name: string
@@ -324,7 +325,7 @@ function SubscriptionOverviewPanel({
 }) {
   const queryClient = useQueryClient()
   const [editingCosts, setEditingCosts] = useState(false)
-  const renewalMonth = getYearMonthFromIso(entry.nextRenewalDate)
+  const boxMonth = entry.nextBoxMonth
   const subscriptionSlug = entry.subscription.slug
 
   const detailQuery = useQuery<MyEntryDetail | null>({
@@ -341,11 +342,11 @@ function SubscriptionOverviewPanel({
   })
 
   const nextBoxQuery = useQuery<PaginatedResponse<ApiSubscriptionMonth>>({
-    queryKey: ['sub-next-box', subscriptionSlug, renewalMonth?.year ?? null, renewalMonth?.month ?? null],
+    queryKey: ['sub-next-box', subscriptionSlug, boxMonth?.year ?? null, boxMonth?.month ?? null],
     queryFn: () => authFetch<PaginatedResponse<ApiSubscriptionMonth>>(
-      `/subscriptions/${subscriptionSlug}/months?fromYear=${renewalMonth!.year}&fromMonth=${renewalMonth!.month}&untilYear=${renewalMonth!.year}&untilMonth=${renewalMonth!.month}`,
+      `/subscriptions/${subscriptionSlug}/months?fromYear=${boxMonth!.year}&fromMonth=${boxMonth!.month}&untilYear=${boxMonth!.year}&untilMonth=${boxMonth!.month}`,
     ),
-    enabled: isExpanded && !!renewalMonth,
+    enabled: isExpanded && !!boxMonth,
   })
 
   const skipMutation = useMutation({
@@ -532,7 +533,7 @@ function SubscriptionOverviewPanel({
         <section className="space-y-3">
           <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Next Box</h4>
 
-          {renewalMonth && nextBoxQuery.isLoading ? (
+          {boxMonth && nextBoxQuery.isLoading ? (
             <OverviewLoadingBlock lines={4} />
           ) : !entry.nextRenewalDate ? (
             <p className="text-sm text-stone-500">No upcoming renewal scheduled yet.</p>
@@ -545,8 +546,8 @@ function SubscriptionOverviewPanel({
                 <p className="text-sm font-medium text-stone-100">{formatDate(entry.nextRenewalDate)}</p>
               </div>
 
-              {renewalMonth && (
-                <p className="text-xs text-stone-500">Box month: {formatMonthLabel(renewalMonth.year, renewalMonth.month)}</p>
+              {boxMonth && (
+                <p className="text-xs text-stone-500">Box month: {formatMonthLabel(boxMonth.year, boxMonth.month)}</p>
               )}
 
               {previewBook ? (
