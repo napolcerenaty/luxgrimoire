@@ -1275,8 +1275,8 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
             </div>
           </Link>
 
-          <div className="flex shrink-0 flex-col items-center justify-center gap-2 self-stretch border-l border-stone-800 bg-stone-900/60 px-2">
-            {entry.active && (
+          <div className="flex shrink-0 flex-col items-center justify-between self-stretch border-l border-stone-800 bg-stone-900/60 px-2 py-2">
+            {entry.active ? (
               <button
                 type="button"
                 title={isExpanded ? 'Collapse overview' : 'Expand overview'}
@@ -1286,25 +1286,27 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               >
                 {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
               </button>
-            )}
-            {entry.active && (
+            ) : <span />}
+            <div className="flex flex-col items-center gap-1">
+              {entry.active && (
+                <button
+                  type="button"
+                  title="Cancel subscription"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+                >
+                  <Ban size={15} />
+                </button>
+              )}
               <button
                 type="button"
-                title="Cancel subscription"
-                onClick={() => setShowCancelConfirm(true)}
-                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+                title="Remove from my subscriptions"
+                onClick={() => setShowRemoveConfirm(true)}
+                className="rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
               >
-                <Ban size={15} />
+                <Trash2 size={15} />
               </button>
-            )}
-            <button
-              type="button"
-              title="Remove from my subscriptions"
-              onClick={() => setShowRemoveConfirm(true)}
-              className="rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
-            >
-              <Trash2 size={15} />
-            </button>
+            </div>
           </div>
         </div>
 
