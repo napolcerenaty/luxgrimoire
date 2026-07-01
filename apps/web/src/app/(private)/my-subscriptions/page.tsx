@@ -81,6 +81,7 @@ interface MyEntryDetail {
   costCurrency: string | null
   active: boolean
   isForwarding: boolean
+  scheduledPrepayOptionId: string | null
   renewalDay: number | null
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
@@ -88,6 +89,16 @@ interface MyEntryDetail {
   cancellationDate: string | null
   cancellationReason: string | null
   feeTemplates: EntryFeeTemplate[]
+}
+
+type PrepayOption = {
+  id: string
+  months: number
+  price: number | string
+  currency: string
+  label: string | null
+  validFrom?: string | null
+  validUntil?: string | null
 }
 
 function formatMoney(amount: string | number | null, currency: string | null) {
@@ -170,6 +181,9 @@ function InlineCostsEditor({
   const [basePrice, setBasePrice] = useState(detail.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(detail.shippingCost ?? '')
   const [costCurrency, setCostCurrency] = useState(detail.costCurrency ?? fallbackCurrency)
+  const [isForwarding, setIsForwarding] = useState(detail.isForwarding)
+  const [scheduledPrepayOptionId, setScheduledPrepayOptionId] = useState<string | null>(detail.scheduledPrepayOptionId ?? null)
+  const [prepayOptions, setPrepayOptions] = useState<PrepayOption[]>([])
   const [feeLinks, setFeeLinks] = useState(
     detail.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
@@ -186,7 +200,13 @@ function InlineCostsEditor({
     import('@/lib/api').then(({ getFeeTemplates }) => {
       getFeeTemplates(true).then(setAllTemplates).catch(() => {})
     })
-  }, [])
+    // Fetch prepay options for this subscription
+    import('@/lib/authFetch').then(({ authFetch }) => {
+      authFetch<PrepayOption[]>(`/subscriptions/${subscriptionSlug}/prepay-options`)
+        .then(opts => setPrepayOptions(opts ?? []))
+        .catch(() => {})
+    })
+  }, [subscriptionSlug])
 
   function toggleTemplate(t: ApiFeeTemplate) {
     if (feeLinks.find(f => f.templateId === t.id)) {
@@ -206,16 +226,24 @@ function InlineCostsEditor({
     setError(null)
     try {
       const { updateMyEntryCosts } = await import('@/lib/api')
+      const { authFetch: af } = await import('@/lib/authFetch')
       await updateMyEntryCosts(subscriptionSlug, {
         basePrice: basePrice || undefined,
         shippingCost: shippingCost || undefined,
         costCurrency: costCurrency || undefined,
+        isForwarding,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
           customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
           customCurrency: f.customCurrency || null,
         })),
       })
+      if (prepayOptions.length > 0) {
+        await af(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+          method: 'PATCH',
+          body: JSON.stringify({ scheduledPrepayOptionId }),
+        })
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['sub-entry-detail', subscriptionSlug] }),
         queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
@@ -246,6 +274,41 @@ function InlineCostsEditor({
           <label className="block text-[10px] text-stone-500 mb-1 uppercase tracking-wider">CCY</label>
           <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className="w-14 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-sm uppercase text-center focus:outline-none focus:border-amber-400 transition-colors" />
         </div>
+      </div>
+
+      {/* Forwarding + Billing mode */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isForwarding}
+            onChange={e => setIsForwarding(e.target.checked)}
+            className="rounded border-stone-600 bg-stone-800 text-amber-500"
+          />
+          <span className="text-sm text-stone-300">📦 Forwarding</span>
+        </label>
+        {prepayOptions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-stone-500">Billing mode</label>
+            <select
+              value={scheduledPrepayOptionId ?? ''}
+              onChange={e => setScheduledPrepayOptionId(e.target.value || null)}
+              className="bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400 transition-colors"
+            >
+              <option value="">Monthly</option>
+              {prepayOptions.filter(o => {
+                const now = new Date()
+                if (o.validFrom && new Date(o.validFrom) > now) return false
+                if (o.validUntil && new Date(o.validUntil) <= now) return false
+                return true
+              }).map(o => (
+                <option key={o.id} value={o.id}>
+                  {o.label ?? `${o.months} months`} — {o.price} {o.currency}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Linked fees */}
