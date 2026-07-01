@@ -1,18 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authFetch } from '@/lib/authFetch'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { ApiSkipStatus, ApiSubscriptionMonth, PaginatedResponse } from '@luxgrimoire/shared-types'
 import Link from 'next/link'
+import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { useBrandColors } from '@/lib/useBrandColors'
-import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
-import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { CancelSubscriptionModal } from '@/components/subscriptions/CancelSubscriptionModal'
-import { CheckCircle2, XCircle, Ban, Trash2, LayoutGrid, List } from 'lucide-react'
+import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
+import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
+import { Ban, CheckCircle2, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
+const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function loadPrefs(): { viewMode: 'list' | 'grid'; tab: 'active' | 'cancelled' } {
   if (typeof window === 'undefined') return { viewMode: 'list', tab: 'active' }
@@ -59,6 +62,33 @@ interface MySubscriptionEntry {
   }
 }
 
+type EntryFeeTemplate = {
+  customAmount: string | null
+  customCurrency: string | null
+  feeTemplate: {
+    id: string
+    name: string
+    defaultAmount: string | null
+    defaultCurrency: string
+    isActive: boolean
+  }
+}
+
+interface MyEntryDetail {
+  shippingCost: string | null
+  basePrice: string | null
+  costCurrency: string | null
+  active: boolean
+  isForwarding: boolean
+  renewalDay: number | null
+  nextRenewalDate: string | null
+  nextRenewalAmount: string | null
+  nextRenewalCurrency: string | null
+  cancellationDate: string | null
+  cancellationReason: string | null
+  feeTemplates: EntryFeeTemplate[]
+}
+
 function formatMoney(amount: string | number | null, currency: string | null) {
   if (amount === null || amount === undefined || !currency) return null
   const n = typeof amount === 'string' ? parseFloat(amount) : amount
@@ -71,9 +101,477 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function formatMonthLabel(year: number, month: number) {
+  return `${MONTH_NAMES[month]} ${year}`
+}
+
+function getYearMonthFromIso(iso: string | null) {
+  if (!iso) return null
+  const match = iso.match(/^(\d{4})-(\d{2})/)
+  if (match) {
+    return { year: Number(match[1]), month: Number(match[2]) }
+  }
+  const parsed = new Date(iso)
+  if (Number.isNaN(parsed.getTime())) return null
+  return { year: parsed.getFullYear(), month: parsed.getMonth() + 1 }
+}
+
+function matchesSubscriptionSearch(entry: MySubscriptionEntry, query: string) {
+  return entry.subscription.name.toLowerCase().includes(query)
+}
+
+function getCostTotal(detail: MyEntryDetail, fallbackCurrency: string) {
+  const currency = detail.costCurrency ?? fallbackCurrency
+  const base = detail.basePrice ? parseFloat(detail.basePrice) : null
+  const shipping = detail.shippingCost ? parseFloat(detail.shippingCost) : null
+  if (base === null || shipping === null || Number.isNaN(base) || Number.isNaN(shipping)) return null
+
+  let total = base + shipping
+  for (const link of detail.feeTemplates.filter(item => item.feeTemplate.isActive)) {
+    const amount = link.customAmount ?? link.feeTemplate.defaultAmount
+    const feeCurrency = link.customCurrency ?? link.feeTemplate.defaultCurrency
+    if (amount == null || feeCurrency !== currency) return null
+    const parsed = parseFloat(amount)
+    if (Number.isNaN(parsed)) return null
+    total += parsed
+  }
+
+  return { amount: total, currency }
+}
+
+function OverviewLoadingBlock({ lines = 3 }: { lines?: number }) {
+  return (
+    <div className="animate-pulse space-y-2">
+      {Array.from({ length: lines }).map((_, index) => (
+        <div
+          key={index}
+          className={`h-3 rounded bg-stone-700/60 ${index === lines - 1 ? 'w-2/3' : 'w-full'}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function InlineCostsEditor({
+  subscriptionSlug,
+  detail,
+  fallbackCurrency,
+  onCancel,
+  onSaved,
+}: {
+  subscriptionSlug: string
+  detail: MyEntryDetail
+  fallbackCurrency: string
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [basePrice, setBasePrice] = useState(detail.basePrice ?? '')
+  const [shippingCost, setShippingCost] = useState(detail.shippingCost ?? '')
+  const [costCurrency, setCostCurrency] = useState(detail.costCurrency ?? fallbackCurrency)
+  const [feeTemplates, setFeeTemplates] = useState(
+    detail.feeTemplates.map(link => ({
+      feeTemplateId: link.feeTemplate.id,
+      name: link.feeTemplate.name,
+      customAmount: link.customAmount ?? link.feeTemplate.defaultAmount ?? '',
+      customCurrency: link.customCurrency ?? link.feeTemplate.defaultCurrency,
+    })),
+  )
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const normalizedCurrency = costCurrency.trim().toUpperCase() || fallbackCurrency
+      const feePayload = feeTemplates.map(link => ({
+        feeTemplateId: link.feeTemplateId,
+        customAmount: link.customAmount.trim() === '' ? null : parseDecimalInput(link.customAmount),
+        customCurrency: link.customCurrency.trim().toUpperCase() || normalizedCurrency,
+      }))
+
+      await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/costs`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          basePrice: basePrice.trim() === '' ? undefined : String(parseDecimalInput(basePrice)),
+          shippingCost: shippingCost.trim() === '' ? undefined : String(parseDecimalInput(shippingCost)),
+          costCurrency: normalizedCurrency,
+          feeTemplates: feePayload,
+          linkedFeeTemplates: feePayload.map(link => ({
+            templateId: link.feeTemplateId,
+            ...(link.customAmount === null ? {} : { customAmount: link.customAmount }),
+            customCurrency: link.customCurrency,
+          })),
+        }),
+      })
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['sub-entry-detail', subscriptionSlug] }),
+        queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
+      ])
+      onSaved()
+    },
+  })
+
+  return (
+    <div className="space-y-3 rounded-lg border border-stone-700/60 bg-stone-900/70 p-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <label className="space-y-1">
+          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Base price</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={basePrice}
+            onChange={event => setBasePrice(event.target.value)}
+            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Shipping</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={shippingCost}
+            onChange={event => setShippingCost(event.target.value)}
+            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="block text-[11px] uppercase tracking-wider text-stone-500">Currency</span>
+          <input
+            type="text"
+            value={costCurrency}
+            onChange={event => setCostCurrency(event.target.value.toUpperCase())}
+            maxLength={3}
+            className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm uppercase text-stone-100"
+          />
+        </label>
+      </div>
+
+      {feeTemplates.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] uppercase tracking-wider text-stone-500">Fee overrides</p>
+          {feeTemplates.map((fee, index) => (
+            <div key={fee.feeTemplateId} className="rounded-lg border border-stone-700/50 bg-stone-800/40 p-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-stone-300">{fee.name}</span>
+                <span className="text-stone-500">{fee.customCurrency}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr,88px]">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={fee.customAmount}
+                  onChange={event => {
+                    const next = event.target.value
+                    setFeeTemplates(current => current.map((item, itemIndex) => (
+                      itemIndex === index ? { ...item, customAmount: next } : item
+                    )))
+                  }}
+                  className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100"
+                />
+                <input
+                  type="text"
+                  value={fee.customCurrency}
+                  onChange={event => {
+                    const next = event.target.value.toUpperCase()
+                    setFeeTemplates(current => current.map((item, itemIndex) => (
+                      itemIndex === index ? { ...item, customCurrency: next } : item
+                    )))
+                  }}
+                  maxLength={3}
+                  className="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm uppercase text-stone-100"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {saveMutation.error && (
+        <p className="text-xs text-red-400">{(saveMutation.error as Error).message}</p>
+      )}
+
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saveMutation.isPending}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-300 transition-colors hover:text-stone-100 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+        >
+          {saveMutation.isPending ? 'Saving…' : 'Save costs'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SubscriptionOverviewPanel({
+  entry,
+  isExpanded,
+}: {
+  entry: MySubscriptionEntry
+  isExpanded: boolean
+}) {
+  const queryClient = useQueryClient()
+  const [editingCosts, setEditingCosts] = useState(false)
+  const renewalMonth = getYearMonthFromIso(entry.nextRenewalDate)
+  const subscriptionSlug = entry.subscription.slug
+
+  const detailQuery = useQuery<MyEntryDetail | null>({
+    queryKey: ['sub-entry-detail', subscriptionSlug],
+    queryFn: () => authFetch<MyEntryDetail | null>(`/subscriptions/${subscriptionSlug}/my-entry`),
+    enabled: isExpanded,
+  })
+
+  const skipQuery = useQuery<ApiSkipStatus>({
+    queryKey: ['skip-status', subscriptionSlug],
+    queryFn: () => authFetch<ApiSkipStatus>(`/skip-policy/${subscriptionSlug}/status`),
+    enabled: isExpanded,
+    retry: false,
+  })
+
+  const nextBoxQuery = useQuery<PaginatedResponse<ApiSubscriptionMonth>>({
+    queryKey: ['sub-next-box', subscriptionSlug, renewalMonth?.year ?? null, renewalMonth?.month ?? null],
+    queryFn: () => authFetch<PaginatedResponse<ApiSubscriptionMonth>>(
+      `/subscriptions/${subscriptionSlug}/months?fromYear=${renewalMonth!.year}&fromMonth=${renewalMonth!.month}&untilYear=${renewalMonth!.year}&untilMonth=${renewalMonth!.month}`,
+    ),
+    enabled: isExpanded && !!renewalMonth,
+  })
+
+  const skipMutation = useMutation({
+    mutationFn: ({ year, month }: { year: number; month: number }) =>
+      authFetch(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
+        method: 'POST',
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] }),
+        queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
+      ])
+    },
+  })
+
+  const unskipMutation = useMutation({
+    mutationFn: ({ year, month }: { year: number; month: number }) =>
+      authFetch(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] }),
+        queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
+      ])
+    },
+  })
+
+  const detail = detailQuery.data
+  const detailCurrency = detail?.costCurrency ?? entry.costCurrency ?? entry.subscription.currency
+  const total = detail ? getCostTotal(detail, entry.subscription.currency) : null
+  const nextBoxMonth = nextBoxQuery.data?.data?.[0]
+  const previewBook = nextBoxMonth?.books?.[0]?.book
+  const previewAuthors = previewBook?.authors.map(author => author.name).join(', ')
+  const skipStatus = skipQuery.data
+  const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
+
+  return (
+    <div className="border-t border-stone-700/50 bg-stone-800/30 px-4 py-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Costs</h4>
+            {!editingCosts && detail && (
+              <button
+                type="button"
+                onClick={() => setEditingCosts(true)}
+                className="rounded-lg border border-stone-700 px-2.5 py-1 text-[11px] font-medium text-stone-300 transition-colors hover:border-stone-600 hover:text-stone-100"
+              >
+                Edit costs
+              </button>
+            )}
+          </div>
+
+          {editingCosts && detail ? (
+            <InlineCostsEditor
+              subscriptionSlug={subscriptionSlug}
+              detail={detail}
+              fallbackCurrency={entry.subscription.currency}
+              onCancel={() => setEditingCosts(false)}
+              onSaved={() => setEditingCosts(false)}
+            />
+          ) : detailQuery.isLoading && !detail ? (
+            <OverviewLoadingBlock lines={5} />
+          ) : detailQuery.error ? (
+            <p className="text-sm text-red-400">Could not load costs.</p>
+          ) : detail ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-stone-400">Base price</span>
+                <span className="text-stone-100">{formatMoney(detail.basePrice, detailCurrency) ?? '—'}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-stone-400">Shipping</span>
+                <span className="text-stone-100">{formatMoney(detail.shippingCost, detailCurrency) ?? '—'}</span>
+              </div>
+              {(detail.feeTemplates.filter(link => link.feeTemplate.isActive)).map(link => {
+                const amount = link.customAmount ?? link.feeTemplate.defaultAmount
+                const currency = link.customCurrency ?? link.feeTemplate.defaultCurrency
+                return (
+                  <div key={link.feeTemplate.id} className="flex items-center justify-between gap-2">
+                    <span className="text-stone-400">{link.feeTemplate.name}</span>
+                    <span className="text-stone-100">{formatMoney(amount, currency) ?? 'Variable'}</span>
+                  </div>
+                )
+              })}
+              {detail.feeTemplates.filter(link => link.feeTemplate.isActive).length === 0 && (
+                <p className="text-sm text-stone-500">No extra fees configured.</p>
+              )}
+              {total && (
+                <div className="flex items-center justify-between gap-2 border-t border-stone-700/60 pt-2">
+                  <span className="font-medium text-stone-300">Tracked total</span>
+                  <span className="font-semibold text-amber-300">{formatMoney(total.amount, total.currency)}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-stone-500">No cost details yet.</p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Skips</h4>
+
+          {skipQuery.isLoading && !skipStatus ? (
+            <OverviewLoadingBlock lines={5} />
+          ) : skipQuery.error ? (
+            <p className="text-sm text-red-400">Could not load skip status.</p>
+          ) : skipStatus?.policyType === 'NONE' ? (
+            <p className="text-sm text-stone-500">No skip policy for this subscription.</p>
+          ) : skipStatus ? (
+            <div className="space-y-3">
+              <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-200">
+                {skipLimit}
+              </span>
+
+              {!skipStatus.canSkip && skipStatus.isPastDeadline && (
+                <p className="text-xs text-amber-400">Skip deadline has already passed for the next eligible box.</p>
+              )}
+
+              {skipStatus.warnings.length > 0 && (
+                <div className="space-y-1">
+                  {skipStatus.warnings.map(warning => (
+                    <p key={warning} className="rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+                      {warning}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {skipStatus.canSkip && skipStatus.targetMonth && (
+                <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3">
+                  <p className="text-xs text-stone-500">Next eligible month</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-stone-100">
+                      {formatMonthLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => skipMutation.mutate(skipStatus.targetMonth!)}
+                      disabled={skipMutation.isPending}
+                      className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+                    >
+                      {skipMutation.isPending ? 'Skipping…' : 'Skip'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {skipMutation.error && (
+                <p className="text-xs text-red-400">{(skipMutation.error as Error).message}</p>
+              )}
+
+              {skipStatus.allowUnskip && skipStatus.skippedMonths.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-stone-500">Skipped months</p>
+                  <div className="flex flex-wrap gap-2">
+                    {skipStatus.skippedMonths
+                      .slice()
+                      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+                      .map(month => (
+                        <button
+                          key={`${month.year}-${month.month}`}
+                          type="button"
+                          onClick={() => unskipMutation.mutate(month)}
+                          disabled={unskipMutation.isPending}
+                          className="rounded-lg border border-stone-700 px-2.5 py-1 text-xs text-stone-300 transition-colors hover:border-stone-600 hover:text-stone-100 disabled:opacity-50"
+                        >
+                          Unskip {formatMonthLabel(month.year, month.month)}
+                        </button>
+                      ))}
+                  </div>
+                  {unskipMutation.error && (
+                    <p className="text-xs text-red-400">{(unskipMutation.error as Error).message}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-stone-500">No skip details yet.</p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Next Box</h4>
+
+          {renewalMonth && nextBoxQuery.isLoading ? (
+            <OverviewLoadingBlock lines={4} />
+          ) : !entry.nextRenewalDate ? (
+            <p className="text-sm text-stone-500">No upcoming renewal scheduled yet.</p>
+          ) : nextBoxQuery.error ? (
+            <p className="text-sm text-red-400">Could not load the next box preview.</p>
+          ) : (
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs text-stone-500">Renews on</p>
+                <p className="text-sm font-medium text-stone-100">{formatDate(entry.nextRenewalDate)}</p>
+              </div>
+
+              {renewalMonth && (
+                <p className="text-xs text-stone-500">Box month: {formatMonthLabel(renewalMonth.year, renewalMonth.month)}</p>
+              )}
+
+              {previewBook ? (
+                <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3">
+                  <p className="text-sm font-medium text-stone-100">{previewBook.title}</p>
+                  {previewAuthors && <p className="mt-1 text-xs text-stone-400">{previewAuthors}</p>}
+                  {nextBoxMonth && nextBoxMonth.books.length > 1 && (
+                    <p className="mt-2 text-[11px] text-stone-500">+{nextBoxMonth.books.length - 1} more book{nextBoxMonth.books.length > 2 ? 's' : ''}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-stone-500">Preview for this box has not been added yet.</p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
 export default function MySubscriptionsPage() {
   const [{ viewMode, tab }, setPrefs] = useState(() => loadPrefs())
   const [showForwardingOnly, setShowForwardingOnly] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const setView = (v: 'list' | 'grid') => {
     setPrefs(p => {
@@ -105,28 +603,39 @@ export default function MySubscriptionsPage() {
   }
 
   const cancelledCount = cancelledEntries.length
-  const filteredActiveEntries = showForwardingOnly
-    ? activeEntries.filter(entry => entry.isForwarding)
-    : activeEntries
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredActiveEntries = useMemo(() => {
+    const source = showForwardingOnly
+      ? activeEntries.filter(entry => entry.isForwarding)
+      : activeEntries
+
+    if (!normalizedSearch) return source
+    return source.filter(entry => matchesSubscriptionSearch(entry, normalizedSearch))
+  }, [activeEntries, normalizedSearch, showForwardingOnly])
+
+  const filteredCancelledEntries = useMemo(() => {
+    if (!normalizedSearch) return cancelledEntries
+    return cancelledEntries.filter(entry => matchesSubscriptionSearch(entry, normalizedSearch))
+  }, [cancelledEntries, normalizedSearch])
 
   if (loadingActive) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <span className="text-stone-500 animate-pulse">Loading subscriptions…</span>
+      <div className="flex min-h-[200px] items-center justify-center">
+        <span className="animate-pulse text-stone-500">Loading subscriptions…</span>
       </div>
     )
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-initial">
           {tab === 'active' && (
             <button
               type="button"
               onClick={() => setShowForwardingOnly(prev => !prev)}
-              className={`text-xs rounded-lg border px-3 py-1.5 transition-colors ${
+              className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
                 showForwardingOnly
                   ? 'border-blue-700/60 bg-blue-500/10 text-blue-300'
                   : 'border-stone-700 bg-stone-900 text-stone-400 hover:text-stone-200'
@@ -135,11 +644,18 @@ export default function MySubscriptionsPage() {
               📦 Forwarding
             </button>
           )}
-          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder="Search subscriptions…"
+            className="w-full min-w-[190px] rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 text-sm text-stone-100 placeholder:text-stone-500 sm:w-60"
+          />
+          <div className="flex overflow-hidden rounded-lg border border-stone-700">
             <button
               type="button"
               onClick={() => setView('list')}
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
               aria-label="List view"
             >
               <List size={15} />
@@ -147,7 +663,7 @@ export default function MySubscriptionsPage() {
             <button
               type="button"
               onClick={() => setView('grid')}
-              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`border-l border-stone-700 px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
               aria-label="Grid view"
             >
               <LayoutGrid size={15} />
@@ -160,7 +676,7 @@ export default function MySubscriptionsPage() {
         <button
           type="button"
           onClick={() => setTab('active')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             tab === 'active'
               ? 'border-amber-400 text-amber-400'
               : 'border-transparent text-stone-500 hover:text-stone-300'
@@ -168,7 +684,7 @@ export default function MySubscriptionsPage() {
         >
           Active
           {activeEntries.length > 0 && (
-            <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${tab === 'active' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
+            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === 'active' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
               {activeEntries.length}
             </span>
           )}
@@ -176,7 +692,7 @@ export default function MySubscriptionsPage() {
         <button
           type="button"
           onClick={handleCancelledTab}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             tab === 'cancelled'
               ? 'border-stone-400 text-stone-300'
               : 'border-transparent text-stone-500 hover:text-stone-300'
@@ -184,7 +700,7 @@ export default function MySubscriptionsPage() {
         >
           Cancelled
           {cancelledEnabled && cancelledCount > 0 && (
-            <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${tab === 'cancelled' ? 'bg-stone-700 text-stone-400' : 'bg-stone-800 text-stone-500'}`}>
+            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === 'cancelled' ? 'bg-stone-700 text-stone-400' : 'bg-stone-800 text-stone-500'}`}>
               {cancelledCount}
             </span>
           )}
@@ -193,13 +709,15 @@ export default function MySubscriptionsPage() {
 
       {tab === 'active' && (
         filteredActiveEntries.length === 0 ? (
-          <div className="text-center py-16 text-stone-500">
-            {showForwardingOnly ? (
+          <div className="py-16 text-center text-stone-500">
+            {normalizedSearch ? (
+              <p>No subscriptions match “{searchTerm.trim()}”.</p>
+            ) : showForwardingOnly ? (
               <p>No forwarding subscriptions found.</p>
             ) : (
               <>
                 <p className="mb-3">You haven't joined any subscriptions yet.</p>
-                <Link href="/subscriptions" className="text-amber-400 underline text-sm">
+                <Link href="/subscriptions" className="text-sm text-amber-400 underline">
                   Browse subscriptions →
                 </Link>
               </>
@@ -210,7 +728,7 @@ export default function MySubscriptionsPage() {
             {filteredActiveEntries.map(entry => <SubscriptionCard key={entry.id} entry={entry} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
             {filteredActiveEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
           </div>
         )
@@ -219,35 +737,38 @@ export default function MySubscriptionsPage() {
       {tab === 'cancelled' && (
         loadingCancelled ? (
           <div className="flex items-center justify-center py-16">
-            <span className="text-stone-500 animate-pulse">Loading history…</span>
+            <span className="animate-pulse text-stone-500">Loading history…</span>
           </div>
-        ) : cancelledEntries.length === 0 ? (
-          <div className="text-center py-16 text-stone-500">No cancelled subscriptions.</div>
+        ) : filteredCancelledEntries.length === 0 ? (
+          <div className="py-16 text-center text-stone-500">
+            {normalizedSearch ? 'No cancelled subscriptions match your search.' : 'No cancelled subscriptions.'}
+          </div>
         ) : (() => {
-          // Group by subscription slug
-          const groups = cancelledEntries.reduce<Record<string, { sub: MySubscriptionEntry['subscription']; entries: MySubscriptionEntry[] }>>((acc, e) => {
-            const slug = e.subscription.slug
-            if (!acc[slug]) acc[slug] = { sub: e.subscription, entries: [] }
-            acc[slug].entries.push(e)
+          const groups = filteredCancelledEntries.reduce<Record<string, { sub: MySubscriptionEntry['subscription']; entries: MySubscriptionEntry[] }>>((acc, entry) => {
+            const slug = entry.subscription.slug
+            if (!acc[slug]) acc[slug] = { sub: entry.subscription, entries: [] }
+            acc[slug].entries.push(entry)
             return acc
           }, {})
           const groupList = Object.values(groups)
+
           if (viewMode === 'grid') {
             const allEntries = groupList.flatMap(({ entries }) =>
               [...entries].sort((a, b) => {
                 const aDate = a.cancellationDate ?? a.startDate ?? ''
                 const bDate = b.cancellationDate ?? b.startDate ?? ''
                 return bDate.localeCompare(aDate)
-              })
+              }),
             )
             return (
-              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 opacity-75 sm:grid-cols-2 md:grid-cols-3">
                 {allEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
               </div>
             )
           }
+
           return (
-            <div className="opacity-75 space-y-4">
+            <div className="space-y-4 opacity-75">
               {groupList.map(({ sub, entries }) => (
                 <CancelledSubscriptionGroup key={sub.slug} sub={sub} entries={entries} viewMode={viewMode} />
               ))}
@@ -279,7 +800,7 @@ function CancelledSubscriptionGroup({
   if (viewMode === 'grid') {
     return (
       <div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {sortedEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
         </div>
       </div>
@@ -287,24 +808,22 @@ function CancelledSubscriptionGroup({
   }
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
-      {/* Header row with subscription info */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
-        <Link href={`/subscriptions/${sub.slug}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+    <div className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900">
+      <div className="flex items-center gap-3 border-b border-stone-800/60 px-4 py-3">
+        <Link href={`/subscriptions/${sub.slug}`} className="group flex min-w-0 flex-1 items-center gap-3">
           <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
-            <p className="font-semibold text-stone-200 group-hover:text-amber-400 transition-colors truncate">{sub.name}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
+            <p className="truncate font-semibold text-stone-200 transition-colors group-hover:text-amber-400">{sub.name}</p>
           </div>
         </Link>
         {sub.isDiscontinued && (
-          <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5 shrink-0">Discontinued</span>
+          <span className="shrink-0 rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">Discontinued</span>
         )}
-        <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full shrink-0">
+        <span className="shrink-0 rounded-full bg-stone-800 px-2 py-0.5 text-xs text-stone-500">
           {sortedEntries.length} period{sortedEntries.length !== 1 ? 's' : ''}
         </span>
       </div>
-      {/* Periods list */}
       <div className="divide-y divide-stone-800/50">
         {sortedEntries.map(entry => (
           <CancelledPeriodRow key={entry.id} entry={entry} subSlug={sub.slug} />
@@ -335,8 +854,8 @@ function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; su
 
   return (
     <>
-      <div className="flex items-center gap-4 px-4 py-3 hover:bg-stone-800/20 transition-colors">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 flex-1 min-w-0">
+      <div className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-stone-800/20">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-1">
           {entry.startDate && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
@@ -352,7 +871,7 @@ function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; su
           {entry.cancellationReason && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-stone-500">Reason</p>
-              <p className="text-sm text-stone-500 italic">{entry.cancellationReason}</p>
+              <p className="text-sm italic text-stone-500">{entry.cancellationReason}</p>
             </div>
           )}
         </div>
@@ -360,7 +879,7 @@ function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; su
           type="button"
           title="Remove this period"
           onClick={() => setShowRemoveConfirm(true)}
-          className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors shrink-0"
+          className="shrink-0 rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
         >
           <Trash2 size={14} />
         </button>
@@ -396,6 +915,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const [removeBooks, setRemoveBooks] = useState(true)
   const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
   const [removeSpending, setRemoveSpending] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
@@ -416,34 +936,37 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
 
   const coverUrl = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
   const renewalLabel = formatDate(entry.nextRenewalDate)
-  const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
+  const renewalAmount = formatMoney(
+    entry.nextRenewalAmount ?? entry.subscription.price,
+    entry.nextRenewalCurrency ?? entry.subscription.currency,
+  )
 
   return (
-    <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
-      <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block relative">
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-stone-800 bg-stone-900 transition-colors hover:border-stone-700">
+      <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="relative block">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
-        <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
+        <div className="absolute right-2 top-2 z-10 flex flex-col items-end gap-1">
           {entry.active ? (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
+            <span className="flex items-center gap-1 rounded bg-stone-950/80 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
               <CheckCircle2 size={10} /> Active
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-stone-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
+            <span className="flex items-center gap-1 rounded bg-stone-950/80 px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
               <XCircle size={10} /> Cancelled
             </span>
           )}
           {entry.isForwarding && (
-            <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5 bg-stone-950/80">
+            <span className="rounded border border-blue-700/40 bg-stone-950/80 px-1.5 py-0.5 text-[10px] text-blue-400">
               📦 Forwarding
             </span>
           )}
         </div>
       </Link>
 
-      <div className="p-3 flex flex-col gap-1 flex-1">
+      <div className="flex flex-1 flex-col gap-1 p-3">
         <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block">
-          <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
-          <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
+          <p className="truncate text-[10px] text-stone-500">{sub.company.name}</p>
+          <p className="truncate text-sm font-semibold leading-tight text-stone-100 transition-colors group-hover:text-amber-400">{sub.name}</p>
         </Link>
         {entry.active && renewalLabel && (
           <p className="text-[10px] text-stone-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
@@ -452,30 +975,46 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           <div className="flex gap-3">
             {entry.startDate && <p className="text-[10px] text-stone-500">Since {formatDate(entry.startDate)}</p>}
             {entry.cancellationDate && <p className="text-[10px] text-stone-500">Cancelled {formatDate(entry.cancellationDate)}</p>}
-            {entry.cancellationReason && <p className="text-[10px] text-stone-500 italic">{entry.cancellationReason}</p>}
+            {entry.cancellationReason && <p className="text-[10px] italic text-stone-500">{entry.cancellationReason}</p>}
           </div>
         )}
-        <div className="flex gap-1 mt-auto pt-2 justify-end">
-          {entry.active && (
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          {entry.active ? (
             <button
               type="button"
-              title="Cancel subscription"
-              onClick={() => setShowCancelConfirm(true)}
-              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+              onClick={() => setIsExpanded(prev => !prev)}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? 'Collapse overview' : 'Expand overview'}
+              className="inline-flex items-center gap-1 rounded-lg border border-stone-700 px-2 py-1 text-[11px] text-stone-300 transition-colors hover:border-stone-600 hover:text-stone-100"
             >
-              <Ban size={14} />
+              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              <span>Overview</span>
             </button>
-          )}
-          <button
-            type="button"
-            title="Remove from my subscriptions"
-            onClick={() => setShowRemoveConfirm(true)}
-            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
-          >
-            <Trash2 size={14} />
-          </button>
+          ) : <span />}
+          <div className="flex gap-1">
+            {entry.active && (
+              <button
+                type="button"
+                title="Cancel subscription"
+                onClick={() => setShowCancelConfirm(true)}
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+              >
+                <Ban size={14} />
+              </button>
+            )}
+            <button
+              type="button"
+              title="Remove from my subscriptions"
+              onClick={() => setShowRemoveConfirm(true)}
+              className="rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
+
+      {entry.active && isExpanded && <SubscriptionOverviewPanel entry={entry} isExpanded={isExpanded} />}
 
       {showCancelConfirm && (
         <CancelSubscriptionModal
@@ -541,23 +1080,23 @@ function EntryRemoveDialog({
   const periodLabel = `${formatDate(entry.startDate) ?? '?'} – ${formatDate(entry.cancellationDate) ?? '?'}`
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-        <p className="text-stone-100 font-semibold">Remove subscription?</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="mx-4 flex w-full max-w-sm flex-col gap-4 rounded-xl border border-stone-700 bg-stone-900 p-6" onClick={e => e.stopPropagation()}>
+        <p className="font-semibold text-stone-100">Remove subscription?</p>
         <p className="text-sm text-stone-400">
           This will permanently remove <span className="text-stone-200">{subName}</span> from your subscriptions.
         </p>
         {entry.active ? (
-          <p className="text-xs text-stone-500 bg-stone-800 rounded-lg px-3 py-2">
+          <p className="rounded-lg bg-stone-800 px-3 py-2 text-xs text-stone-500">
             This removes your current subscription period. Any past periods are shown in the Cancelled tab and can be removed from there.
           </p>
         ) : (
-          <p className="text-xs text-stone-500 bg-stone-800 rounded-lg px-3 py-2">
+          <p className="rounded-lg bg-stone-800 px-3 py-2 text-xs text-stone-500">
             Period: <span className="text-stone-300">{periodLabel}</span>
           </p>
         )}
         <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-300">
             <input
               type="checkbox"
               checked={removeBooks}
@@ -567,7 +1106,7 @@ function EntryRemoveDialog({
             Also remove books from my collection
           </label>
           {removeBooks && (
-            <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer pl-5">
+            <label className="flex cursor-pointer items-center gap-2 pl-5 text-sm text-stone-400">
               <input
                 type="checkbox"
                 checked={removeSoldBooks}
@@ -577,7 +1116,7 @@ function EntryRemoveDialog({
               Delete sold books and sale records
             </label>
           )}
-          <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-300">
             <input
               type="checkbox"
               checked={removeSpending}
@@ -588,11 +1127,11 @@ function EntryRemoveDialog({
           </label>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex gap-3 justify-end">
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors"
+            className="rounded px-3 py-1.5 text-sm text-stone-300 transition-colors hover:text-stone-100"
           >
             Keep it
           </button>
@@ -600,7 +1139,7 @@ function EntryRemoveDialog({
             type="button"
             onClick={onConfirm}
             disabled={isPending || !canSubmit}
-            className="bg-red-700 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
+            className="rounded bg-red-700 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
           >
             {isPending ? 'Removing…' : 'Remove'}
           </button>
@@ -620,6 +1159,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const [removeBooks, setRemoveBooks] = useState(true)
   const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
   const [removeSpending, setRemoveSpending] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
@@ -641,88 +1181,103 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
 
   return (
     <>
-      <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
-        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="flex flex-1 min-w-0 group">
-          <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
+      <div className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900 transition-colors hover:border-stone-700">
+        <div className="flex">
+          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="group flex min-w-0 flex-1">
+            <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
 
-          <div className="flex-1 min-w-0 py-3 px-4 flex flex-col justify-center">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
-                <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors truncate">
-                  {sub.name}
-                </h3>
+            <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
+                  <h3 className="truncate font-semibold leading-tight text-stone-100 transition-colors group-hover:text-amber-400">
+                    {sub.name}
+                  </h3>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {entry.active ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                      <CheckCircle2 size={12} /> Active
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
+                      <XCircle size={12} /> Cancelled
+                    </span>
+                  )}
+                  {entry.isForwarding && (
+                    <span className="rounded border border-blue-700/40 px-1.5 py-0.5 text-[10px] text-blue-400">
+                      📦 Forwarding
+                    </span>
+                  )}
+                  {sub.isDiscontinued && (
+                    <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">
+                      Discontinued
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="shrink-0 flex flex-col items-end gap-1">
-                {entry.active ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
-                    <CheckCircle2 size={12} /> Active
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
-                    <XCircle size={12} /> Cancelled
-                  </span>
+
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {entry.active && renewalLabel && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
+                    <p className="text-sm font-medium text-stone-200">
+                      {renewalLabel}
+                      {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                    </p>
+                  </div>
                 )}
-                {entry.isForwarding && (
-                  <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5">
-                    📦 Forwarding
-                  </span>
+                {!entry.active && entry.startDate && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
+                    <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
+                  </div>
                 )}
-                {sub.isDiscontinued && (
-                  <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5">
-                    Discontinued
-                  </span>
+                {!entry.active && entry.cancellationDate && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+                    <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
+                    {entry.cancellationReason && <p className="mt-0.5 text-[10px] italic text-stone-500">{entry.cancellationReason}</p>}
+                  </div>
                 )}
               </div>
             </div>
+          </Link>
 
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {entry.active && renewalLabel && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
-                  <p className="text-sm font-medium text-stone-200">
-                    {renewalLabel}
-                    {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
-                  </p>
-                </div>
-              )}
-              {!entry.active && entry.startDate && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
-                  <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
-                </div>
-              )}
-              {!entry.active && entry.cancellationDate && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
-                  <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
-                  {entry.cancellationReason && <p className="text-[10px] text-stone-500 italic mt-0.5">{entry.cancellationReason}</p>}
-                </div>
-              )}
-            </div>
-          </div>
-        </Link>
-
-        <div className="shrink-0 border-l border-stone-800 flex flex-col items-center justify-center gap-2 px-2 bg-stone-900/60 self-stretch">
-          {entry.active && (
+          <div className="flex shrink-0 flex-col items-center justify-center gap-2 self-stretch border-l border-stone-800 bg-stone-900/60 px-2">
+            {entry.active && (
+              <button
+                type="button"
+                title={isExpanded ? 'Collapse overview' : 'Expand overview'}
+                aria-expanded={isExpanded}
+                onClick={() => setIsExpanded(prev => !prev)}
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-100"
+              >
+                {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
+            )}
+            {entry.active && (
+              <button
+                type="button"
+                title="Cancel subscription"
+                onClick={() => setShowCancelConfirm(true)}
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+              >
+                <Ban size={15} />
+              </button>
+            )}
             <button
               type="button"
-              title="Cancel subscription"
-              onClick={() => setShowCancelConfirm(true)}
-              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+              title="Remove from my subscriptions"
+              onClick={() => setShowRemoveConfirm(true)}
+              className="rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
             >
-              <Ban size={15} />
+              <Trash2 size={15} />
             </button>
-          )}
-          <button
-            type="button"
-            title="Remove from my subscriptions"
-            onClick={() => setShowRemoveConfirm(true)}
-            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
-          >
-            <Trash2 size={15} />
-          </button>
+          </div>
         </div>
+
+        {entry.active && isExpanded && <SubscriptionOverviewPanel entry={entry} isExpanded={isExpanded} />}
       </div>
 
       {showCancelConfirm && (
