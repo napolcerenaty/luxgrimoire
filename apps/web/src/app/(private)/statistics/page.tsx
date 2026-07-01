@@ -1400,7 +1400,7 @@ export default function SpendingPage() {
                         : <TrendingDown size={14} className="text-red-400" />}
                       <span className="text-xs uppercase tracking-wider text-stone-500">Net P&amp;L</span>
                     </div>
-                    <p className={`text-2xl font-serif font-bold ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {sales.totalSalesProfit >= 0 ? '+' : ''}{fmt(sales.totalSalesProfit, currency)}
                     </p>
                     <p className="text-xs text-stone-500">revenue − purchase cost</p>
@@ -1551,7 +1551,7 @@ export default function SpendingPage() {
                         <Scale size={14} className={totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'} />
                         <span className="text-xs uppercase tracking-wider text-stone-500">Overall P&amp;L</span>
                       </div>
-                      <p className={`text-2xl font-serif font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {totalPL >= 0 ? '+' : ''}{fmt(totalPL, currency)}
                       </p>
                       <p className="text-xs text-stone-500">revenue − purchase cost</p>
