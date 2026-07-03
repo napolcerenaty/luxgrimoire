@@ -565,9 +565,15 @@ function SubscriptionOverviewPanel({
                 <p className="text-xs text-amber-400">Skip deadline has already passed for the next eligible box.</p>
               )}
 
-              {skipStatus.warnings.length > 0 && (
+              {skipStatus.warnings.length > 0 && (() => {
+                const skipsExhausted = skipStatus.maxSkips !== null && skipStatus.skipsInWindow >= skipStatus.maxSkips
+                const visibleWarnings = skipsExhausted
+                  ? skipStatus.warnings.filter(w => !/skip window.*passed|window.*passed/i.test(w))
+                  : skipStatus.warnings
+                if (visibleWarnings.length === 0) return null
+                return (
                 <div className="space-y-1.5">
-                  {skipStatus.warnings.map(warning => {
+                  {visibleWarnings.map(warning => {
                     const isCritical = /consecutive|cancel/i.test(warning)
                     return isCritical ? (
                       <div key={warning} className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2">
@@ -581,7 +587,8 @@ function SubscriptionOverviewPanel({
                     )
                   })}
                 </div>
-              )}
+                )
+              })()}
 
               {skipStatus.canSkip && skipStatus.targetMonth && (
                 <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3">
