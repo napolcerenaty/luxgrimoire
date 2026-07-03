@@ -53,9 +53,9 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
   const isOsOrSale = a.saleType === 'OVERSTOCK' || a.saleType === 'SALE'
   // OVERSTOCK/SALE: live until endsAt expires; if no endsAt, live while generalSaleDate is today
-  const isOsOrSaleLive = isOsOrSale && (
+  const isOsOrSaleLive = isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
-             : saleStarted && a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
   )
   const isLpLive = !isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
@@ -162,9 +162,9 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const todayStart = new Date(); todayStart.setHours(0,0,0,0)
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
   const isOsOrSale = a.saleType === 'OVERSTOCK' || a.saleType === 'SALE'
-  const isOsOrSaleLive = isOsOrSale && (
+  const isOsOrSaleLive = isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
-             : saleStarted && a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
   )
   const isLpLive = !isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
