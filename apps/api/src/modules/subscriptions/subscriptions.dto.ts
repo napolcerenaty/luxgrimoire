@@ -570,6 +570,11 @@ export class SubscriptionQueryDto {
   @IsOptional()
   @IsString()
   skipPolicyType?: string;
+
+  /** Filter by billing type the skip policy applies to: ALL | MONTHLY | PREPAID */
+  @IsOptional()
+  @IsString()
+  skipPolicyBillingType?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()

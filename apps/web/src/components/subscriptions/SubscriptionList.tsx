@@ -27,24 +27,26 @@ export default function SubscriptionList() {
   const [companyFilter, setCompanyFilter] = useState('')
   const [genreFilter, setGenreFilter] = useState('')
   const [skipPolicyFilter, setSkipPolicyFilter] = useState('')
+  const [skipBillingTypeFilter, setSkipBillingTypeFilter] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const getBrandColors = useBrandColors()
 
   const skipParam = skipPolicyFilter || undefined
+  const skipBillingParam = (skipPolicyFilter && skipBillingTypeFilter) ? skipBillingTypeFilter : undefined
 
   const { data: activeData, isLoading: activeLoading } = useQuery({
-    queryKey: ['subscriptions', 'active', skipPolicyFilter],
-    queryFn: () => getSubscriptions({ status: 'active', pageSize: 200, skipPolicyType: skipParam }),
+    queryKey: ['subscriptions', 'active', skipPolicyFilter, skipBillingTypeFilter],
+    queryFn: () => getSubscriptions({ status: 'active', pageSize: 200, skipPolicyType: skipParam, skipPolicyBillingType: skipBillingParam }),
     enabled: loadedTabs.has('active'),
   })
   const { data: upcomingData, isLoading: upcomingLoading } = useQuery({
-    queryKey: ['subscriptions', 'upcoming', skipPolicyFilter],
-    queryFn: () => getSubscriptions({ status: 'upcoming', pageSize: 200, skipPolicyType: skipParam }),
+    queryKey: ['subscriptions', 'upcoming', skipPolicyFilter, skipBillingTypeFilter],
+    queryFn: () => getSubscriptions({ status: 'upcoming', pageSize: 200, skipPolicyType: skipParam, skipPolicyBillingType: skipBillingParam }),
     enabled: loadedTabs.has('upcoming'),
   })
   const { data: discontinuedData, isLoading: discontinuedLoading } = useQuery({
-    queryKey: ['subscriptions', 'discontinued', skipPolicyFilter],
-    queryFn: () => getSubscriptions({ status: 'discontinued', pageSize: 200, skipPolicyType: skipParam }),
+    queryKey: ['subscriptions', 'discontinued', skipPolicyFilter, skipBillingTypeFilter],
+    queryFn: () => getSubscriptions({ status: 'discontinued', pageSize: 200, skipPolicyType: skipParam, skipPolicyBillingType: skipBillingParam }),
     enabled: loadedTabs.has('discontinued'),
   })
 
@@ -142,7 +144,7 @@ export default function SubscriptionList() {
             <option key={genre} value={genre}>{genre}</option>
           ))}
         </select>
-        <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => setSkipPolicyFilter(e.target.value)}>
+        <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => { setSkipPolicyFilter(e.target.value); setSkipBillingTypeFilter('') }}>
           <option value="">All skip policies</option>
           <option value="NONE">No skips</option>
           <option value="UNLIMITED">Unlimited</option>
@@ -152,6 +154,13 @@ export default function SubscriptionList() {
           <option value="FROM_SUB_START">Rolling window from sub start</option>
           <option value="PREPAID_WINDOW_SKIP">Prepaid window skip</option>
         </select>
+        {skipPolicyFilter && (
+          <select className={SELECT_CLASS} value={skipBillingTypeFilter} onChange={(e) => setSkipBillingTypeFilter(e.target.value)}>
+            <option value="">Any billing type</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="PREPAID">Prepaid</option>
+          </select>
+        )}
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 self-start sm:self-auto">
           <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
             <LayoutGrid className="w-4 h-4" />
