@@ -1394,7 +1394,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
       <div className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900 transition-colors hover:border-stone-700">
         <div className="flex">
           {/* Only thumbnail navigates to details */}
-          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="shrink-0">
+          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="shrink-0 flex self-stretch">
             <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
           </Link>
 
