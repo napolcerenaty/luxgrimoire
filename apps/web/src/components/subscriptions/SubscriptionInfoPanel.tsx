@@ -535,32 +535,36 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Active subscriber: 2-column layout — costs on left, skip policy on right */}
+      {/* Price / costs — layout depends on subscriber state */}
       {isSubscriber ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div>{costPanel}</div>
-          <div>
-            <SkipStatusPanel
-              subscriptionSlug={subscriptionSlug}
-              months={months}
-              onSkipSuccess={refreshEntry}
-            />
-          </div>
+        /* Subscriber: stacked — costs above, skip status below */
+        <div className="space-y-4">
+          <div className="max-w-sm">{costPanel}</div>
+          <SkipStatusPanel
+            subscriptionSlug={subscriptionSlug}
+            months={months}
+            onSkipSuccess={refreshEntry}
+          />
+          {skipPolicies && skipPolicies.length > 0 && (
+            <SkipPoliciesInfoPanel policies={skipPolicies} />
+          )}
         </div>
       ) : (
-        /* Non-subscriber: compact single column, max-w-sm */
-        <div className="max-w-sm space-y-4">
-          {costPanel}
-          {user && !isSubscriber && myEntry !== undefined && (
-            <button
-              type="button"
-              onClick={() => openJoinModal()}
-              className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
-            >
-              + Add to my subscriptions
-            </button>
-          )}
-          {skipPolicies && skipPolicies.some(p => p.type !== 'NONE') && (
+        /* Non-subscriber: 2-column on desktop — price+join on left, skip policy on right */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="space-y-4">
+            {costPanel}
+            {user && myEntry !== undefined && (
+              <button
+                type="button"
+                onClick={() => openJoinModal()}
+                className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              >
+                + Add to my subscriptions
+              </button>
+            )}
+          </div>
+          {skipPolicies && skipPolicies.length > 0 && (
             <SkipPoliciesInfoPanel policies={skipPolicies} />
           )}
         </div>
@@ -899,6 +903,7 @@ function EditEntryCostsModal({
 
 function policyTypeLabel(type: string): string {
   const labels: Record<string, string> = {
+    NONE: 'Skipping not available',
     UNLIMITED: 'Unlimited skips allowed',
     UNLIMITED_MAX_CONSEC: 'Unlimited skips (max consecutive limit)',
     CALENDAR_YEAR: 'Limited skips per calendar year',
@@ -964,17 +969,16 @@ function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) 
 }
 
 function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPolicy[] }) {
-  const activePolicies = policies.filter(p => p.type !== 'NONE')
-  if (activePolicies.length === 0) return null
+  if (policies.length === 0) return null
 
-  const isMulti = activePolicies.length > 1
+  const isMulti = policies.length > 1
 
   return (
     <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
       <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
       {isMulti ? (
         <div className="flex flex-col gap-4">
-          {activePolicies.map(policy => (
+          {policies.map(policy => (
             <div key={policy.billingType} className="flex flex-col gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">
                 {billingTypeLabel(policy.billingType ?? 'ALL')}
@@ -984,7 +988,7 @@ function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPoli
           ))}
         </div>
       ) : (
-        <SkipPolicyInfoPanel policy={activePolicies[0]!} />
+        <SkipPolicyInfoPanel policy={policies[0]!} />
       )}
     </div>
   )
