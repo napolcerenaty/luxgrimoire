@@ -539,26 +539,26 @@ export default function SubscriptionInfoPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <div className="space-y-4">
           {costPanel}
-          {isSubscriber ? (
-            <SkipStatusPanel
-              subscriptionSlug={subscriptionSlug}
-              months={months}
-              onSkipSuccess={refreshEntry}
-            />
-          ) : (
-            user && myEntry !== undefined && (
-              <button
-                type="button"
-                onClick={() => openJoinModal()}
-                className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
-              >
-                + Add to my subscriptions
-              </button>
-            )
+          {!isSubscriber && user && myEntry !== undefined && (
+            <button
+              type="button"
+              onClick={() => openJoinModal()}
+              className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+            >
+              + Add to my subscriptions
+            </button>
           )}
         </div>
-        {skipPolicies && skipPolicies.length > 0 && !isSubscriber && (
-          <SkipPoliciesInfoPanel policies={skipPolicies} />
+        {isSubscriber ? (
+          <SkipStatusPanel
+            subscriptionSlug={subscriptionSlug}
+            months={months}
+            onSkipSuccess={refreshEntry}
+          />
+        ) : (
+          skipPolicies && skipPolicies.length > 0 && (
+            <SkipPoliciesInfoPanel policies={skipPolicies} />
+          )
         )}
       </div>
 
