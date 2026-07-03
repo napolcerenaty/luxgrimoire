@@ -198,6 +198,13 @@ function fmtDate(dateStr: string | null | undefined): string {
 const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
+const FEE_CATEGORIES = [
+  { value: 'OTHER', label: 'Other' },
+  { value: 'SHIPPING', label: 'Shipping' },
+  { value: 'FORWARDING', label: 'Forwarding' },
+  { value: 'VAT', label: 'VAT' },
+  { value: 'CUSTOMS', label: 'Customs' },
+]
 const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
 
 function EditBtn({ onClick }: { onClick: () => void }) {
@@ -356,12 +363,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newFeeAmount, setNewFeeAmount] = useState('')
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [newFeeDate, setNewFeeDate] = useState('')
+  const [newFeeCategory, setNewFeeCategory] = useState('OTHER')
   const [savingFee, setSavingFee] = useState(false)
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null)
   const [editFeeName, setEditFeeName] = useState('')
   const [editFeeAmount, setEditFeeAmount] = useState('')
   const [editFeeCurrency, setEditFeeCurrency] = useState('')
   const [editFeeDate, setEditFeeDate] = useState('')
+  const [editFeeCategory, setEditFeeCategory] = useState('OTHER')
 
   // Refund state
   const [addingRefund, setAddingRefund] = useState(false)
@@ -693,6 +702,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setNewFeeAmount('')
     setNewFeeCurrency(entry!.purchaseGroup?.currency ?? 'EUR')
     setNewFeeDate(new Date().toISOString().slice(0, 10))
+    setNewFeeCategory('OTHER')
     setAddingFee(true)
   }
 
@@ -707,7 +717,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           amount: parseFloat(newFeeAmount),
           currency: newFeeCurrency,
           date: new Date(newFeeDate).toISOString(),
-          category: 'OTHER',
+          category: newFeeCategory,
           purchaseGroupId: entry!.purchaseGroup.id,
         }),
       })
@@ -723,12 +733,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     await refetchEntry()
   }
 
-  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null }) {
+  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null; category: string }) {
     setEditingFeeId(fee.id)
     setEditFeeName(fee.name)
     setEditFeeAmount(parseFloat(fee.amount).toFixed(2))
     setEditFeeCurrency(fee.currency)
     setEditFeeDate(fee.date ? fee.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
+    setEditFeeCategory(fee.category ?? 'OTHER')
   }
 
   async function saveEditFee() {
@@ -742,6 +753,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
           amount: parseFloat(editFeeAmount),
           currency: editFeeCurrency,
           date: new Date(editFeeDate).toISOString(),
+          category: editFeeCategory,
         }),
       })
       await refetchEntry()
@@ -1250,6 +1262,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
+                            <select value={editFeeCategory} onChange={e => setEditFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
+                              {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                            </select>
                           </div>
                           <input type="date" value={editFeeDate} onChange={e => setEditFeeDate(e.target.value)} className={INP} />
                           <div className="flex gap-1.5">
@@ -1287,6 +1302,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   setNewFeeName(t.name)
                                   if (t.defaultAmount) setNewFeeAmount(String(t.defaultAmount))
                                   if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
+                                  if (t.category) setNewFeeCategory(t.category)
                                 }}
                                 className="px-2 py-0.5 rounded text-xs border border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400 transition-colors"
                               >
@@ -1300,6 +1316,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <select value={newFeeCategory} onChange={e => setNewFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
+                            {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                           </select>
                         </div>
                         <input type="date" value={newFeeDate} onChange={e => setNewFeeDate(e.target.value)} className={INP} />
