@@ -612,7 +612,10 @@ function SubscriptionOverviewPanel({
               )}
 
               {skipStatus.allowUnskip && skipStatus.skippedMonths.length > 0 && (() => {
-                const unskippable = [...skipStatus.skippedMonths]
+                const now = new Date()
+                const cy = now.getFullYear(), cm = now.getMonth() + 1
+                const unskippable = skipStatus.skippedMonths
+                  .filter(m => m.year > cy || (m.year === cy && m.month >= cm))
                   .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
                 return unskippable.length > 0 ? (
                   <div className="space-y-2">
