@@ -480,7 +480,7 @@ function SubscriptionOverviewPanel({
   const total = detail ? getCostTotal(detail, entry.subscription.currency) : null
   const nextBoxMonth = nextBoxQuery.data?.data?.[0]
   const previewBook = nextBoxMonth?.books?.[0]?.book
-  const previewAuthors = previewBook?.authors.map(author => author.name).join(', ')
+  const previewAuthors = previewBook?.authors?.map(author => author.name).join(', ')
   const skipStatus = skipQuery.data
   const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
 
