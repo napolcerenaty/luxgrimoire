@@ -353,7 +353,7 @@ export class SubscriptionsService {
               brandColors: true,
             },
           },
-          skipPolicies: true,
+          skipPolicies: { select: { type: true, billingType: true } },
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
           coverImageAsset: { select: { id: true, publicId: true } },
