@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpsertSkipPolicyDto } from './skip-policy.dto';
 
 @Injectable()
 export class SkipPolicyAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   /** Returns all skip policies for a subscription (one per billing type). */
   async getPolicies(subscriptionSlug: string) {
@@ -76,6 +83,9 @@ export class SkipPolicyAdminService {
       where: { subscriptionId_billingType: { subscriptionId: subscription.id, billingType } },
       create: { subscriptionId: subscription.id, billingType, ...data },
       update: data,
+    }).then(result => {
+      void this.cache.del(this.subSlugKey(subscriptionSlug));
+      return result;
     });
   }
 
@@ -85,6 +95,7 @@ export class SkipPolicyAdminService {
     await this.prisma.subscriptionSkipPolicy.deleteMany({
       where: { subscriptionId: subscription.id, billingType },
     });
+    void this.cache.del(this.subSlugKey(subscriptionSlug));
     return { message: 'Policy removed' };
   }
 
@@ -94,6 +105,7 @@ export class SkipPolicyAdminService {
     await this.prisma.subscriptionSkipPolicy.deleteMany({
       where: { subscriptionId: subscription.id },
     });
+    void this.cache.del(this.subSlugKey(subscriptionSlug));
     return { message: 'All policies removed' };
   }
 }

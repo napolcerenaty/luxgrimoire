@@ -1390,7 +1390,6 @@ export default function AdminSubscriptionsPage() {
         body: JSON.stringify(formToCreatePayload(form)),
       })
       for (const d of form.skipPoliciesDraft) {
-        if (d.type === 'NONE') continue
         await authFetch(`/skip-policy/${sub.slug}/policies/${d.billingType}`, {
           method: 'PUT',
           body: JSON.stringify(draftToApiBody(d, d.billingType)),
@@ -1418,16 +1417,12 @@ export default function AdminSubscriptionsPage() {
           await authFetch(`/skip-policy/${slug}/policies/${bt}`, { method: 'DELETE' })
         }
       }
-      // Upsert all drafts (NONE type → DELETE that billing type)
+      // Upsert all drafts
       for (const d of form.skipPoliciesDraft) {
-        if (d.type === 'NONE') {
-          await authFetch(`/skip-policy/${slug}/policies/${d.billingType}`, { method: 'DELETE' })
-        } else {
-          await authFetch(`/skip-policy/${slug}/policies/${d.billingType}`, {
-            method: 'PUT',
-            body: JSON.stringify(draftToApiBody(d, d.billingType)),
-          })
-        }
+        await authFetch(`/skip-policy/${slug}/policies/${d.billingType}`, {
+          method: 'PUT',
+          body: JSON.stringify(draftToApiBody(d, d.billingType)),
+        })
       }
       return sub
     },
