@@ -120,7 +120,7 @@ function makePrismaForGetStatus(opts: {
   const subscription = {
     id: 'sub-1',
     slug: 'test-sub',
-    renewalDay: 15,
+    renewalDay: null,
     renewalMonthOffset: 0,
     isCombo: opts.isCombo ?? false,
     paymentOnStartup: false,
@@ -159,6 +159,7 @@ function makePrismaForGetStatus(opts: {
     },
     userSubscriptionEntry: {
       findUnique: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+      findFirst: jest.fn().mockResolvedValue({ id: 'entry-1' }),
       findMany: jest.fn().mockResolvedValue(opts.componentEntries ?? []),
       update: jest.fn().mockResolvedValue({}),
     },
@@ -186,6 +187,7 @@ function makePrismaForRecompute(records: ReturnType<typeof makeRecord>[]): Prism
   return {
     userSubscriptionEntry: {
       findUnique: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+      findFirst: jest.fn().mockResolvedValue({ id: 'entry-1' }),
     },
     userSkipRecord: {
       findMany: jest.fn().mockResolvedValue(records),
@@ -923,6 +925,14 @@ describe('SkipPolicyEngine — comprehensive', () => {
   describe('getStatus — UNLIMITED', () => {
     const uid = 'user-1';
     const slug = 'test-sub';
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-05-15T10:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     it('always canSkip=true, even with huge skip history', async () => {
       const prisma = makePrismaForGetStatus({

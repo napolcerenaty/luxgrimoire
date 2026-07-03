@@ -4,6 +4,25 @@ import { TypesenseService } from '../typesense/typesense.service'
 
 const LIMIT_PER_GROUP = 6
 
+/**
+ * For Typesense: replace " and " with " & " so it's treated as a token separator
+ * (Typesense strips &, making "Barnes and Noble" → "Barnes Noble" tokens).
+ */
+function normForTypesense(q: string): string {
+  return q.replace(/\s+and\s+/gi, ' & ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Returns unique query variants covering both & and "and" forms.
+ * Used for Postgres fallback where contains is an exact substring match.
+ */
+function andVariants(q: string): string[] {
+  const variants = new Set<string>([q])
+  variants.add(q.replace(/\s*&\s*/g, ' and ').replace(/\s+/g, ' ').trim())
+  variants.add(q.replace(/\band\b/gi, '&').replace(/\s+/g, ' ').trim())
+  return [...variants].filter(v => v.length >= 2)
+}
+
 function formatSearchInterval(n: number): string {
   if (n === 1) return 'Monthly';
   if (n === 2) return 'Bimonthly';
@@ -39,28 +58,29 @@ export class SearchService {
 
   private async typesenseSearch(trimmed: string, filter: string) {
     const all = filter === 'all'
+    const tsQ = normForTypesense(trimmed)
 
     const searches = [
       (all || filter === 'books')
-        ? { collection: 'books', q: trimmed, query_by: 'title,seriesName,authorNames', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'books', q: tsQ, query_by: 'title,seriesName,authorNames', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'editions')
-        ? { collection: 'editions', q: trimmed, query_by: 'bookTitle,authorNames,publisher,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'editions', q: tsQ, query_by: 'bookTitle,authorNames,publisher,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'authors')
-        ? { collection: 'authors', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'authors', q: tsQ, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'artists')
-        ? { collection: 'artists', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'artists', q: tsQ, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'subscriptions')
-        ? { collection: 'subscriptions', q: trimmed, query_by: 'name,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'subscriptions', q: tsQ, query_by: 'name,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'companies')
-        ? { collection: 'companies', q: trimmed, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'companies', q: tsQ, query_by: 'name', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
       (all || filter === 'sales')
-        ? { collection: 'sales', q: trimmed, query_by: 'title,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
+        ? { collection: 'sales', q: tsQ, query_by: 'title,companyName', per_page: LIMIT_PER_GROUP, drop_tokens_threshold: 0 }
         : null,
     ]
 
@@ -204,6 +224,7 @@ export class SearchService {
   private async postgresSearch(trimmed: string, filter: string) {
     const all = filter === 'all'
     const take = LIMIT_PER_GROUP
+    const v = andVariants(trimmed)
 
     const [books, editions, authors, artists, subscriptions, companies, sales] = await Promise.all([
       // ── Books ──────────────────────────────────────────────────────────────
@@ -211,9 +232,9 @@ export class SearchService {
         ? this.prisma.book.findMany({
             where: {
               OR: [
-                { title: { contains: trimmed, mode: 'insensitive' } },
-                { seriesName: { contains: trimmed, mode: 'insensitive' } },
-                { authors: { some: { author: { name: { contains: trimmed, mode: 'insensitive' } } } } },
+                ...v.map(q => ({ title: { contains: q, mode: 'insensitive' as const } })),
+                ...v.map(q => ({ seriesName: { contains: q, mode: 'insensitive' as const } })),
+                ...v.map(q => ({ authors: { some: { author: { name: { contains: q, mode: 'insensitive' as const } } } } })),
               ],
             },
             select: {
@@ -243,9 +264,9 @@ export class SearchService {
         ? this.prisma.bookEdition.findMany({
             where: {
               OR: [
-                { book: { title: { contains: trimmed, mode: 'insensitive' } } },
-                { publisher: { contains: trimmed, mode: 'insensitive' } },
-                { bookBoxCompany: { name: { contains: trimmed, mode: 'insensitive' } } },
+                ...v.map(q => ({ book: { title: { contains: q, mode: 'insensitive' as const } } })),
+                ...v.map(q => ({ publisher: { contains: q, mode: 'insensitive' as const } })),
+                ...v.map(q => ({ bookBoxCompany: { name: { contains: q, mode: 'insensitive' as const } } })),
               ],
             },
             select: {
@@ -276,7 +297,7 @@ export class SearchService {
       // ── Authors ────────────────────────────────────────────────────────────
       (all || filter === 'authors')
         ? this.prisma.author.findMany({
-            where: { name: { contains: trimmed, mode: 'insensitive' } },
+            where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: {
               id: true, name: true, slug: true, photoUrl: true, nationality: true,
               _count: { select: { books: true } },
@@ -288,7 +309,7 @@ export class SearchService {
       // ── Artists ────────────────────────────────────────────────────────────
       (all || filter === 'artists')
         ? this.prisma.artist.findMany({
-            where: { name: { contains: trimmed, mode: 'insensitive' } },
+            where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: { id: true, name: true, slug: true, photoUrl: true, specialty: true },
             take,
           })
@@ -297,7 +318,7 @@ export class SearchService {
       // ── Subscriptions ──────────────────────────────────────────────────────
       (all || filter === 'subscriptions')
         ? this.prisma.subscription.findMany({
-            where: { name: { contains: trimmed, mode: 'insensitive' }, isHidden: false },
+            where: { isHidden: false, OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: {
               id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
               company: { select: { slug: true, name: true, logoUrl: true } },
@@ -309,7 +330,7 @@ export class SearchService {
       // ── Companies ──────────────────────────────────────────────────────────
       (all || filter === 'companies')
         ? this.prisma.bookBoxCompany.findMany({
-            where: { name: { contains: trimmed, mode: 'insensitive' } },
+            where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: { id: true, slug: true, name: true, logoUrl: true, country: true },
             take,
           })
@@ -320,9 +341,9 @@ export class SearchService {
         ? this.prisma.saleAnnouncement.findMany({
             where: {
               OR: [
-                { title: { contains: trimmed, mode: 'insensitive' } },
-                { company: { name: { contains: trimmed, mode: 'insensitive' } } },
-                { editions: { some: { edition: { book: { title: { contains: trimmed, mode: 'insensitive' } } } } } },
+                ...v.map(q => ({ title: { contains: q, mode: 'insensitive' as const } })),
+                ...v.map(q => ({ company: { name: { contains: q, mode: 'insensitive' as const } } })),
+                ...v.map(q => ({ editions: { some: { edition: { book: { title: { contains: q, mode: 'insensitive' as const } } } } } })),
               ],
             },
             select: {

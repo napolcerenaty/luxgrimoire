@@ -102,8 +102,8 @@ export function BugReportButton() {
           onClick={e => { if (e.target === e.currentTarget) handleClose() }}
         >
           <div
-            className="w-full max-w-md rounded-2xl shadow-2xl border border-stone-700"
-            style={{ background: 'var(--surface-2, #1c1917)' }}
+            className="modal-dark w-full max-w-md rounded-2xl shadow-2xl border border-stone-700"
+            style={{ background: '#070f1c' }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-stone-800">

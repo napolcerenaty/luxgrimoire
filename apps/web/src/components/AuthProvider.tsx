@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { API_BASE } from '@/lib/authFetch'
 
 interface AuthUser {
@@ -18,11 +19,18 @@ interface AuthUser {
   shippingCountry?: string | null
   bio?: string | null
   onboardingCompletedAt?: string | null
+  statsSettings?: {
+    spending: boolean
+    sales: boolean
+    reading: boolean
+    features: boolean
+  } | null
 }
 
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
+  isLoggingOut: React.MutableRefObject<boolean>
   login: (user: AuthUser) => void
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
@@ -34,6 +42,8 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const isLoggingOut = useRef(false)
+  const router = useRouter()
 
   useEffect(() => {
     fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
@@ -63,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore network errors
     }
+    isLoggingOut.current = true
     setUser(null)
+    router.replace('/')
   }
 
   const refreshUser = async () => {
@@ -77,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, isLoggingOut, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

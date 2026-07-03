@@ -283,6 +283,7 @@ export class AuthService {
         defaultTaxRate: true,
         avatarUrl: true,
         bio: true,
+        statsSettings: true,
         shippingCountry: true,
         createdAt: true,
         termsAcceptedAt: true,

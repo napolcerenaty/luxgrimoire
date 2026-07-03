@@ -1,16 +1,16 @@
 ﻿'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useModalState } from '@/hooks/useModalState'
 import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { authFetch } from '@/lib/authFetch'
 import { EditionCard } from '@/components/books/EditionCard'
-import { getSaleGroups, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
+import { getSaleGroups, getSaleGroupsPaginated, updateSaleGroup, deleteSaleGroup } from '@/lib/api'
 import type { ApiSaleGroup } from '@luxgrimoire/shared-types'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { Plus, Pencil, Trash2, ShoppingBag, LayoutGrid, List, BookOpen } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShoppingBag, LayoutGrid, List, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/SaleFormFields'
@@ -297,6 +297,9 @@ function EditSaleModal({
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
       setSuccess(true)
       setTimeout(() => { onClose(); setSuccess(false) }, 1000)
     } catch (err) {
@@ -424,64 +427,166 @@ export default function SoldPage() {
   const getBrandColors = useBrandColors()
   const userCurrency = user?.preferredCurrency ?? null
 
+  // ── Tab state ────────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'books' | 'gifted' | 'records'>('books')
+  const recordsActivated = useRef(false)
+  const giftedActivated = useRef(false)
+
+  function activateTab(tab: 'books' | 'gifted' | 'records') {
+    if (tab === 'records') recordsActivated.current = true
+    if (tab === 'gifted') giftedActivated.current = true
+    setActiveTab(tab)
+  }
+
+  // ── Books tab state ──────────────────────────────────────────────────────────
+  const [booksPage, setBooksPage] = useState(1)
+  const BOOKS_PAGE_SIZE = 24
   const [bookFilter, setBookFilter] = useState('')
+  const [bookFilterInput, setBookFilterInput] = useState('')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [tagFilter, setTagFilter] = useState('ALL')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const addSaleModal = useModalState()
-  const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
-  const [rates, setRates] = useState<Record<string, number>>({})
 
-  const { data: allEntries = [], isLoading } = useQuery({
-    queryKey: ['collection', 'sold'],
-    queryFn: () =>
-      authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false&ownershipStatus=SOLD&pageSize=500').then(r => r.data),
-    staleTime: 0,
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setBookFilter(bookFilterInput)
+      setBooksPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [bookFilterInput])
+
+  // Reset page when filters change
+  useEffect(() => { setBooksPage(1) }, [companyFilter, tagFilter])
+
+  const booksQuery = useQuery({
+    queryKey: ['sold-books', booksPage, bookFilter, companyFilter, tagFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        isWishlist: 'false',
+        ownershipStatus: 'SOLD',
+        page: String(booksPage),
+        pageSize: String(BOOKS_PAGE_SIZE),
+      })
+      if (bookFilter) params.set('search', bookFilter)
+      if (companyFilter !== 'ALL') params.set('companyName', companyFilter)
+      if (tagFilter !== 'ALL') params.set('tag', tagFilter)
+      return authFetch<{ data: CollectionEntry[]; total: number; totalPages: number }>(`/collection?${params}`)
+    },
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   })
 
-  const { data: saleGroups = [] } = useQuery({
-    queryKey: ['sale-groups'],
-    queryFn: getSaleGroups,
+  const soldBooks = booksQuery.data?.data ?? []
+  const booksTotalPages = booksQuery.data?.totalPages ?? 1
+  const booksTotal = booksQuery.data?.total ?? 0
+
+  // ── Gifted Away tab state ────────────────────────────────────────────────────
+  const [giftedPage, setGiftedPage] = useState(1)
+  const [giftedFilter, setGiftedFilter] = useState('')
+  const [giftedFilterInput, setGiftedFilterInput] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => { setGiftedFilter(giftedFilterInput); setGiftedPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [giftedFilterInput])
+
+  const giftedQuery = useQuery({
+    queryKey: ['gifted-books', giftedPage, giftedFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        isWishlist: 'false',
+        ownershipStatus: 'GIFTED_AWAY',
+        page: String(giftedPage),
+        pageSize: String(BOOKS_PAGE_SIZE),
+      })
+      if (giftedFilter) params.set('search', giftedFilter)
+      return authFetch<{ data: CollectionEntry[]; total: number; totalPages: number }>(`/collection?${params}`)
+    },
+    enabled: giftedActivated.current || activeTab === 'gifted',
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  })
+
+  const giftedBooks = giftedQuery.data?.data ?? []
+  const giftedTotalPages = giftedQuery.data?.totalPages ?? 1
+  const giftedTotal = giftedQuery.data?.total ?? 0
+
+  // ── Company + tag filter options (fetched once for filter UI) ──────────────
+  const { data: companiesData = [] } = useQuery({
+    queryKey: ['sold-companies'],
+    queryFn: () => authFetch<{ data: CollectionEntry[] }>('/collection?isWishlist=false&ownershipStatus=SOLD&pageSize=500').then(r => {
+      const names = new Set<string>()
+      r.data.forEach(e => { if (e.edition.bookBoxCompany?.name) names.add(e.edition.bookBoxCompany.name) })
+      return Array.from(names).sort()
+    }),
+    staleTime: 5 * 60_000,
   })
 
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['collection-tags'],
     queryFn: () => authFetch<string[]>('/collection/tags'),
+    staleTime: 5 * 60_000,
   })
+
+  // ── Records tab state ────────────────────────────────────────────────────────
+  const [recordsPage, setRecordsPage] = useState(1)
+  const RECORDS_PAGE_SIZE = 20
+  const [recordsSearchInput, setRecordsSearchInput] = useState('')
+  const [recordsSearch, setRecordsSearch] = useState('')
+  const addSaleModal = useModalState()
+  const [editingSale, setEditingSale] = useState<ApiSaleGroup | null>(null)
+  const [rates, setRates] = useState<Record<string, number>>({})
+
+  // Debounce records search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setRecordsSearch(recordsSearchInput)
+      setRecordsPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [recordsSearchInput])
+
+  const recordsQuery = useQuery({
+    queryKey: ['sale-groups-page', recordsPage, recordsSearch],
+    queryFn: () => getSaleGroupsPaginated(recordsPage, RECORDS_PAGE_SIZE, recordsSearch || undefined),
+    enabled: recordsActivated.current || activeTab === 'records',
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  })
+
+  const saleGroups = recordsQuery.data?.data ?? []
+  const recordsTotalPages = recordsQuery.data?.totalPages ?? 1
+  const recordsTotal = recordsQuery.data?.total ?? 0
 
   const deleteSaleMut = useMutation({
     mutationFn: (id: string) => deleteSaleGroup(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sale-groups'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sale-groups-page'] })
+      queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
+    },
   })
 
-  const soldEntries = useMemo(() => allEntries.filter(e => e.ownershipStatus === 'SOLD'), [allEntries])
+  // ── Unsold entries for RecordSaleModal book selector ────────────────────────
+  const { data: unsoldEntries = [] } = useQuery({
+    queryKey: ['unsold-entries-slim'],
+    queryFn: () => authFetch<{ data: CollectionEntry[] }>('/collection?isWishlist=false&slim=true&pageSize=500').then(r =>
+      r.data.filter(e => e.ownershipStatus !== 'SOLD')
+    ),
+    staleTime: 2 * 60_000,
+    enabled: addSaleModal.isOpen,
+  })
 
-  const companies = useMemo(() => {
-    const set = new Set<string>()
-    soldEntries.forEach(e => { if (e.edition.bookBoxCompany?.name) set.add(e.edition.bookBoxCompany.name) })
-    return Array.from(set).sort()
-  }, [soldEntries])
-
-  const filtered = useMemo(() => soldEntries.filter(e => {
-    if (bookFilter && !e.edition.book.title.toLowerCase().includes(bookFilter.toLowerCase())) return false
-    if (companyFilter !== 'ALL' && e.edition.bookBoxCompany?.name !== companyFilter) return false
-    if (tagFilter !== 'ALL' && !e.tags.includes(tagFilter)) return false
-    return true
-  }), [soldEntries, bookFilter, companyFilter, tagFilter])
-
-  // Fetch currency rates for all sale currencies vs user's preferred currency
+  // ── Currency rates for visible sale groups ────────────────────────────────
   useEffect(() => {
     if (!userCurrency || saleGroups.length === 0) return
     const tuples: { from: string; to: string; date: string }[] = []
-    ;(saleGroups as ApiSaleGroup[]).forEach(sg => {
+    saleGroups.forEach((sg: ApiSaleGroup) => {
       if (sg.currency !== userCurrency) {
-        const date = sg.soldAt?.slice(0, 10) ?? ''
-        tuples.push({ from: sg.currency, to: userCurrency, date })
-      }
-    })
-    soldEntries.forEach(e => {
-      if (e.saleCurrency && e.saleCurrency !== userCurrency) {
-        tuples.push({ from: e.saleCurrency, to: userCurrency, date: '' })
+        tuples.push({ from: sg.currency, to: userCurrency, date: sg.soldAt?.slice(0, 10) ?? '' })
       }
     })
     const unique = tuples.filter((t, i) =>
@@ -499,8 +604,9 @@ export default function SoldPage() {
       results.forEach(r => { if (r) newRates[r.key] = r.rate })
       setRates(prev => ({ ...prev, ...newRates }))
     })
-  }, [saleGroups, soldEntries, userCurrency])
+  }, [saleGroups, userCurrency])
 
+  // ── Currency conversion helper ────────────────────────────────────────────
   function converted(amount: number, fromCurrency: string | null, date?: string): string | null {
     if (!fromCurrency || !userCurrency || fromCurrency === userCurrency) return null
     const dateKey = date?.slice(0, 10) ?? ''
@@ -509,21 +615,29 @@ export default function SoldPage() {
     return `≈ ${(amount * rate).toFixed(2)} ${userCurrency}`
   }
 
-  if (isLoading) {
+  // ── Pagination helper ─────────────────────────────────────────────────────
+  function Pagination({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+    if (totalPages <= 1) return null
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-stone-400 font-serif text-lg animate-pulse">Loading…</div>
+      <div className="flex items-center justify-center gap-2 mt-6">
+        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm text-stone-400">Page <span className="text-stone-200 font-medium">{page}</span> of <span className="text-stone-200 font-medium">{totalPages}</span></span>
+        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+          <ChevronRight size={16} />
+        </button>
       </div>
     )
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-serif font-bold text-stone-100">Sold Books</h1>
-          <p className="text-stone-400 text-sm mt-1">{soldEntries.length} book{soldEntries.length !== 1 ? 's' : ''} sold</p>
         </div>
         <button
           onClick={() => addSaleModal.open()}
@@ -533,244 +647,312 @@ export default function SoldPage() {
         </button>
       </div>
 
-      {/* ── Sold Books ── */}
-      <section className="mb-12">
-        <h2 className="text-lg font-serif font-semibold text-stone-200 mb-4">Sold Books</h2>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-stone-800">
+        {([
+          { id: 'books' as const, label: 'Sold Books', count: booksTotal },
+          { id: 'gifted' as const, label: 'Gifted Away', count: giftedTotal },
+          { id: 'records' as const, label: 'Sale Records', count: recordsTotal },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => activateTab(tab.id)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === tab.id
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-stone-500 hover:text-stone-300'
+            }`}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-amber-400/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
-        {soldEntries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-stone-500">
-            <ShoppingBag size={48} className="mb-4 opacity-30" />
-            <p className="font-serif text-lg">No sold books yet</p>
-            <p className="text-sm mt-1">Books you record as sold will appear here</p>
-          </div>
-        ) : (
-          <>
-            {/* Filters + View Toggle */}
-            <div className="flex gap-2 flex-wrap items-center mb-6">
-              <input
-                type="text"
-                value={bookFilter}
-                onChange={e => setBookFilter(e.target.value)}
-                placeholder="Search by title…"
-                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
-              />
-              {companies.length > 0 && (
-                <select
-                  value={companyFilter}
-                  onChange={e => setCompanyFilter(e.target.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-                >
-                  <option value="ALL">Box: Any</option>
-                  {companies.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              )}
-              {allUserTags.length > 0 && (
-                <select
-                  value={tagFilter}
-                  onChange={e => setTagFilter(e.target.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-teal-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-teal-400 border-teal-500/30 bg-teal-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-                >
-                  <option value="ALL">Tag: Any</option>
-                  {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              )}
-              <div className="ml-auto flex items-center gap-1 bg-stone-800 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
-                  title="Grid view"
-                >
-                  <LayoutGrid size={15} />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
-                  title="List view"
-                >
-                  <List size={15} />
-                </button>
-              </div>
+      {/* ── Sold Books tab ── */}
+      {activeTab === 'books' && (
+        <section>
+          {booksQuery.isLoading ? (
+            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+          ) : booksTotal === 0 && !bookFilter && companyFilter === 'ALL' && tagFilter === 'ALL' ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <ShoppingBag size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">No sold books yet</p>
+              <p className="text-sm mt-1">Books you record as sold will appear here</p>
             </div>
+          ) : (
+            <>
+              {/* Filters + View Toggle */}
+              <div className="flex gap-2 flex-wrap items-center mb-6">
+                <input
+                  type="text"
+                  value={bookFilterInput}
+                  onChange={e => setBookFilterInput(e.target.value)}
+                  placeholder="Search by title…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+                />
+                {companiesData.length > 0 && (
+                  <select
+                    value={companyFilter}
+                    onChange={e => setCompanyFilter(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                  >
+                    <option value="ALL">Box: Any</option>
+                    {companiesData.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+                {allUserTags.length > 0 && (
+                  <select
+                    value={tagFilter}
+                    onChange={e => setTagFilter(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                  >
+                    <option value="ALL">Tag: Any</option>
+                    {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                )}
+                <div className="ml-auto flex items-center gap-1 bg-stone-800 rounded-lg p-1">
+                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} title="Grid view"><LayoutGrid size={15} /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} title="List view"><List size={15} /></button>
+                </div>
+              </div>
 
-            {filtered.length === 0 ? (
-              <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
-            ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {filtered.map(entry => (
-                  <div key={entry.id} className="relative h-full">
-                    <EditionCard
-                      href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                      coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
-                      title={entry.edition.book.title}
-                      authors={entry.edition.book.authors}
-                      companyName={entry.edition.bookBoxCompany?.name}
-                      companySlug={entry.edition.bookBoxCompany?.slug}
-                      companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
-                      seriesName={entry.edition.book.seriesName}
-                      volumeNumber={entry.edition.book.volumeNumber}
-                      footer={
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <Badge variant="default">SOLD</Badge>
-                          {entry.salePrice && entry.saleCurrency && (
-                            <div className="flex flex-col gap-0">
-                              <span className="text-[10px] text-amber-400">
-                                {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
-                              </span>
-                              {(() => { const c = converted(parseFloat(entry.salePrice), entry.saleCurrency); return c ? <span className="text-[10px] text-stone-500">{c}</span> : null })()}
+              {soldBooks.length === 0 ? (
+                <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
+              ) : viewMode === 'grid' ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {soldBooks.map(entry => (
+                    <div key={entry.id} className="relative h-full">
+                      <EditionCard
+                        href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                        coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                        title={entry.edition.book.title}
+                        authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
+                        companyName={entry.edition.bookBoxCompany?.name}
+                        companySlug={entry.edition.bookBoxCompany?.slug}
+                        companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
+                        seriesName={entry.edition.book.seriesName}
+                        volumeNumber={entry.edition.book.volumeNumber}
+                        footer={
+                          <div className="mt-1 flex flex-col gap-1">
+                            <div className="flex flex-wrap gap-1 items-center">
+                              <Badge variant="default">SOLD</Badge>
+                              {entry.salePrice && entry.saleCurrency && (
+                                <span className="text-[10px] text-amber-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
+                              )}
+                            </div>
+                            {entry.tags?.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {entry.tags.map(tag => (
+                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
+                  {soldBooks.map(entry => {
+                    const cover = cloudinaryUrl(entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null, 'w_80,h_120,c_fill,q_auto,f_auto')
+                    const sigIcon = entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : null
+                    return (
+                      <a key={entry.id} href={`/editions/${entry.edition.slug}?entry=${entry.id}`} className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl">
+                        <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
+                          {cover ? <img src={cover} alt={entry.edition.book.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}><BookOpen size={14} /></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{entry.edition.book.title}</p>
+                          <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
+                          {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
+                            <p className="text-[10px] text-stone-500 truncate">
+                              {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumber != null ? ` #${entry.edition.book.volumeNumber}` : ''}</span>}
+                              {entry.edition.book.seriesName && entry.edition.bookBoxCompany && <span className="mx-1">·</span>}
+                              {entry.edition.bookBoxCompany && <span>{entry.edition.bookBoxCompany.name}</span>}
+                            </p>
+                          )}
+                          {entry.tags?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {entry.tags.map(tag => (
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
+                              ))}
                             </div>
                           )}
                         </div>
-                      }
-                    />
+                        <div className="flex-shrink-0 text-right flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1">
+                            {sigIcon && <span className="text-xs">{sigIcon}</span>}
+                            <Badge variant="default">SOLD</Badge>
+                          </div>
+                          {entry.salePrice && entry.saleCurrency && (
+                            <p className="text-xs text-amber-400 font-medium">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</p>
+                          )}
+                          {entry.saleDate && <p className="text-[10px] text-stone-600">{new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
+              <Pagination page={booksPage} totalPages={booksTotalPages} onPage={setBooksPage} />
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── Gifted Away tab ── */}
+      {activeTab === 'gifted' && (
+        <section>
+          {giftedQuery.isLoading ? (
+            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+          ) : giftedTotal === 0 && !giftedFilter ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <BookOpen size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">No gifted away books yet</p>
+              <p className="text-sm mt-1">Books you mark as gifted away will appear here</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 flex-wrap items-center mb-6">
+                <input
+                  type="text"
+                  value={giftedFilterInput}
+                  onChange={e => setGiftedFilterInput(e.target.value)}
+                  placeholder="Search by title…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+                />
+              </div>
+              {giftedBooks.length === 0 ? (
+                <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {giftedBooks.map(entry => (
+                    <div key={entry.id}>
+                      <EditionCard
+                        href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                        coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                        title={entry.edition.book.title}
+                        authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
+                        companyName={entry.edition.bookBoxCompany?.name}
+                        companySlug={entry.edition.bookBoxCompany?.slug}
+                        companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
+                        seriesName={entry.edition.book.seriesName}
+                        volumeNumber={entry.edition.book.volumeNumber}
+                        footer={
+                          <div className="mt-1">
+                            <Badge variant="default">GIFTED</Badge>
+                          </div>
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Pagination page={giftedPage} totalPages={giftedTotalPages} onPage={setGiftedPage} />
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── Sale Records tab ── */}
+      {activeTab === 'records' && (
+        <section>
+          {recordsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+          ) : recordsTotal === 0 && !recordsSearch ? (
+            <div className="flex flex-col items-center justify-center py-12 text-stone-500">
+              <ShoppingBag size={36} className="mb-3 opacity-30" />
+              <p className="text-sm">No recorded sales yet</p>
+            </div>
+          ) : (
+            <>
+              {/* Search */}
+              <div className="mb-5">
+                <input
+                  type="text"
+                  value={recordsSearchInput}
+                  onChange={e => setRecordsSearchInput(e.target.value)}
+                  placeholder="Search by sale title or book title…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors w-full max-w-sm"
+                />
+              </div>
+              {recordsTotal === 0 ? (
+                <p className="text-stone-500 text-sm py-8 text-center">No sales match your search.</p>
+              ) : (
+                <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {saleGroups.map(sg => (
+                  <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="text-stone-200 font-medium">
+                          {sg.title ?? new Date(sg.soldAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                        {sg.platform && (
+                          <span className="text-xs text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full mt-1 inline-block">{sg.platform}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setEditingSale(sg)} className="ml-1 p-1 text-stone-500 hover:text-amber-400 transition-colors" title="Edit sale"><Pencil size={14} /></button>
+                        <button onClick={() => deleteSaleMut.mutate(sg.id)} className="p-1 text-stone-500 hover:text-red-400 transition-colors" title="Delete sale"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-3">
+                      <div>
+                        <p className="text-xs text-stone-500">Sold for</p>
+                        <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
+                        {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
+                      </div>
+                      {sg.profitLoss != null && (
+                        <div>
+                          <p className="text-xs text-stone-500">P&amp;L</p>
+                          <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
+                          </p>
+                          {(() => { const c = converted(sg.profitLoss, sg.currency, sg.soldAt); return c ? <p className={`text-xs ${sg.profitLoss >= 0 ? 'text-green-400/60' : 'text-red-400/60'}`}>{sg.profitLoss >= 0 ? '+' : ''}{c}</p> : null })()}
+                        </div>
+                      )}
+                    </div>
+                    {sg.soldAt && <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>}
+                    {/* Book titles */}
+                    {sg.entries && sg.entries.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-stone-800 space-y-1">
+                        {sg.entries.map(e => {
+                          const title = (e.userBookEntry as any)?.edition?.book?.title ?? '—'
+                          return (
+                            <div key={e.id} className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-stone-400 truncate">{title}</span>
+                              {sg.entries.length > 1 && (
+                                <span className="text-xs text-amber-400 shrink-0">{Number(e.allocatedAmount).toFixed(2)} {sg.currency}</span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
-                {filtered.map(entry => {
-                  const cover = cloudinaryUrl(entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null, 'w_80,h_120,c_fill,q_auto,f_auto')
-                  const sigIcon = entry.signatureType === 'signed' ? '✍️'
-                    : entry.signatureType === 'signed_bookplate' ? '🏷️'
-                    : entry.signatureType === 'autopen' ? '✒️'
-                    : entry.signatureType === 'digitally_signed' ? '🖨️'
-                    : entry.signatureType === 'stamped' ? '🕹️'
-                    : null
-                  return (
-                    <a
-                      key={entry.id}
-                      href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                      className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                    >
-                      {/* Cover thumbnail */}
-                      <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
-                        {cover
-                          ? <img src={cover} alt={entry.edition.book.title} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
-                              <BookOpen size={14} />
-                            </div>
-                        }
-                      </div>
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">
-                          {entry.edition.book.title}
-                        </p>
-                        <p className="text-xs text-stone-400 truncate">
-                          {entry.edition.book.authors.map(a => a.name).join(', ')}
-                        </p>
-                        {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
-                          <p className="text-[10px] text-stone-500 truncate">
-                            {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumber != null ? ` #${entry.edition.book.volumeNumber}` : ''}</span>}
-                            {entry.edition.book.seriesName && entry.edition.bookBoxCompany && <span className="mx-1">·</span>}
-                            {entry.edition.bookBoxCompany && <span>{entry.edition.bookBoxCompany.name}</span>}
-                          </p>
-                        )}
-                      </div>
-                      {/* Sale info + signature */}
-                      <div className="flex-shrink-0 text-right flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1">
-                          {sigIcon && <span className="text-xs" title={entry.signatureType ?? ''}>{sigIcon}</span>}
-                          <Badge variant="default">SOLD</Badge>
-                        </div>
-                        {entry.salePrice && entry.saleCurrency && (
-                          <div>
-                            <p className="text-xs text-amber-400 font-medium">
-                              {parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}
-                            </p>
-                            {(() => { const c = converted(parseFloat(entry.salePrice), entry.saleCurrency); return c ? <p className="text-[10px] text-stone-500">{c}</p> : null })()}
-                          </div>
-                        )}
-                        {entry.saleDate && (
-                          <p className="text-[10px] text-stone-600">
-                            {new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
-                    </a>
-                  )
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* ── Recorded Sales ── */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-serif font-semibold text-stone-200">Recorded Sales</h2>
-          <p className="text-sm text-stone-500">{saleGroups.length} sale{saleGroups.length !== 1 ? 's' : ''}</p>
-        </div>
-
-        {saleGroups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-stone-500">
-            <ShoppingBag size={36} className="mb-3 opacity-30" />
-            <p className="text-sm">No recorded sales yet</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(saleGroups as ApiSaleGroup[]).map(sg => (
-              <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="text-stone-200 font-medium">
-                      {sg.title ?? new Date(sg.soldAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                    {sg.platform && (
-                      <span className="text-xs text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full mt-1 inline-block">
-                        {sg.platform}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
-                      {sg.entries?.length ?? 0} book{(sg.entries?.length ?? 0) !== 1 ? 's' : ''}
-                    </span>
-                    <button
-                      onClick={() => setEditingSale(sg)}
-                      className="ml-1 p-1 text-stone-500 hover:text-amber-400 transition-colors"
-                      title="Edit sale"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => deleteSaleMut.mutate(sg.id)}
-                      className="p-1 text-stone-500 hover:text-red-400 transition-colors"
-                      title="Delete sale"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 mt-3">
-                  <div>
-                    <p className="text-xs text-stone-500">Sold for</p>
-                    <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
-                    {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
-                  </div>
-                  {sg.profitLoss != null && (
-                    <div>
-                      <p className="text-xs text-stone-500">P&amp;L</p>
-                      <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
-                      </p>
-                      {(() => { const c = converted(sg.profitLoss, sg.currency, sg.soldAt); return c ? <p className={`text-xs ${sg.profitLoss >= 0 ? 'text-green-400/60' : 'text-red-400/60'}`}>{sg.profitLoss >= 0 ? '+' : ''}{c.replace('≈ ', '≈ ')}</p> : null })()}
-                    </div>
-                  )}
-                </div>
-                {sg.soldAt && (
-                  <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+              <Pagination page={recordsPage} totalPages={recordsTotalPages} onPage={setRecordsPage} />
+                </>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       <RecordSaleModal
         open={addSaleModal.isOpen}
         onClose={() => addSaleModal.close()}
-        entries={allEntries.filter(e => e.ownershipStatus !== 'SOLD')}
+        entries={unsoldEntries}
       />
       <EditSaleModal
         open={editingSale !== null}
@@ -782,3 +964,4 @@ export default function SoldPage() {
     </div>
   )
 }
+

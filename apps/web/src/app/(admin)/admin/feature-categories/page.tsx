@@ -54,9 +54,14 @@ const EMPTY_FORM: CategoryFormState = {
  *      "UV-spot"      → \bUV[\s\-]*spot\w*\b
  */
 function phraseToRegex(phrase: string): string {
-  const words = phrase.trim().split(/[\s\-]+/).filter(Boolean)
+  const trimmed = phrase.trim()
+  const words = trimmed.split(/[\s\-]+/).filter(Boolean)
   const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return `\\b${escaped.join('[\\s\\-]*')}\\w*\\b`
+  const joined = escaped.join('[\\s\\-]*')
+  // \b only works adjacent to a word character — skip it when phrase starts/ends with non-word char like ( )
+  const startB = /^\w/.test(trimmed) ? '\\b' : ''
+  const endB = /\w$/.test(trimmed) ? '\\b' : ''
+  return `${startB}${joined}${endB}`
 }
 
 /**
@@ -139,12 +144,14 @@ function CategoryForm({
   onCancel,
   loading,
   error,
+  knownGroups,
 }: {
   initial: CategoryFormState
   onSubmit: (data: CategoryFormState) => void
   onCancel: () => void
   loading: boolean
   error?: string
+  knownGroups: string[]
 }) {
   const [form, setForm] = useState<CategoryFormState>(initial)
   const [testValue, setTestValue] = useState('')
@@ -206,15 +213,17 @@ function CategoryForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL_CLASS}>Group *</label>
-          <select
+          <input
+            required
+            list="group-suggestions"
             className={INPUT_CLASS}
+            placeholder="e.g. cover"
             value={form.group}
-            onChange={e => set('group', e.target.value)}
-          >
-            {GROUPS.map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+            onChange={e => set('group', e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+          />
+          <datalist id="group-suggestions">
+            {knownGroups.map(g => <option key={g} value={g} />)}
+          </datalist>
         </div>
         <div>
           <label className={LABEL_CLASS}>Sort Order</label>
@@ -258,8 +267,18 @@ function CategoryForm({
         {includeKeywords.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {includeKeywords.map((kw, i) => (
-              <span key={i} className="text-xs bg-emerald-900/40 border border-emerald-700/40 text-emerald-300 px-2 py-0.5 rounded-full">
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-emerald-900/40 border border-emerald-700/40 text-emerald-300 px-2 py-0.5 rounded-full">
                 {kw}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = linesToPatterns(form.includePatterns)
+                    lines.splice(i, 1)
+                    set('includePatterns', lines.join('\n'))
+                  }}
+                  className="ml-0.5 text-emerald-500 hover:text-red-400 transition-colors leading-none"
+                  aria-label="Remove"
+                >×</button>
               </span>
             ))}
           </div>
@@ -291,8 +310,18 @@ function CategoryForm({
         {excludeKeywords.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {excludeKeywords.map((kw, i) => (
-              <span key={i} className="text-xs bg-red-900/40 border border-red-700/40 text-red-300 px-2 py-0.5 rounded-full">
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-red-900/40 border border-red-700/40 text-red-300 px-2 py-0.5 rounded-full">
                 🚫 {kw}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = linesToPatterns(form.excludePatterns)
+                    lines.splice(i, 1)
+                    set('excludePatterns', lines.join('\n'))
+                  }}
+                  className="ml-0.5 text-red-500 hover:text-red-400 transition-colors leading-none"
+                  aria-label="Remove"
+                >×</button>
               </span>
             ))}
           </div>
@@ -528,16 +557,22 @@ export default function FeatureCategoriesPage() {
     },
   })
 
-  // Group categories
+  // Group categories, sort within each group by sortOrder (numeric) then label
   const grouped = categories.reduce<Record<string, FeatureCategory[]>>((acc, c) => {
     if (groupFilter && c.group !== groupFilter) return acc
     ;(acc[c.group] ??= []).push(c)
     return acc
   }, {})
+  Object.values(grouped).forEach(arr =>
+    arr.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || a.label.localeCompare(b.label))
+  )
 
   const allGroups = Array.from(
     new Set([...GROUPS, ...Object.keys(grouped)])
   ).filter(g => g in grouped)
+
+  // All known groups (predefined + any custom ones already in DB) for the group picker
+  const knownGroups = Array.from(new Set([...GROUPS, ...categories.map(c => c.group)])).sort()
 
   return (
     <div>
@@ -599,6 +634,7 @@ export default function FeatureCategoriesPage() {
                 <table className="w-full text-sm text-stone-200">
                   <thead>
                     <tr className="border-b border-stone-800 bg-stone-900/80">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">#</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Label</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Matches when value contains…</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Excluded if contains…</th>
@@ -614,6 +650,9 @@ export default function FeatureCategoriesPage() {
                           !cat.isActive ? 'opacity-50' : ''
                         }`}
                       >
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-stone-500 font-mono">{cat.sortOrder}</span>
+                         </td>
                         <td className="px-4 py-2.5">
                           <div className="font-medium text-stone-200">{cat.label}</div>
                           <div className="text-xs text-stone-500 font-mono mt-0.5">{cat.slug}</div>
@@ -664,6 +703,7 @@ export default function FeatureCategoriesPage() {
           onCancel={() => setCreateOpen(false)}
           loading={createMutation.isPending}
           error={mutationError}
+          knownGroups={knownGroups}
         />
       </FormModal>
 
@@ -680,6 +720,7 @@ export default function FeatureCategoriesPage() {
             onCancel={() => setEditCategory(null)}
             loading={updateMutation.isPending}
             error={mutationError}
+            knownGroups={knownGroups}
           />
         )}
       </FormModal>

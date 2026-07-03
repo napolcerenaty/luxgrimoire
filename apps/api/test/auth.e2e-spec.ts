@@ -50,6 +50,10 @@ beforeAll(async () => {
   );
   app.setGlobalPrefix('api');
 
+  // Register cookie plugin (required for login/logout/verify-email which use setCookie/clearCookie)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  await (app as any).register(require('@fastify/cookie'));
+
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
@@ -64,8 +68,38 @@ afterAll(async () => {
 /** Clean slate for each test — removes only auth-related rows */
 async function cleanup() {
   await prisma.passwordResetToken.deleteMany({});
+  await prisma.emailVerificationToken.deleteMany({});
   await prisma.session.deleteMany({});
   await prisma.user.deleteMany({});
+}
+
+/** Bypass email verification by setting the flag directly in DB */
+async function verifyEmail(userEmail: string) {
+  await prisma.user.updateMany({ where: { email: userEmail }, data: { emailVerified: true } });
+}
+
+/** Extract JWT value from set-cookie response header */
+function extractJwtFromCookie(res: { headers: Record<string, string | string[]> }): string {
+  const setCookie = res.headers['set-cookie'];
+  const cookieStr = Array.isArray(setCookie) ? setCookie[0] : setCookie ?? '';
+  const cookieName = process.env.JWT_COOKIE_NAME ?? 'jwt';
+  const match = cookieStr.split(';')[0].match(new RegExp(`^${cookieName}=(.+)$`));
+  return match?.[1] ?? '';
+}
+
+/** Register, verify email, login — returns { accessToken, userId } */
+async function registerAndLogin(opts: { email: string; username: string; password: string }) {
+  await request(httpServer)
+    .post('/api/auth/register')
+    .send({ ...opts, termsAccepted: true });
+  await verifyEmail(opts.email);
+  const res = await request(httpServer)
+    .post('/api/auth/login')
+    .send({ email: opts.email, password: opts.password })
+    .expect(201);
+  const accessToken = extractJwtFromCookie(res);
+  const { userId, role } = res.body as { userId: string; role: string };
+  return { accessToken, userId, role };
 }
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
@@ -73,29 +107,24 @@ async function cleanup() {
 describe('POST /api/auth/register', () => {
   beforeEach(cleanup);
 
-  it('201 — returns accessToken and user info on success', async () => {
+  it('201 — registration successful, returns message', async () => {
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email(), username: username(), password: 'Password1!' })
+      .send({ email: email(), username: username(), password: 'Password1!', termsAccepted: true })
       .expect(201);
 
-    expect(res.body).toMatchObject({
-      accessToken: expect.any(String),
-      userId: expect.any(String),
-      role: 'USER',
-    });
-    expect(res.body.accessToken.split('.').length).toBe(3); // valid JWT
+    expect(res.body.message).toMatch(/registration successful/i);
   });
 
   it('409 — duplicate email', async () => {
     const e = email();
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('first'), password: 'Password1!' });
+      .send({ email: e, username: username('first'), password: 'Password1!', termsAccepted: true });
 
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('second'), password: 'Password1!' })
+      .send({ email: e, username: username('second'), password: 'Password1!', termsAccepted: true })
       .expect(409);
 
     expect(res.body.message).toMatch(/email/i);
@@ -105,11 +134,11 @@ describe('POST /api/auth/register', () => {
     const u = username();
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email('first'), username: u, password: 'Password1!' });
+      .send({ email: email('first'), username: u, password: 'Password1!', termsAccepted: true });
 
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email('second'), username: u, password: 'Password1!' })
+      .send({ email: email('second'), username: u, password: 'Password1!', termsAccepted: true })
       .expect(409);
 
     expect(res.body.message).toMatch(/username/i);
@@ -134,16 +163,18 @@ describe('POST /api/auth/login', () => {
     testEmail = email('login');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: testEmail, username: username('login'), password: testPassword });
+      .send({ email: testEmail, username: username('login'), password: testPassword, termsAccepted: true });
+    await verifyEmail(testEmail);
   });
 
-  it('201 — returns accessToken on valid credentials', async () => {
+  it('201 — returns JWT token in cookie on valid credentials', async () => {
     const res = await request(httpServer)
       .post('/api/auth/login')
       .send({ email: testEmail, password: testPassword })
       .expect(201);
 
-    expect(res.body.accessToken).toBeDefined();
+    const token = extractJwtFromCookie(res);
+    expect(token).toBeTruthy();
   });
 
   it('401 — wrong password', async () => {
@@ -172,10 +203,8 @@ describe('GET /api/auth/me', () => {
     await cleanup();
     testEmail = email('me');
     testUsername = username('me');
-    const res = await request(httpServer)
-      .post('/api/auth/register')
-      .send({ email: testEmail, username: testUsername, password: 'Password1!' });
-    token = res.body.accessToken;
+    const session = await registerAndLogin({ email: testEmail, username: testUsername, password: 'Password1!' });
+    token = session.accessToken;
   });
 
   it('200 — returns user profile with valid token', async () => {
@@ -207,10 +236,9 @@ describe('POST /api/auth/logout', () => {
 
   beforeEach(async () => {
     await cleanup();
-    const res = await request(httpServer)
-      .post('/api/auth/register')
-      .send({ email: email('logout'), username: username('logout'), password: 'Password1!' });
-    token = res.body.accessToken;
+    const e = email('logout');
+    const session = await registerAndLogin({ email: e, username: username('logout'), password: 'Password1!' });
+    token = session.accessToken;
   });
 
   it('204 — invalidates session (subsequent /me returns 401)', async () => {
@@ -238,10 +266,8 @@ describe('POST /api/auth/change-password', () => {
   beforeEach(async () => {
     await cleanup();
     testEmail = email('chpw');
-    const res = await request(httpServer)
-      .post('/api/auth/register')
-      .send({ email: testEmail, username: username('chpw'), password: oldPassword });
-    token = res.body.accessToken;
+    const session = await registerAndLogin({ email: testEmail, username: username('chpw'), password: oldPassword });
+    token = session.accessToken;
   });
 
   it('201 — changes password; old password login fails, new succeeds', async () => {
@@ -264,7 +290,7 @@ describe('POST /api/auth/change-password', () => {
       .post('/api/auth/login')
       .send({ email: testEmail, password: newPassword })
       .expect(201);
-    expect(loginRes.body.accessToken).toBeDefined();
+    expect(extractJwtFromCookie(loginRes)).toBeTruthy();
   });
 
   it('401 — wrong current password', async () => {
@@ -294,7 +320,7 @@ describe('POST /api/auth/forgot-password', () => {
     const e = email('forgot');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('forgot'), password: 'Password1!' });
+      .send({ email: e, username: username('forgot'), password: 'Password1!', termsAccepted: true });
 
     const res = await request(httpServer)
       .post('/api/auth/forgot-password')
@@ -308,7 +334,7 @@ describe('POST /api/auth/forgot-password', () => {
     const e = email('fgtok');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('fgtok'), password: 'Password1!' });
+      .send({ email: e, username: username('fgtok'), password: 'Password1!', termsAccepted: true });
 
     await request(httpServer)
       .post('/api/auth/forgot-password')
@@ -333,10 +359,12 @@ describe('POST /api/auth/reset-password', () => {
 
   beforeEach(async () => {
     await cleanup();
-    const res = await request(httpServer)
+    const e = email('reset');
+    await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email('reset'), username: username('reset'), password: 'OldPass1!' });
-    userId = res.body.userId;
+      .send({ email: e, username: username('reset'), password: 'OldPass1!', termsAccepted: true });
+    const user = await prisma.user.findFirst({ where: { email: e } });
+    userId = user!.id;
   });
 
   /** Insert a token directly bypassing the email flow */
@@ -355,6 +383,7 @@ describe('POST /api/auth/reset-password', () => {
 
   it('201 — resets password; old password fails, new succeeds', async () => {
     const user = await prisma.user.findFirst({ where: { id: userId } });
+    await verifyEmail(user!.email);
     const plainToken = await insertToken();
 
     const res = await request(httpServer)
@@ -369,7 +398,7 @@ describe('POST /api/auth/reset-password', () => {
       .post('/api/auth/login')
       .send({ email: user!.email, password: 'BrandNew3!' })
       .expect(201);
-    expect(loginRes.body.accessToken).toBeDefined();
+    expect(extractJwtFromCookie(loginRes)).toBeTruthy();
   });
 
   it('400 — expired token', async () => {

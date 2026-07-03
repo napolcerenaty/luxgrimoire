@@ -11,6 +11,7 @@ import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type Editio
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, type AiBookResult } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
+import { computeGeneralSaleDatePrefill } from '@/lib/generalSalePrefill'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const ISO_TO_LANGUAGE: Record<string, string> = {
@@ -31,6 +32,8 @@ export interface CreateBookEditionFormProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   monthYear?: number
   monthMonth?: number
@@ -41,6 +44,9 @@ export interface CreateBookEditionFormProps {
   /** Bundle prefill defaults */
   defaultPublisher?: string
   defaultCollectionId?: string
+  defaultPhotoCredit?: string
+  defaultArtists?: Array<{ name: string; role: string }>
+  defaultFeatureTags?: Array<{ rawValue: string; categories: string[] }>
   /** If true, form stops after Step 1 (book only — no edition or month linking) */
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
@@ -53,10 +59,10 @@ export interface CreateBookEditionFormProps {
 
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
-  defaultPrice, renewalDay, defaultLanguage,
+  defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
-  defaultPublisher, defaultCollectionId,
+  defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -82,24 +88,20 @@ export default function CreateBookEditionForm({
   const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : '')
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState(defaultPublisher ?? '')
-  const [photoCredit, setPhotoCredit] = useState('')
+  const [photoCredit, setPhotoCredit] = useState(defaultPhotoCredit ?? '')
   const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
     if (defaultGeneralSaleDate) return defaultGeneralSaleDate
-    if (renewalDay == null || monthMonth == null || monthYear == null) return ''
-    const mm = String(monthMonth).padStart(2, '0')
-    const dd = String(renewalDay).padStart(2, '0')
-    return `${monthYear}-${mm}-${dd}`
+    return computeGeneralSaleDatePrefill(monthYear, monthMonth, renewalDay, renewalDayUserSet, renewalMonthOffset)
   })
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
-  // Feature tags to POST after edition creation (filled by AI parser)
-  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>([])
+  // Feature tags to POST after edition creation (filled by AI parser or bundle defaults)
+  const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>(defaultFeatureTags ?? [])
   const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
-  // Artists to POST after edition creation (filled by AI parser / user input)
-  const [artists, setArtists] = useState<ArtistEntry[]>([])
-  const [isOmnibus, setIsOmnibus] = useState(false)
+  // Artists to POST after edition creation (filled by AI parser / user input / bundle defaults)
+  const [artists, setArtists] = useState<ArtistEntry[]>(defaultArtists ?? [])
 
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
@@ -110,6 +112,8 @@ export default function CreateBookEditionForm({
   const [showLinkStep, setShowLinkStep] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
   const [linkDone, setLinkDone] = useState(false)
+  const [retagging, setRetagging] = useState(false)
+  const [retagDone, setRetagDone] = useState(false)
 
   // ── Companies ────────────────────────────────────────────────────────────
   const { data: companiesData } = useQuery({
@@ -145,13 +149,16 @@ export default function CreateBookEditionForm({
     }
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
     // Stage features for POST after edition creation:
-    // includes standalone features[] + base names from artist roles
+    // Use featureOrder (AI-emitted) for correct source-text ordering; fall back to
+    // standalones-first if the field is absent (older responses / edge cases).
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
     const artistBaseFeatures = (r.edition?.artists ?? [])
       .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
       .filter(Boolean)
-    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
-    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = allFeatureRaws
+    const orderedRaws: string[] = r.edition?.featureOrder?.length
+      ? Array.from(new Set(r.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+      : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const newFeatureTags: Array<{ rawValue: string; categories: string[] }> = orderedRaws
       .map(rawValue => ({ rawValue, categories: r.edition?.featureTags?.[rawValue] ?? [] }))
     if (newFeatureTags.length > 0) {
       setPendingFeatureTags(prev => {
@@ -174,6 +181,31 @@ export default function CreateBookEditionForm({
         const toAdd = data.authors!.filter(a => !existing.has(a.name.toLowerCase()))
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
+    }
+  }
+
+  // ── Retag preview ─────────────────────────────────────────────────────────
+  const handleRetag = async () => {
+    setRetagging(true)
+    setRetagDone(false)
+    try {
+      const features = featurePreviewRef.current?.getCurrentRawValues() ?? []
+      if (features.length === 0) {
+        setRetagDone(true)
+        setTimeout(() => setRetagDone(false), 3000)
+        return
+      }
+      const result = await authFetch<Array<{ rawValue: string; categories: string[] }>>(
+        '/feature-categories/tag-preview',
+        { method: 'POST', body: JSON.stringify({ features }) },
+      )
+      featurePreviewRef.current?.applyRetagResult(result)
+      setRetagDone(true)
+      setTimeout(() => setRetagDone(false), 3000)
+    } catch (e: unknown) {
+      alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRetagging(false)
     }
   }
 
@@ -544,12 +576,12 @@ export default function CreateBookEditionForm({
         onArtistsChange={setArtists}
         pendingFeatureTags={pendingFeatureTags}
         featurePreviewRef={featurePreviewRef}
-        isOmnibus={isOmnibus}
-        onIsOmnibusChange={setIsOmnibus}
         editionSlug={createdEditionSlug ?? undefined}
         companies={companies}
         collections={collections}
       />
+
+      <p className="text-xs text-stone-500 italic">If this is an omnibus edition, edit it after creation to set component books.</p>
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={() => handleStep2()}
@@ -559,6 +591,16 @@ export default function CreateBookEditionForm({
           {saved ? '✓ Added!' : busy ? 'Saving…' : subscriptionSlug ? (existingBookId ? 'Create Edition & Link' : 'Create & Link to Month') : 'Create Edition'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+        <button
+          type="button"
+          disabled={retagging || busy}
+          onClick={handleRetag}
+          className={retagDone
+            ? 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-green-900/50 text-green-300 transition-colors'
+            : 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50'}
+        >
+          {retagDone ? '✓ Retagged!' : retagging ? 'Retagging…' : '↺ Retag'}
+        </button>
       </div>
 
       {duplicateEdition && !bypassDuplicate && (

@@ -14,6 +14,16 @@ export class SaleInterestsController {
     return this.service.findAll(user.id);
   }
 
+  @Get('upcoming')
+  getUpcoming(@CurrentUser() user: { id: string }) {
+    return this.service.getUpcoming(user.id, 3);
+  }
+
+  @Get('upcoming-count')
+  getUpcomingCount(@CurrentUser() user: { id: string }) {
+    return this.service.getUpcomingCount(user.id);
+  }
+
   @Get(':announcementId')
   findOne(@CurrentUser() user: { id: string }, @Param('announcementId') announcementId: string) {
     return this.service.findOne(user.id, announcementId);

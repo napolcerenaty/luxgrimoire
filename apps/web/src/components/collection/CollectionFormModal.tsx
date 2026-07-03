@@ -45,6 +45,7 @@ export interface CollectionFormData {
   discountEntries: DiscountEntry[]
   feeTemplates: FeeTemplate[]
   selectedVariants: Record<string, string>
+  selectedEditionIds: string[]
 }
 
 export interface SaleEditionForModal {
@@ -103,6 +104,7 @@ export function CollectionFormModal({
   const [feeEntries, setFeeEntries] = useState<FeeEntry[]>([])
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
+  const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>([])
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
@@ -131,10 +133,11 @@ export function CollectionFormModal({
       }
     }
     setSelectedVariants(initVariants)
+    setSelectedEditionIds(editions.map(e => e.editionId))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const editionsNeedingSelection = editions.filter(e => e.variants.length > 1)
+  const editionsNeedingSelection = editions.filter(e => e.variants.length > 1 && selectedEditionIds.includes(e.editionId))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -151,6 +154,7 @@ export function CollectionFormModal({
       discountEntries,
       feeTemplates,
       selectedVariants,
+      selectedEditionIds,
     })
   }
 
@@ -190,6 +194,36 @@ export function CollectionFormModal({
             <label className={LABEL}>Purchase date</label>
             <input type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} className={INPUT} />
           </div>
+
+          {/* Edition selection (multi-select when > 1 edition) */}
+          {editions.length > 1 && (
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-stone-400">Select editions to add</span>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {editions.map(ed => {
+                  const checked = selectedEditionIds.includes(ed.editionId)
+                  return (
+                    <label key={ed.editionId} className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-700 px-3 py-2 hover:border-stone-600 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedEditionIds(prev =>
+                          checked ? prev.filter(id => id !== ed.editionId) : [...prev, ed.editionId]
+                        )}
+                        className="w-4 h-4 accent-amber-500 shrink-0"
+                      />
+                      <span className="text-sm text-stone-300 leading-tight">
+                        {ed.edition?.book?.title ?? 'Edition'}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              {selectedEditionIds.length === 0 && (
+                <p className="text-xs text-red-400">Select at least one edition</p>
+              )}
+            </div>
+          )}
 
           {/* Edition variants (conditional) */}
           {editionsNeedingSelection.length > 0 && (
@@ -357,7 +391,7 @@ export function CollectionFormModal({
               className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={submitting}
+            <button type="submit" disabled={submitting || (editions.length > 1 && selectedEditionIds.length === 0)}
               className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
               <MoveRight size={14} />
               {submitting ? 'Saving…' : submitLabel}

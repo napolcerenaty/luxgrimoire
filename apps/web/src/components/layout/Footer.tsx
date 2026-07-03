@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Instagram } from 'lucide-react'
 
 const YEAR = new Date().getFullYear()
 
@@ -19,7 +19,7 @@ const LINKS = {
   account: [
     { href: '/collection', label: 'My Collection' },
     { href: '/calendar',   label: 'My Calendar' },
-    { href: '/spending',   label: 'Spending Tracker' },
+    { href: '/statistics', label: 'Statistics' },
     { href: '/login',      label: 'Sign In' },
     { href: '/register',   label: 'Create Account' },
   ],
@@ -43,7 +43,7 @@ export function Footer() {
         {/* Main grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1 flex flex-col items-start">
+          <div className="col-span-2 md:col-span-1 flex flex-col items-center">
             <Link href="/" aria-label="LuxGrimoire" className="inline-block mb-3">
               {/* Logo with text — light version for dark theme */}
               <Image
@@ -68,6 +68,15 @@ export function Footer() {
             <p className="text-[10px] font-serif uppercase tracking-[0.25em] font-semibold text-[#4a88a8] text-center">
               Unlimited obsession.
             </p>
+            <a
+              href="https://www.instagram.com/luxgrimoire/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 text-stone-500 hover:text-stone-200 transition-colors"
+              aria-label="LuxGrimoire on Instagram"
+            >
+              <Instagram size={24} />
+            </a>
           </div>
 
           {/* Discover */}

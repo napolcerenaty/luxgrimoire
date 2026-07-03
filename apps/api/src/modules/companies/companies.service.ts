@@ -10,13 +10,15 @@ import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_COUNT_TTL = 2 * 60 * 60 * 1000; // 2 hours — total count cache per filter
-const companySlugKey = (slug: string) => `companies:slug:${slug}`;
+export const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subscriptionId: string) => `companies:slug:${slug}:editions:sub:${subscriptionId}:count`;
 const companyEditionsColCountKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}:count`;
+const companyEditionsNoCollectionCountKey = (slug: string) => `companies:slug:${slug}:editions:nocol:count`;
 
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
@@ -33,8 +35,29 @@ export class CompaniesService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
+
+  private mapSubscriptionAssets(subscription: any) {
+    if (!subscription) return subscription;
+    return {
+      ...subscription,
+      coverImage: subscription.coverImageAsset?.publicId ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.publicId ?? subscription.logoUrl,
+    };
+  }
+
+  private mapCompanyAssets(company: any) {
+    if (!company) return company;
+    return {
+      ...company,
+      logoUrl: company.logoAsset?.publicId ?? company.logoUrl,
+      subscriptions: Array.isArray(company.subscriptions)
+        ? company.subscriptions.map((subscription: any) => this.mapSubscriptionAssets(subscription))
+        : company.subscriptions,
+    };
+  }
 
   private deleteCloudinaryImages(ids: (string | null | undefined)[]) {
     return deleteCloudinaryImages(ids, this.uploadService);
@@ -42,12 +65,14 @@ export class CompaniesService {
 
   async create(dto: CreateCompanyDto) {
     const slug = generateSlug(dto.name);
-    const company = await this.prisma.bookBoxCompany.create({
+    const logoAsset = dto.logoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.logoUrl) : null;
+    const company = await (this.prisma.bookBoxCompany as any).create({
       data: {
         slug,
         name: dto.name,
         description: dto.description,
         logoUrl: dto.logoUrl,
+        logoAssetId: logoAsset?.id ?? null,
         website: dto.website,
         country: dto.country,
         defaultCurrency: dto.defaultCurrency,
@@ -62,7 +87,10 @@ export class CompaniesService {
       },
     });
     await this.indexCompany(company);
-    return company;
+    return this.mapCompanyAssets({
+      ...company,
+      logoAsset: logoAsset ? { id: logoAsset.id, publicId: logoAsset.publicId } : null,
+    });
   }
 
   async findNames(): Promise<{ id: string; name: string }[]> {
@@ -89,13 +117,30 @@ export class CompaniesService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.bookBoxCompany.findMany({
+      (this.prisma.bookBoxCompany as any).findMany({
         where,
         skip,
         take: pageSize,
         include: {
+          logoAsset: { select: { id: true, publicId: true } },
           subscriptions: {
             where: { isHidden: false, isContentStream: false },
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              isDiscontinued: true,
+              isUpcoming: true,
+              upcomingNote: true,
+              logoUrl: true,
+              coverImage: true,
+              genre: true,
+              isCombo: true,
+              isContentStream: true,
+              parentSubscriptionId: true,
+              coverImageAsset: { select: { id: true, publicId: true } },
+              logoAsset: { select: { id: true, publicId: true } },
+            },
           },
           _count: {
             select: {
@@ -109,7 +154,7 @@ export class CompaniesService {
       this.prisma.bookBoxCompany.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return { data: data.map((company: any) => this.mapCompanyAssets(company)), ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {
@@ -121,12 +166,47 @@ export class CompaniesService {
   }
 
   private async _fetchCompanyBySlug(slug: string) {
-    const company = await this.prisma.bookBoxCompany.findUnique({
+    const company = await (this.prisma.bookBoxCompany as any).findUnique({
       where: { slug },
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        logoUrl: true,
+        logoAsset: { select: { id: true, publicId: true } },
+        website: true,
+        country: true,
+        defaultCurrency: true,
+        instagram: true,
+        threads: true,
+        tiktok: true,
+        facebook: true,
+        x: true,
+        bluesky: true,
+        iossImplemented: true,
+        hasOfficialImagePermission: true,
+        brandColors: true,
+        createdAt: true,
+        updatedAt: true,
         subscriptions: {
           where: { isHidden: false },
-          select: { id: true, slug: true, name: true, isDiscontinued: true, logoUrl: true, coverImage: true, genre: true, isCombo: true, isContentStream: true, parentSubscriptionId: true },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            isDiscontinued: true,
+            isUpcoming: true,
+            upcomingNote: true,
+            logoUrl: true,
+            coverImage: true,
+            genre: true,
+            isCombo: true,
+            isContentStream: true,
+            parentSubscriptionId: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
+          },
         },
         collections: {
           select: { id: true, slug: true, name: true },
@@ -134,12 +214,12 @@ export class CompaniesService {
       },
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
-    return company;
+    return this.mapCompanyAssets(company);
   }
 
   async getEditions(
     slug: string,
-    filter?: { subscriptionId?: string; collectionId?: string },
+    filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean },
     pagination: { skip: number; take: number } = { skip: 0, take: 20 },
   ) {
     const { skip, take } = pagination;
@@ -150,6 +230,8 @@ export class CompaniesService {
       countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
     } else if (filter?.collectionId) {
       countKey = companyEditionsColCountKey(slug, filter.collectionId);
+    } else if (filter?.noCollection) {
+      countKey = companyEditionsNoCollectionCountKey(slug);
     } else {
       countKey = companyEditionsAllCountKey(slug);
     }
@@ -167,7 +249,7 @@ export class CompaniesService {
     return { data, total };
   }
 
-  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }): Promise<number> {
+  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }): Promise<number> {
     const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug }, select: { id: true } });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
     return this.prisma.bookEdition.count({
@@ -175,11 +257,12 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+        ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
       },
     });
   }
 
-  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string }, skip = 0, take = 20) {
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }, skip = 0, take = 20) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -191,6 +274,7 @@ export class CompaniesService {
         bookBoxCompanyId: company.id,
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
+        ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
       },
       select: {
         id: true,
@@ -220,7 +304,7 @@ export class CompaniesService {
           },
         },
       },
-      orderBy: { generalSaleDate: 'desc' },
+      orderBy: { generalSaleDate: { sort: 'desc', nulls: 'last' } },
       skip,
       take,
     });
@@ -238,7 +322,12 @@ export class CompaniesService {
 
   async update(slug: string, dto: UpdateCompanyDto) {
     const existing = await this.findBySlug(slug);
-    const company = await this.prisma.bookBoxCompany.update({ where: { slug }, data: dto });
+    const data: Record<string, unknown> = { ...dto };
+    if (dto.logoUrl !== undefined) {
+      const logoAsset = dto.logoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.logoUrl) : null;
+      data.logoAssetId = logoAsset?.id ?? null;
+    }
+    const company = await (this.prisma.bookBoxCompany as any).update({ where: { slug }, data });
     // Delete old logo from Cloudinary if it was replaced or cleared
     if (dto.logoUrl !== undefined && dto.logoUrl !== existing.logoUrl) {
       await this.deleteCloudinaryImages([existing.logoUrl]);
@@ -246,7 +335,7 @@ export class CompaniesService {
     await this.cache.del(companySlugKey(slug));
     await this.indexCompany(company);
     await this.reindexCompanyRelations(company.id);
-    return company;
+    return this.mapCompanyAssets(company);
   }
 
   async delete(slug: string) {
@@ -288,7 +377,11 @@ export class CompaniesService {
           bookBoxCompanyId: company.id,
           OR: [{ additionalImages: { isEmpty: false } }, { photoCredit: { not: null } }],
         },
-        select: { id: true, additionalImages: true },
+        select: {
+          id: true,
+          additionalImages: true,
+          editionImages: { select: { assetId: true } },
+        },
         take: BATCH,
         skip,
       });
@@ -298,6 +391,11 @@ export class CompaniesService {
           await Promise.allSettled(
             edition.additionalImages.map((img) => this.uploadService.deleteImage(img)),
           );
+          const assetIds = edition.editionImages.map((r) => r.assetId);
+          await (this.prisma as any).bookEditionMediaAsset.deleteMany({ where: { editionId: edition.id } });
+          if (assetIds.length) {
+            await (this.prisma as any).mediaAsset.deleteMany({ where: { id: { in: assetIds } } });
+          }
           await this.prisma.bookEdition.update({
             where: { id: edition.id },
             data: { additionalImages: [], photoCredit: null },
@@ -321,7 +419,7 @@ export class CompaniesService {
       while (true) {
         const months = await this.prisma.subscriptionMonth.findMany({
           where: { subscriptionId: { in: subIds }, coverImage: { not: null } },
-          select: { id: true, coverImage: true },
+          select: { id: true, coverImage: true, coverImageAssetId: true },
           take: BATCH,
           skip,
         });
@@ -329,9 +427,12 @@ export class CompaniesService {
         for (const month of months) {
           try {
             if (month.coverImage) await this.uploadService.deleteImage(month.coverImage);
+            if (month.coverImageAssetId) {
+              await (this.prisma as any).mediaAsset.deleteMany({ where: { id: month.coverImageAssetId } });
+            }
             await this.prisma.subscriptionMonth.update({
               where: { id: month.id },
-              data: { coverImage: null },
+              data: { coverImage: null, coverImageAssetId: null },
             });
             deletedMonthImages++;
           } catch (e) {
@@ -350,7 +451,13 @@ export class CompaniesService {
           companyId: company.id,
           OR: [{ imageUrl: { not: null } }, { photoCredit: { not: null } }, { extraImagesJson: { not: Prisma.AnyNull } }],
         },
-        select: { id: true, imageUrl: true, extraImagesJson: true },
+        select: {
+          id: true,
+          imageUrl: true,
+          imageAssetId: true,
+          extraImagesJson: true,
+          extraImages: { select: { assetId: true } },
+        },
         take: BATCH,
         skip,
       });
@@ -359,14 +466,21 @@ export class CompaniesService {
         try {
           if (ann.imageUrl) await this.uploadService.deleteImage(ann.imageUrl);
           if (ann.extraImagesJson) {
-            const extras = ann.extraImagesJson as { url?: string }[];
-            for (const extra of Array.isArray(extras) ? extras : []) {
-              if (extra?.url) await this.uploadService.deleteImage(extra.url);
+            const extras = ann.extraImagesJson as string[];
+            for (const publicId of Array.isArray(extras) ? extras : []) {
+              if (publicId) await this.uploadService.deleteImage(publicId);
             }
+          }
+          const assetIds = (ann).extraImages?.map((r) => r.assetId) ?? [];
+          await (this.prisma as any).saleAnnouncementMediaAsset.deleteMany({ where: { announcementId: ann.id } });
+          if (ann.imageAssetId) assetIds.push(ann.imageAssetId);
+          const uniqueAssetIds = [...new Set<string>(assetIds)];
+          if (uniqueAssetIds.length) {
+            await (this.prisma as any).mediaAsset.deleteMany({ where: { id: { in: uniqueAssetIds } } });
           }
           await this.prisma.saleAnnouncement.update({
             where: { id: ann.id },
-            data: { imageUrl: null, photoCredit: null, extraImagesJson: Prisma.JsonNull },
+            data: { imageUrl: null, imageAssetId: null, photoCredit: null, extraImagesJson: Prisma.JsonNull },
           });
           deletedAnnouncementImages++;
         } catch (e) {

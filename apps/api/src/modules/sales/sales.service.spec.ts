@@ -57,7 +57,7 @@ describe('SalesService', () => {
     prisma = mockDeep<PrismaService>();
     currencyService = mockDeep<CurrencyService>();
     const crowdStatsService = mockDeep<import('../crowd-stats/crowd-stats.service').CrowdStatsService>();
-    service = new SalesService(prisma, currencyService, crowdStatsService);
+    service = new SalesService(prisma, currencyService, crowdStatsService, { markStatsStale: jest.fn() } as any);
 
     // Default: $transaction passes prisma itself as the tx callback arg
     (prisma.$transaction as jest.Mock).mockImplementation(

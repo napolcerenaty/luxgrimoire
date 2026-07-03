@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
 import type { CountryFeeHint } from '@/lib/api'
-import { authFetch } from '@/lib/authFetch'
+import { authFetch, API_BASE } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
@@ -26,7 +26,10 @@ interface Props {
   country: string | null
   renewalDay?: number | null
   months: ApiSubscriptionMonth[]
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  isDiscontinued?: boolean
+  subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
 }
 
 type FeeTemplateLink = {
@@ -46,6 +49,7 @@ type MyEntry = {
   basePrice: string | null
   costCurrency: string | null
   active: boolean
+  isForwarding: boolean
   prepaidMonths: number
   renewalDay: number | null
   nextRenewalDate: string | null
@@ -100,8 +104,12 @@ export default function SubscriptionInfoPanel({
   renewalDay,
   months,
   prepayOptions,
+  isDiscontinued,
+  subscriptionEndDate,
+  signupIncludesCurrentMonth,
 }: Props) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const userCurrency = user?.preferredCurrency
   const [myEntry, setMyEntry] = useState<MyEntry>(undefined as unknown as MyEntry)
   const [loading, setLoading] = useState(false)
@@ -116,7 +124,8 @@ export default function SubscriptionInfoPanel({
   const [allPriceChanges, setAllPriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
 
   useEffect(() => {
-    authFetch<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>(`/subscriptions/${subscriptionSlug}/price-changes`)
+    fetch(`${API_BASE}/subscriptions/${subscriptionSlug}/price-changes`)
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!Array.isArray(data)) return
         setAllPriceChanges(data)
@@ -143,7 +152,7 @@ export default function SubscriptionInfoPanel({
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
     queryFn: () => authFetch<{ skippedMonths: { year: number; month: number }[] }>(`/skip-policy/${subscriptionSlug}/status`),
-    enabled: !!user,
+    enabled: !!user && !!myEntry?.active,
     retry: false,
   })
 
@@ -363,39 +372,21 @@ export default function SubscriptionInfoPanel({
                 </span>
               </div>
             )}
+            {myEntry?.isForwarding && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-blue-400">📦</span>
+                <span className="text-blue-300 font-medium">Forwarding packages</span>
+              </div>
+            )}
           </div>
           {(prepayOptions?.length ?? 0) > 0 && (
             <div className="pt-3 border-t border-stone-700/60">
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Billing Mode</p>
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-stone-400">
-                  {myEntry?.scheduledPrepayOptionId
-                    ? `Prepaid: ${prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.label ?? prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.months + ' months'}`
-                    : 'Standard (monthly)'}
-                </p>
-                <select
-                  className="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                  value={myEntry?.scheduledPrepayOptionId ?? ''}
-                  onChange={async e => {
-                    const val = e.target.value || null
-                    try {
-                      await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ scheduledPrepayOptionId: val }),
-                      })
-                      refreshEntry()
-                    } catch {}
-                  }}
-                >
-                  <option value="">Standard (monthly)</option>
-                  {prepayOptions?.map(o => (
-                    <option key={o.id} value={o.id}>
-                      {o.label ?? `${o.months} months`} — {o.price} {o.currency}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Billing Mode</p>
+              <p className="text-xs text-stone-400">
+                {myEntry?.scheduledPrepayOptionId
+                  ? `Prepaid: ${prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.label ?? prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.months + ' months'}`
+                  : 'Standard (monthly)'}
+              </p>
             </div>
           )}
         </>
@@ -580,6 +571,9 @@ export default function SubscriptionInfoPanel({
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
           userDefaultCurrency={user?.preferredCurrency ?? null}
           prepayOptions={prepayOptions}
+          isDiscontinued={isDiscontinued}
+          subscriptionEndDate={subscriptionEndDate}
+          signupIncludesCurrentMonth={signupIncludesCurrentMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()
@@ -593,7 +587,12 @@ export default function SubscriptionInfoPanel({
           subscriptionSlug={subscriptionSlug}
           entry={myEntry}
           subscriptionCurrency={currency}
-          onSaved={() => { closeEditCosts(); refreshEntry() }}
+          prepayOptions={prepayOptions}
+          onSaved={() => {
+            closeEditCosts()
+            refreshEntry()
+            void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+          }}
           onClose={() => closeEditCosts()}
         />
       )}
@@ -616,18 +615,22 @@ function EditEntryCostsModal({
   subscriptionSlug,
   entry,
   subscriptionCurrency,
+  prepayOptions,
   onSaved,
   onClose,
 }: {
   subscriptionSlug: string
   entry: NonNullable<MyEntry>
   subscriptionCurrency: string
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   onSaved: () => void
   onClose: () => void
 }) {
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
+  const [isForwarding, setIsForwarding] = useState(entry.isForwarding)
   const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
+  const [scheduledPrepayOptionId, setScheduledPrepayOptionId] = useState<string | null>(entry.scheduledPrepayOptionId ?? null)
   const savedCurrency = entry.costCurrency ?? subscriptionCurrency
   const currencyChanged = costCurrency.trim().toUpperCase() !== savedCurrency.toUpperCase()
   const [feeLinks, setFeeLinks] = useState<Array<{ templateId: string; name: string; customAmount: string; customCurrency: string }>>(
@@ -667,12 +670,21 @@ function EditEntryCostsModal({
         basePrice: basePrice || undefined,
         shippingCost: shippingCost || undefined,
         costCurrency: costCurrency || undefined,
+        isForwarding,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
           customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
           customCurrency: f.customCurrency || null,
         })),
       })
+      // Save billing mode if prepay options exist (may have changed)
+      if ((prepayOptions?.length ?? 0) > 0) {
+        await authFetch(`/subscriptions/${subscriptionSlug}/my-entry/billing-mode`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledPrepayOptionId: scheduledPrepayOptionId }),
+        })
+      }
       onSaved()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save')
@@ -736,6 +748,16 @@ function EditEntryCostsModal({
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isForwarding}
+              onChange={e => setIsForwarding(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            />
+            <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+          </label>
 
           {/* Fee templates */}
           <div>
@@ -817,6 +839,31 @@ function EditEntryCostsModal({
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
+
+          {/* Billing Mode */}
+          {(prepayOptions?.length ?? 0) > 0 && (
+            <div className="border-t border-stone-800 pt-4">
+              <label className="block text-xs text-stone-400 mb-2">Billing Mode</label>
+              <p className="text-xs text-stone-500 mb-2">Takes effect from the next renewal.</p>
+              <select
+                className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+                value={scheduledPrepayOptionId ?? ''}
+                onChange={e => setScheduledPrepayOptionId(e.target.value || null)}
+              >
+                <option value="">Standard (monthly)</option>
+                {prepayOptions?.filter(o => {
+                  const now = new Date()
+                  if (o.validFrom && new Date(o.validFrom) > now) return false
+                  if (o.validUntil && new Date(o.validUntil) <= now) return false
+                  return true
+                }).map(o => (
+                  <option key={o.id} value={o.id}>
+                    {o.label ?? `${o.months} months`} — {o.price} {o.currency}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 p-5 border-t border-stone-800">

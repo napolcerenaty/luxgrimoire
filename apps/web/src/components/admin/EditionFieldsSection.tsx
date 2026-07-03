@@ -11,8 +11,11 @@ import { BTN_PRIMARY, INP, LBL } from '@/lib/adminFormStyles'
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 
+// Common currencies for book edition subscriptions
+const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF', 'SEK', 'DKK', 'NOK']
+
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean }
+export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean; contributionId?: string }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
 export type FeatureTag = {
   id: string
@@ -30,7 +33,7 @@ const CATEGORY_GROUP_LABELS: Record<string, string> = {
   format: 'Format',
   edition_type: 'Edition Type',
 }
-const CATEGORY_GROUP_ORDER = ['edition_type', 'cover', 'binding', 'interior', 'signatures', 'extras', 'format']
+const CATEGORY_GROUP_ORDER = ['signed', 'edges', 'cover', 'binding', 'extras', 'interior', 'format']
 
 const BOOK_LANGUAGES = [
   'English', 'Polish', 'French', 'German', 'Spanish',
@@ -56,6 +59,8 @@ export interface AiParseResult {
     generalSaleDate?: string
     features?: string[]
     featureTags?: Record<string, string[]>
+    /** All feature raw values in source-text order (standalone + artist-attributed) */
+    featureOrder?: string[]
     artists?: { name: string; role: string }[]
     artistTags?: Record<string, string[]>
   }
@@ -329,7 +334,11 @@ function OmnibusComponentsPanel({ editionSlug }: { editionSlug: string }) {
 // ─── FeatureCategoryPreview ───────────────────────────────────────────────────
 export const FEATURE_TAGS_QUERY_KEY = (slug: string) => ['edition-feature-tags', slug] as const
 
-export type FeaturePreviewHandle = { flushChanges: (slugOverride?: string) => Promise<void> }
+export type FeaturePreviewHandle = {
+  flushChanges: (slugOverride?: string) => Promise<void>
+  getCurrentRawValues: () => string[]
+  applyRetagResult: (result: Array<{ rawValue: string; categories: string[] }>) => void
+}
 
 // Synthetic ID for tags not yet in DB
 const newTagId = (rawValue: string) => `_new_${rawValue}`
@@ -509,6 +518,17 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   }
 
   useImperativeHandle(ref, () => ({
+    getCurrentRawValues: () => localTags.map(t => t.rawValue),
+    applyRetagResult: (result: Array<{ rawValue: string; categories: string[] }>) => {
+      setLocalTags(prev => prev.map(tag => {
+        const entry = result.find(r => r.rawValue === tag.rawValue)
+        if (!entry) return tag
+        const resolvedCategories = entry.categories
+          .map(slug => allCategories.find(c => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+        return { ...tag, categories: resolvedCategories }
+      }))
+    },
     flushChanges: async (slugOverride?: string) => {
       const slug = slugOverride ?? editionSlug
       // 1. POST new tags (synthetic IDs — AI-parsed or manually added)
@@ -616,9 +636,16 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                       (acc[g] = acc[g] ?? []).push(c);
                       return acc;
                     }, {})
-                  ).map(([group, cats]) => (
+                  ).sort(([a], [b]) => {
+                    const ai = CATEGORY_GROUP_ORDER.indexOf(a)
+                    const bi = CATEGORY_GROUP_ORDER.indexOf(b)
+                    if (ai === -1 && bi === -1) return a.localeCompare(b)
+                    if (ai === -1) return 1
+                    if (bi === -1) return -1
+                    return ai - bi
+                  }).map(([group, cats]) => (
                     <optgroup key={group} label={group}>
-                      {cats.sort((a, b) => a.sortOrder - b.sortOrder).map(c =>
+                     {cats.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder)).map(c =>
                         <option key={c.slug} value={c.slug}>{c.label}</option>
                       )}
                     </optgroup>
@@ -680,7 +707,26 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                 onChange={e => { const v = e.target.value; if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') } }}
                 className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-amber-500">
                 <option value="">+ add category…</option>
-                {availableForNew.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+                {Object.entries(
+                  availableForNew.reduce<Record<string, typeof availableForNew>>((acc, c) => {
+                    const g = c.group || 'Other'
+                    ;(acc[g] = acc[g] ?? []).push(c)
+                    return acc
+                  }, {})
+                ).sort(([a], [b]) => {
+                  const ai = CATEGORY_GROUP_ORDER.indexOf(a)
+                  const bi = CATEGORY_GROUP_ORDER.indexOf(b)
+                  if (ai === -1 && bi === -1) return a.localeCompare(b)
+                  if (ai === -1) return 1
+                  if (bi === -1) return -1
+                  return ai - bi
+                }).map(([group, cats]) => (
+                  <optgroup key={group} label={group}>
+                  {cats.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder)).map(c =>
+                      <option key={c.slug} value={c.slug}>{c.label}</option>
+                    )}
+                  </optgroup>
+                ))}
               </select>
             )}
           </div>
@@ -773,9 +819,9 @@ export function EditionFieldsSection({
   return (
     <div className="space-y-4">
       {/* Company + price */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className={LBL}>Company (book box)</label>
+          <label className={LBL}>Company</label>
           <select value={companyId} onChange={e => {
             const id = e.target.value
             onCompanyChange(id)
@@ -794,9 +840,14 @@ export function EditionFieldsSection({
           <div className="flex gap-2">
             <input value={price} onChange={e => onPriceChange(e.target.value)}
               placeholder="45.99" className={`${INP} flex-1`} />
-            <input value={currency} onChange={e => onCurrencyChange(e.target.value.toUpperCase())}
-              placeholder="USD" maxLength={3}
-              className="w-16 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm text-center uppercase" />
+            <select
+              value={CURRENCIES.includes(currency) ? currency : ''}
+              onChange={e => onCurrencyChange(e.target.value)}
+              className="w-24 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
+            >
+              {!CURRENCIES.includes(currency) && <option value="">{currency || 'USD'}</option>}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
       </div>
@@ -828,7 +879,7 @@ export function EditionFieldsSection({
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-3 gap-3">
         <div>
           <label className={LBL}>First access</label>
           <input type="date" value={firstAccessDate} onChange={e => onFirstAccessDateChange(e.target.value)} className={INP} />
@@ -873,14 +924,17 @@ export function EditionFieldsSection({
         {artists.length > 0 && (
           <div className="space-y-2">
             {artists.map((art, i) => (
-              <div key={i} className="flex gap-2 items-start">
+              <div key={i} className="flex flex-col sm:flex-row gap-2 items-start">
                 <div className="flex-1">
                   {art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => {
+                          if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
+                          onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
+                        }}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : art.name ? (
@@ -888,7 +942,10 @@ export function EditionFieldsSection({
                       {!art.existing && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
-                        onClick={() => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false } : x))}
+                        onClick={() => {
+                          if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
+                          onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
+                        }}
                         className="text-stone-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : (
@@ -936,7 +993,11 @@ export function EditionFieldsSection({
           </label>
         </div>
       )}
-      {isOmnibus && editionSlug && <OmnibusComponentsPanel editionSlug={editionSlug} />}
+      {isOmnibus && (
+        editionSlug
+          ? <OmnibusComponentsPanel editionSlug={editionSlug} />
+          : <p className="text-xs text-stone-500 italic">Save the edition first to add component books.</p>
+      )}
     </div>
   )
 }

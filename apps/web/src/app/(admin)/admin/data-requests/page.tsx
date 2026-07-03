@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Database, Trash2, RefreshCw, ExternalLink, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { Pagination } from '@/components/admin/Pagination'
 
 const STATUS_OPTIONS = ['pending', 'added', 'declined']
 const STATUS_STYLES: Record<string, string> = {
@@ -87,7 +88,7 @@ export default function AdminDataRequestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                      {r.status}
+                      {r.status.toUpperCase()}
                     </span>
                     <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">{r.type}</span>
                     {r.user && <span className="text-xs text-stone-500">by {r.user.username}</span>}
@@ -124,19 +125,7 @@ export default function AdminDataRequestsPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 pt-4">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-4 py-2 rounded-xl border border-stone-700 text-sm text-stone-400 disabled:opacity-40 hover:bg-stone-800 transition-colors">
-            Previous
-          </button>
-          <span className="px-4 py-2 text-sm text-stone-500">{page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            className="px-4 py-2 rounded-xl border border-stone-700 text-sm text-stone-400 disabled:opacity-40 hover:bg-stone-800 transition-colors">
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

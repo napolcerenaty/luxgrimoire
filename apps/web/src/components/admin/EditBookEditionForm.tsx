@@ -145,6 +145,8 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const qc = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [retagging, setRetagging] = useState(false)
+  const [retagDone, setRetagDone] = useState(false)
 
   // Pre-populate from existing edition
   const [companyId, setCompanyId] = useState(edition.bookBoxCompanyId ?? '')
@@ -164,8 +166,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
   // Artists state — initialized from existing contributions
   const [artists, setArtists] = useState<ArtistEntry[]>(() =>
-    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true }))
+    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true, contributionId: a.id }))
   )
+  // Map of contributionId → original role for detecting in-place changes
+  const originalContribs = new Map((edition.artists ?? []).filter(a => a.id).map(a => [a.id!, a.role]))
   const [removedArtistIds, setRemovedArtistIds] = useState<Set<string>>(new Set())
 
   // Feature tags: staged until Save Changes
@@ -189,12 +193,15 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
   const applyAiResult = (r: AiParseResult) => {
     applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
-    // Collect all feature raw values: standalone features[] + base names from artist roles
+    // Collect all feature raw values in source-text order using featureOrder if available;
+    // fall back to standalones-first for older responses.
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
     const artistBaseFeatures = (r.edition?.artists ?? [])
       .map(a => (a.role?.trim() ?? '').replace(/\s*\(\w+\)$/, '').trim())
       .filter(Boolean)
-    const allFeatureRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
+    const allFeatureRaws: string[] = r.edition?.featureOrder?.length
+      ? Array.from(new Set(r.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+      : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]))
     const newPending = allFeatureRaws.map(rawValue => ({
       rawValue,
       categories: r.edition?.featureTags?.[rawValue] ?? [],
@@ -204,6 +211,30 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         const existing = new Set(prev.map(p => p.rawValue))
         return [...prev, ...newPending.filter(t => !existing.has(t.rawValue))]
       })
+    }
+  }
+
+  const handleRetag = async () => {
+    setRetagging(true)
+    setRetagDone(false)
+    try {
+      const features = featurePreviewRef.current?.getCurrentRawValues() ?? []
+      if (features.length === 0) {
+        setRetagDone(true)
+        setTimeout(() => setRetagDone(false), 3000)
+        return
+      }
+      const result = await authFetch<Array<{ rawValue: string; categories: string[] }>>(
+        '/feature-categories/tag-preview',
+        { method: 'POST', body: JSON.stringify({ features }) },
+      )
+      featurePreviewRef.current?.applyRetagResult(result)
+      setRetagDone(true)
+      setTimeout(() => setRetagDone(false), 3000)
+    } catch (e: unknown) {
+      alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRetagging(false)
     }
   }
 
@@ -219,7 +250,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         body: JSON.stringify({
           bookBoxCompanyId: companyId || undefined,
           collectionId: collectionId || null,
-          publisher: publisher.trim() || undefined,
+          publisher: publisher.trim() || null,
           photoCredit: photoCredit.trim() || null,
           basePrice: price || undefined,
           currency: currency || undefined,
@@ -236,31 +267,17 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
       }
 
-      // 2b. Sync role changes for existing artists
-      const originalRolesByArtist = new Map<string, Set<string>>()
-      for (const a of (edition.artists ?? [])) {
-        if (!originalRolesByArtist.has(a.artist.id)) originalRolesByArtist.set(a.artist.id, new Set())
-        originalRolesByArtist.get(a.artist.id)!.add((a.role || 'cover art').toLowerCase())
-      }
-      const currentRolesByArtist = new Map<string, string[]>()
+      // 2b. Sync role changes for existing artists — PATCH in-place to preserve DB row order
       for (const art of artists) {
-        if (!art.existing || !art.id || removedArtistIds.has(art.id)) continue
-        if (!currentRolesByArtist.has(art.id)) currentRolesByArtist.set(art.id, [])
-        currentRolesByArtist.get(art.id)!.push(art.role || 'cover art')
-      }
-      for (const [artistId, currentRoles] of currentRolesByArtist) {
-        const origSet = originalRolesByArtist.get(artistId) ?? new Set()
-        const currSet = new Set(currentRoles.map(r => r.toLowerCase()))
-        const changed = currentRoles.some(r => !origSet.has(r.toLowerCase())) ||
-          [...origSet].some(r => !currSet.has(r))
-        if (changed) {
-          await authFetch(`/editions/${edition.slug}/artists/${artistId}`, { method: 'DELETE' }).catch(() => null)
-          for (const role of currentRoles) {
-            await authFetch(`/editions/${edition.slug}/artists`, {
-              method: 'POST',
-              body: JSON.stringify({ artistId, role }),
-            }).catch(() => null)
-          }
+        if (!art.existing || !art.id || !art.contributionId || removedArtistIds.has(art.id)) continue
+        const origRole = originalContribs.get(art.contributionId)
+        if (origRole === undefined) continue
+        const currentRole = art.role || 'cover art'
+        if (currentRole.toLowerCase() !== (origRole || 'cover art').toLowerCase()) {
+          await authFetch(`/editions/${edition.slug}/artist-contributions/${art.contributionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ newRole: currentRole }),
+          }).catch(() => null)
         }
       }
 
@@ -365,6 +382,16 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           {saved ? '✓ Saved!' : busy ? 'Saving…' : 'Save Changes'}
         </button>
         <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+        <button
+          type="button"
+          disabled={retagging || busy}
+          onClick={handleRetag}
+          className={retagDone
+            ? 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-green-900/50 text-green-300 transition-colors'
+            : 'ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50'}
+        >
+          {retagDone ? '✓ Retagged!' : retagging ? 'Retagging…' : '↺ Retag'}
+        </button>
       </div>
     </div>
   )

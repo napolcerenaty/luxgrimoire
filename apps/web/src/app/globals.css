@@ -48,6 +48,7 @@
   --accent:        #2a9ec4;
   --accent2:       #1a82a8;
   --accent-bright: #4ab8d8;
+  --accent-border: rgba(74,184,216,0.3);
   --accent-glow:   rgba(0,130,180,0.15);
   --accent-glow3:  rgba(0,110,160,0.12);
   --shadow:        rgba(0,0,0,0.7);
@@ -60,6 +61,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 17px;
+  overflow-x: hidden;
 }
 
 /* ── Global scrollbar styling ──────────────────────────────────────────────── */
@@ -72,6 +74,14 @@ html {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 ::-webkit-scrollbar-corner { background: var(--bg-surface); }
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
 
 /* Navbar logo glow effect */
 .nav-logo {
@@ -143,7 +153,8 @@ html {
   --accent:        #0d4880;  /* medium navy (was teal #0d5585) */
   --accent2:       #1a58a0;  /* medium-bright navy (was cyan #0878b0) */
   --accent-bright: #1a70b8;  /* lighter navy (was teal #1a82a8) */
-  --accent-glow:   rgba(10, 56, 128, 0.15);
+  --accent-border: rgba(26,112,184,0.35);
+  --accent-glow:   rgba(10, 56, 128, 0.12);
   --accent-glow3:  rgba(10, 56, 128, 0.10);
   --shadow:        rgba(0, 20, 60, 0.10);
   --grad-header:   linear-gradient(135deg, #c8daf0 0%, #d4e4f8 50%, #c8daf0 100%);
@@ -220,3 +231,19 @@ input[type=number] {
 [data-theme="light"] .badge-read     { background: #dcfce7; color: #166534; border-color: #86efac; }
 [data-theme="light"] .badge-dnf      { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
 [data-theme="light"] .badge-signed   { background: #eef2ff; color: #3730a3; border-color: #a5b4fc; }
+
+/* Force dark-theme palette inside overlays that must always appear dark */
+[data-theme="light"] .modal-dark {
+  --color-stone-950: #050810;
+  --color-stone-900: #070f1c;
+  --color-stone-800: #0a1828;
+  --color-stone-700: #0d1f35;
+  --color-stone-600: #2e6080;
+  --color-stone-500: #4a88a8;
+  --color-stone-400: #7ab0cc;
+  --color-stone-300: #b0cce0;
+  --color-stone-200: #c0e4f4;
+  --color-stone-100: #e8f4ff;
+  --color-amber-400: #4ab8d8;
+  --color-amber-500: #2a9ec4;
+}

@@ -64,12 +64,12 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
 
   const upcoming = months
     .filter((m) => {
-      const d = new Date()
-      // Only show months from NEXT calendar month onwards (current month is not skippable)
-      const nextMonth = d.getMonth() + 2 // getMonth() is 0-indexed, +1 for 1-indexed, +1 for next
-      const nextYear = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()
-      const normalizedNext = d.getMonth() === 11 ? 1 : d.getMonth() + 2
-      return m.year > nextYear || (m.year === nextYear && m.month >= normalizedNext)
+      // Use targetMonth from the API as the earliest skippable month.
+      // This respects the renewalDay window: before renewalDay → current month is skippable,
+      // after renewalDay → earliest is next month.
+      const tm = status?.targetMonth
+      if (!tm) return false
+      return m.year > tm.year || (m.year === tm.year && m.month >= tm.month)
     })
     .filter((m) => !status?.skippedMonths?.some((s) => s.year === m.year && s.month === m.month))
     .filter((m) => {

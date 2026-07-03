@@ -6,6 +6,7 @@ interface CategoryRule {
   slug: string;
   label: string;
   group: string;
+  sortOrder: number;
   includePatterns: RegExp[];
   excludePatterns: RegExp[];
 }
@@ -37,6 +38,7 @@ export class FeatureTaggerService {
       slug: row.slug,
       label: row.label,
       group: row.group,
+      sortOrder: row.sortOrder,
       includePatterns: ((row.includePatterns as string[]) ?? []).map(
         (p) => new RegExp(p, 'i'),
       ),
@@ -109,30 +111,60 @@ export class FeatureTaggerService {
 
     const rows: Array<{ editionId: string; rawValue: string; categories: string[]; sortOrder: number }> = [];
     const seen = new Set<string>();
-    let idx = 0;
     for (const feature of features) {
       const rv = feature.trim();
       if (!rv) continue;
       const key = rv.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      rows.push({ editionId, rawValue: rv, categories: matchCategories(rv), sortOrder: idx++ });
+      rows.push({ editionId, rawValue: rv, categories: matchCategories(rv), sortOrder: 0 });
     }
 
-    // Fetch manual tags so we don't create duplicates for already-manual rawValues
+    rows.forEach((r, i) => { r.sortOrder = i; })
+
+    // Fetch manual tags with their categories so we can decide what to skip vs. update
     const manualTags = await this.prisma.editionFeatureTag.findMany({
       where: { editionId, isManual: true },
-      select: { rawValue: true },
+      select: { id: true, rawValue: true, categories: true },
     });
-    const manualRawLower = new Set(manualTags.map((t) => t.rawValue.toLowerCase()));
-    const rowsToCreate = rows.filter((r) => !manualRawLower.has(r.rawValue.toLowerCase()));
+    // Only skip manual tags that already have categories — preserve manual overrides
+    const manualWithCatsLower = new Set(
+      manualTags
+        .filter((t) => (t.categories as string[]).length > 0)
+        .map((t) => t.rawValue.toLowerCase()),
+    );
+    // Manual tags with no categories: update them with auto-detected categories
+    const manualNoCats = manualTags.filter((t) => (t.categories as string[]).length === 0);
+    const manualNoCatsLower = new Set(manualNoCats.map((t) => t.rawValue.toLowerCase()));
+
+    // Rows to create: exclude manual-with-categories AND manual-without-categories (handled via update)
+    const rowsToCreate = rows.filter(
+      (r) => !manualWithCatsLower.has(r.rawValue.toLowerCase()) && !manualNoCatsLower.has(r.rawValue.toLowerCase()),
+    );
 
     await this.prisma.$transaction([
       this.prisma.editionFeatureTag.deleteMany({ where: { editionId, isManual: false } }),
       ...rowsToCreate.map((r) => this.prisma.editionFeatureTag.create({ data: r })),
     ]);
 
-    this.logger.debug(`Retagged edition ${editionId}: ${rowsToCreate.length} auto tags (${rows.length - rowsToCreate.length} skipped — manual)`);
+    // Update categories for manual tags that currently have no categories
+    if (manualNoCats.length > 0) {
+      await Promise.all(
+        manualNoCats.map((manualTag) => {
+          const match = rows.find((r) => r.rawValue.toLowerCase() === manualTag.rawValue.toLowerCase());
+          if (!match) return null;
+          return this.prisma.editionFeatureTag.update({
+            where: { id: manualTag.id },
+            data: { categories: match.categories },
+          });
+        }).filter(Boolean),
+      );
+    }
+
+    this.logger.debug(
+      `Retagged edition ${editionId}: ${rowsToCreate.length} auto tags` +
+      ` (${manualWithCatsLower.size} skipped — manual with cats, ${manualNoCats.length} manual-no-cats updated)`,
+    );
   }
 
   /** Force-invalidate the in-memory rule cache (call after category CRUD). */

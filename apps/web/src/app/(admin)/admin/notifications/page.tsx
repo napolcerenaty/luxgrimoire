@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Send, Trash2, Settings, Users, CheckCheck } from 'lucide-react'
@@ -31,6 +31,7 @@ export default function AdminNotificationsPage() {
   const [targetType, setTargetType] = useState<TargetType>('all')
   const [selectedRole, setSelectedRole] = useState<string>('USER')
   const [userSearch, setUserSearch] = useState('')
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<ApiUser[]>([])
   const [title, setTitle] = useState('')
   const [body, setBodyText] = useState('')
@@ -47,19 +48,20 @@ export default function AdminNotificationsPage() {
     queryFn: () => authFetch<{ ttlDays: number }>('/notifications/admin/settings'),
   })
 
-  const { data: usersData } = useQuery({
-    queryKey: ['admin', 'users-list'],
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedUserSearch(userSearch.trim()), 300)
+    return () => clearTimeout(timeout)
+  }, [userSearch])
+
+  const { data: usersData, isFetching: isFetchingUsers } = useQuery({
+    queryKey: ['admin', 'users-list', debouncedUserSearch],
     queryFn: () =>
-      authFetch<{ data: ApiUser[] }>('/users?page=1&pageSize=200'),
-    enabled: targetType === 'users',
+      authFetch<{ data: ApiUser[] }>(`/users?page=1&pageSize=20&search=${encodeURIComponent(debouncedUserSearch)}`),
+    enabled: targetType === 'users' && debouncedUserSearch.length >= 2,
   })
 
   const filteredUsers = (usersData?.data ?? []).filter(
-    (u) =>
-      !selectedUsers.find((s) => s.id === u.id) &&
-      (userSearch === '' ||
-        u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
-        u.email.toLowerCase().includes(userSearch.toLowerCase())),
+    (u) => !selectedUsers.find((s) => s.id === u.id),
   )
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -193,13 +195,22 @@ export default function AdminNotificationsPage() {
 
                 <input
                   className={INPUT_CLASS}
-                  placeholder="Search by username or email…"
+                  placeholder="Type to search users…"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
-                {userSearch && filteredUsers.length > 0 && (
+                {userSearch.trim() === '' && (
+                  <div className="mt-1 text-xs text-stone-500">Type to search users…</div>
+                )}
+                {userSearch.trim() !== '' && debouncedUserSearch.length < 2 && (
+                  <div className="mt-1 text-xs text-stone-500">Type at least 2 characters…</div>
+                )}
+                {debouncedUserSearch.length >= 2 && isFetchingUsers && (
+                  <div className="mt-1 text-xs text-stone-500">Searching users…</div>
+                )}
+                {debouncedUserSearch.length >= 2 && !isFetchingUsers && filteredUsers.length > 0 && (
                   <div className="mt-1 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                    {filteredUsers.slice(0, 10).map((u) => (
+                    {filteredUsers.map((u) => (
                       <button
                         key={u.id}
                         onClick={() => {
@@ -214,6 +225,9 @@ export default function AdminNotificationsPage() {
                       </button>
                     ))}
                   </div>
+                )}
+                {debouncedUserSearch.length >= 2 && !isFetchingUsers && filteredUsers.length === 0 && (
+                  <div className="mt-1 text-xs text-stone-500">No users found.</div>
                 )}
               </div>
             )}

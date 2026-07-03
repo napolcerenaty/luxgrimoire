@@ -23,6 +23,10 @@ interface ListSaleAnnouncement {
   currency: string | null
   isBundle: boolean
   availableForPurchase: boolean
+  isSoldOut: boolean
+  saleType: string | null
+  endsAt: string | null
+  notes: string | null
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
@@ -44,11 +48,22 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
 
+  const now = Date.now()
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+  const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
+  // For LP/OVERSTOCK: live if generalSaleDate is today + no endsAt, or endsAt still in future
+  const isLpOsLive = saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  // "Live" badge — sold out takes priority in the JSX (renders instead of Live)
+  const isLive = saleStarted && (
+    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpOsLive
+  )
+
   return (
-    <Link
-      href={`/sale-announcements/${a.id}`}
-      className="group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
-    >
+    <div className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
       {/* Image — same 2/3 portrait ratio as EditionCard */}
       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
         {imgUrl ? (
@@ -87,7 +102,11 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
             Bundle
           </span>
         )}
-        {a.availableForPurchase && (
+        {a.isSoldOut ? (
+          <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">
+            Sold Out
+          </span>
+        ) : isLive && (
           <span className="absolute top-2 right-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">
             Live
           </span>
@@ -108,12 +127,21 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
             <p className="text-[10px] text-emerald-400/80">🏷 Subscriber price available</p>
           )}
         </div>
-        <div className="mt-2">
+        {/* z-10 ensures the button sits above the link overlay */}
+        <div className="mt-2 relative z-10">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <SaleInterestButton sale={a as any} />
         </div>
       </div>
-    </Link>
+
+      {/* Invisible link overlay — placed last in DOM so it sits on top of all non-interactive content.
+          The button wrapper above has z-10, so it intercepts its own clicks. */}
+      <Link
+        href={`/sale-announcements/${a.id}`}
+        className="absolute inset-0 rounded-2xl"
+        aria-label={a.title}
+      />
+    </div>
   )
 }
 
@@ -124,6 +152,18 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const saleDate = formatDate(a.generalSaleDate)
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
+
+  const now = Date.now()
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+  const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
+  const isLpOsLive = saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  const isLive = saleStarted && (
+    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpOsLive
+  )
 
   return (
     <Link
@@ -162,7 +202,9 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
       </div>
       {/* Badges */}
       <div className="flex flex-col items-end gap-1 shrink-0">
-        {a.availableForPurchase && (
+        {a.isSoldOut ? (
+          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700 text-red-400">Sold Out</span>
+        ) : isLive && (
           <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">Live</span>
         )}
         {a.isBundle && (
@@ -178,12 +220,13 @@ export default function SaleAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [companyId, setCompanyId] = useState('')
+  const [saleType, setSaleType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const debouncedSearch = useDebounce(search, 300)
 
   const hasDateFilter = dateFrom || dateTo
-  const hasFilters = debouncedSearch || companyId || hasDateFilter
+  const hasFilters = debouncedSearch || companyId || saleType || hasDateFilter
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['companies-names'],
@@ -198,7 +241,7 @@ export default function SaleAnnouncementsPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ['sale-announcements', 'list', debouncedSearch, companyId, dateFrom, dateTo],
+    queryKey: ['sale-announcements', 'list', debouncedSearch, companyId, saleType, dateFrom, dateTo],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({
         pageSize: String(PAGE_SIZE),
@@ -208,6 +251,7 @@ export default function SaleAnnouncementsPage() {
       if (!hasDateFilter) params.set('upcoming', 'true')
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
       if (companyId) params.set('companyId', companyId)
+      if (saleType) params.set('saleType', saleType)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
       return apiFetch<PaginatedResponse<ListSaleAnnouncement>>(`/announcements?${params}`)
@@ -223,6 +267,7 @@ export default function SaleAnnouncementsPage() {
   function clearFilters() {
     setSearch('')
     setCompanyId('')
+    setSaleType('')
     setDateFrom('')
     setDateTo('')
   }
@@ -266,6 +311,18 @@ export default function SaleAnnouncementsPage() {
           {companies.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
+        </select>
+
+        {/* Sale type filter */}
+        <select
+          value={saleType}
+          onChange={(e) => setSaleType(e.target.value)}
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[150px]"
+        >
+          <option value="">All types</option>
+          <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
+          <option value="OPEN_PREORDER">🔓 Open Preorder</option>
+          <option value="OVERSTOCK">📦 Overstock</option>
         </select>
 
         {/* Date from */}
@@ -317,6 +374,7 @@ export default function SaleAnnouncementsPage() {
           <span className="text-xs text-stone-500">Active filters:</span>
           {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
           {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
+          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock' }[saleType] ?? saleType}</span>}
           {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
           {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
           <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">

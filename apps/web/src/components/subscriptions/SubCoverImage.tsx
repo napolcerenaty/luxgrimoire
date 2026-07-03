@@ -8,7 +8,7 @@ interface Props {
   hoverScale?: boolean
 }
 
-export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-[2/1]', hoverScale = true }: Props) {
+export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-square', hoverScale = true }: Props) {
   const tc = brandTextClasses(brandColors)
   return (
     <div className={`${aspectClass} relative overflow-hidden bg-stone-950 flex items-center justify-center`}>
@@ -21,7 +21,7 @@ export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspe
         </>
       ) : (
         <div className="w-full h-full flex items-center justify-center px-4" style={brandGradientStyle(brandColors)}>
-          <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{name}</span>
+          <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{name.toUpperCase()}</span>
         </div>
       )}
     </div>

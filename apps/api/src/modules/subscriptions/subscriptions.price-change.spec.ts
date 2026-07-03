@@ -86,8 +86,10 @@ describe('SubscriptionsService — price changes', () => {
       {} as any, // TypesenseService
       {} as any, // SkipPolicyEngine
       {} as any, // RenewalCronService
+      {} as any, // CountryFeeSnapshotCronService
       {} as any, // UploadService
       {} as any, // CrowdStatsService
+      { markStatsStale: jest.fn() } as any, // StatsService
       cache as any,
     );
     // Avoid cache+DB complexity for findBySlug — tested in dedicated findBySlug tests
@@ -184,7 +186,7 @@ describe('SubscriptionsService — price changes', () => {
 
       expect(prisma.subscriptionPriceChange.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
+          orderBy: [{ currency: 'asc' }, { effectiveYear: 'asc' }, { effectiveMonth: 'asc' }],
         }),
       );
     });

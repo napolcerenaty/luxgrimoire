@@ -69,13 +69,15 @@ interface BookSearchProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   monthYear: number
   monthMonth: number
   onDone: () => void
 }
 
-function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, monthYear, monthMonth, onDone }: BookSearchProps) {
+function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, monthYear, monthMonth, onDone }: BookSearchProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -124,6 +126,8 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
     defaultCompanyId,
     defaultPrice,
     renewalDay,
+    renewalDayUserSet,
+    renewalMonthOffset,
     defaultLanguage,
     monthYear,
     monthMonth,
@@ -228,11 +232,13 @@ interface MonthCardProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   onRefresh?: () => void
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, defaultLanguage, onRefresh }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
 
@@ -287,59 +293,60 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl">
       {/* Header row */}
-      <div className="flex items-center gap-4 p-4">
+      <div className="flex items-start gap-3 p-4">
         <Cover id={month.coverImage} size={64} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-stone-100 font-semibold">{monthLabel}</span>
-            {(() => {
-              // Build effective signature type for each book
-              const counts: Record<string, number> = {}
-              for (const mb of month.books) {
-                const t = mb.signatureType ?? month.signatureType
-                if (t) counts[t] = (counts[t] ?? 0) + 1
-              }
-              const entries = Object.entries(counts)
-              if (entries.length === 0 && month.signatureType) {
-                // No books yet but month has a default — show it
-                const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'autopen' ? '✒️ Autopen' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : month.signatureType === 'signed_bookplate' ? '🏷️ Signed Bookplate' : 'Unsigned'
-                return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
-              }
-              return entries.map(([type, count]) => {
-                const label = type === 'signed' ? '✍️ Signed' : type === 'autopen' ? '✒️ Autopen' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
-                return (
-                  <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-                    {label}{month.books.length > 1 ? ` ×${count}` : ''}
-                  </span>
-                )
-              })
-            })()}
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="text-stone-100 font-semibold">{monthLabel}</span>
+              {(() => {
+                // Build effective signature type for each book
+                const counts: Record<string, number> = {}
+                for (const mb of month.books) {
+                  const t = mb.signatureType ?? month.signatureType
+                  if (t) counts[t] = (counts[t] ?? 0) + 1
+                }
+                const entries = Object.entries(counts)
+                if (entries.length === 0 && month.signatureType) {
+                  const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'autopen' ? '✒️ Autopen' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : month.signatureType === 'signed_bookplate' ? '🏷️ Signed Bookplate' : 'Unsigned'
+                  return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
+                }
+                return entries.map(([type, count]) => {
+                  const label = type === 'signed' ? '✍️ Signed' : type === 'autopen' ? '✒️ Autopen' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
+                  return (
+                    <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                      {label}{month.books.length > 1 ? ` ×${count}` : ''}
+                    </span>
+                  )
+                })
+              })()}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => {
+                setEditing(!editing)
+                setEditTheme(month.theme ?? '')
+                setEditCover(month.coverImage ?? '')
+                setEditCardArtistId(month.cardArtist?.id ?? null)
+                setEditCardArtistName(month.cardArtist?.name ?? '')
+              }} className={`${BTN_SM} ${editing ? 'bg-stone-600 text-stone-200' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                {editing ? 'Cancel' : 'Edit'}
+              </button>
+              <button onClick={() => setBooksOpen(!booksOpen)}
+                className={`${BTN_SM} ${booksOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                Books {booksOpen ? '▲' : '▼'}
+              </button>
+              <button
+                onClick={() => { if (confirm(`Delete ${monthLabel}? The month and book links will be removed — books and editions are kept.`)) deleteMutation.mutate() }}
+                disabled={deleteMutation.isPending}
+                className={`${BTN_SM} bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50`}
+              >{deleteMutation.isPending ? '…' : 'Delete'}</button>
+            </div>
           </div>
           {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
           {month.cardArtist && (
             <p className="text-stone-500 text-xs mt-0.5">🎨 {month.cardArtist.name}</p>
           )}
           <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <button onClick={() => {
-            setEditing(!editing)
-            setEditTheme(month.theme ?? '')
-            setEditCover(month.coverImage ?? '')
-            setEditCardArtistId(month.cardArtist?.id ?? null)
-            setEditCardArtistName(month.cardArtist?.name ?? '')
-          }}className={`${BTN_SM} ${editing ? 'bg-stone-600 text-stone-200' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-            {editing ? 'Cancel' : 'Edit'}
-          </button>
-          <button onClick={() => setBooksOpen(!booksOpen)}
-            className={`${BTN_SM} ${booksOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-            Books {booksOpen ? '▲' : '▼'}
-          </button>
-          <button
-            onClick={() => { if (confirm(`Delete ${monthLabel}? The month and book links will be removed — books and editions are kept.`)) deleteMutation.mutate() }}
-            disabled={deleteMutation.isPending}
-            className={`${BTN_SM} bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50`}
-          >{deleteMutation.isPending ? '…' : 'Delete'}</button>
         </div>
       </div>
 
@@ -445,6 +452,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Add book</div>
             <BookSearch slug={slug} subscriptionId={subscriptionId} defaultCurrency={defaultCurrency}
               defaultCompanyId={defaultCompanyId} defaultPrice={defaultPrice} renewalDay={renewalDay}
+              renewalDayUserSet={renewalDayUserSet} renewalMonthOffset={renewalMonthOffset}
               defaultLanguage={defaultLanguage}
               monthYear={month.year} monthMonth={month.month}
               onDone={() => { setBooksOpen(true); refresh() }} />
@@ -846,23 +854,33 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         <p className="text-stone-600 text-sm italic">No price changes recorded yet.</p>
       ) : (
         <div className="space-y-2">
-          {changes.map(pc => (
-            <div key={pc.id} className="flex items-center justify-between bg-stone-800 rounded-lg px-3 py-2 text-sm">
-              <div className="space-y-0.5">
-                <span className="text-stone-100 font-medium">
-                  {MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear} — {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
-                </span>
-                {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+          {changes.map(pc => {
+            const isSentinel = pc.effectiveYear === 1900
+            return (
+              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-amber-900/40' : 'bg-stone-800'}`}>
+                <div className="space-y-0.5">
+                  <span className="text-stone-100 font-medium">
+                    {isSentinel
+                      ? <span className="text-amber-400/80">⚓ Base price (sentinel)</span>
+                      : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
+                    }
+                    {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
+                  </span>
+                  {isSentinel && <p className="text-stone-500 text-xs">Initial base price. Cannot be deleted.</p>}
+                  {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+                </div>
+                {!isSentinel && (
+                  <button
+                    onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
+                    disabled={deleteMutation.isPending}
+                    className="text-red-500 hover:text-red-400 text-xs transition-colors ml-3 shrink-0"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
-              <button
-                onClick={() => { if (confirm('Delete this price change?')) deleteMutation.mutate(pc.id) }}
-                disabled={deleteMutation.isPending}
-                className="text-red-500 hover:text-red-400 text-xs transition-colors ml-3 shrink-0"
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -1049,7 +1067,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; renewalDayUserSet?: boolean | null; renewalMonthOffset?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
 
@@ -1243,6 +1261,8 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultCompanyId={subscription?.companyId}
                 defaultPrice={resolveEffectivePrice(priceChanges, m.year, m.month, subscription?.originalBasePrice != null ? parseFloat(subscription.originalBasePrice) : subscription?.price != null ? parseFloat(subscription.price) : null)}
                 renewalDay={subscription?.renewalDay}
+                renewalDayUserSet={subscription?.renewalDayUserSet}
+                renewalMonthOffset={subscription?.renewalMonthOffset}
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}
               />

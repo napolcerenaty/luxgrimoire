@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -7,6 +8,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrencyService } from "../currency/currency.service";
 import { CrowdStatsService } from "../crowd-stats/crowd-stats.service";
+import { StatsService } from '../stats/stats.service';
 import { CreateSaleGroupDto, UpdateSaleGroupDto } from "./sales.dto";
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
@@ -45,10 +47,13 @@ type SaleGroupWithEntries = {
 
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
     private readonly crowdStatsService: CrowdStatsService,
+    private readonly statsService: StatsService,
   ) {}
 
   private get entryInclude() {
@@ -79,11 +84,17 @@ export class SalesService {
     };
   }
 
-  async getSaleGroups(userId: string, page = 1, pageSize = 20) {
+  async getSaleGroups(userId: string, page = 1, pageSize = 20, search?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
-    const where = { userId };
+    const where: any = { userId };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { entries: { some: { userBookEntry: { edition: { book: { title: { contains: search, mode: 'insensitive' } } } } } } },
+      ];
+    }
     const [groups, total] = await Promise.all([
       this.prisma.userSaleGroup.findMany({
         where,
@@ -187,35 +198,33 @@ export class SalesService {
       });
     });
 
-    // Record crowd stats for each entry with an edition (non-fatal)
+    // Record crowd stats for each edition (non-fatal)
     if (result) {
       const saleGroup = result as unknown as SaleGroupWithEntries;
-      for (const entry of saleGroup.entries) {
-        const editionId = (entry.userBookEntry as any)?.edition?.id as string | undefined;
-        if (editionId) {
-          try {
-            const price = typeof entry.allocatedAmount === 'object'
-              ? (entry.allocatedAmount as any).toNumber()
-              : entry.allocatedAmount;
-            await this.crowdStatsService.syncSaleStats(
-              editionId,
-              null,
-              { price, currency: dto.currency, date: new Date(dto.soldAt) },
-            );
-          } catch {
-            // stats errors must never block the main operation
-          }
-        }
+      const editionIds = [...new Set(
+        saleGroup.entries
+          .map((e) => (e.userBookEntry as any)?.edition?.id as string | undefined)
+          .filter(Boolean) as string[]
+      )];
+      for (const editionId of editionIds) {
+        this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
       }
     }
 
+    this.statsService.markStatsStale(userId);
     return result;
   }
 
   async updateSaleGroup(userId: string, groupId: string, dto: UpdateSaleGroupDto) {
     const existing = await this.prisma.userSaleGroup.findUnique({
       where: { id: groupId },
-      include: { entries: true },
+      include: {
+        entries: {
+          include: {
+            userBookEntry: { include: { edition: { select: { id: true } } } },
+          },
+        },
+      },
     });
     if (!existing) throw new NotFoundException("Sale group not found");
     assertOwnership(existing.userId, userId);
@@ -235,7 +244,7 @@ export class SalesService {
       (dto.totalAmount !== undefined && dto.totalAmount !== toNum(existing.totalAmount as any)) ||
       hasCustomAmounts;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.userSaleGroup.update({
         where: { id: groupId },
         data: {
@@ -275,13 +284,15 @@ export class SalesService {
               ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
               ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
               ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+              ...(dto.notes !== undefined && { saleNotes: dto.notes }),
             },
           });
         }
       } else if (
         dto.currency !== undefined ||
         dto.soldAt !== undefined ||
-        dto.platform !== undefined
+        dto.platform !== undefined ||
+        dto.notes !== undefined
       ) {
         for (const entry of existing.entries) {
           await tx.userBookEntry.update({
@@ -290,13 +301,34 @@ export class SalesService {
               ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
               ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
               ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+              ...(dto.notes !== undefined && { saleNotes: dto.notes }),
             },
           });
         }
       }
 
-      return updated;
+      // Re-fetch to get fresh entry allocations after redistribution updates
+      return tx.userSaleGroup.findUniqueOrThrow({
+        where: { id: groupId },
+        include: { entries: { include: this.entryInclude } },
+      });
     });
+
+    this.statsService.markStatsStale(userId);
+
+    // Rebuild community sale stats for each affected edition (non-fatal)
+    const editionIds = [...new Set(
+      existing.entries
+        .map((e) => e.userBookEntry?.edition?.id)
+        .filter(Boolean) as string[]
+    )];
+    for (const editionId of editionIds) {
+      this.crowdStatsService.rebuildEditionSaleStats(editionId).catch((err) => {
+        this.logger.error(`rebuildEditionSaleStats failed for edition ${editionId}: ${err?.message}`);
+      });
+    }
+
+    return result;
   }
 
   async deleteSaleGroup(userId: string, groupId: string) {
@@ -326,25 +358,17 @@ export class SalesService {
 
     await this.prisma.userSaleGroup.delete({ where: { id: groupId } });
 
-    // Remove crowd stats for each entry with an edition (non-fatal)
-    for (const entry of saleEntries) {
-      const editionId = (entry as any).userBookEntry?.edition?.id as string | undefined;
-      if (editionId) {
-        try {
-          await this.crowdStatsService.deleteSaleStat(
-            editionId,
-            typeof entry.allocatedAmount === 'object'
-              ? (entry.allocatedAmount as any).toNumber()
-              : Number(entry.allocatedAmount),
-            existing.currency,
-            existing.soldAt,
-          );
-          await this.crowdStatsService.refreshEditionSaleStats(editionId);
-        } catch {
-          // stats errors must never block the main operation
-        }
-      }
+    // Rebuild crowd stats for each affected edition (non-fatal)
+    const editionIds = [...new Set(
+      saleEntries
+        .map((e) => (e as any).userBookEntry?.edition?.id as string | undefined)
+        .filter(Boolean) as string[]
+    )];
+    for (const editionId of editionIds) {
+      this.crowdStatsService.rebuildEditionSaleStats(editionId).catch(() => {});
     }
+
+    this.statsService.markStatsStale(userId);
   }
 
   private async withProfit(g: SaleGroupWithEntries) {

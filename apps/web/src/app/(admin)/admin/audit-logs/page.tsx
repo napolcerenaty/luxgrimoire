@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiAuditLog, PaginatedResponse } from '@luxgrimoire/shared-types'
+import { Pagination } from '@/components/admin/Pagination'
 
 const PAGE_SIZE = 15
 
@@ -148,18 +149,7 @@ export default function AdminAuditLogsPage() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
-          <span>{logsData?.total ?? 0} total</span>
-          <div className="flex gap-2 items-center">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-3 py-1.5 rounded-lg bg-stone-900 border border-stone-800 disabled:opacity-40 hover:border-amber-600 transition-colors">← Prev</button>
-            <span className="text-stone-500">{page} / {totalPages}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="px-3 py-1.5 rounded-lg bg-stone-900 border border-stone-800 disabled:opacity-40 hover:border-amber-600 transition-colors">Next →</button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={logsData?.total} />
     </div>
   )
 }

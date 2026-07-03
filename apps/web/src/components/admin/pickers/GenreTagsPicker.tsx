@@ -122,7 +122,7 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptio
           {genres.map((g, i) => (
             <span key={i} className="flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs px-2.5 py-1 rounded-full">
               {g}
-              <button onClick={() => onChange(genres.filter((_, j) => j !== i))}
+              <button type="button" onClick={() => onChange(genres.filter((_, j) => j !== i))}
                 className="text-amber-500/60 hover:text-red-400 ml-0.5">×</button>
             </span>
           ))}

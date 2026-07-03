@@ -25,11 +25,14 @@ import {
   CancelMyEntryDto,
   UpdateMyEntryCostsDto,
   RemoveMyEntryDto,
+  RemoveOrphanedHistoryDto,
   CreatePriceChangeDto,
+  UpdatePriceChangeDto,
   UpdateBillingModeDto,
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
   MigrateMonthsDto,
+  UpdateSettingsHistoryEffectiveFromDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -207,8 +210,16 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Delete('my/orphaned-history/:historyId')
-  removeOrphanedHistory(@CurrentUser() user: CurrentUserType, @Param('historyId') historyId: string) {
-    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId);
+  removeOrphanedHistory(
+    @CurrentUser() user: CurrentUserType,
+    @Param('historyId') historyId: string,
+    @Body() dto: RemoveOrphanedHistoryDto,
+  ) {
+    return this.subscriptionsService.removeOrphanedHistoryRecord(user.id, historyId, {
+      removeBooks: dto.removeBooks,
+      removeSpending: dto.removeSpending,
+      removeSoldBooks: dto.removeSoldBooks,
+    });
   }
 
   @ApiBearerAuth()
@@ -228,6 +239,12 @@ export class SubscriptionsController {
   async refreshCountryFeeSnapshots() {
     await this.countryFeeSnapshotCron.recalculateAll();
     return { ok: true };
+  }
+
+  @ApiBearerAuth()
+  @Get(':slug/my-history')
+  getMyHistory(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    return this.subscriptionsService.getMySubscriptionHistory(user.id, slug);
   }
 
   @ApiBearerAuth()
@@ -274,7 +291,9 @@ export class SubscriptionsController {
     const result = await this.subscriptionsService.removeMySubscription(user.id, slug, {
       removeBooks: dto.removeBooks ?? false,
       removeSpending: dto.removeSpending ?? false,
+      removeSoldBooks: dto.removeSoldBooks ?? true,
       historyId: dto.historyId,
+      historyIds: dto.historyIds,
       removeAllPeriods: dto.removeAllPeriods ?? false,
       removeCurrentOnly: dto.removeCurrentOnly ?? false,
     });
@@ -408,6 +427,28 @@ export class SubscriptionsController {
     return this.subscriptionsService.listSettingsHistory(slug);
   }
 
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/settings-history/:id')
+  async updateSettingsHistoryEffectiveFrom(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateSettingsHistoryEffectiveFromDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SETTINGS_HISTORY_EFFECTIVE_FROM', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/price-changes/admin')
+  listPriceChangesAdmin(@Param('slug') slug: string) {
+    return this.subscriptionsService.listPriceChangesAdmin(slug);
+  }
+
+  @Public()
   @Get(':slug/price-changes')
   listPriceChanges(@Param('slug') slug: string) {
     return this.subscriptionsService.listPriceChanges(slug);
@@ -423,6 +464,20 @@ export class SubscriptionsController {
   ) {
     const result = await this.subscriptionsService.createPriceChange(slug, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'CREATE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/price-changes/:id')
+  async updatePriceChange(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() dto: UpdatePriceChangeDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.updatePriceChange(slug, id, dto);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_PRICE_CHANGE', entityType: 'subscription', entityId: slug });
     return result;
   }
 

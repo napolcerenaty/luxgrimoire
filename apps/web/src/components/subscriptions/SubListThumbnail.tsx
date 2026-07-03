@@ -24,7 +24,7 @@ export function SubListThumbnail({ imageSource, brandColors, name }: Props) {
         {logoThumb ? (
           <Image src={logoThumb} alt={name} fill className="object-contain drop-shadow-md" unoptimized />
         ) : (
-          <span className={`text-[10px] font-semibold text-center leading-tight px-1 drop-shadow ${tc.primary}`}>{name}</span>
+          <span className={`text-[10px] font-semibold text-center leading-tight px-1 drop-shadow ${tc.primary}`}>{name.toUpperCase()}</span>
         )}
       </div>
     </div>

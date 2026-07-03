@@ -200,6 +200,25 @@ export class EditionQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   needsVerification?: boolean;
+
+  @IsOptional()
+  @IsString()
+  collectionId?: string; // filter by specific collection
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  exclusiveOnly?: boolean; // collectionId IS NULL AND subscriptionId IS NULL
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  noSubscription?: boolean; // subscriptionId IS NULL
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  hasOfficialPhoto?: boolean; // additionalImages not empty
 }
 
 export class CreateComponentDto {
@@ -221,6 +240,11 @@ export class CreateComponentDto {
   @Min(0)
   @Type(() => Number)
   order?: number;
+}
+
+export class UpdateArtistRoleDto {
+  @IsString()
+  newRole!: string;
 }
 
 export class UpdateComponentDto {

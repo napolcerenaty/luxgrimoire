@@ -46,7 +46,7 @@ function VerifyEmailContent() {
         if (me) auth.login(me)
         setStatus('success')
 
-        setTimeout(() => router.push('/calendar'), 2000)
+        setTimeout(() => router.push('/'), 2000)
       } catch {
         setStatus('error')
         setErrorMessage('Network error. Please try again.')

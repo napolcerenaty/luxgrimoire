@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { useTheme } from '@/components/ThemeProvider'
 import {
-  Search, ChevronDown, User, BookOpen, DollarSign,
+  Search, ChevronDown, User, BookOpen, BarChart2,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
-  Heart, BookMarked, ShoppingBag, Library,
+  Heart, BookMarked, ShoppingBag, Library, Bell,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -27,13 +27,12 @@ const USER_NAV_LINKS = [
   { href: '/sold',             label: 'Sold Books',    icon: ShoppingBag },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
-  { href: '/spending',         label: 'Spending',      icon: DollarSign },
+  { href: '/statistics',       label: 'Statistics',    icon: BarChart2 },
   { href: '/profile',          label: 'Profile',       icon: User },
 ]
 
 export function Navbar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
@@ -53,10 +52,9 @@ export function Navbar() {
   }, [])
 
   const handleLogout = async () => {
-    await logout() // calls API, clears cookie, clears user state
+    await logout() // calls API, clears cookie, clears user state, redirects to /
     queryClient.clear()
     setDropdownOpen(false)
-    router.push('/')
   }
 
   const isActive = (href: string) =>
@@ -169,7 +167,7 @@ export function Navbar() {
                     <div className="h-px bg-stone-700 my-1" />
                     {/* Finance & Account */}
                     {[
-                      { href: '/spending', icon: DollarSign, label: 'Spending' },
+                      { href: '/statistics', icon: BarChart2, label: 'Statistics' },
                       { href: '/profile',  icon: Settings,   label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
@@ -208,7 +206,7 @@ export function Navbar() {
             </div>
           ) : (
             <Link
-              href="/login"
+              href={`/login${pathname && !pathname.startsWith('/login') && !pathname.startsWith('/register') ? `?returnTo=${encodeURIComponent(pathname)}` : ''}`}
               className="px-4 py-1.5 rounded-full border border-amber-700 text-amber-400 hover:bg-amber-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
             >
               Sign in
@@ -243,7 +241,7 @@ export function Navbar() {
                 href="/calendar"
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
-                  ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/spending', '/sold'].some(p => pathname.startsWith(p))
+                  ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/statistics', '/sold'].some(p => pathname.startsWith(p))
                     ? 'border-amber-400 text-amber-400'
                     : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
                 `}

@@ -50,7 +50,7 @@ function LoginForm() {
         .catch(() => null)
 
       auth.login(me ?? data)
-      router.push(returnTo && returnTo.startsWith('/') ? returnTo : '/calendar')
+      router.push(returnTo && returnTo.startsWith('/') ? returnTo : '/')
     } catch {
       setError('Network error. Please try again.')
     } finally {

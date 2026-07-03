@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { Pagination } from '@/components/admin/Pagination'
 const CreateBookEditionForm = dynamic(() => import('@/components/admin/CreateBookEditionForm'), { ssr: false })
 const EditBookEditionForm = dynamic(() => import('@/components/admin/EditBookEditionForm'), { ssr: false })
 
@@ -109,10 +110,12 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
     queryFn: () => authFetch<ApiBookEdition>(`/editions/${slug}/for-edit`),
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
   })
   if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
-  return <EditBookEditionForm edition={data} onSuccess={() => {
+  return <EditBookEditionForm key={data.id} edition={data} onSuccess={() => {
     queryClient.invalidateQueries({ queryKey: ['edition-detail', slug] })
+    queryClient.invalidateQueries({ queryKey: ['edition-detail-edit', slug] })
     onSuccess()
   }} onCancel={onCancel} />
 }
@@ -127,13 +130,16 @@ export default function AdminEditionsPage() {
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [retagging, setRetagging] = useState(false)
   const [retagResult, setRetagResult] = useState<{ total: number; done: number; failed: number } | null>(null)
 
   // Filters
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
+  const [collectionFilter, setCollectionFilter] = useState('') // '' = all, 'none' = exclusive, or collection id
   const [unverifiedOnly, setUnverifiedOnly] = useState(false)
+  const [exclusiveOnly, setExclusiveOnly] = useState(false)
+  const [hasOfficialPhoto, setHasOfficialPhoto] = useState(false)
+  const [subscriptionFilter, setSubscriptionFilter] = useState('') // '' = all, 'none' = no sub, or sub id
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -144,12 +150,18 @@ export default function AdminEditionsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [companyFilter, unverifiedOnly])
+  }, [companyFilter, collectionFilter, unverifiedOnly, exclusiveOnly, hasOfficialPhoto, subscriptionFilter])
 
   const buildParams = () => {
     const p = new URLSearchParams({ page: String(page), pageSize: '10' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (unverifiedOnly) p.set('needsVerification', 'true')
+    if (exclusiveOnly) p.set('exclusiveOnly', 'true')
+    if (hasOfficialPhoto) p.set('hasOfficialPhoto', 'true')
+    if (collectionFilter === 'none') p.set('exclusiveOnly', 'true')
+    else if (collectionFilter) p.set('collectionId', collectionFilter)
+    if (subscriptionFilter === 'none') p.set('noSubscription', 'true')
+    else if (subscriptionFilter) p.set('subscriptionId', subscriptionFilter)
     if (isManager && managedCompanyId) {
       p.set('companyId', managedCompanyId)
     } else if (companyFilter) {
@@ -159,7 +171,7 @@ export default function AdminEditionsPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, managedCompanyId, unverifiedOnly],
+    queryKey: ['admin', 'editions', page, debouncedSearch, companyFilter, collectionFilter, managedCompanyId, unverifiedOnly, exclusiveOnly, hasOfficialPhoto, subscriptionFilter],
     queryFn: () =>
       authFetch<PaginatedResponse<ApiBookEdition>>(
         `/editions?${buildParams()}`,
@@ -178,6 +190,22 @@ export default function AdminEditionsPage() {
   const companies = companiesData
     ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
+
+  // Subscriptions for filter dropdown
+  const { data: subscriptionsData } = useQuery({
+    queryKey: ['admin', 'subscriptions-list'],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/subscriptions?pageSize=200'),
+    enabled: !isManager,
+  })
+  const subscriptions = subscriptionsData?.data ?? []
+
+  // Collections for filter dropdown
+  const { data: collectionsData } = useQuery({
+    queryKey: ['admin', 'collections-list'],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/book-box-collections?pageSize=200'),
+    enabled: !isManager,
+  })
+  const collections = collectionsData?.data ?? []
 
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => authFetch(`/editions/${slug}`, { method: 'DELETE' }),
@@ -200,14 +228,11 @@ export default function AdminEditionsPage() {
 
   const handleRetagAll = async () => {
     if (!confirm('Re-run auto-detection for all editions? This may take a while.')) return
-    setRetagging(true)
     try {
       const res = await authFetch<{ total: number; done: number; failed: number }>('/editions/retag-all', { method: 'POST' })
       setRetagResult(res)
     } catch (e) {
       alert(`Retag failed: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setRetagging(false)
     }
   }
 
@@ -254,6 +279,36 @@ export default function AdminEditionsPage() {
         ? <span className="text-amber-400 text-sm">{row.bookBoxCompany.name}</span>
         : <span className="text-stone-500">—</span>,
     },
+    {
+      key: 'collection',
+      label: 'Collection',
+      render: (row: ApiBookEdition) => {
+        const col = (row as any).collection
+        const subName = (row as any).subscriptionName
+        if (!col && !subName) return <span className="text-xs text-violet-400 font-medium">Exclusive</span>
+        if (!col) return <span className="text-stone-600 text-sm">—</span>
+        return <span className="text-stone-400 text-sm">{col.name}</span>
+      },
+    },
+    {
+      key: 'subscription',
+      label: 'Subscription',
+      render: (row: ApiBookEdition) => {
+        const name = (row as any).subscriptionName
+        if (!name) return <span className="text-stone-600 text-sm">—</span>
+        return <span className="text-sky-400 text-sm">{name}</span>
+      },
+    },
+    {
+      key: 'photo',
+      label: '📷',
+      render: (row: ApiBookEdition) => {
+        const hasPhoto = Array.isArray(row.additionalImages) && row.additionalImages.length > 0
+        return hasPhoto
+          ? <span className="text-green-400 text-sm" title="Has official photo">✓</span>
+          : <span className="text-stone-600 text-sm" title="No official photo">—</span>
+      },
+    },
   ]
 
   return (
@@ -261,23 +316,6 @@ export default function AdminEditionsPage() {
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-stone-100">Editions</h1>
         <div className="flex items-center gap-3 flex-wrap">
-          {user?.role === 'ADMIN' && (
-            <>
-              <button
-                type="button"
-                onClick={handleRetagAll}
-                disabled={retagging}
-                className="text-xs px-3 py-1.5 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition-colors disabled:opacity-50"
-              >
-                {retagging ? 'Retagging…' : '↺ Retag All Editions'}
-              </button>
-              {retagResult && (
-                <span className="text-xs text-stone-400">
-                  Done: {retagResult.done}/{retagResult.total} ({retagResult.failed} failed)
-                </span>
-              )}
-            </>
-          )}
           <button
             onClick={() => createModal.open()}
             className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
@@ -308,23 +346,54 @@ export default function AdminEditionsPage() {
             ))}
           </select>
         )}
-        {(search || companyFilter || unverifiedOnly) && (
+        {!isManager && (
+          <select
+            value={collectionFilter}
+            onChange={(e) => setCollectionFilter(e.target.value)}
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+          >
+            <option value="">All collections</option>
+            <option value="none">Exclusive (no collection)</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {!isManager && (
+          <select
+            value={subscriptionFilter}
+            onChange={(e) => setSubscriptionFilter(e.target.value)}
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+          >
+            <option value="">All subscriptions</option>
+            <option value="none">Not a subscription</option>
+            {subscriptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
+        {(search || companyFilter || collectionFilter || subscriptionFilter || unverifiedOnly || exclusiveOnly || hasOfficialPhoto) && (
           <button
-            onClick={() => { setSearch(''); setCompanyFilter(''); setUnverifiedOnly(false) }}
+            onClick={() => { setSearch(''); setCompanyFilter(''); setCollectionFilter(''); setSubscriptionFilter(''); setUnverifiedOnly(false); setExclusiveOnly(false); setHasOfficialPhoto(false) }}
             className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
           >
             Clear
           </button>
         )}
-        <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer ml-auto">
-          <input
-            type="checkbox"
-            checked={unverifiedOnly}
-            onChange={(e) => setUnverifiedOnly(e.target.checked)}
-            className="accent-amber-400"
-          />
-          Unverified only
-        </label>
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={exclusiveOnly} onChange={(e) => setExclusiveOnly(e.target.checked)} className="accent-violet-400" />
+            Exclusive only
+          </label>
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={hasOfficialPhoto} onChange={(e) => setHasOfficialPhoto(e.target.checked)} className="accent-green-400" />
+            Missing official photo
+          </label>
+          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+            <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-amber-400" />
+            Unverified only
+          </label>
+        </div>
       </div>
 
       {isLoading ? (
@@ -339,15 +408,7 @@ export default function AdminEditionsPage() {
             onEdit={(row) => setEditEditionSlug(row.slug)}
             onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
           />
-          {(data?.totalPages ?? 1) > 1 && (
-            <div className="flex items-center gap-2 mt-4">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">← Prev</button>
-              <span className="text-stone-500 text-sm">Page {page} / {data?.totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(data?.totalPages ?? 1, p + 1))} disabled={page === (data?.totalPages ?? 1)}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm">Next →</button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} />
         </>
       )}
 

@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
-import Image from 'next/image'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
@@ -21,23 +19,24 @@ function loadPrefs(): { viewMode: 'list' | 'grid'; tab: 'active' | 'cancelled' }
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}')
     return { viewMode: p.viewMode ?? 'list', tab: 'active' }
-  } catch { return { viewMode: 'list', tab: 'active' } }
-}
-function savePrefs(prefs: { viewMode: 'list' | 'grid' }) {
-  if (typeof window === 'undefined') return
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* noop */ }
+  } catch {
+    return { viewMode: 'list', tab: 'active' }
+  }
 }
 
-interface MembershipHistoryRecord {
-  id: string
-  startDate: string | null
-  endDate: string | null
-  cancellationReason: string | null
+function savePrefs(prefs: { viewMode: 'list' | 'grid' }) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
+  } catch {
+    /* noop */
+  }
 }
 
 interface MySubscriptionEntry {
   id: string
   active: boolean
+  isForwarding: boolean
   startDate: string | null
   cancellationDate: string | null
   cancellationReason: string | null
@@ -48,7 +47,6 @@ interface MySubscriptionEntry {
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
-  membershipHistory: MembershipHistoryRecord[]
   subscription: {
     slug: string
     name: string
@@ -59,16 +57,6 @@ interface MySubscriptionEntry {
     isDiscontinued: boolean
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
-}
-
-type OrphanedHistorySub = {
-  slug: string
-  name: string
-  coverImage: string | null
-  logoUrl: string | null
-  currency: string
-  isDiscontinued: boolean
-  company: { name: string; slug: string; brandColors?: string[] | null }
 }
 
 function formatMoney(amount: string | number | null, currency: string | null) {
@@ -85,32 +73,29 @@ function formatDate(iso: string | null) {
 
 export default function MySubscriptionsPage() {
   const [{ viewMode, tab }, setPrefs] = useState(() => loadPrefs())
+  const [showForwardingOnly, setShowForwardingOnly] = useState(false)
 
   const setView = (v: 'list' | 'grid') => {
-    setPrefs(p => { const n = { ...p, viewMode: v }; savePrefs(n); return n })
+    setPrefs(p => {
+      const next = { ...p, viewMode: v }
+      savePrefs(next)
+      return next
+    })
   }
+
   const setTab = (t: 'active' | 'cancelled') => {
     setPrefs(p => ({ ...p, tab: t }))
   }
 
-  // Active entries — always fetch
   const { data: activeEntries = [], isLoading: loadingActive } = useQuery<MySubscriptionEntry[]>({
     queryKey: ['my-subscriptions', 'active'],
     queryFn: () => authFetch('/subscriptions/my/subscriptions?active=true'),
   })
 
-  // Cancelled entries — lazy: only fetch when tab first opened
   const [cancelledEnabled, setCancelledEnabled] = useState(false)
   const { data: cancelledEntries = [], isLoading: loadingCancelled } = useQuery<MySubscriptionEntry[]>({
     queryKey: ['my-subscriptions', 'cancelled'],
     queryFn: () => authFetch('/subscriptions/my/subscriptions?active=false'),
-    enabled: cancelledEnabled,
-  })
-
-  // Orphaned history records (removeCurrentOnly was used)
-  const { data: orphanedHistory = [] } = useQuery<Array<{ subscription: OrphanedHistorySub; records: MembershipHistoryRecord[] }>>({
-    queryKey: ['my-subscriptions', 'orphaned-history'],
-    queryFn: () => authFetch('/subscriptions/my/orphaned-history'),
     enabled: cancelledEnabled,
   })
 
@@ -119,21 +104,10 @@ export default function MySubscriptionsPage() {
     setTab('cancelled')
   }
 
-  // History records from active entries (re-joined subs) — grouped by subscription
-  const historyByEntry: Array<{ entry: MySubscriptionEntry; records: MembershipHistoryRecord[] }> = []
-  for (const e of activeEntries) {
-    const history = e.membershipHistory ?? []
-    if (history.length === 0) continue
-    const sorted = [...history].sort((a, b) => (b.endDate ?? '').localeCompare(a.endDate ?? ''))
-    historyByEntry.push({ entry: e, records: sorted })
-  }
-  historyByEntry.sort((a, b) => {
-    const da = a.records[0]?.endDate ?? ''
-    const db = b.records[0]?.endDate ?? ''
-    return db.localeCompare(da)
-  })
-
-  const cancelledCount = cancelledEntries.length + historyByEntry.length + orphanedHistory.length
+  const cancelledCount = cancelledEntries.length
+  const filteredActiveEntries = showForwardingOnly
+    ? activeEntries.filter(entry => entry.isForwarding)
+    : activeEntries
 
   if (loadingActive) {
     return (
@@ -145,20 +119,43 @@ export default function MySubscriptionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
-        <div className="flex rounded-lg border border-stone-700 overflow-hidden shrink-0">
-          <button type="button" onClick={() => setView('list')}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-            aria-label="List view"><List size={15} /></button>
-          <button type="button" onClick={() => setView('grid')}
-            className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
-            aria-label="Grid view"><LayoutGrid size={15} /></button>
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === 'active' && (
+            <button
+              type="button"
+              onClick={() => setShowForwardingOnly(prev => !prev)}
+              className={`text-xs rounded-lg border px-3 py-1.5 transition-colors ${
+                showForwardingOnly
+                  ? 'border-blue-700/60 bg-blue-500/10 text-blue-300'
+                  : 'border-stone-700 bg-stone-900 text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              📦 Forwarding
+            </button>
+          )}
+          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="List view"
+            >
+              <List size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('grid')}
+              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              aria-label="Grid view"
+            >
+              <LayoutGrid size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-stone-800">
         <button
           type="button"
@@ -194,56 +191,200 @@ export default function MySubscriptionsPage() {
         </button>
       </div>
 
-      {/* Active tab */}
       {tab === 'active' && (
-        activeEntries.length === 0 ? (
+        filteredActiveEntries.length === 0 ? (
           <div className="text-center py-16 text-stone-500">
-            <p className="mb-3">You haven't joined any subscriptions yet.</p>
-            <Link href="/subscriptions" className="text-amber-400 underline text-sm">
-              Browse subscriptions →
-            </Link>
+            {showForwardingOnly ? (
+              <p>No forwarding subscriptions found.</p>
+            ) : (
+              <>
+                <p className="mb-3">You haven't joined any subscriptions yet.</p>
+                <Link href="/subscriptions" className="text-amber-400 underline text-sm">
+                  Browse subscriptions →
+                </Link>
+              </>
+            )}
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className="space-y-3">
+            {filteredActiveEntries.map(entry => <SubscriptionCard key={entry.id} entry={entry} />)}
           </div>
         ) : (
-          viewMode === 'list' ? (
-            <div className="space-y-3">
-              {activeEntries.map(e => <SubscriptionCard key={e.id} entry={e} />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {activeEntries.map(e => <SubscriptionTile key={e.id} entry={e} />)}
-            </div>
-          )
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {filteredActiveEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+          </div>
         )
       )}
 
-      {/* Cancelled tab */}
       {tab === 'cancelled' && (
         loadingCancelled ? (
           <div className="flex items-center justify-center py-16">
             <span className="text-stone-500 animate-pulse">Loading history…</span>
           </div>
-        ) : cancelledEntries.length === 0 && historyByEntry.length === 0 && orphanedHistory.length === 0 ? (
+        ) : cancelledEntries.length === 0 ? (
           <div className="text-center py-16 text-stone-500">No cancelled subscriptions.</div>
-        ) : (
-          <div className={`opacity-75 ${viewMode === 'list' ? 'space-y-3' : 'grid grid-cols-2 sm:grid-cols-3 gap-4'}`}>
-            {cancelledEntries.map(e => viewMode === 'list'
-              ? <SubscriptionCard key={e.id} entry={e} />
-              : <SubscriptionTile key={e.id} entry={e} />
-            )}
-            {historyByEntry.map(({ entry: e, records }) => (
-              <HistoryPeriodRow key={e.id} entry={e} records={records} viewMode={viewMode} />
-            ))}
-            {orphanedHistory.map(({ subscription, records }) => (
-              <OrphanedHistoryRow key={subscription.slug} subscription={subscription} records={records} viewMode={viewMode} />
-            ))}
-          </div>
-        )
+        ) : (() => {
+          // Group by subscription slug
+          const groups = cancelledEntries.reduce<Record<string, { sub: MySubscriptionEntry['subscription']; entries: MySubscriptionEntry[] }>>((acc, e) => {
+            const slug = e.subscription.slug
+            if (!acc[slug]) acc[slug] = { sub: e.subscription, entries: [] }
+            acc[slug].entries.push(e)
+            return acc
+          }, {})
+          const groupList = Object.values(groups)
+          if (viewMode === 'grid') {
+            const allEntries = groupList.flatMap(({ entries }) =>
+              [...entries].sort((a, b) => {
+                const aDate = a.cancellationDate ?? a.startDate ?? ''
+                const bDate = b.cancellationDate ?? b.startDate ?? ''
+                return bDate.localeCompare(aDate)
+              })
+            )
+            return (
+              <div className="opacity-75 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {allEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+              </div>
+            )
+          }
+          return (
+            <div className="opacity-75 space-y-4">
+              {groupList.map(({ sub, entries }) => (
+                <CancelledSubscriptionGroup key={sub.slug} sub={sub} entries={entries} viewMode={viewMode} />
+              ))}
+            </div>
+          )
+        })()
       )}
     </div>
   )
 }
 
-// ── Card (tile) view ──────────────────────────────────────────────────────────
+function CancelledSubscriptionGroup({
+  sub,
+  entries,
+  viewMode,
+}: {
+  sub: MySubscriptionEntry['subscription']
+  entries: MySubscriptionEntry[]
+  viewMode: 'list' | 'grid'
+}) {
+  const getBrandColors = useBrandColors()
+  const brandColors = getBrandColors(sub.company.slug) ?? sub.company.brandColors
+  const sortedEntries = [...entries].sort((a, b) => {
+    const aDate = a.cancellationDate ?? a.startDate ?? ''
+    const bDate = b.cancellationDate ?? b.startDate ?? ''
+    return bDate.localeCompare(aDate)
+  })
+
+  if (viewMode === 'grid') {
+    return (
+      <div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {sortedEntries.map(entry => <SubscriptionTile key={entry.id} entry={entry} />)}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
+      {/* Header row with subscription info */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/60">
+        <Link href={`/subscriptions/${sub.slug}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+          <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
+            <p className="font-semibold text-stone-200 group-hover:text-amber-400 transition-colors truncate">{sub.name}</p>
+          </div>
+        </Link>
+        {sub.isDiscontinued && (
+          <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5 shrink-0">Discontinued</span>
+        )}
+        <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full shrink-0">
+          {sortedEntries.length} period{sortedEntries.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      {/* Periods list */}
+      <div className="divide-y divide-stone-800/50">
+        {sortedEntries.map(entry => (
+          <CancelledPeriodRow key={entry.id} entry={entry} subSlug={sub.slug} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CancelledPeriodRow({ entry, subSlug }: { entry: MySubscriptionEntry; subSlug: string }) {
+  const qc = useQueryClient()
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
+
+  const removeMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${subSlug}/my-entry`, {
+      method: 'DELETE',
+      body: JSON.stringify({ removeBooks, removeSoldBooks, removeSpending, historyId: entry.id }),
+    }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+      void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      setShowRemoveConfirm(false)
+    },
+  })
+
+  return (
+    <>
+      <div className="flex items-center gap-4 px-4 py-3 hover:bg-stone-800/20 transition-colors">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 flex-1 min-w-0">
+          {entry.startDate && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
+              <p className="text-sm text-stone-300">{formatDate(entry.startDate)}</p>
+            </div>
+          )}
+          {entry.cancellationDate && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+              <p className="text-sm text-stone-400">{formatDate(entry.cancellationDate)}</p>
+            </div>
+          )}
+          {entry.cancellationReason && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-stone-500">Reason</p>
+              <p className="text-sm text-stone-500 italic">{entry.cancellationReason}</p>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          title="Remove this period"
+          onClick={() => setShowRemoveConfirm(true)}
+          className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors shrink-0"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
+        <EntryRemoveDialog
+          entry={entry}
+          subName={entry.subscription.name}
+          removeBooks={removeBooks}
+          setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
+          removeSpending={removeSpending}
+          setRemoveSpending={setRemoveSpending}
+          isPending={removeMutation.isPending}
+          error={removeMutation.error?.message}
+          onConfirm={() => removeMutation.mutate()}
+          onClose={() => setShowRemoveConfirm(false)}
+        />,
+        document.body,
+      )}
+    </>
+  )
+}
 
 function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const sub = entry.subscription
@@ -252,26 +393,25 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
   const qc = useQueryClient()
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
-  const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
-
-  const history = entry.membershipHistory ?? []
-  const hasHistory = history.length > 0
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
       body: JSON.stringify({
         removeBooks,
+        removeSoldBooks,
         removeSpending,
-        ...(!removeAllPeriods && selectedHistoryId && selectedHistoryId !== 'current' ? { historyId: selectedHistoryId } : {}),
-        ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-        ...(!removeAllPeriods && selectedHistoryId === 'current' ? { removeCurrentOnly: true } : {}),
+        ...(entry.active ? {} : { historyId: entry.id }),
       }),
     }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+      void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      setShowRemoveConfirm(false)
+    },
   })
 
   const coverUrl = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
@@ -280,11 +420,9 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
 
   return (
     <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
-      {/* Cover — clickable */}
-      <Link href={`/subscriptions/${sub.slug}`} className="block relative">
+      <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block relative">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
-        {/* Status badge */}
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
           {entry.active ? (
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
               <CheckCircle2 size={10} /> Active
@@ -294,12 +432,16 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
               <XCircle size={10} /> Cancelled
             </span>
           )}
+          {entry.isForwarding && (
+            <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5 bg-stone-950/80">
+              📦 Forwarding
+            </span>
+          )}
         </div>
       </Link>
 
-      {/* Info + actions */}
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <Link href={`/subscriptions/${sub.slug}`} className="block">
+        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block">
           <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
           <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
         </Link>
@@ -310,370 +452,93 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           <div className="flex gap-3">
             {entry.startDate && <p className="text-[10px] text-stone-500">Since {formatDate(entry.startDate)}</p>}
             {entry.cancellationDate && <p className="text-[10px] text-stone-500">Cancelled {formatDate(entry.cancellationDate)}</p>}
-            {!entry.active && entry.cancellationReason && <p className="text-[10px] text-stone-500 italic">{entry.cancellationReason}</p>}
+            {entry.cancellationReason && <p className="text-[10px] text-stone-500 italic">{entry.cancellationReason}</p>}
           </div>
         )}
-        {/* Action buttons */}
         <div className="flex gap-1 mt-auto pt-2 justify-end">
           {entry.active && (
-            <button type="button" title="Cancel subscription" onClick={() => setShowCancelConfirm(true)}
-              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors">
+            <button
+              type="button"
+              title="Cancel subscription"
+              onClick={() => setShowCancelConfirm(true)}
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+            >
               <Ban size={14} />
             </button>
           )}
-          <button type="button" title="Remove from my subscriptions" onClick={() => setShowRemoveConfirm(true)}
-            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
+          <button
+            type="button"
+            title="Remove from my subscriptions"
+            onClick={() => setShowRemoveConfirm(true)}
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
+          >
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Cancel confirm */}
       {showCancelConfirm && (
         <CancelSubscriptionModal
           subscriptionSlug={sub.slug}
-          onCancelled={() => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) }}
+          onCancelled={() => {
+            void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+            void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+            setShowCancelConfirm(false)
+          }}
           onClose={() => setShowCancelConfirm(false)}
         />
       )}
 
-      {/* Remove confirm */}
       {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
         <EntryRemoveDialog
-          entry={entry} subName={sub.name}
-          removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
-          removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
-          removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
-          isPending={removeMutation.isPending} error={removeMutation.error?.message}
-          onConfirm={() => removeMutation.mutate()} onClose={() => setShowRemoveConfirm(false)}
+          entry={entry}
+          subName={sub.name}
+          removeBooks={removeBooks}
+          setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
+          removeSpending={removeSpending}
+          setRemoveSpending={setRemoveSpending}
+          isPending={removeMutation.isPending}
+          error={removeMutation.error?.message}
+          onConfirm={() => removeMutation.mutate()}
+          onClose={() => setShowRemoveConfirm(false)}
         />,
-        document.body
+        document.body,
       )}
     </div>
   )
 }
-
-// ── History period row (past cancelled period for re-joined subscriptions) ────
-
-function HistoryPeriodRow({ entry, records, viewMode = 'list' }: { entry: MySubscriptionEntry; records: MembershipHistoryRecord[]; viewMode?: 'list' | 'grid' }) {
-  const sub = entry.subscription
-  const qc = useQueryClient()
-  const removeMutation = useMutation({
-    mutationFn: ({ historyId, removeAllPeriods, removeBooks, removeSpending }: HistoryRemoveArgs) =>
-      authFetch(`/subscriptions/${sub.slug}/my-entry`, {
-        method: 'DELETE',
-        body: JSON.stringify({
-          ...(removeBooks !== undefined ? { removeBooks } : {}),
-          ...(removeSpending !== undefined ? { removeSpending } : {}),
-          ...(!removeAllPeriods && historyId ? { historyId } : {}),
-          ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-        }),
-      }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }) },
-  })
-  return (
-    <HistoryCard
-      sub={sub}
-      records={records}
-      viewMode={viewMode}
-      showBooksSpending={true}
-      onRemove={args => removeMutation.mutate(args)}
-      isPending={removeMutation.isPending}
-      error={removeMutation.error?.message}
-    />
-  )
-}
-
-function OrphanedHistoryRow({ subscription: sub, records, viewMode = 'list' }: { subscription: OrphanedHistorySub; records: MembershipHistoryRecord[]; viewMode?: 'list' | 'grid' }) {
-  const qc = useQueryClient()
-  const removeMutation = useMutation({
-    mutationFn: async ({ historyId, removeAllPeriods }: HistoryRemoveArgs) => {
-      const idsToRemove = removeAllPeriods ? records.map(r => r.id) : historyId ? [historyId] : []
-      await Promise.all(idsToRemove.map(id => authFetch(`/subscriptions/my/orphaned-history/${id}`, { method: 'DELETE' })))
-    },
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions', 'orphaned-history'] }) },
-  })
-  return (
-    <HistoryCard
-      sub={sub}
-      records={records}
-      viewMode={viewMode}
-      showBooksSpending={false}
-      onRemove={args => removeMutation.mutate(args)}
-      isPending={removeMutation.isPending}
-      error={removeMutation.error?.message}
-    />
-  )
-}
-
-// ── Shared history card (past periods of re-joined or orphaned subs) ──────────
-
-type HistoryCardSub = {
-  slug: string
-  name: string
-  coverImage: string | null
-  logoUrl: string | null
-  company: { name: string; slug: string; brandColors?: string[] | null }
-}
-
-type HistoryRemoveArgs = {
-  historyId?: string
-  removeAllPeriods?: boolean
-  removeBooks?: boolean
-  removeSpending?: boolean
-}
-
-function HistoryCard({
-  sub,
-  records,
-  viewMode = 'list',
-  showBooksSpending = false,
-  onRemove,
-  isPending,
-  error,
-}: {
-  sub: HistoryCardSub
-  records: MembershipHistoryRecord[]
-  viewMode?: 'list' | 'grid'
-  showBooksSpending?: boolean
-  onRemove: (args: HistoryRemoveArgs) => void
-  isPending: boolean
-  error?: string | null
-}) {
-  const getBrandColors = useBrandColors()
-  const brandColors = getBrandColors(sub.company.slug) ?? sub.company.brandColors
-  const imageSource = sub.logoUrl ?? sub.coverImage
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(records.length === 1 ? records[0].id : null)
-  const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
-
-  const handleRemove = () => {
-    onRemove({
-      ...(!removeAllPeriods && selectedHistoryId ? { historyId: selectedHistoryId } : {}),
-      ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-      ...(showBooksSpending ? { removeBooks, removeSpending } : {}),
-    })
-  }
-
-  // Auto-close dialog on successful removal
-  const wasPendingRef = useRef(false)
-  useEffect(() => {
-    if (wasPendingRef.current && !isPending && !error) {
-      setShowRemoveConfirm(false)
-    }
-    wasPendingRef.current = isPending
-  }, [isPending, error])
-
-  if (viewMode === 'grid') {
-    const thumb = imageSource ? cloudinaryUrl(imageSource, 'w_400,h_300,c_pad,b_auto,q_auto,f_auto') : null
-    return (
-      <div className="group bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex flex-col">
-        <Link href={`/subscriptions/${sub.slug}`} className="block relative aspect-[4/3] w-full">
-          {thumb ? (
-            <Image src={thumb} alt={sub.name} fill className="object-contain group-hover:scale-105 transition-transform duration-300" unoptimized />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center" style={brandGradientStyle(brandColors)}>
-              <span className="text-white/80 font-serif text-lg font-semibold text-center px-3 leading-tight drop-shadow">{sub.name}</span>
-            </div>
-          )}
-          <div className="absolute top-2 right-2">
-            <span className="flex items-center gap-1 text-[10px] font-medium text-stone-400 bg-stone-950/80 px-1.5 py-0.5 rounded">
-              <XCircle size={10} /> Past
-            </span>
-          </div>
-        </Link>
-        <div className="p-3 flex flex-col gap-1 flex-1">
-          <p className="text-[10px] text-stone-500 truncate">{sub.company.name}</p>
-          <p className="text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight truncate">{sub.name}</p>
-          <div className="flex flex-col gap-0.5 mt-0.5 flex-1">
-            {records.map(r => (
-              <p key={r.id} className="text-[10px] text-stone-500">
-                {formatDate(r.startDate) ?? '?'} – {formatDate(r.endDate) ?? '?'}
-                {r.cancellationReason ? <span className="italic"> · {r.cancellationReason}</span> : null}
-              </p>
-            ))}
-          </div>
-          <div className="flex justify-end pt-2 mt-auto">
-            <button type="button" title="Remove period(s)" onClick={() => setShowRemoveConfirm(true)}
-              className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-        {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
-          <HistoryRemoveDialog subName={sub.name} records={records}
-            showBooksSpending={showBooksSpending}
-            removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
-            removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-            selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
-            removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
-            isPending={isPending} error={error}
-            onConfirm={handleRemove} onClose={() => setShowRemoveConfirm(false)} />,
-          document.body
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
-      <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
-        <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
-        <div className="flex-1 min-w-0 py-3 px-4 flex flex-col justify-center">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs text-stone-500 truncate">{sub.company.name}</p>
-              <h3 className="font-semibold text-stone-100 leading-tight group-hover:text-amber-400 transition-colors truncate">{sub.name}</h3>
-            </div>
-            <span className="shrink-0 flex items-center gap-1 text-xs font-medium text-stone-500">
-              <XCircle size={12} /> Past
-            </span>
-          </div>
-          <div className="mt-2 flex flex-col gap-0.5">
-            {records.map(r => (
-              <p key={r.id} className="text-xs text-stone-400">
-                {formatDate(r.startDate)} – {formatDate(r.endDate)}
-                {r.cancellationReason ? <span className="text-stone-500 italic"> · {r.cancellationReason}</span> : null}
-              </p>
-            ))}
-          </div>
-        </div>
-      </Link>
-      <div className="shrink-0 border-l border-stone-800 flex flex-col items-center justify-center px-2 bg-stone-900/60 self-stretch">
-        <button type="button" title="Remove period(s)" onClick={() => setShowRemoveConfirm(true)}
-          className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
-          <Trash2 size={15} />
-        </button>
-      </div>
-      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
-        <HistoryRemoveDialog subName={sub.name} records={records}
-          showBooksSpending={showBooksSpending}
-          removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
-          removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
-          removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
-          isPending={isPending} error={error}
-          onConfirm={handleRemove} onClose={() => setShowRemoveConfirm(false)} />,
-        document.body
-      )}
-    </div>
-  )
-}
-
-// ── Unified history remove dialog ─────────────────────────────────────────────
-
-function HistoryRemoveDialog({
-  subName, records, showBooksSpending,
-  removeBooks, setRemoveBooks, removeSpending, setRemoveSpending,
-  selectedHistoryId, setSelectedHistoryId, removeAllPeriods, setRemoveAllPeriods,
-  isPending, error, onConfirm, onClose,
-}: {
-  subName: string
-  records: MembershipHistoryRecord[]
-  showBooksSpending: boolean
-  removeBooks: boolean; setRemoveBooks: (v: boolean) => void
-  removeSpending: boolean; setRemoveSpending: (v: boolean) => void
-  selectedHistoryId: string | null; setSelectedHistoryId: (v: string | null) => void
-  removeAllPeriods: boolean; setRemoveAllPeriods: (v: boolean) => void
-  isPending: boolean
-  error?: string | null
-  onConfirm: () => void
-  onClose: () => void
-}) {
-  const canSubmit = removeAllPeriods || !!selectedHistoryId
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-sm">
-        <div className="p-5 border-b border-stone-800">
-          <h2 className="text-stone-100 font-semibold">Remove period</h2>
-          <p className="text-xs text-stone-400 mt-1">Remove past period(s) of <span className="text-stone-200">{subName}</span>.</p>
-        </div>
-        <div className="p-5 space-y-3">
-          {records.length > 1 && (
-            <div className="space-y-2">
-              <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
-              {records.map(r => (
-                <label key={r.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-                  <input type="radio" name="remove-history-period" checked={!removeAllPeriods && selectedHistoryId === r.id}
-                    onChange={() => { setSelectedHistoryId(r.id); setRemoveAllPeriods(false) }}
-                    className="accent-amber-500" />
-                  {formatDate(r.startDate) ?? '?'} – {formatDate(r.endDate) ?? '?'}
-                  {r.cancellationReason ? <span className="text-stone-500 text-xs italic"> · {r.cancellationReason}</span> : null}
-                </label>
-              ))}
-              <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
-                <input type="radio" name="remove-history-period" checked={removeAllPeriods}
-                  onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
-                  className="accent-red-500" />
-                Remove all periods
-              </label>
-            </div>
-          )}
-          {records.length === 1 && (
-            <p className="text-xs text-stone-500">
-              Period: {formatDate(records[0].startDate) ?? '?'} – {formatDate(records[0].endDate) ?? '?'} will be permanently removed.
-            </p>
-          )}
-          {showBooksSpending && (
-            <>
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input type="checkbox" checked={removeBooks} onChange={e => setRemoveBooks(e.target.checked)} className="mt-0.5 accent-amber-600" />
-                <div>
-                  <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove books from my collection</span>
-                  <p className="text-xs text-stone-600 mt-0.5">Books acquired in this period will be removed from your library.</p>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input type="checkbox" checked={removeSpending} onChange={e => setRemoveSpending(e.target.checked)} className="mt-0.5 accent-amber-600" />
-                <div>
-                  <span className="text-sm text-stone-300 group-hover:text-stone-100 transition-colors">Remove spending history</span>
-                  <p className="text-xs text-stone-600 mt-0.5">Payment transactions linked to this period will be deleted.</p>
-                </div>
-              </label>
-            </>
-          )}
-          {error && <p className="text-xs text-red-400">{error}</p>}
-        </div>
-        <div className="flex gap-3 p-5 border-t border-stone-800">
-          <button type="button" onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors">
-            Cancel
-          </button>
-          <button type="button" onClick={onConfirm} disabled={isPending || !canSubmit}
-            className="flex-1 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50">
-            {isPending ? 'Removing…' : 'Remove'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Shared remove dialog for subscription entries (used by Card + Tile) ───────
 
 function EntryRemoveDialog({
-  entry, subName,
-  removeBooks, setRemoveBooks, removeSpending, setRemoveSpending,
-  selectedHistoryId, setSelectedHistoryId, removeAllPeriods, setRemoveAllPeriods,
-  isPending, error, onConfirm, onClose,
+  entry,
+  subName,
+  removeBooks,
+  setRemoveBooks,
+  removeSoldBooks,
+  setRemoveSoldBooks,
+  removeSpending,
+  setRemoveSpending,
+  isPending,
+  error,
+  onConfirm,
+  onClose,
 }: {
   entry: MySubscriptionEntry
   subName: string
-  removeBooks: boolean; setRemoveBooks: (v: boolean) => void
-  removeSpending: boolean; setRemoveSpending: (v: boolean) => void
-  selectedHistoryId: string | null; setSelectedHistoryId: (v: string | null) => void
-  removeAllPeriods: boolean; setRemoveAllPeriods: (v: boolean) => void
+  removeBooks: boolean
+  setRemoveBooks: (v: boolean) => void
+  removeSoldBooks: boolean
+  setRemoveSoldBooks: (v: boolean) => void
+  removeSpending: boolean
+  setRemoveSpending: (v: boolean) => void
   isPending: boolean
   error?: string | null
   onConfirm: () => void
   onClose: () => void
 }) {
-  const history = entry.membershipHistory ?? []
-  const hasHistory = history.length > 0
-  const canSubmit = !hasHistory || removeAllPeriods || !!selectedHistoryId
+  const canSubmit = true
+  const periodLabel = `${formatDate(entry.startDate) ?? '?'} – ${formatDate(entry.cancellationDate) ?? '?'}`
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -682,63 +547,61 @@ function EntryRemoveDialog({
         <p className="text-sm text-stone-400">
           This will permanently remove <span className="text-stone-200">{subName}</span> from your subscriptions.
         </p>
-        {hasHistory && (
-          <div className="space-y-2">
-            <p className="text-xs text-stone-400 font-medium">Select period to remove:</p>
-            {/* Current or cancelled period */}
-            <label className="flex items-start gap-2 text-sm cursor-pointer group">
-              <input type="radio" name={`period-entry-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === 'current'}
-                onChange={() => { setSelectedHistoryId('current'); setRemoveAllPeriods(false) }}
-                className={`mt-0.5 ${entry.active ? 'accent-emerald-500' : 'accent-amber-500'}`} />
-              <span>
-                {entry.active ? (
-                  <span className="text-emerald-300">{formatDate(entry.startDate) ?? '?'} – present</span>
-                ) : (
-                  <span className="text-amber-300">{formatDate(entry.startDate) ?? '?'} – {formatDate(entry.cancellationDate) ?? 'cancelled'}</span>
-                )}
-                <span className={`text-xs ml-1 ${entry.active ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {entry.active ? '(current)' : '(cancelled)'}
-                </span>
-                <span className="block text-[10px] text-stone-600 mt-0.5">History records will be kept</span>
-              </span>
-            </label>
-            {history.map(h => (
-              <label key={h.id} className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-                <input type="radio" name={`period-entry-${entry.id}`} checked={!removeAllPeriods && selectedHistoryId === h.id}
-                  onChange={() => { setSelectedHistoryId(h.id); setRemoveAllPeriods(false) }}
-                  className="accent-amber-500" />
-                {formatDate(h.startDate) ?? '?'} – {formatDate(h.endDate) ?? '?'}
-                {h.cancellationReason ? <span className="text-stone-500 text-xs"> · {h.cancellationReason}</span> : null}
-              </label>
-            ))}
-            <label className="flex items-center gap-2 text-sm text-red-400 cursor-pointer">
-              <input type="radio" name={`period-entry-${entry.id}`} checked={removeAllPeriods}
-                onChange={() => { setRemoveAllPeriods(true); setSelectedHistoryId(null) }}
-                className="accent-red-500" />
-              Remove everything (current + all history)
-            </label>
-          </div>
+        {entry.active ? (
+          <p className="text-xs text-stone-500 bg-stone-800 rounded-lg px-3 py-2">
+            This removes your current subscription period. Any past periods are shown in the Cancelled tab and can be removed from there.
+          </p>
+        ) : (
+          <p className="text-xs text-stone-500 bg-stone-800 rounded-lg px-3 py-2">
+            Period: <span className="text-stone-300">{periodLabel}</span>
+          </p>
         )}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-            <input type="checkbox" checked={removeBooks} onChange={e => setRemoveBooks(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+            <input
+              type="checkbox"
+              checked={removeBooks}
+              onChange={e => setRemoveBooks(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            />
             Also remove books from my collection
           </label>
+          {removeBooks && (
+            <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer pl-5">
+              <input
+                type="checkbox"
+                checked={removeSoldBooks}
+                onChange={e => setRemoveSoldBooks(e.target.checked)}
+                className="rounded border-stone-600 bg-stone-800 text-amber-500"
+              />
+              Delete sold books and sale records
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-            <input type="checkbox" checked={removeSpending} onChange={e => setRemoveSpending(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-500" />
+            <input
+              type="checkbox"
+              checked={removeSpending}
+              onChange={e => setRemoveSpending(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            />
             Also remove spending records
           </label>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex gap-3 justify-end">
-          <button type="button" onClick={onClose}
-            className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded text-sm text-stone-300 hover:text-stone-100 transition-colors"
+          >
             Keep it
           </button>
-          <button type="button" onClick={onConfirm} disabled={isPending || !canSubmit}
-            className="bg-red-700 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition-colors">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending || !canSubmit}
+            className="bg-red-700 text-white font-semibold px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
+          >
             {isPending ? 'Removing…' : 'Remove'}
           </button>
         </div>
@@ -754,40 +617,34 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
   const qc = useQueryClient()
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [removeBooks, setRemoveBooks] = useState(false)
-  const [removeSpending, setRemoveSpending] = useState(false)
-  const [removeAllPeriods, setRemoveAllPeriods] = useState(false)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
-
-  const history = entry.membershipHistory ?? []
-  const hasHistory = history.length > 0
+  const [removeBooks, setRemoveBooks] = useState(true)
+  const [removeSoldBooks, setRemoveSoldBooks] = useState(true)
+  const [removeSpending, setRemoveSpending] = useState(true)
 
   const removeMutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${sub.slug}/my-entry`, {
       method: 'DELETE',
-      body: JSON.stringify({
-        removeBooks,
-        removeSpending,
-        ...(!removeAllPeriods && selectedHistoryId && selectedHistoryId !== 'current' ? { historyId: selectedHistoryId } : {}),
-        ...(removeAllPeriods ? { removeAllPeriods: true } : {}),
-        ...(!removeAllPeriods && selectedHistoryId === 'current' ? { removeCurrentOnly: true } : {}),
-      }),
+      body: JSON.stringify({ removeBooks, removeSoldBooks, removeSpending }),
     }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowRemoveConfirm(false) },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+      void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      setShowRemoveConfirm(false)
+    },
   })
 
   const renewalLabel = formatDate(entry.nextRenewalDate)
-  const renewalAmount = formatMoney(entry.nextRenewalAmount, entry.nextRenewalCurrency)
+  const renewalAmount = formatMoney(
+    entry.nextRenewalAmount ?? entry.subscription.price,
+    entry.nextRenewalCurrency ?? entry.subscription.currency,
+  )
 
   return (
     <>
       <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden hover:border-stone-700 transition-colors flex">
-        {/* Main clickable area */}
-        <Link href={`/subscriptions/${sub.slug}`} className="flex flex-1 min-w-0 group">
-          {/* Logo — stretches full height of the row */}
+        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="flex flex-1 min-w-0 group">
           <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
 
-          {/* Info */}
           <div className="flex-1 min-w-0 py-3 px-4 flex flex-col justify-center">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -806,6 +663,11 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                     <XCircle size={12} /> Cancelled
                   </span>
                 )}
+                {entry.isForwarding && (
+                  <span className="text-[10px] text-blue-400 border border-blue-700/40 rounded px-1.5 py-0.5">
+                    📦 Forwarding
+                  </span>
+                )}
                 {sub.isDiscontinued && (
                   <span className="text-xs text-amber-600 border border-amber-700/40 rounded px-1.5 py-0.5">
                     Discontinued
@@ -818,13 +680,10 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               {entry.active && renewalLabel && (
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
-                  <p className="text-sm font-medium text-stone-200">{renewalLabel}</p>
-                </div>
-              )}
-              {entry.active && renewalAmount && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Amount</p>
-                  <p className="text-sm font-medium text-amber-400">{renewalAmount}</p>
+                  <p className="text-sm font-medium text-stone-200">
+                    {renewalLabel}
+                    {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                  </p>
                 </div>
               )}
               {!entry.active && entry.startDate && (
@@ -840,60 +699,60 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   {entry.cancellationReason && <p className="text-[10px] text-stone-500 italic mt-0.5">{entry.cancellationReason}</p>}
                 </div>
               )}
-              {/* Membership history periods */}
-              {!entry.active && history.length > 0 && (
-                <div className="col-span-2 mt-1">
-                  <p className="text-[10px] uppercase tracking-wider text-stone-500 mb-1">Membership history</p>
-                  <div className="flex flex-col gap-0.5">
-                    {history.map(h => (
-                      <p key={h.id} className="text-xs text-stone-400">
-                        {h.startDate ?? '?'} – {h.endDate ?? 'present'}
-                        {h.cancellationReason ? <span className="text-stone-500"> · {h.cancellationReason}</span> : null}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </Link>
 
-        {/* Right actions panel */}
         <div className="shrink-0 border-l border-stone-800 flex flex-col items-center justify-center gap-2 px-2 bg-stone-900/60 self-stretch">
           {entry.active && (
-            <button type="button" title="Cancel subscription" onClick={() => setShowCancelConfirm(true)}
-              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors">
+            <button
+              type="button"
+              title="Cancel subscription"
+              onClick={() => setShowCancelConfirm(true)}
+              className="p-1.5 rounded text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+            >
               <Ban size={15} />
             </button>
           )}
-          <button type="button" title="Remove from my subscriptions" onClick={() => setShowRemoveConfirm(true)}
-            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors">
+          <button
+            type="button"
+            title="Remove from my subscriptions"
+            onClick={() => setShowRemoveConfirm(true)}
+            className="p-1.5 rounded text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
+          >
             <Trash2 size={15} />
           </button>
         </div>
       </div>
 
-      {/* Cancel confirm dialog */}
       {showCancelConfirm && (
         <CancelSubscriptionModal
           subscriptionSlug={sub.slug}
-          onCancelled={() => { void qc.invalidateQueries({ queryKey: ['my-subscriptions'] }); void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] }); setShowCancelConfirm(false) }}
+          onCancelled={() => {
+            void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+            void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+            setShowCancelConfirm(false)
+          }}
           onClose={() => setShowCancelConfirm(false)}
         />
       )}
 
-      {/* Remove confirm dialog */}
       {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
         <EntryRemoveDialog
-          entry={entry} subName={sub.name}
-          removeBooks={removeBooks} setRemoveBooks={setRemoveBooks}
-          removeSpending={removeSpending} setRemoveSpending={setRemoveSpending}
-          selectedHistoryId={selectedHistoryId} setSelectedHistoryId={setSelectedHistoryId}
-          removeAllPeriods={removeAllPeriods} setRemoveAllPeriods={setRemoveAllPeriods}
-          isPending={removeMutation.isPending} error={removeMutation.error?.message}
-          onConfirm={() => removeMutation.mutate()} onClose={() => setShowRemoveConfirm(false)}
+          entry={entry}
+          subName={sub.name}
+          removeBooks={removeBooks}
+          setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
+          removeSpending={removeSpending}
+          setRemoveSpending={setRemoveSpending}
+          isPending={removeMutation.isPending}
+          error={removeMutation.error?.message}
+          onConfirm={() => removeMutation.mutate()}
+          onClose={() => setShowRemoveConfirm(false)}
         />,
-        document.body
+        document.body,
       )}
     </>
   )

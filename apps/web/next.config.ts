@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    webpackMemoryOptimizations: true,
+    cpus: 1,   // limit Next.js page worker threads during build
   },
   images: {
     remotePatterns: [
@@ -45,6 +47,19 @@ const nextConfig: NextConfig = {
         hostname: 'flagcdn.com',
       },
     ],
+  },
+  // Limit webpack parallelism to avoid saturating build servers
+  webpack(config, { isServer }) {
+    if (process.env.NEXT_WEBPACK_PARALLELISM) {
+      config.parallelism = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    }
+    // Suppress "Critical dependency" warnings from @opentelemetry pulled in by @sentry/node
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      { module: /@opentelemetry\/instrumentation/ },
+      { module: /require-in-the-middle/ },
+    ]
+    return config
   },
   async headers() {
     return [
@@ -64,10 +79,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  // Only upload source maps when SENTRY_DSN is set (i.e., production)
-  silent: !process.env.SENTRY_DSN,
+const sentryOptions = {
   tunnelRoute: '/monitoring',
-  sourcemaps: { disable: !process.env.SENTRY_DSN },
-});
+  sourcemaps: { disable: true },
+  disableLogger: true,
+  webpack: {
+    autoInstrumentServerFunctions: false,
+    autoInstrumentMiddleware: false,
+  },
+};
+
+export default process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryOptions)
+  : nextConfig;
 

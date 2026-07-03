@@ -282,6 +282,16 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
+
+  /**
+   * Required when any tracked settings field (renewalDay, renewalDayUserSet,
+   * paymentOnStartup, signupIncludesCurrentMonth, renewalMonthOffset) is changed.
+   * Specifies the date from which the new settings take effect.
+   * This is NOT a DB column — it drives the effectiveFrom of the settings history record.
+   */
+  @IsOptional()
+  @IsDateString()
+  settingsEffectiveFrom?: string;
 }
 
 export class CreatePrepayOptionDto {
@@ -592,6 +602,10 @@ export class JoinSubscriptionDto {
   shippingCost?: string;
 
   @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(31)
@@ -619,6 +633,16 @@ export class JoinSubscriptionDto {
   @IsOptional()
   @IsString()
   cancellationReason?: string;
+
+  /** Selected prepay option ID — used to set prepaidMonths and scheduledPrepayOptionId atomically at join time */
+  @IsOptional()
+  @IsString()
+  selectedPrepayOptionId?: string | null;
+
+  /** If true, compute eligible months without persisting the subscription entry (preview/dry run) */
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
 }
 
 export class BookPriceOverrideDto {
@@ -726,6 +750,11 @@ export class BackfillSubscriptionDto {
   @ValidateNested({ each: true })
   @Type(() => BackfillBillingBatchDto)
   billingBatches?: BackfillBillingBatchDto[];
+
+  /** Ownership status to assign to backfilled books. Defaults to OWNED on the backend. */
+  @IsOptional()
+  @IsIn(['OWNED', 'PREORDER'])
+  backfillOwnershipStatus?: 'OWNED' | 'PREORDER';
 }
 
 export class CancelMyEntryDto {
@@ -743,12 +772,21 @@ export class CancelMyEntryDto {
 export class RemoveMyEntryDto {
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
   /** If provided, remove only the books from this specific membership period */
   @IsOptional() @IsString() historyId?: string;
+  /** If provided, remove only the specified membership periods (multi-select) */
+  @IsOptional() @IsArray() @IsString({ each: true }) historyIds?: string[];
   /** If true, remove all membership periods and optionally their books/spending */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeAllPeriods?: boolean;
   /** If true, remove only the current active period but keep historical records */
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeCurrentOnly?: boolean;
+}
+
+export class RemoveOrphanedHistoryDto {
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeBooks?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSpending?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') removeSoldBooks?: boolean;
 }
 
 export class UpdateMyEntryCostsDto {
@@ -767,6 +805,10 @@ export class UpdateMyEntryCostsDto {
   @IsOptional()
   @IsString()
   trackingNumber?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
 
   /** Full replacement list of linked fee templates */
   @IsOptional()
@@ -796,12 +838,41 @@ export class CreatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
+}
+
+export class UpdatePriceChangeDto {
+  @IsNumber()
+  @Min(0)
+  newBasePrice!: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdateBillingModeDto {
   @IsOptional()
   @IsString()
   scheduledPrepayOptionId!: string | null;
+}
+
+export class UpdateSettingsHistoryEffectiveFromDto {
+  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value */
+  @IsString()
+  effectiveFrom!: string;
+
+  /** Optional notes for the settings history record */
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class MigrateMonthsDto {

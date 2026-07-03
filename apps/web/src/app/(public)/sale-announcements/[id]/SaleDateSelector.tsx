@@ -171,7 +171,7 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
       {targetDate && (
         <div>
           <p className="text-xs text-stone-500">{ACCESS_LABELS[selectedAccess]} opens:</p>
-          <p className="text-stone-100 font-medium text-sm mt-0.5">
+          <p className="text-stone-100 font-medium text-sm mt-0.5" suppressHydrationWarning>
             {formatDateInTz(targetDate, tz, userTz ?? undefined, hour12)}
           </p>
           <Countdown ms={countdown} />

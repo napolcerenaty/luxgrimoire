@@ -21,6 +21,8 @@ export interface AiSaleAnnouncementResult {
   companyName?: string;
   subscriberBasePrice?: number;
   expectedShipping?: string;
+  saleType?: 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+  endsAt?: string;
   regions?: AiSaleRegion[];
 }
 
@@ -49,6 +51,8 @@ export interface AiParseResult {
     generalSaleDate?: string;
     features?: string[];
     artists?: { name: string; role: string }[];
+    /** All feature raw values (standalone + artist-attributed) in the exact order they appear in the source text */
+    featureOrder?: string[];
     /** Normalized category slugs per raw feature value (post-processing) */
     featureTags?: Record<string, string[]>;
     artistTags?: Record<string, string[]>;
@@ -76,7 +80,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     "features": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"],
     "artists": [
       { "name": "@artisthandle", "role": "full description of what they created, e.g. cover art, character illustrations, map, typography, interior artwork, endpapers design" }
-    ]
+    ],
+    "featureOrder": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"]
   }
 }
 
@@ -95,6 +100,9 @@ SIGNATURE RULES (read before artist rules):
   - Do NOT add the author as an artist entry
   - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
   - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
+- SIGNED PHYSICAL ITEM: If "signed" appears as an attribute of a PHYSICAL ITEM (e.g. "Custom endpapers which are signed by the author"), capture BOTH the physical item as its own separate feature AND "signed" as an additional separate feature. Never reduce a sentence describing a physical feature to just "signed" alone — the physical item must not be lost.
+  - Example: "Custom endpapers which are signed by the author" → features: ["Custom endpapers", "signed"]
+  - Example: "Custom signed bookplate" → features: ["signed bookplate"] (here the item IS a signed bookplate — keep as one entry, no need to split)
 
 ARTIST EXTRACTION RULES:
 - Look for @mentions combined with descriptions of what they designed/drew/illustrated
@@ -121,9 +129,13 @@ ARTIST EXTRACTION RULES:
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
 
 FEATURES RULES:
-- CASING: Preserve the original capitalisation from the source text. Do NOT normalise feature names to lowercase. If the source says "Foiled end pages" keep the capital F. If it says "ribbon bookmark" in lowercase, keep it lowercase. Never change the case of words.
-- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
-- Also include: signed, numbered, exclusive content notes
+- ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
+- FEATURE ORDER FIELD: Always populate "featureOrder" — a flat list of ALL feature raw values (both standalone features[] values AND the base feature names from artist roles) in the exact order they appear in the source text. This is the authoritative display order. Standalone features that have no artist appear in features[]; artist-attributed features appear only in artists[]; featureOrder combines both in source-text sequence.
+  Example: if source mentions "cover art by @artist, ribbon bookmark, sprayed edges by @artist2, signed" → featureOrder: ["Cover art", "Ribbon bookmark", "Sprayed edges", "signed"]
+- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase phrase.
+- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc AND try to keep as much of the descriptive detail as possible (e.g. "exclusive art print of [character]", "foil-stamped cover with a colourway variation of the trade cover", "ribbon bookmark in the same colour as the sprayed edges", "gilded page edges with a unique pattern", "map of [location] on the endpapers", etc.)
+- Also include: signed, numbered, exclusive content notes AND try to keep descriptive detail (e.g. "signed by the author", "numbered copy", "exclusive content: first chapter of [title]", "exclusive content: preview of Book 2", etc.)
+- If the text describes coombined features like "endpapers with author signature" keep it as one feature. Do NOT split into separate "endpapers" and "signed" features.
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
@@ -180,8 +192,8 @@ FEATURES RULES:
   Example: "Reversible dust jacket designed" → feature: "Reversible dust jacket"
   Example: "Exclusive gilded edges painted" → feature: "Exclusive gilded edges"
   NOTE: Do NOT strip verbs that are an integral part of the feature name (e.g. "digitally printed edges" — "printed" is part of the material description, not an attribution verb).
-- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create ONE feature = the initial description before the first role verb, and one artist entry per person. Each artist's role = feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles.
-  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour".
+- INLINE MULTI-ARTIST (no parenthetical): When a line credits multiple artists for the SAME physical item inline — patterns like "[feature] [role1] by [artist1] and [role2] by [artist2]", "[feature] [role1] by [artist1] with [role2] by [artist2]", or similar — create EXACTLY ONE feature entry for the entire combined description (including any trailing qualifiers or parentheticals), and one artist entry per person. Each artist's role = full combined feature name + " (" + normalised role noun + ")". The feature must NOT include role verbs or artist names/handles. NEVER create multiple feature entries for different parts of the same inline multi-artist line.
+  ROLE VERB NORMALISATION: Convert attribution verbs to noun form for the parenthetical: "designed/design" → "design", "illustrated/illustration" → "illustration", "painted" → "painting", "art" → "art", "lettering" → "lettering", "colour/coloured" → "colour", "composed/composing" → "composition".
   Artist names may or may not have an @ prefix — capture them exactly as written (with or without @).
   Example: "Exclusive redesigned dust jacket with art by 2 ghosts and designed by @lichen_and_limestone" →
     features: ["Exclusive redesigned dust jacket"]
@@ -192,6 +204,16 @@ FEATURES RULES:
   Example: "special edition endpapers painted by @artist1 with lettering by @artist2" →
     features: ["special edition endpapers"]
     artists: [{ name: "@artist1", role: "special edition endpapers (painting)" }, { name: "@artist2", role: "special edition endpapers (lettering)" }]
+  Example: "Character artwork on the endpapers by @gonzalom.art with foil by @blanca.design (different front and back)" →
+    features: ["Character artwork on the endpapers with foil (different front and back)"]
+    artists: [{ name: "@gonzalom.art", role: "Character artwork on the endpapers with foil (different front and back) (artwork)" }, { name: "@blanca.design", role: "Character artwork on the endpapers with foil (different front and back) (foil)" }]
+  Example: "Printed hardcover case with foil designed by @artist1 with lettering by @artist2" →
+    features: ["Printed hardcover case with foil"]
+    artists: [{ name: "@artist1", role: "Printed hardcover case with foil (design)" }, { name: "@artist2", role: "Printed hardcover case with foil (lettering)" }]
+- SINGLE ARTIST WITH CONTINUATION ("X by @artist with Y" where Y has no artist): When a feature line attributes ONE artist and continues with "with [additional description]" that has no "by @artist" attribution, treat the additional description as part of the same feature/role — do NOT crop it. The artist's role = full combined description (minus the attribution verb). Do NOT create a separate feature entry for the additional description.
+  Example: "Digitally sprayed edge by @bluelyboo with solid sprayed top and bottom edges" →
+    features: [] (covered by artist entry)
+    artists: [{ name: "@bluelyboo", role: "Digitally sprayed edge with solid sprayed top and bottom edges" }]
 - Do NOT duplicate purely narrative artist-credit phrases as features (e.g. "designed by @handle" alone is not a physical feature). Only add to features if there is an actual physical item/element being described.
 - EXCEPTION: Interior book production credits such as "formatting", "typesetting", "interior design", "interior layout" ARE valid features — even when attributed to an artist (e.g. "Formatting by @handle" → feature: "Formatting", artist: "@handle" with role "Formatting"). These describe a real production element of the edition.
 - PRINT RUN / LIMITED COPIES: If the text mentions the number of copies, print run size, or limited edition quantity (e.g. "limited to 1500 copies", "strictly limited to 1500 signed and numbered copies", "print run of 500", "only 750 copies"), add it as a feature in the format: "limited to [N] copies". Extract the number and format consistently.
@@ -199,7 +221,7 @@ FEATURES RULES:
   Example: "limited edition of 500 copies" → features: ["limited to 500 copies"]
   Example: "print run: 2000" → features: ["limited to 2000 copies"]
 - BINDING DETAILS: Physical binding features such as "Smyth sewn binding", "head and tail bands", "rounded and backed", "French links", etc. are physical characteristics and should always be added as features.
-
+- For features try to keep as much of the original text as possible without losing important descriptive detail, even if it results in longer feature strings. Do NOT overly truncate or summarise features — the more detail the better, as long as it's not excessively verbose. The goal is to capture the richness of the edition's physical characteristics and artistic contributions.
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
@@ -216,12 +238,12 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 }
 
 RULES:
-- title: only the actual book title. Remove any "Series Name #N" prefix/suffix.
-- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
+- title: take full title as provided, keep any volume numbers that may be a part of a title AND do not remove parts after a colon (e.g. "The Name of the Wind: The Kingkiller Chronicle Book 1" → title: "The Name of the Wind: The Kingkiller Chronicle Book 1"). Do NOT remove parentheticals from the title if they are part of the original title on Goodreads.
+- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title, if series starts with THE keep it.
 - volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
 - description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
-- genres: take at most 5 genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
-- authors: list all authors found.`;
+- genres: take all provided genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
+- authors: list only book authors found, remove translators, editors, narrators, or other contributors. If multiple authors are listed, include them all in the authors array.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
@@ -232,6 +254,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
   "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
   "subscriberBasePrice": 22.00,
   "expectedShipping": "e.g. November/December 2025",
+  "saleType": "LIMITED_PREORDER | OPEN_PREORDER | OVERSTOCK",
+  "endsAt": "ISO 8601 local datetime when the sale closes, no Z suffix",
   "regions": [
     {
       "name": "region name, e.g. UK/INT or US/Canada",
@@ -274,15 +298,18 @@ REGION RULES:
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
 - If only ONE region is mentioned (e.g. the whole announcement has one price/currency/date set), do NOT create a regions array — the data will be applied to the sale announcement defaults directly
 - Each region should have: name, price, currency, and dates where available
-- For dates: convert all times to UTC using the timezone mentioned
-  - "10am BST" = BST is UTC+1 → 09:00 UTC
-  - "10am ET" = ET/EDT is UTC-4 → 14:00 UTC; EST is UTC-5 → 15:00 UTC
+- For dates: output the LOCAL time exactly as stated in the announcement — do NOT convert to UTC
+  - "10am BST" → "2025-07-15T10:00:00.000" (no Z suffix)
+  - "9am ET" → "2025-07-15T09:00:00.000" (no Z suffix)
+  - "2pm PT" → "2025-07-15T14:00:00.000" (no Z suffix)
+  - NEVER convert to UTC — the server will handle UTC conversion using the saleTimezone
   - firstAccessDate = earliest access date (e.g. previous customers/edition holders)
   - earlyAccessDate = subscriber/presale early access date
   - generalSaleDate = public/general sale date
 - If multiple time slots exist for the same region (different customer tiers), use:
   - firstAccessDate = earliest slot, earlyAccessDate = subscriber slot, generalSaleDate = general public slot
-- Extract timezone from the text and set saleTimezone (e.g. "BST", "ET", "UTC")
+- Extract timezone EXACTLY as written in the text and set saleTimezone (e.g. "BST", "ET", "PT", "UTC", "EST", "PDT")
+  - Do NOT resolve "ET" to "EDT" or "EST" — copy the abbreviation exactly as it appears
 - For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
 - If only one price/date is given for the entire announcement (no regional split), do NOT create regions array
 - If exactly one region exists (even if named), do NOT create regions array — it becomes the sale announcement default
@@ -291,8 +318,145 @@ SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
 - Include year if determinable from context (current year is 2026)
 
-For dates, use ISO 8601 format with time and Z suffix (UTC). If only a date is given without time, use 00:00:00.000Z.
+SALE TYPE RULES:
+- LIMITED_PREORDER: a preorder that is limited in quantity and/or time — phrases like "limited edition", "limited slots", "only X copies", "while stocks last", "preorder closes [date]", "sold out when gone"
+- OPEN_PREORDER: an open preorder with no stated quantity limit but with a set end date — phrases like "order by [date]", "preorder window closes", "open until [date]"
+- OVERSTOCK: in-stock/clearance items available to buy immediately — phrases like "available now", "ships immediately", "in stock", "overstock", "warehouse clearance", "buy now"
+- Default to LIMITED_PREORDER if a preorder but no other signals
+
+ENDS AT RULES:
+- Extract the date/time when the sale closes (e.g. "orders close on 15 July at 11pm BST", "preorder ends 31 Jan 2026")
+- Use the same LOCAL-time format as other dates (no Z suffix); the saleTimezone field in the matching region indicates the timezone
+- If no explicit close date is mentioned, omit endsAt
+
+For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+/**
+ * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
+ * specific standard/daylight variant based on whether the given date falls
+ * within US DST (second Sunday of March → first Sunday of November).
+ * Returns the resolved abbreviation, or the original if already unambiguous.
+ */
+function resolveUsDst(tz: string, localDateStr: string): string {
+  const ambiguous: Record<string, [string, string]> = {
+    ET: ['EST', 'EDT'],
+    PT: ['PST', 'PDT'],
+    CT: ['CST_US', 'CDT'],
+    MT: ['MST', 'MDT'],
+  }
+  const pair = ambiguous[tz.toUpperCase()]
+  if (!pair) return tz
+
+  // Parse the local date (strip time part)
+  const dateOnly = localDateStr.split('T')[0]
+  if (!dateOnly) return tz
+  const d = new Date(dateOnly + 'T12:00:00Z') // noon UTC — just to get the year/month/day
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth() + 1 // 1-12
+  const day = d.getUTCDate()
+
+  // Second Sunday in March
+  const marchStart = new Date(Date.UTC(year, 2, 1)) // March 1
+  const marchDay1 = marchStart.getUTCDay() // 0=Sun
+  const secondSundayMarch = 1 + (marchDay1 === 0 ? 7 : (7 - marchDay1)) + 7
+
+  // First Sunday in November
+  const novStart = new Date(Date.UTC(year, 10, 1)) // Nov 1
+  const novDay1 = novStart.getUTCDay()
+  const firstSundayNov = 1 + (novDay1 === 0 ? 0 : (7 - novDay1))
+
+  const isDst =
+    (month > 3 && month < 11) ||
+    (month === 3 && day >= secondSundayMarch) ||
+    (month === 11 && day < firstSundayNov)
+
+  return isDst ? pair[1] : pair[0] // [standard, daylight]
+}
+
+/** Offsets in minutes for timezone abbreviations (mirrors frontend TZ_OFFSETS). */
+const TZ_OFFSET_MINUTES: Record<string, number> = {
+  UTC: 0, GMT: 0, WET: 0,
+  BST: 60, WEST: 60, CET: 60,
+  CEST: 120, EET: 120,
+  EEST: 180, MSK: 180, TRT: 180,
+  GST: 240, PKT: 300, IST: 330,
+  ICT: 420, SGT: 480, HKT: 480, CST: 480,
+  JST: 540, KST: 540,
+  ACST: 570, AEST: 600, ACDT: 630, AEDT: 660,
+  NZST: 720, NZDT: 780,
+  HST: -600, AKST: -540, AKDT: -480,
+  PST: -480, PDT: -420,
+  MST: -420, MDT: -360,
+  CST_US: -360, CDT: -300,
+  EST: -300, EDT: -240,
+  AST: -240, ADT: -180,
+  BRT: -180, ART: -180,
+}
+
+/**
+ * Convert a local datetime string (no Z) + timezone abbreviation to a UTC ISO string.
+ * Mirrors the frontend tzLocalToUtcIso logic.
+ */
+function localToUtcIso(localStr: string, tz: string): string {
+  if (!localStr) return localStr
+  // Normalise: ensure seconds present, no trailing Z
+  const normalized = localStr.replace(/Z$/, '').padEnd(19, ':00').slice(0, 19)
+  const resolved = resolveUsDst(tz, normalized)
+  const offsetMin = TZ_OFFSET_MINUTES[resolved] ?? 0
+  const utc = new Date(new Date(normalized + 'Z').getTime() - offsetMin * 60_000)
+  return utc.toISOString()
+}
+
+/**
+ * Post-process AI sale announcement result: convert local date strings to UTC
+ * using the saleTimezone, resolving ambiguous US abbreviations (ET→EDT/EST etc).
+ */
+function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSaleAnnouncementResult {
+  // Use the timezone from the first/default region (or UTC) for top-level endsAt
+  const globalTz = result.regions?.[0]?.saleTimezone ?? 'UTC'
+  const convertRegion = (r: AiSaleRegion): AiSaleRegion => {
+    const tz = r.saleTimezone ?? 'UTC'
+    const resolved = r.firstAccessDate ? resolveUsDst(tz, r.firstAccessDate) :
+                     r.earlyAccessDate ? resolveUsDst(tz, r.earlyAccessDate) :
+                     r.generalSaleDate ? resolveUsDst(tz, r.generalSaleDate) : tz
+    return {
+      ...r,
+      saleTimezone: resolved,
+      firstAccessDate: r.firstAccessDate ? localToUtcIso(r.firstAccessDate, tz) : r.firstAccessDate,
+      earlyAccessDate: r.earlyAccessDate ? localToUtcIso(r.earlyAccessDate, tz) : r.earlyAccessDate,
+      generalSaleDate: r.generalSaleDate ? localToUtcIso(r.generalSaleDate, tz) : r.generalSaleDate,
+    }
+  }
+  return {
+    ...result,
+    endsAt: result.endsAt ? localToUtcIso(result.endsAt, globalTz) : result.endsAt,
+    regions: result.regions?.map(convertRegion),
+  }
+}
+
+/**
+ * Normalises specific plural forms to singular in feature/role strings.
+ * Preserves original casing of surrounding text (only replaces the matched word).
+ * Examples:
+ *   "exclusive re-designed covers"  -> "exclusive re-designed cover"
+ *   "Foiled hardcases"              -> "Foiled hardcase"
+ *   "ribbon bookmarks"              -> "ribbon bookmark"
+ */
+function normalizePlurals(value: string): string {
+  return value
+    .replace(/\bribbon bookmarks\b/gi, m => m.slice(0, -1))   // ribbon bookmarks → ribbon bookmark
+    .replace(/\bdust jackets\b/gi,     m => m.slice(0, -1))   // dust jackets → dust jacket
+    .replace(/\bjackets\b/gi,          m => m.slice(0, -1))   // jackets → jacket
+    .replace(/\bhardcases\b/gi,        m => m.slice(0, -1))   // hardcases → hardcase
+    .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
+    .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback
+    .replace(/\bcovers\b/gi,           m => m.slice(0, -1))   // covers → cover
+    .replace(/\bhardcovers\b/gi,       m => m.slice(0, -1))   // hardcovers → hardcover
+    .replace(/\bsheets\b/gi,          m => m.slice(0, -1))   // sheets → sheet
+    .replace(/\bbookplates\b/gi,      m => m.slice(0, -1))   // bookplates → bookplate
+    .replace(/\btip-ins\b/gi,         () => 'tip-in');        // tip-ins → tip-in
+}
 
 @Injectable()
 export class AiService {
@@ -378,15 +542,37 @@ export class AiService {
 
     try {
       const result = JSON.parse(content) as AiParseResult;
+
+      // ── Plural → singular normalization ──────────────────────────────────────
+      // Applied to both standalone feature values and artist role descriptions
+      // before tagging, so the stored values are already in canonical form.
+      if (result.edition) {
+        if (result.edition.features) {
+          result.edition.features = result.edition.features.map(normalizePlurals);
+        }
+        if (result.edition.artists) {
+          result.edition.artists = result.edition.artists.map(a => ({
+            ...a,
+            role: a.role ? normalizePlurals(a.role) : a.role,
+          }));
+        }
+      }
+
       // Post-process: build unified featureTags map covering both standalone features
       // and base feature names derived from artist roles (single-artist features only
       // appear in artists[], not features[], so we must include them here).
+      // featureOrder (from AI) gives the authoritative display order; fall back to
+      // standalones-first if the AI didn't emit it.
       try {
         const standaloneFeatures = result.edition?.features ?? [];
         const artistBaseFeatures = (result.edition?.artists ?? [])
           .map(a => (a.role ?? '').replace(/\s*\(\w+\)$/, '').trim())
           .filter(Boolean);
-        const allRaws = Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        const allRaws = result.edition?.featureOrder?.length
+          ? Array.from(new Set(result.edition.featureOrder.map(f => f.trim()).filter(Boolean)))
+          : Array.from(new Set([...standaloneFeatures, ...artistBaseFeatures]));
+        // Always store the resolved order so the frontend can rely on it
+        if (result.edition) result.edition.featureOrder = allRaws;
         if (allRaws.length > 0) {
           const featureTags = await this.featureTagger.categorizeMany(allRaws);
           if (result.edition) result.edition.featureTags = featureTags;
@@ -536,7 +722,7 @@ export class AiService {
     });
 
     try {
-      return JSON.parse(content) as AiSaleAnnouncementResult;
+      return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }

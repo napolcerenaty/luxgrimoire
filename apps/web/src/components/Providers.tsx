@@ -3,6 +3,7 @@ import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { OnboardingGate } from '@/components/onboarding/OnboardingGate'
+import { NumberInputScrollGuard } from '@/components/layout/NumberInputScrollGuard'
 
 export function Providers({
   children,
@@ -15,6 +16,7 @@ export function Providers({
     <QueryProvider>
       <ThemeProvider initialTheme={initialTheme}>
         <AuthProvider>
+          <NumberInputScrollGuard />
           <OnboardingGate />
           {children}
         </AuthProvider>

@@ -57,7 +57,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
     jest.useFakeTimers();
     jest.setSystemTime(FIXED_NOW);
     prisma = mockDeep<PrismaService>();
-    service = new RenewalCronService(prisma);
+    service = new RenewalCronService(prisma, { markStatsStale: jest.fn() } as any);
     jest.clearAllMocks();
 
     // Default mocks for createPurchaseGroupAndBooks internals (shared by most tests)
@@ -68,7 +68,8 @@ describe('RenewalCronService — bundle subscriptions', () => {
     (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'pg-bundle-1' });
     (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+    (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
+    (prisma.ownershipStatusHistory.createMany as jest.Mock).mockResolvedValue({ count: 1 });
     // retroactivelyAddBookForSubscribers: no combo links by default
     (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValue([]);
   });
@@ -433,7 +434,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
       (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-bundle-1' });
       // Book not yet in collection
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
 
       await service.retroactivelyAddBookForSubscribers('sub-bundle', aprilMonthRecord, bookToAdd);
 
@@ -447,6 +448,53 @@ describe('RenewalCronService — bundle subscriptions', () => {
           }),
         }),
       );
+    });
+
+    it('records PREORDER ownership history with renewal date (bundle retroactive)', async () => {
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        renewalMonthOffset: 0,
+        isBundleSubscription: true,
+        intervalMonths: 3,
+      });
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
+      ]);
+      (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+        renewalDate: aprilRenewalDate,
+      });
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'sm-april' });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-bundle-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await service.retroactivelyAddBookForSubscribers('sub-bundle', aprilMonthRecord, bookToAdd);
+
+      expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledWith({
+        data: [{ userBookEntryId: 'book-entry-1', status: 'PREORDER', changedAt: aprilRenewalDate }],
+      });
+    });
+
+    it('does not record ownership history when book entry already exists (bundle)', async () => {
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+        renewalMonthOffset: 0,
+        isBundleSubscription: true,
+        intervalMonths: 3,
+      });
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'entry-1', userId: 'user-1', costCurrency: 'GBP' },
+      ]);
+      (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+        renewalDate: aprilRenewalDate,
+      });
+      (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'sm-april' });
+      (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-bundle-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existing-entry' });
+
+      await service.retroactivelyAddBookForSubscribers('sub-bundle', aprilMonthRecord, bookToAdd);
+
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+      expect(prisma.ownershipStatusHistory.createMany).not.toHaveBeenCalled();
     });
 
     it('skips entry when first month of bundle has an active skip', async () => {
@@ -484,7 +532,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
       // No skip check expected — but still continues
       (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce(null); // no existing group
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
 
       await service.retroactivelyAddBookForSubscribers('sub-bundle', aprilMonthRecord, bookToAdd);
 
@@ -532,7 +580,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
       (prisma.userSkipRecord.findUnique as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
 
       await service.retroactivelyAddBookForSubscribers('sub-bundle', mayMonthRecord, bookToAdd);
 
@@ -577,7 +625,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
       // No existing group found (bundle not yet created — edge case)
       (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
-      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({});
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'book-entry-1' });
 
       await service.retroactivelyAddBookForSubscribers('sub-bundle', aprilMonthRecord, bookToAdd);
 
@@ -785,6 +833,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
         // Combo user had a renewal in April
         (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
           id: 'renewal-1',
+          renewalDate: aprilRenewalDate,
         });
         // Existing purchase group for April
         (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-april' });
@@ -803,6 +852,31 @@ describe('RenewalCronService — bundle subscriptions', () => {
             }),
           }),
         );
+      });
+
+      it('records PREORDER ownership history with renewal date (combo retroactive)', async () => {
+        (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.subscription.findUnique as jest.Mock)
+          .mockResolvedValueOnce({ renewalMonthOffset: 0, isBundleSubscription: false, intervalMonths: 1 })
+          .mockResolvedValueOnce({ renewalMonthOffset: 0 });
+        (prisma.userSubscriptionEntry.findMany as jest.Mock)
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: 'entry-combo-1', userId: 'user-combo', costCurrency: 'USD' }]);
+        (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
+          { comboId: 'combo-sub' },
+        ]);
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({
+          id: 'renewal-1',
+          renewalDate: aprilRenewalDate,
+        });
+        (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-april' });
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+        await service.retroactivelyAddBookForSubscribers('component-sub', aprilMonthRecord, bookToAdd);
+
+        expect(prisma.ownershipStatusHistory.createMany).toHaveBeenCalledWith({
+          data: [{ userBookEntryId: 'book-entry-1', status: 'PREORDER', changedAt: aprilRenewalDate }],
+        });
       });
 
       it('does not add book to combo subscriber when no renewal exists in the month window', async () => {
@@ -839,7 +913,7 @@ describe('RenewalCronService — bundle subscriptions', () => {
         (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([
           { comboId: 'combo-sub' },
         ]);
-        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'r1' });
+        (prisma.userSubscriptionRenewal.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'r1', renewalDate: aprilRenewalDate });
         (prisma.userPurchaseGroup.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
         // Book ALREADY in collection
         (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'existing-1' });
@@ -906,8 +980,8 @@ describe('RenewalCronService — bundle subscriptions', () => {
         ]);
 
         (prisma.userSubscriptionRenewal.findFirst as jest.Mock)
-          .mockResolvedValueOnce({ id: 'r1' })
-          .mockResolvedValueOnce({ id: 'r2' });
+          .mockResolvedValueOnce({ id: 'r1', renewalDate: aprilRenewalDate })
+          .mockResolvedValueOnce({ id: 'r2', renewalDate: aprilRenewalDate });
 
         (prisma.userPurchaseGroup.findFirst as jest.Mock)
           .mockResolvedValueOnce({ id: 'pg-a' })

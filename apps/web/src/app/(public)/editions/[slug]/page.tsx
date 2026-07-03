@@ -16,6 +16,23 @@ import type { CommunityImage } from '@/types/community'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/**
+ * Sentence-case normalizer for feature/role display strings.
+ * - Words written in ALL CAPS (length > 1) are lowercased
+ * - First character of the whole string is uppercased
+ * - Mixed-case words are left unchanged
+ * e.g. "TWO OVERLAY designs" → "Two overlay designs"
+ *      "Sprayed edges"       → "Sprayed edges"
+ */
+function normDisplay(text: string): string {
+  if (!text) return text
+  const normalized = text
+    .split(' ')
+    .map((word) => (word.length > 1 && word === word.toUpperCase() ? word.toLowerCase() : word))
+    .join(' ')
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
 interface EditionMonthBook {
   month: {
     id: string; year: number; month: number; theme: string | null
@@ -98,6 +115,7 @@ interface EditionDetail {
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumber: number | null
+    series?: { id: string; slug: string; name: string } | null
     description: string | null; language: string; genres: string[]
     authors: ApiAuthor[]
   } | null
@@ -277,7 +295,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {/* Series */}
               {book?.seriesName && (
                 <Link
-                  href={`/series/${encodeURIComponent(book.seriesName)}`}
+                  href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName)}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}
@@ -511,7 +529,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
                   <span className="text-amber-500 mt-0.5 shrink-0">✦</span>
-                  <span>{f.charAt(0).toUpperCase() + f.slice(1).toLowerCase()}</span>
+                  <span>{normDisplay(f)}</span>
                 </li>
               ))}
             </ul>
@@ -552,7 +570,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                         {cleanName}
                       </p>
                       {roles.map((role) => (
-                        <p key={role} className="text-sm text-stone-400">{role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}</p>
+                        <p key={role} className="text-sm text-stone-400">{normDisplay(role)}</p>
                       ))}
                     </div>
                   </Link>

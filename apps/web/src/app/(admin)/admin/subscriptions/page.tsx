@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -11,6 +11,7 @@ import DataTable from '@/components/admin/DataTable'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import ImageUpload from '@/components/admin/ImageUpload'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
+import { Pagination } from '@/components/admin/Pagination'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -71,6 +72,8 @@ interface SubFormData {
   unskipHow: string
   /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
   eligibleBillingTypes: string
+  /** Required when any tracked settings field changes (effectiveFrom for the history record) */
+  settingsEffectiveFrom: string
 }
 
 const EMPTY_FORM: SubFormData = {
@@ -119,6 +122,7 @@ const EMPTY_FORM: SubFormData = {
   unskipNotes: '',
   unskipHow: '',
   eligibleBillingTypes: 'ALL',
+  settingsEffectiveFrom: '',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
@@ -169,6 +173,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     unskipNotes: p?.unskipNotes ?? '',
     unskipHow: p?.unskipHow ?? '',
     eligibleBillingTypes: p?.eligibleBillingTypes ?? 'ALL',
+    settingsEffectiveFrom: '',
   }
 }
 
@@ -244,6 +249,7 @@ function formToUpdatePayload(form: SubFormData) {
     renewalMonthOffset: form.renewalMonthOffset ? parseInt(form.renewalMonthOffset, 10) : 0,
     startDate: form.startDate || undefined,
     endDate: form.endDate || undefined,
+    ...(form.settingsEffectiveFrom ? { settingsEffectiveFrom: form.settingsEffectiveFrom } : {}),
   }
 }
 
@@ -286,6 +292,12 @@ function SubscriptionForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => setField(field, e.target.value as SubFormData[typeof field])
 
+  const TRACKED_FIELDS: (keyof SubFormData)[] = [
+    'renewalDay', 'renewalDayUserSet', 'paymentOnStartup', 'signupIncludesCurrentMonth', 'renewalMonthOffset',
+  ]
+  const isEditMode = !!initial.companyId // create form has no companyId yet
+  const trackedSettingsDirty = isEditMode && TRACKED_FIELDS.some(f => String(form[f]) !== String(initial[f]))
+
   const genreOptions = Array.from(
     new Set(allSubscriptions.flatMap((s) => s.genres ?? []).filter(Boolean)),
   ).sort()
@@ -303,8 +315,8 @@ function SubscriptionForm({
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="space-y-6">
 
-      {/* ── 2-column main grid ── */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+      {/* ── 2-column main grid — only at xl+ so fields aren't cramped ── */}
+      <div className="grid xl:grid-cols-2 gap-x-8 gap-y-4">
 
         {/* LEFT: identity */}
         <div className="space-y-4">
@@ -343,7 +355,7 @@ function SubscriptionForm({
         {/* RIGHT: settings */}
         <div className="space-y-4">
           {/* Price / Currency / Language */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className={LABEL_CLASS}>Price</label>
               <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
@@ -367,7 +379,7 @@ function SubscriptionForm({
           </div>
 
           {/* Billing Interval / Content type */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Billing Interval</label>
               <select className={SELECT_CLASS} value={form.intervalMonths} onChange={setStr('intervalMonths')}>
@@ -392,7 +404,7 @@ function SubscriptionForm({
           </div>
 
           {/* Start / End date */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Start Date</label>
               <input type="date" className={INPUT_CLASS} value={form.startDate} onChange={setStr('startDate')} />
@@ -414,8 +426,8 @@ function SubscriptionForm({
             </label>
             {!form.renewalDayUserSet && (
               <div>
-                <label className={LABEL_CLASS}>Fixed renewal day (1–28)</label>
-                <input type="number" min={1} max={28} className={INPUT_CLASS}
+                <label className={LABEL_CLASS}>Fixed renewal day (1–31)</label>
+                <input type="number" min={1} max={31} className={INPUT_CLASS}
                   value={form.renewalDay} onChange={setStr('renewalDay')} placeholder="e.g. 15" />
               </div>
             )}
@@ -436,6 +448,26 @@ function SubscriptionForm({
               </div>
             )}
           </div>
+
+          {/* Settings effective from — shown only when tracked renewal settings are changed */}
+          {trackedSettingsDirty && (
+            <div className="border border-amber-600 bg-amber-950/30 rounded-lg p-3 space-y-1">
+              <label className={`${LABEL_CLASS} text-amber-400`}>
+                Settings effective from * <span className="font-normal text-amber-300">(required — renewal settings changed)</span>
+              </label>
+              <input
+                type="date"
+                required
+                className={INPUT_CLASS}
+                value={form.settingsEffectiveFrom}
+                onChange={setStr('settingsEffectiveFrom')}
+              />
+              <p className="text-xs text-amber-700">
+                New renewal settings take effect from this date. Subscribers whose next renewal is on or after this date will be updated.
+                Defaults to 1st of next month if unsure.
+              </p>
+            </div>
+          )}
 
           {/* Flags */}
           <div className="border border-stone-700 rounded-lg p-3 space-y-2">
@@ -493,7 +525,7 @@ function SubscriptionForm({
       </div>
 
       {/* Variant of | Copy from */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid sm:grid-cols-2 gap-6">
         <div>
           <label className={LABEL_CLASS}>Variant of</label>
           <select className={SELECT_CLASS} value={form.parentSubscriptionId} onChange={setStr('parentSubscriptionId')}>
@@ -541,7 +573,7 @@ function SubscriptionForm({
       {/* Skip Policy */}
       <div className="border border-stone-700 rounded-lg p-4 space-y-4">
         <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={LABEL_CLASS}>Policy type</label>
             <select className={SELECT_CLASS} value={form.skipPolicyType} onChange={setStr('skipPolicyType')}>
@@ -591,7 +623,7 @@ function SubscriptionForm({
         </div>
 
         {form.skipPolicyType !== 'NONE' && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             {form.skipPolicyType !== 'UNLIMITED' && (
               <div>
                 <label className={LABEL_CLASS}>Max skips</label>
@@ -616,7 +648,7 @@ function SubscriptionForm({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
             <textarea rows={2} className={INPUT_CLASS} value={form.skipNotes} onChange={setStr('skipNotes')}
@@ -642,7 +674,7 @@ function SubscriptionForm({
 
           {form.allowUnskip && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div>
                     <label className={LABEL_CLASS}>Unskip deadline type</label>
@@ -668,7 +700,7 @@ function SubscriptionForm({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={LABEL_CLASS}>Unskip notes (shown to users)</label>
                   <textarea rows={2} className={INPUT_CLASS} value={form.unskipNotes} onChange={setStr('unskipNotes')}
@@ -709,13 +741,35 @@ interface SettingsHistoryRecord {
 }
 
 function SettingsHistoryPanel({ slug }: { slug: string }) {
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const { data: records = [], isLoading } = useQuery<SettingsHistoryRecord[]>({
     queryKey: ['settings-history', slug],
     queryFn: () => authFetch<SettingsHistoryRecord[]>(`/subscriptions/${slug}/settings-history`),
     enabled: open,
   })
+
+  const handleEditSave = async (id: string) => {
+    setSaving(true)
+    try {
+      await authFetch(`/subscriptions/${slug}/settings-history/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ effectiveFrom: editDate, notes: editNotes || undefined }),
+      })
+      await queryClient.invalidateQueries({ queryKey: ['settings-history', slug] })
+      setEditingId(null)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to update')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="border border-stone-700 rounded-lg">
@@ -745,19 +799,77 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                     <th className="text-left pb-1 pr-3">Prepaid</th>
                     <th className="text-left pb-1 pr-3">Current Month</th>
                     <th className="text-left pb-1 pr-3">Offset</th>
-                    <th className="text-left pb-1">Notes</th>
+                    <th className="text-left pb-1 pr-3">Notes</th>
+                    <th className="text-left pb-1">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {records.map(r => (
                     <tr key={r.id} className="border-b border-stone-800 last:border-0">
-                      <td className="py-1 pr-3 text-stone-400">{new Date(r.effectiveFrom).toLocaleDateString()}</td>
+                      <td className="py-1 pr-3 text-stone-400">
+                        {editingId === r.id ? (
+                          <input
+                            type="date"
+                            value={editDate}
+                            onChange={e => setEditDate(e.target.value)}
+                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs"
+                          />
+                        ) : (
+                          new Date(r.effectiveFrom).toLocaleDateString()
+                        )}
+                      </td>
                       <td className="py-1 pr-3">{r.renewalDay ?? '—'}</td>
                       <td className="py-1 pr-3">{r.renewalDayUserSet ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.paymentOnStartup ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.signupIncludesCurrentMonth ? '✓' : '—'}</td>
                       <td className="py-1 pr-3">{r.renewalMonthOffset}</td>
-                      <td className="py-1 text-stone-500">{r.notes ?? ''}</td>
+                      <td className="py-1 pr-3 text-stone-500">
+                        {editingId === r.id ? (
+                          <input
+                            type="text"
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Notes…"
+                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs w-36"
+                          />
+                        ) : (
+                          r.notes ?? ''
+                        )}
+                      </td>
+                      <td className="py-1">
+                        {editingId === r.id ? (
+                          <span className="flex gap-1">
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => handleEditSave(r.id)}
+                              className="text-amber-400 hover:text-amber-200 disabled:opacity-50"
+                            >
+                              {saving ? '…' : '✓'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="text-stone-500 hover:text-stone-300"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(r.id)
+                              setEditDate(r.effectiveFrom.slice(0, 10))
+                              setEditNotes(r.notes ?? '')
+                            }}
+                            className="text-stone-500 hover:text-amber-400 transition-colors"
+                            title="Edit effective from date"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1003,16 +1115,36 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const SS_KEY = 'admin-subs-filter'
+
 export default function AdminSubscriptionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [filterCompanyId, setFilterCompanyId] = useState('')
   const PAGE_SIZE = 15
+
+  // Persist filter state in sessionStorage so navigating to months/prices and back restores it
+  const [page, setPageState] = useState<number>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').page ?? 1 } catch { return 1 }
+  })
+  const [search, setSearchState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').search ?? '' } catch { return '' }
+  })
+  const [filterCompanyId, setFilterCompanyIdState] = useState<string>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').companyId ?? '' } catch { return '' }
+  })
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SS_KEY, JSON.stringify({ page, search, companyId: filterCompanyId }))
+    } catch { /* ignore */ }
+  }, [page, search, filterCompanyId])
+
+  const setPage = (p: number) => setPageState(p)
+  const setSearch = (s: string) => { setSearchState(s); setPageState(1) }
+  const setFilterCompanyId = (id: string) => { setFilterCompanyIdState(id); setPageState(1) }
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
@@ -1293,13 +1425,13 @@ export default function AdminSubscriptionsPage() {
               type="search"
               placeholder="Search by name…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onChange={(e) => { setSearch(e.target.value) }}
               className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
             />
             {!isManager && companies.length > 0 && (
               <select
                 value={filterCompanyId}
-                onChange={(e) => { setFilterCompanyId(e.target.value); setPage(1) }}
+                onChange={(e) => { setFilterCompanyId(e.target.value) }}
                 className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value="">All companies</option>
@@ -1310,7 +1442,7 @@ export default function AdminSubscriptionsPage() {
             )}
             {(search || filterCompanyId) && (
               <button
-                onClick={() => { setSearch(''); setFilterCompanyId(''); setPage(1) }}
+                onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setPageState(1) }}
                 className="text-xs text-stone-400 hover:text-stone-200"
               >
                 ✕ Clear
@@ -1323,27 +1455,7 @@ export default function AdminSubscriptionsPage() {
             onEdit={(row) => { setEditSub(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
-          {(subsData?.totalPages ?? 1) > 1 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
-              <span>Page {page} of {subsData?.totalPages ?? 1} ({subsData?.total ?? 0} total)</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  ← Prev
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(subsData?.totalPages ?? 1, p + 1))}
-                  disabled={page >= (subsData?.totalPages ?? 1)}
-                  className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={subsData?.totalPages ?? 1} onPageChange={setPage} total={subsData?.total} />
         </>
       )}
 

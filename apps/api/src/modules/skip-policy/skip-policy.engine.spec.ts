@@ -18,6 +18,8 @@ describe('SkipPolicyEngine — pure logic', () => {
 
   describe('evaluateCanSkip', () => {
     const call = (policy: any, state: any) => (engine as any).evaluateCanSkip(policy, state);
+    const callWithPrepaid = (policy: any, state: any, prepaidMonths: number | undefined) =>
+      (engine as any).evaluateCanSkip(policy, state, prepaidMonths);
 
     it('returns false when policy is null', () => {
       expect(call(null, null)).toBe(false);
@@ -61,6 +63,60 @@ describe('SkipPolicyEngine — pure logic', () => {
 
     it('window-based: state null counts as 0 skips (can skip)', () => {
       expect(call({ type: 'CALENDAR_YEAR', maxSkips: 3, maxConsecutive: null }, null)).toBe(true);
+    });
+
+    // ─── eligibleBillingTypes ────────────────────────────────────────────────
+
+    describe('eligibleBillingTypes', () => {
+      const unlimitedPolicy = (eligibleBillingTypes: string | null = null) => ({
+        type: 'UNLIMITED',
+        maxSkips: null,
+        maxConsecutive: null,
+        eligibleBillingTypes,
+      });
+
+      it('MONTHLY_ONLY allows monthly subscriber (prepaidMonths=1)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 1)).toBe(true);
+      });
+
+      it('MONTHLY_ONLY blocks prepaid subscriber (prepaidMonths=6)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 6)).toBe(false);
+      });
+
+      it('PREPAID_ONLY allows prepaid subscriber (prepaidMonths=6)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('PREPAID_ONLY'), null, 6)).toBe(true);
+      });
+
+      it('PREPAID_ONLY blocks monthly subscriber (prepaidMonths=1)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('PREPAID_ONLY'), null, 1)).toBe(false);
+      });
+
+      it('ALL allows monthly subscriber', () => {
+        expect(callWithPrepaid(unlimitedPolicy('ALL'), null, 1)).toBe(true);
+      });
+
+      it('ALL allows prepaid subscriber', () => {
+        expect(callWithPrepaid(unlimitedPolicy('ALL'), null, 6)).toBe(true);
+      });
+
+      it('null eligibleBillingTypes defaults to ALL — allows both billing types', () => {
+        expect(callWithPrepaid(unlimitedPolicy(null), null, 1)).toBe(true);
+        expect(callWithPrepaid(unlimitedPolicy(null), null, 6)).toBe(true);
+      });
+
+      it('MONTHLY_ONLY with prepaidMonths=undefined skips billing type check (no restrictions)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, undefined)).toBe(true);
+      });
+
+      it('MONTHLY_ONLY blocks prepaidMonths=2 (2-month prepay)', () => {
+        expect(callWithPrepaid(unlimitedPolicy('MONTHLY_ONLY'), null, 2)).toBe(false);
+      });
+
+      it('billing type restriction applies regardless of policy type (CALENDAR_YEAR + MONTHLY_ONLY)', () => {
+        const policy = { type: 'CALENDAR_YEAR', maxSkips: 3, maxConsecutive: null, eligibleBillingTypes: 'MONTHLY_ONLY' };
+        expect(callWithPrepaid(policy, { skipsInWindow: 0, consecutiveSkips: 0 }, 6)).toBe(false);
+        expect(callWithPrepaid(policy, { skipsInWindow: 0, consecutiveSkips: 0 }, 1)).toBe(true);
+      });
     });
   });
 
@@ -182,6 +238,149 @@ describe('SkipPolicyEngine — pure logic', () => {
       const months = [{ year: 2025, month: 3 }, { year: 2025, month: 4 }];
       const status: SkipStatus = call(policy, null, null, months, null);
       expect(status.skippedMonths).toEqual(months);
+    });
+
+    // ─── eligibleBillingTypes warnings ────────────────────────────────────────
+
+    describe('eligibleBillingTypes billing warnings', () => {
+      const unlimited = (eligibleBillingTypes: string) => ({
+        type: 'UNLIMITED', maxSkips: null, maxConsecutive: null,
+        notes: null, skipHow: null, eligibleBillingTypes,
+      });
+      const targetMonth = { year: 2025, month: 6 };
+
+      it('MONTHLY_ONLY + prepaid subscriber → canSkip=false and shows warning', () => {
+        // prepaidMonths=6 → isPrepaid=true → MONTHLY_ONLY blocks + shows warning
+        const status: SkipStatus = call(unlimited('MONTHLY_ONLY'), null, null, [], targetMonth, undefined, null, null, 6);
+        expect(status.canSkip).toBe(false);
+        expect(status.warnings.some((w: string) => w.toLowerCase().includes('prepaid'))).toBe(true);
+      });
+
+      it('MONTHLY_ONLY + monthly subscriber → canSkip=true and no billing warning', () => {
+        // prepaidMonths=1 → isPrepaid=false → MONTHLY_ONLY allows
+        const status: SkipStatus = call(unlimited('MONTHLY_ONLY'), null, null, [], targetMonth, undefined, null, null, 1);
+        expect(status.canSkip).toBe(true);
+        expect(status.warnings.every((w: string) => !w.toLowerCase().includes('prepaid'))).toBe(true);
+      });
+
+      it('PREPAID_ONLY + monthly subscriber → canSkip=false and shows warning', () => {
+        // prepaidMonths=1 → isPrepaid=false → PREPAID_ONLY blocks + shows warning
+        const status: SkipStatus = call(unlimited('PREPAID_ONLY'), null, null, [], targetMonth, undefined, null, null, 1);
+        expect(status.canSkip).toBe(false);
+        expect(status.warnings.some((w: string) => w.toLowerCase().includes('prepaid'))).toBe(true);
+      });
+
+      it('PREPAID_ONLY + prepaid subscriber → canSkip=true and no billing warning', () => {
+        // prepaidMonths=6 → isPrepaid=true → PREPAID_ONLY allows
+        const status: SkipStatus = call(unlimited('PREPAID_ONLY'), null, null, [], targetMonth, undefined, null, null, 6);
+        expect(status.canSkip).toBe(true);
+        expect(status.warnings.every((w: string) => !w.toLowerCase().includes('prepaid'))).toBe(true);
+      });
+
+      it('ALL → canSkip=true for both monthly and prepaid', () => {
+        const statusMonthly: SkipStatus = call(unlimited('ALL'), null, null, [], targetMonth, undefined, null, null, 1);
+        const statusPrepaid: SkipStatus = call(unlimited('ALL'), null, null, [], targetMonth, undefined, null, null, 6);
+        expect(statusMonthly.canSkip).toBe(true);
+        expect(statusPrepaid.canSkip).toBe(true);
+      });
+    });
+  });
+
+  // ─── computeSkipCandidate ─────────────────────────────────────────────────
+  //
+  // Rules:
+  //   - No renewalDay (null)         → candidate = nextMonth+offset, no warning flag
+  //   - renewalDay set, before day   → candidate = currentMonth+offset, no warning flag
+  //   - renewalDay set, on/after day → candidate = nextMonth+offset, warning flag=true
+  //   - offset shifts the candidate month forward
+
+  describe('computeSkipCandidate', () => {
+    const call = (now: Date, renewalDay: number | null, offset: number) =>
+      (engine as any).computeSkipCandidate(now, renewalDay, offset);
+
+    // June 3 2026 — before renewalDay=4
+    const jun3 = new Date(2026, 5, 3); // month 0-indexed
+    // June 4 2026 — on renewalDay=4
+    const jun4 = new Date(2026, 5, 4);
+    // June 5 2026 — after renewalDay=4
+    const jun5 = new Date(2026, 5, 5);
+
+    it('no renewalDay → candidate = nextMonth, no skipPassed flag', () => {
+      const result = call(jun3, null, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('before renewalDay → candidate = currentMonth, no skipPassed flag', () => {
+      const result = call(jun3, 4, 0);
+      expect(result.candidateMonth).toBe(6); // June
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('on renewalDay → candidate = nextMonth, skipPassed=true', () => {
+      const result = call(jun4, 4, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('after renewalDay → candidate = nextMonth, skipPassed=true', () => {
+      const result = call(jun5, 4, 0);
+      expect(result.candidateMonth).toBe(7); // July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('offset=1 before renewalDay → candidate = currentMonth+1', () => {
+      const result = call(jun3, 4, 1);
+      expect(result.candidateMonth).toBe(7); // June+1 = July
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(false);
+    });
+
+    it('offset=1 after renewalDay → candidate = nextMonth+1', () => {
+      const result = call(jun5, 4, 1);
+      expect(result.candidateMonth).toBe(8); // July+1 = August
+      expect(result.candidateYear).toBe(2026);
+      expect(result.currentMonthSkipPassed).toBe(true);
+    });
+
+    it('December + no renewalDay → rolls over to January next year', () => {
+      const dec15 = new Date(2026, 11, 15);
+      const result = call(dec15, null, 0);
+      expect(result.candidateMonth).toBe(1); // January
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('December + before renewalDay + offset=1 → February next year', () => {
+      const dec1 = new Date(2026, 11, 1);
+      const result = call(dec1, 10, 1); // day=1 < renewalDay=10, candidate=Dec+1=Jan27
+      expect(result.candidateMonth).toBe(1); // Jan
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('November + after renewalDay + offset=2 → January next year', () => {
+      const nov20 = new Date(2026, 10, 20);
+      const result = call(nov20, 5, 2); // day=20 >= renewalDay=5, so nextMonth=Dec, Dec+2=Feb→no, Dec+2 = month 14→month2, year+1
+      // nextMonth = Dec(12), +2 = 14 → 14-12=2 Feb, year+1
+      expect(result.candidateMonth).toBe(2);
+      expect(result.candidateYear).toBe(2027);
+    });
+
+    it('day=1, renewalDay=1 → on renewal day → skipPassed=true, candidate = nextMonth', () => {
+      const jan1 = new Date(2026, 0, 1);
+      const result = call(jan1, 1, 0);
+      expect(result.currentMonthSkipPassed).toBe(true);
+      expect(result.candidateMonth).toBe(2); // February
+    });
+
+    it('renewalDay=31 with day=30 → before renewal → candidate = currentMonth', () => {
+      const mar30 = new Date(2026, 2, 30);
+      const result = call(mar30, 31, 0);
+      expect(result.candidateMonth).toBe(3); // March
+      expect(result.currentMonthSkipPassed).toBe(false);
     });
   });
 
