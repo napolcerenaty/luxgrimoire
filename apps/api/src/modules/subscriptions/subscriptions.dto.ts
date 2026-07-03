@@ -474,7 +474,7 @@ export class MonthQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(50)
+  @Max(500)
   pageSize?: number;
 
   @IsOptional()
