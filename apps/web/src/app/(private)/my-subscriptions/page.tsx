@@ -12,7 +12,7 @@ import { useBrandColors } from '@/lib/useBrandColors'
 import { CancelSubscriptionModal } from '@/components/subscriptions/CancelSubscriptionModal'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
-import { Ban, CheckCircle2, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
+import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -1107,12 +1107,9 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
-                <h3 className="truncate font-semibold leading-tight text-stone-100">{sub.name}</h3>
+                <h3 className="break-words font-semibold leading-tight text-stone-100">{sub.name}</h3>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
-                  <CheckCircle2 size={12} /> Active
-                </span>
                 {entry.isForwarding && (
                   <span className="rounded border border-blue-700/40 px-1.5 py-0.5 text-[10px] text-blue-400">
                     📦 Forwarding
@@ -1179,11 +1176,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
       <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="relative block">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
         <div className="absolute right-2 top-2 z-10 flex flex-col items-end gap-1">
-          {entry.active ? (
-            <span className="flex items-center gap-1 rounded bg-stone-950/80 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-              <CheckCircle2 size={10} /> Active
-            </span>
-          ) : (
+          {!entry.active && (
             <span className="flex items-center gap-1 rounded bg-stone-950/80 px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
               <XCircle size={10} /> Cancelled
             </span>
@@ -1205,7 +1198,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
         className={`flex flex-1 flex-col gap-1 p-3 ${entry.active ? 'cursor-pointer' : ''}`}
       >
         <p className="truncate text-[10px] text-stone-500">{sub.company.name}</p>
-        <p className="truncate text-sm font-semibold leading-tight text-stone-100">{sub.name}</p>
+        <p className="break-words text-sm font-semibold leading-tight text-stone-100">{sub.name}</p>
         {entry.active && renewalLabel && (
           <p className="text-[10px] text-stone-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
         )}
@@ -1394,16 +1387,12 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
-                <h3 className="truncate font-semibold leading-tight text-stone-100">
+                <h3 className="break-words font-semibold leading-tight text-stone-100">
                   {sub.name}
                 </h3>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
-                {entry.active ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
-                    <CheckCircle2 size={12} /> Active
-                  </span>
-                ) : (
+                {!entry.active && (
                   <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
                     <XCircle size={12} /> Cancelled
                   </span>
