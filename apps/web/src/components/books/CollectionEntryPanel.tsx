@@ -280,27 +280,27 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
   const [isDnf, setIsDnf] = useState(false)
   const [notes, setNotes] = useState('')
   return (
-    <div className="flex flex-col gap-1.5 mt-1 text-xs">
-      <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex flex-col gap-2 mt-1 text-xs">
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-center">
         <label className="text-stone-500 shrink-0">Started</label>
         <input
           type="date"
           value={startedAt}
           onChange={e => setStartedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
         />
         <label className="text-stone-500 shrink-0">Finished</label>
         <input
           type="date"
           value={finishedAt}
           onChange={e => setFinishedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
         />
-        <label className="flex items-center gap-1 text-stone-400 cursor-pointer">
-          <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-amber-400" />
-          DNF
-        </label>
       </div>
+      <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
+        <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-amber-400" />
+        DNF
+      </label>
       <input
         type="text"
         placeholder="Notes (optional)"
@@ -2120,31 +2120,31 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     {readingHistory.map((rh) =>
                       readingHistoryEditId === rh.id ? (
                         <div key={rh.id} className="flex flex-col gap-1.5 text-xs">
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-center">
                             <label className="text-stone-500 shrink-0">Started</label>
                             <input
                               type="date"
                               value={readingHistoryEditStartedAt}
                               onChange={e => setReadingHistoryEditStartedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
                             />
                             <label className="text-stone-500 shrink-0">Finished</label>
                             <input
                               type="date"
                               value={readingHistoryEditFinishedAt}
                               onChange={e => setReadingHistoryEditFinishedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
                             />
-                            <label className="flex items-center gap-1 text-stone-400 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={readingHistoryEditIsDnf}
-                                onChange={e => setReadingHistoryEditIsDnf(e.target.checked)}
-                                className="accent-amber-400"
-                              />
-                              DNF
-                            </label>
                           </div>
+                          <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
+                            <input
+                              type="checkbox"
+                              checked={readingHistoryEditIsDnf}
+                              onChange={e => setReadingHistoryEditIsDnf(e.target.checked)}
+                              className="accent-amber-400"
+                            />
+                            DNF
+                          </label>
                           <input
                             type="text"
                             placeholder="Notes (optional)"
@@ -2179,7 +2179,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {!rh.startedAt && !rh.finishedAt && (
                               <span style={{ color: 'var(--text-muted)' }}>No dates recorded</span>
                             )}
-                            <span className="ml-auto flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <span className="ml-auto flex items-center gap-1">
                               <button
                                 onClick={() => {
                                   setReadingHistoryEditId(rh.id)
