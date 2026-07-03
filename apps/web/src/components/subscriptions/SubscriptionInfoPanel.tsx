@@ -557,7 +557,7 @@ export default function SubscriptionInfoPanel({
             )
           )}
         </div>
-        {skipPolicies && skipPolicies.length > 0 && (
+        {skipPolicies && skipPolicies.length > 0 && !isSubscriber && (
           <SkipPoliciesInfoPanel policies={skipPolicies} />
         )}
       </div>
