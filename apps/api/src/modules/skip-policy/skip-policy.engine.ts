@@ -207,10 +207,15 @@ export class SkipPolicyEngine {
           where: isCombo
             ? { subscriptionId: { in: componentIds }, ...candidateWhere }
             : { subscriptionId: monthsSubscriptionId, ...candidateWhere },
-          select: { id: true, year: true, month: true, seriesId: true, series: { select: { skipMode: true } } },
+          select: {
+            id: true, year: true, month: true, seriesId: true,
+            series: { select: { skipMode: true, months: { select: { year: true, month: true }, orderBy: [{ year: 'asc' }, { month: 'asc' }], take: 1 } } },
+          },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
           take: isCombo ? 24 : 12,
         });
+
+        const seriesBlockModes = new Set(['SERIES_AS_ONE', 'SERIES_ONLY', 'SERIES_AS_MANY']);
 
         // For combos: deduplicate by (year, month) — keep first component month per calendar slot
         const candidates = isCombo
@@ -230,6 +235,18 @@ export class SkipPolicyEngine {
 
           // Cannot skip months in a NO_SKIP series
           if (m.series?.skipMode === 'NO_SKIP') { blockedByNoSkipSeries = true; continue; }
+
+          // Cannot skip mid-series: if a skip-as-series mode is active and the series has already
+          // started (first series month < candidateMonth), block until the series ends
+          if (m.series && seriesBlockModes.has(m.series.skipMode)) {
+            const firstSeriesMonth = m.series.months[0];
+            if (firstSeriesMonth) {
+              const seriesStarted =
+                firstSeriesMonth.year < candidateYear ||
+                (firstSeriesMonth.year === candidateYear && firstSeriesMonth.month < candidateMonth);
+              if (seriesStarted) { blockedByNoSkipSeries = true; continue; }
+            }
+          }
 
           // Cannot skip first box (standalone) or any month in the first series
           if (firstMonthInfo) {
@@ -255,9 +272,9 @@ export class SkipPolicyEngine {
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
 
-    // Warn when upcoming months are blocked by a NO_SKIP series
+    // Warn when upcoming months are blocked by a NO_SKIP or in-progress series
     if (!status.canSkip && targetMonth === null && subscriptionStarted && blockedByNoSkipSeries) {
-      status.warnings.unshift(`Skipping is not available — upcoming months are part of a series that does not allow skips.`);
+      status.warnings.unshift(`Skipping is not available — upcoming months are part of a series that does not allow skips or is already in progress.`);
     }
 
     if (currentMonthSkipPassed) {
