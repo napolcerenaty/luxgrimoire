@@ -770,8 +770,7 @@ export class SkipPolicyEngine {
   async getAllSkippedMonths(userId: string) {
     const records = await this.prisma.userSkipRecord.findMany({
       where: { userId, undoneAt: null },
-      select: {
-        skippedAt: true,
+      include: {
         month: {
           select: {
             year: true,
@@ -789,7 +788,12 @@ export class SkipPolicyEngine {
             },
             books: {
               select: {
-                book: { select: { title: true, authors: { select: { name: true } } } },
+                book: {
+                  select: {
+                    title: true,
+                    authors: { select: { author: { select: { name: true } } } },
+                  },
+                },
                 edition: { select: { additionalImages: true } },
               },
               orderBy: { sortOrder: 'asc' },
@@ -813,7 +817,7 @@ export class SkipPolicyEngine {
       },
       books: r.month.books.map((mb) => ({
         title: mb.book.title,
-        authors: mb.book.authors.map((a) => a.name).join(', '),
+        authors: mb.book.authors.map((a) => a.author.name).join(', '),
         coverImage: mb.edition?.additionalImages?.[0] ?? null,
       })),
     }));
