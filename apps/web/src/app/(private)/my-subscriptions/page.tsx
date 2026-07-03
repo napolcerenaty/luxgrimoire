@@ -479,8 +479,13 @@ function SubscriptionOverviewPanel({
   const detailCurrency = detail?.costCurrency ?? entry.costCurrency ?? entry.subscription.currency
   const total = detail ? getCostTotal(detail, entry.subscription.currency) : null
   const nextBoxMonth = nextBoxQuery.data?.data?.[0]
-  const previewBook = nextBoxMonth?.books?.[0]?.book
-  const previewAuthors = previewBook?.authors?.map(author => author.name).join(', ')
+  const previewEntry = nextBoxMonth?.books?.[0]
+  const previewBook = previewEntry?.book
+  const previewEdition = previewEntry?.edition
+  const previewCover = (previewEdition as any)?.additionalImages?.[0]
+    ? cloudinaryUrl((previewEdition as any).additionalImages[0], 'w_120,h_180,c_fill,q_auto,f_auto')
+    : null
+  const previewAuthors = previewBook?.authors?.map((a: any) => a.author?.name ?? a.name).filter(Boolean).join(', ')
   const skipStatus = skipQuery.data
   const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
 
@@ -661,12 +666,18 @@ function SubscriptionOverviewPanel({
               )}
 
               {previewBook ? (
-                <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3">
-                  <p className="text-sm font-medium text-stone-100">{previewBook.title}</p>
-                  {previewAuthors && <p className="mt-1 text-xs text-stone-400">{previewAuthors}</p>}
-                  {nextBoxMonth && nextBoxMonth.books.length > 1 && (
-                    <p className="mt-2 text-[11px] text-stone-500">+{nextBoxMonth.books.length - 1} more book{nextBoxMonth.books.length > 2 ? 's' : ''}</p>
+                <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3 flex gap-3">
+                  {previewCover && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewCover} alt={previewBook.title} className="w-10 h-15 rounded object-cover shrink-0" style={{ height: '60px', width: '40px' }} />
                   )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-stone-100 leading-snug">{previewBook.title}</p>
+                    {previewAuthors && <p className="mt-0.5 text-xs text-stone-400">{previewAuthors}</p>}
+                    {nextBoxMonth && nextBoxMonth.books.length > 1 && (
+                      <p className="mt-1.5 text-[11px] text-stone-500">+{nextBoxMonth.books.length - 1} more book{nextBoxMonth.books.length > 2 ? 's' : ''}</p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-stone-500">Preview for this box has not been added yet.</p>

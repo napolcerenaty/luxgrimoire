@@ -916,7 +916,14 @@ export class SubscriptionsService {
               editionId: true,
               isMainBook: true,
               signatureType: true,
-              book: { select: { id: true, title: true, slug: true } },
+              book: {
+                select: {
+                  id: true,
+                  title: true,
+                  slug: true,
+                  authors: { select: { author: { select: { name: true } } } },
+                },
+              },
               edition: {
                 select: {
                   id: true,
