@@ -1998,8 +1998,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center flex-1 min-w-0">
+            <div className="flex items-center gap-1 flex-wrap flex-1">
               {entry.tags.length > 0 ? (
                 entry.tags.map(tag => (
                   <span key={tag} className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
@@ -2011,7 +2011,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               )}
             </div>
             <EditBtn onClick={openTagsEdit} />
-          </>
+          </div>
         )}
           </div>
 
