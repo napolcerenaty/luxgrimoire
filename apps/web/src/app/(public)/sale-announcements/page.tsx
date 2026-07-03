@@ -323,6 +323,7 @@ export default function SaleAnnouncementsPage() {
           <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
           <option value="OPEN_PREORDER">🔓 Open Preorder</option>
           <option value="OVERSTOCK">📦 Overstock</option>
+          <option value="SALE">🏷️ Sale</option>
         </select>
 
         {/* Date from */}
@@ -374,7 +375,7 @@ export default function SaleAnnouncementsPage() {
           <span className="text-xs text-stone-500">Active filters:</span>
           {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
           {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
-          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock' }[saleType] ?? saleType}</span>}
+          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock', SALE: '🏷️ Sale' }[saleType] ?? saleType}</span>}
           {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
           {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
           <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">

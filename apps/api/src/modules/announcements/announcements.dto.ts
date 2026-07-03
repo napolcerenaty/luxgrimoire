@@ -1,8 +1,8 @@
 import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum, IsInt } from 'class-validator';
 import { BaseNumericPriceCurrencyDto } from '../../common/dto/price.dto';
 
-export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
-const SALE_TYPES: SaleType[] = ['LIMITED_PREORDER', 'OPEN_PREORDER', 'OVERSTOCK'];
+export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK' | 'SALE';
+const SALE_TYPES: SaleType[] = ['LIMITED_PREORDER', 'OPEN_PREORDER', 'OVERSTOCK', 'SALE'];
 
 export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsString()

@@ -96,7 +96,13 @@ export class AnnouncementsService {
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
 
-    const andConditions: Prisma.SaleAnnouncementWhereInput[] = [{ editions: { some: {} } }];
+    // OVERSTOCK and SALE are visible without linked editions; other types require at least one
+    const andConditions: Prisma.SaleAnnouncementWhereInput[] = [{
+      OR: [
+        { editions: { some: {} } },
+        { saleType: { in: ['OVERSTOCK', 'SALE'] } },
+      ],
+    }];
 
     // saleType filter
     if (query.saleType) {
@@ -153,6 +159,10 @@ export class AnnouncementsService {
 
       if (!typeFilter || typeFilter === 'OVERSTOCK') {
         activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, lpOrOsActive] });
+      }
+
+      if (!typeFilter || typeFilter === 'SALE') {
+        activeSaleCondition.push({ AND: [{ saleType: 'SALE' }, lpOrOsActive] });
       }
 
       andConditions.push({ OR: activeSaleCondition });
