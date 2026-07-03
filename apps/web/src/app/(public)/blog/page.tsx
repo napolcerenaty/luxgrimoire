@@ -1,0 +1,197 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { Clock } from 'lucide-react'
+import { getPosts, getTags, type GhostPost } from '@/lib/ghost'
+
+export const revalidate = 60
+
+export const metadata: Metadata = {
+  title: 'Blog | LuxGrimoire',
+  description: 'Stories, guides and features for special edition book collectors.',
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
+  return (
+    <article
+      className={`relative overflow-hidden rounded-[28px] border transition-all duration-[220ms] cursor-pointer blog-panel-card group ${large ? 'min-h-[458px]' : 'min-h-[220px]'}`}
+      style={{ borderColor: 'var(--border)' }}
+    >
+      {post.feature_image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={post.feature_image}
+          alt={post.feature_image_alt ?? post.title}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute top-5 left-5 select-none" style={{ fontSize: large ? '3rem' : '2rem', opacity: 0.9 }} aria-hidden="true">📚</div>
+      )}
+      <div className="absolute inset-0 blog-panel-overlay" />
+      <div className="absolute bottom-0 left-0 right-0 p-[22px]">
+        {post.primary_tag && (
+          <span className="blog-panel-category">{post.primary_tag.name}</span>
+        )}
+        {large ? (
+          <h1 className="font-serif mt-0 mb-2.5 leading-[1.12] text-white" style={{ fontSize: 'clamp(2rem,5vw,3rem)', maxWidth: '12ch' }}>
+            {post.title}
+          </h1>
+        ) : (
+          <h2 className="font-serif mt-0 mb-2.5 leading-[1.12] text-white" style={{ fontSize: 'clamp(1.3rem,2.6vw,1.7rem)' }}>
+            {post.title}
+          </h2>
+        )}
+        <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'rgba(200,230,255,0.75)' }}>
+          {post.authors[0] && <span>{post.authors[0].name}</span>}
+          {post.reading_time > 0 && (
+            <>
+              <span className="opacity-50">·</span>
+              <span className="flex items-center gap-1"><Clock size={12} /> {post.reading_time} min</span>
+            </>
+          )}
+          {post.published_at && (
+            <>
+              <span className="opacity-50">·</span>
+              <span>{formatDate(post.published_at)}</span>
+            </>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function GuideCard({ post }: { post: GhostPost }) {
+  const excerpt = post.custom_excerpt ?? post.excerpt
+  return (
+    <article className="rounded-[24px] border p-5 h-full flex flex-col transition-all duration-[220ms] cursor-pointer blog-guide-card" style={{ borderColor: 'var(--border)' }}>
+      {post.primary_tag && (
+        <div className="text-xs font-serif uppercase tracking-[0.08em] mb-3" style={{ color: 'var(--text-muted)' }}>
+          {post.primary_tag.name}
+        </div>
+      )}
+      <h3 className="font-serif text-[1.35rem] leading-[1.18] mb-2.5 mt-0" style={{ color: 'var(--text-bright)' }}>
+        {post.title}
+      </h3>
+      {excerpt && (
+        <p className="leading-[1.52] mb-3.5 line-clamp-3 flex-1" style={{ color: 'var(--text-dim)' }}>{excerpt}</p>
+      )}
+      <span className="text-sm mt-auto" style={{ color: 'var(--accent-bright)' }}>Read →</span>
+    </article>
+  )
+}
+
+export default async function BlogPage() {
+  const [posts, tags] = await Promise.all([getPosts(20), getTags()])
+  const hero = posts.slice(0, 3)
+  const rest = posts.slice(3)
+
+  const byTag: Map<string, GhostPost[]> = new Map()
+  for (const post of rest) {
+    const key = post.primary_tag?.name ?? 'More Posts'
+    if (!byTag.has(key)) byTag.set(key, [])
+    byTag.get(key)!.push(post)
+  }
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{ background: 'radial-gradient(circle at top center, var(--accent-glow), transparent 30%), linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 60%, var(--bg-surface) 100%)' }}
+    >
+      <div className="max-w-[1300px] mx-auto px-4 sm:px-6 pb-16">
+
+        {/* ── Hero mosaic ── */}
+        <section aria-label="Featured posts">
+          {hero.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1fr] gap-[18px] pt-6">
+              <Link href={`/blog/${hero[0].slug}`} className="block">
+                <HeroPanel post={hero[0]} large />
+              </Link>
+              <div className="grid gap-[18px]" style={{ gridTemplateRows: 'repeat(2, minmax(220px, 1fr))' }}>
+                {hero[1] && (
+                  <Link href={`/blog/${hero[1].slug}`} className="block">
+                    <HeroPanel post={hero[1]} />
+                  </Link>
+                )}
+                {hero[2] && (
+                  <Link href={`/blog/${hero[2].slug}`} className="block">
+                    <HeroPanel post={hero[2]} />
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="pt-16 pb-8 text-center">
+              <div className="text-6xl mb-5">📚</div>
+              <h2 className="font-serif text-2xl mb-2 mt-0" style={{ color: 'var(--text-bright)' }}>Stories Coming Soon</h2>
+              <p style={{ color: 'var(--text-dim)' }}>We're crafting the first posts. Check back soon.</p>
+              <Link href="/" className="inline-flex items-center gap-2 mt-6 text-sm transition-colors hover:underline" style={{ color: 'var(--accent-bright)' }}>
+                ← Back to App
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ── Tag strip ── */}
+        {tags.length > 0 && (
+          <div className="flex gap-2.5 overflow-x-auto pt-6 scrollbar-none" aria-label="Topics">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif whitespace-nowrap blog-tag"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* ── Sections by tag ── */}
+        {Array.from(byTag.entries()).map(([tagName, tagPosts]) => (
+          <section key={tagName} className="pt-10">
+            <h2 className="font-serif m-0 mb-4 text-[clamp(1.35rem,3vw,2rem)]" style={{ color: 'var(--text-bright)' }}>{tagName}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
+              {tagPosts.map((post) => (
+                <Link key={post.id} href={`/blog/${post.slug}`} className="block h-full">
+                  <GuideCard post={post} />
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {/* ── Quote ── */}
+        {posts.length > 0 && (
+          <section className="pt-10">
+            <blockquote className="blog-quote-card m-0">
+              <p className="font-serif italic text-[clamp(1.2rem,3vw,1.7rem)] leading-[1.45] m-0" style={{ color: 'var(--text-bright)' }}>
+                Collectors remember not only the book they bought, but the exact form of longing that led them to it.
+              </p>
+              <cite className="block mt-3 not-italic text-base" style={{ color: 'var(--text-dim)' }}>— LuxGrimoire Editorial</cite>
+            </blockquote>
+          </section>
+        )}
+
+        {/* ── CTA ── */}
+        <section className="pt-6">
+          <div className="blog-cta-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <h3 className="font-serif text-[clamp(1.3rem,2.5vw,1.8rem)] mb-2 mt-0" style={{ color: 'var(--text-bright)' }}>
+                Track Your Collection
+              </h3>
+              <p className="m-0" style={{ color: 'var(--text-dim)' }}>
+                Log variants, signatures, release details and shelf notes in LuxGrimoire — the premium archive for special edition book collectors.
+              </p>
+            </div>
+            <Link href="/" className="blog-btn-primary shrink-0">Open the App →</Link>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  )
+}

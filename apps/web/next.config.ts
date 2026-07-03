@@ -19,7 +19,7 @@ const CSP = [
   // unsafe-eval is only needed by Next.js HMR in development, not production builds
   isProd ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com",
+  "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com" + (isProd ? '' : ' http://localhost:2368'),
   "font-src 'self' https://fonts.gstatic.com",
   `connect-src 'self' ${apiOrigin} https://api.cloudinary.com`,
   "media-src 'self'",
@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'flagcdn.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '2368',
+        pathname: '/content/images/**',
       },
     ],
   },
