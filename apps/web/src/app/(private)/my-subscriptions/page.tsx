@@ -552,7 +552,9 @@ function SubscriptionOverviewPanel({
           ) : skipQuery.error ? (
             <p className="text-sm text-red-400">Could not load skip status.</p>
           ) : skipStatus?.policyType === 'NONE' ? (
-            <p className="text-sm text-stone-500">This subscription doesn't offer skipping.</p>
+            <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-500">
+              No skipping offered
+            </span>
           ) : skipStatus ? (
             <div className="space-y-3">
               <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-200">
