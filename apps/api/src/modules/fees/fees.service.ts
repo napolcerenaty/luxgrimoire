@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StatsService } from '../stats/stats.service';
 import {
   CreateFeeTemplateDto,
   UpdateFeeTemplateDto,
@@ -13,7 +14,10 @@ import {
 
 @Injectable()
 export class FeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly statsService: StatsService,
+  ) {}
 
   // ── Fee Templates ────────────────────────────────────────────────────────
 
@@ -78,7 +82,7 @@ export class FeesService {
   }
 
   async createPurchaseFee(userId: string, dto: CreatePurchaseFeeDto) {
-    return this.prisma.userPurchaseFee.create({
+    const result = await this.prisma.userPurchaseFee.create({
       data: {
         userId,
         feeTemplateId: dto.feeTemplateId ?? null,
@@ -93,6 +97,8 @@ export class FeesService {
       },
       include: { feeTemplate: { select: { id: true, name: true } } },
     });
+    this.statsService.markStatsStale(userId, [new Date(dto.date).getFullYear()]);
+    return result;
   }
 
   async updatePurchaseFee(userId: string, feeId: string, dto: UpdatePurchaseFeeDto) {
@@ -100,7 +106,7 @@ export class FeesService {
     if (!existing) throw new NotFoundException('Purchase fee not found');
     assertOwnership(existing.userId, userId);
 
-    return this.prisma.userPurchaseFee.update({
+    const result = await this.prisma.userPurchaseFee.update({
       where: { id: feeId },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -112,6 +118,11 @@ export class FeesService {
       },
       include: { feeTemplate: { select: { id: true, name: true } } },
     });
+    // Mark both old and new year stale in case date changed
+    const years = new Set([new Date(existing.date).getFullYear()]);
+    if (dto.date) years.add(new Date(dto.date).getFullYear());
+    this.statsService.markStatsStale(userId, [...years]);
+    return result;
   }
 
   async deletePurchaseFee(userId: string, feeId: string) {
@@ -119,6 +130,7 @@ export class FeesService {
     if (!existing) throw new NotFoundException('Purchase fee not found');
     assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseFee.delete({ where: { id: feeId } });
+    this.statsService.markStatsStale(userId, [new Date(existing.date).getFullYear()]);
   }
 
   // ── Stats helper (used by spending module) ───────────────────────────────
@@ -154,7 +166,7 @@ export class FeesService {
   }
 
   async createDiscount(userId: string, dto: CreatePurchaseDiscountDto) {
-    return this.prisma.userPurchaseDiscount.create({
+    const result = await this.prisma.userPurchaseDiscount.create({
       data: {
         userId,
         name: dto.name ?? null,
@@ -166,6 +178,8 @@ export class FeesService {
         notes: dto.notes ?? null,
       },
     });
+    this.statsService.markStatsStale(userId, [new Date(dto.date).getFullYear()]);
+    return result;
   }
 
   async updateDiscount(userId: string, discountId: string, dto: UpdatePurchaseDiscountDto) {
@@ -173,7 +187,7 @@ export class FeesService {
     if (!existing) throw new NotFoundException('Discount not found');
     assertOwnership(existing.userId, userId);
 
-    return this.prisma.userPurchaseDiscount.update({
+    const result = await this.prisma.userPurchaseDiscount.update({
       where: { id: discountId },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -183,6 +197,10 @@ export class FeesService {
         ...(dto.notes !== undefined && { notes: dto.notes }),
       },
     });
+    const years = new Set([new Date(existing.date).getFullYear()]);
+    if (dto.date) years.add(new Date(dto.date).getFullYear());
+    this.statsService.markStatsStale(userId, [...years]);
+    return result;
   }
 
   async deleteDiscount(userId: string, discountId: string) {
@@ -190,6 +208,7 @@ export class FeesService {
     if (!existing) throw new NotFoundException('Discount not found');
     assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseDiscount.delete({ where: { id: discountId } });
+    this.statsService.markStatsStale(userId, [new Date(existing.date).getFullYear()]);
   }
 
   async getRefundsForStats(userId: string, currency?: string) {
@@ -216,7 +235,7 @@ export class FeesService {
   }
 
   async createRefund(userId: string, dto: CreatePurchaseRefundDto) {
-    return this.prisma.userPurchaseRefund.create({
+    const result = await this.prisma.userPurchaseRefund.create({
       data: {
         userId,
         amount: dto.amount,
@@ -228,6 +247,8 @@ export class FeesService {
         notes: dto.notes ?? null,
       },
     });
+    this.statsService.markStatsStale(userId, [new Date(dto.date).getFullYear()]);
+    return result;
   }
 
   async deleteRefund(userId: string, refundId: string) {
@@ -235,5 +256,6 @@ export class FeesService {
     if (!existing) throw new NotFoundException('Refund not found');
     assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseRefund.delete({ where: { id: refundId } });
+    this.statsService.markStatsStale(userId, [new Date(existing.date).getFullYear()]);
   }
 }
