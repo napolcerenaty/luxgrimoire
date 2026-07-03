@@ -655,7 +655,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       const purchasedAtIso = editPurchasedAt ? new Date(editPurchasedAt).toISOString() : new Date().toISOString()
       for (const d of editDiscounts) {
         const amt = parseFloat(d.amount)
-        if (!amt || amt <= 0 || !d.name.trim()) continue
+        if (!amt || amt <= 0) continue
         if (d.id && existingIds.has(d.id)) {
           // Update existing
           await authFetch(`/fees/discounts/${d.id}`, {
