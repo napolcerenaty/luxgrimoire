@@ -1049,8 +1049,127 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
     entry.nextRenewalCurrency ?? entry.subscription.currency,
   )
 
+  const modals = (
+    <>
+      {showCancelConfirm && (
+        <CancelSubscriptionModal
+          subscriptionSlug={sub.slug}
+          onCancelled={() => {
+            void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
+            void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+            setShowCancelConfirm(false)
+          }}
+          onClose={() => setShowCancelConfirm(false)}
+        />
+      )}
+      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
+        <EntryRemoveDialog
+          entry={entry}
+          subName={sub.name}
+          removeBooks={removeBooks}
+          setRemoveBooks={setRemoveBooks}
+          removeSoldBooks={removeSoldBooks}
+          setRemoveSoldBooks={setRemoveSoldBooks}
+          removeSpending={removeSpending}
+          setRemoveSpending={setRemoveSpending}
+          isPending={removeMutation.isPending}
+          error={removeMutation.error?.message}
+          onConfirm={() => removeMutation.mutate()}
+          onClose={() => setShowRemoveConfirm(false)}
+        />,
+        document.body,
+      )}
+    </>
+  )
+
+  // Expanded: span full row, show list-like layout
+  if (isExpanded && entry.active) {
+    return (
+      <div className="col-span-full overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+        <div className="flex">
+          {/* Only photo navigates */}
+          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="relative w-24 shrink-0 sm:w-32">
+            <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
+          </Link>
+
+          {/* Clickable text area collapses overview */}
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3 text-left"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
+                <h3 className="truncate font-semibold leading-tight text-stone-100">{sub.name}</h3>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                  <CheckCircle2 size={12} /> Active
+                </span>
+                {entry.isForwarding && (
+                  <span className="rounded border border-blue-700/40 px-1.5 py-0.5 text-[10px] text-blue-400">
+                    📦 Forwarding
+                  </span>
+                )}
+                {sub.isDiscontinued && (
+                  <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">Discontinued</span>
+                )}
+              </div>
+            </div>
+            {renewalLabel && (
+              <div className="mt-2">
+                <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
+                <p className="text-sm font-medium text-stone-200">
+                  {renewalLabel}
+                  {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                </p>
+              </div>
+            )}
+          </button>
+
+          {/* Right actions sidebar */}
+          <div className="flex shrink-0 flex-col items-center justify-between self-stretch border-l border-stone-800 bg-stone-900/60 px-2 py-2">
+            <span />
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                title="Cancel subscription"
+                onClick={() => setShowCancelConfirm(true)}
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+              >
+                <Ban size={15} />
+              </button>
+              <button
+                type="button"
+                title="Remove from my subscriptions"
+                onClick={() => setShowRemoveConfirm(true)}
+                className="rounded p-1.5 text-stone-600 transition-colors hover:bg-stone-800 hover:text-red-400"
+              >
+                <Trash2 size={15} />
+              </button>
+              <button
+                type="button"
+                title="Collapse overview"
+                onClick={() => setIsExpanded(false)}
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-100"
+              >
+                <ChevronUp size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <SubscriptionOverviewPanel entry={entry} isExpanded={true} />
+        {modals}
+      </div>
+    )
+  }
+
+  // Collapsed grid tile
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-stone-800 bg-stone-900 transition-colors hover:border-stone-700">
+      {/* Only photo is a link */}
       <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="relative block">
         <SubCoverImage coverUrl={coverUrl} name={sub.name} brandColors={brandColors} aspectClass="aspect-[4/3]" />
         <div className="absolute right-2 top-2 z-10 flex flex-col items-end gap-1">
@@ -1071,11 +1190,16 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="block">
-          <p className="truncate text-[10px] text-stone-500">{sub.company.name}</p>
-          <p className="truncate text-sm font-semibold leading-tight text-stone-100 transition-colors group-hover:text-amber-400">{sub.name}</p>
-        </Link>
+      {/* Info area — click to expand */}
+      <div
+        role={entry.active ? 'button' : undefined}
+        tabIndex={entry.active ? 0 : undefined}
+        onClick={() => entry.active && setIsExpanded(true)}
+        onKeyDown={e => entry.active && (e.key === 'Enter' || e.key === ' ') && setIsExpanded(true)}
+        className={`flex flex-1 flex-col gap-1 p-3 ${entry.active ? 'cursor-pointer' : ''}`}
+      >
+        <p className="truncate text-[10px] text-stone-500">{sub.company.name}</p>
+        <p className="truncate text-sm font-semibold leading-tight text-stone-100">{sub.name}</p>
         {entry.active && renewalLabel && (
           <p className="text-[10px] text-stone-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
         )}
@@ -1087,19 +1211,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          {entry.active ? (
-            <button
-              type="button"
-              onClick={() => setIsExpanded(prev => !prev)}
-              aria-expanded={isExpanded}
-              aria-label={isExpanded ? 'Collapse overview' : 'Expand overview'}
-              className="inline-flex items-center gap-1 rounded-lg border border-stone-700 px-2 py-1 text-[11px] text-stone-300 transition-colors hover:border-stone-600 hover:text-stone-100"
-            >
-              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              <span>Overview</span>
-            </button>
-          ) : <span />}
-          <div className="flex gap-1">
+          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
             {entry.active && (
               <button
                 type="button"
@@ -1119,40 +1231,11 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
               <Trash2 size={14} />
             </button>
           </div>
+          {entry.active && <ChevronDown size={14} className="text-stone-500 shrink-0" />}
         </div>
       </div>
 
-      {entry.active && isExpanded && <SubscriptionOverviewPanel entry={entry} isExpanded={isExpanded} />}
-
-      {showCancelConfirm && (
-        <CancelSubscriptionModal
-          subscriptionSlug={sub.slug}
-          onCancelled={() => {
-            void qc.invalidateQueries({ queryKey: ['my-subscriptions'] })
-            void qc.invalidateQueries({ queryKey: ['spending-stats-v2'] })
-            setShowCancelConfirm(false)
-          }}
-          onClose={() => setShowCancelConfirm(false)}
-        />
-      )}
-
-      {showRemoveConfirm && typeof document !== 'undefined' && createPortal(
-        <EntryRemoveDialog
-          entry={entry}
-          subName={sub.name}
-          removeBooks={removeBooks}
-          setRemoveBooks={setRemoveBooks}
-          removeSoldBooks={removeSoldBooks}
-          setRemoveSoldBooks={setRemoveSoldBooks}
-          removeSpending={removeSpending}
-          setRemoveSpending={setRemoveSpending}
-          isPending={removeMutation.isPending}
-          error={removeMutation.error?.message}
-          onConfirm={() => removeMutation.mutate()}
-          onClose={() => setShowRemoveConfirm(false)}
-        />,
-        document.body,
-      )}
+      {modals}
     </div>
   )
 }
@@ -1291,79 +1374,75 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
     <>
       <div className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900 transition-colors hover:border-stone-700">
         <div className="flex">
-          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="group flex min-w-0 flex-1">
+          {/* Only thumbnail navigates to details */}
+          <Link href={`/subscriptions/${sub.slug}?from=my-subscriptions`} className="shrink-0">
             <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
+          </Link>
 
-            <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
-                  <h3 className="truncate font-semibold leading-tight text-stone-100 transition-colors group-hover:text-amber-400">
-                    {sub.name}
-                  </h3>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  {entry.active ? (
-                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
-                      <CheckCircle2 size={12} /> Active
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
-                      <XCircle size={12} /> Cancelled
-                    </span>
-                  )}
-                  {entry.isForwarding && (
-                    <span className="rounded border border-blue-700/40 px-1.5 py-0.5 text-[10px] text-blue-400">
-                      📦 Forwarding
-                    </span>
-                  )}
-                  {sub.isDiscontinued && (
-                    <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">
-                      Discontinued
-                    </span>
-                  )}
-                </div>
+          {/* Text area — click to toggle overview */}
+          <button
+            type="button"
+            onClick={entry.active ? () => setIsExpanded(prev => !prev) : undefined}
+            className={`flex min-w-0 flex-1 flex-col justify-center px-4 py-3 text-left ${entry.active ? 'cursor-pointer' : 'cursor-default'}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
+                <h3 className="truncate font-semibold leading-tight text-stone-100">
+                  {sub.name}
+                </h3>
               </div>
-
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                {entry.active && renewalLabel && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
-                    <p className="text-sm font-medium text-stone-200">
-                      {renewalLabel}
-                      {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
-                    </p>
-                  </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                {entry.active ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                    <CheckCircle2 size={12} /> Active
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
+                    <XCircle size={12} /> Cancelled
+                  </span>
                 )}
-                {!entry.active && entry.startDate && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
-                    <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
-                  </div>
+                {entry.isForwarding && (
+                  <span className="rounded border border-blue-700/40 px-1.5 py-0.5 text-[10px] text-blue-400">
+                    📦 Forwarding
+                  </span>
                 )}
-                {!entry.active && entry.cancellationDate && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
-                    <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
-                    {entry.cancellationReason && <p className="mt-0.5 text-[10px] italic text-stone-500">{entry.cancellationReason}</p>}
-                  </div>
+                {sub.isDiscontinued && (
+                  <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">
+                    Discontinued
+                  </span>
                 )}
               </div>
             </div>
-          </Link>
 
-          <div className="flex shrink-0 flex-col items-center justify-between self-stretch border-l border-stone-800 bg-stone-900/60 px-2 py-2">
-            {entry.active ? (
-              <button
-                type="button"
-                title={isExpanded ? 'Collapse overview' : 'Expand overview'}
-                aria-expanded={isExpanded}
-                onClick={() => setIsExpanded(prev => !prev)}
-                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-100"
-              >
-                {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-            ) : <span />}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {entry.active && renewalLabel && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
+                  <p className="text-sm font-medium text-stone-200">
+                    {renewalLabel}
+                    {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                  </p>
+                </div>
+              )}
+              {!entry.active && entry.startDate && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Since</p>
+                  <p className="text-sm font-medium text-stone-300">{formatDate(entry.startDate)}</p>
+                </div>
+              )}
+              {!entry.active && entry.cancellationDate && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Cancelled</p>
+                  <p className="text-sm font-medium text-stone-400">{formatDate(entry.cancellationDate)}</p>
+                  {entry.cancellationReason && <p className="mt-0.5 text-[10px] italic text-stone-500">{entry.cancellationReason}</p>}
+                </div>
+              )}
+            </div>
+          </button>
+
+          {/* Right sidebar: action buttons + chevron at bottom */}
+          <div className="flex shrink-0 flex-col items-center justify-end self-stretch border-l border-stone-800 bg-stone-900/60 px-2 py-2">
             <div className="flex flex-col items-center gap-1">
               {entry.active && (
                 <button
@@ -1383,6 +1462,17 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
               >
                 <Trash2 size={15} />
               </button>
+              {entry.active && (
+                <button
+                  type="button"
+                  title={isExpanded ? 'Collapse overview' : 'Expand overview'}
+                  aria-expanded={isExpanded}
+                  onClick={() => setIsExpanded(prev => !prev)}
+                  className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-100"
+                >
+                  {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+              )}
             </div>
           </div>
         </div>
