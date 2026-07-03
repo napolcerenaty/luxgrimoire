@@ -1262,9 +1262,6 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
-                            <select value={editFeeCategory} onChange={e => setEditFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
-                              {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                            </select>
                           </div>
                           <input type="date" value={editFeeDate} onChange={e => setEditFeeDate(e.target.value)} className={INP} />
                           <div className="flex gap-1.5">
@@ -1316,9 +1313,6 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                          <select value={newFeeCategory} onChange={e => setNewFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
-                            {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                           </select>
                         </div>
                         <input type="date" value={newFeeDate} onChange={e => setNewFeeDate(e.target.value)} className={INP} />
