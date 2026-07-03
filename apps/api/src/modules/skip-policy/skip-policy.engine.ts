@@ -766,6 +766,59 @@ export class SkipPolicyEngine {
     return this.buildStatus(policy, updatedState, deadline, skippedMonths);
   }
 
+  /** Returns all active (not undone) skip records for the user with book/month details. */
+  async getAllSkippedMonths(userId: string) {
+    const records = await this.prisma.userSkipRecord.findMany({
+      where: { userId, undoneAt: null },
+      select: {
+        skippedAt: true,
+        month: {
+          select: {
+            year: true,
+            month: true,
+            theme: true,
+            coverImageAsset: { select: { publicId: true } },
+            coverImage: true,
+            subscription: {
+              select: {
+                name: true,
+                slug: true,
+                coverImage: true,
+                coverImageAsset: { select: { publicId: true } },
+              },
+            },
+            books: {
+              select: {
+                book: { select: { title: true, authors: { select: { name: true } } } },
+                edition: { select: { additionalImages: true } },
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+      },
+      orderBy: [{ month: { year: 'desc' } }, { month: { month: 'desc' } }],
+    });
+
+    return records.map((r) => ({
+      year: r.month.year,
+      month: r.month.month,
+      theme: r.month.theme,
+      skippedAt: r.skippedAt,
+      monthCoverImage: r.month.coverImageAsset?.publicId ?? r.month.coverImage ?? null,
+      subscription: {
+        name: r.month.subscription.name,
+        slug: r.month.subscription.slug,
+        coverImage: r.month.subscription.coverImageAsset?.publicId ?? r.month.subscription.coverImage ?? null,
+      },
+      books: r.month.books.map((mb) => ({
+        title: mb.book.title,
+        authors: mb.book.authors.map((a) => a.name).join(', '),
+        coverImage: mb.edition?.additionalImages?.[0] ?? null,
+      })),
+    }));
+  }
+
   /** Returns the first subscription month for this user (and its seriesId if it's part of a series).
    *  Used to block skipping the first box or first series.
    *  Falls back to the overall first month if entry.startDate is not set. */

@@ -594,14 +594,23 @@ function SubscriptionOverviewPanel({
                 <p className="text-xs text-red-400">{(skipMutation.error as Error).message}</p>
               )}
 
-              {skipStatus.allowUnskip && skipStatus.skippedMonths.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-stone-500">Skipped months</p>
-                  <div className="flex flex-wrap gap-2">
-                    {skipStatus.skippedMonths
-                      .slice()
-                      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
-                      .map(month => (
+              {skipStatus.skippedMonths.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-stone-500">{skipStatus.skippedMonths.length} skipped month{skipStatus.skippedMonths.length !== 1 ? 's' : ''}</p>
+                  <Link href="/my-subscriptions/skipped-months" className="text-xs text-amber-400 hover:text-amber-300 transition-colors">View all →</Link>
+                </div>
+              )}
+
+              {skipStatus.allowUnskip && skipStatus.skippedMonths.length > 0 && (() => {
+                const nextBox = entry.nextBoxMonth
+                const unskippable = skipStatus.skippedMonths
+                  .filter(m => nextBox ? (m.year > nextBox.year || (m.year === nextBox.year && m.month >= nextBox.month)) : false)
+                  .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+                return unskippable.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-stone-500">Unskip upcoming</p>
+                    <div className="flex flex-wrap gap-2">
+                      {unskippable.map(month => (
                         <button
                           key={`${month.year}-${month.month}`}
                           type="button"
@@ -612,12 +621,13 @@ function SubscriptionOverviewPanel({
                           Unskip {formatMonthLabel(month.year, month.month)}
                         </button>
                       ))}
+                    </div>
+                    {unskipMutation.error && (
+                      <p className="text-xs text-red-400">{(unskipMutation.error as Error).message}</p>
+                    )}
                   </div>
-                  {unskipMutation.error && (
-                    <p className="text-xs text-red-400">{(unskipMutation.error as Error).message}</p>
-                  )}
-                </div>
-              )}
+                ) : null
+              })()}
             </div>
           ) : (
             <p className="text-sm text-stone-500">No skip details yet.</p>

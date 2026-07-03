@@ -27,6 +27,13 @@ export class SkipPolicyController {
 
   // ─── User endpoints ────────────────────────────────────────────────
 
+  /** GET /skip-policy/my-skipped — all skipped months with book details for the logged-in user */
+  @Get('my-skipped')
+  @UseGuards(JwtAuthGuard)
+  getAllSkipped(@Request() req: { user: { id: string } }) {
+    return this.engine.getAllSkippedMonths(req.user.id);
+  }
+
   /** GET /skip-policy/:slug/status — get current skip status for the logged-in user */
   @Get(':slug/status')
   @UseGuards(JwtAuthGuard)
