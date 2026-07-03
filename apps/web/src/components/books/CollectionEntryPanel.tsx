@@ -2063,7 +2063,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {fmtOwnership(h.status)}
                           </span>
                           <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
-                          <span className="ml-auto flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <span className="ml-auto flex items-center gap-1">
                             <button
                               onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
                               className="text-stone-500 hover:text-amber-400 transition-colors"
