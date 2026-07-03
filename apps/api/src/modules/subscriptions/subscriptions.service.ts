@@ -305,14 +305,13 @@ export class SubscriptionsService {
     if (query.skipPolicyType) {
       const billingType = query.skipPolicyBillingType;
       if (query.skipPolicyType === 'NONE') {
-        // "No skips" for a billing type = has a NONE policy for that billing type (or ALL),
-        // or if no billingType specified = has no policy that grants skips at all
         if (billingType && billingType !== 'ALL') {
           where.skipPolicies = {
             some: { type: 'NONE', billingType: { in: [billingType, 'ALL'] } },
           };
         } else {
-          where.skipPolicies = { none: { type: { not: 'NONE' } } };
+          // any billing type having a NONE policy
+          where.skipPolicies = { some: { type: 'NONE' } };
         }
       } else {
         const policyFilter: Record<string, unknown> = { type: query.skipPolicyType };
