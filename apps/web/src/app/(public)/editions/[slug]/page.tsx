@@ -268,7 +268,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 }
                 if (credits.length === 0) return null
                 return (
-                  <div className="text-xs text-stone-400 mt-1 text-center leading-5">
+                  <div className="text-xs text-stone-400 mt-1 text-center leading-5 w-full">
                     <span>📷 photo by</span>
                     {credits.map(({ handle, role }) => (
                       <div key={handle}>
