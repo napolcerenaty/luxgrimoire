@@ -437,9 +437,15 @@ function SubscriptionOverviewPanel({
 
   const nextBoxQuery = useQuery<PaginatedResponse<ApiSubscriptionMonth>>({
     queryKey: ['sub-next-box', subscriptionSlug, boxMonth?.year ?? null, boxMonth?.month ?? null],
-    queryFn: () => authFetch<PaginatedResponse<ApiSubscriptionMonth>>(
-      `/subscriptions/${subscriptionSlug}/months?fromYear=${boxMonth!.year}&fromMonth=${boxMonth!.month}&untilYear=${boxMonth!.year}&untilMonth=${boxMonth!.month}`,
-    ),
+    queryFn: () => {
+      const bm = boxMonth!
+      // untilYear/Month uses strictly-less-than, so advance by 1 month to include the target month
+      const untilYear = bm.month < 12 ? bm.year : bm.year + 1
+      const untilMonth = bm.month < 12 ? bm.month + 1 : 1
+      return authFetch<PaginatedResponse<ApiSubscriptionMonth>>(
+        `/subscriptions/${subscriptionSlug}/months?fromYear=${bm.year}&fromMonth=${bm.month}&untilYear=${untilYear}&untilMonth=${untilMonth}&all=true`,
+      )
+    },
     enabled: isExpanded && !!boxMonth,
   })
 
@@ -550,7 +556,7 @@ function SubscriptionOverviewPanel({
           ) : skipQuery.error ? (
             <p className="text-sm text-red-400">Could not load skip status.</p>
           ) : skipStatus?.policyType === 'NONE' ? (
-            <p className="text-sm text-stone-500">No skip policy for this subscription.</p>
+            <p className="text-sm text-stone-500">This subscription doesn't offer skipping.</p>
           ) : skipStatus ? (
             <div className="space-y-3">
               <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-200">
@@ -597,7 +603,7 @@ function SubscriptionOverviewPanel({
               {skipStatus.skippedMonths.length > 0 && (
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-stone-500">{skipStatus.skippedMonths.length} skipped month{skipStatus.skippedMonths.length !== 1 ? 's' : ''}</p>
-                  <Link href="/my-subscriptions/skipped-months" className="text-xs text-amber-400 hover:text-amber-300 transition-colors">View all →</Link>
+                  <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">View all →</Link>
                 </div>
               )}
 
